@@ -15,28 +15,10 @@
   "contributes": {
     "commands": [
       {
-        "command": "konveyor.konveyorGUIView",
-        "title": "Open GUI",
-        "category": "Konveyor"
-      },
-      {
         "command": "konveyor.toggleFullScreen",
-        "title": "Toggle GUI Fullscreen",
-        "category": "Konveyor"
-      }
-    ],
-    "view/title": [
-      {
-        "command": "konveyor.toggleFullScreen",
-        "group": "navigation@1",
-        "when": "view == konveyor.konveyorGUIView"
-      }
-    ],
-    "editor/title": [
-      {
-        "command": "konveyor.toggleFullScreen",
-        "group": "navigation@1",
-        "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
+        "title": "Toggle Fullscreen",
+        "category": "Konveyor",
+        "icon": "$(fullscreen)"
       }
     ],
     "viewsContainers": {
@@ -55,6 +37,22 @@
           "id": "konveyor.konveyorGUIView",
           "name": "Konveyor",
           "visibility": "visible"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "konveyor.toggleFullScreen",
+          "group": "navigation@1",
+          "when": "view == konveyor.konveyorGUIView"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "konveyor.toggleFullScreen",
+          "group": "navigation@1",
+          "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
         }
       ]
     }
