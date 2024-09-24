@@ -45,6 +45,30 @@
         "command": "konveyor.startAnalysis",
         "title": "Start Analysis",
         "category": "Konveyor"
+      },
+      {
+        "command": "konveyor.overrideAnalyzerBinaries",
+        "title": "Override Analyzer Binaries",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.configureCustomRules",
+        "title": "Configure Custom Rules",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.configureSourcesTargets",
+        "title": "Configure Analysis Sources and Targets",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.configureLabelSelector",
+        "title": "Configure Analysis LabelSelector",
+        "category": "Konveyor",
+        "icon": "$(gear)"
       }
     ],
     "submenus": [
@@ -103,7 +127,135 @@
           "group": "navigation@1"
         }
       ]
-    }
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Konveyor",
+      "properties": {
+        "konveyor.analyzerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the analyzer binary. If not set, the extension will use the bundled analyzer.",
+          "scope": "machine",
+          "order": 0
+        },
+        "konveyor.incidentLimit": {
+          "type": "number",
+          "default": 10000,
+          "description": "Maximum number of incidents to report",
+          "scope": "window",
+          "order": 1
+        },
+        "konveyor.contextLines": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of lines of context to include in incident reports",
+          "scope": "window",
+          "order": 2
+        },
+        "konveyor.codeSnipLimit": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of lines of code to include in incident reports",
+          "scope": "window",
+          "order": 3
+        },
+        "konveyor.useDefaultRulesets": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether analysis should use the default rulesets, included in the extension",
+          "scope": "window",
+          "order": 4
+        },
+        "konveyor.customRules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Array of filepaths to additional rules for analysis",
+          "scope": "window",
+          "order": 5
+        },
+        "konveyor.labelSelector": {
+          "type": "string",
+          "default": "discovery",
+          "description": "Expression to select incidents based on custom variables. Example: (!package=io.konveyor.demo.config-utils)",
+          "scope": "window",
+          "order": 6
+        },
+        "konveyor.analyzeKnownLibraries": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether analysis should include known open-source libraries",
+          "scope": "window",
+          "order": 7
+        },
+        "konveyor.analyzeDependencies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether analysis should include dependencies",
+          "scope": "window",
+          "order": 8
+        },
+        "konveyor.analyzeOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether analysis of file should be run when saved",
+          "scope": "window",
+          "order": 9
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "konveyor-setup",
+        "title": "Set up Konveyor",
+        "description": "Configure Konveyor for your project",
+        "steps": [
+          {
+            "id": "override-analyzer",
+            "title": "Override Analyzer Binary",
+            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)",
+
+            "completionEvents": [],
+            "media": {
+              "markdown": "media/walkthroughs/override-analyzer.md"
+            }
+          },
+          {
+            "id": "configure-custom-rules",
+            "title": "Configure Custom Rules",
+            "description": "Add custom rules for analysis\n[Configure Custom Rules](command:konveyor.configureCustomRules)",
+            "completionEvents": ["onCommand:konveyor.configureCustomRules"],
+            "media": {
+              "markdown": "media/walkthroughs/custom-rules.md"
+            }
+          },
+          {
+            "id": "configure-analysis-arguments",
+            "title": "Configure Analysis Arguments",
+            "description": "Set up analysis arguments such as sources, targets, and label selector\n[Configure Analysis Sources and Targets](command:konveyor.configureSourcesTargets)\n[Configure Analysis Label Selector](command:konveyor.configureLabelSelector)",
+            "completionEvents": [
+              "onCommand:konveyor.configureSourcesTargets",
+              "onCommand:konveyor.configureLabelSelector"
+            ],
+            "media": {
+              "markdown": "media/walkthroughs/analysis-arguments.md"
+            }
+          },
+          {
+            "id": "start-analyzer",
+            "title": "Start Analyzer",
+            "description": "Start the analyzer",
+            "completionEvents": [],
+            "media": {
+              "markdown": "media/walkthroughs/start-analyzer.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
