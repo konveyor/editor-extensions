@@ -19,6 +19,12 @@
         "title": "Toggle Fullscreen",
         "category": "Konveyor",
         "icon": "$(fullscreen)"
+      },
+      {
+        "command": "konveyor.editWorkspaceConfig",
+        "title": "Edit Workspace Configuration",
+        "category": "Konveyor",
+        "icon": "$(settings-gear)"
       }
     ],
     "viewsContainers": {
@@ -55,6 +61,35 @@
           "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
         }
       ]
+    },
+    "configuration": {
+      "title": "Konveyor",
+      "properties": {
+        "konveyor.analyzerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the analyzer binary. If not set, the extension will use the bundled analyzer.",
+          "scope": "machine-overridable"
+        },
+        "konveyor.incidentLimit": {
+          "type": "number",
+          "default": 10000,
+          "description": "Maximum number of incidents to report",
+          "scope": "window"
+        },
+        "konveyor.contextLines": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of lines of context to include in incident reports",
+          "scope": "window"
+        },
+        "konveyor.codeSnipLimit": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of lines of code to include in incident reports",
+          "scope": "window"
+        }
+      }
     }
   },
   "scripts": {
