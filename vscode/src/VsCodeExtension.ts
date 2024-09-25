@@ -36,6 +36,6 @@ export class VsCodeExtension {
     });
 
     // Commands
-    registerAllCommands(context, this.extensionContext, this.sidebar);
+    registerAllCommands(context, this.sidebar);
   }
 }

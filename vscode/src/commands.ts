@@ -83,11 +83,10 @@ const commandsMap: (
 
 export function registerAllCommands(
   context: vscode.ExtensionContext,
-  extensionContext: vscode.ExtensionContext,
-  sidebar: KonveyorGUIWebviewViewProvider,
+  sidebar: KonveyorGUIWebviewViewProvider
 ) {
   for (const [command, callback] of Object.entries(
-    commandsMap(extensionContext, sidebar),
+    commandsMap(context, sidebar)
   )) {
     context.subscriptions.push(
       vscode.commands.registerCommand(command, callback),
