@@ -1,5 +1,6 @@
 import * as React from "react";
 
+// Global variable vscode pulled from the window object.
 interface vscode {
   postMessage(message: any): void;
 }

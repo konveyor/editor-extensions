@@ -40,6 +40,17 @@
         "title": "Toggle Fullscreen",
         "category": "Konveyor",
         "icon": "$(fullscreen)"
+      },
+      {
+        "command": "konveyor.startAnalysis",
+        "title": "Start Analysis",
+        "category": "Konveyor"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "konveyor.submenu",
+        "label": "Konveyor Actions"
       }
     ],
     "viewsContainers": {
@@ -74,6 +85,22 @@
           "command": "konveyor.toggleFullScreen",
           "group": "navigation@1",
           "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
+        },
+        {
+          "command": "konveyor.startAnalysis",
+          "group": "navigation@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "konveyor.submenu",
+          "group": "navigation@1"
+        }
+      ],
+      "konveyor.submenu": [
+        {
+          "command": "konveyor.startAnalysis",
+          "group": "navigation@1"
         }
       ]
     }

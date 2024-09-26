@@ -3,16 +3,18 @@ import { v4 as uuidv4 } from "uuid";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands } from "./commands";
 import { setupWebviewMessageListener } from "./webviewMessageHandler";
+import { ExtensionState } from "./extensionState";
 
 export class VsCodeExtension {
   private extensionContext: vscode.ExtensionContext;
-  private sidebar: KonveyorGUIWebviewViewProvider;
   private windowId: string;
+  private state: ExtensionState;
 
   constructor(context: vscode.ExtensionContext) {
     this.extensionContext = context;
     this.windowId = uuidv4();
-    this.sidebar = new KonveyorGUIWebviewViewProvider(
+
+    const sidebarProvider = new KonveyorGUIWebviewViewProvider(
       this.windowId,
       this.extensionContext,
     );
@@ -24,11 +26,15 @@ export class VsCodeExtension {
       );
     }
 
+    this.state = {
+      sidebarProvider,
+    };
+
     // Sidebar
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
         "konveyor.konveyorGUIView",
-        this.sidebar,
+        sidebarProvider,
         {
           webviewOptions: {
             retainContextWhenHidden: true,
@@ -37,12 +43,11 @@ export class VsCodeExtension {
       ),
     );
 
-    // Set up message listener when the webview is ready
-    this.sidebar.onWebviewReady((webview) => {
+    sidebarProvider.onWebviewReady((webview) => {
       setupWebviewMessageListener(webview);
     });
 
     // Commands
-    registerAllCommands(context, this.sidebar);
+    registerAllCommands(this.extensionContext, this.state);
   }
 }
