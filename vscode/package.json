@@ -31,7 +31,6 @@
     "MTA",
     "Analyze"
   ],
-  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -276,6 +275,7 @@
     "prepare": "cd .. && husky vscode/.husky"
   },
   "devDependencies": {
+    "@eslint/js": "^9.11.1",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
     "@types/react": "^18.3.8",
@@ -284,25 +284,29 @@
     "@types/vscode": "^1.93.0",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
-    "typescript-eslint": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "css-loader": "^7.1.2",
     "eslint": "^9.11.1",
-    "@eslint/js": "^9.11.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react": "^7.36.1",
     "eslint-plugin-unused-imports": "^4.1.4",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
+    "mini-css-extract-plugin": "^2.9.1",
+    "prettier": "^3.0.2",
+    "rimraf": "^4.4.1",
+    "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.6.2",
+    "typescript-eslint": "^8.7.0",
     "webpack": "^5.94.0",
-    "webpack-cli": "^5.1.4",
-    "prettier": "^3.0.2",
-    "rimraf": "^4.4.1"
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@patternfly/patternfly": "^5.4.1",
+    "@patternfly/react-core": "^5.4.0",
     "babel-loader": "^9.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

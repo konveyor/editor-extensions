@@ -1,4 +1,5 @@
 const path = require("path");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 module.exports = (env, argv) => {
   const mode = argv.mode || "none";
@@ -57,13 +58,21 @@ module.exports = (env, argv) => {
     },
     module: {
       rules: [
-        { test: /\.tsx?$/, use: ["babel-loader", "ts-loader"] },
+        {
+          test: /\.tsx?$/,
+          use: ["babel-loader", "ts-loader"],
+        },
         {
           test: /\.css$/,
-          use: ["style-loader", "css-loader"],
+          use: [MiniCssExtractPlugin.loader, "css-loader"],
         },
       ],
     },
+    plugins: [
+      new MiniCssExtractPlugin({
+        filename: "[name].css",
+      }),
+    ],
     devtool: isDev ? "inline-cheap-module-source-map" : false,
     watch: isDev,
     watchOptions: {
