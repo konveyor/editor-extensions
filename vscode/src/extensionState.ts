@@ -1,7 +1,21 @@
-// extensionState.ts
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
+import * as vscode from "vscode";
+
+export class SharedState {
+  private state: Map<string, any> = new Map();
+
+  get(key: string) {
+    return this.state.get(key);
+  }
+
+  set(key: string, value: any) {
+    this.state.set(key, value);
+  }
+}
 
 export interface ExtensionState {
+  sharedState: SharedState;
+  webviewProviders: Set<KonveyorGUIWebviewViewProvider>;
   sidebarProvider: KonveyorGUIWebviewViewProvider;
-  // Add other shared components as needed
+  extensionContext: vscode.ExtensionContext; // Add this line
 }

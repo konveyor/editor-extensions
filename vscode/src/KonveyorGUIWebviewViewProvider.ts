@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import { getWebviewContent } from "./webviewContent";
+import { ExtensionState } from "./extensionState";
+import { setupWebviewMessageListener } from "./webviewMessageHandler";
 
 export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "konveyor.konveyorGUIView";
@@ -10,9 +12,10 @@ export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvide
 
   constructor(
     private readonly windowId: string,
-    private readonly extensionContext: vscode.ExtensionContext,
+    private readonly extensionState: ExtensionState,
   ) {
     this.outputChannel = vscode.window.createOutputChannel("Konveyor");
+    this.extensionState.webviewProviders.add(this);
   }
 
   get isVisible() {
@@ -41,12 +44,22 @@ export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvide
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(this.extensionContext.extensionUri, "media"),
-        vscode.Uri.joinPath(this.extensionContext.extensionUri, "out"),
+        vscode.Uri.joinPath(this.extensionState.extensionContext.extensionUri, "media"),
+        vscode.Uri.joinPath(this.extensionState.extensionContext.extensionUri, "out"),
       ],
     };
 
-    webviewView.webview.html = getWebviewContent(this.extensionContext, webviewView.webview, true);
+    webviewView.webview.html = getWebviewContent(
+      this.extensionState.extensionContext,
+      webviewView.webview,
+      true,
+    );
+
+    setupWebviewMessageListener(webviewView.webview, this.extensionState, this);
+
+    webviewView.onDidDispose(() => {
+      this.extensionState.webviewProviders.delete(this);
+    });
 
     if (this.webviewReadyCallback) {
       this.webviewReadyCallback(webviewView.webview);

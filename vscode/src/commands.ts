@@ -3,6 +3,9 @@ import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState } from "./extensionState";
 import { getWebviewContent } from "./webviewContent";
 import { sourceOptions, targetOptions } from "./config/labels";
+import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
+import { Incident } from "./webview/types";
+import { generateMockIncidentData } from "./generateMockData";
 
 let fullScreenPanel: vscode.WebviewPanel | undefined;
 
@@ -11,13 +14,60 @@ function getFullScreenTab() {
   return tabs.find((tab) => (tab.input as any)?.viewType?.endsWith("konveyor.konveyorGUIView"));
 }
 
-const commandsMap: (
-  extensionContext: vscode.ExtensionContext,
-  state: ExtensionState,
-) => {
+async function analyzeFileContent(contentString: string, state: ExtensionState) {
+  const { extensionContext } = state;
+
+  const incidentDataString = extensionContext.workspaceState.get<string>("incidentData", "[]");
+  const incidentData = JSON.parse(incidentDataString) as Incident[];
+
+  const diagnosticCollection = vscode.languages.createDiagnosticCollection("konveyor");
+  const diagnosticsMap: Map<string, vscode.Diagnostic[]> = new Map();
+
+  incidentData.forEach((incident) => {
+    const fileUri = vscode.Uri.parse(incident.file);
+
+    const lineNumber = incident.line ? incident.line - 1 : 0;
+    const severity =
+      incident.severity === "High"
+        ? vscode.DiagnosticSeverity.Error
+        : incident.severity === "Medium"
+          ? vscode.DiagnosticSeverity.Warning
+          : vscode.DiagnosticSeverity.Information;
+
+    const diagnostic = new vscode.Diagnostic(
+      new vscode.Range(
+        new vscode.Position(lineNumber, 0),
+        new vscode.Position(lineNumber, Number.MAX_VALUE),
+      ),
+      incident.message,
+      severity,
+    );
+
+    const diagnostics = diagnosticsMap.get(fileUri.toString()) || [];
+    diagnostics.push(diagnostic);
+    diagnosticsMap.set(fileUri.toString(), diagnostics);
+  });
+
+  diagnosticsMap.forEach((diagnostics, fileUri) => {
+    diagnosticCollection.set(vscode.Uri.parse(fileUri), diagnostics);
+  });
+
+  const sidebarProvider = state.sidebarProvider;
+  if (sidebarProvider && sidebarProvider.webview) {
+    sidebarProvider.webview.postMessage({
+      command: "incidentData",
+      data: incidentData,
+    });
+  }
+
+  // Optionally, show an information message upon completion
+  vscode.window.showInformationMessage("Diagnostics created based on mock analysis.");
+}
+
+const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
-} = (extensionContext, state) => {
-  const { sidebarProvider } = state;
+} = (state) => {
+  const { sidebarProvider, extensionContext } = state;
   return {
     "konveyor.startAnalysis": async (resource: vscode.Uri) => {
       if (!resource) {
@@ -25,22 +75,18 @@ const commandsMap: (
         return;
       }
 
-      // Get the file path
       const filePath = resource.fsPath;
 
-      // Perform your analysis logic here
       try {
-        // For example, read the file content
         const fileContent = await vscode.workspace.fs.readFile(resource);
         const contentString = Buffer.from(fileContent).toString("utf8");
 
-        console.log(contentString, fileContent);
+        await extensionContext.workspaceState.update(
+          "incidentData",
+          JSON.stringify(generateMockIncidentData()),
+        );
 
-        // TODO: Analyze the file content
-        vscode.window.showInformationMessage(`Analyzing file: ${filePath}`);
-
-        // Call your analysis function/module
-        // analyzeFileContent(contentString);
+        await analyzeFileContent(contentString, state);
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to analyze file: ${error}`);
       }
@@ -49,10 +95,8 @@ const commandsMap: (
     "konveyor.focusKonveyorInput": async () => {
       const fullScreenTab = getFullScreenTab();
       if (!fullScreenTab) {
-        // focus sidebar
         vscode.commands.executeCommand("konveyor.konveyorGUIView.focus");
       } else {
-        // focus fullscreen
         fullScreenPanel?.reveal();
       }
       // sidebar.webviewProtocol?.request("focusInput", undefined);
@@ -77,28 +121,30 @@ const commandsMap: (
 
       //create the full screen panel
       const panel = vscode.window.createWebviewPanel(
-        "konveyor.konveyorGUIView",
+        "konveyor.konveyorFullScreenView",
         "Konveyor",
         vscode.ViewColumn.One,
         {
           retainContextWhenHidden: true,
           enableScripts: true,
+          localResourceRoots: [
+            vscode.Uri.joinPath(extensionContext.extensionUri, "media"),
+            vscode.Uri.joinPath(extensionContext.extensionUri, "out"),
+          ],
         },
       );
       fullScreenPanel = panel;
 
       //Add content to the panel
-      panel.webview.html = getWebviewContent(
-        extensionContext,
-        sidebarProvider?.webview || panel.webview,
-        true,
-      );
+      panel.webview.html = getWebviewContent(extensionContext, panel.webview, true);
 
-      setupWebviewMessageListener(panel.webview);
+      setupWebviewMessageListener(panel.webview, state, sidebarProvider);
 
       //When panel closes, reset the webview and focus
       panel.onDidDispose(
         () => {
+          state.webviewProviders.delete(sidebarProvider);
+          fullScreenPanel = undefined;
           vscode.commands.executeCommand("konveyor.focusKonveyorInput");
         },
         null,
@@ -297,8 +343,8 @@ const commandsMap: (
   };
 };
 
-export function registerAllCommands(context: vscode.ExtensionContext, state: ExtensionState) {
-  for (const [command, callback] of Object.entries(commandsMap(context, state))) {
-    context.subscriptions.push(vscode.commands.registerCommand(command, callback));
+export function registerAllCommands(state: ExtensionState) {
+  for (const [command, callback] of Object.entries(commandsMap(state))) {
+    state.extensionContext.subscriptions.push(vscode.commands.registerCommand(command, callback));
   }
 }
