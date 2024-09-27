@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
-import { getNonce } from "./getNonce";
 import { getWebviewContent } from "./webviewContent";
+import { ExtensionState } from "./extensionState";
+import { setupWebviewMessageListener } from "./webviewMessageHandler";
 
 export class KonveyorGUIWebviewViewProvider
   implements vscode.WebviewViewProvider
@@ -14,8 +15,11 @@ export class KonveyorGUIWebviewViewProvider
   constructor(
     private readonly windowId: string,
     private readonly extensionContext: vscode.ExtensionContext,
+    private readonly extensionState: ExtensionState
   ) {
     this.outputChannel = vscode.window.createOutputChannel("Konveyor");
+    // Register this provider instance
+    this.extensionState.webviewProviders.add(this);
   }
 
   get isVisible() {
@@ -55,8 +59,35 @@ export class KonveyorGUIWebviewViewProvider
       true
     );
 
+    // Set up message listener
+    this.setupWebviewMessageListener(webviewView.webview);
+
+    // Handle disposal
+    webviewView.onDidDispose(() => {
+      this.extensionState.webviewProviders.delete(this);
+    });
+
     if (this.webviewReadyCallback) {
       this.webviewReadyCallback(webviewView.webview);
+    }
+  }
+
+  private setupWebviewMessageListener(webview: vscode.Webview) {
+    setupWebviewMessageListener(webview, this.extensionState, this)
+    // webview.onDidReceiveMessage((message) => {
+    //   // Handle messages from the webview
+    //   this.extensionState.sharedState.set('sharedData', message.data);
+
+    //   // Broadcast to other webviews
+    //   this.broadcastMessage(message);
+    // });
+  }
+
+  private broadcastMessage(message: any) {
+    for (const provider of this.extensionState.webviewProviders) {
+      if (provider !== this && provider.webview) {
+        provider.webview.postMessage(message);
+      }
     }
   }
 }

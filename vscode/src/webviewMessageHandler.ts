@@ -1,16 +1,30 @@
 import * as vscode from "vscode";
+import { ExtensionState } from "./extensionState";
+import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 
-export function setupWebviewMessageListener(webview: vscode.Webview) {
-  return webview.onDidReceiveMessage(async (message: any) => {
+export function setupWebviewMessageListener(
+  webview: vscode.Webview,
+  extensionState: ExtensionState,
+  currentProvider: KonveyorGUIWebviewViewProvider,
+) {
+  webview.onDidReceiveMessage(async (message: any) => {
     switch (message.command) {
-      case "startup":
-        console.log("received startup message from webview");
+      case "updateState":
+        // Update shared state
+        extensionState.sharedState.set('sharedData', message.data);
+
+        // Broadcast to other webviews
+        for (const provider of extensionState.webviewProviders) {
+          if (provider !== currentProvider && provider.webview) {
+            provider.webview.postMessage({
+              command: "updateState",
+              data: message.data,
+            });
+          }
+        }
         break;
-      case "testing":
-        console.log("received testing message from webview");
-        webview.postMessage({ command: "refactor" });
-        break;
-      // Add more cases as needed
+
+      // Handle other commands...
     }
   });
 }

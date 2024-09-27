@@ -8,7 +8,7 @@ declare const vscode: vscode;
 
 const sendMessage = () => {
   console.log("button clicked");
-  vscode.postMessage({ command: "testing" });
+  vscode.postMessage({ command: "testing", data: { test: "test" } });
 };
 
 const App = () => {
@@ -21,6 +21,10 @@ const App = () => {
         case "refactor":
           setButtonText("The brain is working");
           break;
+        case "updateState":
+            console.log('Receive updated state:', message.data)
+          break;
+
       }
     });
   });

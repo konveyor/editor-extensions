@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands } from "./commands";
 import { setupWebviewMessageListener } from "./webviewMessageHandler";
-import { ExtensionState } from "./extensionState";
+import { ExtensionState, SharedState } from "./extensionState";
 
 export class VsCodeExtension {
   private extensionContext: vscode.ExtensionContext;
@@ -14,10 +14,21 @@ export class VsCodeExtension {
     this.extensionContext = context;
     this.windowId = uuidv4();
 
+    // Initialize shared state and webview providers
+    this.state = {
+      sharedState: new SharedState(),
+      webviewProviders: new Set<KonveyorGUIWebviewViewProvider>(),
+      sidebarProvider: undefined as any, // We'll assign this after creation
+    };
+
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(
       this.windowId,
       this.extensionContext,
+      this.state
     );
+
+    this.state.sidebarProvider = sidebarProvider
+    this.state.webviewProviders.add(sidebarProvider)
 
     // Check for multi-root workspace
     if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 1) {
@@ -25,10 +36,6 @@ export class VsCodeExtension {
         "Konveyor does not currently support multi-root workspaces. Only the first workspace folder will be analyzed."
       );
     }
-
-    this.state = {
-      sidebarProvider,
-    };
 
     // Sidebar
     context.subscriptions.push(
