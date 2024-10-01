@@ -42,9 +42,10 @@
         "icon": "$(fullscreen)"
       },
       {
-        "command": "konveyor.startAnalysis",
-        "title": "Start Analysis",
-        "category": "Konveyor"
+        "command": "konveyor.startAnalyzer",
+        "title": "Start Analyzer",
+        "category": "Konveyor",
+        "icon": "$(play}"
       },
       {
         "command": "konveyor.overrideAnalyzerBinaries",
@@ -111,7 +112,7 @@
           "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
         },
         {
-          "command": "konveyor.startAnalysis",
+          "command": "konveyor.startAnalyzer",
           "group": "navigation@1"
         }
       ],
@@ -121,12 +122,7 @@
           "group": "navigation@1"
         }
       ],
-      "konveyor.submenu": [
-        {
-          "command": "konveyor.startAnalysis",
-          "group": "navigation@1"
-        }
-      ]
+      "konveyor.submenu": []
     },
     "configuration": {
       "type": "object",
@@ -179,7 +175,7 @@
         },
         "konveyor.labelSelector": {
           "type": "string",
-          "default": "discovery",
+          "default": "",
           "description": "Expression to select incidents based on custom variables. Example: (!package=io.konveyor.demo.config-utils)",
           "scope": "window",
           "order": 6
@@ -248,7 +244,7 @@
           {
             "id": "start-analyzer",
             "title": "Start Analyzer",
-            "description": "Start the analyzer",
+            "description": "Start the analyzer\n[Start Analyzer](command:konveyor.startAnalyzer)",
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/start-analyzer.md"
