@@ -14,6 +14,7 @@ import {
   Button,
   Stack,
   StackItem,
+  Tooltip,
 } from "@patternfly/react-core";
 import { ArrowLeftIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
@@ -67,7 +68,11 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
           <Card isCompact>
             <CardBody>
               <ExpandableSection
-                toggleText={violation.description}
+                toggleContent={
+                  <Tooltip content={violation.description}>
+                    <Text className="truncate-text">{violation.description}</Text>
+                  </Tooltip>
+                }
                 onToggle={() => toggleViolation(violationId)}
                 isExpanded={isExpanded}
               >
@@ -77,9 +82,15 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
                   </FlexItem>
                   {violation.incidents.map((incident) => (
                     <FlexItem key={incident.id}>
-                      <Button variant="link" onClick={() => handleIncidentClick(incident)}>
-                        {incident.message}
-                      </Button>
+                      <Tooltip content={incident.message}>
+                        <Button
+                          variant="link"
+                          onClick={() => handleIncidentClick(incident)}
+                          className="truncate-text"
+                        >
+                          {incident.message}
+                        </Button>
+                      </Tooltip>
                       <Badge>{incident.severity}</Badge>
                     </FlexItem>
                   ))}
@@ -98,22 +109,23 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
       const violationId = Object.keys(ruleSet.violations || {})[index];
       const violation = ruleSet.violations?.[violationId];
       const isExpanded = expandedViolations.has(violationId);
-      return isExpanded && violation ? 50 + violation.incidents.length * 40 : 50; // Adjust these values as needed
+      return isExpanded && violation ? 70 + violation.incidents.length * 40 : 70; // Increased base height
     },
     [expandedViolations, ruleSet.violations],
   );
 
   return (
     <Stack hasGutter>
-      <StackItem>
-        <AutoSizer disableHeight>
-          {({ width }) => (
+      <StackItem isFilled>
+        <AutoSizer>
+          {({ width, height }) => (
             <List
               ref={listRef}
-              height={400} // Set a fixed height or calculate based on available space
+              height={height}
               itemCount={Object.keys(ruleSet.violations || {}).length}
               itemSize={getItemSize}
               width={width}
+              overscanCount={5}
             >
               {renderViolation}
             </List>
