@@ -13,11 +13,11 @@ import {
   Button,
 } from "@patternfly/react-core";
 import { SearchIcon } from "@patternfly/react-icons";
-import ViolationsList from "./ViolationsList";
-import IncidentsPanel from "./IncidentsPanel";
-import { RuleSet } from "../types";
 import { vscode } from "../globals";
 import { generateMockRuleSet } from "../mockData";
+import { RuleSet } from "../types";
+import IncidentsPanel from "./IncidentsPanel";
+import ViolationsList from "./ViolationsList";
 
 const App: React.FC = () => {
   const [ruleSet, setRuleSet] = useState<RuleSet | null>(null);

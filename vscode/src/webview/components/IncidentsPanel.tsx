@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { Violation, Incident } from "../types";
 import {
-  Split,
-  SplitItem,
   List,
   ListItem,
   ListVariant,
@@ -14,8 +12,10 @@ import {
   TextContent,
   Text,
   TextVariants,
+  Flex,
+  FlexItem,
 } from "@patternfly/react-core";
-import { ArrowRightIcon } from "@patternfly/react-icons";
+import { ArrowLeftIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
 
 interface IncidentsPanelProps {
@@ -38,54 +38,63 @@ const IncidentsPanel: React.FC<IncidentsPanelProps> = ({ violation }) => {
     });
   };
 
+  const handleBackClick = () => {
+    setSelectedIncident(null);
+  };
+
+  if (selectedIncident) {
+    return (
+      <Card>
+        <CardTitle>
+          <Flex>
+            <FlexItem>
+              <Button
+                variant="plain"
+                icon={<ArrowLeftIcon />}
+                onClick={handleBackClick}
+                aria-label="Back to incidents list"
+              />
+            </FlexItem>
+            <FlexItem>Incident Details</FlexItem>
+          </Flex>
+        </CardTitle>
+        <CardBody>
+          <TextContent>
+            <Text component={TextVariants.h3}>{selectedIncident.message}</Text>
+            <Text component={TextVariants.p}>
+              <strong>Severity:</strong> {selectedIncident.severity}
+            </Text>
+            <Text component={TextVariants.p}>
+              <strong>File:</strong> {selectedIncident.file}
+            </Text>
+            <Text component={TextVariants.p}>
+              <strong>Line:</strong> {selectedIncident.line}
+            </Text>
+          </TextContent>
+        </CardBody>
+      </Card>
+    );
+  }
+
   return (
-    <Split>
-      <SplitItem isFilled>
-        <List variant={ListVariant.inline}>
-          {violation.incidents.map((incident) => (
-            <ListItem
-              key={incident.id}
-              onClick={() => handleIncidentClick(incident)}
-              //   isActive={selectedIncident?.id === incident.id}
-              style={{ cursor: "pointer" }}
-            >
-              <Split>
-                <SplitItem isFilled>
-                  <span>{incident.message}</span>
-                </SplitItem>
-                <SplitItem>
-                  <Label>{incident.severity}</Label>
-                </SplitItem>
-                <SplitItem>
-                  <Button variant="link" icon={<ArrowRightIcon />} />
-                </SplitItem>
-              </Split>
-            </ListItem>
-          ))}
-        </List>
-      </SplitItem>
-      {selectedIncident && (
-        <SplitItem>
-          <Card>
-            <CardTitle>Incident Details</CardTitle>
-            <CardBody>
-              <TextContent>
-                <Text component={TextVariants.h3}>{selectedIncident.message}</Text>
-                <Text component={TextVariants.p}>
-                  <strong>Severity:</strong> {selectedIncident.severity}
-                </Text>
-                <Text component={TextVariants.p}>
-                  <strong>File:</strong> {selectedIncident.file}
-                </Text>
-                <Text component={TextVariants.p}>
-                  <strong>Line:</strong> {selectedIncident.line}
-                </Text>
-              </TextContent>
-            </CardBody>
-          </Card>
-        </SplitItem>
-      )}
-    </Split>
+    <List variant={ListVariant.inline}>
+      {violation.incidents.map((incident) => (
+        <ListItem
+          key={incident.id}
+          onClick={() => handleIncidentClick(incident)}
+          style={{ cursor: "pointer" }}
+        >
+          <Flex>
+            <FlexItem grow={{ default: "grow" }}>
+              <span>{incident.message}</span>
+            </FlexItem>
+            <FlexItem>
+              <Label>{incident.severity}</Label>
+            </FlexItem>
+          </Flex>
+        </ListItem>
+      ))}
+    </List>
   );
 };
 
