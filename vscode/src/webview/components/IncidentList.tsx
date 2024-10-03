@@ -1,79 +1,76 @@
 import React from "react";
-import { Incident } from "../types";
-import { vscode } from "../globals";
-import {
-  DataList,
-  DataListItem,
-  DataListItemRow,
-  DataListItemCells,
-  DataListCell,
-  DataListAction,
-  Button,
-  Label,
-} from "@patternfly/react-core";
-import {
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  InfoCircleIcon,
-} from "@patternfly/react-icons";
+import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
+import { Card, CardBody, CardHeader, CardTitle } from "@patternfly/react-core";
 
-interface IncidentListProps {
+interface Incident {
+  id: string;
+  title: string;
+  severity: "Low" | "Medium" | "High" | "Critical";
+  status: "Open" | "In Progress" | "Resolved" | "Closed";
+  lastUpdated: string;
+}
+
+interface IncidentsListProps {
   incidents: Incident[];
 }
 
-const severityIconMap = {
-  High: <ExclamationCircleIcon color="var(--pf-global--danger-color--100)" />,
-  Medium: <ExclamationTriangleIcon color="var(--pf-global--warning-color--100)" />,
-  Low: <InfoCircleIcon color="var(--pf-global--info-color--100)" />,
-};
+const IncidentsList: React.FC<IncidentsListProps> = ({ incidents }) => {
+  const [sortBy, setSortBy] = React.useState({
+    index: 0,
+    direction: "asc" as "asc" | "desc",
+  });
 
-const IncidentList: React.FC<IncidentListProps> = ({ incidents }) => {
-  const handleIncidentClick = (incident: Incident) => {
-    vscode.postMessage({
-      command: "openFile",
-      file: incident.file,
-      line: incident.line,
-    });
+  const columns = ["ID", "Title", "Severity", "Status", "Last Updated"];
+
+  const onSort = (index: number) => {
+    setSortBy((prev) => ({
+      index,
+      direction: prev.index === index && prev.direction === "asc" ? "desc" : "asc",
+    }));
   };
 
-  if (!incidents || incidents.length === 0) {
-    return <div>No incidents found.</div>;
-  }
+  const sortedIncidents = [...incidents].sort((a, b) => {
+    const aValue = Object.values(a)[sortBy.index];
+    const bValue = Object.values(b)[sortBy.index];
+    if (aValue < bValue) {
+      return sortBy.direction === "asc" ? -1 : 1;
+    }
+    if (aValue > bValue) {
+      return sortBy.direction === "asc" ? 1 : -1;
+    }
+    return 0;
+  });
 
   return (
-    <DataList aria-label="List of Incidents">
-      {incidents.map((incident) => (
-        <DataListItem key={incident.id} aria-labelledby={`incident-${incident.id}`}>
-          <DataListItemRow>
-            <DataListItemCells
-              dataListCells={[
-                <DataListCell key="icon">{severityIconMap[incident.severity]}</DataListCell>,
-                <DataListCell key="primary content">
-                  <div id={`incident-${incident.id}`}>
-                    <strong>{incident.message}</strong>
-                  </div>
-                  <div>
-                    <Label>{incident.severity}</Label>
-                  </div>
-                  <div>File: {incident.file}</div>
-                  <div>Line: {incident.line}</div>
-                </DataListCell>,
-              ]}
-            />
-            <DataListAction
-              aria-labelledby={`incident-${incident.id} action`}
-              id={`incident-${incident.id}-action`}
-              aria-label="Actions"
-            >
-              <Button variant="secondary" onClick={() => handleIncidentClick(incident)}>
-                Open
-              </Button>
-            </DataListAction>
-          </DataListItemRow>
-        </DataListItem>
-      ))}
-    </DataList>
+    <Card>
+      <CardHeader>
+        <CardTitle>Incidents</CardTitle>
+      </CardHeader>
+      <CardBody>
+        <Table aria-label="Sortable Table">
+          <Thead>
+            <Tr>
+              {columns.map((column, index) => (
+                <Th key={index} onClick={() => onSort(index)}>
+                  {column}
+                  {sortBy.index === index && (sortBy.direction === "asc" ? " ▲" : " ▼")}
+                </Th>
+              ))}
+            </Tr>
+          </Thead>
+          <Tbody>
+            {sortedIncidents.map((incident, rowIndex) => (
+              <Tr key={rowIndex}>
+                {Object.values(incident).map((value, cellIndex) => (
+                  <Td key={cellIndex}>{value}</Td>
+                ))}
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </CardBody>
+    </Card>
   );
 };
 
-export default IncidentList;
+export default IncidentsList;

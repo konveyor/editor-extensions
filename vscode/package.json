@@ -307,6 +307,7 @@
   "dependencies": {
     "@patternfly/patternfly": "^5.4.1",
     "@patternfly/react-core": "^5.4.0",
+    "@patternfly/react-table": "^5.4.1",
     "babel-loader": "^9.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

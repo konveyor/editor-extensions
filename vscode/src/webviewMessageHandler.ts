@@ -14,8 +14,6 @@ export function setupWebviewMessageListener(
   const incidentData = JSON.parse(incidentDataString);
 
   webview.onDidReceiveMessage(async (message) => {
-    const fileUri = vscode.Uri.parse(message.file);
-
     switch (message.command) {
       case "requestIncidentData":
         webview.postMessage({
@@ -24,7 +22,8 @@ export function setupWebviewMessageListener(
         });
         break;
 
-      case "openFile":
+      case "openFile": {
+        const fileUri = vscode.Uri.parse(message.file);
         try {
           const doc = await vscode.workspace.openTextDocument(fileUri);
           const editor = await vscode.window.showTextDocument(doc, {
@@ -38,6 +37,7 @@ export function setupWebviewMessageListener(
           vscode.window.showErrorMessage(`Failed to open file: ${error}`);
         }
         break;
+      }
     }
   });
 }

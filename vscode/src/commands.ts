@@ -3,9 +3,8 @@ import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState } from "./extensionState";
 import { getWebviewContent } from "./webviewContent";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { Incident } from "./webview/types";
-import { generateMockIncidentData } from "./generateMockData";
+import { generateMockIncidentData } from "./webview/mockData";
 
 let fullScreenPanel: vscode.WebviewPanel | undefined;
 
