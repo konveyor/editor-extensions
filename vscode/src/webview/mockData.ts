@@ -1,119 +1,58 @@
 import { Incident, RuleSet } from "./types";
 
-export function generateMockIncidentData(): Incident[] {
-  const mockData = [
-    {
-      id: "0000",
-      name: "configuration-utils",
-      rulesets: [
-        {
-          name: "java/code-quality",
-          description:
-            "This ruleset analyzes Java applications for best practices and code quality improvements.",
-          violations: {
-            "use-logging-framework-00001": {
-              description: "Replace System.out.println statements with a logging framework.",
-              category: "mandatory",
-              labels: [
-                "konveyor.io/source",
-                "konveyor.io/target=java",
-                "konveyor.io/category=logging",
-              ],
-              incidents: [
-                {
-                  uri: "file:///Users/ibolton/Development/tackle-testapp-public/configuration-utils/src/main/java/io/konveyor/demo/config/ApplicationConfiguration.java",
-                  message:
-                    "Replace `System.out.println` with a logging framework for better flexibility and control over logging levels.",
-                  lineNumber: 20,
-                  variables: {
-                    matchingText: "System.out.println",
-                  },
-                },
-              ],
-              effort: 1,
-            },
-            "handle-exceptions-properly-00002": {
-              description: "Handle exceptions appropriately instead of using generic catch blocks.",
-              category: "potential",
-              labels: [
-                "konveyor.io/source",
-                "konveyor.io/target=java",
-                "konveyor.io/category=exception-handling",
-              ],
-              incidents: [
-                {
-                  uri: "file:///Users/ibolton/Development/tackle-testapp-public/configuration-utils/src/main/java/io/konveyor/demo/config/ApplicationConfiguration.java",
-                  message:
-                    "Consider handling specific exceptions or rethrowing them after logging.",
-                  lineNumber: 17,
-                  variables: {
-                    matchingText: "catch (Exception e)",
-                  },
-                },
-              ],
-              effort: 2,
-            },
-          },
-        },
-      ],
-      depItems: [
-        {
-          fileURI:
-            "file:///Users/ibolton/Development/tackle-testapp-public/configuration-utils/pom.xml",
-          provider: "java",
-          dependencies: [],
-        },
-      ],
-    },
+function generateRandomIncident(violationId: string, index: number): Incident {
+  const severities = ["High", "Medium", "Low"];
+  const files = [
+    "/src/main/java/com/example/App.java",
+    "/src/main/java/com/example/Service.java",
+    "/src/main/java/com/example/Repository.java",
+    "/src/main/java/com/example/Controller.java",
+    "/src/main/java/com/example/Model.java",
   ];
 
-  const incidents: Incident[] = [];
-
-  mockData.forEach((app) => {
-    app.rulesets.forEach((ruleset) => {
-      if (ruleset.violations) {
-        Object.entries(ruleset.violations).forEach(([violationId, violation]: [string, any]) => {
-          violation.incidents.forEach((incident: any) => {
-            incidents.push({
-              id: `${incident.uri}:${incident.lineNumber}`,
-              file: incident.uri,
-              line: incident.lineNumber,
-              severity:
-                violation.category === "mandatory"
-                  ? "High"
-                  : violation.category === "potential"
-                    ? "Medium"
-                    : "Low",
-              message: incident.message,
-            });
-          });
-        });
-      }
-    });
-  });
-
-  return incidents;
+  return {
+    id: `${violationId}-${index}`,
+    file: files[Math.floor(Math.random() * files.length)],
+    line: Math.floor(Math.random() * 1000) + 1,
+    severity: severities[Math.floor(Math.random() * severities.length)] as
+      | "High"
+      | "Medium"
+      | "Low",
+    message: `Mock incident ${index} for violation ${violationId}`,
+  };
 }
 
 export function generateMockRuleSet(): RuleSet {
-  const mockData = generateMockIncidentData();
   const violations: { [key: string]: any } = {};
+  const violationTypes = [
+    "use-logging-framework",
+    "handle-exceptions-properly",
+    "avoid-hardcoded-credentials",
+    "use-prepared-statements",
+    "implement-proper-error-handling",
+    "avoid-null-pointer-exceptions",
+    "use-dependency-injection",
+    "implement-proper-authentication",
+    "use-secure-communication",
+    "implement-input-validation",
+  ];
 
-  mockData.forEach((incident) => {
-    const violationId = incident.id.split(":")[0];
-    if (!violations[violationId]) {
-      violations[violationId] = {
-        description: "Mock violation description",
-        category: incident.severity === "High" ? "mandatory" : "potential",
-        incidents: [],
-      };
-    }
-    violations[violationId].incidents.push(incident);
+  violationTypes.forEach((violationType, index) => {
+    const violationId = `${violationType}-${index.toString().padStart(5, "0")}`;
+    const incidentCount = Math.floor(Math.random() * 20) + 5; // 5 to 24 incidents per violation
+
+    violations[violationId] = {
+      description: `${violationType.split("-").join(" ")} violation`,
+      category: index % 3 === 0 ? "mandatory" : index % 3 === 1 ? "potential" : "optional",
+      incidents: Array.from({ length: incidentCount }, (_, i) =>
+        generateRandomIncident(violationId, i),
+      ),
+    };
   });
 
   return {
-    name: "Mock RuleSet",
-    description: "Mock RuleSet Description",
+    name: "Mock RuleSet with Many Violations",
+    description: "This ruleset contains many violations to demonstrate scrolling",
     violations: violations,
   };
 }

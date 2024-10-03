@@ -1,0 +1,11 @@
+@import "@patternfly/react-core/dist/styles/base.css";
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.pf-c-page__main-section {
+  height: calc(100vh - 76px); /* Adjust this value based on your header height */
+  overflow-y: auto;
+}

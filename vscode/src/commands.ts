@@ -4,7 +4,7 @@ import { ExtensionState } from "./extensionState";
 import { getWebviewContent } from "./webviewContent";
 import { sourceOptions, targetOptions } from "./config/labels";
 import { Incident } from "./webview/types";
-import { generateMockIncidentData } from "./webview/mockData";
+import { generateMockRuleSet } from "./webview/mockData";
 
 let fullScreenPanel: vscode.WebviewPanel | undefined;
 
@@ -82,7 +82,7 @@ const commandsMap: (state: ExtensionState) => {
 
         await extensionContext.workspaceState.update(
           "incidentData",
-          JSON.stringify(generateMockIncidentData()),
+          JSON.stringify(generateMockRuleSet()),
         );
 
         await analyzeFileContent(contentString, state);
