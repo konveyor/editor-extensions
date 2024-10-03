@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { RuleSet, Violation, Incident } from "../types";
 import {
   ExpandableSection,
@@ -13,6 +13,8 @@ import {
   Stack,
   StackItem,
   Tooltip,
+  TextInput,
+  Divider,
 } from "@patternfly/react-core";
 import { ArrowLeftIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
@@ -24,6 +26,7 @@ interface ViolationIncidentsListProps {
 const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet }) => {
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const toggleViolation = useCallback((violationId: string) => {
     setExpandedViolations((prev) => {
@@ -45,6 +48,36 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
       line: incident.line,
     });
   }, []);
+
+  const filteredViolations = useMemo(() => {
+    if (!searchTerm) {
+      return ruleSet.violations || {};
+    }
+
+    const lowercaseSearchTerm = searchTerm.toLowerCase();
+    return Object.entries(ruleSet.violations || {}).reduce(
+      (acc, [violationId, violation]) => {
+        const matchingIncidents = violation.incidents.filter(
+          (incident) =>
+            incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
+            incident.file.toLowerCase().includes(lowercaseSearchTerm),
+        );
+
+        if (
+          matchingIncidents.length > 0 ||
+          violation.description.toLowerCase().includes(lowercaseSearchTerm)
+        ) {
+          acc[violationId] = {
+            ...violation,
+            incidents: matchingIncidents,
+          };
+        }
+
+        return acc;
+      },
+      {} as Record<string, Violation>,
+    );
+  }, [ruleSet.violations, searchTerm]);
 
   const renderViolation = useCallback(
     (violationId: string, violation: Violation) => {
@@ -109,12 +142,16 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
 
   return (
     <Stack hasGutter>
-      <StackItem isFilled>
-        <div style={{ height: "100%", overflowY: "auto" }}>
-          {Object.entries(ruleSet.violations || {}).map(([violationId, violation]) =>
-            renderViolation(violationId, violation),
-          )}
-        </div>
+      <StackItem>
+        <TextInput
+          type="text"
+          id="violation-search"
+          aria-label="Search violations and incidents"
+          placeholder="Search violations and incidents..."
+          value={searchTerm}
+          onChange={(_event, value) => setSearchTerm(value)}
+          // icon={<SearchIcon />}
+        />
       </StackItem>
       {selectedIncident && (
         <StackItem>
@@ -139,8 +176,16 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
               </Text>
             </CardBody>
           </Card>
+          <Divider style={{ margin: "20px 0" }} />
         </StackItem>
       )}
+      <StackItem isFilled>
+        <div style={{ height: "calc(100vh - 200px)", overflowY: "auto" }}>
+          {Object.entries(filteredViolations).map(([violationId, violation]) =>
+            renderViolation(violationId, violation),
+          )}
+        </div>
+      </StackItem>
     </Stack>
   );
 };
