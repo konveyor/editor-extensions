@@ -1,7 +1,5 @@
-import React, { useState, useCallback, useRef } from "react";
-import { RuleSet, Incident } from "../types";
-import { VariableSizeList as List } from "react-window";
-import AutoSizer from "react-virtualized-auto-sizer";
+import React, { useState, useCallback } from "react";
+import { RuleSet, Violation, Incident } from "../types";
 import {
   ExpandableSection,
   Badge,
@@ -26,7 +24,6 @@ interface ViolationIncidentsListProps {
 const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet }) => {
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const listRef = useRef<List>(null);
 
   const toggleViolation = useCallback((violationId: string) => {
     setExpandedViolations((prev) => {
@@ -38,9 +35,6 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
       }
       return newSet;
     });
-    if (listRef.current) {
-      listRef.current.resetAfterIndex(0);
-    }
   }, []);
 
   const handleIncidentClick = useCallback((incident: Incident) => {
@@ -53,84 +47,74 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
   }, []);
 
   const renderViolation = useCallback(
-    ({ index, style }: { index: number; style: React.CSSProperties }) => {
-      const violationId = Object.keys(ruleSet.violations || {})[index];
-      const violation = ruleSet.violations?.[violationId];
-
-      if (!violation) {
-        return null;
-      }
-
+    (violationId: string, violation: Violation) => {
       const isExpanded = expandedViolations.has(violationId);
 
       return (
-        <div style={style}>
-          <Card isCompact>
-            <CardBody>
-              <ExpandableSection
-                toggleContent={
-                  <Tooltip content={violation.description}>
-                    <Text className="truncate-text">{violation.description}</Text>
-                  </Tooltip>
-                }
-                onToggle={() => toggleViolation(violationId)}
-                isExpanded={isExpanded}
-              >
-                <Flex direction={{ default: "column" }}>
-                  <FlexItem>
-                    <Text component={TextVariants.h4}>Incidents:</Text>
-                  </FlexItem>
-                  {violation.incidents.map((incident) => (
-                    <FlexItem key={incident.id}>
-                      <Tooltip content={incident.message}>
-                        <Button
-                          variant="link"
-                          onClick={() => handleIncidentClick(incident)}
-                          className="truncate-text"
-                        >
-                          {incident.message}
-                        </Button>
-                      </Tooltip>
-                      <Badge>{incident.severity}</Badge>
-                    </FlexItem>
-                  ))}
-                </Flex>
-              </ExpandableSection>
-            </CardBody>
-          </Card>
-        </div>
+        <Card isCompact key={violationId} style={{ marginBottom: "10px" }}>
+          <CardBody>
+            <ExpandableSection
+              toggleContent={
+                <Tooltip content={violation.description}>
+                  <Text className="truncate-text" style={{ maxWidth: "100%" }}>
+                    {violation.description}
+                  </Text>
+                </Tooltip>
+              }
+              onToggle={() => toggleViolation(violationId)}
+              isExpanded={isExpanded}
+            >
+              <Stack hasGutter>
+                <StackItem>
+                  <Text component={TextVariants.h4}>Incidents:</Text>
+                </StackItem>
+                {violation.incidents.map((incident) => (
+                  <StackItem key={incident.id}>
+                    <Flex
+                      justifyContent={{ default: "justifyContentSpaceBetween" }}
+                      alignItems={{ default: "alignItemsCenter" }}
+                    >
+                      <FlexItem grow={{ default: "grow" }}>
+                        <Tooltip content={incident.message}>
+                          <Button
+                            variant="link"
+                            onClick={() => handleIncidentClick(incident)}
+                            className="truncate-text"
+                            style={{
+                              maxWidth: "100%",
+                              textAlign: "left",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {incident.message}
+                          </Button>
+                        </Tooltip>
+                      </FlexItem>
+                      <FlexItem>
+                        <Badge>{incident.severity}</Badge>
+                      </FlexItem>
+                    </Flex>
+                  </StackItem>
+                ))}
+              </Stack>
+            </ExpandableSection>
+          </CardBody>
+        </Card>
       );
     },
-    [expandedViolations, handleIncidentClick, ruleSet.violations, toggleViolation],
-  );
-
-  const getItemSize = useCallback(
-    (index: number) => {
-      const violationId = Object.keys(ruleSet.violations || {})[index];
-      const violation = ruleSet.violations?.[violationId];
-      const isExpanded = expandedViolations.has(violationId);
-      return isExpanded && violation ? 70 + violation.incidents.length * 40 : 70; // Increased base height
-    },
-    [expandedViolations, ruleSet.violations],
+    [expandedViolations, handleIncidentClick, toggleViolation],
   );
 
   return (
     <Stack hasGutter>
       <StackItem isFilled>
-        <AutoSizer>
-          {({ width, height }) => (
-            <List
-              ref={listRef}
-              height={height}
-              itemCount={Object.keys(ruleSet.violations || {}).length}
-              itemSize={getItemSize}
-              width={width}
-              overscanCount={5}
-            >
-              {renderViolation}
-            </List>
+        <div style={{ height: "100%", overflowY: "auto" }}>
+          {Object.entries(ruleSet.violations || {}).map(([violationId, violation]) =>
+            renderViolation(violationId, violation),
           )}
-        </AutoSizer>
+        </div>
       </StackItem>
       {selectedIncident && (
         <StackItem>
