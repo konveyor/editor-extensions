@@ -14,14 +14,7 @@ export default [
   react.configs.flat.recommended,
   prettierRecommended,
   {
-    files: [
-      "**/*.js",
-      "**/*.jsx",
-      "**/*.cjs",
-      "**/*.mjs",
-      "**/*.ts",
-      "**/*.tsx",
-    ],
+    files: ["**/*.js", "**/*.jsx", "**/*.cjs", "**/*.mjs", "**/*.ts", "**/*.tsx"],
   },
   {
     plugins: {
@@ -59,15 +52,14 @@ export default [
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
       semi: "warn",
 
       "prettier/prettier": ["warn"],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
       "unused-imports/no-unused-imports": ["warn"],
-      "@typescript-eslint/no-explicit-any": "warn",
+      "no-case-declarations": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "react/jsx-key": "warn",
       // "react-hooks/rules-of-hooks": "warn",
       // "react-hooks/exhaustive-deps": "warn",

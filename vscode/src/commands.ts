@@ -1,11 +1,10 @@
-import * as vscode from "vscode";
 import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState } from "./extensionState";
 import { getWebviewContent } from "./webviewContent";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
-import { Incident } from "./webview/types";
-import { generateMockIncidentData } from "./generateMockData";
+import { AnalysisConfig } from "./webview/types";
+import { runAnalysis } from "./runAnalysis"; // Import the runAnalysis function
+import * as vscode from "vscode";
 
 let fullScreenPanel: vscode.WebviewPanel | undefined;
 
@@ -14,81 +13,51 @@ function getFullScreenTab() {
   return tabs.find((tab) => (tab.input as any)?.viewType?.endsWith("konveyor.konveyorGUIView"));
 }
 
-async function analyzeFileContent(contentString: string, state: ExtensionState) {
-  const { extensionContext } = state;
-
-  const incidentDataString = extensionContext.workspaceState.get<string>("incidentData", "[]");
-  const incidentData = JSON.parse(incidentDataString) as Incident[];
-
-  const diagnosticCollection = vscode.languages.createDiagnosticCollection("konveyor");
-  const diagnosticsMap: Map<string, vscode.Diagnostic[]> = new Map();
-
-  incidentData.forEach((incident) => {
-    const fileUri = vscode.Uri.parse(incident.file);
-
-    const lineNumber = incident.line ? incident.line - 1 : 0;
-    const severity =
-      incident.severity === "High"
-        ? vscode.DiagnosticSeverity.Error
-        : incident.severity === "Medium"
-          ? vscode.DiagnosticSeverity.Warning
-          : vscode.DiagnosticSeverity.Information;
-
-    const diagnostic = new vscode.Diagnostic(
-      new vscode.Range(
-        new vscode.Position(lineNumber, 0),
-        new vscode.Position(lineNumber, Number.MAX_VALUE),
-      ),
-      incident.message,
-      severity,
-    );
-
-    const diagnostics = diagnosticsMap.get(fileUri.toString()) || [];
-    diagnostics.push(diagnostic);
-    diagnosticsMap.set(fileUri.toString(), diagnostics);
-  });
-
-  diagnosticsMap.forEach((diagnostics, fileUri) => {
-    diagnosticCollection.set(vscode.Uri.parse(fileUri), diagnostics);
-  });
-
-  const sidebarProvider = state.sidebarProvider;
-  if (sidebarProvider && sidebarProvider.webview) {
-    sidebarProvider.webview.postMessage({
-      command: "incidentData",
-      data: incidentData,
-    });
-  }
-
-  // Optionally, show an information message upon completion
-  vscode.window.showInformationMessage("Diagnostics created based on mock analysis.");
-}
-
 const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   const { sidebarProvider, extensionContext } = state;
   return {
     "konveyor.startAnalysis": async (resource: vscode.Uri) => {
-      if (!resource) {
-        vscode.window.showErrorMessage("No file selected for analysis.");
-        return;
-      }
-
-      const filePath = resource.fsPath;
-
       try {
-        const fileContent = await vscode.workspace.fs.readFile(resource);
-        const contentString = Buffer.from(fileContent).toString("utf8");
+        if (!resource || !resource.fsPath) {
+          throw new Error("No folder selected for analysis.");
+        }
 
-        await extensionContext.workspaceState.update(
-          "incidentData",
-          JSON.stringify(generateMockIncidentData()),
-        );
+        const stats = await vscode.workspace.fs.stat(resource);
+        if (stats.type !== vscode.FileType.Directory) {
+          throw new Error("Selected item is not a folder. Please select a folder for analysis.");
+        }
 
-        await analyzeFileContent(contentString, state);
+        // Fetch the workspace configuration
+        const config = vscode.workspace.getConfiguration("konveyor");
+
+        // Get the label selector from the configuration
+        const labelSelector = config.get<string>("labelSelector");
+
+        // Get the custom rules from the configuration
+        const customRules = config.get<string[]>("customRules");
+
+        // Get the override analyzer binary path from the configuration
+        const overrideAnalyzerBinaryPath = config.get<string>("overrideAnalyzerBinaryPath");
+
+        // Create an object to hold the analysis configuration
+        const analysisConfig: AnalysisConfig = {
+          labelSelector,
+          customRules,
+          overrideAnalyzerBinaryPath,
+          inputPath: resource.fsPath,
+        };
+
+        // Call the runAnalysis function with the necessary context, webview, and analysis configuration
+        await runAnalysis(state, analysisConfig, state.sidebarProvider?.webview);
       } catch (error) {
-        vscode.window.showErrorMessage(`Failed to analyze file: ${error}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        state.sidebarProvider?.webview?.postMessage({
+          type: "analysisFailed",
+          message: errorMessage,
+        });
+        vscode.window.showErrorMessage(`Failed to start analysis: ${errorMessage}`);
       }
     },
 
