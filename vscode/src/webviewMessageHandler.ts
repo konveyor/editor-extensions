@@ -7,37 +7,29 @@ export function setupWebviewMessageListener(
   state: ExtensionState,
   provider: KonveyorGUIWebviewViewProvider,
 ) {
-  const incidentDataString = state.extensionContext.workspaceState.get<string>(
-    "incidentData",
-    "[]",
-  );
-  const incidentData = JSON.parse(incidentDataString);
+  // ... (keep existing code)
 
   webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
-      case "requestIncidentData":
-        webview.postMessage({
-          command: "incidentData",
-          data: incidentData,
-        });
-        break;
-
-      case "openFile": {
-        const fileUri = vscode.Uri.parse(message.file);
-        try {
-          const doc = await vscode.workspace.openTextDocument(fileUri);
-          const editor = await vscode.window.showTextDocument(doc, {
-            preview: true,
+      // ... (keep other cases)
+      case "showFilePicker":
+        const options: vscode.OpenDialogOptions = {
+          canSelectMany: false,
+          canSelectFiles: false,
+          canSelectFolders: true,
+          openLabel: "Select Folder for Analysis",
+        };
+        const folderUri = await vscode.window.showOpenDialog(options);
+        if (folderUri && folderUri[0]) {
+          vscode.commands.executeCommand("konveyor.startAnalysis", folderUri[0]);
+        } else {
+          webview.postMessage({
+            type: "analysisFailed",
+            message: "No folder selected for analysis.",
           });
-          const position = new vscode.Position(message.line - 1, 0);
-          const range = new vscode.Range(position, position);
-          editor.selection = new vscode.Selection(position, position);
-          editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
-        } catch (error) {
-          vscode.window.showErrorMessage(`Failed to open file: ${error}`);
         }
         break;
-      }
+      // ... (keep other cases)
     }
   });
 }

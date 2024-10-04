@@ -76,3 +76,10 @@ export interface Link {
   // Title optional description
   title?: string;
 }
+
+export interface AnalysisConfig {
+  labelSelector?: string;
+  customRules?: string[];
+  overrideAnalyzerBinaryPath?: string;
+  inputPath: string;
+}

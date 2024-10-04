@@ -41,11 +41,6 @@
         "icon": "$(fullscreen)"
       },
       {
-        "command": "konveyor.startAnalysis",
-        "title": "Start Analysis",
-        "category": "Konveyor"
-      },
-      {
         "command": "konveyor.overrideAnalyzerBinaries",
         "title": "Override Analyzer Binaries",
         "category": "Konveyor",
@@ -66,6 +61,12 @@
       {
         "command": "konveyor.configureLabelSelector",
         "title": "Configure Analysis LabelSelector",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.startAnalysis",
+        "title": "Start Analysis",
         "category": "Konveyor",
         "icon": "$(gear)"
       }
@@ -310,8 +311,10 @@
     "@patternfly/react-table": "^5.4.1",
     "@types/react-window": "^1.8.8",
     "babel-loader": "^9.2.1",
+    "copy-webpack-plugin": "^12.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "webpack-shell-plugin-next": "^2.3.2"
   }
 }

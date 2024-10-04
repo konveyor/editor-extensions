@@ -3,17 +3,24 @@ import { Incident, RuleSet } from "./types";
 function generateRandomIncident(violationId: string, index: number): Incident {
   const severities = ["High", "Medium", "Low"];
   const files = [
-    "/src/main/java/com/example/App.java",
-    "/src/main/java/com/example/Service.java",
-    "/src/main/java/com/example/Repository.java",
-    "/src/main/java/com/example/Controller.java",
-    "/src/main/java/com/example/Model.java",
+    "/Users/ibolton/Development/tackle-testapp-public/configuration-utils/src/main/java/io/konveyor/demo/config/ApplicationConfiguration.java",
+    "/Users/ibolton/Development/tackle-testapp-public/src/main/java/io/konveyor/demo/ordermanagement/model/Customer.java",
   ];
+
+  const fileLineNumbers: { [key: string]: number[] } = {
+    "/Users/ibolton/Development/tackle-testapp-public/configuration-utils/src/main/java/io/konveyor/demo/config/ApplicationConfiguration.java":
+      [8, 12, 16, 20, 24],
+    "/Users/ibolton/Development/tackle-testapp-public/src/main/java/io/konveyor/demo/ordermanagement/model/Customer.java":
+      [5, 10, 15, 20, 25, 30],
+  };
+
+  const selectedFile = files[Math.floor(Math.random() * files.length)];
+  const lineNumbers = fileLineNumbers[selectedFile] || [1, 2, 3, 4, 5];
 
   return {
     id: `${violationId}-${index}`,
-    file: files[Math.floor(Math.random() * files.length)],
-    line: Math.floor(Math.random() * 1000) + 1,
+    file: selectedFile,
+    line: lineNumbers[Math.floor(Math.random() * lineNumbers.length)],
     severity: severities[Math.floor(Math.random() * severities.length)] as
       | "High"
       | "Medium"
