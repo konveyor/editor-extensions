@@ -1,9 +1,10 @@
 export interface Incident {
   id: string;
-  file: string;
-  line: number;
+  uri: string;
+  lineNumber: number;
   severity: "High" | "Medium" | "Low";
   message: string;
+  codeSnip: string;
 }
 
 export interface RuleSet {

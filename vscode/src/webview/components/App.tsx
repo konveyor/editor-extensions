@@ -10,27 +10,29 @@ import {
   Alert,
   AlertActionCloseButton,
   AlertGroup,
+  Flex,
+  FlexItem,
+  Stack,
+  StackItem,
 } from "@patternfly/react-core";
 import { SearchIcon } from "@patternfly/react-icons";
-import { vscode } from "../globals";
 import { RuleSet } from "../types";
+import { vscode } from "../globals";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 
 const App: React.FC = () => {
-  const [ruleSet, setRuleSet] = useState<RuleSet | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    vscode.postMessage({ command: "requestAnalysisData" });
-
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       switch (message.type) {
         case "analysisData":
           if (message.data) {
-            setRuleSet(message.data);
+            // setRuleSet(message.data);
           }
           break;
         case "analysisStarted":
@@ -40,10 +42,11 @@ const App: React.FC = () => {
           break;
         case "analysisComplete":
           setIsAnalyzing(false);
-          setAnalysisMessage(`Analysis complete: ${message.message}`);
-          setErrorMessage(null);
-          // Request updated analysis data
-          vscode.postMessage({ command: "requestAnalysisData" });
+          setAnalysisMessage("");
+          if (message.data) {
+            console.log("Setting analysis results:", message.data);
+            setAnalysisResults(message.data);
+          }
           break;
         case "analysisFailed":
           setIsAnalyzing(false);
@@ -55,66 +58,77 @@ const App: React.FC = () => {
 
     window.addEventListener("message", handleMessage);
 
+    // Request initial analysis data
+    vscode.postMessage({ command: "requestAnalysisData" });
+
     return () => {
       window.removeEventListener("message", handleMessage);
     };
   }, []);
 
   const startAnalysis = () => {
-    vscode.postMessage({ command: "showFilePicker" });
+    vscode.postMessage({ command: "startAnalysis" });
   };
 
   return (
     <Page>
       <PageSection>
-        <Title headingLevel="h1" size="lg">
-          Konveyor Analysis
-        </Title>
-        {errorMessage && (
-          <AlertGroup isToast>
-            <Alert
-              variant="danger"
-              title={errorMessage}
-              actionClose={
-                <AlertActionCloseButton
+        <Stack hasGutter>
+          <StackItem>
+            <Flex justifyContent={{ default: "justifyContentCenter" }}>
+              <FlexItem>
+                <Title headingLevel="h1" size="lg">
+                  Konveyor Analysis
+                </Title>
+              </FlexItem>
+            </Flex>
+          </StackItem>
+          <StackItem>
+            <Flex justifyContent={{ default: "justifyContentCenter" }}>
+              <FlexItem>
+                <Button
+                  variant="primary"
+                  onClick={startAnalysis}
+                  isLoading={isAnalyzing}
+                  isDisabled={isAnalyzing}
+                >
+                  {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                </Button>
+              </FlexItem>
+            </Flex>
+          </StackItem>
+          {errorMessage && (
+            <StackItem>
+              <AlertGroup isToast>
+                <Alert
+                  variant="danger"
                   title={errorMessage}
-                  onClose={() => setErrorMessage(null)}
+                  actionClose={
+                    <AlertActionCloseButton
+                      title={errorMessage}
+                      onClose={() => setErrorMessage(null)}
+                    />
+                  }
                 />
-              }
-            />
-          </AlertGroup>
-        )}
-        {ruleSet && ruleSet.violations ? (
-          <>
-            <Button
-              variant="primary"
-              onClick={startAnalysis}
-              isLoading={isAnalyzing}
-              isDisabled={isAnalyzing}
-            >
-              {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-            </Button>
-            <ViolationIncidentsList ruleSet={ruleSet} />
-          </>
-        ) : (
-          <EmptyState>
-            <EmptyStateIcon icon={SearchIcon} />
-            <Title headingLevel="h2" size="lg">
-              No Analysis Results
-            </Title>
-            <EmptyStateBody>
-              {analysisMessage || "Run an analysis to see results here."}
-            </EmptyStateBody>
-            <Button
-              variant="primary"
-              onClick={startAnalysis}
-              isLoading={isAnalyzing}
-              isDisabled={isAnalyzing}
-            >
-              {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-            </Button>
-          </EmptyState>
-        )}
+              </AlertGroup>
+            </StackItem>
+          )}
+          <StackItem>
+            {analysisResults ? (
+              <ViolationIncidentsList ruleSets={analysisResults} />
+            ) : (
+              <EmptyState>
+                <EmptyStateIcon icon={SearchIcon} />
+                <Title headingLevel="h2" size="lg">
+                  No Analysis Results
+                </Title>
+                <EmptyStateBody>
+                  {analysisMessage || "Run an analysis to see results here."}
+                </EmptyStateBody>
+              </EmptyState>
+            )}
+          </StackItem>
+        </Stack>
       </PageSection>
     </Page>
   );

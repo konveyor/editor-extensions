@@ -7,12 +7,18 @@ export function setupWebviewMessageListener(
   state: ExtensionState,
   provider: KonveyorGUIWebviewViewProvider,
 ) {
-  // ... (keep existing code)
-
   webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
-      // ... (keep other cases)
-      case "showFilePicker":
+      case "requestAnalysisData":
+        const analysisResults = state.extensionContext.workspaceState.get("analysisResults");
+        if (analysisResults && Array.isArray(analysisResults) && analysisResults.length > 0) {
+          webview.postMessage({ type: "analysisData", data: analysisResults[0] });
+        } else {
+          webview.postMessage({ type: "analysisData", data: null });
+        }
+        break;
+
+      case "startAnalysis":
         const options: vscode.OpenDialogOptions = {
           canSelectMany: false,
           canSelectFiles: false,
@@ -29,7 +35,25 @@ export function setupWebviewMessageListener(
           });
         }
         break;
-      // ... (keep other cases)
+
+      case "openFile": {
+        const fileUri = vscode.Uri.parse(message.file);
+        try {
+          const doc = await vscode.workspace.openTextDocument(fileUri);
+          const editor = await vscode.window.showTextDocument(doc, {
+            preview: true,
+          });
+          const position = new vscode.Position(message.line - 1, 0);
+          const range = new vscode.Range(position, position);
+          editor.selection = new vscode.Selection(position, position);
+          editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+        }
+        break;
+      }
+
+      // Add more cases as needed
     }
   });
 }

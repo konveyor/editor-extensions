@@ -11,8 +11,8 @@ export async function runAnalysis(
   analysisConfig: AnalysisConfig,
   webview?: vscode.Webview,
 ): Promise<void> {
-  const { extensionContext: context, sidebarProvider } = state;
   try {
+    const { extensionContext: context } = state;
     // Build the arguments for the kantra binary
     const args: string[] = ["analyze", "--provider=java"];
 
@@ -35,6 +35,11 @@ export async function runAnalysis(
     const outputPath = context.storageUri?.fsPath;
     if (!outputPath) {
       throw new Error("Unable to resolve storage path");
+    }
+
+    // Ensure the output directory exists
+    if (!fs.existsSync(outputPath)) {
+      fs.mkdirSync(outputPath, { recursive: true });
     }
 
     args.push("--output", outputPath);
@@ -120,15 +125,40 @@ export async function runAnalysis(
 
               const diagnosticCollection = vscode.languages.createDiagnosticCollection("konveyor");
 
+              const workspaceFolderPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+
+              function updateIncidentPaths(incidents: any[], workspaceFolderPath: string): any[] {
+                return incidents.map((incident) => {
+                  if (incident.uri.startsWith("file:///opt/input/source")) {
+                    incident.uri = incident.uri.replace(
+                      "file:///opt/input/source",
+                      workspaceFolderPath,
+                    );
+                  }
+                  return incident;
+                });
+              }
+              const updatedResults = analysisResults.map((ruleset: any) => {
+                const violations = ruleset.violations ?? {};
+                Object.keys(violations).forEach((ruleId) => {
+                  const incidents = violations[ruleId].incidents;
+                  if (incidents) {
+                    violations[ruleId].incidents = updateIncidentPaths(
+                      incidents,
+                      workspaceFolderPath || "",
+                    );
+                  }
+                });
+                return ruleset;
+              });
+
               analysisResults.forEach((ruleset: any) => {
                 Object.keys(ruleset.violations ?? {}).forEach((ruleId) => {
                   const category = ruleset.violations[ruleId].category;
+
                   ruleset.violations[ruleId].incidents?.forEach((incident: any) => {
                     const fileName = vscode.Uri.file(
-                      incident.uri.replace(
-                        "file:///opt/input/source",
-                        vscode.workspace.workspaceFolders?.[0].uri.fsPath,
-                      ),
+                      incident.uri.replace("file:///opt/input/source", workspaceFolderPath),
                     );
                     const lineNumber = incident.lineNumber ? incident.lineNumber - 1 : 0;
                     const severity = (category: string) => {
@@ -158,7 +188,7 @@ export async function runAnalysis(
               if (webview) {
                 webview.postMessage({
                   type: "analysisComplete",
-                  message: "Analysis complete!",
+                  data: updatedResults,
                 });
               }
             } catch (error: any) {

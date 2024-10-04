@@ -20,10 +20,10 @@ import { ArrowLeftIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
 
 interface ViolationIncidentsListProps {
-  ruleSet: RuleSet;
+  ruleSets: RuleSet[];
 }
 
-const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet }) => {
+const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSets }) => {
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,40 +44,50 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
     setSelectedIncident(incident);
     vscode.postMessage({
       command: "openFile",
-      file: incident.file,
-      line: incident.line,
+      file: incident.uri,
+      line: incident.lineNumber,
     });
   }, []);
 
   const filteredViolations = useMemo(() => {
     if (!searchTerm) {
-      return ruleSet.violations || {};
+      return ruleSets.reduce(
+        (acc, ruleSet) => {
+          return { ...acc, ...(ruleSet.violations || {}) };
+        },
+        {} as Record<string, Violation>,
+      );
     }
 
     const lowercaseSearchTerm = searchTerm.toLowerCase();
-    return Object.entries(ruleSet.violations || {}).reduce(
-      (acc, [violationId, violation]) => {
-        const matchingIncidents = violation.incidents.filter(
-          (incident) =>
-            incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-            incident.file.toLowerCase().includes(lowercaseSearchTerm),
+    return ruleSets.reduce(
+      (acc, ruleSet) => {
+        return Object.entries(ruleSet.violations || {}).reduce(
+          (innerAcc, [violationId, violation]) => {
+            const matchingIncidents = violation.incidents.filter(
+              (incident) =>
+                incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
+                incident.uri.toLowerCase().includes(lowercaseSearchTerm),
+            );
+
+            if (
+              matchingIncidents.length > 0 ||
+              violation.description.toLowerCase().includes(lowercaseSearchTerm)
+            ) {
+              innerAcc[violationId] = {
+                ...violation,
+                incidents: matchingIncidents,
+              };
+            }
+
+            return innerAcc;
+          },
+          acc,
         );
-
-        if (
-          matchingIncidents.length > 0 ||
-          violation.description.toLowerCase().includes(lowercaseSearchTerm)
-        ) {
-          acc[violationId] = {
-            ...violation,
-            incidents: matchingIncidents,
-          };
-        }
-
-        return acc;
       },
       {} as Record<string, Violation>,
     );
-  }, [ruleSet.violations, searchTerm]);
+  }, [ruleSets, searchTerm]);
 
   const renderViolation = useCallback(
     (violationId: string, violation: Violation) => {
@@ -169,10 +179,10 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({ ruleSet
                 <strong>Severity:</strong> {selectedIncident.severity}
               </Text>
               <Text component={TextVariants.p}>
-                <strong>File:</strong> {selectedIncident.file}
+                <strong>File:</strong> {selectedIncident.uri}
               </Text>
               <Text component={TextVariants.p}>
-                <strong>Line:</strong> {selectedIncident.line}
+                <strong>Line:</strong> {selectedIncident.lineNumber}
               </Text>
             </CardBody>
           </Card>
