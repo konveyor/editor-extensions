@@ -4,6 +4,7 @@ import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider
 import { registerAllCommands } from "./commands";
 import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState, SharedState } from "./extensionState";
+import { mockResults } from "./webview/mockResults";
 
 export class VsCodeExtension {
   private extensionContext: vscode.ExtensionContext;
@@ -44,6 +45,14 @@ export class VsCodeExtension {
     sidebarProvider.onWebviewReady((webview) => {
       setupWebviewMessageListener(webview, this.state, sidebarProvider);
     });
+    //DEBUG USE ONLY
+    setTimeout(() => {
+      sidebarProvider?.webview?.postMessage({
+        type: "analysisComplete",
+        data: mockResults,
+      });
+    }, 5000);
+    //
 
     registerAllCommands(this.state);
   }
