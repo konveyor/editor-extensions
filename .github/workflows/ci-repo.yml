@@ -15,7 +15,7 @@ on:
       shouldRelease:
         description: 'Should a release be created?'
         required: false
-        default: 'false'
+        default: false
 
   workflow_call:
     inputs:
