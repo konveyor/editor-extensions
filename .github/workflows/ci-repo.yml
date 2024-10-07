@@ -182,7 +182,11 @@ jobs:
       - name: Download VSIX artifacts
         uses: actions/download-artifact@v3
         with:
+          name: vscode-extension-* 
           path: ./artifacts
+          
+      - name: Verify downloaded artifacts
+        run: ls -R ./artifacts
 
       - name: Read version from package.json
         id: get_version
