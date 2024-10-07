@@ -15,7 +15,7 @@ on:
       shouldRelease:
         description: 'Should a release be created?'
         required: false
-        default: false
+        default: 'false'
 
   workflow_call:
     inputs:
@@ -178,16 +178,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: "vscode/.nvmrc"
-
-      - name: Download VSIX artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: vscode-extension-* 
-          path: ./artifacts
-          
-      - name: Verify downloaded artifacts
-        run: ls -R ./artifacts
-
+        
       - name: Read version from package.json
         id: get_version
         shell: bash
@@ -195,20 +186,46 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           echo "version=$version" >> $GITHUB_OUTPUT
-    
+          
+      - name: List available artifacts
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
+
+
+      - name: Download VSIX Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: vscode-extension-*
+
+      - name: Rename VSIX Packages
+        run: |
+          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-linux-${{ steps.get_version.outputs.version }}.vsix
+          mv ./artifacts/vscode-extension-macos/*.vsix ./artifacts/konveyor-macos-${{ steps.get_version.outputs.version }}.vsix
+          mv ./artifacts/vscode-extension-windows/*.vsix ./artifacts/konveyor-windows-${{ steps.get_version.outputs.version }}.vsix
+
+      - name: Verify Downloaded Artifacts
+        run: ls -R ./artifacts
+
+  
       - name: Generate tag name with timestamp
         id: vars
         shell: bash
         run: |
           TAG_NAME="v${{ steps.get_version.outputs.version }}-dev+$(date +%Y%m%d)"
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-
+  
       - name: Create Pre-release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ steps.vars.outputs.tag_name }}
           commit: ${{ github.sha }}
-          artifacts: "./artifacts/**/*.vsix"
+          artifacts: |
+            ./artifacts/konveyor-linux-*.vsix
+            ./artifacts/konveyor-macos-*.vsix
+            ./artifacts/konveyor-windows-*.vsix
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
