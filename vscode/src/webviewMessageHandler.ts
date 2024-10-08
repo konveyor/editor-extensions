@@ -19,12 +19,18 @@ export function setupWebviewMessageListener(
         break;
 
       case "startAnalysis":
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const defaultUri =
+          workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri : undefined;
+
         const options: vscode.OpenDialogOptions = {
           canSelectMany: false,
           canSelectFiles: false,
           canSelectFolders: true,
           openLabel: "Select Folder for Analysis",
+          defaultUri: defaultUri,
         };
+
         const folderUri = await vscode.window.showOpenDialog(options);
         if (folderUri && folderUri[0]) {
           vscode.commands.executeCommand("konveyor.startAnalysis", folderUri[0]);

@@ -28,6 +28,7 @@ import { vscode } from "../globals";
 import { RuleSet } from "../types";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 import { mockResults } from "../mockResults";
+import ProgressIndicator from "./ProgressIndicator";
 
 const App: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>(
@@ -177,6 +178,7 @@ const App: React.FC = () => {
               </FlexItem>
             </Flex>
           </StackItem>
+
           {errorMessage && (
             <StackItem>
               <AlertGroup isToast>
@@ -194,7 +196,9 @@ const App: React.FC = () => {
             </StackItem>
           )}
           <StackItem>
-            {hasViolations ? (
+            {isAnalyzing ? (
+              <ProgressIndicator progress={50} />
+            ) : hasViolations ? (
               <ViolationIncidentsList violations={violations} />
             ) : (
               <EmptyState>
