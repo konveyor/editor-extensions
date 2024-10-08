@@ -6,7 +6,6 @@ import {
   Flex,
   FlexItem,
   Text,
-  TextVariants,
   Card,
   CardBody,
   Button,
@@ -14,19 +13,20 @@ import {
   StackItem,
   Tooltip,
   TextInput,
-  Divider,
   Select,
   SelectOption,
   MenuToggle,
   Label,
   MenuToggleElement,
 } from "@patternfly/react-core";
-import { ArrowLeftIcon, SortAmountDownIcon } from "@patternfly/react-icons";
+import { SortAmountDownIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
 
 interface ViolationIncidentsListProps {
   violations: Violation[];
-  focusedIncident?: Incident;
+  focusedIncident?: Incident | null;
+  onIncidentSelect?: (incident: Incident | null) => void;
+  compact?: boolean;
 }
 
 type SortOption = "description" | "incidentCount" | "severity";
@@ -34,9 +34,10 @@ type SortOption = "description" | "incidentCount" | "severity";
 const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   violations,
   focusedIncident,
+  onIncidentSelect,
+  compact = false,
 }) => {
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("description");
   const [isSortSelectOpen, setIsSortSelectOpen] = useState(false);
@@ -53,14 +54,19 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
     });
   }, []);
 
-  const handleIncidentClick = useCallback((incident: Incident) => {
-    setSelectedIncident(incident);
-    vscode.postMessage({
-      command: "openFile",
-      file: incident.uri,
-      line: incident.uri,
-    });
-  }, []);
+  const handleIncidentClick = useCallback(
+    (incident: Incident) => {
+      if (onIncidentSelect) {
+        onIncidentSelect(incident);
+      }
+      vscode.postMessage({
+        command: "openFile",
+        file: incident.uri,
+        line: incident.lineNumber,
+      });
+    },
+    [onIncidentSelect],
+  );
 
   const getHighestSeverity = (incidents: Incident[]): string => {
     const severityOrder = { high: 3, medium: 2, low: 1 };
@@ -123,7 +129,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       };
       const isExpanded = expandedViolations.has(violation.description);
       const highestSeverity = getHighestSeverity(violation.incidents);
-      const truncatedDescription = truncateText(violation.description, 50);
+      const truncatedDescription = truncateText(violation.description, 80);
 
       return (
         <Card isCompact key={violation.description} style={{ marginBottom: "10px" }}>
@@ -171,9 +177,6 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               isExpanded={isExpanded}
             >
               <Stack hasGutter>
-                <StackItem>
-                  <Text component={TextVariants.h4}>Incidents:</Text>
-                </StackItem>
                 {violation.incidents.map((incident) => (
                   <StackItem key={incident.id}>
                     <Flex
@@ -193,9 +196,9 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                             }}
-                            isActive={focusedIncident && focusedIncident.id === incident.id}
+                            isActive={focusedIncident ? focusedIncident.id === incident?.id : false}
                           >
-                            {incident.message}
+                            {truncateText(incident.message, 60)}
                           </Button>
                         </Tooltip>
                       </FlexItem>
@@ -261,35 +264,9 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
           </FlexItem>
         </Flex>
       </StackItem>
-      {selectedIncident && (
-        <StackItem>
-          <Card>
-            <CardBody>
-              <Button
-                variant="link"
-                icon={<ArrowLeftIcon />}
-                onClick={() => setSelectedIncident(null)}
-              >
-                Back to violations
-              </Button>
-              <Text component={TextVariants.h3}>{selectedIncident.message}</Text>
-              <Text component={TextVariants.p}>
-                <strong>Severity:</strong> {selectedIncident.severity}
-              </Text>
-              <Text component={TextVariants.p}>
-                <strong>File:</strong> {selectedIncident.uri}
-              </Text>
-              <Text component={TextVariants.p}>
-                <strong>Line:</strong> {selectedIncident.lineNumber}
-              </Text>
-            </CardBody>
-          </Card>
-          <Divider style={{ margin: "20px 0" }} />
-        </StackItem>
-      )}
       <StackItem isFilled>
-        <div style={{ height: "calc(100vh - 200px)", overflowY: "auto" }}>
-          {filteredAndSortedViolations.map((violation) => renderViolation(violation))}
+        <div style={{ height: compact ? "200px" : "calc(100vh - 200px)", overflowY: "auto" }}>
+          {violations.map((violation) => renderViolation(violation))}
         </div>
       </StackItem>
     </Stack>

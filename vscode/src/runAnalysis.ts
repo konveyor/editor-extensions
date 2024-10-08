@@ -132,12 +132,14 @@ export async function runAnalysis(
                   if (incident.uri.startsWith("file:///opt/input/source")) {
                     incident.uri = incident.uri.replace(
                       "file:///opt/input/source",
-                      workspaceFolderPath,
+                      vscode.Uri.file(workspaceFolderPath).toString(),
                     );
                   }
                   return incident;
                 });
               }
+
+              // Update incident paths
               const updatedResults = analysisResults.map((ruleset: any) => {
                 const violations = ruleset.violations ?? {};
                 Object.keys(violations).forEach((ruleId) => {
@@ -152,15 +154,23 @@ export async function runAnalysis(
                 return ruleset;
               });
 
+              // Prepare diagnostics
+              const diagnosticsMap: Map<string, vscode.Diagnostic[]> = new Map();
+
               analysisResults.forEach((ruleset: any) => {
                 Object.keys(ruleset.violations ?? {}).forEach((ruleId) => {
                   const category = ruleset.violations[ruleId].category;
 
                   ruleset.violations[ruleId].incidents?.forEach((incident: any) => {
-                    const fileName = vscode.Uri.file(
-                      incident.uri.replace("file:///opt/input/source", workspaceFolderPath),
-                    );
-                    const lineNumber = incident.lineNumber ? incident.lineNumber - 1 : 0;
+                    const fileUriString = incident.uri;
+                    const fileUri = vscode.Uri.parse(fileUriString);
+                    const fileKey = fileUri.toString();
+
+                    let lineNumber = incident.lineNumber ? incident.lineNumber - 1 : 0;
+                    if (lineNumber < 0) {
+                      lineNumber = 0;
+                    }
+
                     const severity = (category: string) => {
                       if (category === "mandatory") {
                         return vscode.DiagnosticSeverity.Error;
@@ -173,17 +183,32 @@ export async function runAnalysis(
                       }
                       return vscode.DiagnosticSeverity.Hint;
                     };
-                    diagnosticCollection.set(fileName, [
-                      new vscode.Diagnostic(
-                        new vscode.Range(lineNumber, 0, lineNumber, 100),
-                        incident.message,
-                        severity(category),
-                      ),
-                    ]);
+
+                    const diagnostic = new vscode.Diagnostic(
+                      new vscode.Range(lineNumber, 0, lineNumber, Number.MAX_SAFE_INTEGER),
+                      incident.message,
+                      severity(category),
+                    );
+
+                    // Collect diagnostics per file
+                    let diagnostics = diagnosticsMap.get(fileKey);
+                    if (!diagnostics) {
+                      diagnostics = [];
+                      diagnosticsMap.set(fileKey, diagnostics);
+                    }
+                    diagnostics.push(diagnostic);
                   });
                 });
               });
+
+              // Set diagnostics per file
+              diagnosticsMap.forEach((diagnostics, fileKey) => {
+                const fileUri = vscode.Uri.parse(fileKey);
+                diagnosticCollection.set(fileUri, diagnostics);
+              });
+
               vscode.window.showInformationMessage("Diagnostics created.");
+
               resolve();
               if (webview) {
                 webview.postMessage({

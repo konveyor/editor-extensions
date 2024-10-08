@@ -14,21 +14,16 @@ import {
   FlexItem,
   Stack,
   StackItem,
-  Wizard,
   Modal,
   ButtonVariant,
-  WizardNav,
-  WizardNavItem,
-  WizardStep,
-  WizardFooter,
-  WizardBasicStep,
 } from "@patternfly/react-core";
 import { SearchIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
 import { RuleSet } from "../types";
-import ViolationIncidentsList from "./ViolationIncidentsList";
 import { mockResults } from "../mockResults";
+import GuidedApproachWizard from "./GuidedApproachWizard";
 import ProgressIndicator from "./ProgressIndicator";
+import ViolationIncidentsList from "./ViolationIncidentsList";
 
 const App: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>(
@@ -38,7 +33,6 @@ const App: React.FC = () => {
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [activeStepIndex, setActiveStepIndex] = useState(0);
 
   useEffect(() => {
     setAnalysisResults(mockResults as RuleSet[]);
@@ -102,47 +96,6 @@ const App: React.FC = () => {
   }, [analysisResults]);
 
   const hasViolations = violations.length > 0;
-  const onNext = () => {
-    setActiveStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
-  };
-
-  const onBack = () => {
-    setActiveStepIndex((prev) => Math.max(prev - 1, 0));
-  };
-  const steps: WizardBasicStep[] = useMemo(() => {
-    return violations.map((violation, index) => ({
-      index: index,
-      id: `violation-step-${violation.id}`,
-      name: `Violation ${index + 1}`,
-      component: (
-        <ViolationIncidentsList violations={[violation]} focusedIncident={violation.incidents[0]} />
-      ),
-    }));
-  }, [violations]);
-
-  const CustomFooter = (
-    <WizardFooter
-      activeStep={steps[activeStepIndex]}
-      onNext={onNext}
-      onBack={onBack}
-      onClose={closeWizard}
-      isNextDisabled={activeStepIndex === steps.length - 1}
-      isBackDisabled={activeStepIndex === 0}
-      nextButtonText={activeStepIndex === steps.length - 1 ? "Finish" : "Next"}
-    />
-  );
-  const modalActions = [
-    <Button key="back" variant="secondary" onClick={onBack} isDisabled={activeStepIndex === 0}>
-      Back
-    </Button>,
-    <Button
-      key="next"
-      variant="primary"
-      onClick={activeStepIndex === violations.length - 1 ? closeWizard : onNext}
-    >
-      {activeStepIndex === violations.length - 1 ? "Finish" : "Next"}
-    </Button>,
-  ];
 
   return (
     <Page>
@@ -222,41 +175,13 @@ const App: React.FC = () => {
         onClose={closeWizard}
         title="Guided Approach"
         description="Address issues one at a time"
-        // actions={modalActions}
       >
         {isWizardOpen && hasViolations && (
-          <Wizard
-            nav={
-              <WizardNav>
-                {violations.map((violation, index) => (
-                  <WizardNavItem
-                    key={violation.id}
-                    content={violation.description}
-                    stepIndex={index}
-                    id={`violation-step-${violation.id}`}
-                  />
-                ))}
-              </WizardNav>
-            }
-            height={600}
-            footer={CustomFooter}
-          >
-            {violations.map((violation, index) => (
-              <WizardStep
-                key={violation.id}
-                name={violation.description}
-                id={`violation-step-${violation.id}`}
-                footer={{
-                  nextButtonText: index === violations.length - 1 ? "Finish" : "Next Violation",
-                }}
-              >
-                <ViolationIncidentsList
-                  violations={[violation]}
-                  focusedIncident={violation.incidents[0]}
-                />
-              </WizardStep>
-            ))}
-          </Wizard>
+          <GuidedApproachWizard
+            violations={violations}
+            isOpen={isWizardOpen}
+            onClose={closeWizard}
+          />
         )}
       </Modal>
     </Page>
