@@ -4,7 +4,7 @@ import {
   WizardNav,
   WizardNavItem,
   WizardStep,
-  WizardBasicStep,
+  WizardFooter,
   Button,
   TextContent,
   Text,
@@ -13,6 +13,7 @@ import {
   CardBody,
   Stack,
   StackItem,
+  WizardBasicStep,
 } from "@patternfly/react-core";
 import { Violation, Incident } from "../types";
 import ViolationIncidentsList from "./ViolationIncidentsList";
@@ -30,25 +31,22 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({
   onClose,
 }) => {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>();
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [quickFix, setQuickFix] = useState<string | null>(null);
-  console.log("selectedIncident inside wizard", selectedIncident);
 
   const generateQuickFix = (violation: Violation, incident: Incident) => {
-    // Send a message to the extension to trigger the quick fix
     vscode.postMessage({
       type: "requestQuickFix",
       data: {
         uri: incident.uri,
         line: incident.lineNumber,
-        // Include any other necessary data
       },
     });
   };
 
+  // Define the wizard steps
   const steps: WizardBasicStep[] = useMemo(() => {
     return violations.map((violation, index) => ({
-      index: index,
       id: `violation-step-${violation.description}`,
       name: `Violation ${index + 1}`,
       component: (
@@ -102,13 +100,19 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({
           </StackItem>
         </Stack>
       ),
+      canJumpTo: true,
+      index: index,
     }));
   }, [violations, selectedIncident, quickFix]);
 
+  // Handlers for navigation
   const onNext = () => {
     setActiveStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
     setSelectedIncident(null);
     setQuickFix(null);
+    if (activeStepIndex === steps.length - 1) {
+      onClose();
+    }
   };
 
   const onBack = () => {
@@ -117,57 +121,45 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({
     setQuickFix(null);
   };
 
-  //   const generateQuickFix = (violation: Violation, incident: Incident) => {
-  //     // This is a placeholder. In a real application, you would call an API or use a more sophisticated method to generate the QuickFix.
-  //     setQuickFix(
-  //       `Suggested fix for ${violation.description}:\n\nReplace line ${incident.lineNumber} in ${incident.uri} with:\n// TODO: Implement fix for ${incident.message}`,
-  //     );
-  //   };
-
-  //   const CustomFooter = (
-  //     <WizardFooter
-  //       activeStep={steps[activeStepIndex]}
-  //       onNext={onNext}
-  //       onBack={onBack}
-  //       onClose={onClose}
-  //       isNextDisabled={activeStepIndex === steps.length - 1}
-  //       isBackDisabled={activeStepIndex === 0}
-  //       nextButtonText={activeStepIndex === steps.length - 1 ? "Finish" : "Next"}
-  //     />
-  //   );
+  // Custom Footer Component
+  const CustomFooter = (
+    <WizardFooter
+      activeStep={steps[activeStepIndex]} // Pass the current active step object
+      onNext={activeStepIndex === steps.length - 1 ? onClose : onNext} // On the last step, clicking Next should close
+      onBack={onBack}
+      onClose={onClose}
+      isBackDisabled={activeStepIndex === 0} // Only disable Back on the first step
+      nextButtonText={activeStepIndex === steps.length - 1 ? "Finish" : "Next"} // Update the button text on the last step
+    />
+  );
 
   return (
     <Wizard
+      height={600}
       nav={
         <WizardNav>
-          {violations.map((violation, index) => (
+          {steps.map((step, index) => (
             <WizardNavItem
-              key={violation.description}
-              content={`Violation ${index + 1}`}
+              key={step.id}
+              content={step.name}
               stepIndex={index}
-              id={`violation-step-${violation.description}`}
+              id={step.id}
+              isCurrent={index === activeStepIndex}
+              onClick={() => setActiveStepIndex(index)}
             />
           ))}
         </WizardNav>
       }
-      height={600}
-      //   footer={CustomFooter}
+      footer={CustomFooter}
       onClose={onClose}
     >
-      {steps.map((step) => (
-        <WizardStep
-          key={step.id}
-          name={step.name}
-          id={step.id}
-          footer={{
-            nextButtonText: step.index === violations.length - 1 ? "Finish" : "Next Violation",
-            onNext: onNext,
-            onBack: onBack,
-          }}
-        >
-          {step.component}
-        </WizardStep>
-      ))}
+      <WizardStep
+        id={steps[activeStepIndex].id}
+        name={steps[activeStepIndex].name}
+        footer={CustomFooter}
+      >
+        {steps[activeStepIndex].component}
+      </WizardStep>
     </Wizard>
   );
 };
