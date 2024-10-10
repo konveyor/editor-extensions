@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as yaml from "js-yaml";
 import { AnalysisConfig } from "./webview/types";
 import { ExtensionState } from "./extensionState";
+import { processIncidents } from "./analyzerResults";
 
 export async function runAnalysis(
   state: ExtensionState,
@@ -140,6 +141,7 @@ export async function runAnalysis(
               }
 
               // Update incident paths
+              //Note: If analyzer-lsp is used to generate results, do not update path incidents
               const updatedResults = analysisResults.map((ruleset: any) => {
                 const violations = ruleset.violations ?? {};
                 Object.keys(violations).forEach((ruleId) => {
@@ -156,50 +158,7 @@ export async function runAnalysis(
 
               // Prepare diagnostics
               const diagnosticsMap: Map<string, vscode.Diagnostic[]> = new Map();
-
-              analysisResults.forEach((ruleset: any) => {
-                Object.keys(ruleset.violations ?? {}).forEach((ruleId) => {
-                  const category = ruleset.violations[ruleId].category;
-
-                  ruleset.violations[ruleId].incidents?.forEach((incident: any) => {
-                    const fileUriString = incident.uri;
-                    const fileUri = vscode.Uri.parse(fileUriString);
-                    const fileKey = fileUri.toString();
-
-                    let lineNumber = incident.lineNumber ? incident.lineNumber - 1 : 0;
-                    if (lineNumber < 0) {
-                      lineNumber = 0;
-                    }
-
-                    const severity = (category: string) => {
-                      if (category === "mandatory") {
-                        return vscode.DiagnosticSeverity.Error;
-                      }
-                      if (category === "potential") {
-                        return vscode.DiagnosticSeverity.Warning;
-                      }
-                      if (category === "optional") {
-                        return vscode.DiagnosticSeverity.Information;
-                      }
-                      return vscode.DiagnosticSeverity.Hint;
-                    };
-
-                    const diagnostic = new vscode.Diagnostic(
-                      new vscode.Range(lineNumber, 0, lineNumber, Number.MAX_SAFE_INTEGER),
-                      incident.message,
-                      severity(category),
-                    );
-
-                    // Collect diagnostics per file
-                    let diagnostics = diagnosticsMap.get(fileKey);
-                    if (!diagnostics) {
-                      diagnostics = [];
-                      diagnosticsMap.set(fileKey, diagnostics);
-                    }
-                    diagnostics.push(diagnostic);
-                  });
-                });
-              });
+              processIncidents(analysisResults, diagnosticsMap);
 
               // Set diagnostics per file
               diagnosticsMap.forEach((diagnostics, fileKey) => {
