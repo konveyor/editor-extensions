@@ -69,6 +69,12 @@
         "title": "Configure Analysis LabelSelector",
         "category": "Konveyor",
         "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.generateMockAnalysisResults",
+        "title": "Generate Mock Analysis Results",
+        "category": "Konveyor",
+        "icon": "$(gear)"
       }
     ],
     "submenus": [
@@ -217,7 +223,6 @@
             "id": "override-analyzer",
             "title": "Override Analyzer Binary",
             "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)",
-
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/override-analyzer.md"
@@ -227,7 +232,9 @@
             "id": "configure-custom-rules",
             "title": "Configure Custom Rules",
             "description": "Add custom rules for analysis\n[Configure Custom Rules](command:konveyor.configureCustomRules)",
-            "completionEvents": ["onCommand:konveyor.configureCustomRules"],
+            "completionEvents": [
+              "onCommand:konveyor.configureCustomRules"
+            ],
             "media": {
               "markdown": "media/walkthroughs/custom-rules.md"
             }
@@ -270,6 +277,8 @@
     "clean": "rimraf ./out ./test_out"
   },
   "devDependencies": {
+    "@eslint/js": "^9.11.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
     "@types/react": "^18.3.8",
@@ -278,24 +287,24 @@
     "@types/vscode": "^1.93.0",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
-    "typescript-eslint": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.11.1",
-    "@eslint/js": "^9.11.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react": "^7.36.1",
     "eslint-plugin-unused-imports": "^4.1.4",
+    "prettier": "^3.0.2",
+    "rimraf": "^4.4.1",
     "ts-loader": "^9.5.1",
     "typescript": "^5.6.2",
+    "typescript-eslint": "^8.7.0",
     "webpack": "^5.94.0",
-    "webpack-cli": "^5.1.4",
-    "prettier": "^3.0.2",
-    "rimraf": "^4.4.1"
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "babel-loader": "^9.2.1",
+    "js-yaml": "^4.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^10.0.0"
