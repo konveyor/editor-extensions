@@ -177,11 +177,7 @@ const App: React.FC = () => {
         description="Address issues one at a time"
       >
         {isWizardOpen && hasViolations && (
-          <GuidedApproachWizard
-            violations={violations}
-            isOpen={isWizardOpen}
-            onClose={closeWizard}
-          />
+          <GuidedApproachWizard violations={violations} onClose={closeWizard} />
         )}
       </Modal>
     </Page>

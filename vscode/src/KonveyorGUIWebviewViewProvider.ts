@@ -55,7 +55,7 @@ export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvide
       true,
     );
 
-    setupWebviewMessageListener(webviewView.webview, this.extensionState, this);
+    setupWebviewMessageListener(webviewView.webview, this.extensionState);
 
     webviewView.onDidDispose(() => {
       this.extensionState.webviewProviders.delete(this);

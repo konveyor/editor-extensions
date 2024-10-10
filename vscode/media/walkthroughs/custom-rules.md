@@ -1,5 +1,4 @@
-Custom Rules
-============
+# Custom Rules
 
 The Konveyor extension allows you to add custom rules to the analyzer. This is useful if you want to add your own rules to the analyzer.
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import { Violation, Incident } from "../types";
 import {
   ExpandableSection,
@@ -77,47 +77,47 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
     }, "low");
   };
 
-  const filteredAndSortedViolations = useMemo(() => {
-    let result = violations;
+  // const filteredAndSortedViolations = useMemo(() => {
+  //   let result = violations;
 
-    // Filter
-    if (searchTerm) {
-      const lowercaseSearchTerm = searchTerm.toLowerCase();
-      result = result.filter((violation) => {
-        const matchingIncidents = violation.incidents.filter(
-          (incident) =>
-            incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-            incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-        );
+  //   // Filter
+  //   if (searchTerm) {
+  //     const lowercaseSearchTerm = searchTerm.toLowerCase();
+  //     result = result.filter((violation) => {
+  //       const matchingIncidents = violation.incidents.filter(
+  //         (incident) =>
+  //           incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
+  //           incident.uri.toLowerCase().includes(lowercaseSearchTerm),
+  //       );
 
-        return (
-          matchingIncidents.length > 0 ||
-          violation.description.toLowerCase().includes(lowercaseSearchTerm)
-        );
-      });
-    }
+  //       return (
+  //         matchingIncidents.length > 0 ||
+  //         violation.description.toLowerCase().includes(lowercaseSearchTerm)
+  //       );
+  //     });
+  //   }
 
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case "description":
-          return a.description.localeCompare(b.description);
-        case "incidentCount":
-          return b.incidents.length - a.incidents.length;
-        case "severity":
-          const severityOrder = { high: 3, medium: 2, low: 1 };
-          const aMaxSeverity =
-            severityOrder[getHighestSeverity(a.incidents) as keyof typeof severityOrder];
-          const bMaxSeverity =
-            severityOrder[getHighestSeverity(b.incidents) as keyof typeof severityOrder];
-          return bMaxSeverity - aMaxSeverity;
-        default:
-          return 0;
-      }
-    });
+  //   // Sort
+  //   result.sort((a, b) => {
+  //     switch (sortBy) {
+  //       case "description":
+  //         return a.description.localeCompare(b.description);
+  //       case "incidentCount":
+  //         return b.incidents.length - a.incidents.length;
+  //       case "severity":
+  //         const severityOrder = { high: 3, medium: 2, low: 1 };
+  //         const aMaxSeverity =
+  //           severityOrder[getHighestSeverity(a.incidents) as keyof typeof severityOrder];
+  //         const bMaxSeverity =
+  //           severityOrder[getHighestSeverity(b.incidents) as keyof typeof severityOrder];
+  //         return bMaxSeverity - aMaxSeverity;
+  //       default:
+  //         return 0;
+  //     }
+  //   });
 
-    return result;
-  }, [violations, searchTerm, sortBy]);
+  //   return result;
+  // }, [violations, searchTerm, sortBy]);
 
   const renderViolation = useCallback(
     (violation: Violation) => {

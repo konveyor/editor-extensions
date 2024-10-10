@@ -1,5 +1,4 @@
-Analysis Arguments
-==================
+# Analysis Arguments
 
 The mechanism we use to configure which rules apply to the project during analysis is the labelSelector.
 

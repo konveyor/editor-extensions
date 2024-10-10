@@ -1,15 +1,10 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
-import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 
-export function setupWebviewMessageListener(
-  webview: vscode.Webview,
-  state: ExtensionState,
-  provider: KonveyorGUIWebviewViewProvider,
-) {
+export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
-      case "requestQuickfix":
+      case "requestQuickfix": {
         const { uri, line } = message.data;
         await handleRequestQuickFix(uri, line);
         // Implement the quick fix logic here
@@ -22,7 +17,8 @@ export function setupWebviewMessageListener(
         // action.isPreferred = true;
         // vscode.commands.executeCommand("vscode.executeCodeActionProvider", message.documentUri, message.range, action);
         break;
-      case "requestAnalysisData":
+      }
+      case "requestAnalysisData": {
         const analysisResults = state.extensionContext.workspaceState.get("analysisResults");
         if (analysisResults && Array.isArray(analysisResults) && analysisResults.length > 0) {
           webview.postMessage({ type: "analysisData", data: analysisResults[0] });
@@ -30,8 +26,9 @@ export function setupWebviewMessageListener(
           webview.postMessage({ type: "analysisData", data: null });
         }
         break;
+      }
 
-      case "startAnalysis":
+      case "startAnalysis": {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const defaultUri =
           workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri : undefined;
@@ -54,6 +51,7 @@ export function setupWebviewMessageListener(
           });
         }
         break;
+      }
 
       case "openFile": {
         const fileUri = vscode.Uri.parse(message.file);

@@ -21,15 +21,10 @@ import { vscode } from "../globals";
 
 interface GuidedApproachWizardProps {
   violations: Violation[];
-  isOpen: boolean;
   onClose: () => void;
 }
 
-const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({
-  violations,
-  isOpen,
-  onClose,
-}) => {
+const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations, onClose }) => {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [quickFix, setQuickFix] = useState<string | null>(null);

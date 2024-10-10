@@ -107,7 +107,7 @@ const commandsMap: (state: ExtensionState) => {
       //Add content to the panel
       panel.webview.html = getWebviewContent(extensionContext, panel.webview, true);
 
-      setupWebviewMessageListener(panel.webview, state, sidebarProvider);
+      setupWebviewMessageListener(panel.webview, state);
 
       //When panel closes, reset the webview and focus
       panel.onDidDispose(

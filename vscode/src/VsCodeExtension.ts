@@ -44,7 +44,7 @@ export class VsCodeExtension {
     );
 
     sidebarProvider.onWebviewReady((webview) => {
-      setupWebviewMessageListener(webview, this.state, sidebarProvider);
+      setupWebviewMessageListener(webview, this.state);
     });
     //DEBUG USE ONLY
     setTimeout(() => {
