@@ -1,0 +1,21 @@
+- category: mandatory
+  customVariables: []
+  description: Replace the SpringBoot context artifact with Quarkus 'spring-scheduled'
+    extension
+  effort: 1
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=quarkus
+  links:
+    - title: Quarkus Spring Scheduled Guide
+      url: https://quarkus.io/guides/spring-scheduled
+  message: |-
+    Replace the Spring Context artifact with Quarkus `spring-scheduled` extension
+
+     Spring Scheduled is in spring-context artifact brought transitively by any `org.springframework.boot:spring-boot-*` dependency
+     Add Quarkus dependency `io.quarkus:quarkus-spring-scheduled`
+  ruleID: springboot-scheduled-to-quarkus-00000
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.springframework.scheduling.annotation.Scheduled

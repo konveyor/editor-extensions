@@ -1,0 +1,49 @@
+- category: mandatory
+  customVariables: []
+  description: Replace Jakarta Faces Dependency with MyFaces
+  effort: 1
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=quarkus
+  links:
+    - title: "Apache MyFaces: Getting Started on Quarkus"
+      url: https://myfaces.apache.org/#/coregettingstarted?id=quarkus
+  message: "Faces Dependencies with groupId `jakarta.faces` should be replaced with
+    \n \n ```\n <!-- Quarkus MyFaces dependencies --> \n <dependency>\n <groupId>org.apache.myfaces.core.extensions.quarkus</groupId>\n
+    <artifactId>myfaces-quarkus</artifactId>\n <version>4.0.1</version>\n </dependency>\n
+    \n <!-- Quarkus Faces utilities and components extensions -->\n <dependency>\n
+    <groupId>io.quarkiverse.primefaces</groupId>\n <artifactId>quarkus-primefaces</artifactId>\n
+    <version>3.13.1</version>\n </dependency>\n <dependency>\n <groupId>io.quarkiverse.omnifaces</groupId>\n
+    <artifactId>quarkus-omnifaces</artifactId>\n <version>4.2.0</version>\n </dependency>\n
+    ```"
+  ruleID: jakarta-faces-to-quarkus-00000
+  when:
+    builtin.xml:
+      filepaths:
+        - pom.xml
+      namespaces:
+        m: http://maven.apache.org/POM/4.0.0
+      xpath: /m:project/m:dependencies/m:dependency[m:groupId/text() = 'jakarta.faces']
+- category: mandatory
+  customVariables: []
+  description: Replace Jakarta Faces Dependency with MyFaces
+  effort: 1
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=quarkus
+  links:
+    - title: "Apache MyFaces: Getting Started on Quarkus"
+      url: https://myfaces.apache.org/#/coregettingstarted?id=quarkus
+  message: "Faces Dependencies with artifactId `jakarta.faces` should be replaced
+    with \n \n ```\n <!-- Quarkus MyFaces dependencies --> \n <dependency>\n <groupId>org.apache.myfaces.core.extensions.quarkus</groupId>\n
+    <artifactId>myfaces-quarkus</artifactId>\n <version>4.0.1</version>\n </dependency>\n
+    \n <!-- Quarkus Faces utilities and components extensions -->\n <dependency>\n
+    <groupId>io.quarkiverse.primefaces</groupId>\n <artifactId>quarkus-primefaces</artifactId>\n
+    <version>3.13.1</version>\n </dependency>\n <dependency>\n <groupId>io.quarkiverse.omnifaces</groupId>\n
+    <artifactId>quarkus-omnifaces</artifactId>\n <version>4.2.0</version>\n </dependency>\n
+    ```"
+  ruleID: jakarta-faces-to-quarkus-00010
+  when:
+    builtin.filecontent:
+      filePattern: pom\.xml
+      pattern: artifactId>jakarta.faces<

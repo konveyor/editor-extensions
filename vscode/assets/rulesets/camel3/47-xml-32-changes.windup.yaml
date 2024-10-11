@@ -1,0 +1,290 @@
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.impl.JndiRegistry has been removed
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_jndiregistry
+  message:
+    "`org.apache.camel.impl.JndiRegistry` has been removed - please use org.apache.camel.support.jndi.JndiBeanRepository
+    in org.apache.camel:camel-support instead."
+  ruleID: jndiregistry-removed-camel32-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.impl.JndiRegistry
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_camel_with_karaf_and_osgi
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-blueprint` dependency to `org.apache.came.karaf:camel-blueprint`."
+  ruleID: xml-removed-camel32-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-blueprint
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-blueprint
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_other_components_involved
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-test-blueprint` dependency to `org.apache.camel.karaf:camel-test-blueprint`."
+  ruleID: xml-removed-camel32-00002
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-test-blueprint
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-blueprint
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_other_components_involved
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-test-karaf` dependency to `org.apache.camel.karaf:camel-test-karaf`."
+  ruleID: xml-removed-camel32-00003
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-test-karaf
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-test-karaf
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_other_components_involved
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-eventadmin` dependency to `org.apache.camel.karaf:camel-eventadmin`."
+  ruleID: xml-removed-camel32-00004
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-eventadmin
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-eventadmin
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_other_components_involved
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-kura` dependency to `org.apache.camel.karaf:camel-kura`."
+  ruleID: xml-removed-camel32-00005
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-kura
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-kura
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_other_components_involved
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-osgi-activator` dependency to `org.apache.camel.karaf:camel-osgi-activator`."
+  ruleID: xml-removed-camel32-00006
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-osgi-activator
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-osgi-activator
+- category: mandatory
+  customVariables: []
+  description: "Camel on Apache Karaf / OSGi has been moved to its own project at:
+    https://github.com/apache/camel-karaf"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_other_components_involved
+  message:
+    "Camel on Apache Karaf / OSGi has been moved to its own project at: https://github.com/apache/camel-karaf.
+    Please change the `org.apache.camel:camel-paxlogging` dependency to `org.apache.camel.karaf:camel-paxlogging`."
+  ruleID: xml-removed-camel32-00007
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-paxlogging
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-paxlogging
+- category: mandatory
+  customVariables: []
+  description: camel-spark-rest has been removed
+  effort: 5
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_camel_spark_rest
+  message: camel-spark-rest component has been removed - please any of the other REST
+    capable components, such as camel-jetty, camel-netty-http or camel-undertow..
+  ruleID: xml-removed-camel32-00008
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-spark-rest
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-spark-rest
+- category: mandatory
+  customVariables: []
+  description: Camel Spring Boot has flattened its option keys and the .configuration
+    prefix has been removed
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot configuration"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_configuring_components_via_spring_boot_auto_configuration
+  message: Camel Spring Boot has flattened its option keys and the .configuration
+    prefix has been removed. See the example in the upgrade guide for 3.2 for more
+    details
+  ruleID: xml-moved-camel32-00003
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: camel.component..*.configuration..*=.*
+- category: mandatory
+  customVariables: []
+  description: broker-u-r-l in Spring Boot properties renamed to broker-url
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot configuration"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_configuring_camel_activemq_camel_amqp_and_camel_stomp_via_spring_boot_auto_configuration
+  message: broker-u-r-l in Spring Boot properties renamed to broker-url. See the example
+    in the upgrade guide for 3.2 for more details
+  ruleID: xml-moved-camel32-00004
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: .*.broker-u-r-l=.*
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.cluster has been moved out of org.apache.camel:camel-core-engine
+    into org.apache.camel:camel-cluster
+  effort: 2
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot configuration"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_camel_cluster
+  message: org.apache.camel.cluster has been moved out of org.apache.camel:camel-core-engine
+    into org.apache.camel:camel-cluster. See the example in the upgrade guide for
+    3.2 for more details
+  ruleID: xml-moved-camel32-00005
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.cluster*
+- category: optional
+  customVariables: []
+  description: The org.apache.camel.spring.Main class has been moved out of camel-spring
+    JAR into its own JAR named camel-spring-main.
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.2+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Moved components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_2.html#_main_in_camel_spring
+  message: The org.apache.camel.spring.Main class has been moved out of camel-spring
+    JAR into its own JAR named camel-spring-main.
+  ruleID: xml-removed-camel32-00010
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-spring
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-spring

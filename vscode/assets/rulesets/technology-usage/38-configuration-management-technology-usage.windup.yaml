@@ -1,0 +1,36 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-technology-usage-0100
+  tag:
+    - Sustain=Spring Cloud Config
+    - Configuration Management=Spring Cloud Config
+    - Embedded=Spring Cloud Config
+  when:
+    builtin.hasTags:
+      - Spring Cloud Config
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-technology-usage-0200
+  tag:
+    - Sustain=Application Properties File
+    - Configuration Management=Application Properties File
+    - Embedded=Application Properties File
+  when:
+    builtin.hasTags:
+      - Application Properties File
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-technology-usage-0300
+  tag:
+    - Sustain=Spring Properties
+    - Configuration Management=Spring Properties
+    - Embedded=Spring Properties
+  when:
+    builtin.hasTags:
+      - Spring Properties

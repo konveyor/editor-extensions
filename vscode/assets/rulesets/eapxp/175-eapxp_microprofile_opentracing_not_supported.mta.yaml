@@ -1,0 +1,22 @@
+- category: mandatory
+  customVariables: []
+  description: MicroProfile OpenTracing not supported
+  effort: 1
+  labels:
+    - konveyor.io/source=eapxp
+    - konveyor.io/target=eapxp5+
+    - konveyor.io/target=eapxp
+    - JBossEAP
+    - EAPXP
+  links: []
+  message: If you migrate your application to JBoss EAP XP 5.0 (or later), please
+    note that MicroProfile OpenTracing is not supported.
+  ruleID: eapxp_microprofile_opentracing_not_supported-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.eclipse.microprofile.opentracing.microprofile-opentracing-api
+      - java.referenced:
+          location: PACKAGE
+          pattern: org.eclipse.microprofile.opentracing*

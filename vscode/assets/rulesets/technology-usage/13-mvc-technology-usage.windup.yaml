@@ -1,0 +1,612 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01000
+  tag:
+    - View=Wicket
+    - Embedded=Wicket
+    - MVC=Wicket
+  when:
+    builtin.hasTags:
+      - Apache Wicket
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01100
+  tag:
+    - View=Struts
+    - Embedded=Struts
+    - MVC=Struts
+  when:
+    builtin.hasTags:
+      - Apache Struts
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01200
+  tag:
+    - View=Spring MVC
+    - Embedded=Spring MVC
+    - MVC=Spring MVC
+  when:
+    builtin.hasTags:
+      - Spring MVC
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01300
+  tag:
+    - View=GWT
+    - Embedded=GWT
+    - MVC=GWT
+  when:
+    builtin.hasTags:
+      - GWT
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01400
+  tag:
+    - View=MyFaces
+    - Embedded=MyFaces
+    - MVC=MyFaces
+  when:
+    builtin.hasTags:
+      - MyFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01500
+  tag:
+    - View=RichFaces
+    - Embedded=RichFaces
+    - MVC=RichFaces
+  when:
+    builtin.hasTags:
+      - RichFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01600
+  tag:
+    - View=JSF
+    - Embedded=JSF
+    - MVC=JSF
+  when:
+    builtin.hasTags:
+      - JSF
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01700
+  tag:
+    - View=Apache Tapestry
+    - Embedded=Apache Tapestry
+    - MVC=Apache Tapestry
+  when:
+    builtin.hasTags:
+      - Apache Tapestry
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01800
+  tag:
+    - View=Stripes
+    - Embedded=Stripes
+    - MVC=Stripes
+  when:
+    builtin.hasTags:
+      - Stripes
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-01900
+  tag:
+    - View=Spark
+    - Embedded=Spark
+    - MVC=Spark
+  when:
+    builtin.hasTags:
+      - Spark
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02000
+  tag:
+    - View=Vaadin
+    - Embedded=Vaadin
+    - MVC=Vaadin
+  when:
+    builtin.hasTags:
+      - Vaadin
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02100
+  tag:
+    - View=Grails
+    - Embedded=Grails
+    - MVC=Grails
+  when:
+    builtin.hasTags:
+      - Grails
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02200
+  tag:
+    - View=Play
+    - Embedded=Play
+    - MVC=Play
+  when:
+    builtin.hasTags:
+      - Play
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02300
+  tag:
+    - View=Oracle ADF
+    - Embedded=Oracle ADF
+    - MVC=Oracle ADF
+  when:
+    builtin.hasTags:
+      - Oracle ADF
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02400
+  tag:
+    - View=PrimeFaces
+    - Embedded=PrimeFaces
+    - MVC=PrimeFaces
+  when:
+    builtin.hasTags:
+      - PrimeFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02500
+  tag:
+    - View=JSTL
+    - Embedded=JSTL
+    - MVC=JSTL
+  when:
+    builtin.hasTags:
+      - JSTL
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02600
+  tag:
+    - View=OpenFaces
+    - Embedded=OpenFaces
+    - MVC=OpenFaces
+  when:
+    builtin.hasTags:
+      - OpenFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02700
+  tag:
+    - View=JFreeChart
+    - Embedded=JFreeChart
+    - MVC=JFreeChart
+  when:
+    builtin.hasTags:
+      - JFreeChart
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02800
+  tag:
+    - View=BootsFaces
+    - Embedded=BootsFaces
+    - MVC=BootsFaces
+  when:
+    builtin.hasTags:
+      - BootsFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-02900
+  tag:
+    - View=ICEfaces
+    - Embedded=ICEfaces
+    - MVC=ICEfaces
+  when:
+    builtin.hasTags:
+      - ICEfaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03000
+  tag:
+    - View=BabbageFaces
+    - Embedded=BabbageFaces
+    - MVC=BabbageFaces
+  when:
+    builtin.hasTags:
+      - BabbageFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03100
+  tag:
+    - View=Portlet
+    - Embedded=Portlet
+    - MVC=Portlet
+  when:
+    builtin.hasTags:
+      - Portlet
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03200
+  tag:
+    - View=AngularFaces
+    - Embedded=AngularFaces
+    - MVC=AngularFaces
+  when:
+    builtin.hasTags:
+      - AngularFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03300
+  tag:
+    - View=LiferayFaces
+    - Embedded=LiferayFaces
+    - MVC=LiferayFaces
+  when:
+    builtin.hasTags:
+      - LiferayFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03400
+  tag:
+    - View=Liferay
+    - Embedded=Liferay
+    - MVC=Liferay
+  when:
+    builtin.hasTags:
+      - Liferay
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03500
+  tag:
+    - View=ButterFaces
+    - Embedded=ButterFaces
+    - MVC=ButterFaces
+  when:
+    builtin.hasTags:
+      - ButterFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03600
+  tag:
+    - View=HighFaces
+    - Embedded=HighFaces
+    - MVC=HighFaces
+  when:
+    builtin.hasTags:
+      - HighFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03700
+  tag:
+    - View=TieFaces
+    - Embedded=TieFaces
+    - MVC=TieFaces
+  when:
+    builtin.hasTags:
+      - TieFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03800
+  tag:
+    - View=OmniFaces
+    - Embedded=OmniFaces
+    - MVC=OmniFaces
+  when:
+    builtin.hasTags:
+      - OmniFaces
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-03900
+  tag:
+    - View=UberFire
+    - Embedded=UberFire
+    - MVC=UberFire
+  when:
+    builtin.hasTags:
+      - UberFire
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04000
+  tag:
+    - View=Velocity
+    - Embedded=Velocity
+    - MVC=Velocity
+  when:
+    builtin.hasTags:
+      - Velocity
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04100
+  tag:
+    - View=Thymeleaf
+    - Embedded=Thymeleaf
+    - MVC=Thymeleaf
+  when:
+    builtin.hasTags:
+      - Thymeleaf
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-0x4200
+  tag:
+    - View=FreeMarker
+    - Embedded=FreeMarker
+    - MVC=FreeMarker
+  when:
+    builtin.hasTags:
+      - FreeMarker
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04300
+  tag:
+    - View=ANTLR StringTemplate
+    - Embedded=ANTLR StringTemplate
+    - MVC=ANTLR StringTemplate
+  when:
+    builtin.hasTags:
+      - ANTLR StringTemplate
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04400
+  tag:
+    - View=Handlebars
+    - Embedded=Handlebars
+    - MVC=Handlebars
+  when:
+    builtin.hasTags:
+      - Handlebars
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04500
+  tag:
+    - View=JMustache
+    - Embedded=JMustache
+    - MVC=JMustache
+  when:
+    builtin.hasTags:
+      - JMustache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04600
+  tag:
+    - View=Jamon
+    - Embedded=Jamon
+    - MVC=Jamon
+  when:
+    builtin.hasTags:
+      - Jamon
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04700
+  tag:
+    - View=Twirl
+    - Embedded=Twirl
+    - MVC=Twirl
+  when:
+    builtin.hasTags:
+      - Twirl
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04800
+  tag:
+    - View=Scalate
+    - Embedded=Scalate
+    - MVC=Scalate
+  when:
+    builtin.hasTags:
+      - Scalate
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-04900
+  tag:
+    - View=Rythm Template Engine
+    - Embedded=Rythm Template Engine
+    - MVC=Rythm Template Engine
+  when:
+    builtin.hasTags:
+      - Rythm Template Engine
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05000
+  tag:
+    - View=Trimou
+    - Embedded=Trimou
+    - MVC=Trimou
+  when:
+    builtin.hasTags:
+      - Trimou
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05100
+  tag:
+    - View=Jetbrick Template
+    - Embedded=Jetbrick Template
+    - MVC=Jetbrick Template
+  when:
+    builtin.hasTags:
+      - Jetbrick Template
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05200
+  tag:
+    - View=Chunk Templates
+    - Embedded=Chunk Templates
+    - MVC=Chunk Templates
+  when:
+    builtin.hasTags:
+      - Chunk Templates
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05300
+  tag:
+    - View=JSilver
+    - Embedded=JSilver
+    - MVC=JSilver
+  when:
+    builtin.hasTags:
+      - JSilver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05400
+  tag:
+    - View=Water Template Engine
+    - Embedded=Water Template Engine
+    - MVC=Water Template Engine
+  when:
+    builtin.hasTags:
+      - Water Template Engine
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05500
+  tag:
+    - View=Ickenham
+    - Embedded=Ickenham
+    - MVC=Ickenham
+  when:
+    builtin.hasTags:
+      - Ickenham
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05600
+  tag:
+    - View=Mixer
+    - Embedded=Mixer
+    - MVC=Mixer
+  when:
+    builtin.hasTags:
+      - Mixer
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05700
+  tag:
+    - View=Webmacro
+    - Embedded=Webmacro
+    - MVC=Webmacro
+  when:
+    builtin.hasTags:
+      - Webmacro
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05800
+  tag:
+    - View=DVSL
+    - Embedded=DVSL
+    - MVC=DVSL
+  when:
+    builtin.hasTags:
+      - DVSL
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-05900
+  tag:
+    - View=Snippetory Template Engine
+    - Embedded=Snippetory Template Engine
+    - MVC=Snippetory Template Engine
+  when:
+    builtin.hasTags:
+      - Snippetory Template Engine
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-mvc-06000
+  tag:
+    - View=Anakia
+    - Embedded=Anakia
+    - MVC=Anakia
+  when:
+    builtin.hasTags:
+      - Anakia

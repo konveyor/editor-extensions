@@ -1,0 +1,29 @@
+- category: mandatory
+  customVariables: []
+  description: Feign
+  effort: 3
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - feign
+  links:
+    - title: Migrate clients bypassing the service registry
+      url: https://learn.microsoft.com/azure/developer/java/migration/migrate-spring-cloud-to-azure-spring-apps?pivots=sc-standard-tier#identify-clients-that-bypass-the-service-registry
+    - title: Spring Cloud OpenFeign
+      url: https://spring.io/projects/spring-cloud-openfeign/
+  message: "The application uses Feign. Spring Cloud Service Registry uses OpenFeign
+    instead. When migrating to Spring Cloud Service Registry, the Feign invocations
+    will no longer be possible.\n \n Update the clients to use Spring Cloud OpenFeign
+    instead."
+  ruleID: spring-boot-to-azure-feign-01000
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: com\.netflix\.feign\..*
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.cloud.spring-cloud-starter-feign

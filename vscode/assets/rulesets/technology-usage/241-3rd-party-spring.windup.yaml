@@ -1,0 +1,31 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-spring-03001
+  tag:
+    - Spring Boot Configuration
+    - Spring Boot Auto-configuration
+    - Spring Boot Component Scan
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.springframework.boot.autoconfigure.SpringBootApplication
+- customVariables: []
+  description: Embedded framework - Spring Deployable War
+  labels:
+    - konveyor.io/include=always
+  links: []
+  message: The Spring application can start from War
+  ruleID: 3rd-party-spring-03002
+  tag:
+    - Spring Deployable War
+    - Embedded framework - Spring Deployable War
+  when:
+    or:
+      - java.referenced:
+          location: INHERITANCE
+          pattern: org.springframework.boot.web.servlet.support.SpringBootServletInitializer
+      - builtin.xml:
+          namespaces: {}
+          xpath: //*[local-name() = 'servlet-class' and text() = 'org.springframework.web.servlet.DispatcherServlet']

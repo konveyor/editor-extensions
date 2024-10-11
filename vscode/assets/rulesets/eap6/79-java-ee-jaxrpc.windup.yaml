@@ -1,0 +1,21 @@
+- customVariables: []
+  description: JAX-RPC Generic Handler
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - jax-rpc
+    - soap
+  links:
+    - title: Java EE RPC Generic Handler API
+      url: http://docs.oracle.com/cd/E17802_01/webservices/webservices/docs/1.6/api/javax/xml/rpc/handler/GenericHandler.html
+  ruleID: java-ee-jaxrpc-00000
+  tag:
+    - jax-rpc
+    - soap
+    - JAX-RPC Generic Handler
+  when:
+    as: default
+    java.referenced:
+      location: INHERITANCE
+      pattern: javax.xml.rpc.handler.GenericHandler

@@ -1,0 +1,31 @@
+- category: mandatory
+  customVariables: []
+  description: Windows file system path
+  effort: 1
+  labels:
+    - konveyor.io/target=linux
+    - konveyor.io/source
+    - ms-windows
+  links: []
+  message: This file system path is Microsoft Windows platform dependent. It needs
+    to be replaced with a Linux-style path.
+  ruleID: os-specific-00001
+  when:
+    builtin.filecontent:
+      filePattern: .*\.(java|properties|jsp|jspf|tag|xml|txt)
+      pattern: '[A-z]:([\\][^\n\t]+)+|(\\\\([^\\\,\n\t]+)\\\S+)+'
+- category: mandatory
+  customVariables: []
+  description: Dynamic-Link Library (DLL)
+  effort: 5
+  labels:
+    - konveyor.io/target=linux
+    - konveyor.io/source
+    - ms-windows
+  links: []
+  message: This Dynamic-Link Library is Microsoft Windows platform dependent. It needs
+    to be replaced with a Linux-style shared library.
+  ruleID: os-specific-00002
+  when:
+    builtin.file:
+      pattern: .*\.dll

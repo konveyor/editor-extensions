@@ -1,0 +1,20 @@
+- category: potential
+  customVariables: []
+  description: Server port configuration found
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-container-apps
+    - port
+    - server port
+  links: []
+  message: The application is setting the server port. Please be aware of potential
+    port reliance issues during the migration process
+  ruleID: spring-boot-to-azure-port-01000
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.(properties|yaml|yml)
+      pattern: (^|\s)server\.port

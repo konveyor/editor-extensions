@@ -1,0 +1,24 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-clustering-01000
+  tag:
+    - Sustain=Web Session
+    - Java EE=Web Session
+    - Clustering=Web Session
+  when:
+    builtin.hasTags:
+      - Clustering Web Session
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-clustering-02000
+  tag:
+    - Sustain=EJB
+    - Java EE=EJB
+    - Clustering=EJB
+  when:
+    builtin.hasTags:
+      - Clustering EJB

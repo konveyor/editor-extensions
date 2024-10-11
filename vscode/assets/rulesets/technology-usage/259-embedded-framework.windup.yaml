@@ -1,0 +1,753 @@
+- customVariables: []
+  description: Embedded framework - Apache Axis
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01000
+  tag:
+    - Apache Axis
+    - Embedded framework - Apache Axis
+  when:
+    builtin.file:
+      pattern: axis.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache Axis2
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01010
+  tag:
+    - Apache Axis2
+    - Embedded framework - Apache Axis2
+  when:
+    builtin.file:
+      pattern: axis2.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache CXF
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01100
+  tag:
+    - Apache CXF
+    - Embedded framework - Apache CXF
+  when:
+    builtin.file:
+      pattern: .*cxf.*\.jar
+- customVariables: []
+  description: Embedded framework - XFire
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01200
+  tag:
+    - XFire
+    - Embedded framework - XFire
+  when:
+    builtin.file:
+      pattern: .*xfire.*\.jar
+- customVariables: []
+  description: Embedded framework - Jersey
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01300
+  tag:
+    - Jersey
+    - Embedded framework - Jersey
+  when:
+    builtin.file:
+      pattern: .*jersey.*\.jar
+- customVariables: []
+  description: Embedded framework - Unirest
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01400
+  tag:
+    - Unirest
+    - Embedded framework - Unirest
+  when:
+    builtin.file:
+      pattern: .*unirest.*\.jar
+- customVariables: []
+  description: Embedded framework - Hibernate
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01500
+  tag:
+    - Hibernate
+    - Embedded framework - Hibernate
+  when:
+    builtin.file:
+      pattern: hibernate.*\.jar
+- customVariables: []
+  description: Embedded framework - Hibernate OGM
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01600
+  tag:
+    - Hibernate OGM
+    - Embedded framework - Hibernate OGM
+  when:
+    builtin.file:
+      pattern: hibernate-ogm.*\.jar
+- customVariables: []
+  description: Embedded framework - EclipseLink
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-01700
+  tag:
+    - EclipseLink
+    - Embedded framework - EclipseLink
+  when:
+    builtin.file:
+      pattern: .*eclipselink.*\.jar
+- customVariables: []
+  description: Embedded framework - Spring Batch
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-02000
+  tag:
+    - Spring Batch
+    - Embedded framework - Spring Batch
+  when:
+    builtin.file:
+      pattern: spring-batch.*\.jar
+- customVariables: []
+  description: Embedded framework - AspectJ
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-02200
+  tag:
+    - AspectJ
+    - Embedded framework - AspectJ
+  when:
+    builtin.file:
+      pattern: .*aspectj.*\.jar
+- customVariables: []
+  description: Embedded framework - JBPM
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-02300
+  tag:
+    - JBPM
+    - Embedded framework - JBPM
+  when:
+    builtin.file:
+      pattern: .*jbpm.*\.jar
+- customVariables: []
+  description: Embedded framework - iLog
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-02400
+  tag:
+    - iLog
+    - Embedded framework - iLog
+  when:
+    builtin.file:
+      pattern: .*jrules.*\.jar
+- customVariables: []
+  description: Embedded framework - Camunda
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-03000
+  tag:
+    - Camunda
+    - Embedded framework - Camunda
+  when:
+    builtin.file:
+      pattern: .*camunda.*\.jar
+- customVariables: []
+  description: Embedded framework - Pega
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-03100
+  tag:
+    - Pega
+    - Embedded framework - Pega
+  when:
+    builtin.file:
+      pattern: .*pega.*\.jar
+- customVariables: []
+  description: Embedded framework - Blaze
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-03200
+  tag:
+    - Blaze
+    - Embedded framework - Blaze
+  when:
+    builtin.file:
+      pattern: blaze.*\.jar
+- customVariables: []
+  description: Embedded framework - MRules
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-03300
+  tag:
+    - MRules
+    - Embedded framework - MRules
+  when:
+    builtin.file:
+      pattern: .*MRules.*\.jar
+- customVariables: []
+  description: Embedded framework - Easy Rules
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-03400
+  tag:
+    - Easy Rules
+    - Embedded framework - Easy Rules
+  when:
+    builtin.file:
+      pattern: .*easy-rules.*\.jar
+- customVariables: []
+  description: Embedded framework - AOP Alliance
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-04700
+  tag:
+    - AOP Alliance
+    - Embedded framework - AOP Alliance
+  when:
+    builtin.file:
+      pattern: .*aopalliance.*\.jar
+- customVariables: []
+  description: Embedded framework - SNMP4J
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05000
+  tag:
+    - SNMP4J
+    - Embedded framework - SNMP4J
+  when:
+    builtin.file:
+      pattern: .*snmp4j.*\.jar
+- customVariables: []
+  description: Embedded framework - HTTP Client
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05100
+  tag:
+    - HTTP Client
+    - Embedded framework - HTTP Client
+  when:
+    builtin.file:
+      pattern: .*http-client.*\.jar
+- customVariables: []
+  description: Embedded framework - Javax Inject
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05300
+  tag:
+    - Javax Inject
+    - Embedded framework - Javax Inject
+  when:
+    or:
+      - builtin.file:
+          pattern: javax\.inject.*\.jar
+      - builtin.file:
+          pattern: .*atinject.*\.jar
+- customVariables: []
+  description: Embedded framework - Google Guice
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05400
+  tag:
+    - Google Guice
+    - Embedded framework - Google Guice
+  when:
+    builtin.file:
+      pattern: .*guice.*\.jar
+- customVariables: []
+  description: Embedded framework - CDI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05500
+  tag:
+    - CDI
+    - Embedded framework - CDI
+  when:
+    builtin.file:
+      pattern: .*cdi.*\.jar
+- customVariables: []
+  description: Embedded framework - Plexus Container
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05600
+  tag:
+    - Plexus Container
+    - Embedded framework - Plexus Container
+  when:
+    builtin.file:
+      pattern: .*plexus-container.*\.jar
+- customVariables: []
+  description: Embedded framework - Weld
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05700
+  tag:
+    - Weld
+    - Embedded framework - Weld
+  when:
+    builtin.file:
+      pattern: .*weld.*\.jar
+- customVariables: []
+  description: Embedded framework - Dagger
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05800
+  tag:
+    - Dagger
+    - Embedded framework - Dagger
+  when:
+    builtin.file:
+      pattern: dagger.*\.jar
+- customVariables: []
+  description: Embedded framework - GIN
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-05900
+  tag:
+    - GIN
+    - Embedded framework - GIN
+  when:
+    builtin.file:
+      pattern: gin.*\.jar
+- customVariables: []
+  description: Embedded framework - PicoContainer
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06000
+  tag:
+    - PicoContainer
+    - Embedded framework - PicoContainer
+  when:
+    builtin.file:
+      pattern: .*picocontainer.*\.jar
+- customVariables: []
+  description: Embedded framework - Scaldi
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06100
+  tag:
+    - Scaldi
+    - Embedded framework - Scaldi
+  when:
+    builtin.file:
+      pattern: .*scaldi.*\.jar
+- customVariables: []
+  description: Embedded framework - Macros
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06200
+  tag:
+    - Macros
+    - Embedded framework - Macros
+  when:
+    builtin.file:
+      pattern: macros.*\.jar
+- customVariables: []
+  description: Embedded framework - Injekt for Kotlin
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06300
+  tag:
+    - Injekt for Kotlin
+    - Embedded framework - Injekt for Kotlin
+  when:
+    builtin.file:
+      pattern: injekt-core.*\.jar
+- customVariables: []
+  description: Embedded framework - Kodein
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06400
+  tag:
+    - Kodein
+    - Embedded framework - Kodein
+  when:
+    builtin.file:
+      pattern: kodein.*\.jar
+- customVariables: []
+  description: Embedded framework - Peaberry
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06500
+  tag:
+    - Peaberry
+    - Embedded framework - Peaberry
+  when:
+    builtin.file:
+      pattern: peaberry.*\.jar
+- customVariables: []
+  description: Embedded framework - Sticky Configured
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06600
+  tag:
+    - Sticky Configured
+    - Embedded framework - Sticky Configured
+  when:
+    builtin.file:
+      pattern: sticky-configured.*\.jar
+- customVariables: []
+  description: Embedded framework - Ka DI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06700
+  tag:
+    - Ka DI
+    - Embedded framework - Ka DI
+  when:
+    builtin.file:
+      pattern: ka-di.*\.jar
+- customVariables: []
+  description: Embedded framework - Polyforms DI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06800
+  tag:
+    - Polyforms DI
+    - Embedded framework - Polyforms DI
+  when:
+    builtin.file:
+      pattern: polyforms-di.*\.jar
+- customVariables: []
+  description: Embedded framework - JayWire
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-06900
+  tag:
+    - JayWire
+    - Embedded framework - JayWire
+  when:
+    builtin.file:
+      pattern: jaywire.*\.jar
+- customVariables: []
+  description: Embedded framework - Silk DI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07000
+  tag:
+    - Silk DI
+    - Embedded framework - Silk DI
+  when:
+    builtin.file:
+      pattern: silk-di.*\.jar
+- customVariables: []
+  description: Embedded framework - Grapht DI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07100
+  tag:
+    - Grapht DI
+    - Embedded framework - Grapht DI
+  when:
+    builtin.file:
+      pattern: grapht.*\.jar
+- customVariables: []
+  description: Embedded framework - Syringe
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07200
+  tag:
+    - Syringe
+    - Embedded framework - Syringe
+  when:
+    builtin.file:
+      pattern: syringe.*\.jar
+- customVariables: []
+  description: Embedded framework - Cfg Engine
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07300
+  tag:
+    - Cfg Engine
+    - Embedded framework - Cfg Engine
+  when:
+    builtin.file:
+      pattern: cfg-engine.*\.jar
+- customVariables: []
+  description: Embedded framework - BeanInject
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07400
+  tag:
+    - BeanInject
+    - Embedded framework - BeanInject
+  when:
+    builtin.file:
+      pattern: beaninject.*\.jar
+- customVariables: []
+  description: Embedded framework - Tornado Inject
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07500
+  tag:
+    - Tornado Inject
+    - Embedded framework - Tornado Inject
+  when:
+    builtin.file:
+      pattern: inject.*\.jar
+- customVariables: []
+  description: Embedded framework - Airframe
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07600
+  tag:
+    - Airframe
+    - Embedded framework - Airframe
+  when:
+    builtin.file:
+      pattern: airframe.*\.jar
+- customVariables: []
+  description: Embedded framework - Winter
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07700
+  tag:
+    - Winter
+    - Embedded framework - Winter
+  when:
+    builtin.file:
+      pattern: winter.*\.jar
+- customVariables: []
+  description: Embedded framework - KouInject
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07800
+  tag:
+    - KouInject
+    - Embedded framework - KouInject
+  when:
+    builtin.file:
+      pattern: kouinject.*\.jar
+- customVariables: []
+  description: Embedded framework - Iroh
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-07900
+  tag:
+    - Iroh
+    - Embedded framework - Iroh
+  when:
+    builtin.file:
+      pattern: iroh.*\.jar
+- customVariables: []
+  description: Embedded framework - Micro DI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08000
+  tag:
+    - Micro DI
+    - Embedded framework - Micro DI
+  when:
+    builtin.file:
+      pattern: micro-di.*\.jar
+- customVariables: []
+  description: Embedded framework - SubCut
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08100
+  tag:
+    - SubCut
+    - Embedded framework - SubCut
+  when:
+    builtin.file:
+      pattern: subcut.*\.jar
+- customVariables: []
+  description: Embedded framework - Spring DI
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08200
+  tag:
+    - Spring DI
+    - Embedded framework - Spring DI
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.springframework.spring-beans
+- customVariables: []
+  description: Embedded framework - Micrometer
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08300
+  tag:
+    - Micrometer
+    - Embedded framework - Micrometer
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: io.micrometer.micrometer-core
+- customVariables: []
+  description: Embedded framework - Spring Web
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08400
+  tag:
+    - Spring Web
+    - Embedded framework - Spring Web
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.spring-web
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.boot.spring-boot-starter-web
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.spring-web
+- customVariables: []
+  description: Embedded framework - Spring Shell
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08500
+  tag:
+    - Spring Shell
+    - Embedded framework - Spring Shell
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.springframework.shell.spring-shell-core
+- customVariables: []
+  description: Embedded framework - Spring Boot Flo
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08600
+  tag:
+    - Spring Boot Flo
+    - Embedded framework - Spring Boot Flo
+  when:
+    builtin.filecontent:
+      filePattern: .*\.(html|ts)
+      pattern: (<|')flo-editor
+- customVariables: []
+  description: Embedded framework - Spring Scheduled
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08700
+  tag:
+    - Spring Scheduled
+    - Embedded framework - Spring Scheduled
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.springframework.scheduling.annotation.Scheduled
+- customVariables: []
+  description: Embedded framework - Spring Cloud Function
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08800
+  tag:
+    - Spring Cloud Function
+    - Embedded framework - Spring Cloud Function
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.cloud.spring-cloud-function-context
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.cloud.spring-cloud-function-context
+- customVariables: []
+  description: Embedded framework - Quartz
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-08900
+  tag:
+    - Quartz
+    - Embedded framework - Quartz
+  when:
+    builtin.file:
+      pattern: .*quartz.*\.jar
+- customVariables: []
+  description: Embedded framework - Zipkin
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-09100
+  tag:
+    - Zipkin
+    - Embedded framework - Zipkin
+  when:
+    builtin.file:
+      pattern: .*zipkin.*\.jar
+- customVariables: []
+  description: Embedded framework - Feign
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-09000
+  tag:
+    - Feign
+    - Embedded framework - Feign
+  when:
+    builtin.file:
+      pattern: feign-.*\.jar
+- customVariables: []
+  description: Embedded framework - Eureka
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-09300
+  tag:
+    - Eureka
+    - Embedded framework - Eureka
+  when:
+    builtin.file:
+      pattern: .*eureka.*\.jar

@@ -1,0 +1,181 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01000
+  tag:
+    - View=JSF Page
+    - Web=JSF Page
+    - Java EE=JSF Page
+  when:
+    builtin.hasTags:
+      - JSF
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01100
+  tag:
+    - View=JSP Page
+    - Web=JSP Page
+    - Java EE=JSP Page
+  when:
+    builtin.hasTags:
+      - JSP
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01200
+  tag:
+    - View=Web XML File
+    - Web=Web XML File
+    - Java EE=Web XML File
+  when:
+    builtin.hasTags:
+      - WebXML
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01300
+  tag:
+    - View=WebSocket
+    - Web=WebSocket
+    - Java EE=WebSocket
+  when:
+    builtin.hasTags:
+      - WebSocket
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01400
+  tag:
+    - View=Applet
+    - Rich=Applet
+    - Java EE=Applet
+  when:
+    or:
+      - builtin.hasTags:
+          - Applet
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01500
+  tag:
+    - View=JNLP
+    - Rich=JNLP
+    - Java EE=JNLP
+  when:
+    builtin.hasTags:
+      - JNLP
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01600
+  tag:
+    - View=JNLP
+    - Rich=JNLP
+    - Embedded=JNLP
+  when:
+    builtin.hasTags:
+      - JNLP
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01700
+  tag:
+    - View=Swing
+    - Rich=Swing
+    - Embedded=Swing
+  when:
+    builtin.hasTags:
+      - Swing
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01800
+  tag:
+    - View=MiGLayout
+    - Rich=MiGLayout
+    - Embedded=MiGLayout
+  when:
+    builtin.hasTags:
+      - MiGLayout
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01900
+  tag:
+    - View=JGoodies
+    - Rich=JGoodies
+    - Embedded=JGoodies
+  when:
+    builtin.hasTags:
+      - JGoodies
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02000
+  tag:
+    - View=FormLayoutMaker
+    - Rich=FormLayoutMaker
+    - Embedded=FormLayoutMaker
+  when:
+    builtin.hasTags:
+      - FormLayoutMaker
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02100
+  tag:
+    - View=Magicgrouplayout
+    - Rich=Magicgrouplayout
+    - Embedded=Magicgrouplayout
+  when:
+    builtin.hasTags:
+      - Magicgrouplayout
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02200
+  tag:
+    - View=Standard Widget Toolkit (SWT)
+    - Rich=Standard Widget Toolkit (SWT)
+    - Embedded=Standard Widget Toolkit (SWT)
+  when:
+    builtin.hasTags:
+      - SWT
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02300
+  tag:
+    - View=JavaFX
+    - Rich=JavaFX
+    - Embedded=JavaFX
+  when:
+    builtin.hasTags:
+      - JavaFX
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02400
+  tag:
+    - View=Eclipse RCP
+    - Rich=Eclipse RCP
+    - Embedded=Eclipse RCP
+  when:
+    builtin.hasTags:
+      - Eclipse RCP

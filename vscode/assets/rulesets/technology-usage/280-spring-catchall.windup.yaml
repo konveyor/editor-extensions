@@ -1,0 +1,12 @@
+- customVariables: []
+  description: Embedded framework - Spring
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: spring-catchall-00001
+  tag:
+    - Spring
+    - Embedded framework - Spring
+  when:
+    builtin.file:
+      pattern: spring.*\.jar

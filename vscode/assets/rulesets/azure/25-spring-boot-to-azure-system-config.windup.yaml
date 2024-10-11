@@ -1,0 +1,35 @@
+- category: optional
+  customVariables: []
+  description: The application uses environment variables/system properties
+  effort: 1
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - config
+  links:
+    - title: Configure per-service secrets and externalized settings
+      url: https://learn.microsoft.com/azure/developer/java/migration/migrate-spring-boot-to-azure-spring-apps#configure-per-service-secrets-and-externalized-settings
+  message: |-
+    Review the usage of environment variables and system properties and externalize them.
+
+     You can inject any per-service configuration settings into each service as environment variables.
+
+     Any system properties that the code depends on will need to be defined in JVM options.
+  ruleID: spring-boot-to-azure-system-config-01000
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.System.getenv(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.System.getProperty(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.System.setProperty(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.System.setProperties(*)

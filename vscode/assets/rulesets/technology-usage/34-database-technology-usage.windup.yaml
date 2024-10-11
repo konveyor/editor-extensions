@@ -1,0 +1,327 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01000
+  tag:
+    - Store=JDBC datasources
+    - Database=JDBC datasources
+    - Java EE=JDBC datasources
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: javax.annotation.sql.DataSourceDefinition
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01001
+  tag:
+    - Store=JDBC XA datasources
+    - Database=JDBC XA datasources
+    - Java EE=JDBC XA datasources
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: javax.annotation.sql.DataSourceDefinition
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01100
+  tag:
+    - Store=JPA entities
+    - Persistence=JPA entities
+    - Java EE=JPA entities
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.xml
+          pattern: http://java.sun.com/xml/ns/persistence
+      - builtin.filecontent:
+          filePattern: .*\.xml
+          pattern: http://xmlns.jcp.org/xml/ns/persistence
+      - builtin.filecontent:
+          filePattern: .*\.xml
+          pattern: https://jakarta.ee/xml/ns/persistence
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01200
+  tag:
+    - Store=JPA named queries
+    - Persistence=JPA named queries
+    - Java EE=JPA named queries
+  when:
+    or:
+      - java.referenced:
+          location: ANNOTATION
+          pattern: javax.persistence.Entity
+      - java.referenced:
+          location: ANNOTATION
+          pattern: javax.persistence.Table
+      - java.referenced:
+          location: ANNOTATION
+          pattern: javax.persistence.NamedQuery
+      - java.referenced:
+          location: ANNOTATION
+          pattern: javax.persistence.NamedQueries
+      - java.referenced:
+          location: ANNOTATION
+          pattern: javax.persistence.DiscriminatorValue
+      - java.referenced:
+          location: ANNOTATION
+          pattern: jakarta.persistence.Entity
+      - java.referenced:
+          location: ANNOTATION
+          pattern: jakarta.persistence.Table
+      - java.referenced:
+          location: ANNOTATION
+          pattern: jakarta.persistence.NamedQuery
+      - java.referenced:
+          location: ANNOTATION
+          pattern: jakarta.persistence.NamedQueries
+      - java.referenced:
+          location: ANNOTATION
+          pattern: jakarta.persistence.DiscriminatorValue
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01300
+  tag:
+    - Store=Persistence units
+    - Persistence=Persistence units
+    - Java EE=Persistence units
+  when:
+    builtin.file:
+      pattern: persistence\.xml
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01400
+  tag:
+    - Store=HSQLDB Driver
+    - Database Driver=HSQLDB Driver
+    - Embedded=HSQLDB Driver
+  when:
+    builtin.hasTags:
+      - HSQLDB Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01500
+  tag:
+    - Store=MySQL Driver
+    - Database Driver=MySQL Driver
+    - Embedded=MySQL Driver
+  when:
+    builtin.hasTags:
+      - MySQL Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01600
+  tag:
+    - Store=Derby Driver
+    - Database Driver=Derby Driver
+    - Embedded=Derby Driver
+  when:
+    builtin.hasTags:
+      - Derby Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01700
+  tag:
+    - Store=PostgreSQL Driver
+    - Database Driver=PostgreSQL Driver
+    - Embedded=PostgreSQL Driver
+  when:
+    builtin.hasTags:
+      - PostgreSQL Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01800
+  tag:
+    - Store=H2 Driver
+    - Database Driver=H2 Driver
+    - Embedded=H2 Driver
+  when:
+    builtin.hasTags:
+      - H2 Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-01900
+  tag:
+    - Store=Microsoft SQL Driver
+    - Database Driver=Microsoft SQL Driver
+    - Embedded=Microsoft SQL Driver
+  when:
+    builtin.hasTags:
+      - Microsoft SQL Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02000
+  tag:
+    - Store=SQLite Driver
+    - Database Driver=SQLite Driver
+    - Embedded=SQLite Driver
+  when:
+    builtin.hasTags:
+      - SQLite Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02100
+  tag:
+    - Store=Oracle DB Driver
+    - Database Driver=Oracle DB Driver
+    - Embedded=Oracle DB Driver
+  when:
+    builtin.hasTags:
+      - Oracle DB Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02200
+  tag:
+    - Store=Cassandra Client
+    - Database Driver=Cassandra Client
+    - Embedded=Cassandra Client
+  when:
+    builtin.hasTags:
+      - Cassandra Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02300
+  tag:
+    - Store=Axion Driver
+    - Database Driver=Axion Driver
+    - Embedded=Axion Driver
+  when:
+    builtin.hasTags:
+      - Axion Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02400
+  tag:
+    - Store=MckoiSQLDB Driver
+    - Database Driver=MckoiSQLDB Driver
+    - Embedded=MckoiSQLDB Driver
+  when:
+    builtin.hasTags:
+      - MckoiSQLDB Driver
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02500
+  tag:
+    - Store=MongoDB Client
+    - Database Driver=MongoDB Client
+    - Embedded=MongoDB Client
+  when:
+    builtin.hasTags:
+      - MongoDB Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02600
+  tag:
+    - Store=Spring Data
+    - Embedded=Spring Data
+    - Object Mapping=Spring Data
+  when:
+    builtin.hasTags:
+      - Spring Data
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02700
+  tag:
+    - Store=Morphia
+    - Object Mapping=Morphia
+    - Embedded=Morphia
+  when:
+    builtin.hasTags:
+      - Morphia
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02800
+  tag:
+    - Store=LevelDB Client
+    - Database Driver=LevelDB Client
+    - Embedded=LevelDB Client
+  when:
+    builtin.hasTags:
+      - LevelDB Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-02900
+  tag:
+    - Store=Apache HBase Client
+    - Database Driver=Apache HBase Client
+    - Embedded=Apache HBase Client
+  when:
+    builtin.hasTags:
+      - Apache HBase Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-03000
+  tag:
+    - Store=Apache Accumulo Client
+    - Database Driver=Apache Accumulo Client
+    - Embedded=Apache Accumulo Client
+  when:
+    builtin.hasTags:
+      - Apache Accumulo Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-03100
+  tag:
+    - Store=Spring Data JPA
+    - Persistence=Spring Data JPA
+    - Embedded=Spring Data JPA
+  when:
+    builtin.hasTags:
+      - Spring Data JPA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-database-03200
+  tag:
+    - Store=MariaDB Driver
+    - Database Driver=MariaDB Driver
+    - Embedded=MariaDB Driver
+  when:
+    builtin.hasTags:
+      - MariaDB Driver

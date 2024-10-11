@@ -1,0 +1,17 @@
+- category: mandatory
+  customVariables: []
+  description: JKS file
+  effort: 1
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - JKS
+  links: []
+  message: Java KeyStore file is found. Make sure to externalize the Java Keystore.
+  ruleID: spring-boot-to-azure-jks-01000
+  when:
+    builtin.file:
+      pattern: .*\.jks

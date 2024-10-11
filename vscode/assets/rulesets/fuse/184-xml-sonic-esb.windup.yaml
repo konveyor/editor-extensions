@@ -1,0 +1,17 @@
+- customVariables: []
+  description: SonicESB Service Configuration
+  labels:
+    - konveyor.io/source=sonicesb
+    - konveyor.io/target=fuse6+
+    - konveyor.io/target=fuse
+    - sonic-esb
+  links: []
+  ruleID: xml-sonic-esb-01000
+  tag:
+    - sonic-esb
+    - SonicESB Service Configuration
+  when:
+    builtin.xml:
+      namespaces:
+        xq: http://www.sonicsw.com/sonicxq
+      xpath: /*[local-name()='serviceType']

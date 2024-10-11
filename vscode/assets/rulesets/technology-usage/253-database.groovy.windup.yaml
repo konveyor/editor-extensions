@@ -1,0 +1,271 @@
+- customVariables: []
+  description: Embedded HSQLDB Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01400
+  tag:
+    - HSQLDB Driver
+    - Embedded HSQLDB Driver
+  when:
+    builtin.file:
+      pattern: .*hsqldb.*\.jar
+- customVariables: []
+  description: Embedded MySQL Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01500
+  tag:
+    - MySQL Driver
+    - Embedded MySQL Driver
+  when:
+    builtin.file:
+      pattern: .*mysql-connector.*\.jar
+- customVariables: []
+  description: Embedded Derby Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01600
+  tag:
+    - Derby Driver
+    - Embedded Derby Driver
+  when:
+    builtin.file:
+      pattern: .*derby.*\.jar
+- customVariables: []
+  description: Embedded PostgreSQL Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01700
+  tag:
+    - PostgreSQL Driver
+    - Embedded PostgreSQL Driver
+  when:
+    builtin.file:
+      pattern: .*postgresql.*\.jar
+- customVariables: []
+  description: Embedded H2 Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01800
+  tag:
+    - H2 Driver
+    - Embedded H2 Driver
+  when:
+    builtin.file:
+      pattern: .*h2.*\.jar
+- customVariables: []
+  description: Embedded Microsoft SQL Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01805
+  tag:
+    - Microsoft SQL Driver
+    - Embedded Microsoft SQL Driver
+  when:
+    or:
+      - builtin.file:
+          pattern: sqljdbc.*\.jar
+      - builtin.file:
+          pattern: mssql-jdbc.*\.jar
+- customVariables: []
+  description: Embedded SQLite Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-01900
+  tag:
+    - SQLite Driver
+    - Embedded SQLite Driver
+  when:
+    builtin.file:
+      pattern: .*sqlite-jdbc.*\.jar
+- customVariables: []
+  description: Embedded Oracle DB Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02000
+  tag:
+    - Oracle DB Driver
+    - Embedded Oracle DB Driver
+  when:
+    or:
+      - builtin.file:
+          pattern: .*jodbc.*\.jar
+      - builtin.file:
+          pattern: .*ojdbc.*\.jar
+- customVariables: []
+  description: Embedded Cassandra Client
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02100
+  tag:
+    - Cassandra Client
+    - Embedded Cassandra Client
+  when:
+    or:
+      - builtin.file:
+          pattern: .*sqlite-jdbc.*\.jar
+      - builtin.file:
+          pattern: .*cassandra.*\.jar
+      - builtin.file:
+          pattern: .*hector.*\.jar
+      - builtin.file:
+          pattern: .*astyanax.*\.jar
+      - builtin.file:
+          pattern: .*phantom-dsl.*\.jar
+      - builtin.file:
+          pattern: .*cql.*\.jar
+      - builtin.file:
+          pattern: .*hecuba-client.*\.jar
+      - builtin.file:
+          pattern: .*c-star-path.*\.jar
+      - builtin.file:
+          pattern: .*scale7-pelops.*\.jar
+- customVariables: []
+  description: Embedded Axion Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02200
+  tag:
+    - Axion Driver
+    - Embedded Axion Driver
+  when:
+    builtin.file:
+      pattern: .*axion.*\.jar
+- customVariables: []
+  description: Embedded MckoiSQLDB Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02300
+  tag:
+    - MckoiSQLDB Driver
+    - Embedded MckoiSQLDB Driver
+  when:
+    builtin.file:
+      pattern: .*mckoisqldb.*\.jar
+- customVariables: []
+  description: Embedded MongoDB Client
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02400
+  tag:
+    - MongoDB Client
+    - Embedded MongoDB Client
+  when:
+    or:
+      - builtin.file:
+          pattern: .*mongodb.*\.jar
+      - builtin.file:
+          pattern: .*casbah.*\.jar
+      - builtin.file:
+          pattern: .*reactivemongo.*\.jar
+      - builtin.file:
+          pattern: .*jongo.*\.jar
+      - builtin.file:
+          pattern: .*gmongo.*\.jar
+      - builtin.file:
+          pattern: .*rogue.*\.jar
+- customVariables: []
+  description: Embedded framework - Spring Data
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02500
+  tag:
+    - Spring Data
+    - Embedded framework - Spring Data
+  when:
+    builtin.file:
+      pattern: spring-data.*\.jar
+- customVariables: []
+  description: Embedded framework - Morphia
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02600
+  tag:
+    - Morphia
+    - Embedded framework - Morphia
+  when:
+    builtin.file:
+      pattern: .*morphia.*\.jar
+- customVariables: []
+  description: Embedded LevelDB Client
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02700
+  tag:
+    - LevelDB Client
+    - Embedded LevelDB Client
+  when:
+    builtin.file:
+      pattern: .*leveldb.*\.jar
+- customVariables: []
+  description: Embedded Apache HBase Client
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02800
+  tag:
+    - Apache HBase Client
+    - Embedded Apache HBase Client
+  when:
+    builtin.file:
+      pattern: .*hbase.*\.jar
+- customVariables: []
+  description: Embedded Apache Accumulo Client
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-02900
+  tag:
+    - Apache Accumulo Client
+    - Embedded Apache Accumulo Client
+  when:
+    builtin.file:
+      pattern: .*accumulo.*\.jar
+- customVariables: []
+  description: Embedded Spring Data JPA
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: database-03000
+  tag:
+    - Spring Data JPA
+    - Embedded Spring Data JPA
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.data.spring-data-jpa
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.boot.spring-boot-starter-data-jpa
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.data.spring-data-jpa
+- customVariables: []
+  description: Embedded MariaDB Driver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  message: The application embeds an MariaDB Driver library.
+  ruleID: database-03100
+  tag:
+    - MariaDB Driver
+    - Embedded MariaDB Driver
+  when:
+    builtin.file:
+      pattern: .*mariadb.*\.jar

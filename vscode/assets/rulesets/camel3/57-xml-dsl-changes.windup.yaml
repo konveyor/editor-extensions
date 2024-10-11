@@ -1,0 +1,231 @@
+- category: mandatory
+  customVariables: []
+  description: "`zip` and `gzip` dataformat was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Zip and Gzip dafaformats"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_zip_and_gzip_dataformat
+  message: "`zip` and `gzip` dataformats were renamed to `zipdeflater` and `gzipdeflater`"
+  ruleID: xml-dsl-changes-00001
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*[(count(b:zip)+count(b:gzip)) >0]
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*[(count(c:gzip)+count(c:zip)) > 0]
+- category: mandatory
+  customVariables: []
+  description: "`custom` load balancer was renamed `customLoadBalancer`"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_xml_dsl_migration
+  message: "`custom` load balancer was renamed to `customLoadBalancer`"
+  ruleID: xml-dsl-changes-00002
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:route/b:loadBalance/b:custom
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:route/c:loadBalance/c:custom
+- category: mandatory
+  customVariables: []
+  description: "`zipFile` data format was renamed to `zipfile`"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_xml_dsl_migration
+  message: "`zipFile` data format was renamed to `zipfile`"
+  ruleID: xml-dsl-changes-00003
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:marshal/b:zipFile
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:unmarshal/b:zipFile
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:marshal/c:zipFile
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:unmarshal/c:zipFile
+- category: mandatory
+  customVariables: []
+  description: "`keyOrTrustStoreParametersId` attribute was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_xml_dsl_migration
+  message: "`keyOrTrustStoreParametersId` attribute was renamed to `keyOrTrustStoreParametersRef`"
+  ruleID: xml-dsl-changes-00004
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:secureXML/@keyOrTrustStoreParametersId
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:secureXML/@keyOrTrustStoreParametersId
+- category: mandatory
+  customVariables: []
+  description: "`hystrix` was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_xml_dsl_migration
+  message: |-
+    Hystrix circuit breaker has been generalized as circuit breaker. Use `circuitBreaker`
+     instead of `hystrix'.
+  ruleID: xml-dsl-changes-00005
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //b:hystrix
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:hystrix
+- category: mandatory
+  customVariables: []
+  description: "`completionSize` in aggregate was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide - Aggregate EIP changes
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_aggregate_eip_in_xml_dsl
+  message: |-
+    Use `completionSizeExpression` instead of `completionSize`. Expressions (not the attributes) for
+     setting correlation size/timeout were renamed.
+  ruleID: xml-dsl-changes-00006
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:aggregate/b:completionSize
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:aggregate/c:completionSize
+- category: mandatory
+  customVariables: []
+  description: "`completionTimeout` in aggregate was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide - Aggregate EIP changes
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_aggregate_eip_in_xml_dsl
+  message: |-
+    Use `completionTimeoutExpression` instead of `completionTimeout`. Expressions (not the
+     attributes) for
+     setting correlation size/timeout were renamed.
+  ruleID: xml-dsl-changes-00007
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:aggregate/b:completionTimeout
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:aggregate/c:completionTimeout
+- category: mandatory
+  customVariables: []
+  description: "`headerName` attribute was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide - Aggregate EIP changes
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_setheader_and_setproperty_in_xml_dsl
+  message: The attribute `headerName` was renamed to `name`.
+  ruleID: xml-dsl-changes-00008
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:setHeader/@headerName
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:setHeader/@headerName
+- category: mandatory
+  customVariables: []
+  description: "`propertyName` attribute was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide - Aggregate EIP changes
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_setheader_and_setproperty_in_xml_dsl
+  message: The attribute `propertyName` was renamed to `name`.
+  ruleID: xml-dsl-changes-00009
+  when:
+    or:
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:setProperty/@propertyName
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:setProperty/@propertyName

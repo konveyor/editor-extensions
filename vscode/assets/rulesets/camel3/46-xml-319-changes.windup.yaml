@@ -1,0 +1,132 @@
+- category: optional
+  customVariables: []
+  description: org.apache.camel:camel-ftp default TLS protocol is changed from TLSv1.2
+    to TLSv1.3.
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.19+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Changed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_19.html#_camel_ftp
+  message: "`org.apache.camel:camel-ftp` default TLS protocol is changed from TLSv1.2
+    to TLSv1.3."
+  ruleID: xml-removed-camel319-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ftp
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ftp
+- category: mandatory
+  customVariables: []
+  description: camel-kafka default TLS protocol is TLSv1.2,TLSv1.3
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.19+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Changed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_19.html#_camel_kafka
+  message: "`camel-kafka` default TLS protocol is TLSv1.2,TLSv1.3 - the default TLS
+    protocol in Kafka Clients running on JDK11+ is TLSv1.2,TLSv1.3 (prefer v1.3 but
+    can fall back to v1.2). in Camel 3.19.0."
+  ruleID: xml-removed-camel319-00002
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-kafka
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-kafka
+- category: mandatory
+  customVariables: []
+  description: camel-netty default TLS protocol is TLSv1.2,TLSv1.3
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.19+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Changed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_19.html#_camel_netty_camel_netty_http
+  message: "`org.apache.camel:camel-netty` - the default TLS protocol is changed from
+    TLSv1,TLSv1.1,TLSv1.2 to TLSv1.2,TLSv1.3 in Camel 3.19.0."
+  ruleID: xml-removed-camel319-00003
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-netty
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-netty
+- category: mandatory
+  customVariables: []
+  description: camel-netty-http default TLS protocol is TLSv1.2,TLSv1.3
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.19+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Changed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_19.html#_camel_netty_camel_netty_http
+  message: "`org.apache.camel:camel-netty-http` - the default TLS protocol is changed
+    from TLSv1,TLSv1.1,TLSv1.2 to TLSv1.2,TLSv1.3 in Camel 3.19.0."
+  ruleID: xml-removed-camel319-00004
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-netty-http
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-netty-http
+- category: mandatory
+  customVariables: []
+  description: camel-ahc component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.19+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_19.html#_deprecated_components
+  message: "`org.apache.camel:camel-ahc` component has been removed in Camel 3.19.0."
+  ruleID: xml-removed-camel319-00005
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ahc
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ahc
+- category: mandatory
+  customVariables: []
+  description: camel-ahc-ws component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.19+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_19.html#_deprecated_components
+  message: "`org.apache.camel:camel-ahc-ws` component has been removed in Camel 3.19.0."
+  ruleID: xml-removed-camel319-00006
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ahc-ws
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ahc-ws

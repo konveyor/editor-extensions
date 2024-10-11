@@ -1,0 +1,35 @@
+- category: mandatory
+  customVariables: []
+  description: The `org.apache.camel:camel-kafka` component has removed the options
+    `bridgeEndpoint` and `circularEndpointDetection`
+  effort: 3
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Kafka"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_kafka
+  message: The `org.apache.camel:camel-kafka` component has removed the options `bridgeEndpoint`
+    and `circularEndpointDetection` as they are no longer needed because the component
+    is acting as bridging would work on Camel 2.x. In other words camel-kafka will
+    send messages to the topic from the endpoint uri. To override this use the KafkaConstants.OVERRIDE_TOPIC
+    header with the new topic. See more details in the camel-kafka component documentation.
+  ruleID: component-changes-00019
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: .to\("kafka:{[^"]+}(circularTopicDetection|bridgeEndpoint)=.*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: org.apache.camel.component.kafka.KafkaConfiguration.(setBridgeEndpoint|setCircularTopicDetection)*
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:to/@uri[matches(self::node(), 'kafka:{*}(circularTopicDetection|bridgeEndpoint){*}')]
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/blueprint
+          xpath: //*/c:to/@uri[matches(self::node(), 'kafka:{*}(circularTopicDetection|bridgeEndpoint){*}')]

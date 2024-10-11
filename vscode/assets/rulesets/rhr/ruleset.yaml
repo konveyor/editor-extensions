@@ -1,0 +1,3 @@
+name: rhr/springboot
+description: Verify the version of the Spring Boot framework is compatible with those
+  supported by Red Hat Runtimes

@@ -1,0 +1,47 @@
+- category: mandatory
+  customVariables: []
+  description: Version of Spring Boot not compatible with Jakarta EE 9+
+  effort: 3
+  labels:
+    - konveyor.io/target=jakarta-ee9+
+    - konveyor.io/target=jakarta-ee
+    - konveyor.io/target=jws6+
+    - konveyor.io/target=jws
+    - konveyor.io/source
+  links:
+    - title: A Java 17 and Jakarta EE 9 baseline for Spring Framework 6
+      url: https://spring.io/blog/2021/09/02/a-java-17-and-jakarta-ee-9-baseline-for-spring-framework-6/
+  message: Version 3.0.0 is the minimum version of Spring Boot that is Jakarta EE
+    9+ compatible
+  ruleID: spring-components-00001
+  when:
+    or:
+      - java.dependency:
+          nameregex: org\.springframework\.boot\..*
+          upperbound: 2.99.999
+      - java.dependency:
+          nameregex: org\.springframework\.boot\..*
+          upperbound: 2.99.999
+- category: mandatory
+  customVariables: []
+  description: Version of Spring not compatible with Jakarta EE 9+
+  effort: 3
+  labels:
+    - konveyor.io/target=jakarta-ee9+
+    - konveyor.io/target=jakarta-ee
+    - konveyor.io/target=jws6+
+    - konveyor.io/target=jws
+    - konveyor.io/source
+  links:
+    - title: A Java 17 and Jakarta EE 9 baseline for Spring Framework 6
+      url: https://spring.io/blog/2021/09/02/a-java-17-and-jakarta-ee-9-baseline-for-spring-framework-6/
+  message: Version 6.0.0 is the minimum version of Spring that is Jakarta EE 9+ compatible
+  ruleID: spring-components-00002
+  when:
+    or:
+      - java.dependency:
+          nameregex: org\.springframework\..*
+          upperbound: 5.99.999
+      - java.dependency:
+          nameregex: org\.springframework\..*
+          upperbound: 5.99.999

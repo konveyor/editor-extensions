@@ -1,0 +1,24 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: observability-technology-usage-0100
+  tag:
+    - Sustain=Spring Boot Actuator
+    - Observability=Spring Boot Actuator
+    - Embedded=Spring Boot Actuator
+  when:
+    builtin.hasTags:
+      - Spring Boot Actuator
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: observability-technology-usage-0200
+  tag:
+    - Sustain=Spring JMX
+    - Observability=Spring JMX
+    - Embedded=Spring JMX
+  when:
+    builtin.hasTags:
+      - Spring JMX

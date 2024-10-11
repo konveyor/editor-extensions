@@ -1,0 +1,53 @@
+- category: mandatory
+  customVariables: []
+  description: camel.springboot.xml-routes configuration key has been renamed to camel.springboot.routes-include-pattern
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.8+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_8.html#_configuration_changes
+  message: "`camel.springboot.xml-routes` configuration key has been renamed to camel.springboot.routes-include-pattern."
+  ruleID: properties-removed-camel38-00001
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: camel.springboot.xml-routes
+- category: mandatory
+  customVariables: []
+  description: camel.springboot.xml-route-templates configuration key has been renamed
+    to camel.springboot.routes-include-pattern
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.8+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_8.html#_configuration_changes
+  message: "`camel.springboot.xml-route-templates` configuration key has been renamed
+    to camel.springboot.routes-include-pattern."
+  ruleID: properties-removed-camel38-00002
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: camel.springboot.xml-route-templates
+- category: mandatory
+  customVariables: []
+  description: camel.springboot.xml-rests configuration key has been renamed to camel.springboot.routes-include-pattern
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.8+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_8.html#_configuration_changes
+  message: "`camel.springboot.xml-rests` configuration key has been renamed to camel.springboot.routes-include-pattern."
+  ruleID: properties-removed-camel38-00003
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: camel.springboot.xml-rests

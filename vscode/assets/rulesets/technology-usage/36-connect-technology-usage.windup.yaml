@@ -1,0 +1,315 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01000
+  tag:
+    - Connect=RMI
+    - Other=RMI
+    - Java EE=RMI
+  when:
+    or:
+      - java.referenced:
+          location: ANNOTATION
+          pattern: javax.ws.rs.Path
+      - java.referenced:
+          location: ANNOTATION
+          pattern: jakarta.ws.rs.Path
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01100
+  tag:
+    - Connect=JNI
+    - Other=JNI
+    - Java EE=JNI
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.System.(load|loadLibrary|mapLibraryName)*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.Runtime.load(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.Runtime.loadLibrary(*)
+- customVariables: []
+  description: JNA usage
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01101
+  tag:
+    - Connect=JNA
+    - Other=JNA
+    - Java EE=JNA
+    - JNA usage
+  when:
+    or:
+      - java.referenced:
+          location: CONSTRUCTOR_CALL
+          pattern: com.sun.jna*
+      - java.referenced:
+          location: IMPORT
+          pattern: com.sun.jna*
+      - java.referenced:
+          location: INHERITANCE
+          pattern: com.sun.jna*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: com.sun.jna(*)
+      - java.referenced:
+          location: VARIABLE_DECLARATION
+          pattern: com.sun.jna*
+- customVariables: []
+  description: Mail usage
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01200
+  tag:
+    - Connect=Mail
+    - Other=Mail
+    - Java EE=Mail
+    - Mail usage
+  when:
+    or:
+      - java.referenced:
+          location: PACKAGE
+          pattern: javax.mail*
+      - java.referenced:
+          location: PACKAGE
+          pattern: com.sun.mail*
+      - java.referenced:
+          location: PACKAGE
+          pattern: org.simplejavamail*
+      - java.referenced:
+          location: PACKAGE
+          pattern: org.apache.commons.mail*
+- customVariables: []
+  description: JCA usage
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01300
+  tag:
+    - Connect=JCA
+    - Other=JCA
+    - Java EE=JCA
+    - JCA usage
+  when:
+    or:
+      - java.referenced:
+          location: CONSTRUCTOR_CALL
+          pattern: javax.resource*
+      - java.referenced:
+          location: IMPORT
+          pattern: javax.resource*
+      - java.referenced:
+          location: INHERITANCE
+          pattern: javax.resource*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: javax.resource*
+      - java.referenced:
+          location: VARIABLE_DECLARATION
+          pattern: javax.resource*
+      - builtin.xml:
+          namespaces: {}
+          xpath: //*[local-name()='jms-jca-provider']
+      - builtin.file:
+          pattern: ra\.xml
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01400
+  tag:
+    - Connect=Resource Adapter
+    - Embedded=Resource Adapter
+    - Other=Resource Adapter
+  when:
+    builtin.hasTags:
+      - Resource Adapter
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01500
+  tag:
+    - Connect=ActiveMQ library
+    - Embedded=ActiveMQ library
+    - Other=ActiveMQ library
+  when:
+    builtin.hasTags:
+      - ActiveMQ
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01600
+  tag:
+    - Connect=OpenWS
+    - Embedded=OpenWS
+    - Web Service=OpenWS
+  when:
+    builtin.hasTags:
+      - OpenWS
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01700
+  tag:
+    - Connect=WSDL
+    - Embedded=WSDL
+    - Web Service=WSDL
+  when:
+    builtin.hasTags:
+      - WSDL
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01800
+  tag:
+    - Connect=RabbitMQ Client
+    - Embedded=RabbitMQ Client
+    - Other=RabbitMQ Client
+  when:
+    builtin.hasTags:
+      - RabbitMQ Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-01900
+  tag:
+    - Connect=Spring Messaging Client
+    - Embedded=Spring Messaging Client
+    - Other=Spring Messaging Client
+  when:
+    builtin.hasTags:
+      - Spring Messaging Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02000
+  tag:
+    - Connect=Camel Messaging Client
+    - Embedded=Camel Messaging Client
+    - Other=Camel Messaging Client
+  when:
+    builtin.hasTags:
+      - Camel Messaging Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02100
+  tag:
+    - Connect=Amazon SQS Client
+    - Embedded=Amazon SQS Client
+    - Other=Amazon SQS Client
+  when:
+    builtin.hasTags:
+      - Amazon SQS Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02200
+  tag:
+    - Connect=HornetQ Client
+    - Embedded=HornetQ Client
+    - Other=HornetQ Client
+  when:
+    builtin.hasTags:
+      - HornetQ Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02300
+  tag:
+    - Connect=AMQP Client
+    - Embedded=AMQP Client
+    - Other=AMQP Client
+  when:
+    builtin.hasTags:
+      - AMQP Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02400
+  tag:
+    - Connect=RocketMQ Client
+    - Embedded=RocketMQ Client
+    - Other=RocketMQ Client
+  when:
+    builtin.hasTags:
+      - RocketMQ Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02500
+  tag:
+    - Connect=0MQ Client
+    - Embedded=0MQ Client
+    - Other=0MQ Client
+  when:
+    builtin.hasTags:
+      - 0MQ Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02600
+  tag:
+    - Connect=JBossMQ client
+    - Embedded=JBossMQ client
+    - Other=JBossMQ client
+  when:
+    builtin.hasTags:
+      - JBossMQ Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02700
+  tag:
+    - Connect=Zbus Client
+    - Embedded=Zbus Client
+    - Other=Zbus Client
+  when:
+    builtin.hasTags:
+      - Zbus Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02800
+  tag:
+    - Connect=Qpid Client
+    - Embedded=Qpid Client
+    - Other=Qpid Client
+  when:
+    builtin.hasTags:
+      - Qpid Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-connect-02900
+  tag:
+    - Connect=Kafka Client
+    - Embedded=Kafka Client
+    - Streaming=Kafka Client
+  when:
+    builtin.hasTags:
+      - Kafka Client

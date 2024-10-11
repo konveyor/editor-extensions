@@ -1,0 +1,27 @@
+- category: potential
+  customVariables: []
+  description: Producer for creating FacesContext must be removed
+  effort: 1
+  labels:
+    - konveyor.io/source=eap6
+    - konveyor.io/source=eap7
+    - konveyor.io/source=eap
+    - konveyor.io/target=eap8
+    - konveyor.io/target=eap
+    - konveyor.io/target=jws6+
+    - konveyor.io/target=jws
+    - JakartaEE
+    - eap8
+  links: []
+  message: The `@Produces` annotation for instantiating `FacesContext` is not necessary
+    anymore, as CDI injection for `FacesContext` works out of the box.
+  ruleID: jakarta-faces-00001
+  when:
+    and:
+      - as: discard
+        java.referenced:
+          location: FIELD_DECLARATION
+          pattern: jakarta.faces.context.FacesContext
+      - java.referenced:
+          location: RETURN_TYPE
+          pattern: jakarta.faces.context.FacesContext

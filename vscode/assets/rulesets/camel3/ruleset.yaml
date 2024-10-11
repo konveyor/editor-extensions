@@ -1,0 +1,2 @@
+name: camel3/camel2
+description: Rules for changes in XML file (e.g. pom.xml) to run on Apache Camel 3

@@ -1,0 +1,228 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-01000
+  tag:
+    - Execute=Liferay
+    - Embedded=Liferay
+    - 3rd party=Liferay
+  when:
+    builtin.hasTags:
+      - Liferay
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-02000
+  tag:
+    - Execute=Oracle Forms
+    - Embedded=Oracle Forms
+    - 3rd party=Oracle Forms
+  when:
+    builtin.hasTags:
+      - Oracle Forms
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-03000
+  tag:
+    - Execute=Spring Boot
+    - Embedded=Spring Boot
+    - 3rd party=Spring Boot
+  when:
+    builtin.hasTags:
+      - Spring Boot
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-04000
+  tag:
+    - Execute=Elasticsearch
+    - Embedded=Elasticsearch
+    - 3rd party=Elasticsearch
+  when:
+    builtin.hasTags:
+      - Elasticsearch
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-05000
+  tag:
+    - Execute=Logstash
+    - Embedded=Logstash
+    - 3rd party=Logstash
+  when:
+    builtin.hasTags:
+      - Logstash
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-06000
+  tag:
+    - Execute=Jetty
+    - Embedded=Jetty
+    - 3rd party=Jetty
+  when:
+    builtin.hasTags:
+      - Jetty
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-08000
+  tag:
+    - Execute=Tomcat
+    - Embedded=Tomcat
+    - 3rd party=Tomcat
+  when:
+    builtin.hasTags:
+      - Tomcat
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-09000
+  tag:
+    - Execute=Kibana
+    - Embedded=Kibana
+    - 3rd party=Kibana
+  when:
+    builtin.hasTags:
+      - Kibana
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-10000
+  tag:
+    - Execute=Apache Karaf
+    - Embedded=Apache Karaf
+    - 3rd party=Apache Karaf
+  when:
+    builtin.hasTags:
+      - Apache Karaf
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-11000
+  tag:
+    - Execute=Neo4j
+    - Embedded=Neo4j
+    - 3rd party=Neo4j
+  when:
+    builtin.hasTags:
+      - Neo4j
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-12000
+  tag:
+    - Execute=Spark
+    - Embedded=Spark
+    - 3rd party=Spark
+  when:
+    builtin.hasTags:
+      - Spark
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-13000
+  tag:
+    - Execute=Apache Hadoop
+    - Embedded=Apache Hadoop
+    - 3rd party=Apache Hadoop
+  when:
+    builtin.hasTags:
+      - Apache Hadoop
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-14000
+  tag:
+    - Execute=Apache Geronimo
+    - Embedded=Apache Geronimo
+    - 3rd party=Apache Geronimo
+  when:
+    builtin.hasTags:
+      - Apache Geronimo
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-15000
+  tag:
+    - Execute=Apache Aries
+    - Embedded=Apache Aries
+    - 3rd party=Apache Aries
+  when:
+    builtin.hasTags:
+      - Apache Aries
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-16000
+  tag:
+    - Execute=Cloudera
+    - Embedded=Cloudera
+    - 3rd party=Cloudera
+  when:
+    builtin.hasTags:
+      - Cloudera
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-17000
+  tag:
+    - Execute=MapR
+    - Embedded=MapR
+    - 3rd party=MapR
+  when:
+    builtin.hasTags:
+      - MapR
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-18000
+  tag:
+    - Execute=TensorFlow
+    - Embedded=TensorFlow
+    - 3rd party=TensorFlow
+  when:
+    builtin.hasTags:
+      - TensorFlow
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-19000
+  tag:
+    - Execute=Weka
+    - Embedded=Weka
+    - 3rd party=Weka
+  when:
+    builtin.hasTags:
+      - Weka
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-20000
+  tag:
+    - Execute=Apache Mahout
+    - Embedded=Apache Mahout
+    - 3rd party=Apache Mahout
+  when:
+    builtin.hasTags:
+      - Apache Mahout

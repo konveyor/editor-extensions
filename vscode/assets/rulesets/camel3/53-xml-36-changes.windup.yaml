@@ -1,0 +1,40 @@
+- category: mandatory
+  customVariables: []
+  description: The class CamelFileDataSource has moved from camel-http-common package
+    org.apache.camel.http.common to camel-attachments package org.apache.camel.attachment
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.6+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_6.html#_camelfiledatasource
+  message: The class CamelFileDataSource has moved from camel-http-common package
+    org.apache.camel.http.common to camel-attachments package org.apache.camel.attachment.
+  ruleID: java-camel36-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.http.common.CamelFileDataSource
+- category: mandatory
+  customVariables: []
+  description: camel-hipchat component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.6+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_6.html#_camel_hipchat
+  message: "`camel-hipchat` component has been removed."
+  ruleID: xml-removed-camel36-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-hipchat
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-hipchat

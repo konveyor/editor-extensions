@@ -1,0 +1,651 @@
+- customVariables: []
+  description: Embedded library - Apache Wicket
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01000
+  tag:
+    - Apache Wicket
+    - Embedded library - Apache Wicket
+  when:
+    builtin.file:
+      pattern: .*wicket.*\.jar
+- customVariables: []
+  description: Embedded library - Apache Struts
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01100
+  tag:
+    - Apache Struts
+    - Embedded library - Apache Struts
+  when:
+    builtin.file:
+      pattern: .*struts.*\.jar
+- customVariables: []
+  description: Embedded framework - Spring MVC
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01200
+  tag:
+    - Spring MVC
+    - Embedded framework - Spring MVC
+  when:
+    builtin.file:
+      pattern: .*spring-webmvc.*\.jar
+- customVariables: []
+  description: Embedded framework - Spring MVC
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01210
+  tag:
+    - Spring MVC
+    - Embedded framework - Spring MVC
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.springframework.web.servlet.mvc.Controller
+- customVariables: []
+  description: Embedded framework - Spring MVC
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01220
+  tag:
+    - Spring MVC
+    - Embedded framework - Spring MVC
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.spring-webmvc
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.spring-webflux
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.boot.spring-boot-starter-webflux
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.spring-webflux
+- customVariables: []
+  description: Embedded library - GWT
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01300
+  tag:
+    - GWT
+    - Embedded library - GWT
+  when:
+    builtin.file:
+      pattern: .*gwt.*\.jar
+- customVariables: []
+  description: Embedded library - MyFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01400
+  tag:
+    - MyFaces
+    - Embedded library - MyFaces
+  when:
+    builtin.file:
+      pattern: .*myfaces.*\.jar
+- customVariables: []
+  description: Embedded library - RichFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01500
+  tag:
+    - RichFaces
+    - Embedded library - RichFaces
+  when:
+    builtin.file:
+      pattern: .*richfaces.*\.jar
+- customVariables: []
+  description: Embedded library - JSF
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01600
+  tag:
+    - JSF
+    - Embedded library - JSF
+  when:
+    builtin.file:
+      pattern: .*jsf.*\.jar
+- customVariables: []
+  description: Embedded library - Apache Tapestry
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01700
+  tag:
+    - Apache Tapestry
+    - Embedded library - Apache Tapestry
+  when:
+    builtin.file:
+      pattern: .*tapestry.*\.jar
+- customVariables: []
+  description: Embedded library - Stripes
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01800
+  tag:
+    - Stripes
+    - Embedded library - Stripes
+  when:
+    builtin.file:
+      pattern: .*stripes.*\.jar
+- customVariables: []
+  description: Embedded library - Spark
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-01900
+  tag:
+    - Spark
+    - Embedded library - Spark
+  when:
+    builtin.file:
+      pattern: .*spark.*\.jar
+- customVariables: []
+  description: Embedded library - Vaadin
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02000
+  tag:
+    - Vaadin
+    - Embedded library - Vaadin
+  when:
+    builtin.file:
+      pattern: .*vaadin.*\.jar
+- customVariables: []
+  description: Embedded library - Grails
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02100
+  tag:
+    - Grails
+    - Embedded library - Grails
+  when:
+    builtin.file:
+      pattern: .*grails.*\.jar
+- customVariables: []
+  description: Embedded library - Play
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02200
+  tag:
+    - Play
+    - Embedded library - Play
+  when:
+    builtin.file:
+      pattern: .*play.*\.jar
+- customVariables: []
+  description: Embedded library - Oracle ADF
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02300
+  tag:
+    - Oracle ADF
+    - Embedded library - Oracle ADF
+  when:
+    or:
+      - builtin.file:
+          pattern: adf-settings\.xml
+      - builtin.file:
+          pattern: adfc-config\.xml
+- customVariables: []
+  description: Embedded library - PrimeFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02400
+  tag:
+    - PrimeFaces
+    - Embedded library - PrimeFaces
+  when:
+    builtin.file:
+      pattern: .*primefaces.*\.jar
+- customVariables: []
+  description: Embedded library - JSTL
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02500
+  tag:
+    - JSTL
+    - Embedded library - JSTL
+  when:
+    builtin.file:
+      pattern: .*jslt.*\.jar
+- customVariables: []
+  description: Embedded library - OpenFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02600
+  tag:
+    - OpenFaces
+    - Embedded library - OpenFaces
+  when:
+    builtin.file:
+      pattern: .*openfaces.*\.jar
+- customVariables: []
+  description: Embedded library - JFreeChart
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02700
+  tag:
+    - JFreeChart
+    - Embedded library - JFreeChart
+  when:
+    builtin.file:
+      pattern: .*jfreechart.*\.jar
+- customVariables: []
+  description: Embedded library - BootsFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02800
+  tag:
+    - BootsFaces
+    - Embedded library - BootsFaces
+  when:
+    builtin.file:
+      pattern: .*bootsfaces.*\.jar
+- customVariables: []
+  description: Embedded library - ICEfaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-02900
+  tag:
+    - ICEfaces
+    - Embedded library - ICEfaces
+  when:
+    builtin.file:
+      pattern: .*icefaces.*\.jar
+- customVariables: []
+  description: Embedded library - BabbageFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03000
+  tag:
+    - BabbageFaces
+    - Embedded library - BabbageFaces
+  when:
+    builtin.file:
+      pattern: .*babbageFaces.*\.jar
+- customVariables: []
+  description: Embedded library - Portlet
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03100
+  tag:
+    - Portlet
+    - Embedded library - Portlet
+  when:
+    builtin.file:
+      pattern: .*portlet.*\.jar
+- customVariables: []
+  description: Embedded library - AngularFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03200
+  tag:
+    - AngularFaces
+    - Embedded library - AngularFaces
+  when:
+    builtin.file:
+      pattern: .*angularFaces.*\.jar
+- customVariables: []
+  description: Embedded library - LiferayFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03300
+  tag:
+    - LiferayFaces
+    - Embedded library - LiferayFaces
+  when:
+    builtin.file:
+      pattern: .*liferay-faces.*\.jar
+- customVariables: []
+  description: Embedded library - Liferay
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03400
+  tag:
+    - Liferay
+    - Embedded library - Liferay
+  when:
+    builtin.file:
+      pattern: .*liferay.*\.jar
+- customVariables: []
+  description: Embedded library - ButterFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03500
+  tag:
+    - ButterFaces
+    - Embedded library - ButterFaces
+  when:
+    builtin.file:
+      pattern: .*butterfaces.*\.jar
+- customVariables: []
+  description: Embedded library - HighFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03600
+  tag:
+    - HighFaces
+    - Embedded library - HighFaces
+  when:
+    builtin.file:
+      pattern: .*highfaces.*\.jar
+- customVariables: []
+  description: Embedded library - TieFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03700
+  tag:
+    - TieFaces
+    - Embedded library - TieFaces
+  when:
+    builtin.file:
+      pattern: .*tiefaces.*\.jar
+- customVariables: []
+  description: Embedded library - OmniFaces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03800
+  tag:
+    - OmniFaces
+    - Embedded library - OmniFaces
+  when:
+    builtin.file:
+      pattern: .*omnifaces.*\.jar
+- customVariables: []
+  description: Embedded library - UberFire
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-03900
+  tag:
+    - UberFire
+    - Embedded library - UberFire
+  when:
+    builtin.file:
+      pattern: .*uberfire.*\.jar
+- customVariables: []
+  description: Embedded library - Apache Velocity
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04000
+  tag:
+    - Velocity
+    - Embedded library - Apache Velocity
+  when:
+    builtin.file:
+      pattern: .*velocity.*\.jar
+- customVariables: []
+  description: Embedded library - Thymeleaf
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04100
+  tag:
+    - Thymeleaf
+    - Embedded library - Thymeleaf
+  when:
+    builtin.file:
+      pattern: .*thymeleaf.*\.jar
+- customVariables: []
+  description: Embedded library - Apache FreeMarker
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04200
+  tag:
+    - FreeMarker
+    - Embedded library - Apache FreeMarker
+  when:
+    builtin.file:
+      pattern: .*freemarker.*\.jar
+- customVariables: []
+  description: Embedded library - ANTLR StringTemplate
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04300
+  tag:
+    - ANTLR StringTemplate
+    - Embedded library - ANTLR StringTemplate
+  when:
+    builtin.file:
+      pattern: .*stringtemplate.*\.jar
+- customVariables: []
+  description: Embedded library - Handlebars
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04400
+  tag:
+    - Handlebars
+    - Embedded library - Handlebars
+  when:
+    builtin.file:
+      pattern: .*handlebars.*\.jar
+- customVariables: []
+  description: Embedded library - JMustache
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04500
+  tag:
+    - JMustache
+    - Embedded library - JMustache
+  when:
+    builtin.file:
+      pattern: .*jmustache.*\.jar
+- customVariables: []
+  description: Embedded library - Jamon
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04600
+  tag:
+    - Jamon
+    - Embedded library - Jamon
+  when:
+    builtin.file:
+      pattern: jamon-.*\.jar
+- customVariables: []
+  description: Embedded library - Twirl
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04700
+  tag:
+    - Twirl
+    - Embedded library - Twirl
+  when:
+    builtin.file:
+      pattern: .*twirl.*\.jar
+- customVariables: []
+  description: Embedded library - Scalate
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04800
+  tag:
+    - Scalate
+    - Embedded library - Scalate
+  when:
+    builtin.file:
+      pattern: .*scalate.*\.jar
+- customVariables: []
+  description: Embedded library - Rythm Template Engine
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-04900
+  tag:
+    - Rythm Template Engine
+    - Embedded library - Rythm Template Engine
+  when:
+    builtin.file:
+      pattern: .*rythm-engine.*\.jar
+- customVariables: []
+  description: Embedded library - Trimou
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05000
+  tag:
+    - Trimou
+    - Embedded library - Trimou
+  when:
+    builtin.file:
+      pattern: .*trimou-core.*\.jar
+- customVariables: []
+  description: Embedded library - Jetbrick Template
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05100
+  tag:
+    - Jetbrick Template
+    - Embedded library - Jetbrick Template
+  when:
+    builtin.file:
+      pattern: .*velocity.*\.jar
+- customVariables: []
+  description: Embedded library - Chunk Templates
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05200
+  tag:
+    - Chunk Templates
+    - Embedded library - Chunk Templates
+  when:
+    builtin.file:
+      pattern: .*chunk-templates.*\.jar
+- customVariables: []
+  description: Embedded library - JSilver
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05300
+  tag:
+    - JSilver
+    - Embedded library - JSilver
+  when:
+    builtin.file:
+      pattern: .*jsilver.*\.jar
+- customVariables: []
+  description: Embedded library - Water Template Engine
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05400
+  tag:
+    - Water Template Engine
+    - Embedded library - Water Template Engine
+  when:
+    builtin.file:
+      pattern: .*watertemplate-engine.*\.jar
+- customVariables: []
+  description: Embedded library - Ickenham
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05500
+  tag:
+    - Ickenham
+    - Embedded library - Ickenham
+  when:
+    builtin.file:
+      pattern: .*ickenham.*\.jar
+- customVariables: []
+  description: Embedded library - Mixer
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05600
+  tag:
+    - Mixer
+    - Embedded library - Mixer
+  when:
+    builtin.file:
+      pattern: .*mixer.*\.jar
+- customVariables: []
+  description: Embedded library - Webmacro
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05700
+  tag:
+    - Webmacro
+    - Embedded library - Webmacro
+  when:
+    builtin.file:
+      pattern: .*webmacro.*\.jar
+- customVariables: []
+  description: Embedded library - DVSL
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05800
+  tag:
+    - DVSL
+    - Embedded library - DVSL
+  when:
+    builtin.file:
+      pattern: .*dvsl.*\.jar
+- customVariables: []
+  description: Embedded library - Snippetory Template Engine
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-05900
+  tag:
+    - Snippetory Template Engine
+    - Embedded library - Snippetory Template Engine
+  when:
+    builtin.file:
+      pattern: .*snippetory.*\.jar
+- customVariables: []
+  description: Embedded library - Anakia
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: mvc-06000
+  tag:
+    - Anakia
+    - Embedded library - Anakia
+  when:
+    builtin.file:
+      pattern: .*anakia.*\.jar

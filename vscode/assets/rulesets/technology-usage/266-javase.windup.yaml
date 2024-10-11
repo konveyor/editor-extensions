@@ -1,0 +1,30 @@
+- customVariables:
+    - name: classes
+      nameOfCaptureGroup: classes
+      pattern: java.lang.(?P<classes>(Thread|ThreadDeath|ThreadGroup|ThreadLocal))
+  description: Threads
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: javase-01000
+  tag:
+    - Java Threads
+    - Threads
+  when:
+    java.referenced:
+      pattern: java.lang.(Thread|ThreadDeath|ThreadGroup|ThreadLocal)
+- customVariables:
+    - name: classes
+      nameOfCaptureGroup: classes
+      pattern: java.util.concurrent.(?P<classes>(ExecutorService|Executors|Executor|ScheduledExecutorService))
+  description: Threads
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: javase-01100
+  tag:
+    - Java Threads
+    - Threads
+  when:
+    java.referenced:
+      pattern: java.util.concurrent.(ExecutorService|Executors|Executor|ScheduledExecutorService)

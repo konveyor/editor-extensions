@@ -1,0 +1,25 @@
+- category: mandatory
+  customVariables: []
+  description: The Java Applet API has been deprecated
+  effort: 3
+  labels:
+    - konveyor.io/source=openjdk11-
+    - konveyor.io/source=openjdk
+    - konveyor.io/target=openjdk17+
+    - konveyor.io/target=openjdk
+  links:
+    - title: "JEP 398: Deprecate the Applet API for Removal"
+      url: https://openjdk.org/jeps/398
+  message: The Java Applet API has been deprecated and will be removed in future releases,
+    since modern web browsers no longer support Java applets any references to it
+    should be removed.
+  ruleID: applet-api-deprecation-00000
+  when:
+    or:
+      - java.referenced:
+          location: PACKAGE
+          pattern: java.applet*
+      - java.referenced:
+          pattern: java.beans.AppletInitializer
+      - java.referenced:
+          pattern: javax.swing.JApplet

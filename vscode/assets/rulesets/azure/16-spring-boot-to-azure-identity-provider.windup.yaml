@@ -1,0 +1,33 @@
+- category: potential
+  customVariables: []
+  description: Spring Security-related dependencies
+  effort: 5
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - security
+  links:
+    - title: Spring Security-related dependencies found in the project
+      url: https://learn.microsoft.com/azure/developer/java/migration/migrate-spring-boot-to-app-service#identity-providers
+    - title: Azure Active Directory (Azure AD) identity provider for External Identities
+      url: https://docs.microsoft.com/azure/active-directory/external-identities/azure-ad-account
+    - title: Spring Security
+      url: https://docs.spring.io/spring-security/reference/index.html
+    - title: "Spring Boot API: Authorization"
+      url: https://auth0.com/docs/quickstart/backend/java-spring-security5/01-authorization
+  message: |-
+    The application uses Spring security.
+
+     Checkout Azure Active Directory as an identity provider.
+  ruleID: spring-boot-to-azure-identity-provider-01000
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.boot.spring-boot-starter-security
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: org\.springframework\.security\..*

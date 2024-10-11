@@ -1,0 +1,25 @@
+- category: mandatory
+  customVariables: []
+  description: Deprecated class in JDK 20 for removal in future release
+  effort: 3
+  labels:
+    - konveyor.io/source=openjdk20-
+    - konveyor.io/source=openjdk
+    - konveyor.io/target=openjdk20+
+    - konveyor.io/target=openjdk
+  links: []
+  message: Several classes under `javax` have been deprecated in JDK 20 for removal
+    in a future release.
+  ruleID: deprecation-00020
+  when:
+    or:
+      - java.referenced:
+          pattern: javax.management.loading.MLet
+      - java.referenced:
+          pattern: javax.management.loading.MLetContent
+      - java.referenced:
+          pattern: javax.management.loading.MLetMBean
+      - java.referenced:
+          pattern: javax.management.loading.PrivateMLet
+      - java.referenced:
+          pattern: javax.lang.ThreadDeath
