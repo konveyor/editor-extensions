@@ -1,3 +1,4 @@
+import { AnalyzerClient } from "./client/analyzerClient";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
 
@@ -14,6 +15,7 @@ export class SharedState {
 }
 
 export interface ExtensionState {
+  analyzerClient: AnalyzerClient;
   sharedState: SharedState;
   webviewProviders: Set<KonveyorGUIWebviewViewProvider>;
   sidebarProvider: KonveyorGUIWebviewViewProvider;

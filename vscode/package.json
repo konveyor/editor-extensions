@@ -65,10 +65,16 @@
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.startAnalysis",
-        "title": "Start Analysis",
+        "command": "konveyor.startAnalyzer",
+        "title": "Start Analyzer",
         "category": "Konveyor",
-        "icon": "$(gear)"
+        "icon": "$(play}"
+      },
+      {
+        "command": "konveyor.runAnalysis",
+        "title": "Run Analysis",
+        "category": "Konveyor",
+        "icon": "$(play}"
       }
     ],
     "submenus": [
@@ -109,10 +115,6 @@
           "command": "konveyor.toggleFullScreen",
           "group": "navigation@1",
           "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
-        },
-        {
-          "command": "konveyor.startAnalysis",
-          "group": "navigation@1"
         }
       ],
       "explorer/context": [
@@ -121,12 +123,7 @@
           "group": "navigation@1"
         }
       ],
-      "konveyor.submenu": [
-        {
-          "command": "konveyor.startAnalysis",
-          "group": "navigation@1"
-        }
-      ]
+      "konveyor.submenu": []
     },
     "configuration": {
       "type": "object",
@@ -248,7 +245,7 @@
           {
             "id": "start-analyzer",
             "title": "Start Analyzer",
-            "description": "Start the analyzer",
+            "description": "Start the analyzer\n[Start Analyzer](command:konveyor.startAnalyzer)",
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/start-analyzer.md"

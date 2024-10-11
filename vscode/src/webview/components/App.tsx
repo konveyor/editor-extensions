@@ -20,22 +20,18 @@ import {
 import { SearchIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
 import { RuleSet } from "../types";
-import { mockResults } from "../mockResults";
 import GuidedApproachWizard from "./GuidedApproachWizard";
 import ProgressIndicator from "./ProgressIndicator";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 
 const App: React.FC = () => {
-  const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>(
-    mockResults as RuleSet[],
-  );
+  const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   useEffect(() => {
-    setAnalysisResults(mockResults as RuleSet[]);
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       switch (message.type) {

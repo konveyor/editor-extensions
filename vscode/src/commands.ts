@@ -2,8 +2,6 @@ import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState } from "./extensionState";
 import { getWebviewContent } from "./webviewContent";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { AnalysisConfig } from "./webview/types";
-import { runAnalysis } from "./runAnalysis"; // Import the runAnalysis function
 import * as vscode from "vscode";
 
 let fullScreenPanel: vscode.WebviewPanel | undefined;
@@ -18,49 +16,23 @@ const commandsMap: (state: ExtensionState) => {
 } = (state) => {
   const { sidebarProvider, extensionContext } = state;
   return {
-    "konveyor.startAnalysis": async (resource: vscode.Uri) => {
-      try {
-        if (!resource || !resource.fsPath) {
-          throw new Error("No folder selected for analysis.");
-        }
-
-        const stats = await vscode.workspace.fs.stat(resource);
-        if (stats.type !== vscode.FileType.Directory) {
-          throw new Error("Selected item is not a folder. Please select a folder for analysis.");
-        }
-
-        // Fetch the workspace configuration
-        const config = vscode.workspace.getConfiguration("konveyor");
-
-        // Get the label selector from the configuration
-        const labelSelector = config.get<string>("labelSelector");
-
-        // Get the custom rules from the configuration
-        const customRules = config.get<string[]>("customRules");
-
-        // Get the override analyzer binary path from the configuration
-        const overrideAnalyzerBinaryPath = config.get<string>("overrideAnalyzerBinaryPath");
-
-        // Create an object to hold the analysis configuration
-        const analysisConfig: AnalysisConfig = {
-          labelSelector,
-          customRules,
-          overrideAnalyzerBinaryPath,
-          inputPath: resource.fsPath,
-        };
-
-        // Call the runAnalysis function with the necessary context, webview, and analysis configuration
-        await runAnalysis(state, analysisConfig, state.sidebarProvider?.webview);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        state.sidebarProvider?.webview?.postMessage({
-          type: "analysisFailed",
-          message: errorMessage,
-        });
-        vscode.window.showErrorMessage(`Failed to start analysis: ${errorMessage}`);
+    "konveyor.startAnalyzer": async () => {
+      const analyzerClient = state.analyzerClient;
+      if (!(await analyzerClient.canAnalyze())) {
+        return;
       }
-    },
 
+      vscode.window.showInformationMessage("Starting analyzer...");
+      analyzerClient.start();
+    },
+    "konveyor.runAnalysis": async () => {
+      const analyzerClient = state.analyzerClient;
+      if (!analyzerClient || !(await analyzerClient.canAnalyze())) {
+        vscode.window.showErrorMessage("Analyzer must be started before run!");
+        return;
+      }
+      analyzerClient.runAnalysis(state.sidebarProvider.webview!);
+    },
     "konveyor.focusKonveyorInput": async () => {
       const fullScreenTab = getFullScreenTab();
       if (!fullScreenTab) {

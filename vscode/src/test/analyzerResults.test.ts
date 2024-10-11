@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import * as path from "path";
-import { processIncidents, readYamlFile } from "../analyzerResults";
+import { processIncidents, readYamlFile } from "../client/analyzerResults";
 import { RuleSet } from "../webview/types";
 
 suite("Extension Test Suite", () => {
