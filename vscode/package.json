@@ -307,9 +307,10 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@patternfly/patternfly": "^5.4.1",
-    "@patternfly/react-core": "^5.4.0",
+    "@patternfly/patternfly": "6.0.0-prerelease.15",
+    "@patternfly/react-core": "6.0.0-prerelease.15",
     "@patternfly/react-table": "^5.4.1",
+    "@patternfly/virtual-assistant": "2.0.0-alpha.59",
     "@types/react-window": "^1.8.8",
     "babel-loader": "^9.2.1",
     "copy-webpack-plugin": "^12.0.2",
