@@ -66,7 +66,7 @@ const commandsMap: (state: ExtensionState) => {
         "Konveyor",
         vscode.ViewColumn.One,
         {
-          retainContextWhenHidden: true,
+          retainContextWhenHidden: false,
           enableScripts: true,
           localResourceRoots: [
             vscode.Uri.joinPath(extensionContext.extensionUri, "media"),
@@ -75,6 +75,8 @@ const commandsMap: (state: ExtensionState) => {
         },
       );
       fullScreenPanel = panel;
+
+      state.analyzerClient.populateWebviewWithStoredRulesets(panel.webview);
 
       //Add content to the panel
       panel.webview.html = getWebviewContent(extensionContext, panel.webview, true);

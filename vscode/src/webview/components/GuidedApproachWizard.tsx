@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Wizard,
   WizardNav,
@@ -6,9 +6,8 @@ import {
   WizardStep,
   WizardFooter,
   Button,
-  TextContent,
-  Text,
-  TextVariants,
+  Content,
+  ContentVariants,
   Card,
   CardBody,
   Stack,
@@ -28,6 +27,7 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [quickFix, setQuickFix] = useState<string | null>(null);
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
 
   const generateQuickFix = (violation: Violation, incident: Incident) => {
     vscode.postMessage({
@@ -38,6 +38,28 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
       },
     });
   };
+
+  const handleIncidentClick = (incident: Incident) => {
+    setSelectedIncident(incident);
+    vscode.postMessage({
+      command: "openFile",
+      file: incident.uri,
+      line: incident.lineNumber,
+    });
+  };
+
+  // Auto-select the first incident when the wizard opens or when navigating to a new step
+  useEffect(() => {
+    if (violations[activeStepIndex] && violations[activeStepIndex].incidents.length > 0) {
+      const firstIncident = violations[activeStepIndex].incidents[0];
+      setSelectedIncident(firstIncident);
+      handleIncidentClick(firstIncident);
+      setExpandedViolations(new Set([violations[activeStepIndex].description]));
+    } else {
+      setSelectedIncident(null);
+    }
+    setQuickFix(null);
+  }, [activeStepIndex, violations]);
 
   // Define the wizard steps
   const steps: WizardBasicStep[] = useMemo(() => {
@@ -50,45 +72,46 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
             <ViolationIncidentsList
               violations={[violation]}
               focusedIncident={selectedIncident}
-              onIncidentSelect={setSelectedIncident}
+              onIncidentSelect={handleIncidentClick}
               compact={true}
+              expandedViolations={expandedViolations}
+              setExpandedViolations={setExpandedViolations}
             />
           </StackItem>
           <StackItem>
             <Card>
               <CardBody>
-                <TextContent>
-                  <Text component={TextVariants.h3}>Selected Incident</Text>
+                <Content>
+                  <Content component={ContentVariants.h3}>Selected Incident</Content>
                   {selectedIncident ? (
                     <>
-                      <Text component={TextVariants.p}>
+                      <Content component={ContentVariants.p}>
                         <strong>Message:</strong> {selectedIncident.message}
-                      </Text>
-                      <Text component={TextVariants.p}>
+                      </Content>
+                      <Content component={ContentVariants.p}>
                         <strong>File:</strong> {selectedIncident.uri}
-                      </Text>
-                      <Text component={TextVariants.p}>
+                      </Content>
+                      <Content component={ContentVariants.p}>
                         <strong>Line:</strong> {selectedIncident.lineNumber}
-                      </Text>
+                      </Content>
                       <Button
                         variant="primary"
                         onClick={() => generateQuickFix(violation, selectedIncident)}
-                        isDisabled={!selectedIncident}
                       >
                         Generate QuickFix
                       </Button>
                     </>
                   ) : (
-                    <Text component={TextVariants.p}>
-                      Select an incident to see details and generate a QuickFix.
-                    </Text>
+                    <Content component={ContentVariants.p}>
+                      No incidents found for this violation.
+                    </Content>
                   )}
-                </TextContent>
+                </Content>
                 {quickFix && (
-                  <TextContent>
-                    <Text component={TextVariants.h4}>QuickFix Suggestion:</Text>
-                    <Text component={TextVariants.pre}>{quickFix}</Text>
-                  </TextContent>
+                  <Content>
+                    <Content component={ContentVariants.h4}>QuickFix Suggestion:</Content>
+                    <Content component={ContentVariants.pre}>{quickFix}</Content>
+                  </Content>
                 )}
               </CardBody>
             </Card>
@@ -129,33 +152,35 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
   );
 
   return (
-    <Wizard
-      height={600}
-      nav={
-        <WizardNav>
-          {steps.map((step, index) => (
-            <WizardNavItem
-              key={step.id}
-              content={step.name}
-              stepIndex={index}
-              id={step.id}
-              isCurrent={index === activeStepIndex}
-              onClick={() => setActiveStepIndex(index)}
-            />
-          ))}
-        </WizardNav>
-      }
-      footer={CustomFooter}
-      onClose={onClose}
-    >
-      <WizardStep
-        id={steps[activeStepIndex].id}
-        name={steps[activeStepIndex].name}
+    <>
+      <Wizard
+        height={600}
+        nav={
+          <WizardNav>
+            {steps.map((step, index) => (
+              <WizardNavItem
+                key={step.id}
+                content={step.name}
+                stepIndex={index}
+                id={step.id}
+                isCurrent={index === activeStepIndex}
+                onClick={() => setActiveStepIndex(index)}
+              />
+            ))}
+          </WizardNav>
+        }
         footer={CustomFooter}
+        onClose={onClose}
       >
-        {steps[activeStepIndex].component}
-      </WizardStep>
-    </Wizard>
+        <WizardStep
+          id={steps[activeStepIndex].id}
+          name={steps[activeStepIndex].name}
+          footer={CustomFooter}
+        >
+          {steps[activeStepIndex].component}
+        </WizardStep>
+      </Wizard>
+    </>
   );
 };
 

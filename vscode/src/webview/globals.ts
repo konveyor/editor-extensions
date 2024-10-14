@@ -1,5 +1,6 @@
 export interface VscodeApi {
   postMessage(message: any): void;
+  getState(): any;
   // Include other methods if needed (e.g., setState, getState)
 }
 

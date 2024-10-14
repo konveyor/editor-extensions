@@ -134,6 +134,8 @@ export class AnalyzerClient {
 
                   progress.report({ message: "Results processed!" });
 
+                  this.storeRulesets(rulesets);
+
                   resolve();
                   if (webview) {
                     webview.postMessage({
@@ -286,5 +288,30 @@ export class AnalyzerClient {
       ),
       lspServerPath: path.join(this.extContext!.extensionPath, "assets/bin/jdtls/bin/jdtls"),
     };
+  }
+  private storeRulesets(rulesets: RuleSet[]): void {
+    if (this.extContext) {
+      this.extContext.globalState.update("storedRulesets", JSON.stringify(rulesets));
+    }
+  }
+
+  // New method to retrieve stored rulesets
+  public getStoredRulesets(): RuleSet[] | null {
+    if (this.extContext) {
+      const storedRulesets = this.extContext.globalState.get("storedRulesets");
+      return storedRulesets ? JSON.parse(storedRulesets as string) : null;
+    }
+    return null;
+  }
+
+  // New method to populate webview with stored rulesets
+  public populateWebviewWithStoredRulesets(webview: vscode.Webview): void {
+    const storedRulesets = this.getStoredRulesets();
+    if (storedRulesets) {
+      webview.postMessage({
+        type: "loadStoredAnalysis",
+        data: storedRulesets,
+      });
+    }
   }
 }
