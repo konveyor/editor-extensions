@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Violation, Incident } from "../types";
 import {
   ExpandableSection,
@@ -18,54 +18,47 @@ import {
   MenuToggle,
   Label,
   MenuToggleElement,
+  InputGroup,
+  Divider,
 } from "@patternfly/react-core";
-import { SortAmountDownIcon } from "@patternfly/react-icons";
-import { vscode } from "../globals";
+import { SortAmountDownIcon, TimesIcon } from "@patternfly/react-icons";
+
+type SortOption = "description" | "incidentCount" | "severity";
 
 interface ViolationIncidentsListProps {
   violations: Violation[];
   focusedIncident?: Incident | null;
-  onIncidentSelect?: (incident: Incident | null) => void;
+  onIncidentSelect: (incident: Incident) => void;
   compact?: boolean;
+  expandedViolations: Set<string>;
+  setExpandedViolations: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
-
-type SortOption = "description" | "incidentCount" | "severity";
 
 const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   violations,
   focusedIncident,
   onIncidentSelect,
   compact = false,
+  expandedViolations,
+  setExpandedViolations,
 }) => {
-  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("description");
   const [isSortSelectOpen, setIsSortSelectOpen] = useState(false);
 
-  const toggleViolation = useCallback((violationId: string) => {
-    setExpandedViolations((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(violationId)) {
-        newSet.delete(violationId);
-      } else {
-        newSet.add(violationId);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const handleIncidentClick = useCallback(
-    (incident: Incident) => {
-      if (onIncidentSelect) {
-        onIncidentSelect(incident);
-      }
-      vscode.postMessage({
-        command: "openFile",
-        file: incident.uri,
-        line: incident.lineNumber,
+  const toggleViolation = useCallback(
+    (violationId: string) => {
+      setExpandedViolations((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(violationId)) {
+          newSet.delete(violationId);
+        } else {
+          newSet.add(violationId);
+        }
+        return newSet;
       });
     },
-    [onIncidentSelect],
+    [setExpandedViolations],
   );
 
   const getHighestSeverity = (incidents: Incident[]): string => {
@@ -77,47 +70,47 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
     }, "low");
   };
 
-  // const filteredAndSortedViolations = useMemo(() => {
-  //   let result = violations;
+  const filteredAndSortedViolations = useMemo(() => {
+    let result = violations;
 
-  //   // Filter
-  //   if (searchTerm) {
-  //     const lowercaseSearchTerm = searchTerm.toLowerCase();
-  //     result = result.filter((violation) => {
-  //       const matchingIncidents = violation.incidents.filter(
-  //         (incident) =>
-  //           incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-  //           incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-  //       );
+    // Filter
+    if (searchTerm) {
+      const lowercaseSearchTerm = searchTerm.toLowerCase();
+      result = result.filter((violation) => {
+        const matchingIncidents = violation.incidents.filter(
+          (incident) =>
+            incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
+            incident.uri.toLowerCase().includes(lowercaseSearchTerm),
+        );
 
-  //       return (
-  //         matchingIncidents.length > 0 ||
-  //         violation.description.toLowerCase().includes(lowercaseSearchTerm)
-  //       );
-  //     });
-  //   }
+        return (
+          matchingIncidents.length > 0 ||
+          violation.description.toLowerCase().includes(lowercaseSearchTerm)
+        );
+      });
+    }
 
-  //   // Sort
-  //   result.sort((a, b) => {
-  //     switch (sortBy) {
-  //       case "description":
-  //         return a.description.localeCompare(b.description);
-  //       case "incidentCount":
-  //         return b.incidents.length - a.incidents.length;
-  //       case "severity":
-  //         const severityOrder = { high: 3, medium: 2, low: 1 };
-  //         const aMaxSeverity =
-  //           severityOrder[getHighestSeverity(a.incidents) as keyof typeof severityOrder];
-  //         const bMaxSeverity =
-  //           severityOrder[getHighestSeverity(b.incidents) as keyof typeof severityOrder];
-  //         return bMaxSeverity - aMaxSeverity;
-  //       default:
-  //         return 0;
-  //     }
-  //   });
+    // Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "description":
+          return a.description.localeCompare(b.description);
+        case "incidentCount":
+          return b.incidents.length - a.incidents.length;
+        case "severity":
+          const severityOrder = { high: 3, medium: 2, low: 1 };
+          const aMaxSeverity =
+            severityOrder[getHighestSeverity(a.incidents) as keyof typeof severityOrder];
+          const bMaxSeverity =
+            severityOrder[getHighestSeverity(b.incidents) as keyof typeof severityOrder];
+          return bMaxSeverity - aMaxSeverity;
+        default:
+          return 0;
+      }
+    });
 
-  //   return result;
-  // }, [violations, searchTerm, sortBy]);
+    return result;
+  }, [violations, searchTerm, sortBy]);
 
   const renderViolation = useCallback(
     (violation: Violation) => {
@@ -177,36 +170,41 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               isExpanded={isExpanded}
             >
               <Stack hasGutter>
-                {violation.incidents.map((incident) => (
-                  <StackItem key={incident.id}>
-                    <Flex
-                      justifyContent={{ default: "justifyContentSpaceBetween" }}
-                      alignItems={{ default: "alignItemsCenter" }}
-                    >
-                      <FlexItem grow={{ default: "grow" }}>
-                        <Tooltip content={incident.message}>
-                          <Button
-                            variant="link"
-                            onClick={() => handleIncidentClick(incident)}
-                            className="truncate-text"
-                            style={{
-                              maxWidth: "100%",
-                              textAlign: "left",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                            isActive={focusedIncident ? focusedIncident.id === incident?.id : false}
-                          >
-                            {truncateText(incident.message, 60)}
-                          </Button>
-                        </Tooltip>
-                      </FlexItem>
-                      <FlexItem>
-                        <Badge>{incident.severity}</Badge>
-                      </FlexItem>
-                    </Flex>
-                  </StackItem>
+                {violation.incidents.map((incident, index) => (
+                  <React.Fragment key={incident.id}>
+                    {index > 0 && <Divider />}
+                    <StackItem>
+                      <Flex
+                        justifyContent={{ default: "justifyContentSpaceBetween" }}
+                        alignItems={{ default: "alignItemsCenter" }}
+                      >
+                        <FlexItem grow={{ default: "grow" }}>
+                          <Tooltip content={incident.message}>
+                            <Button
+                              variant="link"
+                              onClick={() => onIncidentSelect(incident)}
+                              className="truncate-text"
+                              style={{
+                                maxWidth: "100%",
+                                textAlign: "left",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                              isActive={
+                                focusedIncident ? focusedIncident.id === incident?.id : false
+                              }
+                            >
+                              {truncateText(incident.message, 60)}
+                            </Button>
+                          </Tooltip>
+                        </FlexItem>
+                        <FlexItem>
+                          <Badge>{incident.severity}</Badge>
+                        </FlexItem>
+                      </Flex>
+                    </StackItem>
+                  </React.Fragment>
                 ))}
               </Stack>
             </ExpandableSection>
@@ -214,7 +212,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         </Card>
       );
     },
-    [expandedViolations, handleIncidentClick, toggleViolation, focusedIncident],
+    [expandedViolations, toggleViolation, focusedIncident],
   );
 
   const onSortToggle = () => {
@@ -232,19 +230,30 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
     </MenuToggle>
   );
 
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
+
   return (
     <Stack hasGutter>
       <StackItem>
         <Flex>
           <FlexItem grow={{ default: "grow" }}>
-            <TextInput
-              type="text"
-              id="violation-search"
-              aria-label="Search violations and incidents"
-              placeholder="Search violations and incidents..."
-              value={searchTerm}
-              onChange={(_event, value) => setSearchTerm(value)}
-            />
+            <InputGroup>
+              <TextInput
+                type="text"
+                id="violation-search"
+                aria-label="Search violations and incidents"
+                placeholder="Search violations and incidents..."
+                value={searchTerm}
+                onChange={(_event, value) => setSearchTerm(value)}
+              />
+              {searchTerm && (
+                <Button variant="control" onClick={clearSearch} aria-label="Clear search">
+                  <TimesIcon />
+                </Button>
+              )}
+            </InputGroup>
           </FlexItem>
           <FlexItem>
             <Select
@@ -266,7 +275,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       </StackItem>
       <StackItem isFilled>
         <div style={{ height: compact ? "200px" : "calc(100vh - 200px)", overflowY: "auto" }}>
-          {violations.map((violation) => renderViolation(violation))}
+          {filteredAndSortedViolations.map((violation) => renderViolation(violation))}
         </div>
       </StackItem>
     </Stack>

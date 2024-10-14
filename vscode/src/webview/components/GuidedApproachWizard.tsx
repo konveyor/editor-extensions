@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Wizard,
   WizardNav,
@@ -28,6 +28,7 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [quickFix, setQuickFix] = useState<string | null>(null);
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
 
   const generateQuickFix = (violation: Violation, incident: Incident) => {
     vscode.postMessage({
@@ -38,6 +39,28 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
       },
     });
   };
+
+  const handleIncidentClick = (incident: Incident) => {
+    setSelectedIncident(incident);
+    vscode.postMessage({
+      command: "openFile",
+      file: incident.uri,
+      line: incident.lineNumber,
+    });
+  };
+
+  // Auto-select the first incident when the wizard opens or when navigating to a new step
+  useEffect(() => {
+    if (violations[activeStepIndex] && violations[activeStepIndex].incidents.length > 0) {
+      const firstIncident = violations[activeStepIndex].incidents[0];
+      setSelectedIncident(firstIncident);
+      handleIncidentClick(firstIncident);
+      setExpandedViolations(new Set([violations[activeStepIndex].description]));
+    } else {
+      setSelectedIncident(null);
+    }
+    setQuickFix(null);
+  }, [activeStepIndex, violations]);
 
   // Define the wizard steps
   const steps: WizardBasicStep[] = useMemo(() => {
@@ -50,8 +73,10 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
             <ViolationIncidentsList
               violations={[violation]}
               focusedIncident={selectedIncident}
-              onIncidentSelect={setSelectedIncident}
+              onIncidentSelect={handleIncidentClick}
               compact={true}
+              expandedViolations={expandedViolations}
+              setExpandedViolations={setExpandedViolations}
             />
           </StackItem>
           <StackItem>
@@ -73,15 +98,12 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
                       <Button
                         variant="primary"
                         onClick={() => generateQuickFix(violation, selectedIncident)}
-                        isDisabled={!selectedIncident}
                       >
                         Generate QuickFix
                       </Button>
                     </>
                   ) : (
-                    <Text component={TextVariants.p}>
-                      Select an incident to see details and generate a QuickFix.
-                    </Text>
+                    <Text component={TextVariants.p}>No incidents found for this violation.</Text>
                   )}
                 </TextContent>
                 {quickFix && (

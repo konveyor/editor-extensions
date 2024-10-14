@@ -19,7 +19,7 @@ import {
 } from "@patternfly/react-core";
 import { SearchIcon } from "@patternfly/react-icons";
 import { vscode } from "../globals";
-import { RuleSet } from "../types";
+import { Incident, RuleSet } from "../types";
 import { mockResults } from "../mockResults";
 import GuidedApproachWizard from "./GuidedApproachWizard";
 import ProgressIndicator from "./ProgressIndicator";
@@ -33,6 +33,17 @@ const App: React.FC = () => {
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
+
+  const handleIncidentSelect = (incident: Incident) => {
+    setFocusedIncident(incident);
+    vscode.postMessage({
+      command: "openFile",
+      file: incident.uri,
+      line: incident.lineNumber,
+    });
+  };
 
   useEffect(() => {
     setAnalysisResults(mockResults as RuleSet[]);
@@ -152,7 +163,14 @@ const App: React.FC = () => {
             {isAnalyzing ? (
               <ProgressIndicator progress={50} />
             ) : hasViolations ? (
-              <ViolationIncidentsList violations={violations} />
+              <ViolationIncidentsList
+                violations={violations}
+                focusedIncident={focusedIncident}
+                onIncidentSelect={handleIncidentSelect}
+                compact={false}
+                expandedViolations={expandedViolations}
+                setExpandedViolations={setExpandedViolations}
+              />
             ) : (
               <EmptyState>
                 <EmptyStateIcon icon={SearchIcon} />
