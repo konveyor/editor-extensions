@@ -39,6 +39,7 @@ export class AnalyzerClient {
         return;
       }
     });
+
     this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
       cwd: this.extContext!.extensionPath,
     });
@@ -295,6 +296,12 @@ export class AnalyzerClient {
     }
   }
 
+  public clearStoredRulesets(): void {
+    if (this.extContext) {
+      this.extContext.globalState.update("storedRulesets", undefined);
+    }
+  }
+
   // New method to retrieve stored rulesets
   public getStoredRulesets(): RuleSet[] | null {
     if (this.extContext) {
@@ -307,7 +314,17 @@ export class AnalyzerClient {
   // New method to populate webview with stored rulesets
   public populateWebviewWithStoredRulesets(webview: vscode.Webview): void {
     const storedRulesets = this.getStoredRulesets();
+    console.log("Stored rulesets: ", storedRulesets);
     if (storedRulesets) {
+      const diagnosticsMap: Map<string, vscode.Diagnostic[]> = new Map();
+      processIncidents(storedRulesets, diagnosticsMap);
+
+      diagnosticsMap.forEach((diagnostics, fileKey) => {
+        const fileUri = vscode.Uri.parse(fileKey);
+        this.diagnosticCollection.set(fileUri, diagnostics);
+      });
+
+      console.log("senging message to webview");
       webview.postMessage({
         type: "loadStoredAnalysis",
         data: storedRulesets,

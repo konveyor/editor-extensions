@@ -55,7 +55,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("description");
   const [isSortSelectOpen, setIsSortSelectOpen] = useState(false);
-  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   const toggleViolation = useCallback(
     (violationId: string) => {
@@ -72,18 +72,6 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
     [setExpandedViolations],
   );
 
-  const toggleDescription = useCallback((incidentId: string) => {
-    setExpandedDescriptions((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(incidentId)) {
-        newSet.delete(incidentId);
-      } else {
-        newSet.add(incidentId);
-      }
-      return newSet;
-    });
-  }, []);
-
   const getHighestSeverity = (incidents: Incident[]): string => {
     const severityOrder = { high: 3, medium: 2, low: 1 };
     return incidents.reduce((highest, incident) => {
@@ -96,7 +84,6 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   const filteredAndSortedViolations = useMemo(() => {
     let result = violations;
 
-    // Filter
     if (searchTerm) {
       const lowercaseSearchTerm = searchTerm.toLowerCase();
       result = result.filter((violation) => {
@@ -113,7 +100,6 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       });
     }
 
-    // Sort
     result.sort((a, b) => {
       switch (sortBy) {
         case "description":
@@ -139,10 +125,15 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   const renderIncident = useCallback(
     (incident: Incident) => {
       const fileName = incident.uri.slice(incident.uri.lastIndexOf("/") + 1);
-      const [isOpen, setIsOpen] = useState(false);
+      const uniqueId = `${incident.uri}-${incident.lineNumber}`;
+      const isOpen = openDropdownId === uniqueId;
+
+      const toggleDropdown = () => {
+        setOpenDropdownId((prevId) => (prevId === uniqueId ? null : uniqueId));
+      };
 
       return (
-        <DataListItem key={incident.id} aria-labelledby={`incident-${incident.id}`}>
+        <DataListItem key={uniqueId} aria-labelledby={`incident-${uniqueId}`}>
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
@@ -168,17 +159,17 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               ]}
             />
             <DataListAction
-              aria-labelledby={`incident-${incident.id} incident-${incident.id}-actions`}
-              id={`incident-${incident.id}-actions`}
+              aria-labelledby={`incident-${uniqueId} incident-${uniqueId}-actions`}
+              id={`incident-${uniqueId}-actions`}
               aria-label="Actions"
             >
               <Dropdown
                 isOpen={isOpen}
-                onOpenChange={(isOpen) => setIsOpen(isOpen)}
+                onSelect={() => setOpenDropdownId(null)}
                 toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
                   <MenuToggle
                     ref={toggleRef}
-                    onClick={() => setIsOpen(!isOpen)}
+                    onClick={toggleDropdown}
                     isExpanded={isOpen}
                     aria-label="Incident actions"
                     variant="plain"
@@ -191,9 +182,9 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
                   <DropdownItem key="view" onClick={() => onIncidentSelect(incident)}>
                     Open File
                   </DropdownItem>
-                  <DropdownItem key="view">QuickFix</DropdownItem>
+                  <DropdownItem key="quickfix">QuickFix</DropdownItem>
                   {onOpenChat && (
-                    <DropdownItem key="view" onClick={() => onOpenChat()}>
+                    <DropdownItem key="chat" onClick={() => onOpenChat()}>
                       Chat
                     </DropdownItem>
                   )}
@@ -204,7 +195,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         </DataListItem>
       );
     },
-    [onIncidentSelect],
+    [onIncidentSelect, openDropdownId, onOpenChat],
   );
 
   const renderViolation = useCallback(
@@ -217,7 +208,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       };
       const isExpanded = expandedViolations.has(violation.description);
       const highestSeverity = getHighestSeverity(violation.incidents);
-      const truncatedDescription = truncateText(violation.description, 80);
+      const truncatedDescription = truncateText(violation.description, 50);
 
       return (
         <Card isCompact key={violation.description} style={{ marginBottom: "10px" }}>
@@ -227,17 +218,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
                 <Flex alignItems={{ default: "alignItemsCenter" }}>
                   <FlexItem grow={{ default: "grow" }}>
                     <Tooltip content={violation.description}>
-                      <Content
-                        className="truncate-text"
-                        style={{
-                          maxWidth: "100%",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {truncatedDescription}
-                      </Content>
+                      <Content>{truncatedDescription}</Content>
                     </Tooltip>
                   </FlexItem>
                   <FlexItem>
@@ -266,7 +247,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
             >
               <Stack hasGutter>
                 {violation.incidents.map((incident, index) => (
-                  <React.Fragment key={incident.id}>
+                  <React.Fragment key={`${incident.uri}-${incident.lineNumber}`}>
                     {index > 0 && <Divider />}
                     {renderIncident(incident)}
                   </React.Fragment>
@@ -277,7 +258,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         </Card>
       );
     },
-    [expandedViolations, toggleViolation, focusedIncident, expandedDescriptions, toggleDescription],
+    [expandedViolations, toggleViolation, renderIncident],
   );
 
   const onSortToggle = () => {
@@ -323,7 +304,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
           <FlexItem>
             <Select
               toggle={sortToggle}
-              onSelect={(event, value) => {
+              onSelect={(_event, value) => {
                 setSortBy(value as SortOption);
                 setIsSortSelectOpen(false);
               }}

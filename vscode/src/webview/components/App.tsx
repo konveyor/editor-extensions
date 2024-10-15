@@ -25,7 +25,6 @@ import { ChatbotContainer } from "./ChatbotContainer";
 
 const App: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>();
-  // mockResults as RuleSet[],
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -44,10 +43,15 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    const state = vscode.getState() || {};
+    console.log("State:", state);
+
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
+      console.log("Received message:", message);
       switch (message.type) {
         case "loadStoredAnalysis": {
+          console.log("Received stored analysis results:", message.data);
           const storedAnalysisResults = message.data;
           if (
             storedAnalysisResults &&
@@ -60,16 +64,37 @@ const App: React.FC = () => {
           }
           break;
         }
-        // ... other cases ...
+
+        case "analysisData":
+          if (message.data) {
+            setAnalysisResults(message.data);
+          }
+          break;
+        case "analysisStarted":
+          setIsAnalyzing(true);
+          setAnalysisMessage("Analysis started...");
+          setErrorMessage(null);
+          break;
+        case "analysisComplete":
+          setIsAnalyzing(false);
+          setAnalysisMessage("");
+          if (message.data) {
+            console.log("Setting analysis results:", message.data);
+            setAnalysisResults(message.data);
+          }
+          break;
+        case "analysisFailed":
+          setIsAnalyzing(false);
+          setAnalysisMessage("");
+          setErrorMessage(`Analysis failed: ${message.message}`);
+          break;
       }
     };
 
     window.addEventListener("message", handleMessage);
-    console.log("Message event listener added in App.tsx");
 
     return () => {
       window.removeEventListener("message", handleMessage);
-      console.log("Message event listener removed in App.tsx");
     };
   }, []);
 

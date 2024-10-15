@@ -31,9 +31,12 @@ const commandsMap: (state: ExtensionState) => {
         vscode.window.showErrorMessage("Analyzer must be started before run!");
         return;
       }
-      analyzerClient.runAnalysis(state.sidebarProvider.webview!);
+      analyzerClient.clearStoredRulesets();
+
       if (fullScreenPanel && fullScreenPanel.webview) {
         analyzerClient.runAnalysis(fullScreenPanel.webview);
+      } else {
+        analyzerClient.runAnalysis(state.sidebarProvider.webview!);
       }
     },
     "konveyor.focusKonveyorInput": async () => {

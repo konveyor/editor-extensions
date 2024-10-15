@@ -11,11 +11,11 @@
 }
 
 .truncate-text {
-  white-space: nowrap;
+  /* white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  display: inline-block;
+  text-overflow: ellipsis; */
+  /* max-width: 100%;
+  display: inline-block; */
 }
 
 .pf-c-expandable-section__toggle-text {

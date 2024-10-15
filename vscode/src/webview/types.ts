@@ -1,5 +1,4 @@
 export interface Incident {
-  id: string;
   uri: string;
   lineNumber: number;
   severity: "High" | "Medium" | "Low";
