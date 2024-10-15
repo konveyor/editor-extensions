@@ -48,47 +48,28 @@ const App: React.FC = () => {
       const message = event.data;
       switch (message.type) {
         case "loadStoredAnalysis": {
-          const analysisResults = vscode.getState()?.analysisResults;
-          if (analysisResults && Array.isArray(analysisResults) && analysisResults.length > 0) {
-            setAnalysisResults(analysisResults[0]);
+          const storedAnalysisResults = message.data;
+          if (
+            storedAnalysisResults &&
+            Array.isArray(storedAnalysisResults) &&
+            storedAnalysisResults.length > 0
+          ) {
+            setAnalysisResults(storedAnalysisResults);
           } else {
             setAnalysisResults(null);
           }
           break;
         }
-
-        case "analysisData":
-          if (message.data) {
-            setAnalysisResults(message.data);
-          }
-          break;
-        case "analysisStarted":
-          setIsAnalyzing(true);
-          setAnalysisMessage("Analysis started...");
-          setErrorMessage(null);
-          break;
-        case "analysisComplete":
-          setIsAnalyzing(false);
-          setAnalysisMessage("");
-          if (message.data) {
-            console.log("Setting analysis results:", message.data);
-            setAnalysisResults(message.data);
-          }
-          break;
-        case "analysisFailed":
-          setIsAnalyzing(false);
-          setAnalysisMessage("");
-          setErrorMessage(`Analysis failed: ${message.message}`);
-          break;
+        // ... other cases ...
       }
     };
 
     window.addEventListener("message", handleMessage);
-
-    vscode.postMessage({ command: "requestAnalysisData" });
+    console.log("Message event listener added in App.tsx");
 
     return () => {
       window.removeEventListener("message", handleMessage);
+      console.log("Message event listener removed in App.tsx");
     };
   }, []);
 

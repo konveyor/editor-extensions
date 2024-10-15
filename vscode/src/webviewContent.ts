@@ -42,7 +42,7 @@ export function getWebviewContent(
     <script nonce="${nonce}">
       window.vscode = acquireVsCodeApi();
       window.addEventListener('load', function() {
-        window.vscode.postMessage({ command: 'startup', isFullScreen: ${isFullScreen} });
+        window.vscode.postMessage({ type: 'webviewReady', isFullScreen: ${isFullScreen} });
         console.log('HTML started up. Full screen:', ${isFullScreen});
       });
     </script>

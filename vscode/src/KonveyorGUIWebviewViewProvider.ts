@@ -8,7 +8,6 @@ export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvide
   private _webview?: vscode.Webview;
   private _webviewView?: vscode.WebviewView;
   private outputChannel: vscode.OutputChannel;
-  private webviewReadyCallback?: (webview: vscode.Webview) => void;
 
   constructor(
     private readonly windowId: string,
@@ -24,13 +23,6 @@ export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvide
 
   get webview() {
     return this._webview;
-  }
-
-  onWebviewReady(callback: (webview: vscode.Webview) => void) {
-    this.webviewReadyCallback = callback;
-    if (this._webview) {
-      callback(this._webview);
-    }
   }
 
   resolveWebviewView(
@@ -55,14 +47,18 @@ export class KonveyorGUIWebviewViewProvider implements vscode.WebviewViewProvide
       true,
     );
 
-    setupWebviewMessageListener(webviewView.webview, this.extensionState);
+    webviewView.webview.onDidReceiveMessage((message) => {
+      if (message.type === "webviewReady") {
+        console.log("Webview is ready, setting up message listener");
+        setupWebviewMessageListener(webviewView.webview, this.extensionState);
+
+        console.log("Populating webview with stored rulesets");
+        this.extensionState.analyzerClient.populateWebviewWithStoredRulesets(webviewView.webview);
+      }
+    });
 
     webviewView.onDidDispose(() => {
       this.extensionState.webviewProviders.delete(this);
     });
-
-    if (this.webviewReadyCallback) {
-      this.webviewReadyCallback(webviewView.webview);
-    }
   }
 }

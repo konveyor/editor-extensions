@@ -32,6 +32,9 @@ const commandsMap: (state: ExtensionState) => {
         return;
       }
       analyzerClient.runAnalysis(state.sidebarProvider.webview!);
+      if (fullScreenPanel && fullScreenPanel.webview) {
+        analyzerClient.runAnalysis(fullScreenPanel.webview);
+      }
     },
     "konveyor.focusKonveyorInput": async () => {
       const fullScreenTab = getFullScreenTab();
@@ -66,7 +69,7 @@ const commandsMap: (state: ExtensionState) => {
         "Konveyor",
         vscode.ViewColumn.One,
         {
-          retainContextWhenHidden: false,
+          retainContextWhenHidden: true,
           enableScripts: true,
           localResourceRoots: [
             vscode.Uri.joinPath(extensionContext.extensionUri, "media"),
@@ -76,12 +79,22 @@ const commandsMap: (state: ExtensionState) => {
       );
       fullScreenPanel = panel;
 
-      state.analyzerClient.populateWebviewWithStoredRulesets(panel.webview);
-
-      //Add content to the panel
       panel.webview.html = getWebviewContent(extensionContext, panel.webview, true);
 
-      setupWebviewMessageListener(panel.webview, state);
+      panel.webview.onDidReceiveMessage((message) => {
+        if (message.type === "webviewReady") {
+          console.log("Webview is ready, setting up message listener");
+          setupWebviewMessageListener(panel.webview, state);
+
+          console.log("Populating webview with stored rulesets");
+          state.analyzerClient.populateWebviewWithStoredRulesets(panel.webview);
+        }
+      });
+
+      if (state.sidebarProvider) {
+        // Option 1: Hide the sidebar
+        vscode.commands.executeCommand("workbench.action.closeSidebar");
+      }
 
       //When panel closes, reset the webview and focus
       panel.onDidDispose(

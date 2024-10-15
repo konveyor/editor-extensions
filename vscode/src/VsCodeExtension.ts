@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { v4 as uuidv4 } from "uuid";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands } from "./commands";
-import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState, SharedState } from "./extensionState";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
@@ -43,10 +42,6 @@ export class VsCodeExtension {
         },
       }),
     );
-
-    sidebarProvider.onWebviewReady((webview) => {
-      setupWebviewMessageListener(webview, this.state);
-    });
 
     // // DEBUG USE ONLY
     // setTimeout(() => {
