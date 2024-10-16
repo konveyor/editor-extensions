@@ -1,0 +1,51 @@
+name: Prune Nightly Pre-releases
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # Runs every day at 6:00am UTC
+  workflow_dispatch:
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: List releases
+        id: list_releases
+        run: |
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/releases \
+          | jq '[.[] | select(.prerelease == true)]' > prereleases.json
+
+      - name: Prune old pre-releases and associated tags
+        run: |
+          current_date=$(date +%s)
+          
+          jq -c '.[]' prereleases.json | while read prerelease; do
+            release_date=$(echo $prerelease | jq -r '.created_at')
+            release_id=$(echo $prerelease | jq -r '.id')
+            tag_name=$(echo $prerelease | jq -r '.tag_name')
+
+            release_timestamp=$(date --date="$release_date" +%s)
+            age_in_days=$(( (current_date - release_timestamp) / 86400 ))
+
+            if [ $age_in_days -gt 7 ]; then
+              echo "Deleting prerelease $release_id (created at $release_date) and tag $tag_name"
+              
+              # Delete the prerelease
+              curl -X DELETE \
+                   -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                   -H "Accept: application/vnd.github.v3+json" \
+                   https://api.github.com/repos/${{ github.repository }}/releases/$release_id
+
+              # Delete the tag
+              curl -X DELETE \
+                   -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                   -H "Accept: application/vnd.github.v3+json" \
+                   https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$tag_name
+            fi
+          done
