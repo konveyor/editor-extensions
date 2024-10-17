@@ -44,7 +44,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     this._setWebviewMessageListener(webviewView.webview);
   }
 
-  private _getHtmlForWebview(webview: Webview): string {
+  public _getHtmlForWebview(webview: Webview): string {
     const stylesUri = this._getUri(webview, ["webview-ui", "build", "assets", "index.css"]);
     const scriptUri = this._getScriptUri(webview);
     const nonce = getNonce();
@@ -57,14 +57,17 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         <meta http-equiv="Content-Security-Policy" content="${this._getContentSecurityPolicy(nonce)}">
         <link rel="stylesheet" type="text/css" href="${stylesUri}">
         <title>Konveyor IDE Extension</title>
+         <script nonce="${nonce}">
+          const vscode = acquireVsCodeApi();
+          window.vscode = vscode;
+        </script>
       </head>
       <body>
         <div id="root"></div>
         ${this._getReactRefreshScript(nonce)}
         <script nonce="${nonce}">
-          const vscode = acquireVsCodeApi();
           window.addEventListener('DOMContentLoaded', function() {
-            vscode.postMessage({ command: 'webviewReady' });
+            window.vscode.postMessage({ command: 'webviewReady' });
           });
         </script>
         <script type="module" nonce="${nonce}" src="${scriptUri}"></script>

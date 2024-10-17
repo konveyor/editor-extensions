@@ -1,7 +1,7 @@
+// vscode.ts
 export interface VscodeApi {
   postMessage(message: any): void;
   getState(): any;
-  // Include other methods if needed (e.g., setState, getState)
 }
 
 // Declare the global window interface to include 'vscode'
@@ -11,5 +11,6 @@ declare global {
   }
 }
 
-// Export 'vscode' from 'window'
-export const vscode = window.vscode;
+// Wait until the DOM is fully loaded before assigning vscode
+export const vscode: VscodeApi | undefined =
+  typeof window !== "undefined" ? window.vscode : undefined;

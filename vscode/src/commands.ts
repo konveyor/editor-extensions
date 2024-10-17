@@ -92,7 +92,7 @@ const commandsMap: (state: ExtensionState) => {
       );
       fullScreenPanel = panel;
 
-      panel.webview.html = sidebarProvider._getHtmlForWebview(panel.webview, true);
+      panel.webview.html = sidebarProvider._getHtmlForWebview(panel.webview);
 
       setupWebviewMessageListener(panel.webview, state);
 
