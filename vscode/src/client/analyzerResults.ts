@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
-import { Category, RuleSet } from "../webview/types";
+import { RuleSet, Category, Incident } from "../shared/types";
 
 //Assuming that output is in form of yaml
 export function readYamlFile(filePath: string): RuleSet[] | undefined {
@@ -44,7 +44,7 @@ export function processIncidents(
       const violation = ruleSet.violations[violationId];
       const severity = getSeverityFromCategory(violation.category);
 
-      violation.incidents.forEach((incident) => {
+      violation.incidents.forEach((incident: Incident) => {
         if (incident.uri) {
           const uri = vscode.Uri.parse(incident.uri);
           const line = (incident.lineNumber || 1) - 1;
