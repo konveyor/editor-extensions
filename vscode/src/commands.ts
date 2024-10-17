@@ -94,18 +94,20 @@ const commandsMap: (state: ExtensionState) => {
 
       panel.webview.html = sidebarProvider._getHtmlForWebview(panel.webview, true);
 
-      panel.webview.onDidReceiveMessage((message) => {
-        if (message.type === "webviewReady") {
-          console.log("Webview is ready, setting up message listener");
-          setupWebviewMessageListener(panel.webview, state);
+      setupWebviewMessageListener(panel.webview, state);
 
-          console.log("Populating webview with stored rulesets");
-          state.analyzerClient.populateWebviewWithStoredRulesets(panel.webview);
-        }
-      });
+      panel.webview.onDidReceiveMessage(
+        (message) => {
+          if (message.command === "webviewReady") {
+            console.log("Webview is ready");
+            state.analyzerClient.populateWebviewWithStoredRulesets(panel.webview);
+          }
+        },
+        undefined,
+        extensionContext.subscriptions,
+      );
 
       if (state.sidebarProvider) {
-        // Option 1: Hide the sidebar
         commands.executeCommand("workbench.action.closeSidebar");
       }
 

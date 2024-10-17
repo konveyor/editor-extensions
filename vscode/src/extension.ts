@@ -81,7 +81,6 @@ let extension: VsCodeExtension | undefined;
 export function activate(context: vscode.ExtensionContext): void {
   try {
     extension = new VsCodeExtension(context);
-    console.log("Konveyor extension is now active!");
   } catch (error) {
     console.error("Failed to activate Konveyor extension:", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);

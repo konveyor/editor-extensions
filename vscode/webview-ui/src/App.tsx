@@ -16,7 +16,7 @@ import {
   Modal,
   ButtonVariant,
 } from "@patternfly/react-core";
-import { vscode } from "../globals";
+import { vscode } from "./utils/vscode";
 import { Incident, RuleSet } from "./types";
 import GuidedApproachWizard from "./components/GuidedApproachWizard";
 import ProgressIndicator from "./components/ProgressIndicator";
@@ -45,10 +45,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
-      console.log("Received message:", message);
       switch (message.type) {
         case "loadStoredAnalysis": {
-          console.log("Received stored analysis results:", message.data);
           const storedAnalysisResults = message.data;
           if (
             storedAnalysisResults &&
@@ -76,7 +74,6 @@ const App: React.FC = () => {
           setIsAnalyzing(false);
           setAnalysisMessage("");
           if (message.data) {
-            console.log("Setting analysis results:", message.data);
             setAnalysisResults(message.data);
           }
           break;

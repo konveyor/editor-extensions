@@ -329,7 +329,6 @@ export class AnalyzerClient {
         this.diagnosticCollection.set(fileUri, diagnostics);
       });
 
-      console.log("senging message to webview");
       webview.postMessage({
         type: "loadStoredAnalysis",
         data: storedRulesets,
