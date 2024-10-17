@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
-import { Category, RuleSet } from "../webview/types";
+import { Category, RuleSet } from "../types";
 
 //Assuming that output is in form of yaml
 export function readYamlFile(filePath: string): RuleSet[] | undefined {
