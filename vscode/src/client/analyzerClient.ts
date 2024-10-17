@@ -2,10 +2,9 @@ import { ChildProcessWithoutNullStreams, exec, spawn } from "child_process";
 import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs";
-// import * as rpc from "vscode-jsonrpc/node";
-import path from "path";
-import { RuleSet } from "../webview/types";
 import { processIncidents } from "./analyzerResults";
+import { RuleSet } from "../types";
+import path = require("path");
 
 export class AnalyzerClient {
   private config: vscode.WorkspaceConfiguration | null = null;
@@ -40,9 +39,15 @@ export class AnalyzerClient {
       }
     });
 
+    const env = process.env;
+
+    delete env.JAVA_HOME;
+
     this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
       cwd: this.extContext!.extensionPath,
+      env,
     });
+
     this.analyzerServer.stderr.on("data", (data) => {
       this.outputChannel.appendLine(`${data.toString()}`);
     });

@@ -156,7 +156,7 @@ const App: React.FC = () => {
                       variant={ButtonVariant.secondary}
                       onClick={() => setIsChatVisible(!isChatVisible)}
                     >
-                      Chat with Konveyor
+                      Chat with Konveyors
                     </Button>
                   </FlexItem>
                 </Flex>
