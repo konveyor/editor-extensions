@@ -39,13 +39,8 @@ export class AnalyzerClient {
       }
     });
 
-    const env = process.env;
-
-    delete env.JAVA_HOME;
-
     this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
       cwd: this.extContext!.extensionPath,
-      env,
     });
 
     this.analyzerServer.stderr.on("data", (data) => {
