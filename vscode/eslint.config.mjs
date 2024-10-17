@@ -14,7 +14,13 @@ export default [
   react.configs.flat.recommended,
   prettierRecommended,
   {
-    files: ["**/*.js", "**/*.jsx", "**/*.cjs", "**/*.mjs", "**/*.ts", "**/*.tsx"],
+    files: [
+      "./webview-ui/**/*.ts",
+      "./webview-ui/**/*.tsx",
+      "./webview-ui/**/*.js",
+      "./webview-ui/**/*.jsx",
+      "./webview-ui/**/*.mjs",
+    ],
   },
   {
     plugins: {

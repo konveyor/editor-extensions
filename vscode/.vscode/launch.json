@@ -10,10 +10,7 @@
       "type": "extensionHost",
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
-      "outFiles": [
-        "${workspaceFolder}/out/**/*.js",
-        "!${workspaceFolder}/out/webview/**"
-      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
       "preLaunchTask": "${defaultBuildTask}",
       "env": {
         "VSCODE_DEBUG_MODE": "true"

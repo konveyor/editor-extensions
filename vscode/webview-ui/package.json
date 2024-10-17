@@ -1,0 +1,39 @@
+{
+  "name": "konveyor-webview-ui",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@patternfly/patternfly": "6.0.0-prerelease.15",
+    "@patternfly/react-core": "6.0.0-prerelease.15",
+    "@patternfly/react-table": "^5.4.1",
+    "@patternfly/virtual-assistant": "2.0.0-alpha.59",
+    "js-yaml": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^10.0.0",
+    "vscode-webview": "^1.0.1-beta.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.11.1",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@types/vscode-webview": "^1.57.5",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^9.11.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.36.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "prettier": "^3.0.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.9"
+  }
+}

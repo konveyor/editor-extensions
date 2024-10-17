@@ -1,45 +1,93 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { VsCodeExtension } from "./VsCodeExtension";
+import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
+import { registerAllCommands } from "./commands";
+import { ExtensionState, SharedState } from "./extensionState";
+import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 
-let client: AnalyzerClient;
+class VsCodeExtension {
+  private state: ExtensionState;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-  // TODO(djzager): This was in continue but I couldn't get it to work correctly.
-  // const { activateExtension } = await import("./activate");
-  try {
-    const ext = new VsCodeExtension(context);
-    client = ext.getAnalyzerClient();
+  constructor(context: vscode.ExtensionContext) {
+    this.state = {
+      analyzerClient: new AnalyzerClient(context),
+      sharedState: new SharedState(),
+      webviewProviders: new Set<KonveyorGUIWebviewViewProvider>(),
+      sidebarProvider: undefined as any,
+      extensionContext: context,
+    };
 
-    console.log("Extension activated");
-  } catch (e) {
-    console.log("Error activating extension: ", e);
-    vscode.window
-      .showInformationMessage(
-        "Error activating the Konveyor extension.",
-        //   "View Logs",
-        "Retry",
-      )
-      .then((selection) => {
-        //   if (selection === "View Logs") {
-        // 	vscode.commands.executeCommand("konveyor.viewLogs");
-        //   } else
-        if (selection === "Retry") {
-          // Reload VS Code window
-          vscode.commands.executeCommand("workbench.action.reloadWindow");
-        }
-      });
+    this.initializeExtension(context);
+  }
+
+  private initializeExtension(context: vscode.ExtensionContext): void {
+    try {
+      this.checkWorkspace();
+      this.registerWebviewProvider(context);
+      this.registerCommands();
+      this.registerLanguageProviders(context);
+    } catch (error) {
+      console.error("Error initializing extension:", error);
+      vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
+    }
+  }
+
+  private checkWorkspace(): void {
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 1) {
+      vscode.window.showWarningMessage(
+        "Konveyor does not currently support multi-root workspaces. Only the first workspace folder will be analyzed.",
+      );
+    }
+  }
+
+  private registerWebviewProvider(context: vscode.ExtensionContext): void {
+    const sidebarProvider = KonveyorGUIWebviewViewProvider.getInstance(this.state);
+    this.state.sidebarProvider = sidebarProvider;
+
+    context.subscriptions.push(
+      vscode.window.registerWebviewViewProvider(
+        KonveyorGUIWebviewViewProvider.viewType,
+        sidebarProvider,
+        {
+          webviewOptions: { retainContextWhenHidden: true },
+        },
+      ),
+    );
+  }
+
+  private registerCommands(): void {
+    registerAllCommands(this.state);
+  }
+
+  private registerLanguageProviders(context: vscode.ExtensionContext): void {
+    const languagesToRegister = ["java"];
+
+    for (const language of languagesToRegister) {
+      context.subscriptions.push(
+        vscode.languages.registerCodeActionsProvider(language, new ViolationCodeActionProvider(), {
+          providedCodeActionKinds: ViolationCodeActionProvider.providedCodeActionKinds,
+        }),
+      );
+    }
+  }
+
+  public getAnalyzerClient(): AnalyzerClient {
+    return this.state.analyzerClient;
   }
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {
-  if (!client) {
-    return;
+let extension: VsCodeExtension | undefined;
+
+export function activate(context: vscode.ExtensionContext): void {
+  try {
+    extension = new VsCodeExtension(context);
+  } catch (error) {
+    console.error("Failed to activate Konveyor extension:", error);
+    vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
   }
-  return client.stop();
+}
+export function deactivate(): void {
+  if (extension?.getAnalyzerClient()) {
+    extension.getAnalyzerClient().stop();
+  }
 }

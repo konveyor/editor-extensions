@@ -1,14 +1,17 @@
 {
   "compilerOptions": {
-    "module": "Node16",
-    "target": "ES2023",
-    "lib": ["ES2023", "WebWorker", "DOM"],
-    "jsx": "react",
+    "module": "commonjs",
+    "target": "ES2020",
+    "baseUrl": ".",
+    "outDir": "out",
+    "lib": ["ES2020"],
     "sourceMap": true,
     "rootDir": "src",
-    "strict": true,
-    "skipLibCheck": true
+    "strict": true /* enable all strict type-checking options */,
+    "paths": {
+      "@shared/*": ["src/shared/*"]
+    },
+    "esModuleInterop": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", ".vscode-test", "src/webviews"]
+  "exclude": ["node_modules", ".vscode-test", "webview-ui"]
 }
