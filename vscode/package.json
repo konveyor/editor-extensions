@@ -266,7 +266,7 @@
     "start:build": "cd webview-ui && npm run build",
     "compile-tests": "tsc -p . --outDir test_out",
     "watch-tests": "tsc -p . -w --outDir test_out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "pretest": "npm run start:build && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
     "clean": "rimraf ./out ./test_out",
