@@ -23,7 +23,7 @@ export class AnalyzerClient {
     this.diagnosticCollection = vscode.languages.createDiagnosticCollection("konveyor");
   }
 
-  public start(): void {
+  public start(webview: vscode.Webview): void {
     if (!this.canAnalyze) {
       return;
     }
@@ -50,6 +50,10 @@ export class AnalyzerClient {
     this.analyzerServer.on("exit", (code) => {
       this.outputChannel.appendLine(`Analyzer exited with code ${code}`);
     });
+
+    if (webview) {
+      webview.postMessage({ type: "serverStarted" });
+    }
   }
 
   // Stops the analyzer server

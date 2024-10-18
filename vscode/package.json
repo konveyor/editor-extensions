@@ -71,6 +71,18 @@
         "icon": "$(play}"
       },
       {
+        "command": "konveyor.restartAnalyzer",
+        "title": "Restart Analyzer",
+        "category": "Konveyor",
+        "icon": "$(play}"
+      },
+      {
+        "command": "konveyor.stopAnalyzer",
+        "title": "Stop Analyzer",
+        "category": "Konveyor",
+        "icon": "$(stop}"
+      },
+      {
         "command": "konveyor.runAnalysis",
         "title": "Run Analysis",
         "category": "Konveyor",
