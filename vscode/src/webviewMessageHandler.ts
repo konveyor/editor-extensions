@@ -24,6 +24,21 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
         break;
       }
 
+      case "startAnalyzer": {
+        vscode.commands.executeCommand("konveyor.startAnalyzer");
+        break;
+      }
+
+      case "restartAnalyzer": {
+        vscode.commands.executeCommand("konveyor.restartAnalyzer");
+        break;
+      }
+
+      case "stopAnalyzer": {
+        vscode.commands.executeCommand("konveyor.stopAnalyzer");
+        break;
+      }
+
       case "openFile": {
         const fileUri = vscode.Uri.parse(message.file);
         try {

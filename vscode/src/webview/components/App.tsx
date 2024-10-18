@@ -25,6 +25,7 @@ import { ChatbotContainer } from "./ChatbotContainer";
 
 const App: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>();
+  const [isServerRunning, setIsServerRunning] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -70,6 +71,12 @@ const App: React.FC = () => {
             setAnalysisResults(message.data);
           }
           break;
+        case "serverStarted":
+          setIsServerRunning(true);
+          break;
+        case "serverStopped":
+          setIsServerRunning(false);
+          break;
         case "analysisStarted":
           setIsAnalyzing(true);
           setAnalysisMessage("Analysis started...");
@@ -100,6 +107,14 @@ const App: React.FC = () => {
 
   const startAnalysis = () => {
     vscode.postMessage({ command: "startAnalysis" });
+  };
+
+  const startServer = () => {
+    vscode.postMessage({ command: "startAnalyzer" });
+  };
+
+  const restartServer = () => {
+    vscode.postMessage({ command: "restartAnalyzer" });
   };
 
   const startGuidedApproach = () => {
@@ -139,7 +154,7 @@ const App: React.FC = () => {
                       variant={ButtonVariant.primary}
                       onClick={startAnalysis}
                       isLoading={isAnalyzing}
-                      isDisabled={isAnalyzing}
+                      isDisabled={!isServerRunning || isAnalyzing}
                     >
                       {isAnalyzing ? "Analyzing..." : "Run Analysis"}
                     </Button>
@@ -157,6 +172,14 @@ const App: React.FC = () => {
                       onClick={() => setIsChatVisible(!isChatVisible)}
                     >
                       Chat with Konveyor
+                    </Button>
+                  </FlexItem>
+                  <FlexItem>
+                    <Button
+                      variant={ButtonVariant.tertiary}
+                      onClick={isServerRunning ? restartServer : startServer}
+                    >
+                      {isServerRunning ? "Restart Server" : "Start Server"}
                     </Button>
                   </FlexItem>
                 </Flex>
@@ -195,7 +218,6 @@ const App: React.FC = () => {
               />
             ) : (
               <EmptyState>
-                {/* <EmptyStateIcon icon={SearchIcon} /> */}
                 <Title headingLevel="h2" size="lg">
                   {analysisResults?.length ? "No Violations Found" : "No Analysis Results"}
                 </Title>
