@@ -4,7 +4,7 @@ import * as os from "os";
 import * as fs from "fs";
 // import * as rpc from "vscode-jsonrpc/node";
 import path from "path";
-import { RuleSet } from "../webview/types";
+import { Incident, RuleSet } from "../webview/types";
 import { processIncidents } from "./analyzerResults";
 
 export class AnalyzerClient {
@@ -59,6 +59,10 @@ export class AnalyzerClient {
     }
     // this.rpcConnection = null;
     this.analyzerServer = null;
+  }
+
+  public async initialize(): Promise<any> {
+    vscode.window.showErrorMessage("Not yet implemented");
   }
 
   public async runAnalysis(webview: vscode.Webview): Promise<any> {
@@ -154,6 +158,18 @@ export class AnalyzerClient {
         });
       },
     );
+  }
+
+  public async getSolution(webview: vscode.Webview, incident: Incident): Promise<any> {
+    vscode.window.showErrorMessage("Not yet implemented");
+  }
+
+  public async shudtown(): Promise<any> {
+    vscode.window.showErrorMessage("Not yet implemented");
+  }
+
+  public async exit(): Promise<any> {
+    vscode.window.showErrorMessage("Not yet implemented");
   }
 
   public async canAnalyze(): Promise<boolean> {
