@@ -17,11 +17,11 @@ import {
   ButtonVariant,
 } from "@patternfly/react-core";
 import { vscode } from "./utils/vscode";
-import { Incident, RuleSet } from "@shared/types";
 import GuidedApproachWizard from "./components/GuidedApproachWizard";
 import ProgressIndicator from "./components/ProgressIndicator";
 import ViolationIncidentsList from "./components/ViolationIncidentsList";
-import { ChatbotContainer } from "./components/ChatbotContainer";
+// import { ChatbotContainer } from "./components/ChatbotContainer";
+import { Incident, RuleSet } from "./types";
 
 const App: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>();
@@ -30,7 +30,9 @@ const App: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
-  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(
+    new Set()
+  );
   const [isChatVisible, setIsChatVisible] = useState(false);
 
   const handleIncidentSelect = (incident: Incident) => {
@@ -109,7 +111,10 @@ const App: React.FC = () => {
       return [];
     }
     return analysisResults.flatMap((ruleSet) =>
-      Object.entries(ruleSet.violations || {}).map(([id, violation]) => ({ id, ...violation })),
+      Object.entries(ruleSet.violations || {}).map(([id, violation]) => ({
+        id,
+        ...violation,
+      }))
     );
   }, [analysisResults]);
 
@@ -140,7 +145,10 @@ const App: React.FC = () => {
                   </FlexItem>
                   {hasViolations && (
                     <FlexItem>
-                      <Button variant={ButtonVariant.secondary} onClick={startGuidedApproach}>
+                      <Button
+                        variant={ButtonVariant.secondary}
+                        onClick={startGuidedApproach}
+                      >
                         Start Guided Approach
                       </Button>
                     </FlexItem>
@@ -191,7 +199,9 @@ const App: React.FC = () => {
               <EmptyState>
                 {/* <EmptyStateIcon icon={SearchIcon} /> */}
                 <Title headingLevel="h2" size="lg">
-                  {analysisResults?.length ? "No Violations Found" : "No Analysis Results"}
+                  {analysisResults?.length
+                    ? "No Violations Found"
+                    : "No Analysis Results"}
                 </Title>
                 <EmptyStateBody>
                   {analysisResults?.length
@@ -203,12 +213,17 @@ const App: React.FC = () => {
           </StackItem>
         </Stack>
       </PageSection>
-      <Modal variant="small" isOpen={isWizardOpen} onClose={closeWizard} title="Guided Approach">
+      <Modal
+        variant="small"
+        isOpen={isWizardOpen}
+        onClose={closeWizard}
+        title="Guided Approach"
+      >
         {isWizardOpen && hasViolations && (
           <GuidedApproachWizard violations={violations} onClose={closeWizard} />
         )}
       </Modal>
-      {isChatVisible ? <ChatbotContainer /> : null}
+      {/* {isChatVisible ? <ChatbotContainer /> : null} */}
     </Page>
   );
 };

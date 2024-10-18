@@ -64,10 +64,22 @@ You can author your README using Visual Studio Code. Here are some useful editor
     cd vscode
 
     # Install dependencies for both the extension and webview UI source code
-    npm run install:all
+    npm run install
 
     # Build webview UI source code
-    npm run build:webview
+    npm run watch
+
+    cd ../webview
+
+    # Install dependencies for the webview UI source code
+    npm install
+
+    # Build webview UI source code and start the webview vite dev server
+    npm run start
+
+
+
+
 
 ```
 
