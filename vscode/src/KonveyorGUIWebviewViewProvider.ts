@@ -76,7 +76,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getContentSecurityPolicy(nonce: string): string {
-    const isProd = false; // Replace with actual production check
+    const isProd = process.env.NODE_ENV === "production"; // Use environment check
+
     const localServerUrl = "localhost:5173";
     return [
       `default-src 'none';`,
@@ -91,7 +92,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getScriptUri(webview: Webview): Uri {
-    const isProd = false; // Replace with actual production check
+    const isProd = process.env.NODE_ENV === "production";
     return isProd
       ? this._getUri(webview, ["webview-ui", "build", "assets", "index.js"])
       : Uri.parse("http://localhost:5173/src/index.tsx");

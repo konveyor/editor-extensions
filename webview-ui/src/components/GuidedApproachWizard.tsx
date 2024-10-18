@@ -14,7 +14,7 @@ import {
   StackItem,
   WizardBasicStep,
 } from "@patternfly/react-core";
-import { Violation, Incident } from "../../../src/shared/types";
+import { Violation, Incident } from "../../../vscode/src/shared/types";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 import { vscode } from "../utils/vscode";
 
@@ -23,11 +23,18 @@ interface GuidedApproachWizardProps {
   onClose: () => void;
 }
 
-const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations, onClose }) => {
+const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({
+  violations,
+  onClose,
+}) => {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
+    null
+  );
   const [quickFix, setQuickFix] = useState<string | null>(null);
-  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(
+    new Set()
+  );
 
   const generateQuickFix = (incident: Incident) => {
     vscode.postMessage({
@@ -50,7 +57,10 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
 
   // Auto-select the first incident when the wizard opens or when navigating to a new step
   useEffect(() => {
-    if (violations[activeStepIndex] && violations[activeStepIndex].incidents.length > 0) {
+    if (
+      violations[activeStepIndex] &&
+      violations[activeStepIndex].incidents.length > 0
+    ) {
       const firstIncident = violations[activeStepIndex].incidents[0];
       setSelectedIncident(firstIncident);
       handleIncidentClick(firstIncident);
@@ -82,7 +92,9 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
             <Card>
               <CardBody>
                 <Content>
-                  <Content component={ContentVariants.h3}>Selected Incident</Content>
+                  <Content component={ContentVariants.h3}>
+                    Selected Incident
+                  </Content>
                   {selectedIncident ? (
                     <>
                       <Content component={ContentVariants.p}>
@@ -94,7 +106,10 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
                       <Content component={ContentVariants.p}>
                         <strong>Line:</strong> {selectedIncident.lineNumber}
                       </Content>
-                      <Button variant="primary" onClick={() => generateQuickFix(selectedIncident)}>
+                      <Button
+                        variant="primary"
+                        onClick={() => generateQuickFix(selectedIncident)}
+                      >
                         Generate QuickFix
                       </Button>
                     </>
@@ -106,8 +121,12 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({ violations,
                 </Content>
                 {quickFix && (
                   <Content>
-                    <Content component={ContentVariants.h4}>QuickFix Suggestion:</Content>
-                    <Content component={ContentVariants.pre}>{quickFix}</Content>
+                    <Content component={ContentVariants.h4}>
+                      QuickFix Suggestion:
+                    </Content>
+                    <Content component={ContentVariants.pre}>
+                      {quickFix}
+                    </Content>
                   </Content>
                 )}
               </CardBody>
