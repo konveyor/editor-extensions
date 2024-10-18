@@ -261,9 +261,10 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "webpack --mode production --config webpack.config.js",
+    "compile": "npm run build-webview && webpack --mode production --config webpack.config.js",
     "watch": "webpack --watch --mode development --config webpack.config.js",
-    "package": "webpack --mode production --devtool hidden-source-map",
+    "package": "npm run build-webview && webpack --mode production --devtool hidden-source-map",
+    "build-webview": "cd ../webview-ui && npm run build",
     "compile-tests": "tsc -p . --outDir test_out",
     "watch-tests": "tsc -p . -w --outDir test_out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -287,6 +288,7 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "chai": "^5.1.1",
+    "copy-webpack-plugin": "^12.0.2",
     "css-loader": "^7.1.2",
     "eslint": "^9.11.1",
     "eslint-config-prettier": "^9.1.0",
@@ -295,7 +297,6 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
-    "mini-css-extract-plugin": "^2.9.1",
     "mocha": "^10.7.3",
     "prettier": "^3.0.2",
     "rimraf": "^4.4.1",
@@ -307,17 +308,8 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@patternfly/patternfly": "6.0.0-prerelease.15",
-    "@patternfly/react-core": "6.0.0-prerelease.15",
-    "@patternfly/react-table": "^5.4.1",
-    "@patternfly/virtual-assistant": "2.0.0-alpha.59",
-    "@types/react-window": "^1.8.8",
     "babel-loader": "^9.2.1",
-    "copy-webpack-plugin": "^12.0.2",
     "js-yaml": "^4.1.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "uuid": "^10.0.0",
-    "webpack-shell-plugin-next": "^2.3.2"
+    "uuid": "^10.0.0"
   }
 }

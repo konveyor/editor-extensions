@@ -13,19 +13,18 @@ on:
   workflow_dispatch:
     inputs:
       shouldRelease:
-        description: 'Should a release be created?'
+        description: "Should a release be created?"
         required: false
-        default: 'false'
+        default: "false"
 
   workflow_call:
     inputs:
       shouldRelease:
         type: boolean
-        description: 'Should a release be created?'
+        description: "Should a release be created?"
         required: false
         default: false
 
-    
 concurrency:
   group: ci-repo-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -62,8 +61,13 @@ jobs:
           path: vscode/node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('vscode/package-lock.json') }}
 
-      - name: Install dependencies
+      - name: Install dependencies for vscode
         working-directory: ./vscode
+        run: |
+          npm ci
+
+      - name: Install dependencies for webview
+        working-directory: ./webview-ui
         run: |
           npm ci
 
@@ -94,16 +98,21 @@ jobs:
         with:
           node-version-file: "vscode/.nvmrc"
 
-      - name: Install dependencies
+      - name: Install dependencies for vscode
         working-directory: ./vscode
-        run: npm ci
+        run: |
+          npm ci
+
+      - name: Install dependencies for webview
+        working-directory: ./webview-ui
+        run: |
+          npm ci
 
       # Run tests on Linux
       - name: Run tests (Linux)
         if: matrix.arch == 'linux'
         working-directory: ./vscode
-        run: 
-          xvfb-run -a npm run test
+        run: xvfb-run -a npm run test
 
       # Run tests on macOS
       - name: Run tests (macOS)
@@ -142,9 +151,15 @@ jobs:
         with:
           node-version-file: "vscode/.nvmrc"
 
-      - name: Install dependencies
+      - name: Install dependencies for vscode
         working-directory: ./vscode
-        run: npm ci
+        run: |
+          npm ci
+
+      - name: Install dependencies for webview
+        working-directory: ./webview-ui
+        run: |
+          npm ci
 
       - name: Build Package
         working-directory: ./vscode
@@ -173,12 +188,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: "vscode/.nvmrc"
-        
+
       - name: Read version from package.json
         id: get_version
         shell: bash
@@ -186,7 +201,7 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           echo "version=$version" >> $GITHUB_OUTPUT
-          
+
       - name: List available artifacts
         run: |
           curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -214,7 +229,7 @@ jobs:
         run: |
           TAG_NAME="v${{ steps.get_version.outputs.version }}-dev+$(date +%Y%m%d)"
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-  
+
       - name: Create Pre-release
         uses: ncipollo/release-action@v1
         with:
