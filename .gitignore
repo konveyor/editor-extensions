@@ -6,3 +6,6 @@ vscode/tsbuildinfo
 vscode/.metadata
 vscode/org.eclipse*
 .aider*
+node_modules
+webview-ui/node_modules
+webview-ui/build

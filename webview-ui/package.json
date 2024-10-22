@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "vite",
-    "build": "tsc && vite build --mode production",
+    "build": "rimraf build && vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },
@@ -33,6 +33,7 @@
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "prettier": "^3.0.2",
+    "rimraf": "^5.0.10",
     "typescript": "^5.6.3",
     "vite": "^5.4.9"
   },

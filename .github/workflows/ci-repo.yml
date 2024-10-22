@@ -5,23 +5,14 @@ on:
     branches:
       - "main"
       - "release-*"
+
   pull_request:
     branches:
       - "main"
       - "release-*"
   workflow_dispatch:
-    inputs:
-      shouldRelease:
-        description: "Should a release be created?"
-        required: false
-        default: "false"
+
   workflow_call:
-    inputs:
-      shouldRelease:
-        type: boolean
-        description: "Should a release be created?"
-        required: false
-        default: false
 
 concurrency:
   group: ci-repo-${{ github.event_name }}-${{ github.ref }}
@@ -57,13 +48,17 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            **/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+            node_modules
+            vscode/node_modules
+            webview-ui/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install workspace dependencies
+        run: |
+          npm ci
 
       - name: Lint sources
+        working-directory: ./vscode
         run: npm run lint
 
   test:
@@ -89,25 +84,30 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install workspace dependencies
+        run: |
+          npm ci
 
-      - name: Build webview-ui
-        run: npm run build --workspace webview-ui
+      # - name: Build
+      #   working-directory: ./webview-ui
+      #   run: |
+      #     npm run build
 
+      # Run tests on Linux
       - name: Run tests (Linux)
         if: matrix.arch == 'linux'
-        working-directory: ./vscode
-        run: xvfb-run -a npm run test
+        run: xvfb-run -a npm test
 
+      # Run tests on macOS
       - name: Run tests (macOS)
         if: matrix.arch == 'macos'
-        run: npm test --workspace vscode
+        run: npm test
 
+      # Run tests on Windows
       - name: Run tests (Windows)
         if: matrix.arch == 'windows'
         shell: cmd
-        run: npm test --workspace vscode
+        run: npm test
 
   package:
     name: Package (${{ matrix.arch }})
@@ -133,13 +133,14 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
-      - name: Install dependencies
+      - name: Install workspace dependencies
         run: npm ci
 
       - name: Build Package
         run: npm run package
 
       - name: Generate .vsix package
+        working-directory: ./vscode
         run: |
           npm install @vscode/vsce
           npx vsce package
@@ -149,66 +150,3 @@ jobs:
         with:
           name: vscode-extension-${{ matrix.arch }}
           path: "vscode/*.vsix"
-
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    needs: package
-    if: |
-      github.ref == 'refs/heads/main' &&
-      (inputs.shouldRelease == 'true' || inputs.shouldRelease == true)
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Read version from package.json
-        id: get_version
-        run: |
-          version=$(node -p "require('./vscode/package.json').version")
-          echo "version=$version" >> $GITHUB_OUTPUT
-
-      - name: List available artifacts
-        run: |
-          curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
-
-      - name: Download VSIX Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-
-      - name: Rename VSIX Packages
-        run: |
-          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-linux-${{ steps.get_version.outputs.version }}.vsix
-          mv ./artifacts/vscode-extension-macos/*.vsix ./artifacts/konveyor-macos-${{ steps.get_version.outputs.version }}.vsix
-          mv ./artifacts/vscode-extension-windows/*.vsix ./artifacts/konveyor-windows-${{ steps.get_version.outputs.version }}.vsix
-
-      - name: Verify Downloaded Artifacts
-        run: ls -R ./artifacts
-
-      - name: Generate tag name with timestamp
-        id: vars
-        shell: bash
-        run: |
-          TAG_NAME="v${{ steps.get_version.outputs.version }}-dev+$(date +%Y%m%d)"
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-
-      - name: Create Pre-release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ steps.vars.outputs.tag_name }}
-          commit: ${{ github.sha }}
-          artifacts: |
-            ./artifacts/konveyor-linux-*.vsix
-            ./artifacts/konveyor-macos-*.vsix
-            ./artifacts/konveyor-windows-*.vsix
-          prerelease: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,9 +1,30 @@
 {
-  "name": "@editor-extensions/vscode",
+  "name": "editor-extensions-vscode",
   "version": "0.0.1",
-  "private": true,
-  "type": "module",
   "main": "./out/extension.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/konveyor/editor-extensions"
+  },
+  "bugs": "https://github.com/konveyor/editor-extensions/issues",
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "Migration",
+    "Migrate",
+    "modernizing",
+    "MTA",
+    "Analyze"
+  ],
+  "engines": {
+    "vscode": "^1.93.0",
+    "node": ">=22.9.0",
+    "npm": "^9.5.0 || ^10.5.2"
+  },
   "contributes": {
     "commands": [
       {

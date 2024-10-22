@@ -13,3 +13,46 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 test_out/*
+# Exclude all unnecessary files and directories
+.git/
+node_modules/
+*.log
+.vscode/
+README.md
+CHANGELOG.md
+.vscodeignore
+.prettierignore
+.nvmrc
+*.lock
+.github/
+husky/
+bin/
+assets/
+
+# Ignore root files and directories that shouldn't be part of the extension package
+.git/
+node_modules/
+.github/
+.husky/
+.vscode/
+*.lock
+*.log
+README.md
+package-lock.json
+bin/
+
+../.git/
+../node_modules/
+../package-lock.json
+../package.json   # The root package.json, not the one inside the extension
+../README.md
+../.vscode/
+../.husky/
+../webview-ui/
+../.nvmrc
+../.github/
+../package.json
+../package-lock.json
+../.gitattributes
+../.gitignore
+
