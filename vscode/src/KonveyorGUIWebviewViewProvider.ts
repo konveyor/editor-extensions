@@ -4,29 +4,33 @@ import {
   Webview,
   WebviewView,
   WebviewViewProvider,
+  WebviewPanel,
   Disposable,
   Uri,
   CancellationToken,
   WebviewViewResolveContext,
+  ViewColumn,
+  window,
 } from "vscode";
 import { getUri } from "./utilities/getUri";
 import { getNonce } from "./utilities/getNonce";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
-  public static readonly viewType = "konveyor.konveyorGUIView";
+  public static readonly SIDEBAR_VIEW_TYPE = "konveyor.konveyorAnalysisView";
+  public static readonly RESOLUTION_VIEW_TYPE = "konveyor.konveyorResolutionView";
+
   private static instance: KonveyorGUIWebviewViewProvider;
   private _disposables: Disposable[] = [];
+  private _panel?: WebviewPanel;
   private _view?: WebviewView;
+  private _isPanelReady: boolean = false;
   private _isWebviewReady: boolean = false;
+  private _messageQueue: any[] = [];
 
-  private constructor(private readonly _extensionState: ExtensionState) {}
-
-  public static getInstance(extensionState: ExtensionState): KonveyorGUIWebviewViewProvider {
-    if (!KonveyorGUIWebviewViewProvider.instance) {
-      KonveyorGUIWebviewViewProvider.instance = new KonveyorGUIWebviewViewProvider(extensionState);
-    }
-    return KonveyorGUIWebviewViewProvider.instance;
-  }
+  constructor(
+    private readonly _extensionState: ExtensionState,
+    private readonly _viewType: string,
+  ) {}
 
   public resolveWebviewView(
     webviewView: WebviewView,
@@ -34,17 +38,76 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     _token: CancellationToken,
   ): void | Thenable<void> {
     this._view = webviewView;
+    this.initializeWebview(webviewView.webview);
+  }
 
-    webviewView.webview.options = {
+  public createWebviewPanel(): void {
+    if (!this._panel) {
+      this._panel = window.createWebviewPanel(
+        KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
+        "Resolution Details",
+        ViewColumn.One,
+        {
+          enableScripts: true,
+          localResourceRoots: [this._extensionState.extensionContext.extensionUri],
+          retainContextWhenHidden: true,
+        },
+      );
+
+      this.initializeWebview(this._panel.webview);
+
+      if (this._viewType === KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE) {
+        const savedData = this._extensionState.sharedState.get("resolutionPanelData");
+        if (savedData) {
+          this._panel.webview.postMessage({ type: "loadResolutionState", data: savedData });
+        }
+      }
+
+      this._panel.onDidDispose(() => {
+        this.handleResolutionViewClosed();
+        this._panel = undefined;
+        this._isWebviewReady = false;
+        this._isPanelReady = false;
+      });
+    }
+  }
+
+  private handleResolutionViewClosed(): void {
+    // Assuming the analysis webview is tracked and can be accessed via the ExtensionState or similar
+    const sidebarProvider = this._extensionState.webviewProviders.get("sidebar");
+    if (sidebarProvider?.webview && sidebarProvider._isWebviewReady) {
+      sidebarProvider.webview.postMessage({
+        type: "solutionConfirmation",
+        data: { confirmed: true, solution: null },
+      });
+    } else {
+      console.error("Analysis webview is not ready or not available.");
+    }
+  }
+
+  public showWebviewPanel(): void {
+    if (this._panel) {
+      this._panel.reveal(ViewColumn.One);
+    } else {
+      this.createWebviewPanel();
+    }
+  }
+
+  private initializeWebview(webview: Webview): void {
+    webview.options = {
       enableScripts: true,
       localResourceRoots: [this._extensionState.extensionContext.extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-    this._setWebviewMessageListener(webviewView.webview);
+    webview.html = this.getHtmlForWebview(webview);
+    this._setWebviewMessageListener(webview);
+
+    if (this._isWebviewReady) {
+      this._loadInitialContent(webview);
+    }
   }
 
-  public _getHtmlForWebview(webview: Webview): string {
+  public getHtmlForWebview(webview: Webview): string {
     const stylesUri = this._getUri(webview, ["webview-ui", "build", "assets", "index.css"]);
     const scriptUri = this._getScriptUri(webview);
     const nonce = getNonce();
@@ -54,12 +117,13 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta http-equiv="Content-Security-Policy" content="${this._getContentSecurityPolicy(nonce)}">
+        <meta http-equiv="Content-Security-Policy" content="${this._getContentSecurityPolicy(nonce, webview)}">
         <link rel="stylesheet" type="text/css" href="${stylesUri}">
         <title>Konveyor IDE Extension</title>
          <script nonce="${nonce}">
           const vscode = acquireVsCodeApi();
           window.vscode = vscode;
+          window.viewType = "${this._viewType}";
         </script>
       </head>
       <body>
@@ -75,17 +139,16 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     </html>`;
   }
 
-  private _getContentSecurityPolicy(nonce: string): string {
+  private _getContentSecurityPolicy(nonce: string, webview: Webview): string {
     const isProd = process.env.NODE_ENV === "production"; // Use environment check
-
     const localServerUrl = "localhost:5173";
     return [
       `default-src 'none';`,
       `script-src 'unsafe-eval' https://* ${
         isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} 'nonce-${nonce}' 'unsafe-inline'`
       };`,
-      `style-src ${this._view!.webview.cspSource} 'unsafe-inline' https://*;`,
-      `font-src ${this._view!.webview.cspSource};`,
+      `style-src ${webview.cspSource} 'unsafe-inline' https://*;`,
+      `font-src ${webview.cspSource};`,
       `connect-src https://* ${isProd ? `` : `ws://${localServerUrl} http://${localServerUrl}`};`,
       `img-src https: data:;`,
     ].join(" ");
@@ -123,8 +186,12 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       (message) => {
         if (message.command === "webviewReady") {
           this._isWebviewReady = true;
-          this._loadInitialContent();
-          console.log("Webview is ready");
+          this._isPanelReady = true;
+          while (this._messageQueue.length > 0) {
+            const queuedMessage = this._messageQueue.shift();
+            webview.postMessage(queuedMessage);
+          }
+          this._loadInitialContent(webview);
         }
       },
       undefined,
@@ -132,13 +199,19 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     );
   }
 
-  private _loadInitialContent() {
-    if (this._isWebviewReady && this._view) {
+  private _loadInitialContent(webview: Webview) {
+    if (this._isWebviewReady && webview) {
       const data = this._extensionState.ruleSets;
-      this._view.webview.postMessage({
+      webview.postMessage({
         type: "loadStoredAnalysis",
         data,
       });
+      //TODO Commenting out in favor of hardcoded solution data in webviewMessageHandler.ts
+      // const localChanges = this._extensionState.localChanges;
+      // webview.postMessage({
+      //   type: "loadSolutions",
+      //   solution: localChanges,
+      // });
     }
   }
 
@@ -148,6 +221,14 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       if (disposable) {
         disposable.dispose();
       }
+    }
+  }
+  public sendMessageToWebview(message: any): void {
+    if (this._panel && this._isPanelReady) {
+      this._panel.webview.postMessage(message);
+    } else {
+      // Queue the message until the panel is ready
+      this._messageQueue.push(message);
     }
   }
 

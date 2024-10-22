@@ -1,16 +1,10 @@
-import { GetSolutionResult } from "@editor-extensions/shared";
+import { GetSolutionResult, LocalChange } from "@editor-extensions/shared";
 import { Uri, window, workspace } from "vscode";
 import { ExtensionState } from "src/extensionState";
 import * as Diff from "diff";
 import path from "path";
 
 import { KONVEYOR_SCHEME, fromRelativeToKonveyor } from "../utilities";
-
-export interface LocalChange {
-  modifiedUri: Uri;
-  originalUri: Uri;
-  diff: string;
-}
 
 export const toLocalChanges = (solution: GetSolutionResult) =>
   solution.changes.map(({ modified, original, diff }) => ({

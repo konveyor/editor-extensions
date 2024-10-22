@@ -14,7 +14,8 @@ export const loadRuleSets = (state: ExtensionState, ruleSets: RuleSet[]): void =
   writeDataFile(ruleSets, RULE_SET_DATA_FILE_PREFIX);
   state.ruleSets = ruleSets;
   state.diagnosticCollection.set(processIncidents(ruleSets));
-  state.sidebarProvider?.webview?.postMessage({
+  const sidebarProvider = state.webviewProviders?.get("sidebar");
+  sidebarProvider?.webview?.postMessage({
     type: "loadStoredAnalysis",
     data: ruleSets,
   });
@@ -22,7 +23,8 @@ export const loadRuleSets = (state: ExtensionState, ruleSets: RuleSet[]): void =
 export const cleanRuleSets = (state: ExtensionState) => {
   state.ruleSets = [];
   state.diagnosticCollection.clear();
-  state.sidebarProvider?.webview?.postMessage({
+  const sidebarProvider = state.webviewProviders?.get("sidebar");
+  sidebarProvider?.webview?.postMessage({
     type: "loadStoredAnalysis",
     data: undefined,
   });

@@ -5,7 +5,7 @@ import { ExtensionState, SharedState } from "./extensionState";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { registerDiffView, KonveyorFileModel } from "./diffView";
-import { MemFS, loadStateFromDataFolder } from "./data";
+import { MemFS } from "./data";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -14,8 +14,7 @@ class VsCodeExtension {
     this.state = {
       analyzerClient: new AnalyzerClient(context),
       sharedState: new SharedState(),
-      webviewProviders: new Set<KonveyorGUIWebviewViewProvider>(),
-      sidebarProvider: undefined as any,
+      webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
       memFs: new MemFS(),
@@ -34,7 +33,6 @@ class VsCodeExtension {
       registerDiffView(this.state);
       this.registerCommands();
       this.registerLanguageProviders(context);
-      // async
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
     } catch (error) {
       console.error("Error initializing extension:", error);
@@ -51,16 +49,22 @@ class VsCodeExtension {
   }
 
   private registerWebviewProvider(context: vscode.ExtensionContext): void {
-    const sidebarProvider = KonveyorGUIWebviewViewProvider.getInstance(this.state);
-    this.state.sidebarProvider = sidebarProvider;
+    const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
+    this.state.webviewProviders.set("sidebar", sidebarProvider);
+
+    const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
+    this.state.webviewProviders.set("resolution", resolutionViewProvider);
 
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
-        KonveyorGUIWebviewViewProvider.viewType,
+        KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
         sidebarProvider,
-        {
-          webviewOptions: { retainContextWhenHidden: true },
-        },
+        { webviewOptions: { retainContextWhenHidden: true } },
+      ),
+      vscode.window.registerWebviewViewProvider(
+        KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
+        resolutionViewProvider,
+        { webviewOptions: { retainContextWhenHidden: true } },
       ),
     );
   }

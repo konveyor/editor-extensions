@@ -11,6 +11,12 @@ export const applyAll = async (state: ExtensionState) => {
       vscode.workspace.fs.copy(modifiedUri, originalUri, { overwrite: true }),
     ),
   );
+  const sidebarProvider = state.webviewProviders?.get("sidebar");
+  sidebarProvider?.webview?.postMessage({
+    type: "solutionConfirmation",
+    data: { confirmed: true, solution: null },
+  });
+  //TODO: need to keep solutions view and analysis view in sync based on these actions
   vscode.window.showInformationMessage(`All resolutions applied successfully`);
   state.fileModel.updateLocations([]);
 };

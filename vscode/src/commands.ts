@@ -34,13 +34,16 @@ let fullScreenPanel: WebviewPanel | undefined;
 
 function getFullScreenTab() {
   const tabs = window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
-  return tabs.find((tab) => (tab.input as any)?.viewType?.endsWith("konveyor.konveyorGUIView"));
+  return tabs.find((tab) =>
+    (tab.input as any)?.viewType?.endsWith("konveyor.konveyorAnalysisView"),
+  );
 }
 
 const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
-  const { sidebarProvider, extensionContext } = state;
+  const { extensionContext } = state;
+  const sidebarProvider = state.webviewProviders?.get("sidebar");
   return {
     "konveyor.startAnalyzer": async () => {
       const analyzerClient = state.analyzerClient;
@@ -57,11 +60,10 @@ const commandsMap: (state: ExtensionState) => {
         window.showErrorMessage("Analyzer must be started before run!");
         return;
       }
-
       if (fullScreenPanel && fullScreenPanel.webview) {
         analyzerClient.runAnalysis(fullScreenPanel.webview);
-      } else if (state.sidebarProvider && state.sidebarProvider.webview) {
-        analyzerClient.runAnalysis(state.sidebarProvider.webview);
+      } else if (sidebarProvider?.webview) {
+        analyzerClient.runAnalysis(sidebarProvider.webview);
       } else {
         window.showErrorMessage("No webview available to run analysis!");
       }
@@ -69,7 +71,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.focusKonveyorInput": async () => {
       const fullScreenTab = getFullScreenTab();
       if (!fullScreenTab) {
-        commands.executeCommand("konveyor.konveyorGUIView.focus");
+        commands.executeCommand("konveyor.konveyorAnalysisView.focus");
       } else {
         fullScreenPanel?.reveal();
       }
@@ -77,6 +79,7 @@ const commandsMap: (state: ExtensionState) => {
       // await addHighlightedCodeToContext(sidebar.webviewProtocol);
     },
     "konveyor.toggleFullScreen": () => {
+      // TODO: refactor this to use showWebviewPanel
       // Check if full screen is already open by checking open tabs
       const fullScreenTab = getFullScreenTab();
 
@@ -108,25 +111,21 @@ const commandsMap: (state: ExtensionState) => {
         },
       );
       fullScreenPanel = panel;
-
-      panel.webview.html = sidebarProvider._getHtmlForWebview(panel.webview);
-
-      setupWebviewMessageListener(panel.webview, state);
-
-      if (state.sidebarProvider) {
+      if (sidebarProvider) {
+        panel.webview.html = sidebarProvider.getHtmlForWebview(panel.webview);
+        setupWebviewMessageListener(panel.webview, state);
         commands.executeCommand("workbench.action.closeSidebar");
+        //When panel closes, reset the webview and focus
+        panel.onDidDispose(
+          () => {
+            state.webviewProviders.delete("sidebar");
+            fullScreenPanel = undefined;
+            commands.executeCommand("konveyor.focusKonveyorInput");
+          },
+          null,
+          extensionContext.subscriptions,
+        );
       }
-
-      //When panel closes, reset the webview and focus
-      panel.onDidDispose(
-        () => {
-          state.webviewProviders.delete(sidebarProvider);
-          fullScreenPanel = undefined;
-          commands.executeCommand("konveyor.focusKonveyorInput");
-        },
-        null,
-        extensionContext.subscriptions,
-      );
     },
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {
@@ -345,6 +344,10 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.diffView.viewFix": viewFix,
     "konveyor.diffView.revertAll": () => revertAll(state),
     "konveyor.diffView.revertFile": (item: FileItem | Uri) => revertFile(item, state),
+    "konveyor.showResolutionPanel": () => {
+      const resolutionProvider = state.webviewProviders?.get("resolution");
+      resolutionProvider?.showWebviewPanel();
+    },
   };
 };
 

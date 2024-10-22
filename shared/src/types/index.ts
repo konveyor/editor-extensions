@@ -1,3 +1,5 @@
+import { Uri } from "vscode";
+
 export interface Incident {
   uri: string;
   lineNumber: number;
@@ -81,4 +83,18 @@ export interface Change {
 export interface GetSolutionResult {
   errors: string[];
   changes: Change[];
+}
+
+export interface LocalChange {
+  modifiedUri: Uri;
+  originalUri: Uri;
+  diff: string;
+}
+
+export interface ResolutionMessage {
+  type: string;
+  solution: GetSolutionResult;
+  violation: Violation;
+  incident: Incident;
+  isRelevantSolution: boolean;
 }

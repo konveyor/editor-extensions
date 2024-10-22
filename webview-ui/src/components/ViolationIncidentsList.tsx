@@ -1,6 +1,6 @@
+import "./violations.css";
 import React, { useState, useCallback, useMemo } from "react";
 import {
-  ExpandableSection,
   Badge,
   Flex,
   FlexItem,
@@ -24,15 +24,15 @@ import {
   DataListItem,
   DataListItemCells,
   DataListItemRow,
-  Dropdown,
-  DropdownItem,
-  DropdownList,
+  CardHeader,
+  CardExpandableContent,
+  CardFooter,
 } from "@patternfly/react-core";
 import {
   SortAmountDownIcon,
   TimesIcon,
   FileIcon,
-  EllipsisVIcon,
+  LightbulbIcon,
 } from "@patternfly/react-icons";
 import { Incident, Violation } from "@editor-extensions/shared";
 
@@ -42,6 +42,8 @@ interface ViolationIncidentsListProps {
   violations: Violation[];
   focusedIncident?: Incident | null;
   onIncidentSelect: (incident: Incident) => void;
+  onGetSolution: (incident: Incident, violation: Violation) => void;
+  onGetAllSolutions: (violation) => void;
   onOpenChat?: () => void;
   compact?: boolean;
   expandedViolations: Set<string>;
@@ -55,6 +57,8 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   expandedViolations,
   setExpandedViolations,
   onOpenChat,
+  onGetSolution,
+  onGetAllSolutions,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("description");
@@ -92,20 +96,30 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
 
     if (searchTerm) {
       const lowercaseSearchTerm = searchTerm.toLowerCase();
-      result = result.filter((violation) => {
-        const matchingIncidents = violation.incidents.filter(
-          (incident) =>
-            incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-            incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-        );
 
-        return (
-          matchingIncidents.length > 0 ||
-          violation.description.toLowerCase().includes(lowercaseSearchTerm)
+      result = result
+        .map((violation) => {
+          // Filter incidents within the violation based on the search term
+          const filteredIncidents = violation.incidents.filter(
+            (incident) =>
+              incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
+              incident.uri.toLowerCase().includes(lowercaseSearchTerm),
+          );
+
+          return {
+            ...violation,
+            incidents: filteredIncidents,
+          };
+        })
+        // Only keep violations that have at least one matching incident or match in the description
+        .filter(
+          (violation) =>
+            violation.incidents.length > 0 ||
+            violation.description.toLowerCase().includes(lowercaseSearchTerm),
         );
-      });
     }
 
+    // Sort the violations according to the selected criteria
     result.sort((a, b) => {
       switch (sortBy) {
         case "description":
@@ -133,7 +147,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   }, [violations, searchTerm, sortBy]);
 
   const renderIncident = useCallback(
-    (incident: Incident) => {
+    (incident: Incident, violation: Violation) => {
       const fileName = incident.uri.slice(incident.uri.lastIndexOf("/") + 1);
       const uniqueId = `${incident.uri}-${incident.lineNumber}`;
       const isOpen = openDropdownId === uniqueId;
@@ -177,36 +191,13 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               id={`incident-${uniqueId}-actions`}
               aria-label="Actions"
             >
-              <Dropdown
-                isOpen={isOpen}
-                onSelect={() => setOpenDropdownId(null)}
-                toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                  <MenuToggle
-                    ref={toggleRef}
-                    onClick={toggleDropdown}
-                    isExpanded={isOpen}
-                    aria-label="Incident actions"
-                    variant="plain"
-                  >
-                    <EllipsisVIcon />
-                  </MenuToggle>
-                )}
-              >
-                <DropdownList>
-                  <DropdownItem
-                    key="view"
-                    onClick={() => onIncidentSelect(incident)}
-                  >
-                    Open File
-                  </DropdownItem>
-                  <DropdownItem key="quickfix">QuickFix</DropdownItem>
-                  {onOpenChat && (
-                    <DropdownItem key="chat" onClick={() => onOpenChat()}>
-                      Chat
-                    </DropdownItem>
-                  )}
-                </DropdownList>
-              </Dropdown>
+              {onGetSolution && (
+                <Button
+                  variant="link"
+                  icon={<LightbulbIcon className="lightbulb-icon-style" />}
+                  onClick={() => onGetSolution(incident, violation)}
+                ></Button>
+              )}
             </DataListAction>
           </DataListItemRow>
         </DataListItem>
@@ -225,59 +216,60 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       };
       const isExpanded = expandedViolations.has(violation.description);
       const highestSeverity = getHighestSeverity(violation.incidents);
-      const truncatedDescription = truncateText(violation.description, 50);
+      const truncatedDescription = truncateText(violation.description, 35);
 
       return (
         <Card
+          isExpanded={isExpanded}
           isCompact
           key={violation.description}
           style={{ marginBottom: "10px" }}
         >
-          <CardBody>
-            <ExpandableSection
-              toggleContent={
-                <Flex alignItems={{ default: "alignItemsCenter" }}>
-                  <FlexItem grow={{ default: "grow" }}>
-                    <Tooltip content={violation.description}>
-                      <Content>{truncatedDescription}</Content>
-                    </Tooltip>
-                  </FlexItem>
-                  <FlexItem>
-                    <Label color="blue" isCompact>
-                      {violation.incidents.length} incidents
-                    </Label>
-                  </FlexItem>
-                  <FlexItem>
-                    <Label
-                      color={
-                        highestSeverity === "high"
-                          ? "red"
-                          : highestSeverity === "medium"
-                            ? "orange"
-                            : "green"
-                      }
-                      isCompact
-                    >
-                      {highestSeverity}
-                    </Label>
-                  </FlexItem>
-                </Flex>
-              }
-              onToggle={() => toggleViolation(violation.description)}
-              isExpanded={isExpanded}
-            >
-              <Stack hasGutter>
-                {violation.incidents.map((incident, index) => (
-                  <React.Fragment
-                    key={`${incident.uri}-${incident.lineNumber}`}
-                  >
-                    {index > 0 && <Divider />}
-                    {renderIncident(incident)}
-                  </React.Fragment>
-                ))}
-              </Stack>
-            </ExpandableSection>
-          </CardBody>
+          <CardHeader
+            // actions={{
+            //   actions: (
+            //     <ViolationActionsDropdown
+            //       violation={violation}
+            //       onGetAllSolutions={onGetAllSolutions}
+            //     />
+            //   ),
+            // }}
+            onExpand={() => toggleViolation(violation.description)}
+          >
+            <Tooltip content={violation.description}>
+              <Content style={{ marginBottom: "5px" }}>
+                {truncatedDescription}
+              </Content>
+            </Tooltip>
+            <Flex>
+              <Label color="blue" isCompact>
+                {violation.incidents.length} incidents
+              </Label>
+              <Label
+                color={
+                  highestSeverity === "high"
+                    ? "red"
+                    : highestSeverity === "medium"
+                      ? "orange"
+                      : "green"
+                }
+                isCompact
+              >
+                {highestSeverity}
+              </Label>
+            </Flex>
+          </CardHeader>
+          <CardExpandableContent>
+            <CardBody>
+              {violation.incidents.map((incident) => (
+                <div key={`${incident.uri}-${incident.lineNumber}`}>
+                  {renderIncident(incident, violation)}
+                  <Divider />
+                </div>
+              ))}
+            </CardBody>
+            <CardFooter>Additional Actions</CardFooter>
+          </CardExpandableContent>
         </Card>
       );
     },

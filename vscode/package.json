@@ -181,8 +181,8 @@
       "konveyor": [
         {
           "type": "webview",
-          "id": "konveyor.konveyorGUIView",
-          "name": "Konveyor",
+          "id": "konveyor.konveyorAnalysisView",
+          "name": "Konveyor Analysis View",
           "visibility": "visible"
         },
         {
@@ -196,7 +196,7 @@
         {
           "command": "konveyor.toggleFullScreen",
           "group": "navigation@1",
-          "when": "view == konveyor.konveyorGUIView"
+          "when": "view == konveyor.konveyorAnalysisView"
         },
         {
           "command": "konveyor.applyAll",
@@ -245,7 +245,7 @@
         {
           "command": "konveyor.toggleFullScreen",
           "group": "navigation@1",
-          "when": "activeWebviewPanelId == konveyor.konveyorGUIView"
+          "when": "activeWebviewPanelId == konveyor.konveyorAnalysisView"
         }
       ],
       "explorer/context": [
