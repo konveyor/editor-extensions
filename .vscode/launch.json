@@ -7,7 +7,6 @@
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}/vscode"],
       "outFiles": ["${workspaceFolder}/vscode/out/**/*.js"],
-      "preLaunchTask": "npm: watch - vscode",
       "env": {
         "VSCODE_DEBUG_MODE": "true"
       }

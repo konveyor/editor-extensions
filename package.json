@@ -1,6 +1,37 @@
 {
   "name": "editor-extensions",
-  "version": "1.0.0",
+  "displayName": "Konveyor",
+  "description": "VSCode Extension for Konveyor to assist in migrating and modernizing applications.",
+  "version": "0.0.1",
+  "license": "Apache-2.0",
+  "publisher": "Konveyor",
+  "author": "Konveyor",
+  "icon": "resources/konveyor-icon-color.png",
+  "homepage": "https://github.com/konveyor/editor-extensions/blob/main/README.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/konveyor/editor-extensions"
+  },
+  "bugs": "https://github.com/konveyor/editor-extensions/issues",
+  "engines": {
+    "vscode": "^1.93.0",
+    "node": ">=20.13.0",
+    "npm": "^9.5.0 || ^10.5.2"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "Migration",
+    "Migrate",
+    "modernizing",
+    "MTA",
+    "Analyze"
+  ],
+
   "private": true,
   "workspaces": [
     "vscode",
@@ -11,9 +42,12 @@
     "build": "npm run build -w webview-ui && npm run build -w vscode",
     "package": "npm run build && npm run package -w vscode",
     "lint": "npm run lint -w vscode",
-    "test": "npm run test -w vscode"
+    "test": "npm run build && npm run test -w vscode"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.9.5"
   }
 }

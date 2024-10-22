@@ -41,15 +41,16 @@ module.exports = (env, argv) => {
     },
     devtool: isDev ? "source-map" : "nosources-source-map",
     plugins: [
-      new CopyWebpackPlugin({
-        patterns: [
-          {
-            from: path.resolve(__dirname, "../webview-ui/build"),
-            to: path.resolve(__dirname, "out/webview"),
-          },
-        ],
-      }),
-    ],
+      !isDev &&
+        new CopyWebpackPlugin({
+          patterns: [
+            {
+              from: path.resolve(__dirname, "../webview-ui/build"),
+              to: path.resolve(__dirname, "out/webview"),
+            },
+          ],
+        }),
+    ].filter(Boolean),
     infrastructureLogging: {
       level: "log",
     },

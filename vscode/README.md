@@ -57,38 +57,6 @@ You can author your README using Visual Studio Code. Here are some useful editor
 - Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
 - Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
 
-## Developing & Running the extension
-
-```bash
-    # navigate into vscode directory
-    cd vscode
-
-    # Install dependencies for both the extension and webview UI source code
-    npm run install
-
-    # Build webview UI source code
-    npm run watch
-
-    cd ../webview
-
-    # Install dependencies for the webview UI source code
-    npm install
-
-    # Build webview UI source code and start the webview vite dev server
-    npm run start
-
-
-
-
-
-```
-
-Once the project is open inside VS Code, you can run the extension by doing the following:
-
-1. Press `F5` to open a new Extension Development Host window. This will also run the extension build process as configured in launch.json.
-
-2. Inside the host window, open the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on Mac) and type `View: Show Konveyor`
-
 ## For more information
 
 - [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
