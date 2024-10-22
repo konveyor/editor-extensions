@@ -17,11 +17,11 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode",
+        "--extensionTestsPath=${workspaceFolder}/vscode/out/test/suite/index"
       ],
-      "outFiles": ["${workspaceFolder}/out/test/**/*.js"],
-      "preLaunchTask": "npm: test-watch"
+      "outFiles": ["${workspaceFolder}/vscode/out/test/**/*.js"],
+      "preLaunchTask": "npm: test-watch - vscode"
     }
   ]
 }

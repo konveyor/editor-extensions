@@ -1,0 +1,19 @@
+{
+  "name": "editor-extensions",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "vscode",
+    "webview-ui"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w vscode\" \"npm run start -w webview-ui\"",
+    "build": "npm run build -w webview-ui && npm run build -w vscode",
+    "package": "npm run build && npm run package -w vscode",
+    "lint": "npm run lint -w vscode",
+    "test": "npm run test -w vscode"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

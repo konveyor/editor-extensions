@@ -13,5 +13,7 @@
   "editor.formatOnSave": true,
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "task.autoDetect": "off"
 }
