@@ -23,7 +23,32 @@ const commandsMap: (state: ExtensionState) => {
       }
 
       vscode.window.showInformationMessage("Starting analyzer...");
-      analyzerClient.start();
+      if (fullScreenPanel && fullScreenPanel.webview) {
+        analyzerClient.start(fullScreenPanel.webview);
+      } else {
+        analyzerClient.start(state.sidebarProvider.webview!);
+      }
+    },
+    "konveyor.restartAnalyzer": async () => {
+      const analyzerClient = state.analyzerClient;
+      if (!analyzerClient || !(await analyzerClient.canAnalyze())) {
+        return;
+      }
+
+      analyzerClient.stop();
+      if (fullScreenPanel && fullScreenPanel.webview) {
+        analyzerClient.start(fullScreenPanel.webview);
+      } else {
+        analyzerClient.start(state.sidebarProvider.webview!);
+      }
+    },
+    "konveyor.stopAnalyzer": async () => {
+      const analyzerClient = state.analyzerClient;
+      if (!analyzerClient) {
+        return;
+      }
+
+      analyzerClient.stop();
     },
     "konveyor.runAnalysis": async () => {
       const analyzerClient = state.analyzerClient;
