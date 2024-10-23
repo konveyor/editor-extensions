@@ -134,6 +134,30 @@ const commandsMap: (state: ExtensionState) => {
         vscode.window.showInformationMessage("No analyzer binary selected.");
       }
     },
+    "konveyor.overriderpcServerBinaries": async () => {
+      const options: vscode.OpenDialogOptions = {
+        canSelectMany: false,
+        openLabel: "Select GenAI Binary",
+        filters: {
+          "Executable Files": ["exe", "sh", "bat", ""],
+          "All Files": ["*"],
+        },
+      };
+
+      const fileUri = await vscode.window.showOpenDialog(options);
+
+      if (fileUri && fileUri[0]) {
+        const filePath = fileUri[0].fsPath;
+
+        // Update the user settings
+        const config = vscode.workspace.getConfiguration("konveyor");
+        await config.update("rpcServerPath", filePath, vscode.ConfigurationTarget.Global);
+
+        vscode.window.showInformationMessage(`rpc server binary path updated to: ${filePath}`);
+      } else {
+        vscode.window.showInformationMessage("No rpc-server binary selected.");
+      }
+    },
     "konveyor.configureCustomRules": async () => {
       const options: vscode.OpenDialogOptions = {
         canSelectMany: true,
@@ -298,6 +322,22 @@ const commandsMap: (state: ExtensionState) => {
         modifiedLabelSelector,
         vscode.ConfigurationTarget.Workspace,
       );
+    },
+    "konveyor.toggleGenerativeAI": async () => {
+      const options = ["Yes", "No"];
+      const selection = await vscode.window.showQuickPick(options, {
+        placeHolder: "Enable Generative AI?",
+      });
+
+      if (selection === "Yes") {
+        const config = vscode.workspace.getConfiguration("konveyor");
+        await config.update("enableGenerativeAI", true, vscode.ConfigurationTarget.Workspace);
+        vscode.window.showInformationMessage("Generative AI is now enabled.");
+      } else if (selection === "No") {
+        const config = vscode.workspace.getConfiguration("konveyor");
+        await config.update("enableGenerativeAI", false, vscode.ConfigurationTarget.Workspace);
+        vscode.window.showInformationMessage("Generative AI is now disabled.");
+      }
     },
   };
 };

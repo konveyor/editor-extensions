@@ -47,6 +47,12 @@
         "icon": "$(gear)"
       },
       {
+        "command": "konveyor.overriderpcServerBinaries",
+        "title": "Override Generative AI Binaries",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
         "command": "konveyor.configureCustomRules",
         "title": "Configure Custom Rules",
         "category": "Konveyor",
@@ -75,6 +81,12 @@
         "title": "Run Analysis",
         "category": "Konveyor",
         "icon": "$(play}"
+      },
+      {
+        "command": "konveyor.toggleGenerativeAI",
+        "title": "Toggle GenerativeAI",
+        "category": "Konveyor",
+        "icon": "$(gear}"
       }
     ],
     "submenus": [
@@ -133,6 +145,13 @@
           "type": "string",
           "default": "",
           "description": "Path to the analyzer binary. If not set, the extension will use the bundled analyzer.",
+          "scope": "machine",
+          "order": 0
+        },
+        "konveyor.rpcServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
           "scope": "machine",
           "order": 0
         },
@@ -201,6 +220,13 @@
           "description": "Whether analysis of file should be run when saved",
           "scope": "window",
           "order": 9
+        },
+        "konveyor.enableGenerativeAI": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Generative AI set ",
+          "scope": "window",
+          "order": 10
         }
       }
     },
@@ -211,9 +237,20 @@
         "description": "Configure Konveyor for your project",
         "steps": [
           {
+            "id": "enable-generativeAI",
+            "title": "Configure GenerativeAI",
+            "description": "Generative AI is enabled by default. Use the buttons to toggle. \n[Enable](command:konveyor.toggleGenerativeAI)",
+            "completionEvents": [
+              "onCommand:konveyor.toggleGenerativeAI"
+            ],
+            "media": {
+              "markdown": "media/walkthroughs/enable-generativeAI.md"
+            }
+          },
+          {
             "id": "override-analyzer",
             "title": "Override Analyzer Binary",
-            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)",
+            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)\n[Override GenerativeAI Binary](command:konveyor.overriderpcServerBinaries)",
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/override-analyzer.md"
