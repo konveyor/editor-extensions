@@ -33,6 +33,7 @@ const baseConfig = {
     "no-case-declarations": "warn",
     "no-extra-boolean-cast": "warn",
     "prefer-const": "warn",
+    "@typescript-eslint/no-require-imports": "warn",
   },
   settings: {
     react: {
@@ -53,7 +54,12 @@ const tsConfig = {
       ecmaFeatures: {
         jsx: true,
       },
-      project: ["./vscode/tsconfig.json", "./webview-ui/tsconfig.json"],
+      project: [
+        "./tsconfig.json",
+        "./shared/tsconfig.json",
+        "./vscode/tsconfig.json",
+        "./webview-ui/tsconfig.json",
+      ],
       tsconfigRootDir: ".",
     },
   },

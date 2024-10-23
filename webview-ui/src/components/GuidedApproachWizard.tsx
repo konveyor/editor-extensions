@@ -14,9 +14,9 @@ import {
   StackItem,
   WizardBasicStep,
 } from "@patternfly/react-core";
-import { Violation, Incident } from "../../../vscode/src/shared/types";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 import { vscode } from "../utils/vscode";
+import { Incident, Violation } from "@shared/types/src/types";
 
 interface GuidedApproachWizardProps {
   violations: Violation[];

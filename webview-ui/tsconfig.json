@@ -1,4 +1,5 @@
 {
+  "extends": "../tsconfig.json",
   "compilerOptions": {
     "target": "ES2023",
     "useDefineForClassFields": true,
@@ -11,14 +12,15 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": false,
-    "allowJs": false
+    "allowJs": false,
+    "baseUrl": ".",
+    "composite": true
   },
   "include": [
     "src/**/*.ts",
@@ -26,5 +28,6 @@
     "vite.config.ts",
     "mockResults.ts"
   ],
+  "references": [{ "path": "../shared" }],
   "exclude": ["node_modules", "build"]
 }

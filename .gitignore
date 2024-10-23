@@ -1,6 +1,7 @@
 node_modules/
 out/
 build/
+dist/
 
 # TypeScript build info
 vscode/tsconfig.tsbuildinfo

@@ -1,6 +1,4 @@
-// eslint-disable-next-line
 const path = require("path");
-// eslint-disable-next-line
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 module.exports = (env, argv) => {

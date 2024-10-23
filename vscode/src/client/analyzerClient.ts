@@ -3,7 +3,8 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs";
 import { processIncidents } from "./analyzerResults";
-import { Incident, RuleSet } from "../shared/types";
+import { Incident, RuleSet } from "@shared/types";
+
 import path from "path";
 
 export class AnalyzerClient {

@@ -55,4 +55,9 @@ bin/
 ../package-lock.json
 ../.gitattributes
 ../.gitignore
+../eslint.config.mjs
+../.prettierignore
+../.prettierrc.mjs
+../tsconfig.json
+../shared/
 
