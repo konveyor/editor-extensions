@@ -75,6 +75,12 @@
         "title": "Run Analysis",
         "category": "Konveyor",
         "icon": "$(play}"
+      },
+      {
+        "command": "konveyor.toggleGenerativeAI",
+        "title": "Toggle GenerativeAI",
+        "category": "Konveyor",
+        "icon": "$(gear}"
       }
     ],
     "submenus": [
@@ -201,6 +207,13 @@
           "description": "Whether analysis of file should be run when saved",
           "scope": "window",
           "order": 9
+        },
+        "konveyor.enableGenerativeAI": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Generative AI set ",
+          "scope": "window",
+          "order": 10
         }
       }
     },
@@ -240,6 +253,17 @@
             ],
             "media": {
               "markdown": "media/walkthroughs/analysis-arguments.md"
+            }
+          },
+          {
+            "id": "enable-generativeAI",
+            "title": "Enable GenerativeAI",
+            "description": "Enable Generative AI by starting rpc-server",
+            "completionEvents": [
+              "onCommand:konveyor.toggleGenerativeAI"
+            ],
+            "media": {
+              "markdown": "media/walkthroughs/enable-generativeAI.md"
             }
           },
           {

@@ -11,6 +11,7 @@ export class AnalyzerClient {
   private config: vscode.WorkspaceConfiguration | null = null;
   private extContext: vscode.ExtensionContext | null = null;
   private analyzerServer: ChildProcessWithoutNullStreams | null = null;
+  private rpcServer: ChildProcessWithoutNullStreams | null = null;
   private outputChannel: vscode.OutputChannel;
   // private rpcConnection: rpc.MessageConnection | null = null;
   private requestId: number = 1;
@@ -50,6 +51,11 @@ export class AnalyzerClient {
     this.analyzerServer.on("exit", (code) => {
       this.outputChannel.appendLine(`Analyzer exited with code ${code}`);
     });
+
+    const enableGenerativeAi = this.config!.get("enableGenerativeAI") as boolean;
+    if (enableGenerativeAi) {
+      this.startGenerativeAIServer();
+    }
   }
 
   // Stops the analyzer server
@@ -239,6 +245,45 @@ export class AnalyzerClient {
     }
 
     return analyzerPath;
+  }
+  public getRpcServerPath(): string {
+    const platform = os.platform();
+    const arch = os.arch();
+
+    let binaryName = `kai-rpc-server.${platform}.${arch}`;
+    if (platform === "win32") {
+      binaryName += ".exe";
+    }
+
+    // Full path to the analyzer binary
+    const rpcServerPath = path.join(this.extContext!.extensionPath, "assets", "bin", binaryName);
+
+    // Check if the binary exists
+    if (!fs.existsSync(rpcServerPath)) {
+      vscode.window.showErrorMessage(`Rpc-server binary doesn't exist at ${rpcServerPath}`);
+    }
+
+    return rpcServerPath;
+  }
+  //start GenerativeAI server (rpcServer)
+  private startGenerativeAIServer(): void {
+    this.rpcServer = spawn(this.getRpcServerPath(), {
+      cwd: this.extContext!.extensionPath,
+    });
+
+    this.rpcServer.stderr.on("data", (data) => {
+      this.outputChannel.appendLine(`GenerativeAI (rpcServer) Error: ${data.toString()}`);
+    });
+
+    this.rpcServer.stdout.on("data", (data) => {
+      this.outputChannel.appendLine(`GenerativeAI (rpcServer) Output: ${data.toString()}`);
+    });
+
+    this.rpcServer.on("exit", (code) => {
+      this.outputChannel.appendLine(`GenerativeAI server exited with code ${code}`);
+    });
+
+    this.outputChannel.appendLine("GenerativeAI server started successfully.");
   }
 
   public getAnalyzerArgs(): string[] {
