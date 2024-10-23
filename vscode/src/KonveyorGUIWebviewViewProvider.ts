@@ -1,13 +1,13 @@
 import { ExtensionState } from "./extensionState";
 import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import {
-  CancellationToken,
   Webview,
   WebviewView,
   WebviewViewProvider,
-  WebviewViewResolveContext,
   Disposable,
   Uri,
+  CancellationToken,
+  WebviewViewResolveContext,
 } from "vscode";
 import { getUri } from "./utilities/getUri";
 import { getNonce } from "./utilities/getNonce";
@@ -30,8 +30,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
   public resolveWebviewView(
     webviewView: WebviewView,
-    context: WebviewViewResolveContext,
-    token: CancellationToken,
+    _context: WebviewViewResolveContext,
+    _token: CancellationToken,
   ): void | Thenable<void> {
     this._view = webviewView;
 

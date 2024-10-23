@@ -20,7 +20,6 @@ import { vscode } from "./utils/vscode";
 import GuidedApproachWizard from "./components/GuidedApproachWizard";
 import ProgressIndicator from "./components/ProgressIndicator";
 import ViolationIncidentsList from "./components/ViolationIncidentsList";
-// import { ChatbotContainer } from "./components/ChatbotContainer";
 import { Incident, RuleSet } from "./types";
 
 const App: React.FC = () => {
@@ -31,7 +30,7 @@ const App: React.FC = () => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [isChatVisible, setIsChatVisible] = useState(false);
 
@@ -114,7 +113,7 @@ const App: React.FC = () => {
       Object.entries(ruleSet.violations || {}).map(([id, violation]) => ({
         id,
         ...violation,
-      }))
+      })),
     );
   }, [analysisResults]);
 

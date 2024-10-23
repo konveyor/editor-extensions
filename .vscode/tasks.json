@@ -2,29 +2,36 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "npm: dev",
       "type": "npm",
-      "script": "watch",
-      "path": "vscode",
-      "problemMatcher": ["$tsc-watch"],
+      "script": "dev",
       "isBackground": true,
-      "presentation": {
-        "reveal": "never"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
+      "problemMatcher": {
+        "owner": "custom",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": [
+          {
+            "regexp": ".*VITE v\\d+\\.\\d+\\.\\d+.*ready in.*",
+            "message": 0,
+            "file": 0,
+            "location": 0
+
+          },
+          {
+            "regexp": ".*webpack.*compiled successfully.*",
+            "message": 0,
+            "file": 0,
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Executing task: npm run dev.*",
+          "endsPattern": ".*(VITE|webpack).*compiled successfully.*"
+        }
       }
-    },
-    {
-      "type": "npm",
-      "script": "test-watch",
-      "path": "vscode",
-      "problemMatcher": ["$tsc-watch"],
-      "isBackground": true,
-      "presentation": {
-        "reveal": "never"
-      },
-      "group": "build"
     }
   ]
 }

@@ -16,7 +16,7 @@
   "engines": {
     "vscode": "^1.93.0",
     "node": ">=22.9.0",
-    "npm": "^9.5.0 || ^10.5.2"
+    "npm": "^9.5.0 || ^10.5.0"
   },
   "categories": [
     "Programming Languages",
@@ -31,7 +31,6 @@
     "MTA",
     "Analyze"
   ],
-
   "private": true,
   "workspaces": [
     "vscode",
@@ -41,10 +40,43 @@
     "dev": "concurrently \"npm run dev -w vscode\" \"npm run start -w webview-ui\"",
     "build": "npm run build -w webview-ui && npm run build -w vscode",
     "package": "npm run build && npm run package -w vscode",
-    "lint": "npm run lint -w vscode",
-    "test": "npm run build && npm run test -w vscode"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "test": "npm run lint && npm run build && npm run test -w vscode",
+    "prepare": "husky install"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@eslint/js": "^9.11.1",
+    "@types/js-yaml": "^4.1.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.7.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.11.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.36.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "globals": "^15.0.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.0.2",
+    "rimraf": "^5.0.10",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.7.0"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^10.0.0"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}": "eslint --fix",
+    "*.{css,json,md,yaml,yml}": "prettier --write"
   }
 }

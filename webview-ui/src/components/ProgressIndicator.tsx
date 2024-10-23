@@ -6,7 +6,13 @@ interface ProgressIndicatorProps {
 }
 
 const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ progress }) => {
-  return <Progress value={progress} title="Analysis Progress" size={ProgressSize.sm} />;
+  return (
+    <Progress
+      value={progress}
+      title="Analysis Progress"
+      size={ProgressSize.sm}
+    />
+  );
 };
 
 export default ProgressIndicator;

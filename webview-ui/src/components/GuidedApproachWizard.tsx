@@ -29,11 +29,11 @@ const GuidedApproachWizard: React.FC<GuidedApproachWizardProps> = ({
 }) => {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
-    null
+    null,
   );
   const [quickFix, setQuickFix] = useState<string | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   const generateQuickFix = (incident: Incident) => {

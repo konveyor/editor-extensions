@@ -8,29 +8,108 @@
 
 This repository contains the assets and source code for editor extensions.
 
-## Usage
+# Editor Extensions for Konveyor
 
-[Brief guide on how to use the extension's main features]
+This project is a VS Code extension designed to assist with migrating and modernizing applications using Konveyor. The extension includes a web-based UI built with Vite and an extension backend bundled with Webpack.
 
-## Developing & Running the extension
+## Getting Started
 
-```bash
-    # Install dependencies for both the extension and webview UI source code
-    npm install
+To set up and run the extension, follow the steps below.
 
-    # Compile the extension source code
-    # Start the vite dev server for the webview UI
-    # Start the webpack dev server for extension in watch mode
+### Prerequisites
 
+Ensure that you have the following installed:
+
+- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [npm](https://www.npmjs.com/)
+- [Visual Studio Code](https://code.visualstudio.com/)
+
+### Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/konveyor/editor-extensions
+   cd editor-extensions
+
+   ```
+
+2. Install the dependencies for both the extension and the web UI:
+   ```bash
+   npm install
+   ```
+
+#### Running the Extension in Development Mode
+
+    Once you’ve installed all dependencies, you can run the extension in development mode by following these steps:
+
+    Press the F5 key inside Visual Studio Code to open a new Extension Development Host window.
+
+    This command performs the following actions:
+    - Compiles the extension source code using Webpack.
+    - Starts the Vite dev server for the webview UI.
+    - Runs Webpack in watch mode to automatically rebuild the extension on file changes.
+
+    Note: The extension will not be visible in the Extension Development Host window until you open the Konveyor UI.
+
+    Inside the Extension Development Host window, press Ctrl+Shift+P (or Cmd+Shift+P on Mac) to open the Command Palette and type View: Show Konveyor to open the Konveyor UI within the host.
+
+#### Watch Mode
+
+    If you want to run the extension in watch mode separately:
+
+    Use the following npm command to run the extension and webview UI in watch mode:
+
+    bash```
     npm run dev
+    ```
 
-```
+    This command:
 
-Once the project is open inside VS Code, you can run the extension by doing the following:
+    - Starts Vite for the webview UI.
+    - Runs Webpack for the extension in watch mode to track changes and recompile.
 
-1. Press `F5` to open a new Extension Development Host window.
+#### Building the Extension
 
-2. Inside the host window, open the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on Mac) and type `View: Show Konveyor`
+    To build the extension, run the following command:
+
+    bash```
+    npm run build
+    ```
+
+    This command:
+
+    - Compiles the extension source code using Webpack.
+    - Bundles the webview UI using Vite.
+
+    The build output is placed in the out directory.
+    Note: Webpack copy plugin is used to copy the webview UI assets to the out directory.
+
+#### Project Structure
+
+    The project structure is as follows:
+
+    plaintext
+    Copy code
+    ├── vscode/            # The main VS Code extension source code
+    │   ├── src/           # Extension source files
+    │   ├── webpack.config.js # Webpack configuration for bundling the extension
+    │   └── node_modules/   # Dependencies for the extension
+    │
+    ├── webview-ui/        # Webview UI source code for the extension
+    │   ├── src/           # React components and logic for the webview UI
+    │   ├── vite.config.ts # Vite configuration for bundling the webview UI
+    │   └── node_modules/  # Dependencies for the webview UI
+    │
+    └── package.json       # Main package configuration and scripts
+
+#### Available npm Scripts
+
+    The following npm scripts are available:
+
+    npm run dev: Runs the extension and webview UI in watch mode with live reloading.
+    npm run build: Builds both the extension and the webview UI for production.
+    npm run test: Runs unit tests for the extension.
 
 ## License
 

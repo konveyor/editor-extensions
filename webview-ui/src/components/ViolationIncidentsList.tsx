@@ -73,7 +73,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         return newSet;
       });
     },
-    [setExpandedViolations]
+    [setExpandedViolations],
   );
 
   const getHighestSeverity = (incidents: Incident[]): string => {
@@ -96,7 +96,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         const matchingIncidents = violation.incidents.filter(
           (incident) =>
             incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-            incident.uri.toLowerCase().includes(lowercaseSearchTerm)
+            incident.uri.toLowerCase().includes(lowercaseSearchTerm),
         );
 
         return (
@@ -212,7 +212,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         </DataListItem>
       );
     },
-    [onIncidentSelect, openDropdownId, onOpenChat]
+    [onIncidentSelect, openDropdownId, onOpenChat],
   );
 
   const renderViolation = useCallback(
@@ -281,7 +281,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         </Card>
       );
     },
-    [expandedViolations, toggleViolation, renderIncident]
+    [expandedViolations, toggleViolation, renderIncident],
   );
 
   const onSortToggle = () => {
@@ -354,7 +354,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
           }}
         >
           {filteredAndSortedViolations.map((violation) =>
-            renderViolation(violation)
+            renderViolation(violation),
           )}
         </div>
       </StackItem>

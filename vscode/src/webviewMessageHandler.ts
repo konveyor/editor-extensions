@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
 
-export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
+export function setupWebviewMessageListener(webview: vscode.Webview, _state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
       case "requestQuickfix": {

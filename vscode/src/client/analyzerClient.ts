@@ -160,7 +160,7 @@ export class AnalyzerClient {
     );
   }
 
-  public async getSolution(webview: vscode.Webview, incident: Incident): Promise<any> {
+  public async getSolution(_webview: vscode.Webview, _incident: Incident): Promise<any> {
     vscode.window.showErrorMessage("Not yet implemented");
   }
 

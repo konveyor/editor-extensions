@@ -9,7 +9,8 @@
       "outFiles": ["${workspaceFolder}/vscode/out/**/*.js"],
       "env": {
         "VSCODE_DEBUG_MODE": "true"
-      }
+      },
+      "preLaunchTask": "npm: dev"
     },
     {
       "name": "Extension Tests",
@@ -21,6 +22,19 @@
       ],
       "outFiles": ["${workspaceFolder}/vscode/out/test/**/*.js"],
       "preLaunchTask": "npm: test-watch - vscode"
+    },
+    {
+      "name": "Run Dev Script",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "VSCODE_DEBUG_MODE": "true"
+      }
     }
   ]
 }

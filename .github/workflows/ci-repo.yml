@@ -58,7 +58,6 @@ jobs:
           npm ci
 
       - name: Lint sources
-        working-directory: ./vscode
         run: npm run lint
 
   test:
@@ -87,11 +86,6 @@ jobs:
       - name: Install workspace dependencies
         run: |
           npm ci
-
-      # - name: Build
-      #   working-directory: ./webview-ui
-      #   run: |
-      #     npm run build
 
       # Run tests on Linux
       - name: Run tests (Linux)
