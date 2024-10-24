@@ -68,6 +68,56 @@
         "title": "Run Analysis",
         "category": "Konveyor",
         "icon": "$(play}"
+      },
+      {
+        "command": "konveyor.diffView.applyAll",
+        "title": "Apply All",
+        "category": "Resolutions",
+        "icon": {
+          "light": "resources/icons/light/check.svg",
+          "dark": "resources/icons/dark/check.svg"
+        }
+      },
+      {
+        "command": "konveyor.diffView.revertAll",
+        "title": "Discard local changes to Resolutions",
+        "category": "Resolutions",
+        "icon": {
+          "light": "resources/icons/light/discard.svg",
+          "dark": "resources/icons/dark/discard.svg"
+        }
+      },
+      {
+        "command": "konveyor.diffView.applyFile",
+        "title": "Apply",
+        "icon": {
+          "light": "resources/icons/light/check.svg",
+          "dark": "resources/icons/dark/check.svg"
+        }
+      },
+      {
+        "command": "konveyor.diffView.revertFile",
+        "title": "Discard local changes to Resolutions",
+        "icon": {
+          "light": "resources/icons/light/discard.svg",
+          "dark": "resources/icons/dark/discard.svg"
+        }
+      },
+      {
+        "command": "konveyor.diffView.copyDiff",
+        "title": "Copy Diff"
+      },
+      {
+        "command": "konveyor.diffView.copyPath",
+        "title": "Copy Path"
+      },
+      {
+        "command": "konveyor.diffView.next",
+        "title": "Go to Next File"
+      },
+      {
+        "command": "konveyor.diffView.prev",
+        "title": "Go to Previous File"
       }
     ],
     "submenus": [
@@ -92,6 +142,10 @@
           "id": "konveyor.konveyorGUIView",
           "name": "Konveyor",
           "visibility": "visible"
+        },
+        {
+          "id": "konveyor.diffView",
+          "name": "Konveyor Resolutions"
         }
       ]
     },
@@ -101,6 +155,48 @@
           "command": "konveyor.toggleFullScreen",
           "group": "navigation@1",
           "when": "view == konveyor.konveyorGUIView"
+        },
+        {
+          "command": "konveyor.diffView.applyAll",
+          "group": "navigation@1",
+          "when": "view == konveyor.diffView"
+        },
+        {
+          "command": "konveyor.diffView.revertAll",
+          "group": "navigation@2",
+          "when": "view == konveyor.diffView"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "konveyor.diffView.applyFile",
+          "group": "inline",
+          "when": "view == konveyor.diffView && viewItem == file-item"
+        },
+        {
+          "command": "konveyor.diffView.revertFile",
+          "group": "inline",
+          "when": "view == konveyor.diffView && viewItem == file-item"
+        },
+        {
+          "command": "konveyor.diffView.applyFile",
+          "group": "1@1",
+          "when": "view == konveyor.diffView && viewItem == file-item"
+        },
+        {
+          "command": "konveyor.diffView.revertFile",
+          "group": "1@2",
+          "when": "view == konveyor.diffView && viewItem == file-item"
+        },
+        {
+          "command": "konveyor.diffView.copyDiff",
+          "group": "2@1",
+          "when": "view == konveyor.diffView && viewItem == file-item"
+        },
+        {
+          "command": "konveyor.diffView.copyPath",
+          "group": "2@2",
+          "when": "view == konveyor.diffView && viewItem == file-item"
         }
       ],
       "editor/title": [
@@ -116,7 +212,39 @@
           "group": "navigation@1"
         }
       ],
-      "konveyor.submenu": []
+      "konveyor.submenu": [],
+      "commandPalette": [
+        {
+          "command": "konveyor.diffView.applyFile",
+          "when": "never"
+        },
+        {
+          "command": "konveyor.diffView.revertFile",
+          "when": "never"
+        },
+        {
+          "command": "konveyor.diffView.copyDiff",
+          "when": "never"
+        },
+        {
+          "command": "konveyor.diffView.copyPath",
+          "when": "never"
+        },
+        {
+          "command": "konveyor.diffView.next",
+          "when": "never"
+        },
+        {
+          "command": "konveyor.diffView.prev",
+          "when": "never"
+        },
+        {
+          "command": "konveyor.diffView.applyAll"
+        },
+        {
+          "command": "konveyor.diffView.revertAll"
+        }
+      ]
     },
     "configuration": {
       "type": "object",
@@ -245,6 +373,16 @@
             }
           }
         ]
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "konveyor.diffView.next",
+        "key": "f4"
+      },
+      {
+        "command": "konveyor.diffView.prev",
+        "key": "shift+f4"
       }
     ]
   },

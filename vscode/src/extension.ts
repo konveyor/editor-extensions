@@ -4,6 +4,7 @@ import { registerAllCommands } from "./commands";
 import { ExtensionState, SharedState } from "./extensionState";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
+import { registerDiffView } from "./diffView";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -85,6 +86,7 @@ export function activate(context: vscode.ExtensionContext): void {
     console.error("Failed to activate Konveyor extension:", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
   }
+  registerDiffView(context);
 }
 export function deactivate(): void {
   if (extension?.getAnalyzerClient()) {
