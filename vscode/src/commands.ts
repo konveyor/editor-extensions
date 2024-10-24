@@ -303,6 +303,22 @@ const commandsMap: (state: ExtensionState) => {
       // Update the user settings
       await config.update("labelSelector", modifiedLabelSelector, ConfigurationTarget.Workspace);
     },
+    "konveyor.toggleGenerativeAI": async () => {
+      const options = ["Yes", "No"];
+      const selection = await vscode.window.showQuickPick(options, {
+        placeHolder: "Enable Generative AI?",
+      });
+
+      if (selection === "Yes") {
+        const config = vscode.workspace.getConfiguration("konveyor");
+        await config.update("enableGenerativeAI", true, vscode.ConfigurationTarget.Workspace);
+        vscode.window.showInformationMessage("Generative AI is now enabled.");
+      } else if (selection === "No") {
+        const config = vscode.workspace.getConfiguration("konveyor");
+        await config.update("enableGenerativeAI", false, vscode.ConfigurationTarget.Workspace);
+        vscode.window.showInformationMessage("Generative AI is now disabled.");
+      }
+    },
   };
 };
 
