@@ -23,7 +23,7 @@
     "composite": true,
     "outDir": "dist",
     "declaration": true,
-    "noEmit": true
+    "noEmit": false
   },
   "include": [
     "src/**/*.ts",
