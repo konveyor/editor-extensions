@@ -1,7 +1,7 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2023",
+    "target": "esnext",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
@@ -20,7 +20,10 @@
     "noImplicitAny": false,
     "allowJs": false,
     "baseUrl": ".",
-    "composite": true
+    "composite": true,
+    "outDir": "dist",
+    "declaration": true,
+    "noEmit": true
   },
   "include": [
     "src/**/*.ts",
@@ -28,6 +31,5 @@
     "vite.config.ts",
     "mockResults.ts"
   ],
-  "references": [{ "path": "../shared" }],
   "exclude": ["node_modules", "build"]
 }

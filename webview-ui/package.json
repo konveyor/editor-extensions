@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "vite",
-    "build": "rimraf build && vite build",
+    "build": "rimraf build && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },

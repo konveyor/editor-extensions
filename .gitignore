@@ -10,3 +10,5 @@ vscode/.metadata
 # Miscellaneous
 vscode/tsbuildinfo
 .vscode/*.aider*
+*.tsbuildinfo
+
