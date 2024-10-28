@@ -10,11 +10,6 @@
     "composite": true,
     "declaration": true
   },
-  "include": [
-    "shared/src/**/*.ts",
-    "vscode/src/**/*.ts",
-    "webview-ui/src/**/*.ts"
-  ],
 
   "references": [
     { "path": "./shared" },

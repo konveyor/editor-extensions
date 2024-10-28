@@ -39,6 +39,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w vscode\" \"npm run start -w webview-ui\"",
+    "predev": "npm run build -w shared",
     "build": "npm run build -w shared && npm run build -w webview-ui && npm run build -w vscode ",
     "package": "npm run build && npm run package -w vscode",
     "lint": "eslint .",
