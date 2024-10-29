@@ -11,6 +11,5 @@
     "strict": true,
     "composite": true
   },
-  "include": ["src/**/*.ts"],
-  "references": [{ "path": "../shared" }]
+  "include": ["src/**/*.ts"]
 }
