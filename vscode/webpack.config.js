@@ -8,10 +8,12 @@ module.exports = (env, argv) => {
   const extensionConfig = {
     target: "node",
     mode: mode,
-    entry: "./src/extension.ts",
+    entry: {
+      extension: "./src/extension.ts",
+    },
     output: {
       path: path.resolve(__dirname, "out"),
-      filename: "extension.js",
+      filename: "[name].js",
       libraryTarget: "commonjs2",
       devtoolModuleFilenameTemplate: "../[resource-path]",
     },
@@ -20,6 +22,7 @@ module.exports = (env, argv) => {
     },
     resolve: {
       extensions: [".ts", ".js"],
+      preferRelative: true,
     },
     module: {
       rules: [
@@ -32,6 +35,7 @@ module.exports = (env, argv) => {
               options: {
                 compilerOptions: {
                   sourceMap: "true",
+                  transpileOnly: false,
                 },
               },
             },
@@ -40,6 +44,9 @@ module.exports = (env, argv) => {
       ],
     },
     devtool: isDev ? "source-map" : "nosources-source-map",
+    optimization: {
+      splitChunks: false,
+    },
     plugins: [
       !isDev &&
         new CopyWebpackPlugin({
@@ -47,6 +54,10 @@ module.exports = (env, argv) => {
             {
               from: path.resolve(__dirname, "../webview-ui/build"),
               to: path.resolve(__dirname, "out/webview"),
+            },
+            {
+              from: "src/test/testData",
+              to: "test/testData",
             },
           ],
         }),

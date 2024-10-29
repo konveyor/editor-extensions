@@ -2,14 +2,15 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
-    "target": "ES2023",
+    "target": "esnext",
     "baseUrl": ".",
     "outDir": "out",
     "lib": ["ES2020"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "composite": true
+    "composite": true,
+    "declaration": true
   },
   "include": ["src/**/*.ts"]
 }

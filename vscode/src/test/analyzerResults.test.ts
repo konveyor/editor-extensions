@@ -6,7 +6,7 @@ import { RuleSet } from "@shared/types";
 
 suite("Extension Test Suite", () => {
   test("processIncidents should populate diagnostics correctly", () => {
-    const filePath = path.resolve(__dirname, "../../src/test/testData/output-data.yaml");
+    const filePath = path.resolve(__dirname, "../../test/testData/output-data.yaml");
     const ruleSets: RuleSet[] | undefined = readYamlFile(filePath);
     assert.ok(ruleSets, "RuleSets should be loaded from YAML file");
     const diagnosticsMap = new Map<string, vscode.Diagnostic[]>();
