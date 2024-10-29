@@ -55,10 +55,6 @@ module.exports = (env, argv) => {
               from: path.resolve(__dirname, "../webview-ui/build"),
               to: path.resolve(__dirname, "out/webview"),
             },
-            {
-              from: "src/test/testData",
-              to: "test/testData",
-            },
           ],
         }),
     ].filter(Boolean),
