@@ -1,3 +1,4 @@
+import "./violations.css";
 import React, { useState, useCallback, useMemo } from "react";
 import {
   ExpandableSection,
@@ -27,14 +28,18 @@ import {
   Dropdown,
   DropdownItem,
   DropdownList,
+  CardHeader,
+  CardExpandableContent,
+  CardFooter,
 } from "@patternfly/react-core";
 import {
   SortAmountDownIcon,
   TimesIcon,
   FileIcon,
-  EllipsisVIcon,
+  LightbulbIcon,
 } from "@patternfly/react-icons";
 import { Incident, Violation } from "@shared/types";
+import ViolationActionsDropdown from "./ViolationActionsDropdown";
 
 type SortOption = "description" | "incidentCount" | "severity";
 
@@ -42,6 +47,8 @@ interface ViolationIncidentsListProps {
   violations: Violation[];
   focusedIncident?: Incident | null;
   onIncidentSelect: (incident: Incident) => void;
+  onGetSolution: (incident) => void;
+  onGetAllSolutions: (violation) => void;
   onOpenChat?: () => void;
   compact?: boolean;
   expandedViolations: Set<string>;
@@ -55,6 +62,8 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   expandedViolations,
   setExpandedViolations,
   onOpenChat,
+  onGetSolution,
+  onGetAllSolutions,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("description");
@@ -177,7 +186,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               id={`incident-${uniqueId}-actions`}
               aria-label="Actions"
             >
-              <Dropdown
+              {/* <Dropdown
                 isOpen={isOpen}
                 onSelect={() => setOpenDropdownId(null)}
                 toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
@@ -206,7 +215,14 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
                     </DropdownItem>
                   )}
                 </DropdownList>
-              </Dropdown>
+              </Dropdown> */}
+              {onGetSolution && (
+                <Button
+                  variant="link"
+                  icon={<LightbulbIcon className="lightbulb-icon-style" />}
+                  onClick={() => onGetSolution(incident)}
+                ></Button>
+              )}
             </DataListAction>
           </DataListItemRow>
         </DataListItem>
@@ -225,59 +241,60 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       };
       const isExpanded = expandedViolations.has(violation.description);
       const highestSeverity = getHighestSeverity(violation.incidents);
-      const truncatedDescription = truncateText(violation.description, 50);
+      const truncatedDescription = truncateText(violation.description, 35);
 
       return (
         <Card
+          isExpanded={isExpanded}
           isCompact
           key={violation.description}
           style={{ marginBottom: "10px" }}
         >
-          <CardBody>
-            <ExpandableSection
-              toggleContent={
-                <Flex alignItems={{ default: "alignItemsCenter" }}>
-                  <FlexItem grow={{ default: "grow" }}>
-                    <Tooltip content={violation.description}>
-                      <Content>{truncatedDescription}</Content>
-                    </Tooltip>
-                  </FlexItem>
-                  <FlexItem>
-                    <Label color="blue" isCompact>
-                      {violation.incidents.length} incidents
-                    </Label>
-                  </FlexItem>
-                  <FlexItem>
-                    <Label
-                      color={
-                        highestSeverity === "high"
-                          ? "red"
-                          : highestSeverity === "medium"
-                            ? "orange"
-                            : "green"
-                      }
-                      isCompact
-                    >
-                      {highestSeverity}
-                    </Label>
-                  </FlexItem>
-                </Flex>
-              }
-              onToggle={() => toggleViolation(violation.description)}
-              isExpanded={isExpanded}
-            >
-              <Stack hasGutter>
-                {violation.incidents.map((incident, index) => (
-                  <React.Fragment
-                    key={`${incident.uri}-${incident.lineNumber}`}
-                  >
-                    {index > 0 && <Divider />}
-                    {renderIncident(incident)}
-                  </React.Fragment>
-                ))}
-              </Stack>
-            </ExpandableSection>
-          </CardBody>
+          <CardHeader
+            actions={{
+              actions: (
+                <ViolationActionsDropdown
+                  violation={violation}
+                  onGetAllSolutions={onGetAllSolutions}
+                />
+              ),
+            }}
+            onExpand={() => toggleViolation(violation.description)}
+          >
+            <Tooltip content={violation.description}>
+              <Content style={{ marginBottom: "5px" }}>
+                {truncatedDescription}
+              </Content>
+            </Tooltip>
+            <Flex>
+              <Label color="blue" isCompact>
+                {violation.incidents.length} incidents
+              </Label>
+              <Label
+                color={
+                  highestSeverity === "high"
+                    ? "red"
+                    : highestSeverity === "medium"
+                      ? "orange"
+                      : "green"
+                }
+                isCompact
+              >
+                {highestSeverity}
+              </Label>
+            </Flex>
+          </CardHeader>
+          <CardExpandableContent>
+            <CardBody>
+              {violation.incidents.map((incident) => (
+                <div key={`${incident.uri}-${incident.lineNumber}`}>
+                  {renderIncident(incident)}
+                  <Divider />
+                </div>
+              ))}
+            </CardBody>
+            <CardFooter>Additional Actions</CardFooter>
+          </CardExpandableContent>
         </Card>
       );
     },

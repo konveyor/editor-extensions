@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+
 import {
   Page,
   PageSection,
@@ -142,7 +143,7 @@ const App: React.FC = () => {
                       {isAnalyzing ? "Analyzing..." : "Run Analysis"}
                     </Button>
                   </FlexItem>
-                  {hasViolations && (
+                  {/* {hasViolations && (
                     <FlexItem>
                       <Button
                         variant={ButtonVariant.secondary}
@@ -159,7 +160,7 @@ const App: React.FC = () => {
                     >
                       Chat with Konveyor
                     </Button>
-                  </FlexItem>
+                  </FlexItem> */}
                 </Flex>
               </FlexItem>
             </Flex>
@@ -189,6 +190,14 @@ const App: React.FC = () => {
                 violations={violations}
                 focusedIncident={focusedIncident}
                 onIncidentSelect={handleIncidentSelect}
+                onGetSolution={() => console.log("Get Solution")}
+                onGetAllSolutions={(violation) => {
+                  console.log("Get All Solutions", violation);
+                  // vscode.postMessage({
+                  //   command: "fixAll",
+                  //   violation,
+                  // });
+                }}
                 compact={false}
                 expandedViolations={expandedViolations}
                 setExpandedViolations={setExpandedViolations}
