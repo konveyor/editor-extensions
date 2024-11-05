@@ -1,0 +1,3 @@
+{
+  "*.excalidraw.svg": "./fix-vscode-excalidraw-svgs.mjs"
+}

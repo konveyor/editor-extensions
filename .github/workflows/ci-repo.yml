@@ -7,9 +7,12 @@ on:
       - "release-*"
 
   pull_request:
+    paths-ignore:
+      - "docs/**"
     branches:
       - "main"
       - "release-*"
+
   workflow_dispatch:
 
   workflow_call:
