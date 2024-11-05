@@ -1,0 +1,6 @@
+
+#
+# Auto-fix any list errors in staged files
+#
+npx lint-staged
+
