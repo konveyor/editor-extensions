@@ -136,6 +136,30 @@ const commandsMap: (state: ExtensionState) => {
         window.showInformationMessage("No analyzer binary selected.");
       }
     },
+    "konveyor.overriderpcServerBinaries": async () => {
+      const options: OpenDialogOptions = {
+        canSelectMany: false,
+        openLabel: "Select GenAI Binary",
+        filters: {
+          "Executable Files": ["exe", "sh", "bat", ""],
+          "All Files": ["*"],
+        },
+      };
+
+      const fileUri = await window.showOpenDialog(options);
+
+      if (fileUri && fileUri[0]) {
+        const filePath = fileUri[0].fsPath;
+
+        // Update the user settings
+        const config = workspace.getConfiguration("konveyor");
+        await config.update("rpcServerPath", filePath, ConfigurationTarget.Global);
+
+        window.showInformationMessage(`rpc server binary path updated to: ${filePath}`);
+      } else {
+        window.showInformationMessage("No rpc-server binary selected.");
+      }
+    },
     "konveyor.configureCustomRules": async () => {
       const options: OpenDialogOptions = {
         canSelectMany: true,

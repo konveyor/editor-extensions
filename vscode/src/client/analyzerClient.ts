@@ -21,7 +21,7 @@ export class AnalyzerClient {
   }
 
   public start(): void {
-    if (!this.canAnalyze) {
+    if (!this.canAnalyze()) {
       return;
     }
     exec("java -version", (err) => {
@@ -35,8 +35,7 @@ export class AnalyzerClient {
         vscode.window.showErrorMessage("Maven is not installed. Please install it to continue.");
         return;
       }
-    });
-
+    });   
     this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
       cwd: this.extContext!.extensionPath,
     });
@@ -206,6 +205,11 @@ export class AnalyzerClient {
   }
 
   public getAnalyzerPath(): string {
+    const analyzerPath = this.config?.get<string>("analyzerPath");
+    if (analyzerPath && fs.existsSync(analyzerPath)) {
+      return analyzerPath;
+    }
+
     const platform = os.platform();
     const arch = os.arch();
 
@@ -215,14 +219,52 @@ export class AnalyzerClient {
     }
 
     // Full path to the analyzer binary
-    const analyzerPath = path.join(this.extContext!.extensionPath, "assets", "bin", binaryName);
+    const defaultAnalyzerPath = path.join(
+      this.extContext!.extensionPath,
+      "assets",
+      "bin",
+      binaryName,
+    );
 
     // Check if the binary exists
-    if (!fs.existsSync(analyzerPath)) {
-      vscode.window.showErrorMessage(`Analyzer binary doesn't exist at ${analyzerPath}`);
+    if (!fs.existsSync(defaultAnalyzerPath)) {
+      vscode.window.showErrorMessage(`Analyzer binary doesn't exist at ${defaultAnalyzerPath}`);
     }
 
-    return analyzerPath;
+    return defaultAnalyzerPath;
+  }
+  public getRpcServerPath(): string {
+    // Retrieve the rpcServerPath
+    const rpcServerPath = this.config?.get<string>("rpcServerPath");
+    if (rpcServerPath && fs.existsSync(rpcServerPath)) {
+      return rpcServerPath;
+    }
+    // Might not needed. 
+    // Fallback to default rpc-server binary path if user did not provid path
+    const platform = os.platform();
+    const arch = os.arch();
+
+    let binaryName = `kai-rpc-server.${platform}.${arch}`;
+    if (platform === "win32") {
+      binaryName += ".exe";
+    }
+
+    // Construct the full path
+    const defaultRpcServerPath = path.join(
+      this.extContext!.extensionPath,
+      "assets",
+      "bin",
+      binaryName,
+    );
+
+    // Check if the default rpc-server binary exists, else show an error message
+    if (!fs.existsSync(defaultRpcServerPath)) {
+      vscode.window.showErrorMessage(`RPC server binary doesn't exist at ${defaultRpcServerPath}`);
+      throw new Error(`RPC server binary not found at ${defaultRpcServerPath}`);
+    }
+
+    // Return the default path
+    return defaultRpcServerPath;
   }
 
   public getAnalyzerArgs(): string[] {
