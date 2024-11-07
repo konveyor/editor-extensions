@@ -40,7 +40,7 @@
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.overriderpcServerBinaries",
+        "command": "konveyor.overrideKaiRpcServerBinaries",
         "title": "Override Generative AI Binaries",
         "category": "Konveyor",
         "icon": "$(gear)"
@@ -165,7 +165,7 @@
           "scope": "machine",
           "order": 0
         },
-        "konveyor.rpcServerPath": {
+        "konveyor.kaiRpcServerPath": {
           "type": "string",
           "default": "",
           "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
@@ -249,7 +249,7 @@
           {
             "id": "override-analyzer",
             "title": "Override Analyzer Binary",
-            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)\n[Override GenerativeAI Binary](command:konveyor.overriderpcServerBinaries)",
+            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)\n[Override GenerativeAI Binary](command:konveyor.overrideKaiRpcServerBinaries)",
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/override-analyzer.md"

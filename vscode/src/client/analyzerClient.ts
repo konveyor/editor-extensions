@@ -35,7 +35,7 @@ export class AnalyzerClient {
         vscode.window.showErrorMessage("Maven is not installed. Please install it to continue.");
         return;
       }
-    });   
+    });
     this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
       cwd: this.extContext!.extensionPath,
     });
@@ -148,55 +148,56 @@ export class AnalyzerClient {
   }
 
   // Shutdown the server
- // Shutdown the server
-public async shutdown(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  public async shutdown(): Promise<void> {
+    return new Promise((resolve, reject) => {
       const requestId = this.requestId++;
-      const request = JSON.stringify({
+      const request =
+        JSON.stringify({
           jsonrpc: "2.0",
           id: requestId,
           method: "shutdown",
           params: {},
-      }) + "\n";
+        }) + "\n";
       this.analyzerServer?.stdin.write(request);
       this.outputChannel.appendLine("Shuting down Server");
       this.analyzerServer?.stdout.on("data", (data) => {
-          try {
-              const response = JSON.parse(data.toString());
-              if (response.id === requestId && !response.error) {
-                  resolve();
-              }
-          } catch (err: any) {
-              reject(err);
+        try {
+          const response = JSON.parse(data.toString());
+          if (response.id === requestId && !response.error) {
+            resolve();
           }
+        } catch (err: any) {
+          reject(err);
+        }
       });
-  });
-}
+    });
+  }
 
-// Exit the server
-public async exit(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  // Exit the server
+  public async exit(): Promise<void> {
+    return new Promise((resolve, reject) => {
       const requestId = this.requestId++;
-      const request = JSON.stringify({
+      const request =
+        JSON.stringify({
           jsonrpc: "2.0",
           id: requestId,
           method: "exit",
           params: {},
-      }) + "\n";     
-      this.analyzerServer?.stdin.write(request);   
+        }) + "\n";
+      this.analyzerServer?.stdin.write(request);
       this.outputChannel.appendLine("Exiting Server");
       this.analyzerServer?.stdout.on("data", (data) => {
-          try {
-              const response = JSON.parse(data.toString());
-              if (response.id === requestId && !response.error) {
-                resolve();
-              }
-          } catch (err: any) {
-             reject(err);
+        try {
+          const response = JSON.parse(data.toString());
+          if (response.id === requestId && !response.error) {
+            resolve();
           }
+        } catch (err: any) {
+          reject(err);
+        }
       });
-  });
-}
+    });
+  }
 
   public async canAnalyze(): Promise<boolean> {
     const labelSelector = this.config!.get("labelSelector") as string;
@@ -276,13 +277,13 @@ public async exit(): Promise<void> {
 
     return defaultAnalyzerPath;
   }
-  public getRpcServerPath(): string {
+  public getKaiRpcServerPath(): string {
     // Retrieve the rpcServerPath
-    const rpcServerPath = this.config?.get<string>("rpcServerPath");
+    const rpcServerPath = this.config?.get<string>("kaiRpcServerPath");
     if (rpcServerPath && fs.existsSync(rpcServerPath)) {
       return rpcServerPath;
     }
-    // Might not needed. 
+    // Might not needed.
     // Fallback to default rpc-server binary path if user did not provid path
     const platform = os.platform();
     const arch = os.arch();

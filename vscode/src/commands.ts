@@ -136,7 +136,7 @@ const commandsMap: (state: ExtensionState) => {
         window.showInformationMessage("No analyzer binary selected.");
       }
     },
-    "konveyor.overriderpcServerBinaries": async () => {
+    "konveyor.overrideKaiRpcServerBinaries": async () => {
       const options: OpenDialogOptions = {
         canSelectMany: false,
         openLabel: "Select GenAI Binary",
@@ -153,11 +153,11 @@ const commandsMap: (state: ExtensionState) => {
 
         // Update the user settings
         const config = workspace.getConfiguration("konveyor");
-        await config.update("rpcServerPath", filePath, ConfigurationTarget.Global);
+        await config.update("kaiRpcServerPath", filePath, ConfigurationTarget.Global);
 
-        window.showInformationMessage(`rpc server binary path updated to: ${filePath}`);
+        window.showInformationMessage(`Kai rpc server binary path updated to: ${filePath}`);
       } else {
-        window.showInformationMessage("No rpc-server binary selected.");
+        window.showInformationMessage("No Kai rpc-server binary selected.");
       }
     },
     "konveyor.configureCustomRules": async () => {
