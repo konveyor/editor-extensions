@@ -147,13 +147,56 @@ export class AnalyzerClient {
     vscode.window.showErrorMessage("Not yet implemented");
   }
 
-  public async shudtown(): Promise<any> {
-    vscode.window.showErrorMessage("Not yet implemented");
-  }
+  // Shutdown the server
+ // Shutdown the server
+public async shutdown(): Promise<void> {
+  return new Promise((resolve, reject) => {
+      const requestId = this.requestId++;
+      const request = JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestId,
+          method: "shutdown",
+          params: {},
+      }) + "\n";
+      this.analyzerServer?.stdin.write(request);
+      this.outputChannel.appendLine("Shuting down Server");
+      this.analyzerServer?.stdout.on("data", (data) => {
+          try {
+              const response = JSON.parse(data.toString());
+              if (response.id === requestId && !response.error) {
+                  resolve();
+              }
+          } catch (err: any) {
+              reject(err);
+          }
+      });
+  });
+}
 
-  public async exit(): Promise<any> {
-    vscode.window.showErrorMessage("Not yet implemented");
-  }
+// Exit the server
+public async exit(): Promise<void> {
+  return new Promise((resolve, reject) => {
+      const requestId = this.requestId++;
+      const request = JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestId,
+          method: "exit",
+          params: {},
+      }) + "\n";     
+      this.analyzerServer?.stdin.write(request);   
+      this.outputChannel.appendLine("Exiting Server");
+      this.analyzerServer?.stdout.on("data", (data) => {
+          try {
+              const response = JSON.parse(data.toString());
+              if (response.id === requestId && !response.error) {
+                resolve();
+              }
+          } catch (err: any) {
+             reject(err);
+          }
+      });
+  });
+}
 
   public async canAnalyze(): Promise<boolean> {
     const labelSelector = this.config!.get("labelSelector") as string;
