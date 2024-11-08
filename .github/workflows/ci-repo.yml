@@ -18,6 +18,10 @@ concurrency:
   group: ci-repo-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
+# https://typicode.github.io/husky/how-to.html#ci-server-and-docker
+env:
+  HUSKY: 0
+
 jobs:
   build:
     name: Build (${{ matrix.arch }})

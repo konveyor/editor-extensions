@@ -6,6 +6,10 @@ on:
 
   workflow_dispatch:
 
+# https://typicode.github.io/husky/how-to.html#ci-server-and-docker
+env:
+  HUSKY: 0
+
 jobs:
   nightly:
     uses: ./.github/workflows/ci-repo.yml
