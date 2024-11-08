@@ -30,7 +30,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
 
 0. <a name="wf-0"></a>Layout / display areas of the IDE
 
-   ![ide layout](./wireframe/0.ide-layout.excalidraw.svg)
+   ![ide layout](./00.ide-layout.excalidraw.svg)
 
 1. <a name="wf-1"></a> Output channel for displaying trace/debug information
 
@@ -39,17 +39,17 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
      - analyzer processing
      - Kai processing
 
-   ![output channel](./wireframe/1.outputchannel.excalidraw.svg)
+   ![output channel](./01.outputchannel.excalidraw.svg)
 
 2. <a name="wf-2"></a>Command palette
 
    - Every entity (command, quick pick menu, and view) that is available in the extension should have a command palette entry to activate/display the entity
 
-   ![command palette](./wireframe/2.command-palette.excalidraw.svg)
+   ![command palette](./02.command-palette.excalidraw.svg)
 
 3. <a name="wf-3"></a>Extension specific welcome page, or general Welcome page having Konveyor walkthroughts on the getting started list
 
-   ![welcome page](./wireframe/3.welcome.excalidraw.svg)
+   ![welcome page](./03.welcome.excalidraw.svg)
 
 4. <a name="wf-4"></a>Walkthrough with steps:
 
@@ -57,7 +57,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
    - Manage analysis configuration profiles
    - Select active analysis configuration profile
 
-   ![walkthrough steps](./wireframe/4.walkthrough.get-started.excalidraw.svg)
+   ![walkthrough steps](./04.walkthrough.get-started.excalidraw.svg)
 
 5. <a name="wf-5"></a>Guided setup of Kai runtime Wizard (editor view) with steps:
 
@@ -66,7 +66,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
    - Configure credentials/secrets/configurations needed for the LLM
    - Verify the Kai runtime can be started with feedback in the view
 
-   ![runtime wizard](./wireframe/5.setup-runtime.excalidraw.svg)
+   ![runtime wizard](./05.setup-runtime.excalidraw.svg)
 
 6. <a name="wf-6"></a>Manage analysis configuration profiles (editor view)
 
@@ -78,7 +78,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
    - Duplicate an existing profile
    - Remove a user created profile
 
-   ![manage profiles](./wireframe/6.manage-profiles.excalidraw.svg)
+   ![manage profiles](./06.manage-profiles.excalidraw.svg)
 
 7. <a name="wf-7"></a>Quick pick menu for analysis configuration profiles
 
@@ -138,7 +138,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
     - on left click will open the problem in the file itself (standard behavior)
     - on right click will show the same code actions available in the code editor
 
-    ![problems view](./wireframe/13.problems-view.excalidraw.svg)
+    ![problems view](./13.problems-view.excalidraw.svg)
 
 14. <a name="wf-14"></a>Konveyor AI View Container
 
@@ -153,7 +153,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
     - Editor:
       - Issue view
 
-    ![kai view container](./wireframe/14.kai-view-container.excalidraw.svg)
+    ![kai view container](./14.kai-view-container.excalidraw.svg)
 
 15. <a name="wf-15"></a>Code editor (for viewing issues and incidents)
 
@@ -194,7 +194,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
       - File: open the file to the location of the first incident for the enclosing issue
       - Incident: open the file to the location of the incident
 
-    ![issue tree view](./wireframe/16.issues-tree-view.excalidraw.svg)
+    ![issue tree view](./16.issues-tree-view.excalidraw.svg)
 
 17. <a name="wf-17"></a>Issue view (webview)
 
@@ -209,7 +209,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
     - Actions to start Kai resolution at different scopes
     - Click to navigate to file/incident
 
-    ![issue view - webview](./wireframe/17.issues-view-webview.excalidraw.svg)
+    ![issue view - webview](./17.issues-view-webview.excalidraw.svg)
 
 18. <a name="wf-18"></a>Kai resolutions tree view
 
@@ -227,7 +227,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
       - File: open the file to the location of the first diff
       - Diff: open the file to the location to the diff
 
-    ![resolutions tree view](./wireframe/18.kai-resolutions-tree-view.excalidraw.svg)
+    ![resolutions tree view](./18.kai-resolutions-tree-view.excalidraw.svg)
 
 19. <a name="wf-19"></a>Kai resolutions view (webview)
 
@@ -243,7 +243,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
       - List the files changed and the specific diffs
       - Accept (apply all diffs) / Reject (remove all diffs) at the entire resolution level
 
-    ![resolution view](./wireframe/19.resolution-view.excalidraw.svg)
+    ![resolution view](./19.resolution-view.excalidraw.svg)
 
 20. <a name="wf-20"></a>Accept/Reject suggested resolutions
 
@@ -251,7 +251,7 @@ Based on the [user stories](../stories/README.md), the set of wire frames needed
     - Accept/reject all resolutions in a single file
     - Accept/reject all resolutions for a single issue across all files
 
-    ![review changes](./wireframe/20.review-changes.excalidraw.svg)
+    ![review changes](./20.review-changes.excalidraw.svg)
 
 # More Details
 
