@@ -17,9 +17,9 @@ Fixing a single issue across all affected files is a broader operation. This is 
 
 # User Experience - Stories and Wireframes
 
-The high-level user stories are as follows defined [in user stories](./stories/README.md).
+View the [catalog of high-level user stories](./stories/README.md).
 
-The wireframes that handle the user story interactions are [in the wireframes catalog](./wireframes/).
+The wireframes that handle the user story interactions are [in the wireframes catalog](./wireframes/README.md).
 
 # Basic information
 
