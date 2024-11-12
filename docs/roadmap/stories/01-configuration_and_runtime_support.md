@@ -56,7 +56,7 @@ Walkthrough steps:
 
 ## Considerations
 > [!NOTE]
-> All of the settings will drop in `settings.json` or similar file.  Therefore, all of the settings could also be configured under the standard Settings view (Ctrl+,) or directly in the json file.
+> All of the active settings will drop in `settings.json` or similar file.  Therefore, all of the settings could be configured under the standard Settings view (Ctrl+,) or directly in the json file.  Profiles or other assets that inform the settings may be stored elsewhere convenient to the extension.
 
 Note:
   - Settings is File>Preferences>Settings (or `Ctrl+,`)

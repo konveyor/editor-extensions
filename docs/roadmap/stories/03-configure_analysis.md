@@ -31,6 +31,7 @@ Konveyor web UI provides a robust guided build of an analysis task.  Much of the
     - Indicate the active analysis configuration profile at a glance (can be similar to how git shows the current branch)
     - Hovering the static indicator shows the full name of the analysis configuration profile
     - Clicking the status indication...
+      - Open relevant command palette to allow opening the configuration options, managing the runtime, asking for a full analysis, or any other similar commands
 
   - Command Palette
     - Select analysis configuration

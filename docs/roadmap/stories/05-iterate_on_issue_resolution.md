@@ -12,6 +12,7 @@ Iterating over Kai proposed solution in a conversational interaction is a future
     - file level, all issues, all incidents: all incidents within a single file
     - issue level: single issue's effected files and incidents across those files
     - project level: the full set of issues across the project
+    - __NOTE__: Depending on the capabilities available from the Kai server at the time of any given release, some of the scopes may not be available for selection.
 
   - A typical developer workflow is anticipated to be:
     - request a __Kai resolution__ at a particular scope
@@ -56,21 +57,24 @@ Iterating over Kai proposed solution in a conversational interaction is a future
 
   - Consider using generated code comments from the resolution as a way to display the annotations.  This feels similar to the way a GitHub code review comment is handled.
 
-  - __What to do when waiting for a response?__
+  - These items will change over time.  It is expected that the current wireframes for the "Konveyor Resolutions" view will be a more complete functional set than what is cataloged here. The challenge questions for the review, accept, reject stories are:
 
-  - __What kind of annotations for a suggested resolution will be available to show to the developer to help them understand the resolution?  Can there be a confidence factor associated to the resolution?__
+    - What to do when waiting for a response?
 
-  - __Diff/resolution view for a single file, single incident change?__
+    - What kind of annotations for a suggested resolution will be available to show to the developer to help them understand the resolution?
 
-  - __Diff/resolution view for a single file, multiple incident change?__
+    - Can there be a confidence factor associated to the resolution?
 
-  - __Diff/resolution view for a singe issue, multiple file, multiple incident change?__
+    - How do diff/resolution views look and function for:
+      - a single file, single incident change?
+      - for a single file, multiple incident change?
+      - for a singe issue, multiple file, multiple incident change?
 
-  - __Accepting the resolution__
+    - How to accept all or part of the resolution?
 
-  - __Rejecting the resolution__
+    - How to reject all or part of the resolution?
 
-  - __Note__: Iterating on the resolution is future work.  The kind of useful feedback the developer can provide to Kai to iterate on a suggested resolution still needed to be determined both in user story and in technical capabilities.
+  - __Note__: Iterating on the resolution by interacting with the Kai server is future work.  The kind of useful feedback the developer can provide to Kai to iterate on a suggested resolution still needed to be determined both in user story and in technical capabilities.
 
 
 ## Considerations
@@ -88,6 +92,7 @@ vscode has a `MultiDiffEditor` used by source control to view all changes in a c
   - See the view by selecting a commit in the "Source Control Graph" on the Source Control view
   - https://code.visualstudio.com/updates/v1_86#_review-multiple-files-in-diff-editor
   - https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/multiDiffEditor/browser/multiDiffEditor.ts
+  - __Note__: This component is not currently available to "normal" extensions.  Maybe in the future, it will be generally available.
 
 Comments view...
 
@@ -105,7 +110,7 @@ What happens if a resolution requires cascading code refactors (i.e. a function/
 
 -----
 
-- “Allow the cynical developer to have a manual drive first to get a feel of the quality of what's being returned and then move to the automated experience”.
+- "Allow the cynical developer to have a manual drive first to get a feel of the quality of what's being returned and then move to the automated experience."
 
 - Feedback loop is very limited in the prototype:
   - Users can only accept or reject a fix, there’s no way for the user to provide additional context to get a more suitable solution.
@@ -113,4 +118,4 @@ What happens if a resolution requires cascading code refactors (i.e. a function/
 
 - Using diffs might be effective at scale, but feels like a poor/outdated user experience when compared to interactive code assistants
 
-- How to surface cascading changes across multiple files?
+- How to surface cascading changes across multiple files?  Part of this answer is the Kai server should "fix the problem following the solution across whatever file changes are needed".  Allowing meta-data display from the solution results along side the set of changes should cover this challenge.

@@ -17,7 +17,7 @@ When the analyzer is configured and running, it will return analysis results.  T
     - severity (info, warning, error) is defined from the incident's issue's category
 
   - In a file editor...
-    - at a glance, only incident will be visible
+    - at a glance, only incidents will be visible
     - a single incident shows up as code problem/hint/underline
       - when code problem is hovered, at least the incident's message is shown
       - when code problem view is open, at least the incident's message is show
