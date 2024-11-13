@@ -1,12 +1,13 @@
 {
   "name": "editor-extensions",
+  "version": "0.0.1",
+  "private": true,
   "displayName": "Konveyor",
   "description": "VSCode Extension for Konveyor to assist in migrating and modernizing applications.",
-  "version": "0.0.1",
   "license": "Apache-2.0",
   "publisher": "Konveyor",
   "author": "Konveyor",
-  "icon": "resources/konveyor-icon-color.png",
+  "icon": "vscode/resources/konveyor-icon-color.png",
   "homepage": "https://github.com/konveyor/editor-extensions/blob/main/README.md",
   "repository": {
     "type": "git",
@@ -16,7 +17,7 @@
   "engines": {
     "vscode": "^1.93.0",
     "node": ">=22.9.0",
-    "npm": "^9.5.0 || ^10.5.0"
+    "npm": "^9.5.0 || ^10.5.2"
   },
   "categories": [
     "Programming Languages",
@@ -31,28 +32,36 @@
     "MTA",
     "Analyze"
   ],
-  "private": true,
   "workspaces": [
-    "vscode",
+    "shared",
     "webview-ui",
-    "shared"
+    "vscode"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w vscode\" \"npm run start -w webview-ui\"",
+    "prepare": "husky",
+    "postinstall": "npm run build -w shared",
+    "clean": "npm run clean --workspaces --if-present",
+    "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
     "predev": "npm run build -w shared",
-    "build": "npm run build -w shared && npm run build -w webview-ui && npm run build -w vscode ",
+    "dev": "concurrently -c auto 'npm:dev:shared' 'npm:dev:webview-ui' 'npm:dev:vscode'",
+    "dev:shared": "npm run dev -w shared",
+    "dev:webview-ui": "npm run start -w webview-ui",
+    "dev:vscode": "npm run dev -w vscode",
+    "build": "npm run build --workspaces --if-present",
     "package": "npm run build && npm run package -w vscode",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
-    "test": "npm run lint && npm run build && npm run test -w vscode",
-    "prepare": "husky"
+    "test": "npm run lint && npm run build && npm run test --workspaces --if-present"
+  },
+  "lint-staged": {
+    "!(package-lock.json)*": "prettier --ignore-unknown --write"
   },
   "devDependencies": {
     "@eslint/js": "^9.11.1",
     "@types/js-yaml": "^4.0.9",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "@types/node": "22.x",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
     "concurrently": "^8.2.2",
@@ -76,9 +85,5 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^10.0.0"
-  },
-  "lint-staged": {
-    "*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}": "eslint --fix",
-    "*.{css,json,md,yaml,yml}": "prettier --write"
   }
 }

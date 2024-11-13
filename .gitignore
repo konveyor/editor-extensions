@@ -4,11 +4,9 @@ build/
 dist/
 
 # TypeScript build info
-vscode/tsconfig.tsbuildinfo
+**/tsconfig.tsbuildinfo
 vscode/.metadata
 
 # Miscellaneous
-vscode/tsbuildinfo
 .vscode/*.aider*
-*.tsbuildinfo
 

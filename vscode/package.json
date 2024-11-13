@@ -442,22 +442,26 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "tsc -b && webpack --mode production --config webpack.config.js",
-    "watch": "webpack --watch --mode development --config webpack.config.js",
-    "package": "tsc && webpack --mode production --devtool hidden-source-map",
-    "test": "npm run compile && vscode-test",
-    "clean": "rimraf ./out",
+    "clean": "rimraf out",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prebuild": "npm run clean",
+    "build": "npm run compile",
+    "compile": "tsc -b && webpack --mode production",
     "dev": "npm run watch",
-    "build": "npm run compile"
+    "watch": "webpack --watch --mode development",
+    "vscode:prepublish": "npm run package",
+    "package": "tsc -b && webpack --mode production --devtool hidden-source-map",
+    "test": "npm run compile && vscode-test"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
+    "*.{css,json,md,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
     "@types/chai": "^5.0.0",
     "@types/diff": "^6.0.0",
     "@types/mocha": "^10.0.9",
-    "@types/node": "20.x",
-    "@types/react": "^18.3.8",
-    "@types/react-dom": "^18.3.0",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.93.0",
     "@vscode/test-cli": "^0.0.10",
@@ -466,14 +470,12 @@
     "copy-webpack-plugin": "^12.0.2",
     "css-loader": "^7.1.2",
     "mocha": "^10.7.3",
-    "rimraf": "^4.4.1",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
     "webpack": "^5.94.0",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "babel-loader": "^9.2.1",
     "diff": "^7.0.0"
   }
 }

@@ -4,10 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "clean": "rimraf dist build",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prebuild": "npm run clean",
+    "build": "tsc && vite build",
     "start": "vite",
-    "build": "rimraf build && tsc && vite build",
-    "preview": "vite preview",
-    "lint": "eslint ."
+    "preview": "vite preview"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
+    "*.{css,json,md,yaml,yml}": "prettier --write"
   },
   "dependencies": {
     "@patternfly/patternfly": "6.0.0-prerelease.15",

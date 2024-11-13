@@ -5,12 +5,15 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b tsconfig.json",
     "clean": "rimraf dist",
-    "prebuild": "npm run clean"
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prebuild": "npm run clean",
+    "build": "tsc --build",
+    "dev": "tsc --build --watch --preserveWatchOutput"
   },
-  "devDependencies": {
-    "rimraf": "^5.0.0",
-    "typescript": "^5.0.0"
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
+    "*.{json}": "prettier --write"
   }
 }
