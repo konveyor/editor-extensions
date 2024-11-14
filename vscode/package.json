@@ -473,7 +473,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@shared/types": "^1.0.0",
     "babel-loader": "^9.2.1",
     "diff": "^7.0.0"
   }

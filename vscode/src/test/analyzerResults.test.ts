@@ -2,7 +2,7 @@ import * as assert from "assert";
 import { DiagnosticSeverity } from "vscode";
 import * as path from "path";
 import { processIncidents, readYamlFile } from "../data/analyzerResults";
-import { RuleSet } from "@shared/types";
+import { RuleSet } from "@editor-extensions/shared";
 
 suite("Extension Test Suite", () => {
   test("processIncidents should populate diagnostics correctly", () => {

@@ -1,4 +1,4 @@
-import { GetSolutionResult } from "@shared/types";
+import { GetSolutionResult } from "@editor-extensions/shared";
 import { Uri, window, workspace } from "vscode";
 import { ExtensionState } from "src/extensionState";
 import * as Diff from "diff";

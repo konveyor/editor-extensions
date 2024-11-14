@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
-import { RuleSet, Category, Incident } from "@shared/types";
+import { RuleSet, Category, Incident } from "@editor-extensions/shared";
 
 //Assuming that output is in form of yaml
 export function readYamlFile(filePath: string): RuleSet[] | undefined {

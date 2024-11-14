@@ -18,7 +18,7 @@ import {
   loadSolution,
   loadStaticResults,
 } from "./data";
-import { GetSolutionResult, RuleSet } from "@shared/types";
+import { GetSolutionResult, RuleSet } from "@editor-extensions/shared";
 import {
   applyAll,
   revertAll,

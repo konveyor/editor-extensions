@@ -2,7 +2,7 @@ import path from "path";
 import * as vscode from "vscode";
 import fs from "fs";
 
-import { RuleSet, GetSolutionResult } from "@shared/types";
+import { RuleSet, GetSolutionResult } from "@editor-extensions/shared";
 import {
   isAnalysis,
   isSolution,

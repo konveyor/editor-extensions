@@ -1,4 +1,4 @@
-import { GetSolutionResult, RuleSet } from "@shared/types";
+import { GetSolutionResult, RuleSet } from "@editor-extensions/shared";
 import { processIncidents } from "./analyzerResults";
 import { ExtensionState } from "src/extensionState";
 import { writeDataFile } from "./storage";

@@ -2,7 +2,7 @@ import { ChildProcessWithoutNullStreams, exec, spawn } from "child_process";
 import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs";
-import { Incident, RuleSet } from "@shared/types";
+import { Incident, RuleSet } from "@editor-extensions/shared";
 
 import path from "path";
 

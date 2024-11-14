@@ -20,7 +20,7 @@ import { vscode } from "./utils/vscode";
 import GuidedApproachWizard from "./components/GuidedApproachWizard";
 import ProgressIndicator from "./components/ProgressIndicator";
 import ViolationIncidentsList from "./components/ViolationIncidentsList";
-import { Incident, RuleSet } from "@shared/types";
+import { Incident, RuleSet } from "@editor-extensions/shared";
 
 const App: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>();

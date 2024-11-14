@@ -1,4 +1,4 @@
-import { GetSolutionResult, RuleSet } from "@shared/types";
+import { GetSolutionResult, RuleSet } from "@editor-extensions/shared";
 import { Uri } from "vscode";
 
 const isString = (obj: unknown): obj is string => typeof obj === "string";

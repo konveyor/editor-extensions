@@ -34,7 +34,7 @@ import {
   FileIcon,
   EllipsisVIcon,
 } from "@patternfly/react-icons";
-import { Incident, Violation } from "@shared/types";
+import { Incident, Violation } from "@editor-extensions/shared";
 
 type SortOption = "description" | "incidentCount" | "severity";
 

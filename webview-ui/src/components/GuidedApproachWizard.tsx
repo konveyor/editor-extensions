@@ -16,7 +16,7 @@ import {
 } from "@patternfly/react-core";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 import { vscode } from "../utils/vscode";
-import { Incident, Violation } from "@shared/types/src/types";
+import { Incident, Violation } from "@editor-extensions/shared/src/types";
 
 interface GuidedApproachWizardProps {
   violations: Violation[];

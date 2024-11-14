@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { RuleSet } from "@shared/types";
+import { RuleSet } from "@editor-extensions/shared";
 import { loadStateFromDataFolder, readDataFiles } from "./storage";
 
 export const loadStaticResults = async () => {

@@ -4,7 +4,7 @@ import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
 import { LocalChange } from "./data/virtualStorage";
-import { RuleSet } from "@shared/types";
+import { RuleSet } from "@editor-extensions/shared";
 
 export class SharedState {
   private state: Map<string, any> = new Map();
