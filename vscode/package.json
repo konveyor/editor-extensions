@@ -65,6 +65,11 @@
         "icon": "$(gear)"
       },
       {
+        "command": "konveyor.openKaiConfigToml",
+        "category": "Konveyor",
+        "title": "Open Kai config.toml"
+      },
+      {
         "command": "konveyor.startAnalyzer",
         "title": "Start Analyzer",
         "category": "Konveyor",
