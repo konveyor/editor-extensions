@@ -1,4 +1,4 @@
-export const sourceOptions = [
+export const targetOptions = [
   "azure-aks",
   "azure-appservice",
   "azure-container-apps",
@@ -83,7 +83,7 @@ export const sourceOptions = [
   "rhr",
 ];
 
-export const targetOptions = [
+export const sourceOptions = [
   "camel",
   "camel2",
   "camel3",

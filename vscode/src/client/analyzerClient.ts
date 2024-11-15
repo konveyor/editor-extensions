@@ -2,28 +2,34 @@ import { ChildProcessWithoutNullStreams, exec, spawn } from "child_process";
 import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs";
-import { Incident, RuleSet } from "@editor-extensions/shared";
-
+import * as rpc from "vscode-jsonrpc/node";
 import path from "path";
+import { Incident, RuleSet } from "@editor-extensions/shared";
+import { getDataFolder } from "../data";
 
 export class AnalyzerClient {
   private config: vscode.WorkspaceConfiguration | null = null;
   private extContext: vscode.ExtensionContext | null = null;
-  private analyzerServer: ChildProcessWithoutNullStreams | null = null;
+  private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
   private outputChannel: vscode.OutputChannel;
-  // private rpcConnection: rpc.MessageConnection | null = null;
+  private rpcConnection: rpc.MessageConnection | null = null;
   private requestId: number = 1;
+  private kaiDir: string;
+  private kaiConfigToml: string;
 
   constructor(context: vscode.ExtensionContext) {
     this.extContext = context;
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.config = vscode.workspace.getConfiguration("konveyor");
+    this.kaiDir = path.join(getDataFolder()!, "kai");
+    this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
   }
 
-  public start(): void {
+  public async start(): Promise<void> {
     if (!this.canAnalyze()) {
       return;
     }
+
     exec("java -version", (err) => {
       if (err) {
         vscode.window.showErrorMessage("Java is not installed. Please install it to continue.");
@@ -36,35 +42,116 @@ export class AnalyzerClient {
         return;
       }
     });
-    this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
+    this.kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
       cwd: this.extContext!.extensionPath,
+      env: { ...process.env, GENAI_KEY: "BWAHAHA" },
     });
 
-    this.analyzerServer.stderr.on("data", (data) => {
+    this.kaiRpcServer.stderr.on("data", (data) => {
       this.outputChannel.appendLine(`${data.toString()}`);
     });
 
-    this.analyzerServer.on("exit", (code) => {
+    this.kaiRpcServer.on("exit", (code) => {
       this.outputChannel.appendLine(`Analyzer exited with code ${code}`);
     });
+
+    // Set up the JSON-RPC connection
+    this.rpcConnection = rpc.createMessageConnection(
+      new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
+      new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
+    );
+    this.rpcConnection.listen();
+    await new Promise((res) => setTimeout(res, 30000));
+    this.outputChannel.appendLine(`Successfully waited 30 seconds`);
   }
 
   // Stops the analyzer server
   public stop(): void {
-    if (this.analyzerServer) {
-      this.analyzerServer.kill();
+    if (this.kaiRpcServer) {
+      this.kaiRpcServer.kill();
     }
-    // this.rpcConnection = null;
-    this.analyzerServer = null;
+    this.rpcConnection?.dispose();
+    this.kaiRpcServer = null;
   }
 
-  public async initialize(): Promise<any> {
-    vscode.window.showErrorMessage("Not yet implemented");
+  public async initialize(): Promise<void> {
+    if (!this.rpcConnection) {
+      vscode.window.showErrorMessage("RPC connection is not established.");
+      return;
+    }
+
+    // Define the initialize request parameters if needed
+    const initializeParams = {
+      process_id: null,
+      kai_backend_url: "0.0.0.0:8080",
+      root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
+      log_level: "debug",
+      log_dir_path: this.kaiDir,
+      model_provider: {
+        provider: "ChatIBMGenAI",
+        args: {
+          model_id: "meta-llama/llama-3-70b-instruct",
+          parameters: {
+            max_new_tokens: 2048,
+          },
+        },
+      },
+      file_log_level: "debug",
+      demo_mode: true,
+      cache_dir: "",
+
+      analyzer_lsp_java_bundle_path: path.join(
+        this.extContext!.extensionPath,
+        "assets/bin/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
+      ),
+      analyzer_lsp_lsp_path: path.join(
+        this.extContext!.extensionPath,
+        "assets",
+        "bin",
+        "jdtls",
+        "bin",
+        "jdtls",
+      ),
+      analyzer_lsp_rpc_path: this.getAnalyzerPath(),
+      analyzer_lsp_rules_path: this.getRules(),
+      analyzer_lsp_dep_labels_path: path.join(
+        this.extContext!.extensionPath,
+        "assets/bin/jdtls/java-analyzer-bundle/maven.default.index",
+      ),
+    };
+
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Initializing Kai",
+        cancellable: true,
+      },
+      async (progress) => {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          this.outputChannel.appendLine("Sending 'initialize' request.");
+          try {
+            progress.report({ message: "Sending 'initialize' request to RPC Server" });
+            const response = await this.rpcConnection!.sendRequest<void>(
+              "initialize",
+              initializeParams,
+            );
+            this.outputChannel.appendLine(`${response}`);
+            progress.report({ message: "RPC Server initialized" });
+            break;
+          } catch (err: any) {
+            this.outputChannel.appendLine(`Error: ${err}`);
+            await new Promise((res) => setTimeout(res, 1000));
+            continue;
+          }
+        }
+        progress.report({ message: "Kai initialization failed!" });
+      },
+    );
   }
 
   public async runAnalysis(webview: vscode.Webview): Promise<any> {
-    if (!this.analyzerServer) {
-      vscode.window.showErrorMessage("Server not started");
+    if (!this.rpcConnection) {
+      vscode.window.showErrorMessage("RPC connection is not established.");
       return;
     }
 
@@ -78,66 +165,51 @@ export class AnalyzerClient {
         title: "Running Analysis",
         cancellable: false,
       },
-      async (progress) => {
+      (progress) => {
         return new Promise<void>((resolve, reject) => {
-          const requestId = this.requestId++;
-          const request =
-            JSON.stringify({
-              jsonrpc: "2.0",
-              id: requestId,
-              method: "analysis_engine.Analyze",
-              params: [
-                {
-                  label_selector: this.getLabelSelector(),
-                },
-              ],
-            }) + "\n";
+          (async () => {
+            try {
+              progress.report({ message: "Running..." });
 
-          this.outputChannel.appendLine(`Preparing to analyze with request: ${request}`);
-          progress.report({ message: "Running..." });
-          this.analyzerServer?.stdin.write(request);
+              const requestParams = {
+                label_selector: this.getLabelSelector(),
+              };
 
-          let dataBuffer = "";
-          const analysisTimeout = setTimeout(() => {
-            vscode.window.showErrorMessage("Analysis process timed out.");
-            this.outputChannel.appendLine("Analysis process timed out.");
-            reject(new Error("Analysis process timed out."));
-          }, 300000); // Timeout after 5 minutes
+              this.outputChannel.appendLine(
+                `Sending 'analysis_engine.Analyze' request with params: ${JSON.stringify(
+                  requestParams,
+                )}`,
+              );
 
-          this.analyzerServer!.stdout.on("data", (data) => {
-            dataBuffer += data.toString(); // Append incoming data to the buffer
+              const response: any = await this.rpcConnection!.sendRequest(
+                "analysis_engine.Analyze",
+                requestParams,
+              );
 
-            let newlineIndex;
-            // Process all complete lines (JSON-RPC messages)
-            while ((newlineIndex = dataBuffer.indexOf("\n")) !== -1) {
-              const line = dataBuffer.slice(0, newlineIndex).trim(); // Extract a complete line
-              dataBuffer = dataBuffer.slice(newlineIndex + 1); // Remove the processed line
+              this.outputChannel.appendLine(`Response: ${JSON.stringify(response)}`);
 
-              try {
-                const response = JSON.parse(line);
-
-                // Check if the response matches the request ID
-                if (response.id === requestId) {
-                  clearTimeout(analysisTimeout);
-                  progress.report({ message: "Analysis complete!" });
-
-                  const rulesets = response.result["Rulesets"] as RuleSet[];
-                  if (rulesets.length === 0) {
-                    this.outputChannel.appendLine("No RuleSets from analysis!");
-                  }
-
-                  vscode.commands.executeCommand("konveyor.loadRuleSets", rulesets);
-
-                  progress.report({ message: "Results processed!" });
-
-                  resolve();
-                }
-              } catch (err: any) {
-                this.outputChannel.appendLine(`Error parsing analysis result: ${err.message}`);
-                reject(err);
+              // Handle the result
+              const rulesets = response?.Rulesets as RuleSet[];
+              if (!rulesets || rulesets.length === 0) {
+                vscode.window.showInformationMessage(
+                  "Analysis completed, but no RuleSets were found.",
+                );
+                resolve();
+                return;
               }
+
+              vscode.commands.executeCommand("konveyor.loadRuleSets", rulesets);
+              progress.report({ message: "Results processed!" });
+              vscode.window.showInformationMessage("Analysis completed successfully!");
+              resolve();
+            } catch (err: any) {
+              this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
+              vscode.window.showErrorMessage(
+                "Analysis failed. See the output channel for details.",
+              );
+              reject(err);
             }
-          });
+          })();
         });
       },
     );
@@ -149,54 +221,22 @@ export class AnalyzerClient {
 
   // Shutdown the server
   public async shutdown(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const requestId = this.requestId++;
-      const request =
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: requestId,
-          method: "shutdown",
-          params: {},
-        }) + "\n";
-      this.analyzerServer?.stdin.write(request);
-      this.outputChannel.appendLine("Shuting down Server");
-      this.analyzerServer?.stdout.on("data", (data) => {
-        try {
-          const response = JSON.parse(data.toString());
-          if (response.id === requestId && !response.error) {
-            resolve();
-          }
-        } catch (err: any) {
-          reject(err);
-        }
-      });
-    });
+    try {
+      await this.rpcConnection!.sendRequest("shutdown", {});
+    } catch (err: any) {
+      this.outputChannel.appendLine(`Error during shutdown: ${err.message}`);
+      vscode.window.showErrorMessage("Shutdown failed. See the output channel for details.");
+    }
   }
 
   // Exit the server
   public async exit(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const requestId = this.requestId++;
-      const request =
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: requestId,
-          method: "exit",
-          params: {},
-        }) + "\n";
-      this.analyzerServer?.stdin.write(request);
-      this.outputChannel.appendLine("Exiting Server");
-      this.analyzerServer?.stdout.on("data", (data) => {
-        try {
-          const response = JSON.parse(data.toString());
-          if (response.id === requestId && !response.error) {
-            resolve();
-          }
-        } catch (err: any) {
-          reject(err);
-        }
-      });
-    });
+    try {
+      await this.rpcConnection!.sendRequest("exit", {});
+    } catch (err: any) {
+      this.outputChannel.appendLine(`Error during exit: ${err.message}`);
+      vscode.window.showErrorMessage("Exit failed. See the output channel for details.");
+    }
   }
 
   public async canAnalyze(): Promise<boolean> {
@@ -257,7 +297,7 @@ export class AnalyzerClient {
     const platform = os.platform();
     const arch = os.arch();
 
-    let binaryName = `kai-analyzer.${platform}.${arch}`;
+    let binaryName = `kai-analyzer-rpc.${platform}.${arch}`;
     if (platform === "win32") {
       binaryName += ".exe";
     }
@@ -277,6 +317,7 @@ export class AnalyzerClient {
 
     return defaultAnalyzerPath;
   }
+
   public getKaiRpcServerPath(): string {
     // Retrieve the rpcServerPath
     const rpcServerPath = this.config?.get<string>("kaiRpcServerPath");
@@ -311,25 +352,26 @@ export class AnalyzerClient {
     return defaultRpcServerPath;
   }
 
-  public getAnalyzerArgs(): string[] {
-    return [
-      "-source-directory",
-      vscode.workspace.workspaceFolders![0].uri.fsPath,
-      "-rules-directory",
-      this.getRules(),
-      "-lspServerPath",
-      path.join(this.extContext!.extensionPath, "assets", "bin", "jdtls", "bin", "jdtls"),
-      "-bundles",
-      path.join(
-        this.extContext!.extensionPath,
-        "assets/bin/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
-      ),
-      "-depOpenSourceLabelsFile",
-      path.join(
-        this.extContext!.extensionPath,
-        "assets/bin/jdtls/java-analyzer-bundle/maven.default.index",
-      ),
-    ];
+  public getKaiRpcServerArgs(): string[] {
+    return ["--config", this.getKaiConfigTomlPath()];
+    // return [
+    //   "-source-directory",
+    //   vscode.workspace.workspaceFolders![0].uri.fsPath,
+    //   "-rules-directory",
+    //   this.getRules(),
+    //   "-lspServerPath",
+    //   path.join(this.extContext!.extensionPath, "assets", "bin", "jdtls", "bin", "jdtls"),
+    //   "-bundles",
+    //   path.join(
+    //     this.extContext!.extensionPath,
+    //     "assets/bin/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
+    //   ),
+    //   "-depOpenSourceLabelsFile",
+    //   path.join(
+    //     this.extContext!.extensionPath,
+    //     "assets/bin/jdtls/java-analyzer-bundle/maven.default.index",
+    //   ),
+    // ];
   }
 
   public getNumWorkers(): number {
@@ -364,7 +406,7 @@ export class AnalyzerClient {
   }
 
   public getLabelSelector(): string {
-    return this.config!.get("labelSelector") as string;
+    return vscode.workspace.getConfiguration("konveyor").get("labelSelector") as string;
   }
 
   public getJavaConfig(): object {
@@ -387,6 +429,38 @@ export class AnalyzerClient {
   }
 
   public isServerRunning(): boolean {
-    return !!this.analyzerServer && !this.analyzerServer.killed;
+    return !!this.kaiRpcServer && !this.kaiRpcServer.killed;
+  }
+
+  public getKaiConfigDir(): string {
+    return this.kaiDir;
+  }
+
+  public getKaiConfigTomlPath(): string {
+    if (!fs.existsSync(this.kaiDir)) {
+      fs.mkdirSync(this.kaiDir, { recursive: true });
+    }
+
+    // Ensure the file exists with default content if it doesn't
+    // Consider making this more robust, maybe this is an asset we can get from kai?
+    if (!fs.existsSync(this.kaiConfigToml)) {
+      fs.writeFileSync(this.kaiConfigToml, this.defaultKaiConfigToml(this.kaiDir));
+    }
+
+    return this.kaiConfigToml;
+  }
+
+  public defaultKaiConfigToml(log_dir: string) {
+    return `log_level = "info"
+file_log_level = "debug"
+log_dir = "${log_dir}"
+
+[models]
+provider = "ChatIBMGenAI"
+
+[models.args]
+model_id = "meta-llama/llama-3-70b-instruct"
+parameters.max_new_tokens = "2048"
+`;
   }
 }
