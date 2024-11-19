@@ -139,16 +139,17 @@ const commandsMap: (state: ExtensionState) => {
       };
 
       const fileUri = await window.showOpenDialog(options);
-
+      const config = workspace.getConfiguration("konveyor");
       if (fileUri && fileUri[0]) {
         const filePath = fileUri[0].fsPath;
 
         // Update the user settings
-        const config = workspace.getConfiguration("konveyor");
         await config.update("analyzerPath", filePath, ConfigurationTarget.Global);
 
         window.showInformationMessage(`Analyzer binary path updated to: ${filePath}`);
       } else {
+        // Reset the setting to undefined or remove it
+        await config.update("analyzerPath", undefined, ConfigurationTarget.Global);
         window.showInformationMessage("No analyzer binary selected.");
       }
     },
@@ -163,16 +164,17 @@ const commandsMap: (state: ExtensionState) => {
       };
 
       const fileUri = await window.showOpenDialog(options);
-
+      const config = workspace.getConfiguration("konveyor");
       if (fileUri && fileUri[0]) {
         const filePath = fileUri[0].fsPath;
 
         // Update the user settings
-        const config = workspace.getConfiguration("konveyor");
         await config.update("kaiRpcServerPath", filePath, ConfigurationTarget.Global);
 
         window.showInformationMessage(`Kai rpc server binary path updated to: ${filePath}`);
       } else {
+        // Reset the setting to undefined or remove it
+        await config.update("kaiRpcServerPath", undefined, ConfigurationTarget.Global);
         window.showInformationMessage("No Kai rpc-server binary selected.");
       }
     },
