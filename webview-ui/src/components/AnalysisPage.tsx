@@ -30,6 +30,8 @@ const AnalysisPage: React.FC = () => {
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [isWaitingForSolution, setIsWaitingForSolution] = useState(false);
   const [serverRunning, setServerRunning] = useState(false);
+  const [serverStarting, setServerStarting] = useState(false);
+  const [serverStartFailed, setServerStartFailed] = useState(false);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
@@ -55,7 +57,18 @@ const AnalysisPage: React.FC = () => {
   const messageHandler = (message: any) => {
     switch (message.type) {
       case "serverStatus":
-        setServerRunning(message.isRunning);
+        console.log("message", message);
+        if (message.isRunning) {
+          setServerRunning(true);
+          setServerStarting(false);
+          setServerStartFailed(false);
+        } else {
+          if (message.errorMessage) {
+            setErrorMessage(message.errorMessage);
+            setServerStartFailed(true);
+          }
+          setServerStarting(false);
+        }
         break;
 
       case "loadStoredAnalysis": {
@@ -71,7 +84,6 @@ const AnalysisPage: React.FC = () => {
           if (confirmed) {
             setErrorMessage(null);
             setIsWaitingForSolution(false);
-            // sendVscodeMessage("applySolution", { solution });
           }
         }
         break;
@@ -116,7 +128,7 @@ const AnalysisPage: React.FC = () => {
 
   return (
     <>
-      {serverRunning && (
+      {!serverStarting && serverRunning && (
         <div style={{ display: "flex", justifyContent: "center" }}>
           {" "}
           {/* Add this line */}
@@ -142,6 +154,37 @@ const AnalysisPage: React.FC = () => {
             }
           />
         </AlertGroup>
+      )}
+
+      {serverStartFailed && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            marginTop: "20px",
+          }}
+        >
+          <Title headingLevel="h4" size="lg">
+            Failed to start the server.
+          </Title>
+          <Button
+            variant={ButtonVariant.primary}
+            onClick={() => {
+              setServerStarting(true);
+              setServerStartFailed(false);
+              sendVscodeMessage("startServer", {});
+            }}
+          >
+            Retry Starting Server
+          </Button>
+        </div>
+      )}
+
+      {serverStarting && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
+          <Spinner size="lg" /> {/* Show a loading spinner while the server is starting */}
+        </div>
       )}
 
       <div>
@@ -171,7 +214,7 @@ const AnalysisPage: React.FC = () => {
             expandedViolations={expandedViolations}
             setExpandedViolations={setExpandedViolations}
           />
-        ) : !serverRunning ? (
+        ) : !serverRunning && !errorMessage && !serverStartFailed ? (
           <EmptyState>
             <Title headingLevel="h2" size="lg">
               Server Not Running
@@ -182,7 +225,11 @@ const AnalysisPage: React.FC = () => {
             <Button
               className={spacing.mtMd}
               variant={ButtonVariant.primary}
-              onClick={() => sendVscodeMessage("startServer", {})}
+              isDisabled={serverStarting}
+              onClick={() => {
+                sendVscodeMessage("startServer", {});
+                setServerStarting(true);
+              }}
             >
               Start Server
             </Button>

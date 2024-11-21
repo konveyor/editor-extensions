@@ -132,7 +132,7 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
         break;
       }
       case "checkServerStatus": {
-        const isRunning = state.analyzerClient.isServerRunning();
+        const isRunning = state?.analyzerClient?.isServerRunning();
         webview.postMessage({ type: "serverStatus", isRunning });
         console.log("checkServerStatus", isRunning);
         break;

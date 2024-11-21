@@ -13,7 +13,7 @@ export interface ExtensionData {
 }
 
 export interface ExtensionState {
-  analyzerClient: AnalyzerClient;
+  analyzerClient: AnalyzerClient | null;
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
   extensionContext: vscode.ExtensionContext;
   diagnosticCollection: vscode.DiagnosticCollection;

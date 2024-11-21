@@ -5,47 +5,81 @@ import * as fs from "fs";
 import { Incident, RuleSet } from "@editor-extensions/shared";
 
 import path from "path";
+import { ExtensionState } from "../extensionState";
 
 export class AnalyzerClient {
   private config: vscode.WorkspaceConfiguration | null = null;
   private extContext: vscode.ExtensionContext | null = null;
   private analyzerServer: ChildProcessWithoutNullStreams | null = null;
   private outputChannel: vscode.OutputChannel;
-  // private rpcConnection: rpc.MessageConnection | null = null;
   private requestId: number = 1;
+  private state: ExtensionState;
 
-  constructor(context: vscode.ExtensionContext) {
-    this.extContext = context;
+  constructor(state: ExtensionState) {
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.config = vscode.workspace.getConfiguration("konveyor");
+    this.state = state;
+    this.extContext = state.extensionContext;
   }
 
   public start(): void {
     if (!this.canAnalyze()) {
+      this.sendServerStatus(false, "Analysis configuration incomplete.");
       return;
     }
-    exec("java -version", (err) => {
-      if (err) {
-        vscode.window.showErrorMessage("Java is not installed. Please install it to continue.");
+
+    exec("java -version", (javaErr) => {
+      if (javaErr) {
+        this.outputChannel.appendLine("Java check failed.");
+        this.sendServerStatus(false, "Java is not installed. Please install it to continue.");
         return;
       }
-    });
-    exec("mvn -version", (err) => {
-      if (err) {
-        vscode.window.showErrorMessage("Maven is not installed. Please install it to continue.");
-        return;
-      }
-    });
-    this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
-      cwd: this.extContext!.extensionPath,
-    });
 
-    this.analyzerServer.stderr.on("data", (data) => {
-      this.outputChannel.appendLine(`${data.toString()}`);
-    });
+      exec("mvn -version", (mvnErr) => {
+        if (mvnErr) {
+          this.outputChannel.appendLine("Maven check failed.");
+          this.sendServerStatus(false, "Maven is not installed. Please install it to continue.");
+          return;
+        }
 
-    this.analyzerServer.on("exit", (code) => {
-      this.outputChannel.appendLine(`Analyzer exited with code ${code}`);
+        const analyzerPath = this.getAnalyzerPath();
+        if (!fs.existsSync(analyzerPath)) {
+          this.outputChannel.appendLine(`Analyzer binary does not exist at ${analyzerPath}`);
+          this.sendServerStatus(false, `Analyzer binary doesn't exist at ${analyzerPath}`);
+          return;
+        }
+
+        this.analyzerServer = spawn(analyzerPath, this.getAnalyzerArgs(), {
+          cwd: this.extContext!.extensionPath,
+        });
+
+        this.analyzerServer.on("error", (error) => {
+          this.outputChannel.appendLine(`Failed to start analyzer server: ${error}`);
+          this.sendServerStatus(false, `Server failed to start: ${error.message}`);
+        });
+
+        this.analyzerServer.stderr.on("data", (data) => {
+          this.outputChannel.appendLine(`Error: ${data.toString()}`);
+        });
+
+        this.analyzerServer.on("exit", (code) => {
+          if (code !== 0) {
+            this.outputChannel.appendLine(`Analyzer exited with code ${code}`);
+            this.sendServerStatus(false, `Server exited unexpectedly with code ${code}`);
+          } else {
+            this.sendServerStatus(true); // This will effectively be a confirmation of a successful run, not needed if handled on close
+          }
+        });
+      });
+    });
+  }
+
+  private sendServerStatus(isRunning: boolean, errorMessage?: string): void {
+    const sidebarProvider = this.state.webviewProviders.get("sidebar");
+    sidebarProvider?.webview?.postMessage({
+      type: "serverStatus",
+      isRunning: isRunning,
+      errorMessage: errorMessage,
     });
   }
 

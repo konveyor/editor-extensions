@@ -49,12 +49,12 @@ const commandsMap: (state: ExtensionState) => {
   return {
     "konveyor.startAnalyzer": async () => {
       const analyzerClient = state.analyzerClient;
-      if (!(await analyzerClient.canAnalyze())) {
+      if (!(await analyzerClient?.canAnalyze())) {
         return;
       }
 
       window.showInformationMessage("Starting analyzer...");
-      analyzerClient.start();
+      analyzerClient?.start();
     },
     "konveyor.runAnalysis": async () => {
       const analyzerClient = state.analyzerClient;

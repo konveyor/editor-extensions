@@ -26,7 +26,7 @@ class VsCodeExtension {
     };
 
     this.state = {
-      analyzerClient: new AnalyzerClient(context),
+      analyzerClient: null,
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
@@ -39,6 +39,7 @@ class VsCodeExtension {
         setData(produce(getData(), recipe));
       },
     };
+    this.state.analyzerClient = new AnalyzerClient(this.state);
 
     this.initializeExtension(context);
   }
@@ -108,8 +109,8 @@ class VsCodeExtension {
     }
   }
 
-  public getAnalyzerClient(): AnalyzerClient {
-    return this.state.analyzerClient;
+  public getAnalyzerClient(): AnalyzerClient | null {
+    return this.state?.analyzerClient;
   }
 }
 
@@ -125,6 +126,6 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 export function deactivate(): void {
   if (extension?.getAnalyzerClient()) {
-    extension.getAnalyzerClient().stop();
+    extension?.getAnalyzerClient()?.stop();
   }
 }
