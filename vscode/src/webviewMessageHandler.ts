@@ -142,6 +142,16 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
         }
         break;
       }
+      case "checkServerStatus": {
+        const isRunning = state.analyzerClient.isServerRunning();
+        webview.postMessage({ type: "serverStatus", isRunning });
+        console.log("checkServerStatus", isRunning);
+        break;
+      }
+      case "startServer": {
+        vscode.commands.executeCommand("konveyor.startAnalyzer");
+        break;
+      }
       case "solutionResolved": {
         console.log("solutionResolved");
         const sidebarProvider = state.webviewProviders.get("sidebar");

@@ -26,9 +26,7 @@ import { sendVscodeMessage } from "../utils/vscodeMessaging";
 const ResolutionPage: React.FC = () => {
   const [resolution, setResolution] = useState<ResolutionMessage | null>(null);
   const [isResolved, setIsResolved] = useState(false);
-  const [processedChanges, setProcessedChanges] = useState<Set<string>>(
-    new Set(),
-  );
+  const [processedChanges, setProcessedChanges] = useState<Set<string>>(new Set());
 
   const messageHandler = (message: any) => {
     if (message.type === "loadResolution") {
@@ -41,11 +39,6 @@ const ResolutionPage: React.FC = () => {
         setIsResolved(false);
         setProcessedChanges(new Set());
       }
-
-      sendVscodeMessage("setSharedState", {
-        key: "resolutionPanelData",
-        value: message,
-      });
     }
   };
 
@@ -55,10 +48,7 @@ const ResolutionPage: React.FC = () => {
   const handleSolutionResult = (resolutionMessage: ResolutionMessage) => {
     if (resolutionMessage?.isRelevantSolution) {
       // Relevant solution found, process or display it
-      console.log(
-        "Relevant solution found for this incident:",
-        resolutionMessage,
-      );
+      console.log("Relevant solution found for this incident:", resolutionMessage);
       setResolution(resolutionMessage);
       setIsResolved(false);
       setProcessedChanges(new Set());
@@ -69,10 +59,6 @@ const ResolutionPage: React.FC = () => {
       setIsResolved(false);
       setProcessedChanges(new Set());
 
-      sendVscodeMessage("setSharedState", {
-        key: "resolutionPanelData",
-        value: null,
-      });
       sendVscodeMessage("solutionResolved", {});
     }
   };
@@ -105,9 +91,7 @@ const ResolutionPage: React.FC = () => {
   const handleRejectClick = (change: Change) => {
     sendVscodeMessage("revertFile", {
       change, // Send the Change data for the file to be opened
-      incident: resolution
-        ? resolution.incident
-        : { uri: "", lineNumber: 0, message: "" },
+      incident: resolution ? resolution.incident : { uri: "", lineNumber: 0, message: "" },
     });
 
     const newProcessedChanges = new Set(processedChanges);
@@ -126,27 +110,18 @@ const ResolutionPage: React.FC = () => {
     if (!resolution?.solution.changes) {
       return [];
     }
-    return resolution.solution.changes.filter(
-      (change) => !processedChanges.has(change.modified),
-    );
+    return resolution.solution.changes.filter((change) => !processedChanges.has(change.modified));
   };
 
   // Display "Changes Applied" when the solution is accepted
   if (isResolved) {
     return (
       <Page>
-        <PageSection
-          className="pf-v6-u-px-xl pf-v6-u-py-md"
-          title="Changes Applied"
-        >
-          <EmptyState
-            variant="lg"
-            icon={CheckCircleIcon}
-            titleText="Changes Applied"
-          >
+        <PageSection className="pf-v6-u-px-xl pf-v6-u-py-md" title="Changes Applied">
+          <EmptyState variant="lg" icon={CheckCircleIcon} titleText="Changes Applied">
             <EmptyStateBody>
-              The changes have been processed. You can close this panel or wait
-              for the next incident.
+              The changes have been processed. You can close this panel or wait for the next
+              incident.
             </EmptyStateBody>
           </EmptyState>
         </PageSection>
@@ -159,14 +134,8 @@ const ResolutionPage: React.FC = () => {
     return (
       <Page>
         <PageSection className="pf-v5-u-px-xl pf-v5-u-py-md">
-          <EmptyState
-            variant="lg"
-            icon={WarningTriangleIcon}
-            titleText="No Active Solutions"
-          >
-            <EmptyStateBody>
-              There are no solutions to review at this time.
-            </EmptyStateBody>
+          <EmptyState variant="lg" icon={WarningTriangleIcon} titleText="No Active Solutions">
+            <EmptyStateBody>There are no solutions to review at this time.</EmptyStateBody>
           </EmptyState>
         </PageSection>
       </Page>
@@ -196,9 +165,7 @@ const ResolutionPage: React.FC = () => {
             <Card isFullHeight className="incident-list-card">
               <CardTitle>
                 {resolution?.violation.description || "No Violation Data"}
-                <Badge className={spacing.mSm}>
-                  {resolution?.violation.category}
-                </Badge>
+                <Badge className={spacing.mSm}>{resolution?.violation.category}</Badge>
               </CardTitle>
               <CardBody>
                 <IncidentList

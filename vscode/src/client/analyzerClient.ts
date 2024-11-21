@@ -385,4 +385,8 @@ export class AnalyzerClient {
     }
     return null;
   }
+
+  public isServerRunning(): boolean {
+    return !!this.analyzerServer && !this.analyzerServer.killed;
+  }
 }

@@ -101,10 +101,6 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
     webview.html = this.getHtmlForWebview(webview);
     this._setWebviewMessageListener(webview);
-
-    if (this._isWebviewReady) {
-      this._loadInitialContent(webview);
-    }
   }
 
   public getHtmlForWebview(webview: Webview): string {
@@ -191,28 +187,11 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
             const queuedMessage = this._messageQueue.shift();
             webview.postMessage(queuedMessage);
           }
-          this._loadInitialContent(webview);
         }
       },
       undefined,
       this._disposables,
     );
-  }
-
-  private _loadInitialContent(webview: Webview) {
-    if (this._isWebviewReady && webview) {
-      const data = this._extensionState.ruleSets;
-      webview.postMessage({
-        type: "loadStoredAnalysis",
-        data,
-      });
-      //TODO Commenting out in favor of hardcoded solution data in webviewMessageHandler.ts
-      // const localChanges = this._extensionState.localChanges;
-      // webview.postMessage({
-      //   type: "loadSolutions",
-      //   solution: localChanges,
-      // });
-    }
   }
 
   public dispose() {
