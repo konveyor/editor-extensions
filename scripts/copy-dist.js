@@ -55,5 +55,11 @@ await copy({
       src: "assets/rulesets/**/*",
       dest: "dist/",
     },
+    {
+      context: "vscode/",
+      src: "assets/bin/**/*",
+      dest: "dist/",
+    },
+    // TODO: replace the repo analyzer binaries with the kai binaries
   ],
 });

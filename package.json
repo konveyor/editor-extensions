@@ -41,7 +41,7 @@
   "scripts": {
     "prepare": "husky",
     "postinstall": "npm run build -w shared",
-    "clean": "rimraf ./dist && npm run clean --workspaces --if-present",
+    "clean": "rimraf ./dist ./downloaded_assets && npm run clean --workspaces --if-present",
     "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/",
     "lint": "eslint ./scripts && npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
@@ -51,7 +51,7 @@
     "dev:webview-ui": "npm run start -w webview-ui",
     "dev:vscode": "npm run dev -w vscode",
     "build": "npm run build --workspaces --if-present",
-    "collect-assets": "node ./scripts/collect-assets.js",
+    "collect-assets": "rimraf ./downloaded_assets && node ./scripts/collect-assets.js",
     "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
     "package": "cd dist && vsce package",
     "test": "npm run lint && npm run build && npm run test --workspaces --if-present"

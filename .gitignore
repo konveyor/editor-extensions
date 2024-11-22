@@ -3,6 +3,7 @@ out/
 build/
 dist/
 downloaded_assets/
+*.vsix
 
 # TypeScript build info
 **/tsconfig.tsbuildinfo
