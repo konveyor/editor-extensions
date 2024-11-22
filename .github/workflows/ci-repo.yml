@@ -46,19 +46,11 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            vscode/node_modules
-            webview-ui/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          cache: "npm"
 
       - name: Install workspace dependencies
         run: |
@@ -90,10 +82,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
+          cache: "npm"
 
       - name: Install workspace dependencies
         run: |
@@ -134,10 +127,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
+          cache: "npm"
 
       - name: Install workspace dependencies
         run: |
