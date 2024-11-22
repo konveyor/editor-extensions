@@ -1,4 +1,4 @@
-#! /bin/env node
+#! /usr/bin/env node
 import { cwdToProjectRoot } from "./_util.js";
 import copy from "./_copy.js";
 
