@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as rpc from "vscode-jsonrpc/node";
 import path from "path";
 import { Incident, RuleSet } from "@editor-extensions/shared";
-import { getDataFolder } from "../data";
+import { buildDataFolderPath } from "../data";
 import { ExtensionState } from "src/extensionState";
 
 export class AnalyzerClient {
@@ -22,7 +22,7 @@ export class AnalyzerClient {
     this.extContext = context;
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.config = vscode.workspace.getConfiguration("konveyor");
-    this.kaiDir = path.join(getDataFolder()!, "kai");
+    this.kaiDir = path.join(buildDataFolderPath()!, "kai");
     this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
   }
 
@@ -239,7 +239,23 @@ export class AnalyzerClient {
   }
 
   public async getSolution(_webview: vscode.Webview, _incident: Incident): Promise<any> {
-    vscode.window.showErrorMessage("Not yet implemented");
+    if (!this.rpcConnection) {
+      vscode.window.showErrorMessage("RPC connection is not established.");
+      return;
+    }
+
+    // try {
+    //   const response: any = await this.rpcConnection!.sendRequest("getCodeplanAgentSolution", {
+    //     file_path: "",
+    //     incidents: [_incident],
+    //     max_priority: 0,
+    //     max_depth: 0,
+    //     max_iterations: 1,
+    //   });
+    // } catch (err: any) {
+    //   this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);
+    //   vscode.window.showErrorMessage("Get solution failed. See the output channel for details.");
+    // }
   }
 
   // Shutdown the server
@@ -377,24 +393,6 @@ export class AnalyzerClient {
 
   public getKaiRpcServerArgs(): string[] {
     return ["--config", this.getKaiConfigTomlPath()];
-    // return [
-    //   "-source-directory",
-    //   vscode.workspace.workspaceFolders![0].uri.fsPath,
-    //   "-rules-directory",
-    //   this.getRules(),
-    //   "-lspServerPath",
-    //   path.join(this.extContext!.extensionPath, "assets", "bin", "jdtls", "bin", "jdtls"),
-    //   "-bundles",
-    //   path.join(
-    //     this.extContext!.extensionPath,
-    //     "assets/bin/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
-    //   ),
-    //   "-depOpenSourceLabelsFile",
-    //   path.join(
-    //     this.extContext!.extensionPath,
-    //     "assets/bin/jdtls/java-analyzer-bundle/maven.default.index",
-    //   ),
-    // ];
   }
 
   public getNumWorkers(): number {

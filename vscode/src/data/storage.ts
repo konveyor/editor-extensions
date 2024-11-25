@@ -12,22 +12,30 @@ import {
 
 const MAX_FILES = 5;
 
-// This function returns the data folder, creating it if it doesn't exist
-// and returning undefined when no workspace is loaded.
-export const getDataFolder = () => {
+export const buildDataFolderPath = () => {
   const firstWorkspace = vscode.workspace.workspaceFolders?.[0];
   if (!firstWorkspace) {
-    console.log("Cannot create data folder due to no workspace");
     return;
   }
 
-  const dataFolderPath = path.join(firstWorkspace.uri.fsPath, ".vscode", "konveyor");
+  return path.join(firstWorkspace.uri.fsPath, ".vscode", "konveyor");
+};
 
-  if (fs.existsSync(dataFolderPath)) {
-    return dataFolderPath;
+const getDataFolder = () => {
+  const dataFolderPath = buildDataFolderPath();
+  return dataFolderPath && fs.existsSync(dataFolderPath) ? dataFolderPath : undefined;
+};
+
+const createDataFolderIfNeeded = async () => {
+  if (getDataFolder()) {
+    return;
   }
-  vscode.workspace.fs.createDirectory(vscode.Uri.file(dataFolderPath));
-  return dataFolderPath;
+  const dataFolderPath = buildDataFolderPath();
+  if (dataFolderPath) {
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(dataFolderPath));
+  } else {
+    console.log("Cannot create data folder due to no workspace");
+  }
 };
 
 const getDataFilesByPrefix = async (prefix: string) => {
@@ -61,6 +69,8 @@ export async function writeDataFile(
   prefix: string,
   format: "json" = "json",
 ) {
+  await createDataFolderIfNeeded();
+
   const dataFolderPath = getDataFolder();
   if (!dataFolderPath) {
     return;
