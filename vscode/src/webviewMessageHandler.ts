@@ -1,57 +1,21 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
-import { loadStateFromDataFolder } from "./data";
-import { Change } from "@editor-extensions/shared";
-import { fromRelativeToKonveyor } from "./utilities";
 import path from "path";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
     switch (message.command) {
+      // case "getRealSolution":{
+      //   messa
+      //   vscode.commands.executeCommand("konveyor.getSolution", incident);
+      //   break;
+      // }
       case "getSolution": {
         const { violation, incident } = message;
-        const [, solution] = await loadStateFromDataFolder();
+        vscode.commands.executeCommand("konveyor.getSolution", incident, violation);
 
         vscode.commands.executeCommand("konveyor.diffView.focus");
         vscode.commands.executeCommand("konveyor.showResolutionPanel");
-        const incidentUri = incident.uri;
-
-        // Remove 'file://' from the URI and ensure it doesn't start with a leading slash
-        let incidentPath = incidentUri.replace(/^file:\/\//, ""); // Remove 'file://' from the URI
-
-        if (incidentPath.startsWith("/")) {
-          incidentPath = incidentPath.slice(1); // Remove the leading slash if it exists
-        }
-
-        // Fix: Ensure that the path starts with a valid format (not starting with two slashes)
-        const incidentKonveyorUri = fromRelativeToKonveyor(
-          vscode.workspace.asRelativePath(incidentPath),
-        ); // Convert to konveyor:// format
-
-        console.log("incidentKonveyorUri", incidentKonveyorUri);
-        console.log("incidentPath", incidentPath);
-        console.log("solution", solution);
-
-        // Step 2: Check if any of the solution changes are relevant to the incident
-        const isRelevantSolution = solution?.changes.some((change: Change) => {
-          const originalKonveyorUri = fromRelativeToKonveyor(change.original);
-          console.log("originalKonveyorUri", originalKonveyorUri);
-          console.log("incidentKonveyorUri", incidentKonveyorUri);
-
-          // Compare original URI with incident URI
-          return originalKonveyorUri.toString() === incidentKonveyorUri.toString();
-        });
-
-        console.log("send this solution to the webview", solution);
-
-        // Step 3: Send the updated solution and the relevance flag to the webview
-        state.webviewProviders.get("resolution")?.sendMessageToWebview({
-          type: "loadResolution",
-          solution: solution,
-          violation,
-          incident,
-          isRelevantSolution,
-        });
 
         break;
       }
@@ -73,7 +37,8 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
         break;
       }
       case "applyFile": {
-        const { change } = message;
+        console.log("applyFile WHAT IS CHANGE", message.filePath, message);
+        const filePath = message.filePath;
 
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) {
@@ -83,11 +48,17 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
 
         let currentURI: vscode.Uri;
 
-        if (path.isAbsolute(change.original)) {
-          currentURI = vscode.Uri.file(change.original);
+        console.log("applyFile WHAT IS FILEPATH", filePath);
+
+        if (path.isAbsolute(filePath)) {
+          console.log("applyFile IS ABSOLUTE");
+          currentURI = vscode.Uri.file(filePath);
+          console.log("applyFile WHAT IS CURRENTURI", currentURI);
         } else {
-          const absolutePath = path.resolve(workspaceFolder.uri.fsPath, change.original);
+          console.log("applyFile IS NOT ABSOLUTE");
+          const absolutePath = path.resolve(workspaceFolder.uri.fsPath, filePath);
           currentURI = vscode.Uri.file(absolutePath);
+          console.log("applyFile WHAT IS CURRENTURI", currentURI);
         }
 
         vscode.commands.executeCommand("konveyor.applyFile", currentURI, true);

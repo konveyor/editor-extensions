@@ -99,3 +99,11 @@ export interface ResolutionMessage {
   incident: Incident;
   isRelevantSolution: boolean;
 }
+
+export interface SolutionResponse {
+  diff: string;
+  encountered_errors: string[];
+  modified_files: string[];
+  incident: Incident;
+  violation: Violation;
+}
