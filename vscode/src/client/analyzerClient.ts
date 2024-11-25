@@ -36,8 +36,14 @@ export class AnalyzerClient {
         return;
       }
     });
+
     this.analyzerServer = spawn(this.getAnalyzerPath(), this.getAnalyzerArgs(), {
-      cwd: this.extContext!.extensionPath,
+      cwd: this.extContext!.extensionPath, // TODO: If the server generates files in cwd, we should set this to something else
+      env: process.env, // TODO: Does the server's env need to be different that vscode's env?
+    });
+
+    this.analyzerServer.on("error", (err) => {
+      this.outputChannel.appendLine(`[error] - error on spawned process: ${err}`);
     });
 
     this.analyzerServer.stderr.on("data", (data) => {
@@ -248,6 +254,15 @@ export class AnalyzerClient {
     return true;
   }
 
+  /**
+   * Return the path to the base directory where the rulesets included with the extension
+   * are located.
+   */
+  public getExtensionRulesetsPath(): string {
+    // TODO: Fix this to use "../assets" in dev mode and "./assets" in prod mode
+    return path.join(this.extContext!.extensionPath, "../assets/rulesets");
+  }
+
   public getAnalyzerPath(): string {
     const analyzerPath = this.config?.get<string>("analyzerPath");
     if (analyzerPath && fs.existsSync(analyzerPath)) {
@@ -312,7 +327,7 @@ export class AnalyzerClient {
   }
 
   public getAnalyzerArgs(): string[] {
-    return [
+    const cliArgs = [
       "-source-directory",
       vscode.workspace.workspaceFolders![0].uri.fsPath,
       "-rules-directory",
@@ -330,6 +345,10 @@ export class AnalyzerClient {
         "assets/bin/jdtls/java-analyzer-bundle/maven.default.index",
       ),
     ];
+
+    this.outputChannel.appendLine("cli arguments:");
+    this.outputChannel.appendLine("  " + cliArgs.join("\n  "));
+    return cliArgs;
   }
 
   public getNumWorkers(): number {
@@ -349,7 +368,7 @@ export class AnalyzerClient {
   }
 
   public getRules(): string {
-    return path.join(this.extContext!.extensionPath, "assets/rulesets");
+    return this.getExtensionRulesetsPath();
     // const useDefaultRulesets = this.config!.get("useDefaultRulesets") as boolean;
     // const customRules = this.config!.get("customRules") as string[];
     // const rules: string[] = [];

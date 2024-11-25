@@ -51,7 +51,6 @@ await copy({
 
     // seed assets (binaries and analyzer rulesets)
     {
-      context: "vscode/",
       src: "assets/rulesets/**/*",
       dest: "dist/",
     },
