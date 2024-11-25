@@ -12,7 +12,6 @@ import {
   ViewColumn,
   window,
 } from "vscode";
-import { getUri } from "./utilities/getUri";
 import { getNonce } from "./utilities/getNonce";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
@@ -94,9 +93,14 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private initializeWebview(webview: Webview): void {
+    const isProd = process.env.NODE_ENV === "production";
+    const extensionUri = this._extensionState.extensionContext.extensionUri;
+    const assetsUri = isProd
+      ? Uri.joinPath(extensionUri, "out", "webview", "assets")
+      : Uri.parse("http://localhost:5173/src");
     webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionState.extensionContext.extensionUri],
+      localResourceRoots: [isProd ? assetsUri : extensionUri],
     };
 
     webview.html = this.getHtmlForWebview(webview);
@@ -136,14 +140,15 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getContentSecurityPolicy(nonce: string, webview: Webview): string {
-    const isProd = process.env.NODE_ENV === "production"; // Use environment check
+    const isProd = process.env.NODE_ENV === "production";
     const localServerUrl = "localhost:5173";
     return [
       `default-src 'none';`,
       `script-src 'unsafe-eval' https://* ${
         isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} 'nonce-${nonce}' 'unsafe-inline'`
       };`,
-      `style-src ${webview.cspSource} 'unsafe-inline' https://*;`,
+      `style-src ${webview.cspSource} 'unsafe-inline' https://* ${isProd ? "" : `http://${localServerUrl}`};`,
+
       `font-src ${webview.cspSource};`,
       `connect-src https://* ${isProd ? `` : `ws://${localServerUrl} http://${localServerUrl}`};`,
       `img-src https: data:;`,
@@ -173,7 +178,23 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getUri(webview: Webview, pathList: string[]): Uri {
-    return getUri(webview, this._extensionState.extensionContext.extensionUri, pathList);
+    const isProd = process.env.NODE_ENV === "production";
+
+    if (isProd) {
+      return webview.asWebviewUri(
+        Uri.joinPath(
+          this._extensionState.extensionContext.extensionUri,
+          "out",
+          "webview",
+          "assets",
+          ...pathList,
+        ),
+      );
+    } else {
+      const localServerUrl = "http://localhost:5173";
+      const assetPath = pathList.join("/");
+      return Uri.parse(`${localServerUrl}/${assetPath}`);
+    }
   }
 
   private _setWebviewMessageListener(webview: Webview) {
@@ -207,7 +228,6 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     if (this._panel && this._isPanelReady) {
       this._panel.webview.postMessage(message);
     } else {
-      // Queue the message until the panel is ready
       this._messageQueue.push(message);
     }
   }
