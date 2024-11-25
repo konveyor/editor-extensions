@@ -158,7 +158,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getReactRefreshScript(nonce: string): string {
-    const isProd = false; // Replace with actual production check
+    const isProd = process.env.NODE_ENV === "production";
+
     return isProd
       ? ""
       : `
