@@ -16,11 +16,19 @@ class VsCodeExtension {
 
   constructor(context: vscode.ExtensionContext) {
     this.data = produce(
-      { localChanges: [], ruleSets: [], resolutionPanelData: undefined },
+      {
+        localChanges: [],
+        ruleSets: [],
+        resolutionPanelData: undefined,
+        isAnalyzing: false,
+        isFetchingSolution: false,
+        isStartingServer: false,
+      },
       () => {},
     );
     const getData = () => this.data;
     const setData = (data: Immutable<ExtensionData>) => {
+      console.log("setting data now", data);
       this.data = data;
       this._onDidChange.fire(this.data);
     };
@@ -73,9 +81,11 @@ class VsCodeExtension {
     this.state.webviewProviders.set("resolution", resolutionViewProvider);
 
     [sidebarProvider, resolutionViewProvider].forEach((provider) =>
-      this.onDidChangeData((data) =>
-        provider.sendMessageToWebview({ type: "onDidChangeData", value: data }),
-      ),
+      this.onDidChangeData((data) => {
+        console.log("State changed, sending data to webview:", data); // Log the state being sent
+
+        provider.sendMessageToWebview({ type: "onDidChangeData", value: data });
+      }),
     );
 
     context.subscriptions.push(

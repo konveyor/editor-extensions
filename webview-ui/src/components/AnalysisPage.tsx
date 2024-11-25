@@ -20,16 +20,18 @@ import ViolationIncidentsList from "./ViolationIncidentsList";
 import { Incident, RuleSet } from "@editor-extensions/shared";
 import { useVscodeMessages } from "../hooks/useVscodeMessages";
 import { sendVscodeMessage } from "../utils/vscodeMessaging";
+import { start } from "repl";
 
 const AnalysisPage: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<RuleSet[] | null>();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
-  const [isWaitingForSolution, setIsWaitingForSolution] = useState(false);
   const [serverRunning, setServerRunning] = useState(false);
+  const [isStartingServer, setIsStartingServer] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isWaitingForSolution, setIsWaitingForSolution] = useState(false);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
@@ -53,44 +55,61 @@ const AnalysisPage: React.FC = () => {
   }, []);
 
   const messageHandler = (message: any) => {
+    console.log("Received message from VS Code:", message);
+
     switch (message.type) {
+      case "onDidChangeData": {
+        const { isAnalyzing, isFetchingSolution, errorMessage, ruleSets, isStartingServer } =
+          message.value;
+        console.log("onDidChangeData", message.value);
+        console.log("message", message);
+
+        setIsAnalyzing(isAnalyzing);
+        setIsWaitingForSolution(isFetchingSolution);
+        setErrorMessage(errorMessage);
+        setAnalysisResults(ruleSets);
+        setIsStartingServer(isStartingServer);
+
+        break;
+      }
+
       case "serverStatus":
         setServerRunning(message.isRunning);
         break;
 
-      case "loadStoredAnalysis": {
-        const storedAnalysisResults = message.data;
-        setAnalysisResults(
-          storedAnalysisResults && storedAnalysisResults.length ? storedAnalysisResults : null,
-        );
-        break;
-      }
-      case "solutionConfirmation": {
-        if (message.data) {
-          const { solution, confirmed } = message.data;
-          if (confirmed) {
-            setErrorMessage(null);
-            setIsWaitingForSolution(false);
-            // sendVscodeMessage("applySolution", { solution });
-          }
-        }
-        break;
-      }
-      case "analysisStarted":
-        setIsAnalyzing(true);
-        setAnalysisMessage("Analysis started...");
-        setErrorMessage(null);
-        break;
-      case "analysisComplete":
-        setIsAnalyzing(false);
-        setAnalysisMessage("");
-        setAnalysisResults(message.data || null);
-        break;
-      case "analysisFailed":
-        setIsAnalyzing(false);
-        setAnalysisMessage("");
-        setErrorMessage(`Analysis failed: ${message.message}`);
-        break;
+      // case "loadStoredAnalysis": {
+      //   const storedAnalysisResults = message.data;
+      //   setAnalysisResults(
+      //     storedAnalysisResults && storedAnalysisResults.length ? storedAnalysisResults : null,
+      //   );
+      //   break;
+      // }
+      // case "solutionConfirmation": {
+      //   if (message.data) {
+      //     const { solution, confirmed } = message.data;
+      //     if (confirmed) {
+      //       setErrorMessage(null);
+      //       setIsWaitingForSolution(false);
+      //       // sendVscodeMessage("applySolution", { solution });
+      //     }
+      //   }
+      //   break;
+      // }
+      // case "analysisStarted":
+      //   // setIsAnalyzing(true);
+      //   // setAnalysisMessage("Analysis started...");
+      //   // setErrorMessage(null);
+      //   break;
+      // case "analysisComplete":
+      //   // setIsAnalyzing(false);
+      //   // setAnalysisMessage("");
+      //   // setAnalysisResults(message.data || null);
+      //   break;
+      // case "analysisFailed":
+      // setIsAnalyzing(false);
+      // setAnalysisMessage("");
+      // setErrorMessage(`Analysis failed: ${message.message}`);
+      // break;
     }
   };
 
@@ -116,22 +135,33 @@ const AnalysisPage: React.FC = () => {
 
   return (
     <>
-      {serverRunning && (
+      {/* Show server-related state first */}
+      {isStartingServer && (
+        <Backdrop>
+          <div style={{ textAlign: "center", paddingTop: "15rem" }}>
+            <Spinner size="lg" />
+            <Title headingLevel="h2" size="lg">
+              Starting server...
+            </Title>
+          </div>
+        </Backdrop>
+      )}
+
+      {serverRunning && !isStartingServer && (
         <div style={{ display: "flex", justifyContent: "center" }}>
-          {" "}
-          {/* Add this line */}
           <Button
             variant={ButtonVariant.primary}
             onClick={startAnalysis}
             isLoading={isAnalyzing}
-            isDisabled={!serverRunning || isAnalyzing}
-            className={spacing.mtXl}
+            isDisabled={!serverRunning || isAnalyzing || isStartingServer}
+            className={spacing.mXl}
           >
             {isAnalyzing ? "Analyzing..." : "Run Analysis"}
           </Button>
         </div>
       )}
 
+      {/* Handle error message */}
       {errorMessage && (
         <AlertGroup isToast>
           <Alert
@@ -144,63 +174,69 @@ const AnalysisPage: React.FC = () => {
         </AlertGroup>
       )}
 
-      <div>
-        {isAnalyzing ? (
-          <ProgressIndicator progress={50} />
-        ) : hasViolations ? (
-          <ViolationIncidentsList
-            violations={violations}
-            focusedIncident={focusedIncident}
-            onIncidentSelect={handleIncidentSelect}
-            onGetSolution={(incident, violation) => {
-              setIsWaitingForSolution(true);
-              vscode.postMessage({
-                command: "getSolution",
-                incident,
-                violation,
-              });
-            }}
-            onGetAllSolutions={(selectedViolations) => {
-              setIsWaitingForSolution(true);
-              vscode.postMessage({
-                command: "getAllSolutions",
-                selectedViolations,
-              });
-            }}
-            compact={false}
-            expandedViolations={expandedViolations}
-            setExpandedViolations={setExpandedViolations}
-          />
-        ) : !serverRunning ? (
-          <EmptyState>
-            <Title headingLevel="h2" size="lg">
-              Server Not Running
-            </Title>
-            <EmptyStateBody>
-              The server is not running. Please start the server to run an analysis.
-            </EmptyStateBody>
-            <Button
-              className={spacing.mtMd}
-              variant={ButtonVariant.primary}
-              onClick={() => sendVscodeMessage("startServer", {})}
-            >
-              Start Server
-            </Button>
-          </EmptyState>
-        ) : (
-          <EmptyState>
-            <Title headingLevel="h2" size="lg">
-              {analysisResults?.length ? "No Violations Found" : "No Analysis Results"}
-            </Title>
-            <EmptyStateBody>
-              {analysisResults?.length
-                ? "Great job! Your analysis didn't find any violations."
-                : analysisMessage || "Run an analysis to see results here."}
-            </EmptyStateBody>
-          </EmptyState>
-        )}
-      </div>
+      {/* Show empty state if server is not running */}
+      {!serverRunning && !isStartingServer && (
+        <EmptyState>
+          <Title headingLevel="h2" size="lg">
+            Server Not Running
+          </Title>
+          <EmptyStateBody>
+            The server is not running. Please start the server to run an analysis.
+          </EmptyStateBody>
+          <Button
+            className={spacing.mtMd}
+            variant={ButtonVariant.primary}
+            onClick={() => sendVscodeMessage("startServer", {})}
+          >
+            Start Server
+          </Button>
+        </EmptyState>
+      )}
 
+      {/* Handle the analysis state */}
+      {serverRunning && !isStartingServer && !isAnalyzing && !hasViolations && (
+        <EmptyState>
+          <Title headingLevel="h2" size="lg">
+            {analysisResults?.length ? "No Violations Found" : "No Analysis Results"}
+          </Title>
+          <EmptyStateBody>
+            {analysisResults?.length
+              ? "Great job! Your analysis didn't find any violations."
+              : analysisMessage || "Run an analysis to see results here."}
+          </EmptyStateBody>
+        </EmptyState>
+      )}
+
+      {/* Show Progress or Violation List when analysis is in progress or results are available */}
+      {isAnalyzing && <ProgressIndicator progress={50} />}
+
+      {hasViolations && serverRunning && !isStartingServer && !isAnalyzing && (
+        <ViolationIncidentsList
+          violations={violations}
+          focusedIncident={focusedIncident}
+          onIncidentSelect={handleIncidentSelect}
+          onGetSolution={(incident, violation) => {
+            setIsWaitingForSolution(true);
+            vscode.postMessage({
+              command: "getSolution",
+              incident,
+              violation,
+            });
+          }}
+          onGetAllSolutions={(selectedViolations) => {
+            setIsWaitingForSolution(true);
+            vscode.postMessage({
+              command: "getAllSolutions",
+              selectedViolations,
+            });
+          }}
+          compact={false}
+          expandedViolations={expandedViolations}
+          setExpandedViolations={setExpandedViolations}
+        />
+      )}
+
+      {/* Waiting for solution confirmation */}
       {isWaitingForSolution && (
         <Backdrop>
           <div style={{ textAlign: "center", paddingTop: "15rem" }}>
