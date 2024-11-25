@@ -1,0 +1,57 @@
+- category: potential
+  customVariables: []
+  description: eureka
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-container-apps
+    - eureka
+  links:
+    - title: Azure Spring Apps - Enable Service Registration
+      url: https://learn.microsoft.com/azure/spring-apps/how-to-service-registration?pivots=programming-language-java
+    - title: Azure Spring Apps - Access Config Server and Service Registry
+      url: https://learn.microsoft.com/azure/spring-apps/how-to-access-data-plane-azure-ad-rbac
+    - title: Restricted configurations
+      url: http://aka.ms/spring-cloud-to-asa?pivots=sc-standard-tier#remove-restricted-configurations
+  ruleID: spring-boot-to-azure-eureka-01000
+  tag:
+    - Eureka
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: org\.springframework\.cloud\.spring-cloud-netflix-eureka.*
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: org\.springframework\.cloud\.spring-cloud-starter-netflix-eureka.*
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: com\.netflix\.eureka\..*
+- category: potential
+  customVariables: []
+  description: Explicit eureka connection info found in configuration file
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-container-apps
+    - eureka
+  links:
+    - title: Azure Spring Apps - Enable Service Registration
+      url: https://learn.microsoft.com/azure/spring-apps/how-to-service-registration?pivots=programming-language-java
+    - title: Azure Spring Apps - Access Config Server and Service Registry
+      url: https://learn.microsoft.com/azure/spring-apps/how-to-access-data-plane-azure-ad-rbac
+    - title: Restricted configurations
+      url: http://aka.ms/spring-cloud-to-asa?pivots=sc-standard-tier#remove-restricted-configurations
+  ruleID: spring-boot-to-azure-eureka-02000
+  tag:
+    - Eureka
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.(properties|yaml|yml)
+      pattern: eureka\.client\.(service-url|serviceUrl)

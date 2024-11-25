@@ -1,0 +1,123 @@
+- category: mandatory
+  customVariables: []
+  description: HttpOperationFailedException has moved from package org.apache.camel.http.common
+    to org.apache.camel.http.base
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.1+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_1.html#_camel_undertow
+  message: "`HttpOperationFailedException` has moved from package org.apache.camel.http.common
+    to org.apache.camel.http.base in Camel 3.1."
+  ruleID: classes-removed-camel31-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.http.common.HttpOperationFailedException
+- category: mandatory
+  customVariables: []
+  description: camel-jaxp component has been renamed to camel-xml-jaxp
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.1+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Renamed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_1.html
+  message: "`camel-jaxp` component has been renamed to camel-xml-jaxp in Apache Camel
+    3.1."
+  ruleID: xml-removed-camel31-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-jaxp
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-jaxp
+- category: optional
+  customVariables: []
+  description: The camel-management dependency has been removed from camel-spring-boot
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.1+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Renamed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_1.html#_spring_boot_jmx
+  message: The `camel-management` dependency has been removed from camel-spring-boot
+    - If you need JMX support with Camel Spring Boot, please add a dependency on org.apache.camel:camel-management
+  ruleID: xml-removed-camel31-00002
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: org\.apache\.camel\.springboot\..*
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: org\.apache\.camel\.springboot\..*
+- category: mandatory
+  customVariables: []
+  description:
+    org.apache.camel.http.common.cookie package has been renamed to org.apache.camel.http.base.cookie
+    and moved into the camel-http-base JAR*
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.1+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Renamed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_1.html#_cookies
+  message:
+    "`org.apache.camel.http.common.cookie` package has been renamed to org.apache.camel.http.base.cookie
+    and moved into the camel-http-base JAR"
+  ruleID: xml-moved-camel31-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.http.common.cookie*
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.tooling.util.JSonSchemaHelper class has been removed
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.1+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Renamed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_1.html#_jsonschemahelper_removed
+  message: "`org.apache.camel.tooling.util.JSonSchemaHelper` class has been removed
+    in Apache Camel 3.1. Instead you can use utils coming from camel-util-json and
+    the class org.apache.camel.tooling.util.PackageHelper."
+  ruleID: xml-moved-camel31-00002
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.http.common.HttpOperationFailedException
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.processor.validation.PredicateValidatingProcessor
+    class has been moved from camel-xml-jaxp JAR to camel-support JAR and renamed
+    to org.apache.camel.support.processor.PredicateValidatingProcessor
+  effort: 2
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.1+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Renamed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_1.html#_camel_xml_jaxp
+  message: "`org.apache.camel.processor.validation.PredicateValidatingProcessor` class
+    has been moved from camel-xml-jaxp JAR to camel-support JAR and renamed to org.apache.camel.support.processor."
+  ruleID: xml-moved-camel31-00003
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.processor.validation.PredicateValidatingProcessor

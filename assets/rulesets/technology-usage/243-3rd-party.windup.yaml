@@ -1,0 +1,228 @@
+- customVariables: []
+  description: Embedded framework - Liferay
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-01000
+  tag:
+    - Liferay
+    - Embedded framework - Liferay
+  when:
+    builtin.file:
+      pattern: .*liferay.*\.jar
+- customVariables: []
+  description: Embedded framework - Oracle Forms
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-02000
+  tag:
+    - Oracle Forms
+    - Embedded framework - Oracle Forms
+  when:
+    builtin.file:
+      pattern: .*frm.*\.jar
+- customVariables: []
+  description: Embedded framework - Spring Boot
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-03000
+  tag:
+    - Spring Boot
+    - Embedded framework - Spring Boot
+  when:
+    builtin.file:
+      pattern: spring-boot.*\.jar
+- customVariables: []
+  description: Embedded framework - Elasticsearch
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-04000
+  tag:
+    - Elasticsearch
+    - Embedded framework - Elasticsearch
+  when:
+    builtin.file:
+      pattern: .*elasticsearch.*\.jar
+- customVariables: []
+  description: Embedded framework - Logstash
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-05000
+  tag:
+    - Logstash
+    - Embedded framework - Logstash
+  when:
+    builtin.file:
+      pattern: .*logstash.*\.jar
+- customVariables: []
+  description: Embedded framework - Jetty
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-06000
+  tag:
+    - Jetty
+    - Embedded framework - Jetty
+  when:
+    builtin.file:
+      pattern: .*jetty.*\.jar
+- customVariables: []
+  description: Embedded framework - Tomcat
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-07000
+  tag:
+    - Tomcat
+    - Embedded framework - Tomcat
+  when:
+    builtin.file:
+      pattern: .*tomcat.*\.jar
+- customVariables: []
+  description: Embedded framework - Kibana
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-08000
+  tag:
+    - Kibana
+    - Embedded framework - Kibana
+  when:
+    builtin.file:
+      pattern: .*kibana.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache Karaf
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-09000
+  tag:
+    - Apache Karaf
+    - Embedded framework - Apache Karaf
+  when:
+    builtin.file:
+      pattern: .*karaf.*\.jar
+- customVariables: []
+  description: Embedded framework - Neo4j
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-10000
+  tag:
+    - Neo4j
+    - Embedded framework - Neo4j
+  when:
+    builtin.file:
+      pattern: .*neo4j.*\.jar
+- customVariables: []
+  description: Embedded framework - Spark
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-11000
+  tag:
+    - Spark
+    - Embedded framework - Spark
+  when:
+    builtin.file:
+      pattern: .*spark-.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache Hadoop
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-12000
+  tag:
+    - Apache Hadoop
+    - Embedded framework - Apache Hadoop
+  when:
+    builtin.file:
+      pattern: .*hadoop.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache Geronimo
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-13000
+  tag:
+    - Apache Geronimo
+    - Embedded framework - Apache Geronimo
+  when:
+    builtin.file:
+      pattern: .*geronimo.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache Aries
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-14000
+  tag:
+    - Apache Aries
+    - Embedded framework - Apache Aries
+  when:
+    builtin.file:
+      pattern: .*aries.*\.jar
+- customVariables: []
+  description: Embedded framework - Cloudera
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-15000
+  tag:
+    - Cloudera
+    - Embedded framework - Cloudera
+  when:
+    builtin.file:
+      pattern: .*cloudera.*\.jar
+- customVariables: []
+  description: Embedded framework - MapR
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-16000
+  tag:
+    - MapR
+    - Embedded framework - MapR
+  when:
+    builtin.file:
+      pattern: .*mapr.*\.jar
+- customVariables: []
+  description: Embedded framework - TensorFlow
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-17000
+  tag:
+    - TensorFlow
+    - Embedded framework - TensorFlow
+  when:
+    builtin.file:
+      pattern: .*tensorflow.*\.jar
+- customVariables: []
+  description: Embedded framework - Weka
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-18000
+  tag:
+    - Weka
+    - Embedded framework - Weka
+  when:
+    builtin.file:
+      pattern: .*weka.*\.jar
+- customVariables: []
+  description: Embedded framework - Apache Mahout
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: 3rd-party-19000
+  tag:
+    - Apache Mahout
+    - Embedded framework - Apache Mahout
+  when:
+    builtin.file:
+      pattern: .*mahout.*\.jar

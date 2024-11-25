@@ -13,11 +13,11 @@ await ensureDir(DOWNLOAD_DIR);
 // Download Kai assets
 await downloadGitHubRelease({
   targetDirectory: join(DOWNLOAD_DIR, "kai/"),
-  metaFile: join(DOWNLOAD_DIR, "collect.json"),
+  metaFile: join(DOWNLOAD_DIR, "kai", "collect.json"),
 
   org: "konveyor",
   repo: "kai",
-  releaseTag: "v0.0.1",
+  releaseTag: "v0.0.2",
 
   /*
     Release asset filenames and nodejs equivalent platform/arch
@@ -32,7 +32,7 @@ await downloadGitHubRelease({
   ],
 });
 
-// Download JDT.LS
+// Download jdt.ls
 // Base release url: https://download.eclipse.org/jdtls/milestones/1.38.0/
 await downloadAndExtractTarGz({
   targetDirectory: join(DOWNLOAD_DIR, "jdt.ls-1.38.0/"),

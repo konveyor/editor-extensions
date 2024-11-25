@@ -52,8 +52,12 @@ const commandsMap: (state: ExtensionState) => {
         return;
       }
 
-      await analyzerClient.start();
-      await analyzerClient.initialize();
+      try {
+        await analyzerClient.start();
+        await analyzerClient.initialize();
+      } catch (e) {
+        console.error("Could not start the analyzer", e);
+      }
     },
     "konveyor.runAnalysis": async () => {
       console.log("run analysis command called");

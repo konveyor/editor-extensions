@@ -1,0 +1,189 @@
+- customVariables: []
+  description: Embedded technology - Java Server Faces
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: web-01000
+  tag:
+    - JSF
+    - Embedded technology - Java Server Faces
+  when:
+    builtin.filecontent:
+      filePattern: .*\.(jsp|xhtml|jspx)
+      pattern: (java\.sun\.com/jsf/)|(xmlns\.jcp\.org/jsf)
+- customVariables: []
+  description: Embedded technology - Java Server Pages
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01100
+  tag:
+    - JSP
+    - Embedded technology - Java Server Pages
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.(jsp|jspx|tag|tagx)
+          pattern: <%@\s*page\s+[^>]*\s*import\s*=\s*['"]([^'"]+)['"].*?%>
+      - builtin.filecontent:
+          filePattern: .*\.(jsp|jspx|tag|tagx)
+          pattern: <%@\s*taglib\s+[^>]*\s*uri\s*=\s*['"]([^'"]+)['"].*?%>
+- customVariables: []
+  description: Embedded technology - WebSocket
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01300
+  tag:
+    - WebSocket
+    - Embedded technology - WebSocket
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: javax.websocket.server.ServerEndpoint
+- customVariables: []
+  description: Embedded technology - Applet
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01400
+  tag:
+    - Applet
+    - Embedded technology - Applet
+  when:
+    or:
+      - java.referenced:
+          location: INHERITANCE
+          pattern: java.applet.Applet
+      - builtin.file:
+          pattern: .*applet.*\.jar
+- customVariables: []
+  description: Embedded technology - JNLP
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01500
+  tag:
+    - JNLP
+    - Embedded technology - JNLP
+  when:
+    builtin.file:
+      pattern: .*\.jnlp
+- customVariables: []
+  description: Embedded technology - JNLP
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01600
+  tag:
+    - JNLP
+    - Embedded technology - JNLP
+  when:
+    or:
+      - builtin.file:
+          pattern: .*jnlp.*\.jar
+      - builtin.file:
+          pattern: .*webstart.*\.jar
+- customVariables: []
+  description: Embedded technology - Swing
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01700
+  tag:
+    - Swing
+    - Embedded technology - Swing
+  when:
+    builtin.file:
+      pattern: .*swing.*\.jar
+- customVariables: []
+  description: Embedded technology - MiGLayout
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01800
+  tag:
+    - MiGLayout
+    - Embedded technology - MiGLayout
+  when:
+    builtin.file:
+      pattern: .*miglayout.*\.jar
+- customVariables: []
+  description: Embedded technology - JGoodies
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-01900
+  tag:
+    - JGoodies
+    - Embedded technology - JGoodies
+  when:
+    builtin.file:
+      pattern: .*jgoodies.*\.jar
+- customVariables: []
+  description: Embedded technology - FormLayoutMaker
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02000
+  tag:
+    - FormLayoutMaker
+    - Embedded technology - FormLayoutMaker
+  when:
+    builtin.file:
+      pattern: .*formlayoutmakerx.*\.jar
+- customVariables: []
+  description: Embedded technology - MagicGroupLayout
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02100
+  tag:
+    - Magicgrouplayout
+    - Embedded technology - MagicGroupLayout
+  when:
+    builtin.file:
+      pattern: .*magicgrouplayout.*\.jar
+- customVariables: []
+  description: Embedded technology - Standard Widget Toolkit (SWT)
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02200
+  tag:
+    - SWT
+    - Embedded technology - Standard Widget Toolkit (SWT)
+  when:
+    builtin.file:
+      pattern: .*swt.*\.jar
+- customVariables: []
+  description: Embedded technology - JavaFX
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02300
+  tag:
+    - JavaFX
+    - Embedded technology - JavaFX
+  when:
+    builtin.file:
+      pattern: .*javafx.*\.jar
+- customVariables: []
+  description: Embedded technology - Eclipse RCP
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-web-02400
+  tag:
+    - Eclipse RCP
+    - Embedded technology - Eclipse RCP
+  when:
+    or:
+      - builtin.file:
+          pattern: rcp.*\.jar
+      - builtin.file:
+          pattern: .*eclipse\.rcp.*\.jar
+      - builtin.file:
+          pattern: .*eclipse.*runtime.*\.jar
+      - builtin.file:
+          pattern: .*eclipse\.ui.*\.jar

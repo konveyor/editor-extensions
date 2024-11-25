@@ -1,0 +1,73 @@
+- category: potential
+  customVariables: []
+  description: Kafka connection string, username or password found in configuration
+    file
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - message queue
+    - kafka
+  links:
+    - title: Spring Boot app to Kafka on Confluent Cloud
+      url: https://learn.microsoft.com/azure/service-connector/tutorial-java-spring-confluent-kafka
+  ruleID: spring-boot-to-azure-mq-config-kafka-01000
+  tag:
+    - Kafka Client
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.(properties|yaml|yml)
+      pattern: kafka\.(.*\.)?(properties\.)?(bootstrap[\.-]servers|sasl\.jaas\.config|schema\.registry)
+- category: potential
+  customVariables: []
+  description: RabbitMQ connection string, username or password found in configuration
+    file
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - message queue
+    - RabbitMQ Client
+  links:
+    - title: Service connection in Azure Spring Apps
+      url: https://learn.microsoft.com/azure/service-connector/quickstart-portal-spring-cloud-connection
+  message: |-
+    The application uses a RabbitMQ connection string, username, or password.
+
+     Consider using Azure Event Grid/Azure Event Hubs/Azure Service Bus or Apache Kafka on Confluent Cloud and connect it with Service Connector
+  ruleID: spring-boot-to-azure-mq-config-rabbitmq-01000
+  tag:
+    - RabbitMQ Client
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.(properties|yaml|yml)
+      pattern: rabbitmq\.(.*\.)?(addresses|host|virtual-host|username|password)
+- category: potential
+  customVariables: []
+  description: ActiveMQ Artemis connection string, username or password found in configuration
+    file
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - message queue
+    - ActiveMQ
+  links:
+    - title: Service connection in Azure Spring Apps
+      url: https://learn.microsoft.com/azure/service-connector/quickstart-portal-spring-cloud-connection
+  ruleID: spring-boot-to-azure-mq-config-artemis-01000
+  tag:
+    - ActiveMQ
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.(properties|yaml|yml)
+      pattern: artemis\.(broker-url|user|password)

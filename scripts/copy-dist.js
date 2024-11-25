@@ -16,12 +16,23 @@ await copy({
        * package.json needs some changes when packaging in `dist/`
        *   - Remove dependencies since they are already bundled by vscode's bundler
        *   - Remove sections that are not relevant
+       *   - Adjust included asset paths based on copy targets
        */
       transform: (contents) => {
         const packageJson = JSON.parse(contents.toString());
         packageJson.dependencies = undefined;
         packageJson.devDependencies = undefined;
         packageJson["lint-staged"] = undefined;
+
+        packageJson.includedAssetPaths = {
+          kai: "./assets/kai",
+          jdtls: "./assets/jdtls",
+          jdtlsBundles: "./assets/jdtls-bundles",
+          fernFlowerPath: "./assets/fernflower/fernflower.jar",
+          openSourceLabelsFile: "./assets/opensource-labels-file/maven.default.index",
+          rulesets: "./assets/rulesets",
+        };
+
         return JSON.stringify(packageJson, null, 2);
       },
     },
@@ -49,17 +60,24 @@ await copy({
       dest: "dist/out/webview/",
     },
 
-    // seed assets (binaries and analyzer rulesets)
+    // seed assets - rulesets, jdtls bundles, fernflower
     {
-      context: "vscode/",
-      src: "assets/rulesets/**/*",
+      src: "assets/**/*",
       dest: "dist/",
     },
+
+    // seed assets - jdt.ls v1.38.0
     {
-      context: "vscode/",
-      src: "assets/bin/**/*",
-      dest: "dist/",
+      context: "downloaded_assets/jdt.ls-1.38.0",
+      src: ["**/*", "!*.tar.gz"],
+      dest: "dist/assets/jdtls",
     },
-    // TODO: replace the repo analyzer binaries with the kai binaries
+
+    // seed assets - kai binaries
+    {
+      context: "downloaded_assets/kai",
+      src: ["**/*", "!**/*.zip"],
+      dest: "dist/assets/kai",
+    },
   ],
 });

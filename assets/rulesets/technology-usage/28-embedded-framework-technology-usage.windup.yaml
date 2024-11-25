@@ -1,0 +1,924 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01000
+  tag:
+    - Connect=Axis
+    - Embedded=Axis
+    - Web Service=Axis
+  when:
+    builtin.hasTags:
+      - Apache Axis
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01010
+  tag:
+    - Connect=Axis2
+    - Embedded=Axis2
+    - Web Service=Axis2
+  when:
+    builtin.hasTags:
+      - Apache Axis2
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01100
+  tag:
+    - Connect=CXF
+    - Embedded=CXF
+    - Web Service=CXF
+  when:
+    builtin.hasTags:
+      - Apache CXF
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01200
+  tag:
+    - Connect=XFire
+    - Embedded=XFire
+    - Web Service=XFire
+  when:
+    builtin.hasTags:
+      - XFire
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01300
+  tag:
+    - Connect=Jersey
+    - Embedded=Jersey
+    - REST=Jersey
+  when:
+    builtin.hasTags:
+      - Jersey
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01400
+  tag:
+    - Connect=Unirest
+    - Embedded=Unirest
+    - REST=Unirest
+  when:
+    builtin.hasTags:
+      - Unirest
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01500
+  tag:
+    - Store=Hibernate
+    - Embedded=Hibernate
+    - Object Mapping=Hibernate
+  when:
+    builtin.hasTags:
+      - Hibernate
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01600
+  tag:
+    - Store=Hibernate OGM
+    - Embedded=Hibernate OGM
+    - Object Mapping=Hibernate OGM
+  when:
+    builtin.hasTags:
+      - Hibernate OGM
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-01700
+  tag:
+    - Store=EclipseLink
+    - Embedded=EclipseLink
+    - Object Mapping=EclipseLink
+  when:
+    builtin.hasTags:
+      - EclipseLink
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-02000
+  tag:
+    - Execute=Spring Batch
+    - Embedded=Spring Batch
+    - Processing=Spring Batch
+  when:
+    builtin.hasTags:
+      - Spring Batch
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-02100
+  tag:
+    - Execute=Spring
+    - Embedded=Spring
+    - Inversion of Control=Spring
+  when:
+    builtin.hasTags:
+      - Spring
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-02200
+  tag:
+    - Execute=AspectJ
+    - Embedded=AspectJ
+    - Inversion of Control=AspectJ
+  when:
+    builtin.hasTags:
+      - AspectJ
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-02300
+  tag:
+    - Execute=JBPM
+    - Embedded=JBPM
+    - Rules and Processes=JBPM
+  when:
+    builtin.hasTags:
+      - JBPM
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-02400
+  tag:
+    - Execute=iLog
+    - Embedded=iLog
+    - Rules and Processes=iLog
+  when:
+    builtin.hasTags:
+      - iLog
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-02700
+  tag:
+    - Store=ehcache
+    - Embedded=ehcache
+    - Caching=ehcache
+  when:
+    builtin.hasTags:
+      - Ehcache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-02800
+  tag:
+    - Store=infinispan
+    - Embedded=infinispan
+    - Caching=infinispan
+  when:
+    builtin.hasTags:
+      - Infinispan
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-02900
+  tag:
+    - Execute=Drools
+    - Embedded=Drools
+    - Rules and Processes=Drools
+  when:
+    builtin.hasTags:
+      - Drools
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03000
+  tag:
+    - Execute=Camunda
+    - Embedded=Camunda
+    - Rules and Processes=Camunda
+  when:
+    builtin.hasTags:
+      - Camunda
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03100
+  tag:
+    - Execute=Pega
+    - Embedded=Pega
+    - Rules and Processes=Pega
+  when:
+    builtin.hasTags:
+      - Pega
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03200
+  tag:
+    - Execute=Blaze
+    - Embedded=Blaze
+    - Rules and Processes=Blaze
+  when:
+    builtin.hasTags:
+      - Blaze
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03300
+  tag:
+    - Execute=MRules
+    - Embedded=MRules
+    - Rules and Processes=MRules
+  when:
+    builtin.hasTags:
+      - MRules
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03400
+  tag:
+    - Execute=Easy Rules
+    - Embedded=Easy Rules
+    - Rules and Processes=Easy Rules
+  when:
+    builtin.hasTags:
+      - Easy Rules
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03500
+  tag:
+    - Store=Coherence
+    - Embedded=Coherence
+    - Caching=Coherence
+  when:
+    builtin.hasTags:
+      - Coherence
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03600
+  tag:
+    - Store=Apache Commons JCS
+    - Embedded=Apache Commons JCS
+    - Caching=Apache Commons JCS
+  when:
+    builtin.hasTags:
+      - Apache Commons JCS
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03700
+  tag:
+    - Store=Dynacache
+    - Embedded=Dynacache
+    - Caching=Dynacache
+  when:
+    builtin.hasTags:
+      - Dynacache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03800
+  tag:
+    - Store=Cache API
+    - Embedded=Cache API
+    - Caching=Cache API
+  when:
+    builtin.hasTags:
+      - Cache API
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-03900
+  tag:
+    - Store=Hazelcast
+    - Embedded=Hazelcast
+    - Caching=Hazelcast
+  when:
+    builtin.hasTags:
+      - Hazelcast
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04000
+  tag:
+    - Store=Apache Ignite
+    - Embedded=Apache Ignite
+    - Caching=Apache Ignite
+  when:
+    builtin.hasTags:
+      - Apache Ignite
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04100
+  tag:
+    - Store=JBoss Cache
+    - Embedded=JBoss Cache
+    - Caching=JBoss Cache
+  when:
+    builtin.hasTags:
+      - JBoss Cache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04200
+  tag:
+    - Store=JCache
+    - Embedded=JCache
+    - Caching=JCache
+  when:
+    builtin.hasTags:
+      - JCache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04300
+  tag:
+    - Store=Memcached
+    - Embedded=Memcached
+    - Caching=Memcached
+  when:
+    builtin.hasTags:
+      - Memcached client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04400
+  tag:
+    - Store=Oscache
+    - Embedded=Oscache
+    - Caching=Oscache
+  when:
+    builtin.hasTags:
+      - Oscache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04500
+  tag:
+    - Store=ShiftOne
+    - Embedded=ShiftOne
+    - Caching=ShiftOne
+  when:
+    builtin.hasTags:
+      - ShiftOne
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-04600
+  tag:
+    - Store=SwarmCache
+    - Embedded=SwarmCache
+    - Caching=SwarmCache
+  when:
+    builtin.hasTags:
+      - SwarmCache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-04700
+  tag:
+    - Execute=AOP Alliance
+    - Embedded=AOP Alliance
+    - Inversion of Control=AOP Alliance
+  when:
+    builtin.hasTags:
+      - AOP Alliance
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05000
+  tag:
+    - Connect=SNMP4J
+    - Embedded=SNMP4J
+    - Other=SNMP4J
+  when:
+    builtin.hasTags:
+      - SNMP4J
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05100
+  tag:
+    - Connect=HTTP Client
+    - Embedded=HTTP Client
+    - Other=HTTP Client
+  when:
+    builtin.hasTags:
+      - HTTP Client
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05300
+  tag:
+    - Execute=Javax Inject
+    - Embedded=Javax Inject
+    - Inversion of Control=Javax Inject
+  when:
+    builtin.hasTags:
+      - Javax Inject
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05400
+  tag:
+    - Execute=Google Guice
+    - Embedded=Google Guice
+    - Inversion of Control=Google Guice
+  when:
+    builtin.hasTags:
+      - Google Guice
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05600
+  tag:
+    - Execute=Plexus Container
+    - Embedded=Plexus Container
+    - Inversion of Control=Plexus Container
+  when:
+    builtin.hasTags:
+      - Plexus Container
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05700
+  tag:
+    - Execute=Weld
+    - Embedded=Weld
+    - Inversion of Control=Weld
+  when:
+    builtin.hasTags:
+      - Weld
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05800
+  tag:
+    - Execute=Dagger
+    - Embedded=Dagger
+    - Inversion of Control=Dagger
+  when:
+    builtin.hasTags:
+      - Dagger
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-05900
+  tag:
+    - Execute=GIN
+    - Embedded=GIN
+    - Inversion of Control=GIN
+  when:
+    builtin.hasTags:
+      - GIN
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06000
+  tag:
+    - Execute=PicoContainer
+    - Embedded=PicoContainer
+    - Inversion of Control=PicoContainer
+  when:
+    builtin.hasTags:
+      - PicoContainer
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06100
+  tag:
+    - Execute=Scaldi
+    - Embedded=Scaldi
+    - Inversion of Control=Scaldi
+  when:
+    builtin.hasTags:
+      - Scaldi
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06200
+  tag:
+    - Execute=Macros
+    - Embedded=Macros
+    - Inversion of Control=Macros
+  when:
+    builtin.hasTags:
+      - Macros
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06300
+  tag:
+    - Execute=Injekt for Kotlin
+    - Embedded=Injekt for Kotlin
+    - Inversion of Control=Injekt for Kotlin
+  when:
+    builtin.hasTags:
+      - Injekt for Kotlin
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06400
+  tag:
+    - Execute=Kodein
+    - Embedded=Kodein
+    - Inversion of Control=Kodein
+  when:
+    builtin.hasTags:
+      - Kodein
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06500
+  tag:
+    - Execute=Peaberry
+    - Embedded=Peaberry
+    - Inversion of Control=Peaberry
+  when:
+    builtin.hasTags:
+      - Peaberry
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06600
+  tag:
+    - Execute=Sticky Configured
+    - Embedded=Sticky Configured
+    - Inversion of Control=Sticky Configured
+  when:
+    builtin.hasTags:
+      - Sticky Configured
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06700
+  tag:
+    - Execute=Ka DI
+    - Embedded=Ka DI
+    - Inversion of Control=Ka DI
+  when:
+    builtin.hasTags:
+      - Ka DI
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06800
+  tag:
+    - Execute=Polyforms DI
+    - Embedded=Polyforms DI
+    - Inversion of Control=Polyforms DI
+  when:
+    builtin.hasTags:
+      - Polyforms DI
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-06900
+  tag:
+    - Execute=JayWire
+    - Embedded=JayWire
+    - Inversion of Control=JayWire
+  when:
+    builtin.hasTags:
+      - JayWire
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07000
+  tag:
+    - Execute=Silk DI
+    - Embedded=Silk DI
+    - Inversion of Control=Silk DI
+  when:
+    builtin.hasTags:
+      - Silk DI
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07100
+  tag:
+    - Execute=Grapht DI
+    - Embedded=Grapht DI
+    - Inversion of Control=Grapht DI
+  when:
+    builtin.hasTags:
+      - Grapht DI
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07200
+  tag:
+    - Execute=Syringe
+    - Embedded=Syringe
+    - Inversion of Control=Syringe
+  when:
+    builtin.hasTags:
+      - Syringe
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07300
+  tag:
+    - Execute=Cfg Engine
+    - Embedded=Cfg Engine
+    - Inversion of Control=Cfg Engine
+  when:
+    builtin.hasTags:
+      - Cfg Engine
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07400
+  tag:
+    - Execute=BeanInject
+    - Embedded=BeanInject
+    - Inversion of Control=BeanInject
+  when:
+    builtin.hasTags:
+      - BeanInject
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07500
+  tag:
+    - Execute=Tornado Inject
+    - Embedded=Tornado Inject
+    - Inversion of Control=Tornado Inject
+  when:
+    builtin.hasTags:
+      - Tornado Inject
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07600
+  tag:
+    - Execute=Airframe
+    - Embedded=Airframe
+    - Inversion of Control=Airframe
+  when:
+    builtin.hasTags:
+      - Airframe
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07700
+  tag:
+    - Execute=Winter
+    - Embedded=Winter
+    - Inversion of Control=Winter
+  when:
+    builtin.hasTags:
+      - Winter
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07800
+  tag:
+    - Execute=KouInject
+    - Embedded=KouInject
+    - Inversion of Control=KouInject
+  when:
+    builtin.hasTags:
+      - KouInject
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-07900
+  tag:
+    - Execute=Iroh
+    - Embedded=Iroh
+    - Inversion of Control=Iroh
+  when:
+    builtin.hasTags:
+      - Iroh
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08000
+  tag:
+    - Execute=Micro DI
+    - Embedded=Micro DI
+    - Inversion of Control=Micro DI
+  when:
+    builtin.hasTags:
+      - Micro DI
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08100
+  tag:
+    - Execute=SubCut
+    - Embedded=SubCut
+    - Inversion of Control=SubCut
+  when:
+    builtin.hasTags:
+      - SubCut
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08200
+  tag:
+    - Execute=Spring DI
+    - Embedded=Spring DI
+    - Inversion of Control=Spring DI
+  when:
+    builtin.hasTags:
+      - Spring DI
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08300
+  tag:
+    - Execute=Micrometer
+    - Embedded=Micrometer
+    - Integration=Micrometer
+  when:
+    builtin.hasTags:
+      - Micrometer
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08400
+  tag:
+    - View=Spring Web
+    - Web=Spring Web
+    - Embedded=Spring Web
+  when:
+    builtin.hasTags:
+      - Spring Web
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08500
+  tag:
+    - Store=Spring Boot Cache
+    - Caching=Spring Boot Cache
+    - Embedded=Spring Boot Cache
+  when:
+    builtin.hasTags:
+      - Spring Boot Cache
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08600
+  tag:
+    - Execute=Spring Shell
+    - Utilities=Spring Shell
+    - Embedded=Spring Shell
+  when:
+    builtin.hasTags:
+      - Spring Shell
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08700
+  tag:
+    - Execute=Spring Scheduled
+    - Processing=Spring Scheduled
+    - Embedded=Spring Scheduled
+  when:
+    builtin.hasTags:
+      - Spring Scheduled
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08800
+  tag:
+    - Execute=Spring Cloud Function
+    - Serverless / FAAS=Spring Cloud Function
+    - Embedded=Spring Cloud Function
+  when:
+    builtin.hasTags:
+      - Spring Cloud Function
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-08900
+  tag:
+    - Execute=Quartz
+    - Processing=Quartz
+    - Embedded=Quartz
+  when:
+    builtin.hasTags:
+      - Quartz
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-09000
+  tag:
+    - Execute=Feign
+    - Processing=Feign
+    - Embedded=Feign
+  when:
+    builtin.hasTags:
+      - Feign
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-embedded-framework-09100
+  tag:
+    - Execute=Zipkin
+    - Observability=Zipkin
+    - Embedded=Zipkin
+  when:
+    builtin.hasTags:
+      - Zipkin
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-09200
+  tag:
+    - Store=Redis
+    - Embedded=Redis
+    - Caching=Redis
+  when:
+    builtin.hasTags:
+      - Redis
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: embedded-framework-embedded-framework-09300
+  tag:
+    - Execute=Eureka
+    - Processing=Eureka
+    - Embedded=Eureka
+  when:
+    builtin.hasTags:
+      - Eureka

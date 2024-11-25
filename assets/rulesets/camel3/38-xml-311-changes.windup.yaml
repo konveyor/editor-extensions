@@ -1,0 +1,83 @@
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel:camel-apns component has been retired
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.11+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_11.html#_camel_apns
+  message: "`org.apache.camel:camel-apns` component has been retired in Apache Camel
+    3.11. APNS (Apple Push Network System) has been retired by Apple."
+  ruleID: xml-removed-camel311-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-apns
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-apns
+- category: optional
+  customVariables: []
+  description: org.apache.camel:camel-saxon artifact has been removed
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.11+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Changed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_11.html#_camel_saxon
+  message: "`org.apache.camel:camel-saxon` no longer depends on camel-saxon-xslt in
+    3.11. Any application that needs to do xslt transformation with saxon should now
+    declare an explicit dependency on camel-saxon-xslt."
+  ruleID: xml-changed-camel311-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-saxon
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-saxon
+- category: mandatory
+  customVariables: []
+  description: camel.component.consul.service-registry configuration key has been
+    renamed to camel.cloud.consul
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.11+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_11.html#_spring_boot_starters
+  message: "`camel.component.consul.service-registry` configuration key has been renamed
+    to camel.cloud.consul."
+  ruleID: properties-removed-camel311-00001
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: camel.component.consul.service-registry..*=.*
+- category: mandatory
+  customVariables: []
+  description: camel.cloud.consul.service-registry configuration key has been renamed
+    to camel.cloud.consul
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.11+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Spring Boot Starters"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_11.html#_spring_boot_starters
+  message: "`camel.cloud.consul.service-registry` configuration key has been renamed
+    to camel.cloud.consul."
+  ruleID: properties-removed-camel311-00002
+  when:
+    builtin.filecontent:
+      filePattern: .*\.properties
+      pattern: camel.cloud.consul.service-registry=.*

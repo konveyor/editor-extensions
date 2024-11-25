@@ -1,0 +1,27 @@
+- category: mandatory
+  customVariables: []
+  description: "JTA: JOTM usage"
+  effort: 5
+  labels:
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - konveyor.io/source
+    - transactions
+    - jta
+  links:
+    - title: JBoss EAP 7.1. JTA documentation
+      url: https://access.redhat.com/documentation/en-us/red_hat_jboss_enterprise_application_platform/7.1/html/development_guide/java_transaction_api_jta
+    - title: Using transaction services by JTOM on EAP 6
+      url: https://access.redhat.com/solutions/1217863
+  message: "The modules required by JOTM's JTA implementation are not loaded by default
+    on EAP6+.\n This likely results in a \"java.lang.NoClassDefFoundError: sun/rmi/server/UnicastServerRef\"
+    exception when it is deployed.\n\n To solve this issue it is highly recommended
+    to use JTA provided by JBoss EAP since JOTM is not maintained anymore. \n \n If
+    you want to stick with JOTM, you can add \"sun/rmi/server\" as system export in
+    your applications deployment-structure.xml as described in [this knowledge base
+    article](https://access.redhat.com/solutions/1217863)."
+  ruleID: jotm-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.objectweb.jotm*

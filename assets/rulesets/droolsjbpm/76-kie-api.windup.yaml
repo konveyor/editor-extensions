@@ -1,0 +1,357 @@
+- customVariables: []
+  description: org.drools.KnowledgeBase is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.KieBase"
+  ruleID: kie-api-01000
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.KnowledgeBase
+- customVariables: []
+  description: org.drools.event.AgendaEventListener is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.event.rule.AgendaEventListener"
+  ruleID: kie-api-01001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.event.AgendaEventListener
+- customVariables: []
+  description: AgendaEventListener is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.event.rule.AgendaEventListener"
+  ruleID: kie-api-01002
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.event.rule.AgendaEventListener
+- customVariables: []
+  description: org.drools.event.DefaultAgendaEventListener is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.drools.core.event.DefaultAgendaEventListener"
+  ruleID: kie-api-01003
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.event.DefaultAgendaEventListener
+- customVariables: []
+  description: org.drools.event.rule.DefaultAgendaEventListener is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.event.rule.DefaultAgendaEventListener"
+  ruleID: kie-api-01004
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.event.rule.DefaultAgendaEventListener
+- customVariables: []
+  description: org.drools.event.process.ProcessEventListener is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.event.process.ProcessEventListener"
+  ruleID: kie-api-01005
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.event.process.ProcessEventListener
+- customVariables: []
+  description: org.drools.event.process.DefaultProcessEventListener is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.event.process.DefaultProcessEventListener"
+  ruleID: kie-api-01006
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.event.process.DefaultProcessEventListener
+- customVariables: []
+  description: org.drools.logger.KnowledgeRuntimeLogger is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.logger.KieRuntimeLogger"
+  ruleID: kie-api-01007
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.logger.KnowledgeRuntimeLogger
+- customVariables: []
+  description: org.drools.logger.KnowledgeRuntimeLoggerFactory is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.logger.KieLoggers"
+  ruleID: kie-api-01008
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.logger.KnowledgeRuntimeLoggerFactory
+- customVariables: []
+  description: org.drools.runtime.StatefulKnowledgeSession is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.runtime.KieSession"
+  ruleID: kie-api-01009
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.runtime.StatefulKnowledgeSession
+- customVariables: []
+  description: org.drools.runtime.StatelessKnowledgeSession is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.runtime.KieSession"
+  ruleID: kie-api-01010
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.runtime.StatelessKnowledgeSession
+- customVariables: []
+  description: org.drools.builder.KnowledgeBuilderFactory is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.internal.builder.KnowledgeBuilderFactory"
+  ruleID: kie-api-01011
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.builder.KnowledgeBuilderFactory
+- customVariables: []
+  description: org.drools.io.ResourceFactory is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.internal.io.ResourceFactory"
+  ruleID: kie-api-01012
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.io.ResourceFactory
+- customVariables: []
+  description: org.drools.io.ResourceType is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.internal.io.ResourceType"
+  ruleID: kie-api-01013
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.io.ResourceType
+- customVariables: []
+  description: org.drools.runtime.Environment is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.runtime.Environment"
+  ruleID: kie-api-01014
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.runtime.Environment
+- customVariables: []
+  description: org.drools.runtime.EnvironmentName is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.runtime.EnvironmentName"
+  ruleID: kie-api-01015
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.runtime.EnvironmentName
+- customVariables: []
+  description: org.drools.runtime.KnowledgeSessionConfiguration is deprecated
+  effort: 0
+  labels:
+    - konveyor.io/source=drools5
+    - konveyor.io/source=drools
+    - konveyor.io/source=jbpm5
+    - konveyor.io/source=jbpm
+    - konveyor.io/target=drools6+
+    - konveyor.io/target=drools
+    - konveyor.io/target=jbpm6+
+    - konveyor.io/target=jbpm
+    - drools
+    - jbpm
+  links: []
+  message: "Replace with : org.kie.api.runtime.KieSessionConfiguration"
+  ruleID: kie-api-01016
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.drools.runtime.KnowledgeSessionConfiguration

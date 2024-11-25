@@ -1,0 +1,424 @@
+- category: mandatory
+  customVariables: []
+  description: "[camel-telegram] Authorization token parameter required!"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: telegram"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_telegram
+  message: Authorization token was moved from uri-path to a query parameter. Use `telegram:bots?authorizationToken=myTokenHere`.
+  ruleID: component-changes-00001
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: (telegram:)(?!.*authorizationToken.*)
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:route/*[contains(@uri ,'telegram') and not(contains(@uri,'authorizationToken'))]
+- category: mandatory
+  customVariables: []
+  description: Shiro - default encryption key was removed
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: shiro_component"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_shiro_component
+  message: It's mandatory to specify key/passphrase for `ShiroSecurityPolicy`.
+  ruleID: component-changes-00002
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.component.shiro.security.ShiroSecurityPolicy*
+- category: mandatory
+  customVariables: []
+  description: Mock API function has been removed
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: out_message_removed_from_simple_language_and_mock_component"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_out_message_removed_from_simple_language_and_mock_component
+  message: "`{{method}}` has been removed from the mock component's assertion api."
+  ruleID: component-changes-00003
+  when:
+    builtin.filecontent:
+      filePattern: .*\.java
+      pattern: .*.(outBody|outHeaders).*
+- category: mandatory
+  customVariables: []
+  description: "@OutHeaders annotation has been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: out_message_removed_from_simple_language_and_mock_component"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_out_message_removed_from_simple_language_and_mock_component
+  message: "`@OutHeaders` annotation has been removed. Use `@Headers` instead"
+  ruleID: component-changes-00004
+  when:
+    or:
+      - java.referenced:
+          location: ANNOTATION
+          pattern: org.apache.camel.OutHeaders
+      - java.referenced:
+          location: IMPORT
+          pattern: org.apache.camel.OutHeaders
+- category: mandatory
+  customVariables: []
+  description: "Simple language: out.body/out.header have been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: out_message_removed_from_simple_language_and_mock_component"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_out_message_removed_from_simple_language_and_mock_component
+  message: out.body/out.header has been removed from simple language
+  ruleID: component-changes-00005
+  when:
+    builtin.xml:
+      namespaces:
+        c: http://camel.apache.org/schema/spring
+      xpath: //*/c:simple[text()=matches(self::node(), '{*}out.(body|header){*}')]
+- category: mandatory
+  customVariables: []
+  description: "Simple language: out.body/out.header have been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: out_message_removed_from_simple_language_and_mock_component"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_out_message_removed_from_simple_language_and_mock_component
+  message: out.body/out.header has been removed from simple language
+  ruleID: component-changes-00006
+  when:
+    builtin.xml:
+      namespaces:
+        b: http://camel.apache.org/schema/blueprint
+      xpath: //*/b:simple[text()=matches(self::node(), '{*}out.(body|header){*}')]
+- category: mandatory
+  customVariables: []
+  description: "Simple language: out.body/out.header have been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: out_message_removed_from_simple_language_and_mock_component"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_out_message_removed_from_simple_language_and_mock_component
+  message: out.body/out.header has been removed from simple language
+  ruleID: component-changes-00007
+  when:
+    builtin.filecontent:
+      filePattern: ""
+      pattern: .*simple\(.*out.(body|header).*\)
+- category: mandatory
+  customVariables: []
+  description: "Simple language: property function has been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: languages"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_languages
+  message: "`property` function has been removed from simple language. Use `exchangeProperty`
+    instead."
+  ruleID: component-changes-00008
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: .*simple\(.*property.*\)
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:simple[text()=matches(self::node(), '{*}property{*}')]
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:simple[text()=matches(self::node(), '{*}property{*}')]
+- category: mandatory
+  customVariables: []
+  description: "Terser language: language renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: languages"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_languages
+  message: "`terser` language renamed to `hl7terser`"
+  ruleID: component-changes-00009
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: ""
+          pattern: .*terser\(.*
+        from: file
+      - as: file
+        java.referenced:
+          location: IMPORT
+          pattern: org.apache.camel.component.hl7.HL7.terser
+- category: potential
+  customVariables: []
+  description: "Crypto dataformat: The default encryption algorithm changed to null"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: crypto_dataformat"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_crypto_dataformat
+  message: The default encryption algorithm is mandatory changed from `DES/CBC/PKCS5Padding`
+    to null. Therefore if algorithm hasn't been set yet, it's required to set a value
+    for it.
+  ruleID: component-changes-00010
+  when:
+    or:
+      - java.referenced:
+          location: VARIABLE_DECLARATION
+          pattern: org.apache.camel.converter.crypto.CryptoDataFormat
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*[c:crypto and not(b:crypto/@algorithm)]/c:crypto
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*[b:crypto and not(b:crypto/@algorithm)]/b:crypto
+- category: mandatory
+  customVariables: []
+  description: "XMLsecure dataformat: The default encryption key has been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: xml_security_dataformat"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_xml_security_dataformat
+  message: The default encryption key has been removed, so it is now mandatory to
+    supply the key String/bytes if you are using symmetric encryption.
+  ruleID: component-changes-00011
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: .*secureXML
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*[c:secureXML and (count(c:secureXML/@passPhrase)+count(c:secureXML/@passPhraseByte))<1]/c:secureXML/
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*[b:secureXML and (count(b:secureXML/@passPhrase)+count(b:secureXML/@passPhraseByte))<1]/b:secureXML/
+- category: mandatory
+  customVariables: []
+  description: "Consumer endpoints: options with consumer. prefix have been removed."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: using_endpoint_options_with_consumer_prefix"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_using_endpoint_options_with_consumer_prefix
+  message: Consumer.options with `consumer.` prefix have been removed. Use options
+    without the prefix i.e `delay` instead of `consumer.delay`
+  ruleID: component-changes-00012
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: .*from\(.*consumer..*\)
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:from[@uri=matches(self::node(), '{*}consumer.{*}')]
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:from[@uri=matches(self::node(), '{*}consumer.{*}')]
+- category: mandatory
+  customVariables: []
+  description: "Tracing: Tracer class removed"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Tracer in Camel 3
+      url: https://camel.apache.org/manual/latest/tracer.html
+  message: "`org.apache.camel.processor.interceptor.Tracer` class has been removed
+    and replaced by `org.apache.camel.Tracing`. See the documentation."
+  ruleID: component-changes-00013
+  when:
+    or:
+      - java.referenced:
+          location: IMPORT
+          pattern: org.apache.camel.processor.interceptor.Tracer
+      - builtin.xml:
+          namespaces: {}
+          xpath: //*[@class='org.apache.camel.processor.interceptor.Tracer']
+- category: mandatory
+  customVariables: []
+  description: "Tracing: DefaultTraceFormatter formatter removed"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Tracer in Camel 3
+      url: https://camel.apache.org/manual/latest/tracer.html
+  message: "`org.apache.camel.processor.interceptor.DefaultTraceFormatter` class has
+    been removed. Use `ExchangeFormatter` as described in the documentation."
+  ruleID: component-changes-00014
+  when:
+    or:
+      - java.referenced:
+          location: IMPORT
+          pattern: org.apache.camel.processor.interceptor.DefaultTraceFormatter
+      - builtin.xml:
+          namespaces: {}
+          xpath: //*[@class='org.apache.camel.processor.interceptor.DefaultTraceFormatter']
+- category: mandatory
+  customVariables: []
+  description: "Tracing:  BacklogTracer is no longer enabled by default in JMX"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: tracing"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_tracing
+  message: "`BacklogTracer` is no longer enabled by default in JMX. For using BacklogTracer
+    you need to enable by setting `backlogTracing=true` on CamelContext."
+  ruleID: component-changes-00015
+  when:
+    builtin.xml:
+      namespaces:
+        m: http://maven.apache.org/POM/4.0.0
+      xpath: /m:project/m:dependencies[m:dependency/m:artifactId/text() = 'camel-core']
+- category: potential
+  customVariables: []
+  description: "XMLSecurity component: The default signature algorithm has changed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: using_endpoint_options_with_consumer_prefix"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_using_endpoint_options_with_consumer_prefix
+  message: The default signature algorithm in the XMLSecurity component has changed
+    `SHA1WithDSA` to `SHA256withRSA`.
+  ruleID: component-changes-00016
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: .to\(.*xmlsecurity.*
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:to[contains(@uri,'xmlsecurity')]
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:to[contains(@uri,'xmlsecurity')]
+- category: potential
+  customVariables: []
+  description: "Crypto component: The default signature algorithm has changed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: using_endpoint_options_with_consumer_prefix"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_using_endpoint_options_with_consumer_prefix
+  message: The default signature algorithm in the Crypto component has changed from
+    `SHA1WithDSA` to `SHA256withRSA`.
+  ruleID: component-changes-00017
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: .to\(.*crypto:.*
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:route/*[contains(@uri,'crypto:')]
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:route/*[contains(@uri,'crypto:')]
+- category: potential
+  customVariables: []
+  description: "XSLT: Use xslt-saxon component to use Saxon"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 XSLT Saxon Documentation
+      url: https://camel.apache.org/components/latest/xslt-saxon-component.html
+  message: The XSLT component has moved out of `camel-core` into `camel-xslt` and
+    `camel-xslt-saxon`. Use `xslt-saxon` in URI as described in the documentation.
+  ruleID: component-changes-00018
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: ..*xslt:.*saxon=true
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:route/*[contains(@uri,'xslt:') and contains(@uri,'saxon=true')]
+      - builtin.xml:
+          namespaces:
+            b: http://camel.apache.org/schema/blueprint
+          xpath: //*/b:route/*[contains(@uri,'xslt:') and contains(@uri,'saxon=true')]

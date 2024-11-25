@@ -1,0 +1,3 @@
+name: filemappings
+description: This rule set configures the organization matching functionality, using
+  known root-package prefixes to identify libraries and other code.

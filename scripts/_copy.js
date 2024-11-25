@@ -11,13 +11,21 @@ function stringify(value) {
 }
 
 async function isFile(filePath) {
-  const fileStats = await fs.stat(filePath);
-  return fileStats.isFile();
+  try {
+    const fileStats = await fs.stat(filePath);
+    return fileStats.isFile();
+  } catch {
+    return false;
+  }
 }
 
 async function isDirectory(filePath) {
-  const fileStats = await fs.stat(filePath);
-  return fileStats.isDirectory();
+  try {
+    const fileStats = await fs.stat(filePath);
+    return fileStats.isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function isObject(value) {

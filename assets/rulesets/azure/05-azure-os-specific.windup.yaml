@@ -1,0 +1,41 @@
+- category: mandatory
+  customVariables: []
+  description: Windows file system path
+  effort: 1
+  labels:
+    - konveyor.io/source=eap7
+    - konveyor.io/source=eap
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - ms-windows
+  links: []
+  message: This file system path is Microsoft Windows platform dependent. It needs
+    to be replaced with a Linux-style path.
+  ruleID: azure-os-specific-00001
+  when:
+    builtin.filecontent:
+      filePattern: .*\.(java|properties|jsp|jspf|tag|xml|txt)
+      pattern: (\W|\s|^)(?:[a-zA-Z]\:|\\\\[\w\s\.]+)([\\\/][^\n\t]+)+
+- category: mandatory
+  customVariables: []
+  description: Dynamic-Link Library (DLL)
+  effort: 5
+  labels:
+    - konveyor.io/source=eap7
+    - konveyor.io/source=eap
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - ms-windows
+  links: []
+  message: This Dynamic-Link Library is Microsoft Windows platform dependent. It needs
+    to be replaced with a Linux-style shared library.
+  ruleID: azure-os-specific-00002
+  when:
+    builtin.file:
+      pattern: .*\.dll

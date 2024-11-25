@@ -1,0 +1,68 @@
+- customVariables: []
+  description: Embedded library - Spring Cloud Config
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-0100
+  tag:
+    - Spring Cloud Config
+    - Embedded library - Spring Cloud Config
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.cloud.spring-cloud-config-client
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.cloud.spring-cloud-config-client
+- customVariables: []
+  description: Application properties file detected
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-0200
+  tag:
+    - Application Properties File
+    - Application properties file detected
+  when:
+    builtin.file:
+      pattern: application.*\.properties
+- customVariables: []
+  description: Spring datasource properties detected
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-0300
+  tag:
+    - Spring Properties
+    - Spring datasource properties detected
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.properties
+      pattern: spring.datasource
+- customVariables: []
+  description: Spring logging properties detected
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-0400
+  tag:
+    - Spring Properties
+    - Spring logging properties detected
+  when:
+    builtin.filecontent:
+      filePattern: application.*\.properties
+      pattern: logging.level.org.springframework
+- customVariables: []
+  description: Spring configuration properties annotation detected
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: configuration-management-0500
+  tag:
+    - Spring Properties
+    - Spring configuration properties annotation detected
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.springframework.boot.context.properties.ConfigurationProperties

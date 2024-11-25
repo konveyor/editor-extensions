@@ -1,0 +1,437 @@
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel:camel-atomix component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-atomix` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-atomix
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-atomix
+- category: mandatory
+  customVariables: []
+  description: camel-beanstalk component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-beanstalk` component has been removed in Camel
+    3.17.0."
+  ruleID: xml-removed-camel317-00002
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-beanstalk
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-beanstalk
+- category: mandatory
+  customVariables: []
+  description: camel-beanio component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-beanio` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00003
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-beanio
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-beanio
+- category: mandatory
+  customVariables: []
+  description: camel-etcd component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-etcd` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00004
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-etcd
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-etcd
+- category: mandatory
+  customVariables: []
+  description: camel-elsql component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-elsql` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00005
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-elsql
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-elsql
+- category: mandatory
+  customVariables: []
+  description: camel-ganglia component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-ganglia` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00006
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ganglia
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ganglia
+- category: mandatory
+  customVariables: []
+  description: camel-nsq component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-nsq` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00007
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-nsq
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-nsq
+- category: mandatory
+  customVariables: []
+  description: camel-hystrix component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-hystrix` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00008
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-hystrix
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-hystrix
+- category: mandatory
+  customVariables: []
+  description: camel-jing component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-jing` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00009
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-jing
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-jing
+- category: mandatory
+  customVariables: []
+  description: camel-leveldb-legacy component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-leveldb-legacy` component has been removed in
+    Camel 3.17.0."
+  ruleID: xml-removed-camel317-00010
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-leveldb-legacy
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-leveldb-legacy
+- category: mandatory
+  customVariables: []
+  description: camel-msv component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-msv` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00011
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-msv
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-msv
+- category: mandatory
+  customVariables: []
+  description: camel-nagios component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-nagios` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00012
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-nagios
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-nagios
+- category: mandatory
+  customVariables: []
+  description: camel-ribbon component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-ribbon` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00013
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ribbon
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-ribbon
+- category: mandatory
+  customVariables: []
+  description: camel-sip component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-sip` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00014
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-sip
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-sip
+- category: mandatory
+  customVariables: []
+  description: camel-soroush component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-soroush` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00015
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-soroush
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-soroush
+- category: mandatory
+  customVariables: []
+  description: camel-tagsoup component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-tagsoup` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00016
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-tagsoup
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-tagsoup
+- category: mandatory
+  customVariables: []
+  description: camel-yammer component has been removed
+  effort: 7
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_deprecated_components
+  message: "`org.apache.camel:camel-yammer` component has been removed in Camel 3.17.0."
+  ruleID: xml-removed-camel317-00017
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-yammer
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.apache.camel.camel-yammer
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.builder.DeadLetterChannelBuilder component has been
+    replaced by org.apache.camel.builder.LegacyDeadLetterChannelBuilder
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_camel_spring_xml_camel_blueprint
+  message: "`org.apache.camel.builder.DeadLetterChannelBuilder` component has been
+    replaced by org.apache.camel.builder.LegacyDeadLetterChannelBuilder in Camel 3.17.0."
+  ruleID: xml-legacy-camel317-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.builder.DeadLetterChannelBuilder
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.builder.DefaultErrorHandlerBuilder component has been
+    replaced by org.apache.camel.builder.LegacyDefaultErrorHandlerBuilder
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_camel_spring_xml_camel_blueprint
+  message: "`org.apache.camel.builder.DefaultErrorHandlerBuilder` component has been
+    replaced by org.apache.camel.builder.LegacyDefaultErrorHandlerBuilder in Camel
+    3.17.0."
+  ruleID: xml-legacy-camel317-00002
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.builder.DefaultErrorHandlerBuilder
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.builder.NoErrorHandlerBuilder component has been replaced
+    by org.apache.camel.builder.LegacyDeadLetterChannelBuilder
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_camel_spring_xml_camel_blueprint
+  message: "`org.apache.camel.builder.NoErrorHandlerBuilder` component has been replaced
+    by org.apache.camel.builder.LegacyDeadLetterChannelBuilder in Camel 3.17.0."
+  ruleID: xml-legacy-camel317-00003
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.builder.NoErrorHandlerBuilder
+- category: mandatory
+  customVariables: []
+  description: org.apache.camel.spring.spi.TransactionErrorHandlerBuilder component
+    has been replaced by org.apache.camel.spring.spi.LegacyTransactionErrorHandlerBuilder
+  effort: 3
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.17+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_17.html#_camel_spring_xml_camel_blueprint
+  message: "`org.apache.camel.spring.spi.TransactionErrorHandlerBuilder` component
+    has been replaced by org.apache.camel.spring.spi.LegacyTransactionErrorHandlerBuilder
+    in Camel 3.17.0."
+  ruleID: xml-legacy-camel317-00004
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.spring.spi.TransactionErrorHandlerBuilder

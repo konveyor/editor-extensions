@@ -1,0 +1,222 @@
+- category: potential
+  customVariables: []
+  description: JavaFX usage
+  effort: 0
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+    - JavaFX
+  links:
+    - title: Knowledge base article about JavaFX support in RHEL
+      url: https://access.redhat.com/solutions/3299701
+    - title: RFE to include OpenJFX in RHEL
+      url: https://bugzilla.redhat.com/show_bug.cgi?id=1275610
+  message: Currently OpenJFX (open-source implementation of JavaFX) is neither shipped
+    nor supported on RHEL.
+  ruleID: oracle2openjdk-00000
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: javafx*
+- category: potential
+  customVariables: []
+  description: Fonts usage
+  effort: 0
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+    - fonts
+  links:
+    - title: Knowledge base article OracleJDK vs. OpenJDK
+      url: https://access.redhat.com/solutions/2489791
+  message: |-
+    The font library is different in OpenJDK compared to OracleJDK.
+     This means slightly different text layout in some cases.
+     Ensure with tests that the output is still as expected.
+  ruleID: oracle2openjdk-00001
+  when:
+    or:
+      - java.referenced:
+          location: IMPORT
+          pattern: (java.awt|javafx.scene.text).Font
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: (java.awt|javafx.scene.text)*Font*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: javax.swing.*Font*
+- category: potential
+  customVariables: []
+  description: Resource management API usage
+  effort: 0
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+    - Oracle-JDK-resource-management
+  links:
+    - title: Knowledge base article OracleJDK vs. OpenJDK
+      url: https://access.redhat.com/solutions/2489791
+  message: OpenJDK does not support the resource management API for Java.
+  ruleID: oracle2openjdk-00002
+  when:
+    java.referenced:
+      location: PACKAGE
+      pattern: jdk.management.resource*
+- category: potential
+  customVariables: []
+  description: Color management usage
+  effort: 0
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+    - JDK-color-management
+  links:
+    - title: Knowledge base article OracleJDK vs. OpenJDK
+      url: https://access.redhat.com/solutions/2489791
+  message: |-
+    OracleJDK used to use KCMS as color mangement system up until JDK7 by default. It switched to Little CMS (LCMS) with JDK8.
+     OpenJDK uses LCMS. If you continued to use KCMS by using the property ``sun.java2d.cmm=sun.java2d.cmm.kcms.KcmsServiceProvider``, remove this property and ensure in your tests that your application still works as expected.
+  ruleID: oracle2openjdk-00003
+  when:
+    java.referenced:
+      pattern: java.awt.Color
+- category: potential
+  customVariables:
+    - name: package
+      nameOfCaptureGroup: package
+      pattern: java.awt.(?P<package>(geom|color|font|image|image\.renderable|print))?.*
+  description: Java 2D library usage
+  effort: 0
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+    - 2DLibrary
+  links:
+    - title: Knowledge base article OracleJDK vs. OpenJDK
+      url: https://access.redhat.com/solutions/2489791
+  message: |-
+    OpenJDK has its own 2D library, different from the proprietary JDK. This means that its performance may be different.
+     Ensure during your tests that the application behaves as expected.
+  ruleID: oracle2openjdk-00004
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: java.awt.(geom|color|font|image|image.renderable|print)*
+- category: potential
+  customVariables: []
+  description: "Crypto: elliptic curves usage"
+  effort: 0
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+    - crypto
+  links:
+    - title: Knowledge base article OracleJDK vs. OpenJDK
+      url: https://access.redhat.com/solutions/2489791
+  message: "When on RHEL, OpenJDK uses the NSS crypto library from RHEL instead of
+    the built-in one.\n\n This mostly affects elliptic curve cryptography, where OpenJDK
+    supports all of the RHEL curves and none of the others.\n \n A list of all cipher
+    suits of NSS in RHEL:\n\n * RHEL6: [https://access.redhat.com/articles/1470663](https://access.redhat.com/articles/1470663)\n
+    * RHEL7: [https://access.redhat.com/articles/1463663](https://access.redhat.com/articles/1463663)"
+  ruleID: oracle2openjdk-00005
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.security.KeyPairGenerator.getInstance(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: javax.crypto.KeyAgreement.getInstance(*)
+      - java.referenced:
+          location: CONSTRUCTOR_CALL
+          pattern: java.security.spec.EC*
+      - java.referenced:
+          location: IMPORT
+          pattern: java.security.spec.EC*
+      - java.referenced:
+          location: INHERITANCE
+          pattern: java.security.spec.EC*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.security.spec.EC(*)
+      - java.referenced:
+          location: VARIABLE_DECLARATION
+          pattern: java.security.spec.EC*
+      - java.referenced:
+          location: CONSTRUCTOR_CALL
+          pattern: java.security.spec.EllipticCurve*
+      - java.referenced:
+          location: IMPORT
+          pattern: java.security.spec.EllipticCurve*
+      - java.referenced:
+          location: INHERITANCE
+          pattern: java.security.spec.EllipticCurve*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.security.spec.EllipticCurve(*)
+      - java.referenced:
+          location: VARIABLE_DECLARATION
+          pattern: java.security.spec.EllipticCurve*
+- category: mandatory
+  customVariables: []
+  description: Oracle JDK JPEG image encoder/decoder usage
+  effort: 3
+  labels:
+    - konveyor.io/source=oraclejdk7+
+    - konveyor.io/source=oraclejdk
+    - konveyor.io/target=openjdk7+
+    - konveyor.io/target=openjdk
+    - oracle-jdk
+    - jdk
+  links:
+    - title: "java.lang.NoClassDefFoundError: com/sun/image/codec/jpeg/ImageFormatException
+        when using OpenJDK"
+      url: https://access.redhat.com/solutions/443673
+    - title: Java Image I/O tutorial
+      url: https://docs.oracle.com/javase/tutorial/2d/images/saveimage.html
+    - title: Java Image I/O API Guide
+      url: https://docs.oracle.com/javase/8/docs/technotes/guides/imageio/spec/imageio_guideTOC.fm.html
+  message: Replace the use of classes and methods from the `com.sun.image.codec.jpeg`
+    package with `javax.imageio.ImageIO`
+  ruleID: oracle2openjdk-00006
+  when:
+    or:
+      - java.referenced:
+          location: CONSTRUCTOR_CALL
+          pattern: com.sun.image.codec.jpeg*
+      - java.referenced:
+          location: IMPORT
+          pattern: com.sun.image.codec.jpeg*
+      - java.referenced:
+          location: INHERITANCE
+          pattern: com.sun.image.codec.jpeg*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: com.sun.image.codec.jpeg*
+      - java.referenced:
+          location: VARIABLE_DECLARATION
+          pattern: com.sun.image.codec.jpeg*

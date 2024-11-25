@@ -1,0 +1,867 @@
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.processor.aggregate.AggregationStrategy` has been
+    moved"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: The class `org.apache.camel.processor.aggregate.AggregationStrategy` has
+    been moved to `org.apache.camel.AggregationStrategy`.
+  ruleID: java-generic-information-00000
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.processor.aggregate.AggregationStrategy
+- category: mandatory
+  customVariables:
+    - name: SupportClass
+      nameOfCaptureGroup: SupportClass
+      pattern: org.apache.camel.impl.(?P<SupportClass>(BaseSelectorProducer|AsyncCallbackToCompletableFutureAdapter|BridgeExceptionHandlerToErrorHandler|DefaultAsyncProducer|DefaultComponent|DefaultConsumer|DefaultEndpoint|DefaultExchange|DefaultExchangeHolder|DefaultHeaderFilterStrategy|DefaultMessage|DefaultMessageHistory|DefaultPollingConsumerPollStrategy|DefaultPollingEndpoint|DefaultProducer|DefaultScheduledPollConsumer|DefaultScheduledPollConsumerScheduler|DefaultThreadPoolFactory|EventDrivenPollingConsumer|ExpressionAdapter|ExpressionComparator|ExpressionListComparator|ExpressionSupport|HeaderFilterStrategyComponent|HeaderSelectorProducer|LoggingExceptionHandler|MessageSupport|PollingConsumerSupport|ProcessorEndpoint|ProcessorPollingConsumer|ScheduledBatchPollingConsumer|ScheduledPollConsumer|ScheduledPollEndpoint|SimpleRegistry|SimpleUuidGeneratorSynchronizationAdapter|SynchronousDelegateProducer))
+  description: "Classes in `org.apache.camel.impl` have been relocated to `org.apache.camel.support`."
+  effort: 3
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Migrating custom Components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_migrating_custom_components
+  message:
+    The class `org.apache.camel.impl.{{SupportClass}}` has been moved to `org.apache.camel.support.{{SupportClass}}`.
+    It has been moved out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-support`.
+  ruleID: java-generic-information-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.impl.(BaseSelectorProducer|AsyncCallbackToCompletableFutureAdapter|BridgeExceptionHandlerToErrorHandler|DefaultAsyncProducer|DefaultComponent|DefaultConsumer|DefaultEndpoint|DefaultExchange|DefaultExchangeHolder|DefaultHeaderFilterStrategy|DefaultMessage|DefaultMessageHistory|DefaultPollingConsumerPollStrategy|DefaultPollingEndpoint|DefaultProducer|DefaultScheduledPollConsumer|DefaultScheduledPollConsumerScheduler|DefaultThreadPoolFactory|EventDrivenPollingConsumer|ExpressionAdapter|ExpressionComparator|ExpressionListComparator|ExpressionSupport|HeaderFilterStrategyComponent|HeaderSelectorProducer|LoggingExceptionHandler|MessageSupport|PollingConsumerSupport|ProcessorEndpoint|ProcessorPollingConsumer|ScheduledBatchPollingConsumer|ScheduledPollConsumer|ScheduledPollEndpoint|SimpleRegistry|SimpleUuidGeneratorSynchronizationAdapter|SynchronousDelegateProducer)
+- category: mandatory
+  customVariables: []
+  description: "`zip` and `gzip` dataformat was renamed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message: "`zip` and `gzip` dataformats were renamed to `zipdeflater and `gzipdeflater`"
+  ruleID: java-generic-information-00002
+  when:
+    or:
+      - or:
+          - builtin.filecontent:
+              filePattern: ""
+              pattern: .zip\(.*\)
+            from: routeBuilders
+          - builtin.filecontent:
+              filePattern: ""
+              pattern: .gzip\(.*\)
+            from: routeBuilders
+      - as: routeBuilders
+        java.referenced:
+          location: INHERITANCE
+          pattern: org.apache.camel.builder.RouteBuilder
+- category: mandatory
+  customVariables:
+    - name: registry
+      nameOfCaptureGroup: registry
+      pattern: org.apache.camel.impl.(?P<registry>(PropertyPlaceholderDelegateRegistry|CompositeRegistry))
+  description: "Classes under org.apache.camel.impl have been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message:
+    The class `org.apache.camel.impl.{{registry}}` has been removed. Use `org.apache.camel.support.DefaultRegistry`
+    instead.
+  ruleID: java-generic-information-00004
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.impl.(PropertyPlaceholderDelegateRegistry|CompositeRegistry)
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.processor.loadbalancer.SimpleLoadBalancerSupport`
+    has been removed."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: |-
+    The class `org.apache.camel.processor.loadbalancer.SimpleLoadBalancerSupport` has been removed. Use
+     `org.apache.camel.processor.loadbalancer.LoadBalancerSupport` instead.
+  ruleID: java-generic-information-00005
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.processor.loadbalancer.SimpleLoadBalancerSupport
+- category: mandatory
+  customVariables:
+    - name: removed
+      nameOfCaptureGroup: removed
+      pattern: org.apache.camel.(?P<removed>(impl.FileWatcherReloadStrategy|support.ReloadStrategySupport))
+  description: "The classes previously under `org.apache.camel` have been removed."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: The class `org.apache.camel.{{removed}}` has been removed.
+  ruleID: java-generic-information-00006
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.(impl.FileWatcherReloadStrategy|support.ReloadStrategySupport)
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.util.toolbox.AggregationStrategies` has been moved"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: The class `org.apache.camel.util.toolbox.AggregationStrategies` has been
+    moved to `org.apache.camel.builder.AggregationStrategies`.
+  ruleID: java-generic-information-00008
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.util.toolbox.AggregationStrategies
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.management.JmxSystemPropertyKeys` has been moved"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: The class `org.apache.camel.management.JmxSystemPropertyKeys` has been
+    moved to ` org.apache.camel.api.management.JmxSystemPropertyKeys`.
+  ruleID: java-generic-information-00009
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.management.JmxSystemPropertyKeys
+- category: mandatory
+  customVariables: []
+  description: "`includeRoutes` method has been removed"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: "`includeRoutes` method has been removed"
+  ruleID: java-generic-information-00010
+  when:
+    builtin.filecontent:
+      filePattern: .*\.java
+      pattern: .includeRoutes\(.*\)
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.language.Bean` method has been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Annotation `org.apache.camel.language.Bean` has been moved to `org.apache.camel.language.bean.Bean`
+  ruleID: java-generic-information-00011
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.language.Bean
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.language.Simple` method has been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Annotation `org.apache.camel.language.Simple` has been moved to `org.apache.camel.language.simple.Simple`
+  ruleID: java-generic-information-00012
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.language.Simple
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.language.SpEL` method has been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Annotation `org.apache.camel.language.SpEL` has been moved to `org.apache.camel.language.spel.SpEL`
+  ruleID: java-generic-information-00013
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.language.SpEL
+- category: mandatory
+  customVariables:
+    - name: annotation
+      nameOfCaptureGroup: annotation
+      pattern: org.apache.camel.(?P<annotation>(InvokeOnHeaders|InvokeOnHeader))
+  description: Annotations under `org.apache.camel` are moved to `org.apache.camel.spi`
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Annotation `org.apache.camel.{{annotation}}` has been moved to `org.apache.camel.spi.{{annotation}}`
+  ruleID: java-generic-information-00014
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.(InvokeOnHeaders|InvokeOnHeader)
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.Constant`has been removed
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Annotation `org.apache.camel.Constant` has been removed. Use `@Simple`
+    instead.`
+  ruleID: java-generic-information-00015
+  when:
+    as: annotation
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.Constant
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.builder.xml.XPathBuilder`has been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Class `org.apache.camel.builder.xml.XPathBuilder` has been moved to `org.apache.camel.language.xpath.XPathBuilder`.
+  ruleID: java-generic-information-00016
+  when:
+    as: class
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.builder.xml.XPathBuilder
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.language.XPath` has been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Annotation `org.apache.camel.language.XPath` has been moved to `org.apache.camel.language.xpath.XPath`
+  ruleID: java-generic-information-00017
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.language.XPath
+- category: mandatory
+  customVariables: []
+  description: Exception `org.apache.camel.builder.xml.InvalidXPathExpression` has
+    been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Exception `org.apache.camel.builder.xml.InvalidXPathExpression` has been
+    moved to `org.apache.camel.language.xpath.InvalidXPathException `
+  ruleID: java-generic-information-00018
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.builder.xml.InvalidXPathExpression
+- category: mandatory
+  customVariables: []
+  description: Exception `org.apache.camel.processor.validation.PredicateValidationException`
+    has been moved
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: Exception `org.apache.camel.processor.validation.PredicateValidationException`
+    has been moved to `org.apache.camel.support.processor.validation.PredicateValidationException`
+  ruleID: java-generic-information-00019
+  when:
+    as: annotations
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.processor.validation.PredicateValidationException
+- category: mandatory
+  customVariables: []
+  description: xslt method was removed from `org.apache.camel.util.toolbox.AggregationStrategies`
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Migration Guide
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_generic_information
+  message: xslt method was removed from `org.apache.camel.util.toolbox.AggregationStrategies`.
+    Instead use the `XsltAggregationStrategy` from `camel-xslt` JAR directly
+  ruleID: java-generic-information-00021
+  when:
+    java.referenced:
+      location: METHOD_CALL
+      pattern: org.apache.camel.util.toolbox.AggregationStrategies.xslt*
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.language.LanguageAnnotation` has been moved"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Migrating custom languages"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_migrating_custom_languages
+  message: The class `org.apache.camel.language.LanguageAnnotation` has been moved
+    to `org.apache.camel.support.language.LanguageAnnotation`. It has been moved out
+    of `org.apache.camel:camel-core` and into `org.apache.camel:camel-support`.
+  ruleID: java-generic-information-00022
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.language.LanguageAnnotation
+- category: mandatory
+  customVariables:
+    - name: moved
+      nameOfCaptureGroup: moved
+      pattern: org.apache.camel.util.(?P<moved>(AsyncProcessorHelper|AsyncProcessorConverterHelper|EndpointHelper|EventHelper|ExchangeHelper|GZIPHelper|JsonSchemaHelper|MessageHelper|PlatformHelper|PredicateAssertHelper|ResolverHelper|ResourceHelper|UnitOfWorkHelper))
+  description: "Classes under `org.apache.camel.util` have been moved to `org.apache.camel.support`."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message:
+    The class `org.apache.camel.util.{{moved}}` has been moved to `org.apache.camel.support.{{moved}}`.
+    It has been moved out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-support`
+  ruleID: java-generic-information-00023
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.util.(AsyncProcessorHelper|AsyncProcessorConverterHelper|EndpointHelper|EventHelper|ExchangeHelper|GZIPHelper|JsonSchemaHelper|MessageHelper|PlatformHelper|PredicateAssertHelper|ResolverHelper|ResourceHelper|UnitOfWorkHelper)
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.util.ServiceHelper` has been moved."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message:
+    The class `org.apache.camel.util.ServiceHelper` has been moved to `org.apache.camel.support.service.ServiceHelper`.
+    It has been moved out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-api`
+  ruleID: java-generic-information-00024
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.util.ServiceHelper
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.spi.RestProducerFactoryHelper` has been moved."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message: The class `org.apache.camel.spi.RestProducerFactoryHelper` has been moved
+    to `org.apache.camel.support.RestProducerFactoryHelper`. It has been moved out
+    of `org.apache.camel:camel-core` and into `org.apache.camel:camel-support`
+  ruleID: java-generic-information-00025
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.spi.RestProducerFactoryHelper
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.util.ObjectHelper` has been moved."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message: "The class `org.apache.camel.util.ObjectHelper` has been moved out of the
+    `org.apache.camel:camel-core` and has been split into two classes: `org.apache.camel.support.ObjectHelper`
+    (`org.apache.camel:camel-support`) and `org.apache.camel.util.ObjectHelper` (`org.apache.camel:camel-util`).
+    This has been done to isolate the methods using `org.apache.camel:camel-api`."
+  ruleID: java-generic-information-00026
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.util.ObjectHelper
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.support.RoutePolicySupport` has been moved."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message: The class `org.apache.camel.support.RoutePolicySupport` has been moved
+    out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-support`.
+    The return type from `startConsumer` and `stopConsumer` has been changed from
+    boolean to void as they always returned true before.
+  ruleID: java-generic-information-00027
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.support.RoutePolicySupport
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.impl.ThrottlingInflightRoutePolicy` has been moved."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links: []
+  message: The class `org.apache.camel.impl.ThrottlingInflightRoutePolicy` has been
+    moved to `org.apache.camel.throttling.ThrottlingInflightRoutePolicy`. It has been
+    moved out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-base`.
+  ruleID: java-generic-information-00028
+  when:
+    as: javaClass
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.impl.ThrottlingInflightRoutePolicy
+- category: mandatory
+  customVariables: []
+  description: "Classes under `org.apache.camel.processor.idempotent` have been moved to `org.apache.camel.support.processor.idempotent`"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Idempotent repositories"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_idempotent_repositories
+  message: The class `org.apache.camel.processor.idempotent.{{moved}}` has been moved
+    to `org.apache.camel.support.processor.idempotent.{{moved}}`. It has been moved
+    out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-support`.
+  ruleID: java-generic-information-00029
+  when:
+    or:
+      - java.referenced:
+          location: IMPORT
+          pattern: org.apache.camel.processor.idempotent.(FileIdempotentRepository|MemoryIdempotentRepository)
+- category: mandatory
+  customVariables: []
+  description: Annotation `org.apache.camel.FallbackConverter` has been removed
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Fallback Type Converters"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_fallback_type_converters
+  message: Annotation `org.apache.camel.FallbackConverter` has been removed. You should
+    use `@org.apache.camel.Converter(fallback = true)` from `org.apache.camel:camel-api`
+    instead. You can also set `@org.apache.camel.Converter(generateLoader = true)`
+    on the converter class to allow Camel to generate source code for loading type
+    converters in a faster way.
+  ruleID: java-generic-information-00030
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.FallbackConverter
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.util.toolbox.XsltAggregationStrategy` has been moved."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Aggregation"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_aggregation
+  message: The class `org.apache.camel.util.toolbox.XsltAggregationStrategy` has been
+    moved to `org.apache.camel.component.xslt.XsltAggregationStrategy`. It has been
+    moved out of `org.apache.camel:camel-core` and into `org.apache.camel:camel-xslt`.
+    When using the option `groupedExchange` on the `aggregator` EIP, the output of
+    the aggregation is no longer stored in the exchange property `Exchange.GROUPED_EXCHANGE`.
+    This behaviour was already deprecated from Camel 2.13 onwards.
+  ruleID: java-generic-information-00031
+  when:
+    or:
+      - java.referenced:
+          location: IMPORT
+          pattern: org.apache.camel.util.toolbox.XsltAggregationStrategy
+      - builtin.xml:
+          namespaces:
+            c: http://www.springframework.org/schema/beans
+          xpath: //*/c:bean/@class[matches(self::node(), 'org.apache.camel.util.toolbox.XsltAggregationStrategy')]
+      - builtin.xml:
+          namespaces:
+            c: http://www.osgi.org/xmlns/blueprint/v1.0.0
+          xpath: //*/c:bean/@class[matches(self::node(), 'org.apache.camel.util.toolbox.XsltAggregationStrategy')]
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel.CamelContext` property methods have been removed."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: CONFIGURING GLOBAL OPTIONS ON CAMELCONTEXT"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_configuring_global_options_on_camelcontext
+  message:
+    The `getProperties` and `setProperty` methods have been removed from `org.apache.camel.CamelContext`.
+    Please use `getGlobalOptions` and `setGlobalOptions` instead
+  ruleID: java-generic-information-00032
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: org.apache.camel.CamelContext.{get|set}Propert{y|ies}*
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //c:camelContext/c:properties
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/blueprint
+          xpath: //c:camelContext/c:properties
+- category: potential
+  customVariables: []
+  description: "`org.apache.camel:camel-fhir` default FHIR specification has changed
+    from DSTU3 to R4"
+  effort: 0
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: FHIR"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_fhir
+  message: The default FHIR specification in the `org.apache.camel:camel-fhir` artifact
+    has changed from DSTU3 to R4. Therefore if DSTU3 is desired it has to be explicitly
+    set.
+  ruleID: java-generic-information-00033
+  when:
+    java.dependency:
+      name: org.apache.camel.camel-fhir
+      upperbound: "2"
+- category: mandatory
+  customVariables:
+    - name: method
+      nameOfCaptureGroup: method
+      pattern: org.apache.camel.CamelContext.(?P<method>(getManagedCamelContext|getManagedProcessor|getManagedRoute))?(.*)
+  description: The methods on `CamelContext` that are related to JMX has been moved
+    into a new `ManagedCamelContext` interface present in the `org.apache.camel:camel-management-api`
+    artifact
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Managed Camel Context
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_jmx
+  message: |-
+    The method `org.apache.camel.CamelContext.{{method}}` has been moved to `org.apache.camel.api.management.ManagedCamelContext.{{method}}`. You can access it by adapting your CamelContext like so:
+
+     `ManagedCamelContext managed = context.adapt(ManagedCamelContext.class);`
+     `managed.{{method}}(...);`
+
+     If you want JMX to be enabled out of the box, `org.apache.camel:camel-management` needs to be on the classpath.
+  ruleID: java-generic-information-00045
+  when:
+    java.referenced:
+      location: METHOD_CALL
+      pattern: org.apache.camel.CamelContext.(getManagedCamelContext|getManagedProcessor|getManagedRoute)*
+- category: mandatory
+  customVariables: []
+  description: The functionality to change the simple language tokens for start/end
+    functions has been removed.
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Simple Language"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_simple_language
+  message: The functionality to change the simple language tokens for start/end functions
+    has been removed. The default tokens with `${{xxx}}` and `$simple{{xxx}}` is now
+    hardcoded (optimized). The functionality to change these tokens was never really
+    in use and would only confuse Camel users if a new syntax was used.
+  ruleID: java-generic-information-00046
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: org.apache.camel.language.simple.SimpleLanguage.(changeFunctionStartToken|changeFunctionEndToken|setFunctionStartToken|setFunctionEndToken)*
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: org.apache.camel.language.simple.SimpleTokenizer.(changeFunctionStartToken|changeFunctionEndToken))*
+      - builtin.xml:
+          namespaces:
+            c: http://www.springframework.org/schema/beans
+          xpath:
+            //c:bean[@class='org.apache.camel.language.simple.SimpleLanguage']/c:property[@name='functionStartToken'
+            or @name='functionEndToken']
+      - builtin.xml:
+          namespaces:
+            c: http://www.osgi.org/xmlns/blueprint/v1.0.0
+          xpath:
+            //c:bean[@class='org.apache.camel.language.simple.SimpleLanguage']/c:property[@name='functionStartToken'
+            or @name='functionEndToken']
+- category: optional
+  customVariables:
+    - name: class
+      nameOfCaptureGroup: class
+      pattern: org.apache.camel.(?P<class>(Consume|EndpointInject|Produce))
+  description: "Replace the deprecated `uri` attribute with `value` in Apache Camel's Consume, EndpointInject, or Produce annotations for modernization"
+  effort: 0
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Pojo Annotations
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_pojo_annotations
+  message: The `uri` attribute in the @{{class}} annotation has been deprecated. Instead
+    use `value`, which allows a shorthand style, from using `@{{class}}(uri = "jms:cheese")`
+    to `@{{class}}("jms:cheese")`.
+  ruleID: java-generic-information-00047
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.apache.camel.(Consume|EndpointInject|Produce)
+- category: mandatory
+  customVariables:
+    - name: class
+      nameOfCaptureGroup: class
+      pattern: org.apache.camel.(?P<class>(Consume|EndpointInject|Produce))
+  description: "The `ref` attribute in certain annotations is removed in the latest versions"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Pojo Annotations
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_pojo_annotations
+  message: The `ref` attribute in the @{{class}} annotation has been removed. Instead
+    use the `ref` component in the `value` attribute, e.g @{{class}}("ref:myName").
+  ruleID: java-generic-information-00048
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.apache.camel.(Consume|EndpointInject|Produce)
+- category: mandatory
+  customVariables:
+    - name: method
+      nameOfCaptureGroup: method
+      pattern: org.apache.camel.CamelContext.(?P<method>(getComponentParameterJsonSchema|getDataFormatParameterJsonSchema|getLanguageParameterJsonSchema|getEipParameterJsonSchema))?(.*)
+  description: The methods on `CamelContext` that are related to the catalog have
+    been moved into a new `CatalogCamelContext` interface
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Catalog Camel Context
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_camelcontext
+  message: |-
+    The method `org.apache.camel.CamelContext.{{method}}` has moved to `org.apache.camel.CatalogCamelContext.{{method}}`. You can access it by adapting your `CamelContext` like so:
+
+     `CatalogCamelContext ccc = context.adapt(CatalogCamelContext.class);`
+     `ccc.{{method}}(...);`
+  ruleID: java-generic-information-00049
+  when:
+    java.referenced:
+      location: METHOD_CALL
+      pattern: org.apache.camel.CamelContext.(getComponentParameterJsonSchema|getDataFormatParameterJsonSchema|getLanguageParameterJsonSchema|getEipParameterJsonSchema)*
+- category: mandatory
+  customVariables:
+    - name: method
+      nameOfCaptureGroup: method
+      pattern: org.apache.camel.CamelContext.(?P<method>(loadRoutesDefinition|loadRestsDefinition))?(.*)
+  description: The duplicate method in `org.apache.camel.CamelContext` has been removed
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Catalog Camel Context
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_camelcontext
+  message: The duplicate method `org.apache.camel.CamelContext.{{method}}` has been
+    removed. You should use the `static` method `org.apache.camel.model.ModelHelper{{method}}`
+    instead.
+  ruleID: java-generic-information-00050
+  when:
+    java.referenced:
+      location: METHOD_CALL
+      pattern: org.apache.camel.CamelContext.(loadRoutesDefinition|loadRestsDefinition)*
+- category: mandatory
+  customVariables:
+    - name: method
+      nameOfCaptureGroup: method
+      pattern: org.apache.camel.CamelContext.(?P<method>(getRouteDefinitions|getRouteDefinition|addRouteDefinitions|addRouteDefinition|removeRouteDefinitions|removeRouteDefinition|getRestDefinitions|addRestDefinitions|setDataFormats|getDataFormats|resolveDataFormatDefinition|getProcessorDefinition|setValidators|getHystrixConfiguration|setHystrixConfiguration|setHystrixConfigurations|addHystrixConfiguration|getValidators|setTransformers|getTransformers|addServiceCallConfiguration|setServiceCallConfigurations|setServiceCallConfiguration|getServiceCallConfiguration))?(.*)
+  description: The methods on `CamelContext` that are related to the routes model
+    have been moved into a new `Model` interface
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Model Camel Context
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_modelcamelcontext
+  message: |-
+    The method `org.apache.camel.CamelContext.{{method}}` has been moved to `org.apache.camel.model.Model.{{method}}`. You can access it by adapting your `CamelContext` like so:
+
+     `ModelCamelContext ccc = context.adapt(ModelCamelContext.class);`
+     `mcc.{{method}}(...);`
+  ruleID: java-generic-information-00051
+  when:
+    java.referenced:
+      location: METHOD_CALL
+      pattern: org.apache.camel.CamelContext.(getRouteDefinitions|getRouteDefinition|addRouteDefinitions|addRouteDefinition|removeRouteDefinitions|removeRouteDefinition|getRestDefinitions|addRestDefinitions|setDataFormats|getDataFormats|resolveDataFormatDefinition|getProcessorDefinition|setValidators|getHystrixConfiguration|setHystrixConfiguration|setHystrixConfigurations|addHystrixConfiguration|getValidators|setTransformers|getTransformers|addServiceCallConfiguration|setServiceCallConfigurations|setServiceCallConfiguration|getServiceCallConfiguration)*
+- category: mandatory
+  customVariables:
+    - name: method
+      nameOfCaptureGroup: method
+      pattern: org.apache.camel.CamelContext.(?P<method>(setupRoutes|isSetupRoutes|getRouteStartupOrder|getManagementMBeanAssembler|addInterceptStrategy|getInterceptStrategies|getErrorHandlerExecutorService|getDataFormatResolver|setDataFormatResolver|getDefaultFactoryFinder|setFactoryFinderResolver|getFactoryFinder|getPackageScanClassResolver|setPackageScanClassResolver|setNodeIdFactory|getNodeIdFactory|getAsyncProcessorAwaitManager|setAsyncProcessorAwaitManager|getProcessorFactory|setProcessorFactory|getUnitOfWorkFactory|setUnitOfWorkFactory|getModelJAXBContextFactory|setModelJAXBContextFactory|getLogListeners|addLogListener))?(.*)
+  description: The methods on `CamelContext` that are intended for advanced use cases
+    have been moved into a new `ExtendedCamelContext` interface
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: Camel 3 - Extended Camel Context
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_extended_camelcontext
+  message: |-
+    The method `org.apache.camel.CamelContext.{{method}}` has been moved to `org.apache.camel.ExtendedCamelContext.{{method}}`. You can access it by adapting your `CamelContext` like so:
+
+     `ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);`
+     `ecc.{{method}}(...);`
+  ruleID: java-generic-information-00052
+  when:
+    java.referenced:
+      location: METHOD_CALL
+      pattern: org.apache.camel.CamelContext.(setupRoutes|isSetupRoutes|getRouteStartupOrder|getManagementMBeanAssembler|addInterceptStrategy|getInterceptStrategies|getErrorHandlerExecutorService|getDataFormatResolver|setDataFormatResolver|getDefaultFactoryFinder|setFactoryFinderResolver|getFactoryFinder|getPackageScanClassResolver|setPackageScanClassResolver|setNodeIdFactory|getNodeIdFactory|getAsyncProcessorAwaitManager|setAsyncProcessorAwaitManager|getProcessorFactory|setProcessorFactory|getUnitOfWorkFactory|setUnitOfWorkFactory|getModelJAXBContextFactory|setModelJAXBContextFactory|getLogListeners|addLogListener)*

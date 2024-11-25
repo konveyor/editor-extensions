@@ -1,0 +1,26 @@
+- category: optional
+  customVariables: []
+  description: Azure - The application loads certificates into a KeyStore
+  effort: 5
+  labels:
+    - konveyor.io/source=eap7
+    - konveyor.io/source=eap
+    - konveyor.io/target=azure-appservice
+  links:
+    - title: Configure a Java app for Azure App Service - Initialize the Java Key Store
+      url: https://docs.microsoft.com/en-us/azure/app-service/configure-language-java?pivots=platform-linux#initialize-the-java-key-store
+    - title: Migrate JBoss EAP applications to JBoss EAP on Azure App Service - Inventory
+        all certificates
+      url: https://docs.microsoft.com/en-us/azure/developer/java/migration/migrate-jboss-eap-to-jboss-eap-on-azure-app-service#inventory-all-certificates
+  message: Azure - The application loads certificates into a KeyStore
+  ruleID: eap-to-azure-appservice-certificates-001
+  tag:
+    - Azure
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.security.KeyStore.getInstance(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.security.KeyStore.load(*)

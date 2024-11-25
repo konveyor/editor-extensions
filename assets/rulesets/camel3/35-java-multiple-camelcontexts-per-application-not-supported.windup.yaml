@@ -1,0 +1,49 @@
+- category: mandatory
+  customVariables:
+    - name: class
+      nameOfCaptureGroup: class
+      pattern: org.apache.camel.(?P<class>(BeanInject|Consume|DynamicRouter|EndpointInject|Produce|PropertyInject|RecipientList|RoutingSlip))
+  description: "The `context` attribute has been removed from annotations due to support for only one CamelContext per deployment."
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: multiple CamelContexts per application not
+        supported"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_multiple_camelcontexts_per_application_not_supported
+  message: The `context` attribute on `{{class}}` annotations has been removed since
+    support for multiple CamelContexts has been removed and only one CamelContext
+    per deployment is supported.
+  ruleID: java-multiple-camelcontexts-per-application-not-supported-00000
+  when:
+    java.referenced:
+      location: ANNOTATION
+      pattern: org.apache.camel.(BeanInject|Consume|DynamicRouter|EndpointInject|Produce|PropertyInject|RecipientList|RoutingSlip)
+- category: mandatory
+  customVariables:
+    - name: CdiCamelContextName
+      nameOfCaptureGroup: CdiCamelContextName
+      pattern: org.apache.camel.cdi.(?P<CdiCamelContextName>(ContextName|ContextNames))
+  description: "Support for multiple CamelContexts has been removed"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: multiple CamelContexts per application not
+        supported"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_camel_cdi
+  message:
+    Support for multiple CamelContexts has been removed, and therefore `{{CdiCamelContextName}}`
+    has been removed. Instead use standard CDI annotations such as `javax.inject.Named`
+    and `javax.enterprise.context.ApplicationScoped`.
+  ruleID: java-multiple-camelcontexts-per-application-not-supported-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.cdi.(ContextName|ContextNames)

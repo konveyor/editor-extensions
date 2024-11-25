@@ -1,0 +1,114 @@
+- category: potential
+  customVariables: []
+  description: "'jaxb-api' Maven dependency missing"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Java Versions"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_java_versions
+  message: |-
+    `jaxb-api` Maven dependency missing.
+
+     Apache Camel 3 supports Java 11 and in this Java version JAXB modules have been removed from the JDK, therefore you will need to add them as Maven dependencies since there are couple of components rely on them:
+
+     ```Xml
+     <dependency>
+     <groupId>javax.xml.bind</groupId>
+     <artifactId>jaxb-api</artifactId>
+     <version>2.3.1</version>
+     </dependency>
+     ```
+  ruleID: xml-java-versions-00001
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: javax.xml.bind.jaxb-api
+        not: true
+      - as: dependencies-block
+        builtin.xml:
+          filepaths:
+            - pom.xml
+          namespaces:
+            m: http://maven.apache.org/POM/4.0.0
+          xpath: /m:project/m:dependencies
+- category: potential
+  customVariables: []
+  description: "'jaxb-core' Maven dependency missing"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Java Versions"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_java_versions
+  message: |-
+    `jaxb-core` Maven dependency missing.
+
+     Apache Camel 3 supports Java 11 and in this Java version JAXB modules have been removed from the JDK, therefore you will need to add them as Maven dependencies since there are couple of components rely on them:
+
+     ```Xml
+     <dependency>
+     <groupId>com.sun.xml.bind</groupId>
+     <artifactId>jaxb-core</artifactId>
+     <version>2.3.0.1</version>
+     </dependency>
+     ```
+  ruleID: xml-java-versions-00002
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: com.sun.xml.bind.jaxb-core
+        not: true
+      - as: dependencies-block
+        builtin.xml:
+          filepaths:
+            - pom.xml
+          namespaces:
+            m: http://maven.apache.org/POM/4.0.0
+          xpath: /m:project/m:dependencies
+- category: potential
+  customVariables: []
+  description: "'jaxb-impl' Maven dependency missing"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Java Versions"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_java_versions
+  message: |-
+    `jaxb-impl` Maven dependency missing.
+
+     Apache Camel 3 supports Java 11 and in this Java version JAXB modules have been removed from the JDK, therefore you will need to add them as Maven dependencies since there are couple of components rely on them:
+
+     ```Xml
+     <dependency>
+     <groupId>com.sun.xml.bind</groupId>
+     <artifactId>jaxb-impl</artifactId>
+     <version>2.3.2</version>
+     </dependency>
+     ```
+  ruleID: xml-java-versions-00003
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: com.sun.xml.bind.jaxb-impl
+        not: true
+      - as: dependencies-block
+        builtin.xml:
+          filepaths:
+            - pom.xml
+          namespaces:
+            m: http://maven.apache.org/POM/4.0.0
+          xpath: /m:project/m:dependencies

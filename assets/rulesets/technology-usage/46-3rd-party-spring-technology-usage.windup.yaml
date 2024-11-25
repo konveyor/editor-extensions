@@ -1,0 +1,48 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-spring-03001-0
+  tag:
+    - Sustain=Spring Boot Configuration
+    - Embedded=Spring Boot Configuration
+    - Configuration Management=Spring Boot Configuration
+  when:
+    builtin.hasTags:
+      - Spring Boot Configuration
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-spring-03001-1
+  tag:
+    - Sustain=Spring Boot Auto-configuration
+    - Embedded=Spring Boot Auto-configuration
+    - Configuration Management=Spring Boot Auto-configuration
+  when:
+    builtin.hasTags:
+      - Spring Boot Auto-configuration
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-spring-03001-2
+  tag:
+    - Sustain=Spring Boot Component Scan
+    - Embedded=Spring Boot Component Scan
+    - Configuration Management=Spring Boot Component Scan
+  when:
+    builtin.hasTags:
+      - Spring Boot Component Scan
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-3rd-party-spring-03002
+  tag:
+    - Execute=Spring Deployable War
+    - Embedded=Spring Deployable War
+    - 3rd party=Spring Deployable War
+  when:
+    builtin.hasTags:
+      - Spring Deployable War

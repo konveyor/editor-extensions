@@ -1,0 +1,122 @@
+- category: mandatory
+  customVariables: []
+  description: "Hibernate: Deprecated 'string' CLOB data type"
+  effort: 1
+  labels:
+    - konveyor.io/source=hibernate3.9-
+    - konveyor.io/source=hibernate
+    - konveyor.io/target=hibernate4+
+    - konveyor.io/target=hibernate
+    - hibernate
+    - configuration
+  links: []
+  message: In versions of Hibernate prior to 3.5, text type was mapped to JDBC CLOB.
+    A new Hibernate type, `materialized_clob`, was added in Hibernate 4 to map Java
+    `String` properties to JDBC CLOB
+  ruleID: hibernate-xml-01000
+  when:
+    and:
+      - as: "1"
+        builtin.xml:
+          namespaces: {}
+          xpath: /hibernate-mapping
+      - as: "2"
+        builtin.xml:
+          namespaces: {}
+          xpath: //*[@type='string']
+        from: "1"
+- category: mandatory
+  customVariables: []
+  description: hibernate.jdbc.use_streams_for_binary must be set according to the
+    provider
+  effort: 1
+  labels:
+    - konveyor.io/source=hibernate3.9-
+    - konveyor.io/source=hibernate
+    - konveyor.io/target=hibernate4+
+    - konveyor.io/target=hibernate
+    - hibernate
+    - configuration
+  links: []
+  message: "If you are using Oracle and using the ```materialized_clob``` or ```materialized_blob```
+    properties, this global environment variable must be set to true.\n\t\t\tIf you
+    are using PostgreSQL and using the CLOB or BLOB properties, this global environment
+    variable must be set to false."
+  ruleID: hibernate-xml-02000
+  when:
+    and:
+      - as: "1"
+        builtin.xml:
+          namespaces: {}
+          xpath: /hibernate-configuration
+      - as: "2"
+        builtin.xml:
+          namespaces: {}
+          xpath: //property[@name='hibernate.jdbc.use_streams_for_binary']
+        from: "1"
+- category: mandatory
+  customVariables: []
+  description: "Hibernate: Removed package org.hibernate.connection"
+  effort: 1
+  labels:
+    - konveyor.io/source=hibernate3.9-
+    - konveyor.io/source=hibernate
+    - konveyor.io/target=hibernate4+
+    - konveyor.io/target=hibernate
+    - hibernate
+    - configuration
+  links: []
+  message: |-
+    From Hibernate 4.0 there were moved classes from package `org.hibernate.connection` to package `org.hibernate.service.jdbc.connections.internal`.
+     You should change your Hibernate setup to replace references to the old package names.
+  ruleID: hibernate-xml-03000
+  when:
+    builtin.filecontent:
+      filePattern: hibernate-configuration\.xml
+      pattern: org.hibernate.connection
+- customVariables: []
+  description: "Hibernate: Deprecated dtd configuration namespace"
+  labels:
+    - konveyor.io/source=hibernate3.9-
+    - konveyor.io/source=hibernate
+    - konveyor.io/target=hibernate4+
+    - konveyor.io/target=hibernate
+    - hibernate
+    - configuration
+  links:
+    - title: Hibernate 3.5 to 4 - DTD
+      url: https://access.redhat.com/documentation/en-us/red_hat_jboss_enterprise_application_platform/6.4/html-single/migration_guide/index#Migrate_Your_Hibernate_3.5.x_Application_to_Hibernate_4.x
+  message: " Hibernate 4.0 uses http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd
+    instead.\n                     "
+  ruleID: hibernate-xml-04000
+  tag:
+    - hibernate
+    - configuration
+    - "Hibernate: Deprecated dtd configuration namespace"
+  when:
+    builtin.xml:
+      namespaces: {}
+      xpath: //*[@system-id='']
+- customVariables: []
+  description: "Hibernate: Deprecated dtd mapping namespace"
+  labels:
+    - konveyor.io/source=hibernate3.9-
+    - konveyor.io/source=hibernate
+    - konveyor.io/target=hibernate4+
+    - konveyor.io/target=hibernate
+    - hibernate
+    - configuration
+  links:
+    - title: Hibernate 3.5 to 4 - DTD
+      url: https://access.redhat.com/documentation/en-us/red_hat_jboss_enterprise_application_platform/6.4/html-single/migration_guide/index#Migrate_Your_Hibernate_3.5.x_Application_to_Hibernate_4.x
+  message: " Hibernate 4.0 uses http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd
+    instead.\n                     "
+  ruleID: hibernate-xml-05000
+  tag:
+    - hibernate
+    - configuration
+    - "Hibernate: Deprecated dtd mapping namespace"
+  when:
+    builtin.xml:
+      namespaces: {}
+      xpath: //*[@system-id='']

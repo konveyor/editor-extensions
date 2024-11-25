@@ -1,32 +1,33 @@
-import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { setTimeout } from "node:timers/promises";
 import * as vscode from "vscode";
-import * as os from "os";
-import * as fs from "fs";
 import * as rpc from "vscode-jsonrpc/node";
-import path from "path";
 import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
+import { ExtensionData, ServerState } from "@editor-extensions/shared";
 import { buildDataFolderPath } from "../data";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
-import { ExtensionData, ServerState } from "@editor-extensions/shared";
-import { setTimeout } from "timers/promises";
+import { buildAssetPaths, AssetPaths } from "./paths";
 import {
   KONVEYOR_CONFIG_KEY,
-  getConfigAnalyzerPath,
-  getConfigKaiRpcServerPath,
   getConfigKaiBackendURL,
   getConfigLogLevel,
   getConfigKaiProviderName,
   getConfigKaiProviderArgs,
   getConfigLabelSelector,
   updateUseDefaultRuleSets,
+  getConfigKaiRpcServerPath,
+  getConfigAnalyzerPath,
 } from "../utilities";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
-  private outputChannel: vscode.OutputChannel;
   private rpcConnection: rpc.MessageConnection | null = null;
-  private requestId: number = 1;
+
+  private outputChannel: vscode.OutputChannel;
+  private assetPaths: AssetPaths;
   private kaiDir: string;
   private kaiConfigToml: string;
   private fireStateChange: (state: ServerState) => void;
@@ -50,34 +51,69 @@ export class AnalyzerClient {
       mutateExtensionState((draft) => {
         draft.isFetchingSolution = flag;
       });
-    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
+
+    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer"); //, { log: true });
+
+    this.assetPaths = buildAssetPaths(extContext);
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
     this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
+
+    this.outputChannel.appendLine(
+      `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
+    );
+    this.outputChannel.appendLine(`Kai directory: ${this.kaiDir}`);
+    this.outputChannel.appendLine(`Kai config toml: ${this.kaiConfigToml}`);
   }
 
   public async start(): Promise<void> {
     if (!this.canAnalyze()) {
-      vscode.window.showErrorMessage("Cannot start the server due to missing configuration.");
+      vscode.window.showErrorMessage(
+        "Cannot start the kai rpc server due to missing configuration.",
+      );
       return;
     }
 
+    // TODO: If the server generates files in cwd, we should set this to something else
+    const serverCwd = this.extContext.extensionPath;
+
+    // TODO: How different does the server's env need to be from vscode's env?
+    const serverEnv = {
+      ...process.env,
+      GENAI_KEY: "BWAHAHA",
+    };
+
     this.fireStateChange("starting");
-    this.outputChannel.appendLine(`Starting the server ...`);
+    this.outputChannel.appendLine(`Starting the kai rpc server ...`);
+    this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
+    this.outputChannel.appendLine(`server path: ${this.getKaiRpcServerPath()}`);
+    this.outputChannel.appendLine(`server args:`);
+    this.getKaiRpcServerArgs().forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
     this.kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
-      cwd: this.extContext!.extensionPath,
-      env: {
-        ...process.env,
-        GENAI_KEY: "BWAHAHA",
-      },
+      cwd: serverCwd,
+      env: serverEnv,
+    });
+
+    this.kaiRpcServer.on("spawn", () => {
+      this.outputChannel.appendLine(`kai rpc server has been spawned! [${this.kaiRpcServer?.pid}]`);
+    });
+
+    this.kaiRpcServer.on("error", (err) => {
+      this.outputChannel.appendLine(
+        `[error] - error in process[${this.kaiRpcServer?.spawnfile}]: ${err}`,
+      );
+    });
+
+    this.kaiRpcServer.on("exit", (code, signal) => {
+      this.outputChannel.appendLine(`kai rpc server exited with signal ${signal}, code ${code}`);
+    });
+
+    this.kaiRpcServer.on("close", (code, signal) => {
+      this.outputChannel.appendLine(`kai rpc server closed with signal ${signal}, code ${code}`);
     });
 
     this.kaiRpcServer.stderr.on("data", (data) => {
       this.outputChannel.appendLine(`${data.toString()}`);
-    });
-
-    this.kaiRpcServer.on("exit", (code) => {
-      this.outputChannel.appendLine(`Analyzer exited with code ${code}`);
     });
 
     // Set up the JSON-RPC connection
@@ -86,39 +122,45 @@ export class AnalyzerClient {
       new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
     );
     this.rpcConnection.listen();
+
+    this.outputChannel.appendLine(`Started the kai rpc server, pid: ${this.kaiRpcServer.pid}`);
   }
 
   // Stops the analyzer server
   public stop(): void {
     this.fireStateChange("stopping");
-    this.outputChannel.appendLine(`Stopping the server ...`);
+    this.outputChannel.appendLine(`Stopping the kai rpc server ...`);
     if (this.kaiRpcServer) {
       this.kaiRpcServer.kill();
     }
     this.rpcConnection?.dispose();
     this.kaiRpcServer = null;
     this.fireStateChange("stopped");
-    this.outputChannel.appendLine(`Server stopped`);
+    this.outputChannel.appendLine(`kai rpc server stopped`);
   }
 
-  public async initialize(): Promise<void> {
-    // This config value is intentionally excluded from package.json
+  // This config value is intentionally excluded from package.json
+  protected isDemoMode(): boolean {
     const configDemoMode = vscode.workspace
       .getConfiguration(KONVEYOR_CONFIG_KEY)
       ?.get<boolean>("konveyor.kai.demoMode");
+
     let demoMode: boolean;
     if (configDemoMode !== undefined) {
       demoMode = configDemoMode;
     } else {
       demoMode = !Extension.getInstance(this.extContext).isProductionMode;
     }
+    return demoMode;
+  }
 
+  public async initialize(): Promise<void> {
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
     }
 
-    // Define the initialize request parameters if needed
+    // Define the initialize request parameters
     const initializeParams = {
       process_id: null,
       kai_backend_url: getConfigKaiBackendURL(),
@@ -130,28 +172,28 @@ export class AnalyzerClient {
         args: getConfigKaiProviderArgs(),
       },
       file_log_level: getConfigLogLevel(),
-      demo_mode: demoMode,
+      demo_mode: this.isDemoMode(),
       cache_dir: "",
 
-      analyzer_lsp_java_bundle_path: path.join(
-        this.extContext!.extensionPath,
-        "assets/bin/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
-      ),
-      analyzer_lsp_lsp_path: path.join(
-        this.extContext!.extensionPath,
-        "assets",
-        "bin",
-        "jdtls",
-        "bin",
-        "jdtls",
-      ),
+      // Analyzer and jdt.ls parameters
       analyzer_lsp_rpc_path: this.getAnalyzerPath(),
-      analyzer_lsp_rules_path: this.getRules(),
-      analyzer_lsp_dep_labels_path: path.join(
-        this.extContext!.extensionPath,
-        "assets/bin/jdtls/java-analyzer-bundle/maven.default.index",
-      ),
+      analyzer_lsp_lsp_path: this.assetPaths.jdtlsBin,
+
+      // jdt.ls bundles (comma separated list of paths)
+      analyzer_lsp_java_bundle_path: this.assetPaths.jdtlsBundleJars.join(","),
+
+      // depOpenSourceLabelsFile
+      analyzer_lsp_dep_labels_path: this.assetPaths.openSourceLabelsFile,
+
+      // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
+      // analyzer_lsp_fernflower: this.assetPaths.fernFlowerPath,
+
+      analyzer_lsp_rules_path: this.getRulesetsPath(),
     };
+
+    this.outputChannel.appendLine(
+      `initialize payload: ${JSON.stringify(initializeParams, null, 2)}`,
+    );
 
     vscode.window.withProgress(
       {
@@ -184,6 +226,10 @@ export class AnalyzerClient {
         this.fireStateChange("startFailed");
       },
     );
+  }
+
+  public isServerRunning(): boolean {
+    return !!this.kaiRpcServer && !this.kaiRpcServer.killed;
   }
 
   public async runAnalysis(): Promise<any> {
@@ -302,7 +348,7 @@ export class AnalyzerClient {
   }
 
   public canAnalyze(): boolean {
-    return !!getConfigLabelSelector() && this.getRules().length !== 0;
+    return !!getConfigLabelSelector() && this.getRulesetsPath().length !== 0;
   }
 
   public async canAnalyzeInteractive(): Promise<boolean> {
@@ -327,7 +373,7 @@ export class AnalyzerClient {
       return false;
     }
 
-    if (this.getRules().length === 0) {
+    if (this.getRulesetsPath().length === 0) {
       const selection = await vscode.window.showWarningMessage(
         "Default rulesets are disabled and no custom rules are defined. Please choose an option to proceed.",
         "Enable Default Rulesets",
@@ -351,97 +397,56 @@ export class AnalyzerClient {
   }
 
   public getAnalyzerPath(): string {
-    const analyzerPath = getConfigAnalyzerPath();
-    if (analyzerPath && fs.existsSync(analyzerPath)) {
-      return analyzerPath;
+    const path = getConfigAnalyzerPath() || this.assetPaths.kaiAnalyzer;
+
+    if (!fs.existsSync(path)) {
+      const message = `Analyzer binary doesn't exist at ${path}`;
+      this.outputChannel.appendLine(`Error: ${message}`);
+      vscode.window.showErrorMessage(message);
     }
 
-    const platform = os.platform();
-    const arch = os.arch();
-
-    let binaryName = `kai-analyzer-rpc.${platform}.${arch}`;
-    if (platform === "win32") {
-      binaryName += ".exe";
-    }
-
-    // Full path to the analyzer binary
-    const defaultAnalyzerPath = path.join(
-      this.extContext!.extensionPath,
-      "assets",
-      "bin",
-      binaryName,
-    );
-
-    // Check if the binary exists
-    if (!fs.existsSync(defaultAnalyzerPath)) {
-      vscode.window.showErrorMessage(`Analyzer binary doesn't exist at ${defaultAnalyzerPath}`);
-    }
-
-    return defaultAnalyzerPath;
+    return path;
   }
 
   public getKaiRpcServerPath(): string {
-    // Retrieve the rpcServerPath
-    const rpcServerPath = getConfigKaiRpcServerPath();
-    if (rpcServerPath && fs.existsSync(rpcServerPath)) {
-      return rpcServerPath;
-    }
-    // Might not needed.
-    // Fallback to default rpc-server binary path if user did not provid path
-    const platform = os.platform();
-    const arch = os.arch();
+    const path = getConfigKaiRpcServerPath() || this.assetPaths.kaiRpcServer;
 
-    let binaryName = `kai-rpc-server.${platform}.${arch}`;
-    if (platform === "win32") {
-      binaryName += ".exe";
+    if (!fs.existsSync(path)) {
+      const message = `Kai RPC Server binary doesn't exist at ${path}`;
+      this.outputChannel.appendLine(`Error: ${message}`);
+      vscode.window.showErrorMessage(message);
+      throw new Error(message);
     }
 
-    // Construct the full path
-    const defaultRpcServerPath = path.join(
-      this.extContext!.extensionPath,
-      "assets",
-      "bin",
-      binaryName,
-    );
-
-    // Check if the default rpc-server binary exists, else show an error message
-    if (!fs.existsSync(defaultRpcServerPath)) {
-      vscode.window.showErrorMessage(`RPC server binary doesn't exist at ${defaultRpcServerPath}`);
-      throw new Error(`RPC server binary not found at ${defaultRpcServerPath}`);
-    }
-
-    // Return the default path
-    return defaultRpcServerPath;
+    return path;
   }
 
   public getKaiRpcServerArgs(): string[] {
     return ["--config", this.getKaiConfigTomlPath()];
   }
 
-  public getRules(): string {
-    return path.join(this.extContext!.extensionPath, "assets/rulesets");
+  /**
+   * Until konveyor/kai#509 is resolved, return the single root directory for all of the
+   * rulesets yaml files to provide to the analyzer.  After the issue is resolve, send all
+   * of the rulesets directories either as `string[]` or as a joined list.
+   */
+  public getRulesetsPath(): string {
+    const includedRulesets = this.assetPaths.rulesets;
+
     // TODO(djzager): konveyor/kai#509
     // const useDefaultRulesets = getConfigUseDefaultRulesets();
     // const customRules = getConfigCustomRules();
     // const rules: string[] = [];
 
     // if (useDefaultRulesets) {
-    //   rules.push(path.join(this.extContext!.extensionPath, "assets/rulesets"));
+    //   rules.push(includedRulesets);
     // }
     // if (customRules.length > 0) {
     //   rules.push(...customRules);
     // }
     // return rules;
-  }
 
-  public getJavaConfig(): object {
-    return {
-      bundles: path.join(
-        this.extContext!.extensionPath,
-        "assets/bin/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
-      ),
-      lspServerPath: path.join(this.extContext!.extensionPath, "assets/bin/jdtls/bin/jdtls"),
-    };
+    return includedRulesets;
   }
 
   // New method to retrieve stored rulesets
@@ -451,10 +456,6 @@ export class AnalyzerClient {
       return storedRulesets ? JSON.parse(storedRulesets as string) : null;
     }
     return null;
-  }
-
-  public isServerRunning(): boolean {
-    return !!this.kaiRpcServer && !this.kaiRpcServer.killed;
   }
 
   public getKaiConfigDir(): string {

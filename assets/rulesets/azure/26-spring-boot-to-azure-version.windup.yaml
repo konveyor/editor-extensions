@@ -1,0 +1,69 @@
+- category: mandatory
+  customVariables: []
+  description: Spring Boot version too low
+  effort: 5
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - version
+  links:
+    - title: Spring Boot Support Versions
+      url: https://github.com/spring-projects/spring-boot/wiki/Supported-Versions
+  message: |-
+    The application uses Spring Boot 1.x, which is too low.
+     Update to open source support version of Spring Boot.
+  ruleID: spring-boot-to-azure-version-01000
+  when:
+    java.dependency:
+      lowerbound: "1"
+      nameregex: org\.springframework\.boot\..*
+      upperbound: "1.9"
+- category: potential
+  customVariables: []
+  description: Spring Boot version out of support
+  effort: 2
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - version
+  links:
+    - title: Spring Boot Supported Versions
+      url: https://github.com/spring-projects/spring-boot/wiki/Supported-Versions
+  message: |-
+    Spring boot version is out of any spring boot support scope.
+     Update to open source support version of Spring Boot.
+  ruleID: spring-boot-to-azure-version-02000
+  when:
+    java.dependency:
+      lowerbound: "2"
+      nameregex: org\.springframework\.boot\..*
+      upperbound: 2.4.99
+- category: potential
+  customVariables: []
+  description: Spring Boot version out of OSS support
+  effort: 1
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - version
+  links:
+    - title: Spring Boot Supported Versions
+      url: https://github.com/spring-projects/spring-boot/wiki/Supported-Versions
+  message: |-
+    Spring Boot version is out of open source software support.
+     Update to open source support version of Spring Boot, if you don't have commercial support.
+  ruleID: spring-boot-to-azure-version-03000
+  when:
+    java.dependency:
+      lowerbound: "2.5"
+      nameregex: org\.springframework\.boot\..*
+      upperbound: 2.6.99

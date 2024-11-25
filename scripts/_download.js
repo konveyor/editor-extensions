@@ -102,11 +102,8 @@ export async function downloadAndExtractGitHubAsset(
 
   const extractedFiles = await fs.readdir(assetDir);
   extractedFiles.forEach(async (file) => {
-    const oldPath = join(assetDir, file);
-    const newPath = join(assetDir, `${platform}-${file}`);
-    await fs.rename(oldPath, newPath);
-    if (chmod && extname(newPath) !== ".zip") {
-      chmodOwnerPlusX(newPath);
+    if (chmod && extname(file) !== ".zip") {
+      chmodOwnerPlusX(join(assetDir, file));
     }
   });
 

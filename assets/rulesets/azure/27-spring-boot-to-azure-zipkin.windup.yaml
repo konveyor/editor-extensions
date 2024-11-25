@@ -1,0 +1,26 @@
+- category: potential
+  customVariables: []
+  description: Zipkin
+  effort: 0
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-container-apps
+    - zipkin
+  links:
+    - title: Spring Boot to Azure - identify Zipkin dependencies
+      url: https://learn.microsoft.com/azure/developer/java/migration/migrate-spring-cloud-to-azure-spring-apps?pivots=sc-standard-tier#identify-zipkin-dependencies
+    - title: Distributed Tracing
+      url: https://learn.microsoft.com/azure/azure-monitor/app/distributed-tracing-telemetry-correlation
+  message: The application uses Zipkin.
+  ruleID: spring-boot-to-azure-zipkin-01000
+  when:
+    or:
+      - java.dependency:
+          lowerbound: 0.0.0
+          name: org.springframework.boot.spring-cloud-starter-zipkin
+      - java.dependency:
+          lowerbound: 0.0.0
+          nameregex: io\.zipkin.*

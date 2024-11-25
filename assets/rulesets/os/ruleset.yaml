@@ -1,0 +1,3 @@
+name: os/windows
+description: This is a ruleset for Windows operating system specific rules while migrating
+  to Linux operating system.

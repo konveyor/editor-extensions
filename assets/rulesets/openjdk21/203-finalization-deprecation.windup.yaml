@@ -1,0 +1,48 @@
+- category: potential
+  customVariables: []
+  description: Finalization has been deprecated for removal in a future release by
+    JDK18.
+  effort: 3
+  labels:
+    - konveyor.io/source=openjdk18-
+    - konveyor.io/source=openjdk
+    - konveyor.io/target=openjdk18+
+    - konveyor.io/target=openjdk
+  links:
+    - title: "JEP 421: Deprecate Finalization for Removal"
+      url: https://openjdk.org/jeps/421
+  message: |-
+    Finalization has been deprecated for removal in a future release by JDK18. It continues to work now but users should start their migration off finalizers.
+     Use `Cleaner` or `PhantomReference` instead (see the provided link below).
+     Users can test what happens with finalization disable by running with: `-finalization=disabled`.
+  ruleID: finalization-deprecation-00000
+  when:
+    java.referenced:
+      location: PACKAGE
+      pattern: "*.finalize*"
+- category: mandatory
+  customVariables: []
+  description: Finalization has been deprecated for removal in a future release by
+    JDK18.
+  effort: 3
+  labels:
+    - konveyor.io/source=openjdk18-
+    - konveyor.io/source=openjdk
+    - konveyor.io/target=openjdk18+
+    - konveyor.io/target=openjdk
+  links:
+    - title: "JEP 421: Deprecate Finalization for Removal"
+      url: https://openjdk.org/jeps/421
+  message: |-
+    Finalization has been deprecated for removal in a future release by JDK18. It continues to work now but users should start their migration off finalizers.
+     Use `Cleaner` or `PhantomReference` instead (see the provided link below).
+     Users can test what happens with finalization disable by running with: `-finalization=disabled`.
+  ruleID: finalization-deprecation-00010
+  when:
+    or:
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.Runtime.runFinalization(*)
+      - java.referenced:
+          location: METHOD_CALL
+          pattern: java.lang.System.runFinalization(*)

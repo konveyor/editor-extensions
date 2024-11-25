@@ -1,0 +1,229 @@
+- customVariables: []
+  description: Apache Axis Service Group
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-01000
+  tag:
+    - apache-axis
+    - webservice
+    - Apache Axis Service Group
+  when:
+    as: default
+    builtin.xml:
+      namespaces: {}
+      xpath: /serviceGroup/service/operation
+- customVariables: []
+  description: Apache Axis Module
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-02000
+  tag:
+    - apache-axis
+    - webservice
+    - Apache Axis Module
+  when:
+    as: default
+    builtin.xml:
+      namespaces: {}
+      xpath: /module/InFlow
+- customVariables: []
+  description: Apache Axis Configuration
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-03000
+  tag:
+    - apache-axis
+    - webservice
+    - Apache Axis Configuration
+  when:
+    as: default
+    builtin.xml:
+      namespaces: {}
+      xpath: /axisconfig
+- customVariables: []
+  description: XFire 1.x Configuration
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-04000
+  tag:
+    - xfire
+    - webservice
+    - XFire 1.x Configuration
+  when:
+    as: default
+    builtin.xml:
+      namespaces:
+        xfire: http://xfire.codehaus.org/config/1.0
+      xpath: /xfire:beans
+- customVariables: []
+  description: JAX-WS Handler Chain
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-05000
+  tag:
+    - webservice
+    - JAX-WS Handler Chain
+  when:
+    as: default
+    builtin.xml:
+      namespaces:
+        j2e: http://java.sun.com/xml/ns/j2ee
+        jcp: http://xmlns.jcp.org/xml/ns/javaee
+        jee: http://java.sun.com/xml/ns/javaee
+      xpath: /*[local-name()='handler-chains']
+- category: optional
+  customVariables: []
+  description: Use of Web Service Handler2
+  effort: 0
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-06000
+  tag:
+    - JBoss EAP
+  when:
+    and:
+      - as: webservices
+        builtin.xml:
+          namespaces:
+            j2e: http://java.sun.com/xml/ns/j2ee
+            jcp: http://xmlns.jcp.org/xml/ns/javaee
+            jee: http://java.sun.com/xml/ns/javaee
+          xpath: /*[local-name()='webservices']
+      - as: handler-classes
+        builtin.xml:
+          namespaces:
+            j2e: http://java.sun.com/xml/ns/j2ee
+            jcp: http://xmlns.jcp.org/xml/ns/javaee
+            jee: http://java.sun.com/xml/ns/javaee
+          xpath: //*[local-name()='handler-class']
+        from: webservices
+- category: optional
+  customVariables: []
+  description: Use of Web Service Handler2
+  effort: 0
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-06001
+  tag:
+    - JBoss EAP
+  when:
+    and:
+      - as: webservices
+        builtin.xml:
+          namespaces:
+            j2e: http://java.sun.com/xml/ns/j2ee
+            jcp: http://xmlns.jcp.org/xml/ns/javaee
+            jee: http://java.sun.com/xml/ns/javaee
+          xpath: /*[local-name()='webservices']
+      - as: endpoints
+        builtin.xml:
+          namespaces:
+            j2e: http://java.sun.com/xml/ns/j2ee
+            jcp: http://xmlns.jcp.org/xml/ns/javaee
+            jee: http://java.sun.com/xml/ns/javaee
+          xpath: //*[local-name()='service-endpoint-interface']
+        from: webservices
+- customVariables: []
+  description: Apache CXF Bus Extension
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-07000
+  tag:
+    - webservice
+    - apache-cxf
+    - Apache CXF Bus Extension
+  when:
+    as: default
+    builtin.xml:
+      namespaces:
+        cxf: http://cxf.apache.org/bus/extension
+      xpath: /extensions
+- customVariables: []
+  description: WS-Policy
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-08000
+  tag:
+    - webservice
+    - security
+    - WS-Policy
+  when:
+    as: default
+    builtin.xml:
+      namespaces:
+        wsp: http://schemas.xmlsoap.org/ws/2004/09/policy
+      xpath: //*[local-name()='Policy']
+- customVariables: []
+  description: SOAP Envelope
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-09000
+  tag:
+    - soap
+    - webservice
+    - SOAP Envelope
+  when:
+    as: default
+    builtin.xml:
+      namespaces:
+        se: http://schemas.xmlsoap.org/soap/envelope/
+      xpath: /*[local-name()='Envelope']
+- customVariables: []
+  description: WSDL Definition
+  labels:
+    - konveyor.io/source=java-ee
+    - konveyor.io/target=eap6+
+    - konveyor.io/target=eap
+    - webservice
+  links: []
+  ruleID: xml-webservices-10000
+  tag:
+    - webservice
+    - wsdl
+    - WSDL Definition
+  when:
+    as: default
+    builtin.xml:
+      namespaces:
+        wsdl: http://schemas.xmlsoap.org/wsdl/
+      xpath: /*[local-name()='definitions']

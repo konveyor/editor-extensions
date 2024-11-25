@@ -1,0 +1,47 @@
+- category: mandatory
+  customVariables: []
+  description: The java.rmi.activation detected
+  effort: 3
+  labels:
+    - konveyor.io/source=openjdk11-
+    - konveyor.io/source=openjdk
+    - konveyor.io/target=openjdk17+
+    - konveyor.io/target=openjdk
+  links:
+    - title: "JEP 407: Remove RMI Activation"
+      url: https://openjdk.org/jeps/407
+  message: RMI activation and its associated daemon, rmid, and code package, java.rmi.activation
+    were deprecated in OpenJDK 15 and removed in OpenJDK 17.
+  ruleID: removed-packages-00000
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: java.rmi.activation*
+- category: mandatory
+  customVariables: []
+  description: The jdk.nashorn.api.scripting and jdk.nashorn.api.tree packages have
+    been removed
+  effort: 3
+  labels:
+    - konveyor.io/source=openjdk11-
+    - konveyor.io/source=openjdk
+    - konveyor.io/target=openjdk17+
+    - konveyor.io/target=openjdk
+  links:
+    - title: "JEP 372: Remove RMI Activation"
+      url: https://openjdk.org/jeps/372
+    - title: openjdk/nashorn
+      url: https://github.com/openjdk/nashorn
+  message: "The Nashorn scripting implementation has been removed from OpenJDK 15
+    onwards. \n The javax.script API is still present and third party implementations,
+    such as Rhino or Nashorn itself, can be installed if needed. Any references to
+    its packages should be removed or substituted with the third party implementations."
+  ruleID: removed-packages-00010
+  when:
+    or:
+      - java.referenced:
+          location: PACKAGE
+          pattern: jdk.nashorn.api.scripting*
+      - java.referenced:
+          location: PACKAGE
+          pattern: jdk.nashorn.api.tree*

@@ -1,3 +1,0 @@
-name: openjdk7/oraclejdk7
-description: This ruleset provides analysis with respect to the migration from OracleJDK
-  to OpenJDK.

@@ -1,0 +1,3 @@
+name: openliberty/websphere
+description: This ruleset identifies usage of Java APIs and technologies which are
+  not provided by Open Liberty.

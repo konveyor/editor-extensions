@@ -1,0 +1,51 @@
+- category: potential
+  customVariables: []
+  description: Non-LTS version Java
+  effort: 3
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/source=eap7
+    - konveyor.io/source=eap
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - version
+  links: []
+  message: "The application is using non-LTS version Java. \n JDK on LTS version is
+    recommended, i.e. JAVA_8, JAVA_11 or JAVA_17."
+  ruleID: azure-java-version-01000
+  when:
+    as: result
+    builtin.xml:
+      filepaths:
+        - pom.xml
+      namespaces:
+        m: http://maven.apache.org/POM/4.0.0
+      xpath: //m:java.version[matches(text(), '(9|10|12|13|14|15|16|19|20).*')]
+- category: potential
+  customVariables: []
+  description: Java version found to be lower than JAVA_8
+  effort: 3
+  labels:
+    - konveyor.io/source=springboot
+    - konveyor.io/source=eap7
+    - konveyor.io/source=eap
+    - konveyor.io/target=azure-spring-apps
+    - konveyor.io/target=azure-appservice
+    - konveyor.io/target=azure-aks
+    - konveyor.io/target=azure-container-apps
+    - version
+  links: []
+  message: |-
+    The application is using Java version lower than JAVA_8.
+     JDK on LTS version is recommended, i.e. JAVA_8, JAVA_11 or JAVA_17.
+  ruleID: azure-java-version-02000
+  when:
+    as: result
+    builtin.xml:
+      filepaths:
+        - pom.xml
+      namespaces:
+        m: http://maven.apache.org/POM/4.0.0
+      xpath: //m:java.version[matches(text(), '1\.[0-7]')]

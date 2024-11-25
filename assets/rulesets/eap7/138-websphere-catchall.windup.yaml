@@ -1,0 +1,71 @@
+- category: potential
+  customVariables:
+    - name: type
+      nameOfCaptureGroup: type
+      pattern: com.ibm.db2.jcc.(?P<type>[^.]+)
+  description: IBM DB2 driver type reference
+  effort: 1
+  labels:
+    - konveyor.io/source=websphere
+    - konveyor.io/target=eap7
+    - konveyor.io/target=eap8
+    - konveyor.io/target=eap
+  links: []
+  message: This is a reference to the IBM DB2 driver type (`com.ibm.db2.jcc.{{type}}`).
+    It probably does not need to be migrated. However the IBM DB2 driver should be
+    configured properly.
+  ruleID: websphere-catchall-db2-00000
+  when:
+    java.referenced:
+      location: PACKAGE
+      pattern: com.ibm.db2.jcc*
+- category: potential
+  customVariables:
+    - name: package
+      nameOfCaptureGroup: package
+      pattern: (?P<package>(com\.)?(websphere|ibm)(\..*)?.)?(?P<type>[^.]+)
+    - name: type
+      nameOfCaptureGroup: type
+      pattern: (?P<package>(com\.)?(websphere|ibm)(\..*)?.)?(?P<type>[^.]+)
+  description: IBM proprietary type reference
+  effort: 0
+  labels:
+    - konveyor.io/source=websphere
+    - konveyor.io/target=eap7
+    - konveyor.io/target=eap8
+    - konveyor.io/target=eap
+    - catchall
+  links: []
+  message: |-
+    This is an IBM proprietary type (`{{package}}.{{type}}`) and needs to be migrated to a compatible API. There is currently no detailed
+     information about this type.
+  ruleID: websphere-catchall-00000
+  when:
+    java.referenced:
+      location: PACKAGE
+      pattern: (com.)?(websphere|ibm).*
+- category: potential
+  customVariables:
+    - name: subpackage
+      nameOfCaptureGroup: subpackage
+      pattern: ilog.(?P<subpackage>.*.)?(?P<type>[^.]+)
+    - name: type
+      nameOfCaptureGroup: type
+      pattern: ilog.(?P<subpackage>.*.)?(?P<type>[^.]+)
+  description: IBM ILog proprietary type reference
+  effort: 0
+  labels:
+    - konveyor.io/source=websphere
+    - konveyor.io/target=eap7
+    - konveyor.io/target=eap8
+    - konveyor.io/target=eap
+    - catchall
+  links: []
+  message: |-
+    This is an IBM ILog proprietary type (`ilog.{{subpackage}}.{{type}}`) and needs to be migrated to a compatible API. There is currently no detailed
+     information about this type.
+  ruleID: websphere-catchall-00001
+  when:
+    java.referenced:
+      location: PACKAGE
+      pattern: ilog.*

@@ -1,0 +1,251 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00010
+  tag:
+    - Sustain=JTA
+    - Transaction=JTA
+    - Java EE=JTA
+  when:
+    or: []
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00020
+  tag:
+    - Sustain=Mycontainer JTA
+    - Transaction=Mycontainer JTA
+    - Embedded=Mycontainer JTA
+  when:
+    builtin.hasTags:
+      - Mycontainer JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00030
+  tag:
+    - Sustain=Geronimo JTA
+    - Transaction=Geronimo JTA
+    - Embedded=Geronimo JTA
+  when:
+    builtin.hasTags:
+      - Geronimo JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00040
+  tag:
+    - Sustain=OW2 JTA
+    - Transaction=OW2 JTA
+    - Embedded=OW2 JTA
+  when:
+    builtin.hasTags:
+      - OW2 JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00050
+  tag:
+    - Sustain=Evo JTA
+    - Transaction=Evo JTA
+    - Embedded=Evo JTA
+  when:
+    builtin.hasTags:
+      - Evo JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00060
+  tag:
+    - Sustain=AKKA JTA
+    - Transaction=AKKA JTA
+    - Embedded=AKKA JTA
+  when:
+    builtin.hasTags:
+      - AKKA JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00070
+  tag:
+    - Sustain=KumuluzEE JTA
+    - Transaction=KumuluzEE JTA
+    - Embedded=KumuluzEE JTA
+  when:
+    builtin.hasTags:
+      - KumuluzEE JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00080
+  tag:
+    - Sustain=Ignite JTA
+    - Transaction=Ignite JTA
+    - Embedded=Ignite JTA
+  when:
+    builtin.hasTags:
+      - Ignite JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00090
+  tag:
+    - Sustain=Nuxeo JTA/JCA
+    - Transaction=Nuxeo JTA/JCA
+    - Embedded=Nuxeo JTA/JCA
+  when:
+    builtin.hasTags:
+      - Nuxeo JTA/JCA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00100
+  tag:
+    - Sustain=Everit JTA
+    - Transaction=Everit JTA
+    - Embedded=Everit JTA
+  when:
+    builtin.hasTags:
+      - Everit JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00110
+  tag:
+    - Sustain=Demoiselle JTA
+    - Transaction=Demoiselle JTA
+    - Embedded=Demoiselle JTA
+  when:
+    builtin.hasTags:
+      - Demoiselle JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00120
+  tag:
+    - Sustain=Apache Meecrowave JTA
+    - Transaction=Apache Meecrowave JTA
+    - Embedded=Apache Meecrowave JTA
+  when:
+    builtin.hasTags:
+      - Apache Meecrowave JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00130
+  tag:
+    - Sustain=Apache Sirona JTA
+    - Transaction=Apache Sirona JTA
+    - Embedded=Apache Sirona JTA
+  when:
+    builtin.hasTags:
+      - Apache Sirona JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00140
+  tag:
+    - Sustain=Lift JTA
+    - Transaction=Lift JTA
+    - Embedded=Lift JTA
+  when:
+    builtin.hasTags:
+      - Lift JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00150
+  tag:
+    - Sustain=WF Core JTA
+    - Transaction=WF Core JTA
+    - Embedded=WF Core JTA
+  when:
+    builtin.hasTags:
+      - WF Core JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00160
+  tag:
+    - Sustain=Java Transaction API
+    - Transaction=Java Transaction API
+    - Embedded=Java Transaction API
+  when:
+    builtin.hasTags:
+      - Java Transaction API
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00170
+  tag:
+    - Sustain=JBoss Transactions
+    - Transaction=JBoss Transactions
+    - Embedded=JBoss Transactions
+  when:
+    builtin.hasTags:
+      - JBoss Transactions
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00180
+  tag:
+    - Sustain=GlassFish JTA
+    - Transaction=GlassFish JTA
+    - Embedded=GlassFish JTA
+  when:
+    builtin.hasTags:
+      - GlassFish JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00190
+  tag:
+    - Sustain=Atomikos JTA
+    - Transaction=Atomikos JTA
+    - Embedded=Atomikos JTA
+  when:
+    builtin.hasTags:
+      - Atomikos JTA
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00200
+  tag:
+    - Sustain=Narayana Arjuna
+    - Transaction=Narayana Arjuna
+    - Embedded=Narayana Arjuna
+  when:
+    builtin.hasTags:
+      - Narayana Arjuna
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-jta-00210
+  tag:
+    - Sustain=Spring Transactions
+    - Transaction=Spring Transactions
+    - Embedded=Spring Transactions
+  when:
+    builtin.hasTags:
+      - Spring Transactions

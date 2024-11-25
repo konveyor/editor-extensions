@@ -1,0 +1,19 @@
+- category: mandatory
+  customVariables: []
+  description: The dump model classes in package org.apache.camel.support.dump have
+    been removed as they were not in use by Camel
+  effort: 1
+  labels:
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3.3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Generic Information"
+      url: https://camel.apache.org/manual/camel-3x-upgrade-guide-3_3.html#_api_changes
+  message: The dump model classes in package org.apache.camel.support.dump have been
+    removed as they were not in use by Camel.
+  ruleID: java-camel33-00001
+  when:
+    java.referenced:
+      location: IMPORT
+      pattern: org.apache.camel.support.dump*

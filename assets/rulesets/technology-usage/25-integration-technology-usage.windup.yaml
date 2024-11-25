@@ -1,0 +1,180 @@
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00001
+  tag:
+    - Execute=Camel
+    - Embedded=Camel
+    - Integration=Camel
+  when:
+    builtin.hasTags:
+      - Apache Camel
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00002
+  tag:
+    - Execute=Teiid
+    - Embedded=Teiid
+    - Integration=Teiid
+  when:
+    builtin.hasTags:
+      - Teiid
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00003
+  tag:
+    - Execute=Spring Integration
+    - Embedded=Spring Integration
+    - Integration=Spring Integration
+  when:
+    builtin.hasTags:
+      - Spring Integration
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00004
+  tag:
+    - Execute=Ikasan
+    - Embedded=Ikasan
+    - Integration=Ikasan
+  when:
+    builtin.hasTags:
+      - Ikasan
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00005
+  tag:
+    - Execute=Swagger
+    - Embedded=Swagger
+    - Integration=Swagger
+  when:
+    builtin.hasTags:
+      - Swagger
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00006
+  tag:
+    - Execute=Apiman
+    - Embedded=Apiman
+    - Integration=Apiman
+  when:
+    builtin.hasTags:
+      - Apiman
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00007
+  tag:
+    - Execute=3scale
+    - Embedded=3scale
+    - Integration=3scale
+  when:
+    builtin.hasTags:
+      - 3scale
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00008
+  tag:
+    - Execute=Istio
+    - Embedded=Istio
+    - Integration=Istio
+  when:
+    builtin.hasTags:
+      - Istio
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00009
+  tag:
+    - Execute=ServiceMix
+    - Embedded=ServiceMix
+    - Integration=ServiceMix
+  when:
+    builtin.hasTags:
+      - ServiceMix
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00010
+  tag:
+    - Execute=Mule
+    - Embedded=Mule
+    - Integration=Mule
+  when:
+    builtin.hasTags:
+      - Mule
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00011
+  tag:
+    - Execute=Petals EIP
+    - Embedded=Petals EIP
+    - Integration=Petals EIP
+  when:
+    builtin.hasTags:
+      - Petals EIP
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00012
+  tag:
+    - Execute=SwitchYard
+    - Embedded=SwitchYard
+    - Integration=SwitchYard
+  when:
+    builtin.hasTags:
+      - SwitchYard
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00013
+  tag:
+    - Execute=Apache Synapse
+    - Embedded=Apache Synapse
+    - Integration=Apache Synapse
+  when:
+    builtin.hasTags:
+      - Apache Synapse
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00014
+  tag:
+    - Execute=WSO2
+    - Embedded=WSO2
+    - Integration=WSO2
+  when:
+    builtin.hasTags:
+      - WSO2
+- customVariables: []
+  labels:
+    - konveyor.io/include=always
+  links: []
+  ruleID: technology-usage-integration-00015
+  tag:
+    - Execute=Talend ESB
+    - Embedded=Talend ESB
+    - Integration=Talend ESB
+  when:
+    builtin.hasTags:
+      - Talend ESB

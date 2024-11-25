@@ -1,0 +1,265 @@
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-linkedin` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`org.apache.camel:camel-linkedin` artifact has been removed in Apache
+    Camel 3 so it won't be available"
+  ruleID: xml-removed-components-00000
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-linkedin
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-linkedin-starter` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`org.apache.camel:camel-linkedin-starter` artifact has been removed in
+    Apache Camel 3 so it won't be available"
+  ruleID: xml-removed-components-00001
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-linkedin-starter
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-script` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: JAVAX.SCRIPT"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_javax_script
+  message: "`org.apache.camel:camel-script` artifact has been deprecated in Apache
+    Camel 2 and removed in Apache Camel 3 as there is no support for javax.script,
+    which is also deprecated in the JDK and to be removed from Java 11 onwards."
+  ruleID: xml-removed-components-00002
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-script
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-script-starter` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: JAVAX.SCRIPT"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_javax_script
+  message: "`org.apache.camel:camel-script-starter` artifact has been deprecated in
+    Apache Camel 2 and removed in Apache Camel 3 as there is no support for javax.script,
+    which is also deprecated in the JDK and to be removed from Java 11 onwards."
+  ruleID: xml-removed-components-00003
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-script-starter
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-jibx` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`org.apache.camel:camel-jibx` artifact has been deprecated in Apache Camel
+    2 and removed in Apache Camel 3 because it did not support JDK8."
+  ruleID: xml-removed-components-00004
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-jibx
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-jibx-starter` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`org.apache.camel:camel-jibx-starter` artifact has been deprecated in
+    Apache Camel 2 and removed in Apache Camel 3 because it did not support JDK8."
+  ruleID: xml-removed-components-00005
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-jibx-starter
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-boon` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`org.apache.camel:camel-boon` artifact has been deprecated in Apache Camel
+    2 and removed in Apache Camel 3 because it did not support JDK9 and later."
+  ruleID: xml-removed-components-00006
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-boon
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-boon-starter` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`org.apache.camel:camel-boon-starter` artifact has been deprecated in
+    Apache Camel 2 and removed in Apache Camel 3 because it did not support JDK9 and
+    later."
+  ruleID: xml-removed-components-00007
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-boon-starter
+- category: mandatory
+  customVariables: []
+  description: "`twitter-streaming` component has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+  message: "`twitter-streaming` component has been deprecated in Apache Camel 2 and
+    removed in Apache Camel 3 because it relied on the deprecated Twitter Streaming
+    API and is no longer functional."
+  ruleID: xml-removed-components-00008
+  when:
+    or:
+      - builtin.filecontent:
+          filePattern: .*\.java
+          pattern: from\("twitter-streaming:.*
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/spring
+          xpath: //*/c:from/@uri[matches(self::node(), 'twitter-streaming:{*}')]
+      - builtin.xml:
+          namespaces:
+            c: http://camel.apache.org/schema/blueprint
+          xpath: //*/c:from/@uri[matches(self::node(), 'twitter-streaming:{*}')]
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-restlet` artifact has been removed"
+  effort: 3
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Removed components"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_removed_components
+    - title: Deprecate and remove camel-restlet as it's not actively maintained
+      url: https://issues.apache.org/jira/browse/CAMEL-14060
+  message: "`org.apache.camel:camel-restlet` artifact has been deprecated in Apache
+    Camel 2 and removed in Apache Camel 3. Use any of the other REST capable components,
+    such as `camel-rest`, `camel-jetty`, `camel-netty-http` or `camel-undertow`"
+  ruleID: xml-removed-components-00005-01
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-restlet
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-core-starter` artifact has been removed"
+  effort: 7
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Camel Core"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_modularization_of_camel_core
+  message: "`org.apache.camel:camel-core-starter` artifact has been removed and split
+    into several modules. Please add the relevant starter artifacts to your pom.xml
+    file."
+  ruleID: xml-removed-components-00007-01
+  when:
+    java.dependency:
+      lowerbound: 0.0.0
+      name: org.apache.camel.camel-core-starter
+- category: mandatory
+  customVariables: []
+  description: "`org.apache.camel:camel-maven-plugin` has been split"
+  effort: 1
+  labels:
+    - konveyor.io/source=camel2
+    - konveyor.io/source=camel
+    - konveyor.io/target=camel3+
+    - konveyor.io/target=camel
+  links:
+    - title: "Camel 3 - Migration Guide: Camel Maven Plugin"
+      url: https://camel.apache.org/manual/latest/camel-3-migration-guide.html#_migrating_camel_maven_plugins
+  message: "The `camel-maven-plugin` has been split up into two Maven plugins: `camel-maven-plugin`
+    and `camel-report-maven-plugin`. The `camel-maven-plugin` contains the `run` goal
+    which is intended for quickly running Camel applications. The `camel-report-maven-plugin`
+    has the `validate` and `route-coverage` goals which is used for generating reports
+    of your Camel projects by validating Camel endpoint URIs and performing route
+    coverage reports. Please use the `org.apache.camel:camel-report-maven-plugin`
+    in this case."
+  ruleID: xml-removed-components-00008-01
+  when:
+    or:
+      - builtin.xml:
+          filepaths:
+            - pom.xml
+          namespaces:
+            m: http://maven.apache.org/POM/4.0.0
+          xpath: /m:project/m:build/m:plugins/m:plugin[m:groupId='org.apache.camel'
+            and m:artifactId='camel-maven-plugin']/m:executions/m:execution/m:goals[m:goal='validate'
+            or m:goal='route-coverage']
+      - builtin.xml:
+          filepaths:
+            - pom.xml
+          namespaces:
+            m: http://maven.apache.org/POM/4.0.0
+          xpath:
+            /m:project/m:profiles/m:profile/m:build/m:plugins/m:plugin[m:groupId='org.apache.camel'
+            and m:artifactId='camel-maven-plugin']/m:executions/m:execution/m:goals[m:goal='validate'
+            or m:goal='route-coverage']
