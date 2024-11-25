@@ -10,6 +10,9 @@ export interface ExtensionData {
   localChanges: LocalChange[];
   ruleSets: RuleSet[];
   resolutionPanelData: any;
+  isAnalyzing: boolean;
+  isFetchingSolution: boolean;
+  isStartingServer: boolean;
 }
 
 export interface ExtensionState {

@@ -236,9 +236,17 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     }
   }
   public sendMessageToWebview(message: any): void {
-    if (this._panel && this._isPanelReady) {
+    if (this._view?.webview && this._isWebviewReady) {
+      // If the webview is ready, immediately send the message
+      console.log("Sending message to webview:", message);
+      this._view.webview.postMessage(message);
+    } else if (this._panel && this._isPanelReady) {
+      // For panel case, send the message if the panel is ready
+      console.log("Sending message to panel:", message);
       this._panel.webview.postMessage(message);
     } else {
+      // Queue the message until the webview or panel is ready
+      console.log("Queuing message until webview or panel is ready:", message);
       this._messageQueue.push(message);
     }
   }

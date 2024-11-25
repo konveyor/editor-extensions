@@ -53,8 +53,8 @@ const commandsMap: (state: ExtensionState) => {
         return;
       }
 
-      await analyzerClient.start();
-      await analyzerClient.initialize();
+      await analyzerClient.start(state);
+      await analyzerClient.initialize(state);
     },
     "konveyor.runAnalysis": async () => {
       const analyzerClient = state.analyzerClient;
@@ -63,9 +63,9 @@ const commandsMap: (state: ExtensionState) => {
         return;
       }
       if (fullScreenPanel && fullScreenPanel.webview) {
-        analyzerClient.runAnalysis(fullScreenPanel.webview);
+        analyzerClient.runAnalysis(fullScreenPanel.webview, state);
       } else if (sidebarProvider?.webview) {
-        analyzerClient.runAnalysis(sidebarProvider.webview);
+        analyzerClient.runAnalysis(sidebarProvider.webview, state);
       } else {
         window.showErrorMessage("No webview available to run analysis!");
       }

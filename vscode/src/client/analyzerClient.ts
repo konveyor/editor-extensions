@@ -6,6 +6,7 @@ import * as rpc from "vscode-jsonrpc/node";
 import path from "path";
 import { Incident, RuleSet } from "@editor-extensions/shared";
 import { getDataFolder } from "../data";
+import { ExtensionState } from "src/extensionState";
 
 export class AnalyzerClient {
   private config: vscode.WorkspaceConfiguration | null = null;
@@ -25,7 +26,11 @@ export class AnalyzerClient {
     this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
   }
 
-  public async start(): Promise<void> {
+  public async start(state: ExtensionState): Promise<void> {
+    state.mutateData((draft) => {
+      draft.isStartingServer = true;
+    });
+
     if (!this.canAnalyze()) {
       return;
     }
@@ -61,7 +66,15 @@ export class AnalyzerClient {
       new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
     );
     this.rpcConnection.listen();
-    await new Promise((res) => setTimeout(res, 30000));
+    await new Promise<void>((res) => {
+      setTimeout(() => {
+        state.mutateData((draft) => {
+          draft.isStartingServer = false;
+        });
+        res();
+      }, 30000);
+    });
+
     this.outputChannel.appendLine(`Successfully waited 30 seconds`);
   }
 
@@ -74,7 +87,7 @@ export class AnalyzerClient {
     this.kaiRpcServer = null;
   }
 
-  public async initialize(): Promise<void> {
+  public async initialize(state: ExtensionState): Promise<void> {
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -149,15 +162,15 @@ export class AnalyzerClient {
     );
   }
 
-  public async runAnalysis(webview: vscode.Webview): Promise<any> {
+  public async runAnalysis(webview: vscode.Webview, state: ExtensionState): Promise<any> {
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
     }
 
-    if (webview) {
-      webview.postMessage({ type: "analysisStarted" });
-    }
+    state.mutateData((draft) => {
+      draft.isAnalyzing = true;
+    });
 
     await vscode.window.withProgress(
       {
@@ -194,16 +207,26 @@ export class AnalyzerClient {
                 vscode.window.showInformationMessage(
                   "Analysis completed, but no RuleSets were found.",
                 );
+                state.mutateData((draft) => {
+                  draft.isAnalyzing = false;
+                });
+
                 resolve();
                 return;
               }
 
               vscode.commands.executeCommand("konveyor.loadRuleSets", rulesets);
+              state.mutateData((draft) => {
+                draft.isAnalyzing = false;
+              });
               progress.report({ message: "Results processed!" });
               vscode.window.showInformationMessage("Analysis completed successfully!");
               resolve();
             } catch (err: any) {
               this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
+              state.mutateData((draft) => {
+                draft.isAnalyzing = false;
+              });
               vscode.window.showErrorMessage(
                 "Analysis failed. See the output channel for details.",
               );
