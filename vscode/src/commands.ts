@@ -19,7 +19,7 @@ import {
   loadStaticResults,
   reloadLastResolutions,
 } from "./data";
-import { GetSolutionResult, RuleSet } from "@editor-extensions/shared";
+import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
 import {
   applyAll,
   discardAll,
@@ -69,6 +69,17 @@ const commandsMap: (state: ExtensionState) => {
       } else {
         window.showErrorMessage("No webview available to run analysis!");
       }
+    },
+    "konveyor.getSolution": async (incident: Incident, violation: Violation) => {
+      const analyzerClient = state.analyzerClient;
+      analyzerClient.getSolution(state, incident, violation);
+      // if (fullScreenPanel && fullScreenPanel.webview) {
+      //   analyzerClient.runAnalysis(fullScreenPanel.webview, state);
+      // } else if (sidebarProvider?.webview) {
+      //   analyzerClient.runAnalysis(sidebarProvider.webview, state);
+      // } else {
+      //   window.showErrorMessage("No webview available to run analysis!");
+      // }
     },
     "konveyor.focusKonveyorInput": async () => {
       const fullScreenTab = getFullScreenTab();
@@ -340,7 +351,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.cleanRuleSets": () => cleanRuleSets(state),
     "konveyor.loadStaticResults": loadStaticResults,
     "konveyor.loadResultsFromDataFolder": loadResultsFromDataFolder,
-    "konveyor.loadSolution": async (solution: GetSolutionResult) => loadSolution(state, solution),
+    "konveyor.loadSolution": async (solution: SolutionResponse) => loadSolution(state, solution),
     "konveyor.applyAll": async () => applyAll(state),
     "konveyor.applyFile": async (item: FileItem | Uri) => applyFile(item, state),
     "konveyor.copyDiff": async (item: FileItem | Uri) => copyDiff(item, state),

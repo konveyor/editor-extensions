@@ -1,4 +1,4 @@
-import { LocalChange, GetSolutionResult, RuleSet } from "@editor-extensions/shared";
+import { LocalChange, RuleSet, SolutionResponse } from "@editor-extensions/shared";
 import { processIncidents } from "./analyzerResults";
 import { ExtensionState } from "src/extensionState";
 import { writeDataFile } from "./storage";
@@ -24,7 +24,9 @@ export const cleanRuleSets = (state: ExtensionState) => {
   });
 };
 
-export const loadSolution = async (state: ExtensionState, solution: GetSolutionResult) => {
+export const loadSolution = async (state: ExtensionState, solution: SolutionResponse) => {
+  console.log("what is solution here in loadSolution", solution);
+
   await writeDataFile(solution, SOLUTION_DATA_FILE_PREFIX);
   await doLoadSolution(state, toLocalChanges(solution));
 };
@@ -40,6 +42,7 @@ export const reloadLastResolutions = async (state: ExtensionState) => {
 
 const doLoadSolution = async (state: ExtensionState, localChanges: LocalChange[]) => {
   state.memFs.removeAll(KONVEYOR_SCHEME);
+  console.log("what are localChanges here in doLoadSolution", localChanges);
   await writeSolutionsToMemFs(localChanges, state);
   state.mutateData((draft) => {
     draft.localChanges = localChanges;

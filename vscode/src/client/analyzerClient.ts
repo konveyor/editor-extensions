@@ -4,7 +4,7 @@ import * as os from "os";
 import * as fs from "fs";
 import * as rpc from "vscode-jsonrpc/node";
 import path from "path";
-import { Incident, RuleSet } from "@editor-extensions/shared";
+import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
 import { buildDataFolderPath } from "../data";
 import { ExtensionState } from "src/extensionState";
 
@@ -101,12 +101,12 @@ export class AnalyzerClient {
       log_level: "debug",
       log_dir_path: this.kaiDir,
       model_provider: {
-        provider: "ChatIBMGenAI",
+        provider: "ChatOpenAI",
         args: {
-          model_id: "meta-llama/llama-3-70b-instruct",
-          parameters: {
-            max_new_tokens: 2048,
-          },
+          model: "gpt-3.5-turbo",
+          // parameters: {
+          //   max_new_tokens: 2048,
+          // },
         },
       },
       file_log_level: "debug",
@@ -238,24 +238,57 @@ export class AnalyzerClient {
     );
   }
 
-  public async getSolution(_webview: vscode.Webview, _incident: Incident): Promise<any> {
+  public async getSolution(
+    _state: ExtensionState,
+    _incident: Incident,
+    _violation: Violation,
+  ): Promise<any> {
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
     }
 
-    // try {
-    //   const response: any = await this.rpcConnection!.sendRequest("getCodeplanAgentSolution", {
-    //     file_path: "",
-    //     incidents: [_incident],
-    //     max_priority: 0,
-    //     max_depth: 0,
-    //     max_iterations: 1,
-    //   });
-    // } catch (err: any) {
-    //   this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);
-    //   vscode.window.showErrorMessage("Get solution failed. See the output channel for details.");
-    // }
+    _state.mutateData((draft) => {
+      draft.isFetchingSolution = true;
+    });
+
+    const enhancedIncident = {
+      ..._incident,
+      ruleset_name: _violation.category || "default_ruleset", // You may adjust the default value as necessary
+      violation_name: _violation.description || "default_violation", // You may adjust the default value as necessary
+    };
+    console.log("what is the violation? ", _violation);
+    console.log("what is the incident? ", _incident);
+
+    try {
+      const response: SolutionResponse = await this.rpcConnection!.sendRequest(
+        "getCodeplanAgentSolution",
+        {
+          file_path: "",
+          incidents: [enhancedIncident],
+          max_priority: 0,
+          max_depth: 0,
+          max_iterations: 1,
+        },
+      );
+
+      console.log("response", response, _incident, _state);
+      const enhancedResponse: SolutionResponse = {
+        ...response,
+        incident: _incident,
+        violation: _violation,
+      };
+      vscode.commands.executeCommand("konveyor.loadSolution", enhancedResponse);
+      _state.mutateData((draft) => {
+        draft.solutionData = enhancedResponse;
+        draft.isFetchingSolution = false;
+      });
+    } catch (err: any) {
+      console.log("response err", err);
+      console.log("err incident", _incident);
+      this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);
+      vscode.window.showErrorMessage("Get solution failed. See the output channel for details.");
+    }
   }
 
   // Shutdown the server

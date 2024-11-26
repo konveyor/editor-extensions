@@ -23,6 +23,7 @@ class VsCodeExtension {
         isAnalyzing: false,
         isFetchingSolution: false,
         isStartingServer: false,
+        solutionData: undefined,
       },
       () => {},
     );
