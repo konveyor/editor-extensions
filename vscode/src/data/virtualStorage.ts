@@ -1,22 +1,71 @@
-import { GetSolutionResult, LocalChange } from "@editor-extensions/shared";
+import { LocalChange, SolutionResponse } from "@editor-extensions/shared";
 import { Uri, window, workspace } from "vscode";
 import { ExtensionState } from "src/extensionState";
 import * as Diff from "diff";
 import path from "path";
 
-import { KONVEYOR_SCHEME, fromRelativeToKonveyor } from "../utilities";
+import { KONVEYOR_SCHEME } from "../utilities";
 import { Immutable } from "immer";
 
-export const toLocalChanges = (solution: GetSolutionResult): LocalChange[] =>
-  solution.changes.map(({ modified, original, diff }) => ({
-    modifiedUri: fromRelativeToKonveyor(modified),
-    originalUri: Uri.from({
-      scheme: "file",
-      path: path.join(workspace.workspaceFolders?.[0].uri.fsPath ?? "", original),
-    }),
-    diff,
-    state: "pending",
-  }));
+export const fromRelativeToKonveyor = (relativePath: string) =>
+  Uri.from({ scheme: KONVEYOR_SCHEME, path: path.posix.sep + relativePath });
+//this is what the url looks like
+const url =
+  "/Users/ibolton/Development/coolstore/Users/ibolton/Development/coolstore/src/main/java/com/redhat/coolstore/service/InventoryNotificationMDB.java";
+
+//trying to pass in SolutionResult here
+export const toLocalChanges = (solution: SolutionResponse): LocalChange[] => {
+  if (solution.modified_files.length !== 1) {
+    console.error("Expected exactly one modified file");
+    return [];
+  }
+
+  const modifiedFilePath = solution.modified_files[0];
+
+  // Parse the diff to extract file changes
+  const parsedPatches = Diff.parsePatch(solution.diff);
+
+  if (parsedPatches.length !== 1) {
+    console.error("Expected exactly one patch in the diff");
+    return [];
+  }
+
+  const parsedPatch = parsedPatches[0];
+
+  // Reconstruct the diff for this file
+  const diff = Diff.formatPatch([parsedPatch]);
+
+  // Get the workspace path
+  const workspacePath = workspace.workspaceFolders?.[0].uri.fsPath ?? "";
+
+  // Ensure modifiedFilePath is an absolute path
+  const isModifiedPathAbsolute = path.isAbsolute(modifiedFilePath);
+
+  // Construct originalUri
+  const originalUri = Uri.file(modifiedFilePath);
+
+  // Compute relative path from workspace root to the modified file
+  const relativePath = path.relative(workspacePath, modifiedFilePath);
+
+  // Construct modifiedUri using your custom function
+  const modifiedUri = fromRelativeToKonveyor(relativePath);
+
+  // Log paths for debugging
+  console.log("Modified file path:", modifiedFilePath);
+  console.log("Workspace path:", workspacePath);
+  console.log("Relative path:", relativePath);
+  console.log("Original URI:", originalUri.toString());
+  console.log("Modified URI:", modifiedUri.toString());
+
+  return [
+    {
+      modifiedUri,
+      originalUri,
+      diff,
+      state: "pending",
+    },
+  ];
+};
 
 export const writeSolutionsToMemFs = async (
   localChanges: Immutable<LocalChange[]>,
