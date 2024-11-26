@@ -336,15 +336,6 @@ const commandsMap: (state: ExtensionState) => {
       // Update the user settings
       await config.update("labelSelector", modifiedLabelSelector, ConfigurationTarget.Workspace);
     },
-    "konveyor.openKaiConfigToml": () => {
-      workspace.openTextDocument(state.analyzerClient.getKaiConfigTomlPath()).then(async (doc) => {
-        try {
-          window.showTextDocument(doc);
-        } catch (err) {
-          console.log(err);
-        }
-      });
-    },
     "konveyor.loadRuleSets": async (ruleSets: RuleSet[]) => loadRuleSets(state, ruleSets),
     "konveyor.cleanRuleSets": () => cleanRuleSets(state),
     "konveyor.loadStaticResults": loadStaticResults,
