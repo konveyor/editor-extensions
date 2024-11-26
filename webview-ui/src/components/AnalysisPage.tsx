@@ -1,8 +1,12 @@
-// AnalysisPage.tsx
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Button,
   ButtonVariant,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  Content,
   EmptyState,
   EmptyStateBody,
   Title,
@@ -11,6 +15,10 @@ import {
   AlertGroup,
   Spinner,
   Backdrop,
+  Page,
+  PageSection,
+  Stack,
+  StackItem,
 } from "@patternfly/react-core";
 import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
 
@@ -42,15 +50,13 @@ const AnalysisPage: React.FC = () => {
     });
   };
 
-  // Function to fetch server status
   const fetchServerStatus = () => {
     vscode.postMessage({ command: "checkServerStatus" });
   };
 
-  // Effect hook to check server status on component mount and periodically
   useEffect(() => {
     fetchServerStatus();
-    const interval = setInterval(fetchServerStatus, 5000); // Check every 5 seconds
+    const interval = setInterval(fetchServerStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -61,62 +67,28 @@ const AnalysisPage: React.FC = () => {
       case "onDidChangeData": {
         const { isAnalyzing, isFetchingSolution, errorMessage, ruleSets, isStartingServer } =
           message.value;
-        console.log("onDidChangeData", message.value);
-        console.log("message", message);
-
         setIsAnalyzing(isAnalyzing);
         setIsWaitingForSolution(isFetchingSolution);
         setErrorMessage(errorMessage);
         setAnalysisResults(ruleSets);
         setIsStartingServer(isStartingServer);
-
         break;
       }
-
       case "serverStatus":
         setServerRunning(message.isRunning);
         break;
-
-      // case "loadStoredAnalysis": {
-      //   const storedAnalysisResults = message.data;
-      //   setAnalysisResults(
-      //     storedAnalysisResults && storedAnalysisResults.length ? storedAnalysisResults : null,
-      //   );
-      //   break;
-      // }
-      // case "solutionConfirmation": {
-      //   if (message.data) {
-      //     const { solution, confirmed } = message.data;
-      //     if (confirmed) {
-      //       setErrorMessage(null);
-      //       setIsWaitingForSolution(false);
-      //       // sendVscodeMessage("applySolution", { solution });
-      //     }
-      //   }
-      //   break;
-      // }
-      // case "analysisStarted":
-      //   // setIsAnalyzing(true);
-      //   // setAnalysisMessage("Analysis started...");
-      //   // setErrorMessage(null);
-      //   break;
-      // case "analysisComplete":
-      //   // setIsAnalyzing(false);
-      //   // setAnalysisMessage("");
-      //   // setAnalysisResults(message.data || null);
-      //   break;
-      // case "analysisFailed":
-      // setIsAnalyzing(false);
-      // setAnalysisMessage("");
-      // setErrorMessage(`Analysis failed: ${message.message}`);
-      // break;
     }
   };
 
-  useVscodeMessages(messageHandler); // Use the custom hook for message handling
+  useVscodeMessages(messageHandler);
 
   const startAnalysis = () => {
     vscode.postMessage({ command: "startAnalysis" });
+  };
+
+  const cancelSolutionRequest = () => {
+    vscode.postMessage({ command: "cancelSolution" });
+    setIsWaitingForSolution(false);
   };
 
   const violations = useMemo(() => {
@@ -131,67 +103,149 @@ const AnalysisPage: React.FC = () => {
     );
   }, [analysisResults]);
 
-  const hasViolations = violations.length > 0;
+  const hasViolations = violations.length;
+  const hasAnalysisResults = analysisResults?.length;
+
+  if (isStartingServer) {
+    return (
+      <Backdrop>
+        <div style={{ textAlign: "center", paddingTop: "15rem" }}>
+          <Spinner size="lg" />
+          <Title headingLevel="h2" size="lg">
+            Starting server...
+          </Title>
+        </div>
+      </Backdrop>
+    );
+  }
+
+  if (!serverRunning) {
+    return (
+      <Page>
+        <PageSection>
+          <EmptyState>
+            <Title headingLevel="h2" size="lg">
+              Server Not Running
+            </Title>
+            <EmptyStateBody>
+              The server is not running. Please start the server to run an analysis.
+            </EmptyStateBody>
+            <Button
+              className={spacing.mtMd}
+              variant={ButtonVariant.primary}
+              onClick={() => sendVscodeMessage("startServer", {})}
+            >
+              Start Server
+            </Button>
+          </EmptyState>
+        </PageSection>
+      </Page>
+    );
+  }
 
   return (
-    <>
-      {/* Show server-related state first */}
-      {isStartingServer && (
-        <Backdrop>
-          <div style={{ textAlign: "center", paddingTop: "15rem" }}>
-            <Spinner size="lg" />
-            <Title headingLevel="h2" size="lg">
-              Starting server...
-            </Title>
-          </div>
-        </Backdrop>
-      )}
-
-      {serverRunning && !isStartingServer && (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <Button
-            variant={ButtonVariant.primary}
-            onClick={startAnalysis}
-            isLoading={isAnalyzing}
-            isDisabled={!serverRunning || isAnalyzing || isStartingServer}
-            className={spacing.mXl}
-          >
-            {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-          </Button>
-        </div>
-      )}
-
-      {/* Handle error message */}
+    <Page>
       {errorMessage && (
-        <AlertGroup isToast>
-          <Alert
-            variant="danger"
-            title={errorMessage}
-            actionClose={
-              <AlertActionCloseButton title={errorMessage} onClose={() => setErrorMessage(null)} />
-            }
-          />
-        </AlertGroup>
+        <PageSection padding={{ default: "noPadding" }}>
+          <AlertGroup isToast>
+            <Alert
+              variant="danger"
+              title={errorMessage}
+              actionClose={
+                <AlertActionCloseButton
+                  title={errorMessage}
+                  onClose={() => setErrorMessage(null)}
+                />
+              }
+            />
+          </AlertGroup>
+        </PageSection>
       )}
 
-      {/* Show empty state if server is not running */}
-      {!serverRunning && !isStartingServer && (
-        <EmptyState>
-          <Title headingLevel="h2" size="lg">
-            Server Not Running
-          </Title>
-          <EmptyStateBody>
-            The server is not running. Please start the server to run an analysis.
-          </EmptyStateBody>
-          <Button
-            className={spacing.mtMd}
-            variant={ButtonVariant.primary}
-            onClick={() => sendVscodeMessage("startServer", {})}
-          >
-            Start Server
-          </Button>
-        </EmptyState>
-      )}
+      <PageSection>
+        <Stack hasGutter>
+          {/* Analysis Actions Card */}
+          <StackItem>
+            <Card>
+              <CardHeader>
+                <CardTitle>Analysis Actions</CardTitle>
+              </CardHeader>
+              <CardBody>
+                <Stack hasGutter>
+                  <StackItem>
+                    <Content>
+                      {hasAnalysisResults
+                        ? "Previous analysis results are available. You can run a new analysis at any time."
+                        : "No previous analysis results found. Run an analysis to get started."}
+                    </Content>
+                  </StackItem>
+                  <StackItem>
+                    <Button
+                      variant={ButtonVariant.primary}
+                      onClick={startAnalysis}
+                      isLoading={isAnalyzing}
+                      isDisabled={isAnalyzing || isStartingServer}
+                    >
+                      {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                    </Button>
+                  </StackItem>
+                </Stack>
+              </CardBody>
+            </Card>
+          </StackItem>
+
+          {/* Analysis Results Section */}
+          <StackItem>
+            <Card>
+              <CardHeader>
+                <CardTitle>Analysis Results</CardTitle>
+              </CardHeader>
+              <CardBody>
+                {isAnalyzing && <ProgressIndicator progress={50} />}
+
+                {!isAnalyzing && !hasViolations && (
+                  <EmptyState variant="sm">
+                    <Title headingLevel="h2" size="md">
+                      {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
+                    </Title>
+                    <EmptyStateBody>
+                      {hasAnalysisResults
+                        ? "Great job! Your analysis didn't find any violations."
+                        : analysisMessage || "Run an analysis to see results here."}
+                    </EmptyStateBody>
+                  </EmptyState>
+                )}
+
+                {hasViolations && !isAnalyzing && (
+                  <ViolationIncidentsList
+                    violations={violations}
+                    focusedIncident={focusedIncident}
+                    onIncidentSelect={handleIncidentSelect}
+                    onGetSolution={(incident, violation) => {
+                      setIsWaitingForSolution(true);
+                      vscode.postMessage({
+                        command: "getSolution",
+                        incident,
+                        violation,
+                      });
+                    }}
+                    onGetAllSolutions={(selectedViolations) => {
+                      setIsWaitingForSolution(true);
+                      vscode.postMessage({
+                        command: "getAllSolutions",
+                        selectedViolations,
+                      });
+                    }}
+                    compact={false}
+                    expandedViolations={expandedViolations}
+                    setExpandedViolations={setExpandedViolations}
+                  />
+                )}
+              </CardBody>
+            </Card>
+          </StackItem>
+        </Stack>
+      </PageSection>
 
       {/* Handle the analysis state */}
       {serverRunning && !isStartingServer && !isAnalyzing && !hasViolations && (
@@ -244,10 +298,17 @@ const AnalysisPage: React.FC = () => {
             <Title headingLevel="h2" size="lg">
               Waiting for solution confirmation...
             </Title>
+            <Button
+              variant={ButtonVariant.link}
+              onClick={cancelSolutionRequest}
+              className={spacing.mtMd}
+            >
+              Cancel
+            </Button>
           </div>
         </Backdrop>
       )}
-    </>
+    </Page>
   );
 };
 
