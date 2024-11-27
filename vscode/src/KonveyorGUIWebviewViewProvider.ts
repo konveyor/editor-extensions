@@ -12,7 +12,6 @@ import {
   ViewColumn,
   window,
 } from "vscode";
-import { getUri } from "./utilities/getUri";
 import { getNonce } from "./utilities/getNonce";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
@@ -94,9 +93,19 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private initializeWebview(webview: Webview): void {
+    const isProd = process.env.NODE_ENV === "production";
+    const extensionUri = this._extensionState.extensionContext.extensionUri;
+
+    let assetsUri: Uri;
+    if (isProd) {
+      assetsUri = Uri.joinPath(extensionUri, "out", "webview", "assets");
+    } else {
+      assetsUri = Uri.parse("http://localhost:5173");
+    }
+
     webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionState.extensionContext.extensionUri],
+      localResourceRoots: isProd ? [assetsUri] : [extensionUri],
     };
 
     webview.html = this.getHtmlForWebview(webview);
@@ -104,7 +113,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   public getHtmlForWebview(webview: Webview): string {
-    const stylesUri = this._getUri(webview, ["webview-ui", "build", "assets", "index.css"]);
+    const stylesUri = this._getStylesUri(webview);
     const scriptUri = this._getScriptUri(webview);
     const nonce = getNonce();
 
@@ -136,14 +145,15 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getContentSecurityPolicy(nonce: string, webview: Webview): string {
-    const isProd = process.env.NODE_ENV === "production"; // Use environment check
+    const isProd = process.env.NODE_ENV === "production";
     const localServerUrl = "localhost:5173";
     return [
       `default-src 'none';`,
       `script-src 'unsafe-eval' https://* ${
         isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} 'nonce-${nonce}' 'unsafe-inline'`
       };`,
-      `style-src ${webview.cspSource} 'unsafe-inline' https://*;`,
+      `style-src ${webview.cspSource} 'unsafe-inline' https://* ${isProd ? "" : `http://${localServerUrl}`};`,
+
       `font-src ${webview.cspSource};`,
       `connect-src https://* ${isProd ? `` : `ws://${localServerUrl} http://${localServerUrl}`};`,
       `img-src https: data:;`,
@@ -153,12 +163,20 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   private _getScriptUri(webview: Webview): Uri {
     const isProd = process.env.NODE_ENV === "production";
     return isProd
-      ? this._getUri(webview, ["webview-ui", "build", "assets", "index.js"])
+      ? this._getUri(webview, ["assets", "index.js"])
       : Uri.parse("http://localhost:5173/src/index.tsx");
   }
 
+  private _getStylesUri(webview: Webview): Uri {
+    const isProd = process.env.NODE_ENV === "production";
+    return isProd
+      ? this._getUri(webview, ["assets", "index.css"])
+      : Uri.parse("http://localhost:5173/src/index.css");
+  }
+
   private _getReactRefreshScript(nonce: string): string {
-    const isProd = false; // Replace with actual production check
+    const isProd = process.env.NODE_ENV === "production";
+
     return isProd
       ? ""
       : `
@@ -172,7 +190,22 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getUri(webview: Webview, pathList: string[]): Uri {
-    return getUri(webview, this._extensionState.extensionContext.extensionUri, pathList);
+    const isProd = process.env.NODE_ENV === "production";
+
+    if (isProd) {
+      return webview.asWebviewUri(
+        Uri.joinPath(
+          this._extensionState.extensionContext.extensionUri,
+          "out",
+          "webview",
+          ...pathList,
+        ),
+      );
+    } else {
+      const localServerUrl = "http://localhost:5173";
+      const assetPath = pathList.join("/");
+      return Uri.parse(`${localServerUrl}/${assetPath}`);
+    }
   }
 
   private _setWebviewMessageListener(webview: Webview) {
@@ -206,7 +239,6 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     if (this._panel && this._isPanelReady) {
       this._panel.webview.postMessage(message);
     } else {
-      // Queue the message until the panel is ready
       this._messageQueue.push(message);
     }
   }

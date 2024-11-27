@@ -19,6 +19,7 @@
     "node": ">=22.9.0",
     "npm": "^9.5.0 || ^10.5.2"
   },
+  "type": "module",
   "categories": [
     "Programming Languages",
     "Machine Learning",
@@ -40,9 +41,9 @@
   "scripts": {
     "prepare": "husky",
     "postinstall": "npm run build -w shared",
-    "clean": "npm run clean --workspaces --if-present",
+    "clean": "rimraf ./dist ./downloaded_assets && npm run clean --workspaces --if-present",
     "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "eslint ./scripts && npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "predev": "npm run build -w shared",
     "dev": "concurrently -c auto 'npm:dev:shared' 'npm:dev:webview-ui' 'npm:dev:vscode'",
@@ -50,10 +51,13 @@
     "dev:webview-ui": "npm run start -w webview-ui",
     "dev:vscode": "npm run dev -w vscode",
     "build": "npm run build --workspaces --if-present",
-    "package": "npm run build && npm run package -w vscode",
+    "collect-assets": "rimraf ./downloaded_assets && node ./scripts/collect-assets.js",
+    "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
+    "package": "cd dist && vsce package",
     "test": "npm run lint && npm run build && npm run test --workspaces --if-present"
   },
   "lint-staged": {
+    "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",
     "!(package-lock.json)*": "prettier --ignore-unknown --write"
   },
   "devDependencies": {
@@ -64,6 +68,8 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
+    "@vscode/vsce": "^3.2.1",
+    "colorette": "^2.0.20",
     "concurrently": "^8.2.2",
     "eslint": "~9.14.0",
     "eslint-config-prettier": "^9.1.0",
@@ -72,19 +78,22 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "eslint-plugin-unused-imports": "^4.1.4",
+    "fs-extra": "^11.2.0",
     "globals": "^15.0.0",
+    "globby": "^14.0.2",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.14.0"
+    "typescript-eslint": "^8.14.0",
+    "unzipper": "^0.12.3"
   },
   "dependencies": {
+    "immer": "10.1.1",
     "js-yaml": "^4.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "uuid": "^10.0.0",
-    "immer": "10.1.1"
+    "uuid": "^10.0.0"
   }
 }
