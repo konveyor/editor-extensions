@@ -95,12 +95,17 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   private initializeWebview(webview: Webview): void {
     const isProd = process.env.NODE_ENV === "production";
     const extensionUri = this._extensionState.extensionContext.extensionUri;
-    const assetsUri = isProd
-      ? Uri.joinPath(extensionUri, "out", "webview", "assets")
-      : Uri.parse("http://localhost:5173/src");
+
+    let assetsUri: Uri;
+    if (isProd) {
+      assetsUri = Uri.joinPath(extensionUri, "out", "webview", "assets");
+    } else {
+      assetsUri = Uri.parse("http://localhost:5173");
+    }
+
     webview.options = {
       enableScripts: true,
-      localResourceRoots: [isProd ? assetsUri : extensionUri],
+      localResourceRoots: isProd ? [assetsUri] : [extensionUri],
     };
 
     webview.html = this.getHtmlForWebview(webview);
@@ -108,7 +113,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   public getHtmlForWebview(webview: Webview): string {
-    const stylesUri = this._getUri(webview, ["webview-ui", "build", "assets", "index.css"]);
+    const stylesUri = this._getStylesUri(webview);
     const scriptUri = this._getScriptUri(webview);
     const nonce = getNonce();
 
@@ -158,8 +163,15 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   private _getScriptUri(webview: Webview): Uri {
     const isProd = process.env.NODE_ENV === "production";
     return isProd
-      ? this._getUri(webview, ["webview-ui", "build", "assets", "index.js"])
+      ? this._getUri(webview, ["assets", "index.js"])
       : Uri.parse("http://localhost:5173/src/index.tsx");
+  }
+
+  private _getStylesUri(webview: Webview): Uri {
+    const isProd = process.env.NODE_ENV === "production";
+    return isProd
+      ? this._getUri(webview, ["assets", "index.css"])
+      : Uri.parse("http://localhost:5173/src/index.css");
   }
 
   private _getReactRefreshScript(nonce: string): string {
@@ -186,7 +198,6 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
           this._extensionState.extensionContext.extensionUri,
           "out",
           "webview",
-          "assets",
           ...pathList,
         ),
       );
