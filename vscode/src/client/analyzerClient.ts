@@ -12,6 +12,7 @@ import { ExtensionState } from "../extensionState";
 import { ExtensionData, ServerState } from "@editor-extensions/shared";
 import { setTimeout } from "timers/promises";
 import {
+  KONVEYOR_CONFIG_KEY,
   getConfigAnalyzerPath,
   getConfigKaiRpcServerPath,
   getConfigKaiBackendURL,
@@ -22,7 +23,7 @@ import {
   getConfigKaiProviderModel,
   getConfigKaiProviderParameters,
   getConfigLabelSelector,
-  updateUseDefaultRulesets,
+  updateUseDefaultRuleSets,
 } from "../utilities";
 
 const exec = util.promisify(callbackExec);
@@ -110,7 +111,16 @@ export class AnalyzerClient {
   }
 
   public async initialize(): Promise<void> {
-    const isProd = Extension.getInstance(this.extContext).isProductionMode;
+    // This config value is intentionally excluded from package.json
+    const configDemoMode = vscode.workspace
+      .getConfiguration(KONVEYOR_CONFIG_KEY)
+      ?.get<boolean>("konveyor.kai.demoMode");
+    let demoMode: boolean;
+    if (configDemoMode !== undefined) {
+      demoMode = configDemoMode;
+    } else {
+      demoMode = !Extension.getInstance(this.extContext).isProductionMode;
+    }
 
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
@@ -132,7 +142,7 @@ export class AnalyzerClient {
         },
       },
       file_log_level: getConfigLogLevel(),
-      demo_mode: Extension.getInstance(this.extContext).isProductionMode ? "false" : "true",
+      demo_mode: demoMode,
       cache_dir: "",
 
       analyzer_lsp_java_bundle_path: path.join(
@@ -339,7 +349,7 @@ export class AnalyzerClient {
 
       switch (selection) {
         case "Enable Default Rulesets":
-          await updateUseDefaultRulesets(true);
+          await updateUseDefaultRuleSets(true);
           vscode.window.showInformationMessage("Default rulesets have been enabled.");
           break;
         case "Configure Custom Rules":

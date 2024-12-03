@@ -26,7 +26,7 @@ import {
   updateAnalyzerPath,
   updateKaiRpcServerPath,
   updateCustomRules,
-  updateUseDefaultRulesets,
+  updateUseDefaultRuleSets,
   getConfigLabelSelector,
   updateLabelSelector,
 } from "./utilities/configuration";
@@ -209,9 +209,9 @@ const commandsMap: (state: ExtensionState) => {
         });
 
         if (useDefaultRulesets === "Yes") {
-          await updateUseDefaultRulesets(true);
+          await updateUseDefaultRuleSets(true);
         } else if (useDefaultRulesets === "No") {
-          await updateUseDefaultRulesets(false);
+          await updateUseDefaultRuleSets(false);
         }
 
         window.showInformationMessage(

@@ -105,7 +105,7 @@ export async function updateCodeSnipLimit(value: number): Promise<void> {
   await updateConfigValue("analysis.codeSnipLimit", value, vscode.ConfigurationTarget.Workspace);
 }
 
-export async function updateUseDefaultRulesets(value: boolean): Promise<void> {
+export async function updateUseDefaultRuleSets(value: boolean): Promise<void> {
   await updateConfigValue(
     "analysis.useDefaultRulesets",
     value,
