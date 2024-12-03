@@ -4,6 +4,7 @@ import { fromRelativeToKonveyor, KONVEYOR_READ_ONLY_SCHEME } from "../utilities"
 import { FileItem, toUri } from "./fileModel";
 import { LocalChange } from "@editor-extensions/shared";
 import { Immutable } from "immer";
+import { getConfigDiffEditorType } from "../utilities";
 
 export const applyAll = async (state: ExtensionState) => {
   const localChanges = state.data.localChanges;
@@ -26,7 +27,7 @@ export const discardAll = async (state: ExtensionState) => {
 };
 
 export const viewFix = async (uri: vscode.Uri, preserveFocus: boolean) =>
-  vscode.workspace.getConfiguration("konveyor")?.get("diffEditorType") === "merge"
+  getConfigDiffEditorType() === "merge"
     ? viewFixInMergeEditor(uri, preserveFocus)
     : viewFixInDiffEditor(uri, preserveFocus);
 

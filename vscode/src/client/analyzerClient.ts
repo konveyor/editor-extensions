@@ -7,13 +7,26 @@ import * as rpc from "vscode-jsonrpc/node";
 import path from "path";
 import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
 import { buildDataFolderPath } from "../data";
+import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { ExtensionData, ServerState } from "@editor-extensions/shared";
 import { setTimeout } from "timers/promises";
+import {
+  getConfigAnalyzerPath,
+  getConfigKaiRpcServerPath,
+  getConfigKaiBackendURL,
+  getConfigLogLevel,
+  getConfigUseDefaultRulesets,
+  getConfigCustomRules,
+  getConfigKaiProviderName,
+  getConfigKaiProviderModel,
+  getConfigKaiProviderParameters,
+  getConfigLabelSelector,
+  updateUseDefaultRulesets,
+} from "../utilities";
 
 const exec = util.promisify(callbackExec);
 export class AnalyzerClient {
-  private config: vscode.WorkspaceConfiguration | null = null;
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
   private outputChannel: vscode.OutputChannel;
   private rpcConnection: rpc.MessageConnection | null = null;
@@ -42,7 +55,6 @@ export class AnalyzerClient {
         draft.isFetchingSolution = flag;
       });
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
-    this.config = vscode.workspace.getConfiguration("konveyor");
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
     this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
   }
@@ -98,6 +110,8 @@ export class AnalyzerClient {
   }
 
   public async initialize(): Promise<void> {
+    const isProd = Extension.getInstance(this.extContext).isProductionMode;
+
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -106,21 +120,19 @@ export class AnalyzerClient {
     // Define the initialize request parameters if needed
     const initializeParams = {
       process_id: null,
-      kai_backend_url: "0.0.0.0:8080",
+      kai_backend_url: getConfigKaiBackendURL(),
       root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
-      log_level: "debug",
+      log_level: getConfigLogLevel(),
       log_dir_path: this.kaiDir,
       model_provider: {
-        provider: "ChatOpenAI",
+        provider: getConfigKaiProviderName(),
         args: {
-          model: "gpt-3.5-turbo",
-          // parameters: {
-          //   max_new_tokens: 2048,
-          // },
+          model: getConfigKaiProviderModel(),
+          parameters: getConfigKaiProviderParameters(),
         },
       },
-      file_log_level: "debug",
-      demo_mode: true,
+      file_log_level: getConfigLogLevel(),
+      demo_mode: Extension.getInstance(this.extContext).isProductionMode ? "false" : "true",
       cache_dir: "",
 
       analyzer_lsp_java_bundle_path: path.join(
@@ -192,7 +204,7 @@ export class AnalyzerClient {
           this.fireAnalysisStateChange(true);
 
           const requestParams = {
-            label_selector: this.getLabelSelector(),
+            label_selector: getConfigLabelSelector(),
           };
 
           this.outputChannel.appendLine(
@@ -292,11 +304,11 @@ export class AnalyzerClient {
   }
 
   public canAnalyze(): boolean {
-    return !!this.config?.get("labelSelector") && this.getRules().length !== 0;
+    return !!getConfigLabelSelector() && this.getRules().length !== 0;
   }
 
   public async canAnalyzeInteractive(): Promise<boolean> {
-    const labelSelector = this.config!.get("labelSelector") as string;
+    const labelSelector = getConfigLabelSelector();
 
     if (!labelSelector) {
       const selection = await vscode.window.showErrorMessage(
@@ -327,11 +339,7 @@ export class AnalyzerClient {
 
       switch (selection) {
         case "Enable Default Rulesets":
-          await this.config!.update(
-            "useDefaultRulesets",
-            true,
-            vscode.ConfigurationTarget.Workspace,
-          );
+          await updateUseDefaultRulesets(true);
           vscode.window.showInformationMessage("Default rulesets have been enabled.");
           break;
         case "Configure Custom Rules":
@@ -345,7 +353,7 @@ export class AnalyzerClient {
   }
 
   public getAnalyzerPath(): string {
-    const analyzerPath = this.config?.get<string>("analyzerPath");
+    const analyzerPath = getConfigAnalyzerPath();
     if (analyzerPath && fs.existsSync(analyzerPath)) {
       return analyzerPath;
     }
@@ -376,7 +384,7 @@ export class AnalyzerClient {
 
   public getKaiRpcServerPath(): string {
     // Retrieve the rpcServerPath
-    const rpcServerPath = this.config?.get<string>("kaiRpcServerPath");
+    const rpcServerPath = getConfigKaiRpcServerPath();
     if (rpcServerPath && fs.existsSync(rpcServerPath)) {
       return rpcServerPath;
     }
@@ -412,39 +420,18 @@ export class AnalyzerClient {
     return ["--config", this.getKaiConfigTomlPath()];
   }
 
-  public getNumWorkers(): number {
-    return this.config!.get("workers") as number;
-  }
+  public getRules(): string[] {
+    const useDefaultRulesets = getConfigUseDefaultRulesets();
+    const customRules = getConfigCustomRules();
+    const rules: string[] = [];
 
-  public getIncidentLimit(): number {
-    return this.config!.get("incidentLimit") as number;
-  }
-
-  public getContextLines(): number {
-    return this.config!.get("contextLines") as number;
-  }
-
-  public getCodeSnipLimit(): number {
-    return this.config!.get("codeSnipLimit") as number;
-  }
-
-  public getRules(): string {
-    return path.join(this.extContext!.extensionPath, "assets/rulesets");
-    // const useDefaultRulesets = this.config!.get("useDefaultRulesets") as boolean;
-    // const customRules = this.config!.get("customRules") as string[];
-    // const rules: string[] = [];
-
-    // if (useDefaultRulesets) {
-    //   rules.push(path.join(this.extContext!.extensionPath, "assets/rulesets"));
-    // }
-    // if (customRules.length > 0) {
-    //   rules.push(...customRules);
-    // }
-    // return rules;
-  }
-
-  public getLabelSelector(): string {
-    return vscode.workspace.getConfiguration("konveyor").get("labelSelector") as string;
+    if (useDefaultRulesets) {
+      rules.push(path.join(this.extContext!.extensionPath, "assets/rulesets"));
+    }
+    if (customRules.length > 0) {
+      rules.push(...customRules);
+    }
+    return rules;
   }
 
   public getJavaConfig(): object {

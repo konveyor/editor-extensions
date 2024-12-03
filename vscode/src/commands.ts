@@ -1,16 +1,7 @@
 import { setupWebviewMessageListener } from "./webviewMessageHandler";
 import { ExtensionState } from "./extensionState";
 import { sourceOptions, targetOptions } from "./config/labels";
-import {
-  WebviewPanel,
-  window,
-  commands,
-  Uri,
-  ConfigurationTarget,
-  OpenDialogOptions,
-  ViewColumn,
-  workspace,
-} from "vscode";
+import { WebviewPanel, window, commands, Uri, OpenDialogOptions, ViewColumn } from "vscode";
 import {
   cleanRuleSets,
   loadResultsFromDataFolder,
@@ -31,6 +22,14 @@ import {
   discardFile,
   applyBlock,
 } from "./diffView";
+import {
+  updateAnalyzerPath,
+  updateKaiRpcServerPath,
+  updateCustomRules,
+  updateUseDefaultRulesets,
+  getConfigLabelSelector,
+  updateLabelSelector,
+} from "./utilities/configuration";
 
 let fullScreenPanel: WebviewPanel | undefined;
 
@@ -145,17 +144,16 @@ const commandsMap: (state: ExtensionState) => {
       };
 
       const fileUri = await window.showOpenDialog(options);
-      const config = workspace.getConfiguration("konveyor");
       if (fileUri && fileUri[0]) {
         const filePath = fileUri[0].fsPath;
 
         // Update the user settings
-        await config.update("analyzerPath", filePath, ConfigurationTarget.Global);
+        await updateAnalyzerPath(filePath);
 
         window.showInformationMessage(`Analyzer binary path updated to: ${filePath}`);
       } else {
         // Reset the setting to undefined or remove it
-        await config.update("analyzerPath", undefined, ConfigurationTarget.Global);
+        await updateAnalyzerPath(undefined);
         window.showInformationMessage("No analyzer binary selected.");
       }
     },
@@ -170,17 +168,16 @@ const commandsMap: (state: ExtensionState) => {
       };
 
       const fileUri = await window.showOpenDialog(options);
-      const config = workspace.getConfiguration("konveyor");
       if (fileUri && fileUri[0]) {
         const filePath = fileUri[0].fsPath;
 
         // Update the user settings
-        await config.update("kaiRpcServerPath", filePath, ConfigurationTarget.Global);
+        await updateKaiRpcServerPath(filePath);
 
         window.showInformationMessage(`Kai rpc server binary path updated to: ${filePath}`);
       } else {
         // Reset the setting to undefined or remove it
-        await config.update("kaiRpcServerPath", undefined, ConfigurationTarget.Global);
+        await updateKaiRpcServerPath(undefined);
         window.showInformationMessage("No Kai rpc-server binary selected.");
       }
     },
@@ -203,8 +200,7 @@ const commandsMap: (state: ExtensionState) => {
         // TODO(djzager): Should we verify the rules provided are valid?
 
         // Update the user settings
-        const config = workspace.getConfiguration("konveyor");
-        await config.update("customRules", customRules, ConfigurationTarget.Workspace);
+        await updateCustomRules(customRules);
 
         // Ask the user if they want to disable the default ruleset
         const useDefaultRulesets = await window.showQuickPick(["Yes", "No"], {
@@ -213,9 +209,9 @@ const commandsMap: (state: ExtensionState) => {
         });
 
         if (useDefaultRulesets === "Yes") {
-          await config.update("useDefaultRulesets", true, ConfigurationTarget.Workspace);
+          await updateUseDefaultRulesets(true);
         } else if (useDefaultRulesets === "No") {
-          await config.update("useDefaultRulesets", false, ConfigurationTarget.Workspace);
+          await updateUseDefaultRulesets(false);
         }
 
         window.showInformationMessage(
@@ -226,8 +222,7 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.configureSourcesTargets": async () => {
-      const config = workspace.getConfiguration("konveyor");
-      const currentLabelSelector = config.get<string>("labelSelector", "");
+      const currentLabelSelector = getConfigLabelSelector();
 
       // Function to extract values from label selector
       const extractValuesFromSelector = (selector: string, key: string): string[] => {
@@ -318,15 +313,14 @@ const commandsMap: (state: ExtensionState) => {
       state.labelSelector = modifiedLabelSelector;
 
       // Update the user settings
-      await config.update("labelSelector", state.labelSelector, ConfigurationTarget.Workspace);
+      await updateLabelSelector(state.labelSelector);
 
       window.showInformationMessage(
         `Configuration updated: Sources: ${state.sources.join(", ")}, Targets: ${state.targets.join(", ")}, Label Selector: ${state.labelSelector}`,
       );
     },
     "konveyor.configureLabelSelector": async () => {
-      const config = workspace.getConfiguration("konveyor");
-      const currentLabelSelector = config.get<string>("labelSelector", "");
+      const currentLabelSelector = getConfigLabelSelector();
 
       const modifiedLabelSelector = await window.showInputBox({
         prompt: "Modify the label selector if needed",
@@ -339,7 +333,7 @@ const commandsMap: (state: ExtensionState) => {
       }
 
       // Update the user settings
-      await config.update("labelSelector", modifiedLabelSelector, ConfigurationTarget.Workspace);
+      await updateLabelSelector(modifiedLabelSelector);
     },
     "konveyor.loadRuleSets": async (ruleSets: RuleSet[]) => loadRuleSets(state, ruleSets),
     "konveyor.cleanRuleSets": () => cleanRuleSets(state),

@@ -363,37 +363,44 @@
           "default": "",
           "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
           "scope": "machine",
-          "order": 0
+          "order": 1
         },
-        "konveyor.incidentLimit": {
+        "konveyor.logLevel": {
+          "type": "string",
+          "default": "debug",
+          "description": "Log level to use with extension",
+          "scope": "window",
+          "order": 2
+        },
+        "konveyor.analysis.incidentLimit": {
           "type": "number",
           "default": 10000,
           "description": "Maximum number of incidents to report",
           "scope": "window",
           "order": 1
         },
-        "konveyor.contextLines": {
+        "konveyor.analysis.contextLines": {
           "type": "number",
           "default": 10,
           "description": "Number of lines of context to include in incident reports",
           "scope": "window",
           "order": 2
         },
-        "konveyor.codeSnipLimit": {
+        "konveyor.analysis.codeSnipLimit": {
           "type": "number",
           "default": 10,
           "description": "Number of lines of code to include in incident reports",
           "scope": "window",
           "order": 3
         },
-        "konveyor.useDefaultRulesets": {
+        "konveyor.analysis.useDefaultRulesets": {
           "type": "boolean",
           "default": true,
           "description": "Whether analysis should use the default rulesets, included in the extension",
           "scope": "window",
           "order": 4
         },
-        "konveyor.customRules": {
+        "konveyor.analysis.customRules": {
           "type": "array",
           "items": {
             "type": "string"
@@ -403,33 +410,63 @@
           "scope": "window",
           "order": 5
         },
-        "konveyor.labelSelector": {
+        "konveyor.analysis.labelSelector": {
           "type": "string",
           "default": "discovery",
           "description": "Expression to select incidents based on custom variables. Example: (!package=io.konveyor.demo.config-utils)",
           "scope": "window",
           "order": 6
         },
-        "konveyor.analyzeKnownLibraries": {
+        "konveyor.analysis.analyzeKnownLibraries": {
           "type": "boolean",
           "default": false,
           "description": "Whether analysis should include known open-source libraries",
           "scope": "window",
           "order": 7
         },
-        "konveyor.analyzeDependencies": {
+        "konveyor.analysis.analyzeDependencies": {
           "type": "boolean",
           "default": true,
           "description": "Whether analysis should include dependencies",
           "scope": "window",
           "order": 8
         },
-        "konveyor.analyzeOnSave": {
+        "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Whether analysis of file should be run when saved",
           "scope": "window",
           "order": 9
+        },
+        "konveyor.diffEditorType": {
+          "type": "string",
+          "default": "diff",
+          "description": "Diff editor to use when resolving proposed solutions",
+          "scope": "window"
+        },
+        "konveyor.kai.backendURL": {
+          "type": "string",
+          "default": "0.0.0.0:8080",
+          "description": "Kai Backend URL",
+          "scope": "window"
+        },
+        "konveyor.kai.providerName": {
+          "type": "string",
+          "default": "ChatIBMGenAI",
+          "description": "URL for the Kai solution server",
+          "scope": "window"
+        },
+        "konveyor.kai.providerModel": {
+          "type": "string",
+          "default": "meta-llama/llama-3-1-70b-instruct",
+          "description": "URL for the Kai solution server",
+          "scope": "window"
+        },
+        "konveyor.kai.providerParameters": {
+          "type": "object",
+          "default": {},
+          "description": "Provider parameters",
+          "scope": "window"
         }
       }
     },
