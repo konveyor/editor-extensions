@@ -65,12 +65,8 @@ export function getConfigKaiProviderName(): string {
   return getConfigValue<string>("kai.providerName") || "ChatIBMGenAI";
 }
 
-export function getConfigKaiProviderModel(): string {
-  return getConfigValue<string>("kai.providerModel") || "meta-llama/llama-3-1-70b-instruct";
-}
-
-export function getConfigKaiProviderParameters(): object {
-  return getConfigValue<object>("kai.providerParameters") || {};
+export function getConfigKaiProviderArgs(): object {
+  return getConfigValue<object>("kai.providerArgs") || {};
 }
 
 async function updateConfigValue<T>(

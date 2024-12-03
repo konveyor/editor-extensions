@@ -17,11 +17,8 @@ import {
   getConfigKaiRpcServerPath,
   getConfigKaiBackendURL,
   getConfigLogLevel,
-  getConfigUseDefaultRulesets,
-  getConfigCustomRules,
   getConfigKaiProviderName,
-  getConfigKaiProviderModel,
-  getConfigKaiProviderParameters,
+  getConfigKaiProviderArgs,
   getConfigLabelSelector,
   updateUseDefaultRuleSets,
 } from "../utilities";
@@ -136,10 +133,7 @@ export class AnalyzerClient {
       log_dir_path: this.kaiDir,
       model_provider: {
         provider: getConfigKaiProviderName(),
-        args: {
-          model: getConfigKaiProviderModel(),
-          parameters: getConfigKaiProviderParameters(),
-        },
+        args: getConfigKaiProviderArgs(),
       },
       file_log_level: getConfigLogLevel(),
       demo_mode: demoMode,
@@ -430,18 +424,20 @@ export class AnalyzerClient {
     return ["--config", this.getKaiConfigTomlPath()];
   }
 
-  public getRules(): string[] {
-    const useDefaultRulesets = getConfigUseDefaultRulesets();
-    const customRules = getConfigCustomRules();
-    const rules: string[] = [];
+  public getRules(): string {
+    return path.join(this.extContext!.extensionPath, "assets/rulesets");
+    // TODO(djzager): konveyor/kai#509
+    // const useDefaultRulesets = getConfigUseDefaultRulesets();
+    // const customRules = getConfigCustomRules();
+    // const rules: string[] = [];
 
-    if (useDefaultRulesets) {
-      rules.push(path.join(this.extContext!.extensionPath, "assets/rulesets"));
-    }
-    if (customRules.length > 0) {
-      rules.push(...customRules);
-    }
-    return rules;
+    // if (useDefaultRulesets) {
+    //   rules.push(path.join(this.extContext!.extensionPath, "assets/rulesets"));
+    // }
+    // if (customRules.length > 0) {
+    //   rules.push(...customRules);
+    // }
+    // return rules;
   }
 
   public getJavaConfig(): object {
