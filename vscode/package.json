@@ -70,8 +70,8 @@
         "title": "Open Kai config.toml"
       },
       {
-        "command": "konveyor.startAnalyzer",
-        "title": "Start Analyzer",
+        "command": "konveyor.startServer",
+        "title": "Start Server",
         "category": "Konveyor",
         "icon": "$(play)"
       },
@@ -508,12 +508,12 @@
             }
           },
           {
-            "id": "start-analyzer",
-            "title": "Start Analyzer",
-            "description": "Start the analyzer\n[Start Analyzer](command:konveyor.startAnalyzer)",
+            "id": "start-server",
+            "title": "Start Server",
+            "description": "Start the analyzer\n[Start Analyzer](command:konveyor.startServer)",
             "completionEvents": [],
             "media": {
-              "markdown": "media/walkthroughs/start-analyzer.md"
+              "markdown": "media/walkthroughs/start-server.md"
             }
           }
         ]

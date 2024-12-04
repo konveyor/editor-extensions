@@ -15,8 +15,8 @@ export const setExtensionData = (
   payload: data,
 });
 
-export const startAnalysis = (): WebviewAction<WebviewActionType, unknown> => ({
-  type: "START_ANALYSIS",
+export const runAnalysis = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "RUN_ANALYSIS",
   payload: {},
 });
 

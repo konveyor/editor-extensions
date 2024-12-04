@@ -213,7 +213,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
     webview.onDidReceiveMessage(
       (message) => {
-        if (message.command === "WEBVIEW_READY") {
+        if (message.type === "WEBVIEW_READY") {
           this._isWebviewReady = true;
           this._isPanelReady = true;
           while (this._messageQueue.length > 0) {

@@ -1,5 +1,5 @@
 export const SET_STATE = "SET_STATE";
-export const START_ANALYSIS = "START_ANALYSIS";
+export const RUN_ANALYSIS = "RUN_ANALYSIS";
 export const START_SERVER = "START_SERVER";
 export const CANCEL_SOLUTION = "CANCEL_SOLUTION";
 export const GET_SOLUTION = "GET_SOLUTION";
@@ -11,7 +11,7 @@ export const WEBVIEW_READY = "WEBVIEW_READY";
 
 export type WebviewActionType =
   | typeof SET_STATE
-  | typeof START_ANALYSIS
+  | typeof RUN_ANALYSIS
   | typeof START_SERVER
   | typeof CANCEL_SOLUTION
   | typeof GET_SOLUTION

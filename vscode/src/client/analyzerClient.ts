@@ -1,5 +1,4 @@
-import { ChildProcessWithoutNullStreams, exec as callbackExec, spawn } from "child_process";
-import util from "node:util";
+import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs";
@@ -23,7 +22,6 @@ import {
   updateUseDefaultRuleSets,
 } from "../utilities";
 
-const exec = util.promisify(callbackExec);
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
   private outputChannel: vscode.OutputChannel;
@@ -58,16 +56,8 @@ export class AnalyzerClient {
   }
 
   public async start(): Promise<void> {
-    console.log("AnalyzerClient.start()");
     if (!this.canAnalyze()) {
       vscode.window.showErrorMessage("Cannot start the server due to missing configuration.");
-      return;
-    }
-
-    try {
-      await Promise.all([exec("java -version"), exec("mvn -version")]);
-    } catch {
-      vscode.window.showErrorMessage("Java or Maven is missing. Please install it to continue.");
       return;
     }
 
@@ -197,7 +187,6 @@ export class AnalyzerClient {
   }
 
   public async runAnalysis(): Promise<any> {
-    console.log("AnalyzerClient.runAnalysis()");
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -490,6 +479,13 @@ export class AnalyzerClient {
     return `log_level = "info"
 file_log_level = "debug"
 log_dir = "${log_dir}"
+
+[models]
+provider = "ChatIBMGenAI
+
+[models.args]
+model_id = "meta-llama/llama-3-70b-instruct"
+parameters.max_new_tokens = "2048"
 
 `;
   }

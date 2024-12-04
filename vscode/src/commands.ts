@@ -46,7 +46,7 @@ const commandsMap: (state: ExtensionState) => {
   const { extensionContext } = state;
   const sidebarProvider = state.webviewProviders?.get("sidebar");
   return {
-    "konveyor.startAnalyzer": async () => {
+    "konveyor.startServer": async () => {
       const analyzerClient = state.analyzerClient;
       if (!(await analyzerClient.canAnalyzeInteractive())) {
         return;

@@ -26,7 +26,7 @@ import ProgressIndicator from "./ProgressIndicator";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 import { Incident } from "@editor-extensions/shared";
 import { useExtensionState } from "../hooks/useExtensionState";
-import { cancelSolution, getSolution, openFile, startServer } from "../hooks/actions";
+import { cancelSolution, getSolution, openFile, startServer, runAnalysis } from "../hooks/actions";
 import { ServerStatusToggle } from "./ServerStatusToggle/ServerStatusToggle";
 
 const AnalysisPage: React.FC = () => {
@@ -49,7 +49,7 @@ const AnalysisPage: React.FC = () => {
     dispatch(openFile(incident.uri, incident.lineNumber));
   };
 
-  const startAnalysis = () => dispatch(startAnalysis());
+  const runAnalysisRequest = () => dispatch(runAnalysis());
 
   const cancelSolutionRequest = () => dispatch(cancelSolution());
 
@@ -119,7 +119,7 @@ const AnalysisPage: React.FC = () => {
                   <StackItem>
                     <Button
                       variant={ButtonVariant.primary}
-                      onClick={startAnalysis}
+                      onClick={runAnalysisRequest}
                       isLoading={isAnalyzing}
                       isDisabled={isAnalyzing || isStartingServer || !serverRunning}
                     >
