@@ -32,7 +32,6 @@ class VsCodeExtension {
     );
     const getData = () => this.data;
     const setData = (data: Immutable<ExtensionData>) => {
-      console.log("setting data now", data);
       this.data = data;
       this._onDidChange.fire(this.data);
     };
@@ -87,8 +86,6 @@ class VsCodeExtension {
 
     [sidebarProvider, resolutionViewProvider].forEach((provider) =>
       this.onDidChangeData((data) => {
-        console.log("State changed, sending data to webview:", data); // Log the state being sent
-
         provider.sendMessageToWebview(data);
       }),
     );

@@ -136,7 +136,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         ${this._getReactRefreshScript(nonce)}
         <script nonce="${nonce}">
           window.addEventListener('DOMContentLoaded', function() {
-            window.vscode.postMessage({ command: 'webviewReady' });
+            window.vscode.postMessage({ type: 'WEBVIEW_READY' });
           });
         </script>
         <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
@@ -213,7 +213,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
     webview.onDidReceiveMessage(
       (message) => {
-        if (message.command === "webviewReady") {
+        if (message.command === "WEBVIEW_READY") {
           this._isWebviewReady = true;
           this._isPanelReady = true;
           while (this._messageQueue.length > 0) {
@@ -237,16 +237,10 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
   public sendMessageToWebview(message: any): void {
     if (this._view?.webview && this._isWebviewReady) {
-      // If the webview is ready, immediately send the message
-      console.log("Sending message to webview:", message);
       this._view.webview.postMessage(message);
     } else if (this._panel && this._isPanelReady) {
-      // For panel case, send the message if the panel is ready
-      console.log("Sending message to panel:", message);
       this._panel.webview.postMessage(message);
     } else {
-      // Queue the message until the webview or panel is ready
-      console.log("Queuing message until webview or panel is ready:", message);
       this._messageQueue.push(message);
     }
   }

@@ -58,13 +58,14 @@ export class AnalyzerClient {
   }
 
   public async start(): Promise<void> {
+    console.log("AnalyzerClient.start()");
     if (!this.canAnalyze()) {
       vscode.window.showErrorMessage("Cannot start the server due to missing configuration.");
       return;
     }
 
     try {
-      Promise.all([exec("java -version"), exec("mvn -version")]);
+      await Promise.all([exec("java -version"), exec("mvn -version")]);
     } catch {
       vscode.window.showErrorMessage("Java or Maven is missing. Please install it to continue.");
       return;
@@ -75,7 +76,10 @@ export class AnalyzerClient {
 
     this.kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
       cwd: this.extContext!.extensionPath,
-      env: { ...process.env, GENAI_KEY: "BWAHAHA" },
+      env: {
+        ...process.env,
+        GENAI_KEY: "BWAHAHA",
+      },
     });
 
     this.kaiRpcServer.stderr.on("data", (data) => {
@@ -169,7 +173,9 @@ export class AnalyzerClient {
         for (let attempt = 0; attempt < 10; attempt++) {
           this.outputChannel.appendLine("Sending 'initialize' request.");
           try {
-            progress.report({ message: "Sending 'initialize' request to RPC Server" });
+            progress.report({
+              message: "Sending 'initialize' request to RPC Server",
+            });
             const response = await this.rpcConnection!.sendRequest<void>(
               "initialize",
               initializeParams,
@@ -191,6 +197,7 @@ export class AnalyzerClient {
   }
 
   public async runAnalysis(): Promise<any> {
+    console.log("AnalyzerClient.runAnalysis()");
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -261,8 +268,6 @@ export class AnalyzerClient {
       ruleset_name: violation.category || "default_ruleset", // You may adjust the default value as necessary
       violation_name: violation.description || "default_violation", // You may adjust the default value as necessary
     };
-    console.log("what is the violation? ", violation);
-    console.log("what is the incident? ", incident);
 
     try {
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
@@ -276,11 +281,11 @@ export class AnalyzerClient {
         },
       );
 
-      console.log("response", response, incident, state);
-      vscode.commands.executeCommand("konveyor.loadSolution", response, { incident, violation });
+      vscode.commands.executeCommand("konveyor.loadSolution", response, {
+        incident,
+        violation,
+      });
     } catch (err: any) {
-      console.log("response err", err);
-      console.log("err incident", incident);
       this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);
       vscode.window.showErrorMessage("Get solution failed. See the output channel for details.");
     }
@@ -486,12 +491,6 @@ export class AnalyzerClient {
 file_log_level = "debug"
 log_dir = "${log_dir}"
 
-[models]
-provider = "ChatIBMGenAI"
-
-[models.args]
-model_id = "meta-llama/llama-3-70b-instruct"
-parameters.max_new_tokens = "2048"
 `;
   }
 }

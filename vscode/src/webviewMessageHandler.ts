@@ -10,6 +10,7 @@ import {
   START_ANALYSIS,
   START_SERVER,
   VIEW_FIX,
+  WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
 } from "@editor-extensions/shared";
@@ -21,6 +22,9 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
 const actions: {
   [name: string]: (payload: any) => void;
 } = {
+  [WEBVIEW_READY]() {
+    console.log("Webview is ready");
+  },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incident, scope.violation);
 

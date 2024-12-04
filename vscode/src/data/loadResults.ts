@@ -32,8 +32,6 @@ export const cleanRuleSets = (state: ExtensionState) => {
 };
 
 export const loadSolution = async (state: ExtensionState, solution: Solution, scope?: Scope) => {
-  console.log("what is solution here in loadSolution", solution);
-
   await writeDataFile(solution, SOLUTION_DATA_FILE_PREFIX);
   await doLoadSolution(
     state,
@@ -61,7 +59,6 @@ const doLoadSolution = async (
   scope?: Immutable<Scope>,
 ) => {
   state.memFs.removeAll(KONVEYOR_SCHEME);
-  console.log("what are localChanges here in doLoadSolution", localChanges);
   await writeSolutionsToMemFs(localChanges, state);
   state.mutateData((draft) => {
     draft.localChanges = localChanges;

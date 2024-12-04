@@ -54,7 +54,6 @@ const ViolationActionsDropdown: React.FC<ViolationActionsDropdownProps> = ({
           key="getSolutions"
           onClick={() => {
             onGetAllSolutions(violation);
-            console.log("Get Solutions");
           }}
         >
           Fix all

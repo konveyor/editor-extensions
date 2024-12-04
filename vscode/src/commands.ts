@@ -56,6 +56,7 @@ const commandsMap: (state: ExtensionState) => {
       await analyzerClient.initialize();
     },
     "konveyor.runAnalysis": async () => {
+      console.log("run analysis command called");
       const analyzerClient = state.analyzerClient;
       if (!analyzerClient || !analyzerClient.canAnalyze()) {
         window.showErrorMessage("Analyzer must be started and configured before run!");

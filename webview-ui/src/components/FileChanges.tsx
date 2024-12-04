@@ -44,7 +44,6 @@ export function FileChanges({
     return `${additions} addition${additions !== 1 ? "s" : ""}, ${deletions} deletion${deletions !== 1 ? "s" : ""}`;
   };
 
-  console.log("FileChanges", changes);
   return (
     <List isPlain>
       {changes.map((change, index) => (
