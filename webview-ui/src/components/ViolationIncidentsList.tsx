@@ -34,6 +34,7 @@ import { Incident, Violation } from "@editor-extensions/shared";
 type SortOption = "description" | "incidentCount" | "severity";
 
 interface ViolationIncidentsListProps {
+  isRunning: boolean;
   violations: Violation[];
   focusedIncident?: Incident | null;
   onIncidentSelect: (incident: Incident) => void;
@@ -46,6 +47,7 @@ interface ViolationIncidentsListProps {
 }
 
 const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
+  isRunning,
   violations,
   onIncidentSelect,
   compact = false,
@@ -176,7 +178,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               id={`incident-${uniqueId}-actions`}
               aria-label="Actions"
             >
-              {onGetSolution && (
+              {onGetSolution && isRunning && (
                 <Button
                   variant="link"
                   icon={<LightbulbIcon className="lightbulb-icon-style" />}

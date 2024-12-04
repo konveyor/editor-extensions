@@ -26,8 +26,8 @@ import ProgressIndicator from "./ProgressIndicator";
 import ViolationIncidentsList from "./ViolationIncidentsList";
 import { Incident } from "@editor-extensions/shared";
 import { useExtensionState } from "../hooks/useExtensionState";
-import { WarningTriangleIcon } from "@patternfly/react-icons";
 import { cancelSolution, getSolution, openFile, startServer } from "../hooks/actions";
+import { ServerStatusToggle } from "./ServerStatusToggle/ServerStatusToggle";
 
 const AnalysisPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -53,6 +53,13 @@ const AnalysisPage: React.FC = () => {
 
   const cancelSolutionRequest = () => dispatch(cancelSolution());
 
+  const handleServerToggle = () => {
+    if (!serverRunning) {
+      dispatch(startServer());
+    }
+    // Add stopServer action when available
+  };
+
   const violations = useMemo(() => {
     if (!analysisResults?.length) {
       return [];
@@ -68,45 +75,14 @@ const AnalysisPage: React.FC = () => {
   const hasViolations = violations.length > 0;
   const hasAnalysisResults = analysisResults !== undefined;
 
-  if (isStartingServer) {
-    return (
-      <Backdrop>
-        <div style={{ textAlign: "center", paddingTop: "15rem" }}>
-          <Spinner size="lg" />
-          <Title headingLevel="h2" size="lg">
-            Starting server...
-          </Title>
-        </div>
-      </Backdrop>
-    );
-  }
-
-  if (!serverRunning && !hasViolations) {
-    return (
-      <Page>
-        <PageSection>
-          <EmptyState icon={WarningTriangleIcon}>
-            <Title headingLevel="h2" size="lg">
-              Server Not Running
-            </Title>
-            <EmptyStateBody>
-              The server is not running. Please start the server to run an analysis.
-            </EmptyStateBody>
-            <Button
-              className={spacing.mtMd}
-              variant={ButtonVariant.primary}
-              onClick={() => dispatch(startServer())}
-            >
-              Start Server
-            </Button>
-          </EmptyState>
-        </PageSection>
-      </Page>
-    );
-  }
-
   return (
     <Page>
+      <ServerStatusToggle
+        isRunning={serverRunning}
+        isStarting={isStartingServer}
+        onToggle={handleServerToggle}
+      />
+
       {errorMessage && (
         <PageSection padding={{ default: "noPadding" }}>
           <AlertGroup isToast>
@@ -145,7 +121,7 @@ const AnalysisPage: React.FC = () => {
                       variant={ButtonVariant.primary}
                       onClick={startAnalysis}
                       isLoading={isAnalyzing}
-                      isDisabled={isAnalyzing || isStartingServer}
+                      isDisabled={isAnalyzing || isStartingServer || !serverRunning}
                     >
                       {isAnalyzing ? "Analyzing..." : "Run Analysis"}
                     </Button>
@@ -178,6 +154,7 @@ const AnalysisPage: React.FC = () => {
 
                 {hasViolations && !isAnalyzing && (
                   <ViolationIncidentsList
+                    isRunning={serverRunning}
                     violations={violations}
                     focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
