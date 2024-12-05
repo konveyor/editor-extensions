@@ -1,36 +1,10 @@
-.vscode/**
-.vscode-test/**
-test_out/**
-node_modules/**
-src/**
-.gitignore
-.yarnrc
-webpack.config.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
-**/*.map
-**/*.ts
-**/.vscode-test.*
-test_out/*
-
-# Exclude all unnecessary files and directories
-.git/
-node_modules/
-*.log
+# development paths and files
 .vscode/
-README.md
-CHANGELOG.md
-.vscodeignore
-.prettierignore
-.nvmrc
-*.lock
-.github/
-bin/
-assets/
-
-.husky/
-package-lock.json
+node_modules/
+src/
+.vscode-test.mjs
+.gitignore
+tsconfig.*
 
 # Don't include ANY file or directory that includes "../" in its name
 ../

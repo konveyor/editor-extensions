@@ -41,6 +41,7 @@ await copy({
     {
       context: "vscode",
       src: [
+        ".vscodeignore",
         "LICENSE.md",
         "README.md",
         "CHANGELOG.md",
