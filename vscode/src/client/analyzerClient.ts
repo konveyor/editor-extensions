@@ -482,7 +482,7 @@ file_log_level = "debug"
 log_dir = "${log_dir}"
 
 [models]
-provider = "ChatIBMGenAI
+provider = "ChatIBMGenAI"
 
 [models.args]
 model_id = "meta-llama/llama-3-70b-instruct"
