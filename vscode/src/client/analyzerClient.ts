@@ -76,12 +76,6 @@ export class AnalyzerClient {
     // TODO: If the server generates files in cwd, we should set this to something else
     const serverCwd = this.extContext.extensionPath;
 
-    // TODO: How different does the server's env need to be from vscode's env?
-    const serverEnv = {
-      ...process.env,
-      GENAI_KEY: "BWAHAHA",
-    };
-
     this.fireStateChange("starting");
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
@@ -91,7 +85,7 @@ export class AnalyzerClient {
 
     this.kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
       cwd: serverCwd,
-      env: serverEnv,
+      env: this.getKaiRpcServerEnv(),
     });
 
     this.kaiRpcServer.on("spawn", () => {
@@ -406,6 +400,16 @@ export class AnalyzerClient {
     }
 
     return path;
+  }
+
+  /**
+   * Build the process environment variables to be setup for the kai rpc server process.
+   */
+  public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      // TODO: If/when necessary, add new envvars here from configuration
+    };
   }
 
   public getKaiRpcServerPath(): string {
