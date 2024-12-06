@@ -30,6 +30,7 @@ import {
   getConfigLabelSelector,
   updateLabelSelector,
 } from "./utilities/configuration";
+import { runPartialAnalysis } from "./analysis";
 
 let fullScreenPanel: WebviewPanel | undefined;
 
@@ -387,6 +388,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.diffView.applyBlockInline": applyBlock,
     "konveyor.diffView.applySelection": applyBlock,
     "konveyor.diffView.applySelectionInline": applyBlock,
+    "konveyor.partialAnalysis": async (filePaths: string[]) => runPartialAnalysis(state, filePaths),
   };
 };
 

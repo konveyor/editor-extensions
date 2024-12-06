@@ -1,11 +1,13 @@
 import { Uri } from "vscode";
 
+export type Severity = "High" | "Medium" | "Low";
+
 export interface Incident {
   uri: string;
-  lineNumber: number;
-  severity: "High" | "Medium" | "Low";
+  lineNumber?: number;
+  severity?: Severity;
   message: string;
-  codeSnip: string;
+  codeSnip?: string;
 }
 
 export interface Link {
@@ -13,11 +15,7 @@ export interface Link {
   title?: string;
 }
 
-export enum Category {
-  Potential = "potential",
-  Optional = "optional",
-  Mandatory = "mandatory",
-}
+export type Category = "potential" | "optional" | "mandatory";
 
 export interface Violation {
   description: string;

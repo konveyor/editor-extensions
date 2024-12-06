@@ -30,7 +30,7 @@ export function getConfigCodeSnipLimit(): number {
 }
 
 export function getConfigUseDefaultRulesets(): boolean {
-  return getConfigValue<boolean>("analysis.useDefaultRulesets") || true;
+  return getConfigValue<boolean>("analysis.useDefaultRulesets") ?? true;
 }
 
 export function getConfigCustomRules(): string[] {
@@ -42,15 +42,15 @@ export function getConfigLabelSelector(): string {
 }
 
 export function getConfigAnalyzeKnownLibraries(): boolean {
-  return getConfigValue<boolean>("analysis.analyzeKnownLibraries") || false;
+  return getConfigValue<boolean>("analysis.analyzeKnownLibraries") ?? false;
 }
 
 export function getConfigAnalyzeDependencies(): boolean {
-  return getConfigValue<boolean>("analysis.analyzeDependencies") || true;
+  return getConfigValue<boolean>("analysis.analyzeDependencies") ?? true;
 }
 
 export function getConfigAnalyzeOnSave(): boolean {
-  return getConfigValue<boolean>("analysis.analyzeOnSave") || true;
+  return getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
 }
 
 export function getConfigDiffEditorType(): string {

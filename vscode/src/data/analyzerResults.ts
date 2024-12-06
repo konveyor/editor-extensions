@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
 import { RuleSet, Category, Incident } from "@editor-extensions/shared";
+import { Immutable } from "immer";
 
 //Assuming that output is in form of yaml
 export function readYamlFile(filePath: string): RuleSet[] | undefined {
@@ -22,11 +23,11 @@ export function readYamlFile(filePath: string): RuleSet[] | undefined {
 
 function getSeverityFromCategory(category: Category | undefined): vscode.DiagnosticSeverity {
   switch (category) {
-    case Category.Mandatory:
+    case "mandatory":
       return vscode.DiagnosticSeverity.Error;
-    case Category.Optional:
+    case "optional":
       return vscode.DiagnosticSeverity.Warning;
-    case Category.Potential:
+    case "potential":
       return vscode.DiagnosticSeverity.Hint;
     default:
       return vscode.DiagnosticSeverity.Information;
@@ -34,7 +35,7 @@ function getSeverityFromCategory(category: Category | undefined): vscode.Diagnos
 }
 
 export const processIncidents = (
-  ruleSets: RuleSet[],
+  ruleSets: Immutable<RuleSet[]>,
 ): ReadonlyArray<[vscode.Uri, vscode.Diagnostic[] | undefined]> =>
   ruleSets
     .flatMap((ruleSet) => Object.values(ruleSet.violations ?? {}))

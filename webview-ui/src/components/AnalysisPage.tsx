@@ -46,7 +46,7 @@ const AnalysisPage: React.FC = () => {
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
-    dispatch(openFile(incident.uri, incident.lineNumber));
+    dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
   };
 
   const runAnalysisRequest = () => dispatch(runAnalysis());
