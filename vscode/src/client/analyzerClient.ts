@@ -229,7 +229,9 @@ export class AnalyzerClient {
               "initialize",
               initializeParams,
             );
-            this.outputChannel.appendLine(`'initialize' response: ${response}`);
+            this.outputChannel.appendLine(
+              `'initialize' response: ${JSON.stringify(response, null, 2)}`,
+            );
             progress.report({ message: "RPC Server initialized" });
             this.fireStateChange("running");
             return;
