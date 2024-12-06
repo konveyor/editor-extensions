@@ -236,9 +236,9 @@ export class AnalyzerClient {
       {
         location: vscode.ProgressLocation.Notification,
         title: "Running Analysis",
-        cancellable: false,
+        cancellable: true,
       },
-      async (progress) => {
+      async (progress, token) => {
         try {
           progress.report({ message: "Running..." });
           this.fireAnalysisStateChange(true);
@@ -253,10 +253,22 @@ export class AnalyzerClient {
             )}`,
           );
 
-          const response: any = await this.rpcConnection!.sendRequest(
-            "analysis_engine.Analyze",
-            requestParams,
-          );
+          if (token.isCancellationRequested) {
+            this.outputChannel.appendLine("Analysis was canceled by the user.");
+            this.fireAnalysisStateChange(false);
+            return;
+          }
+
+          const cancellationPromise = new Promise((_, reject) => {
+            token.onCancellationRequested(() => {
+              reject(new Error("Operation canceled by the user."));
+            });
+          });
+
+          const response: any = await Promise.race([
+            this.rpcConnection!.sendRequest("analysis_engine.Analyze", requestParams),
+            cancellationPromise,
+          ]);
 
           this.outputChannel.appendLine(`Response: ${JSON.stringify(response)}`);
 
@@ -272,8 +284,13 @@ export class AnalyzerClient {
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {
-          this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
-          vscode.window.showErrorMessage("Analysis failed. See the output channel for details.");
+          if (err.message === "Operation canceled by the user.") {
+            this.outputChannel.appendLine("Analysis operation was canceled.");
+            vscode.window.showInformationMessage("Analysis was canceled.");
+          } else {
+            this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
+            vscode.window.showErrorMessage("Analysis failed. See the output channel for details.");
+          }
         }
         this.fireAnalysisStateChange(false);
       },
