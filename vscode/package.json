@@ -76,6 +76,18 @@
         "icon": "$(play)"
       },
       {
+        "command": "konveyor.stopServer",
+        "title": "Stop Server",
+        "category": "Konveyor",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "konveyor.restartServer",
+        "title": "Restart Server",
+        "category": "Konveyor",
+        "icon": "$(restart)"
+      },
+      {
         "command": "konveyor.runAnalysis",
         "title": "Run Analysis",
         "category": "Konveyor",
