@@ -20,6 +20,7 @@ import {
   updateUseDefaultRuleSets,
   getConfigKaiRpcServerPath,
   getConfigAnalyzerPath,
+  getConfigKaiGenAiKey,
 } from "../utilities";
 
 export class AnalyzerClient {
@@ -434,9 +435,8 @@ export class AnalyzerClient {
    */
   public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
     return {
-      GENAI_KEY: "dummy",
       ...process.env,
-      // TODO: If/when necessary, add new envvars here from configuration
+      GENAI_KEY: getConfigKaiGenAiKey(),
     };
   }
 
