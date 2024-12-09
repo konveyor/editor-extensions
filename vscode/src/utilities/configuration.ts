@@ -144,3 +144,11 @@ export async function updateKaiProviderName(value: string): Promise<void> {
 export async function updateKaiProviderModel(value: string): Promise<void> {
   await updateConfigValue("kai.providerModel", value, vscode.ConfigurationTarget.Workspace);
 }
+
+export function getConfigKaiGenAiKey(): string {
+  return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<string>("kai.genAiKey") || "";
+}
+export async function updateGenAiKey(newKey: string | undefined): Promise<void> {
+  const config = vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY);
+  await config.update("kai.genAiKey", newKey, vscode.ConfigurationTarget.Global);
+}
