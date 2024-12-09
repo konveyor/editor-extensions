@@ -434,7 +434,6 @@ export class AnalyzerClient {
    */
   public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
     return {
-      GENAI_KEY: "dummy",
       ...process.env,
       // TODO: If/when necessary, add new envvars here from configuration
     };
