@@ -1,7 +1,7 @@
 // App.tsx
 import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
-import AnalysisPage from "./components/AnalysisPage";
+import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
 import ResolutionPage from "./components/ResolutionsPage";
 
 const App: React.FC = () => {
