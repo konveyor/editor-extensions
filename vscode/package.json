@@ -216,6 +216,10 @@
     "views": {
       "konveyor": [
         {
+          "id": "konveyor.issueView",
+          "name": "Konveyor Issues"
+        },
+        {
           "type": "webview",
           "id": "konveyor.konveyorAnalysisView",
           "name": "Konveyor Analysis View",

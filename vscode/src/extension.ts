@@ -8,6 +8,7 @@ import { AnalyzerClient } from "./client/analyzerClient";
 import { registerDiffView, KonveyorFileModel } from "./diffView";
 import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
+import { IssuesModel, registerIssueView } from "./issueView";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -46,6 +47,7 @@ class VsCodeExtension {
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
       memFs: new MemFS(),
       fileModel: new KonveyorFileModel(),
+      issueModel: new IssuesModel(),
       get data() {
         return getData();
       },
@@ -60,6 +62,7 @@ class VsCodeExtension {
       this.checkWorkspace();
       this.registerWebviewProvider(context);
       this.onDidChangeData(registerDiffView(this.state));
+      this.onDidChangeData(registerIssueView(this.state));
       this.registerCommands();
       this.registerLanguageProviders(context);
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
