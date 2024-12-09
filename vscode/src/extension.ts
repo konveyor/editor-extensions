@@ -8,12 +8,14 @@ import { AnalyzerClient } from "./client/analyzerClient";
 import { registerDiffView, KonveyorFileModel } from "./diffView";
 import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
+import { partialAnalysisTrigger } from "./analysis";
 
 class VsCodeExtension {
   private state: ExtensionState;
   private data: Immutable<ExtensionData>;
   private _onDidChange = new vscode.EventEmitter<Immutable<ExtensionData>>();
   readonly onDidChangeData = this._onDidChange.event;
+  private listeners: vscode.Disposable[] = [];
 
   constructor(context: vscode.ExtensionContext) {
     this.data = produce(
@@ -35,8 +37,10 @@ class VsCodeExtension {
       this.data = data;
       this._onDidChange.fire(this.data);
     };
-    const mutateData = (recipe: (draft: ExtensionData) => void) => {
-      setData(produce(getData(), recipe));
+    const mutateData = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      setData(data);
+      return data;
     };
 
     this.state = {
@@ -59,9 +63,10 @@ class VsCodeExtension {
     try {
       this.checkWorkspace();
       this.registerWebviewProvider(context);
-      this.onDidChangeData(registerDiffView(this.state));
+      this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders(context);
+      this.listeners.push(vscode.workspace.onDidSaveTextDocument(partialAnalysisTrigger));
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
     } catch (error) {
       console.error("Error initializing extension:", error);
@@ -120,8 +125,12 @@ class VsCodeExtension {
     }
   }
 
-  public getAnalyzerClient(): AnalyzerClient {
-    return this.state.analyzerClient;
+  dispose() {
+    this.state.analyzerClient?.stop();
+    const disposables = this.listeners.splice(0, this.listeners.length);
+    for (const disposable of disposables) {
+      disposable.dispose();
+    }
   }
 }
 
@@ -135,8 +144,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
   }
 }
+
 export function deactivate(): void {
-  if (extension?.getAnalyzerClient()) {
-    extension.getAnalyzerClient().stop();
-  }
+  extension?.dispose();
 }
