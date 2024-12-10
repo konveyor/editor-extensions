@@ -1,0 +1,31 @@
+.violations-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.violations-title {
+  color: #d2d2d2 !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  margin: 0 !important;
+  display: flex;
+  align-items: center !important;
+  font-weight: 400 !important;
+}
+
+.violations-subtitle {
+  font-style: italic;
+  color: #d2d2d2;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.violations-compact {
+  color: #d2d2d2 !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  margin: 0 !important;
+  display: flex;
+  align-items: center !important;
+}
