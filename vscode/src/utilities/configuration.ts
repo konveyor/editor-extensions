@@ -145,10 +145,32 @@ export async function updateKaiProviderModel(value: string): Promise<void> {
   await updateConfigValue("kai.providerModel", value, vscode.ConfigurationTarget.Workspace);
 }
 
-export function getConfigKaiGenAiKey(): string {
-  return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<string>("kai.genAiKey") || "";
+export async function getGenAiKey(context: vscode.ExtensionContext): Promise<string | undefined> {
+  try {
+    const key = await context.secrets.get("genAiKey");
+
+    if (!key) {
+      await vscode.window.showWarningMessage("No GenAI key found in secure storage.");
+      return undefined;
+    }
+
+    return key;
+  } catch (error: any) {
+    console.error("Failed to retrieve GenAI key:", error);
+    await vscode.window.showErrorMessage("An error occurred while retrieving the GenAI key.");
+    return undefined;
+  }
 }
-export async function updateGenAiKey(newKey: string | undefined): Promise<void> {
-  const config = vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY);
-  await config.update("kai.genAiKey", newKey, vscode.ConfigurationTarget.Global);
+
+export async function updateGenAiKey(
+  context: vscode.ExtensionContext,
+  newKey: string | undefined,
+): Promise<void> {
+  if (newKey) {
+    await context.secrets.store("genAiKey", newKey);
+    vscode.window.showInformationMessage("Key stored securely.");
+  } else {
+    await context.secrets.delete("genAiKey");
+    vscode.window.showInformationMessage("Key removed.");
+  }
 }

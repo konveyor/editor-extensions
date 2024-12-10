@@ -226,7 +226,7 @@ const commandsMap: (state: ExtensionState) => {
         return;
       }
 
-      await updateGenAiKey(newKey);
+      await updateGenAiKey(state.extensionContext, newKey);
       window.showInformationMessage("GENAI_KEY updated successfully!");
     },
     "konveyor.configureCustomRules": async () => {

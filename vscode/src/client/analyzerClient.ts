@@ -20,7 +20,7 @@ import {
   updateUseDefaultRuleSets,
   getConfigKaiRpcServerPath,
   getConfigAnalyzerPath,
-  getConfigKaiGenAiKey,
+  getGenAiKey,
 } from "../utilities";
 
 export class AnalyzerClient {
@@ -84,9 +84,12 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`server args:`);
     this.getKaiRpcServerArgs().forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
+    // Retrieve the environment variables asynchronously
+    const serverEnv = await this.getKaiRpcServerEnv();
+
     const kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
       cwd: serverCwd,
-      env: this.getKaiRpcServerEnv(),
+      env: serverEnv,
     });
     this.kaiRpcServer = kaiRpcServer;
 
@@ -100,8 +103,8 @@ export class AnalyzerClient {
 
       kaiRpcServer.on("error", (err) => {
         const message = `error in process[${this.kaiRpcServer?.spawnfile}]: ${err}`;
-        this.outputChannel.appendLine(`[error] - ${message}}`);
-        reject();
+        this.outputChannel.appendLine(`[error] - ${message}`);
+        reject(err);
       });
     });
 
@@ -434,10 +437,12 @@ export class AnalyzerClient {
   /**
    * Build the process environment variables to be setup for the kai rpc server process.
    */
-  public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
+  public async getKaiRpcServerEnv(): Promise<NodeJS.ProcessEnv> {
+    const genAiKey = await getGenAiKey(this.extContext);
+
     return {
       ...process.env,
-      GENAI_KEY: getConfigKaiGenAiKey(),
+      GENAI_KEY: genAiKey,
     };
   }
 
