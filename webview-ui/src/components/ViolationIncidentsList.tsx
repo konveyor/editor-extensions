@@ -29,7 +29,7 @@ import {
   CardFooter,
 } from "@patternfly/react-core";
 import { SortAmountDownIcon, TimesIcon, FileIcon, LightbulbIcon } from "@patternfly/react-icons";
-import { Incident, Violation } from "@editor-extensions/shared";
+import { Incident, Violation, Severity } from "@editor-extensions/shared";
 
 type SortOption = "description" | "incidentCount" | "severity";
 
@@ -78,12 +78,13 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   );
 
   const getHighestSeverity = (incidents: Incident[]): string => {
-    const severityOrder = { high: 3, medium: 2, low: 1 };
+    const severityOrder: { [key in Severity]: number } = { High: 3, Medium: 2, Low: 1 };
     return incidents.reduce((highest, incident) => {
-      const currentSeverity = severityOrder[incident.severity as keyof typeof severityOrder] || 0;
-      const highestSeverity = severityOrder[highest as keyof typeof severityOrder] || 0;
-      return currentSeverity > highestSeverity ? incident.severity : highest;
-    }, "low");
+      const incidentSeverity = incident.severity ?? "Low";
+      const currentSeverity = severityOrder[incidentSeverity];
+      const highestSeverity = severityOrder[highest];
+      return currentSeverity > highestSeverity ? incidentSeverity : highest;
+    }, "Low" as Severity);
   };
 
   const filteredAndSortedViolations = useMemo(() => {

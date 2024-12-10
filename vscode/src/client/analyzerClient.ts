@@ -83,19 +83,25 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`server args:`);
     this.getKaiRpcServerArgs().forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
-    this.kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
+    const kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
       cwd: serverCwd,
       env: this.getKaiRpcServerEnv(),
     });
+    this.kaiRpcServer = kaiRpcServer;
 
-    this.kaiRpcServer.on("spawn", () => {
-      this.outputChannel.appendLine(`kai rpc server has been spawned! [${this.kaiRpcServer?.pid}]`);
-    });
+    const pid = await new Promise<number | undefined>((resolve, reject) => {
+      kaiRpcServer.on("spawn", () => {
+        this.outputChannel.appendLine(
+          `kai rpc server has been spawned! [${this.kaiRpcServer?.pid}]`,
+        );
+        resolve(this.kaiRpcServer?.pid);
+      });
 
-    this.kaiRpcServer.on("error", (err) => {
-      this.outputChannel.appendLine(
-        `[error] - error in process[${this.kaiRpcServer?.spawnfile}]: ${err}`,
-      );
+      kaiRpcServer.on("error", (err) => {
+        const message = `error in process[${this.kaiRpcServer?.spawnfile}]: ${err}`;
+        this.outputChannel.appendLine(`[error] - ${message}}`);
+        reject();
+      });
     });
 
     this.kaiRpcServer.on("exit", (code, signal) => {
@@ -104,10 +110,18 @@ export class AnalyzerClient {
 
     this.kaiRpcServer.on("close", (code, signal) => {
       this.outputChannel.appendLine(`kai rpc server closed with signal ${signal}, code ${code}`);
+      this.fireStateChange("stopped");
     });
 
+    let seenServerIsReady = false;
     this.kaiRpcServer.stderr.on("data", (data) => {
-      this.outputChannel.appendLine(`${data.toString()}`);
+      const asString: string = data.toString();
+      this.outputChannel.appendLine(`${asString}`);
+
+      if (!seenServerIsReady && asString.match(/kai-rpc-logger .*Started kai RPC Server/)) {
+        seenServerIsReady = true;
+        this.kaiRpcServer?.emit("serverReportsReady", pid);
+      }
     });
 
     // Set up the JSON-RPC connection
@@ -117,19 +131,28 @@ export class AnalyzerClient {
     );
     this.rpcConnection.listen();
 
-    this.outputChannel.appendLine(`Started the kai rpc server, pid: ${this.kaiRpcServer.pid}`);
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        kaiRpcServer.on("serverReportsReady", (pid) => {
+          this.outputChannel.appendLine(`*** kai rpc server [${pid}] reports ready`);
+          resolve();
+        });
+      }),
+      setTimeout(5000),
+    ]);
+
+    this.outputChannel.appendLine(`Started the kai rpc server, pid: [${pid}]`);
   }
 
   // Stops the analyzer server
   public stop(): void {
     this.fireStateChange("stopping");
     this.outputChannel.appendLine(`Stopping the kai rpc server ...`);
-    if (this.kaiRpcServer) {
+    if (this.kaiRpcServer && !this.kaiRpcServer.killed) {
       this.kaiRpcServer.kill();
     }
     this.rpcConnection?.dispose();
     this.kaiRpcServer = null;
-    this.fireStateChange("stopped");
     this.outputChannel.appendLine(`kai rpc server stopped`);
   }
 
@@ -206,7 +229,9 @@ export class AnalyzerClient {
               "initialize",
               initializeParams,
             );
-            this.outputChannel.appendLine(`${response}`);
+            this.outputChannel.appendLine(
+              `'initialize' response: ${JSON.stringify(response, null, 2)}`,
+            );
             progress.report({ message: "RPC Server initialized" });
             this.fireStateChange("running");
             return;
@@ -226,7 +251,7 @@ export class AnalyzerClient {
     return !!this.kaiRpcServer && !this.kaiRpcServer.killed;
   }
 
-  public async runAnalysis(): Promise<any> {
+  public async runAnalysis(filePaths?: string[]): Promise<any> {
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -245,6 +270,7 @@ export class AnalyzerClient {
 
           const requestParams = {
             label_selector: getConfigLabelSelector(),
+            included_paths: filePaths,
           };
 
           this.outputChannel.appendLine(
@@ -280,7 +306,7 @@ export class AnalyzerClient {
             return;
           }
 
-          vscode.commands.executeCommand("konveyor.loadRuleSets", rulesets);
+          vscode.commands.executeCommand("konveyor.loadRuleSets", rulesets, filePaths);
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {
@@ -341,7 +367,8 @@ export class AnalyzerClient {
   // Shutdown the server
   public async shutdown(): Promise<void> {
     try {
-      await this.rpcConnection!.sendRequest("shutdown", {});
+      this.outputChannel.appendLine(`Requesting kai rpc server shutdown...`);
+      await this.rpcConnection?.sendRequest("shutdown", {});
     } catch (err: any) {
       this.outputChannel.appendLine(`Error during shutdown: ${err.message}`);
       vscode.window.showErrorMessage("Shutdown failed. See the output channel for details.");
@@ -351,7 +378,8 @@ export class AnalyzerClient {
   // Exit the server
   public async exit(): Promise<void> {
     try {
-      await this.rpcConnection!.sendRequest("exit", {});
+      this.outputChannel.appendLine(`Requesting kai rpc server exit...`);
+      await this.rpcConnection?.sendRequest("exit", {});
     } catch (err: any) {
       this.outputChannel.appendLine(`Error during exit: ${err.message}`);
       vscode.window.showErrorMessage("Exit failed. See the output channel for details.");

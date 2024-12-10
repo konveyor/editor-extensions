@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { KonveyorTreeDataProvider } from "./fileModel";
 import { Navigation } from "./navigation";
 import { ExtensionState } from "src/extensionState";
-import { KONVEYOR_READ_ONLY_SCHEME, KONVEYOR_SCHEME } from "../utilities";
+import { getConfigAnalyzeOnSave, KONVEYOR_READ_ONLY_SCHEME, KONVEYOR_SCHEME } from "../utilities";
 import KonveyorReadOnlyProvider from "../data/readOnlyStorage";
 import { Immutable } from "immer";
 import { LocalChange, ExtensionData } from "@editor-extensions/shared";
@@ -55,21 +55,28 @@ export function registerDiffView({
         ? [change.originalUri, change.modifiedUri]
         : [change.modifiedUri, change.originalUri];
 
-    await Promise.all(
+    const allModifiedPaths = await Promise.all(
       data.localChanges
         .map((change, index): [LocalChange, number] => [change, index])
         .filter(([change, index]) => hasChanged(change, index))
         .filter(([{ state }]) => state === "applied" || state === "discarded")
-        .map(([change, index]): [LocalChange, number, vscode.Uri[]] => [
+        .map(([change, index]): [LocalChange, number, vscode.Uri[], string] => [
           change,
           index,
           copyFromTo(change),
+          change.state === "applied" ? change.originalUri.fsPath : "",
         ])
-        .map(([change, index, [fromUri, toUri]]) =>
+        .map(([change, index, [fromUri, toUri], filePath]) =>
           vscode.workspace.fs.copy(fromUri, toUri, { overwrite: true }).then(() => {
             lastLocalChanges[index] = change;
+            return filePath;
           }),
         ),
     );
+
+    const appliedPaths = allModifiedPaths.filter(Boolean);
+    if (appliedPaths.length && getConfigAnalyzeOnSave()) {
+      return vscode.commands.executeCommand("konveyor.partialAnalysis", appliedPaths);
+    }
   };
 }

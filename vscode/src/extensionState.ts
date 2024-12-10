@@ -14,5 +14,5 @@ export interface ExtensionState {
   memFs: MemFS;
   fileModel: KonveyorFileModel;
   data: Immutable<ExtensionData>;
-  mutateData: (recipe: (draft: ExtensionData) => void) => void;
+  mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
 }

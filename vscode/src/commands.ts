@@ -30,6 +30,7 @@ import {
   getConfigLabelSelector,
   updateLabelSelector,
 } from "./utilities/configuration";
+import { runPartialAnalysis } from "./analysis";
 
 let fullScreenPanel: WebviewPanel | undefined;
 
@@ -51,12 +52,37 @@ const commandsMap: (state: ExtensionState) => {
       if (!(await analyzerClient.canAnalyzeInteractive())) {
         return;
       }
-
       try {
         await analyzerClient.start();
         await analyzerClient.initialize();
       } catch (e) {
-        console.error("Could not start the analyzer", e);
+        console.error("Could not start the server", e);
+      }
+    },
+    "konveyor.stopServer": async () => {
+      const analyzerClient = state.analyzerClient;
+      try {
+        await analyzerClient.shutdown();
+        await analyzerClient.stop();
+      } catch (e) {
+        console.error("Could not shutdown and stop the server", e);
+      }
+    },
+    "konveyor.restartServer": async () => {
+      const analyzerClient = state.analyzerClient;
+      try {
+        if (analyzerClient.isServerRunning()) {
+          await analyzerClient.shutdown();
+          await analyzerClient.stop();
+        }
+
+        if (!(await analyzerClient.canAnalyzeInteractive())) {
+          return;
+        }
+        await analyzerClient.start();
+        await analyzerClient.initialize();
+      } catch (e) {
+        console.error("Could not restart the server", e);
       }
     },
     "konveyor.runAnalysis": async () => {
@@ -362,6 +388,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.diffView.applyBlockInline": applyBlock,
     "konveyor.diffView.applySelection": applyBlock,
     "konveyor.diffView.applySelectionInline": applyBlock,
+    "konveyor.partialAnalysis": async (filePaths: string[]) => runPartialAnalysis(state, filePaths),
   };
 };
 

@@ -7,23 +7,47 @@ import {
 } from "@editor-extensions/shared";
 import { processIncidents } from "./analyzerResults";
 import { ExtensionState } from "src/extensionState";
-import { writeDataFile } from "./storage";
+import { deleteAllDataFilesByPrefix, writeDataFile } from "./storage";
 import { toLocalChanges, writeSolutionsToMemFs } from "./virtualStorage";
 import { window } from "vscode";
 import {
   KONVEYOR_SCHEME,
+  MERGED_RULE_SET_DATA_FILE_PREFIX,
+  PARTIAL_RULE_SET_DATA_FILE_PREFIX,
   RULE_SET_DATA_FILE_PREFIX,
   SOLUTION_DATA_FILE_PREFIX,
 } from "../utilities";
 import { castDraft, Immutable } from "immer";
+import { mergeRuleSets } from "../analysis";
 
-export const loadRuleSets = async (state: ExtensionState, ruleSets: RuleSet[]) => {
-  await writeDataFile(ruleSets, RULE_SET_DATA_FILE_PREFIX);
-  state.diagnosticCollection.set(processIncidents(ruleSets));
-  state.mutateData((draft) => {
-    draft.ruleSets = ruleSets;
+export const loadRuleSets = async (
+  state: ExtensionState,
+  receivedRuleSets: RuleSet[],
+  filePaths?: string[],
+) => {
+  const isPartial = !!filePaths;
+  if (isPartial) {
+    //partial analysis
+    await writeDataFile(receivedRuleSets, PARTIAL_RULE_SET_DATA_FILE_PREFIX);
+  } else {
+    //full analysis
+    await writeDataFile(receivedRuleSets, RULE_SET_DATA_FILE_PREFIX);
+    // cleanup
+    await deleteAllDataFilesByPrefix(PARTIAL_RULE_SET_DATA_FILE_PREFIX);
+    await deleteAllDataFilesByPrefix(MERGED_RULE_SET_DATA_FILE_PREFIX);
+  }
+
+  const data = state.mutateData((draft) => {
+    draft.ruleSets = isPartial
+      ? mergeRuleSets(draft.ruleSets, receivedRuleSets, filePaths)
+      : receivedRuleSets;
   });
+  if (isPartial) {
+    await writeDataFile(data.ruleSets, MERGED_RULE_SET_DATA_FILE_PREFIX);
+  }
+  state.diagnosticCollection.set(processIncidents(data.ruleSets));
 };
+
 export const cleanRuleSets = (state: ExtensionState) => {
   state.diagnosticCollection.clear();
   state.mutateData((draft) => {

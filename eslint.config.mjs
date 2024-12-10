@@ -21,6 +21,7 @@ const baseConfig = {
     globals: {
       ...globals.es2023,
       ...globals.node,
+      ...globals.mocha,
     },
   },
   rules: {

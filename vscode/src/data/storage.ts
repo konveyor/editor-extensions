@@ -6,9 +6,11 @@ import { RuleSet, Solution } from "@editor-extensions/shared";
 import {
   isAnalysis,
   isSolution,
+  MERGED_RULE_SET_DATA_FILE_PREFIX,
   RULE_SET_DATA_FILE_PREFIX,
   SOLUTION_DATA_FILE_PREFIX,
 } from "../utilities";
+import { Immutable } from "immer";
 
 const MAX_FILES = 5;
 
@@ -64,8 +66,21 @@ const deleteOldestDataFiles = async (prefix: string, maxCount: number) => {
   }
 };
 
+export const deleteAllDataFilesByPrefix = async (prefix: string) => {
+  const files = await getDataFilesByPrefix(prefix);
+
+  const dataFolderPath = getDataFolder();
+  if (!dataFolderPath) {
+    return;
+  }
+
+  for (const [name] of files) {
+    await vscode.workspace.fs.delete(vscode.Uri.file(path.join(dataFolderPath, name)));
+  }
+};
+
 export async function writeDataFile(
-  content: RuleSet[] | Solution,
+  content: Immutable<RuleSet[]> | Solution,
   prefix: string,
   format: "json" = "json",
 ) {
@@ -98,13 +113,16 @@ export const loadStateFromDataFolder = async (): Promise<
     return [undefined, undefined];
   }
 
-  const [analysisFiles, solutionFiles] = await Promise.all([
+  const [fullAnalysisFiles, mergedAnalysisFiles, solutionFiles] = await Promise.all([
     getDataFilesByPrefix(RULE_SET_DATA_FILE_PREFIX),
+    getDataFilesByPrefix(MERGED_RULE_SET_DATA_FILE_PREFIX),
     getDataFilesByPrefix(SOLUTION_DATA_FILE_PREFIX),
   ]);
 
-  const [newestAnalysis] = analysisFiles.reverse();
+  const [newestFullAnalysis] = fullAnalysisFiles.reverse();
+  const [newestMergedAnalysis] = mergedAnalysisFiles.reverse();
   const [newestSolution] = solutionFiles.reverse();
+  const newestAnalysis = newestMergedAnalysis || newestFullAnalysis;
   const uris = [newestAnalysis, newestSolution]
     .filter(Boolean)
     .map(([name]) => vscode.Uri.file(path.join(dataFolder, name)));
