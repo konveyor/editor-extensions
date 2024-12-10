@@ -29,6 +29,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor.configureGenAiKey",
+        "title": "Configure GenAI Key",
+        "category": "Konveyor",
+        "icon": "$(key)"
+      },
+      {
         "command": "konveyor.toggleFullScreen",
         "title": "Toggle Fullscreen",
         "category": "Konveyor",
@@ -478,6 +484,12 @@
           },
           "description": "Kai provider arguments",
           "scope": "window"
+        },
+        "konveyor.kai.genAiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Generative AI Key",
+          "scope": "window"
         }
       }
     },
@@ -517,6 +529,17 @@
             ],
             "media": {
               "markdown": "media/walkthroughs/analysis-arguments.md"
+            }
+          },
+          {
+            "id": "configure-gen",
+            "title": "Configure Generative AI",
+            "description": "Configure Generative AI for your project\n[Configure GenAI Key](command:konveyor.configureGenAiKey)",
+            "completionEvents": [
+              "onCommand:konveyor.configureGenAiKey"
+            ],
+            "media": {
+              "markdown": "media/walkthroughs/gen-ai.md"
             }
           },
           {

@@ -29,6 +29,7 @@ import {
   updateUseDefaultRuleSets,
   getConfigLabelSelector,
   updateLabelSelector,
+  updateGenAiKey,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 
@@ -211,6 +212,22 @@ const commandsMap: (state: ExtensionState) => {
         await updateKaiRpcServerPath(undefined);
         window.showInformationMessage("No Kai rpc-server binary selected.");
       }
+    },
+    "konveyor.configureGenAiKey": async () => {
+      const newKey = await window.showInputBox({
+        prompt: "Enter your GENAI_KEY",
+        placeHolder: "Your GenAI key...",
+        ignoreFocusOut: true,
+        password: true,
+      });
+
+      if (newKey === undefined) {
+        window.showInformationMessage("No GENAI_KEY entered. Configuration cancelled.");
+        return;
+      }
+
+      await updateGenAiKey(state.extensionContext, newKey);
+      window.showInformationMessage("GENAI_KEY updated successfully!");
     },
     "konveyor.configureCustomRules": async () => {
       const options: OpenDialogOptions = {
