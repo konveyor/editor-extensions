@@ -29,6 +29,9 @@ import {
   getConfigLabelSelector,
   updateLabelSelector,
   updateGenAiKey,
+  updateGetSolutionMaxDepth,
+  updateGetSolutionMaxIterations,
+  updateGetSolutionMaxPriority,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { IncidentTypeItem } from "./issueView";
@@ -403,6 +406,57 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.diffView.applySelection": applyBlock,
     "konveyor.diffView.applySelectionInline": applyBlock,
     "konveyor.partialAnalysis": async (filePaths: string[]) => runPartialAnalysis(state, filePaths),
+    "konveyor.configureGetSolutionParams": async () => {
+      const maxPriorityInput = await window.showInputBox({
+        prompt: "Enter max_priority for getSolution",
+        placeHolder: "0",
+        validateInput: (value) => {
+          return isNaN(Number(value)) ? "Please enter a valid number" : null;
+        },
+      });
+
+      if (maxPriorityInput === undefined) {
+        return;
+      }
+
+      const maxPriority = Number(maxPriorityInput);
+
+      const maxDepthInput = await window.showInputBox({
+        prompt: "Enter max_depth for getSolution",
+        placeHolder: "0",
+        validateInput: (value) => {
+          return isNaN(Number(value)) ? "Please enter a valid number" : null;
+        },
+      });
+
+      if (maxDepthInput === undefined) {
+        return;
+      }
+
+      const maxDepth = Number(maxDepthInput);
+
+      const maxIterationsInput = await window.showInputBox({
+        prompt: "Enter max_iterations for getSolution",
+        placeHolder: "1",
+        validateInput: (value) => {
+          return isNaN(Number(value)) ? "Please enter a valid number" : null;
+        },
+      });
+
+      if (maxIterationsInput === undefined) {
+        return;
+      }
+
+      const maxIterations = Number(maxIterationsInput);
+
+      await updateGetSolutionMaxPriority(maxPriority);
+      await updateGetSolutionMaxDepth(maxDepth);
+      await updateGetSolutionMaxIterations(maxIterations);
+
+      window.showInformationMessage(
+        `getSolution parameters updated: max_priority=${maxPriority}, max_depth=${maxDepth}, max_iterations=${maxIterations}`,
+      );
+    },
   };
 };
 

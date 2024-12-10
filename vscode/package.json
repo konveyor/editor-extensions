@@ -220,6 +220,12 @@
         "icon": "$(arrow-left)",
         "category": "diffEditor",
         "title": "Apply Selection"
+      },
+      {
+        "command": "konveyor.configureGetSolutionParams",
+        "title": "Configure getSolution Parameters",
+        "category": "Konveyor",
+        "icon": "$(gear)"
       }
     ],
     "submenus": [
@@ -504,12 +510,7 @@
         },
         "konveyor.kai.providerArgs": {
           "type": "object",
-          "default": {
-            "model_id": "meta-llama/llama-3-1-70b-instruct",
-            "parameters": {
-              "max_new_tokens": 2048
-            }
-          },
+          "default": {},
           "description": "Kai provider arguments",
           "scope": "window"
         },
@@ -518,6 +519,21 @@
           "default": "",
           "description": "Generative AI Key",
           "scope": "window"
+        },
+        "konveyor.kai.getSolutionMaxPriority": {
+          "type": "number",
+          "default": 0,
+          "description": "Maximum priority for the getSolution request"
+        },
+        "konveyor.kai.getSolutionMaxDepth": {
+          "type": "number",
+          "default": 0,
+          "description": "Max depth for the getSolution request"
+        },
+        "konveyor.kai.getSolutionMaxIterations": {
+          "type": "number",
+          "default": 1,
+          "description": "Max iterations for the getSolution request"
         }
       }
     },
@@ -568,6 +584,17 @@
             ],
             "media": {
               "markdown": "media/walkthroughs/gen-ai.md"
+            }
+          },
+          {
+            "id": "configure-get-solution",
+            "title": "Configure Get Solution Parameters",
+            "description": "Set up getSolution parameters\n[Configure Get Solution Parameters](command:konveyor.configureGetSolutionParams)",
+            "completionEvents": [
+              "onCommand:konveyor.configureGetSolutionParams"
+            ],
+            "media": {
+              "markdown": "media/walkthroughs/get-solution-params.md"
             }
           },
           {

@@ -21,6 +21,9 @@ import {
   getConfigKaiRpcServerPath,
   getConfigAnalyzerPath,
   getGenAiKey,
+  getConfigMaxDepth,
+  getConfigMaxIterations,
+  getConfigMaxPriority,
 } from "../utilities";
 
 export class AnalyzerClient {
@@ -344,19 +347,28 @@ export class AnalyzerClient {
 
     const enhancedIncident = {
       ...incident,
-      ruleset_name: violation.category || "default_ruleset", // You may adjust the default value as necessary
-      violation_name: violation.description || "default_violation", // You may adjust the default value as necessary
+      ruleset_name: violation.category || "default_ruleset",
+      violation_name: violation.description || "default_violation",
     };
 
+    const maxPriority = getConfigMaxPriority();
+    const maxDepth = getConfigMaxDepth();
+    const maxIterations = getConfigMaxIterations();
+
     try {
+      this.outputChannel.appendLine(`Sending 'getCodeplanAgentSolution' with:
+        max_priority: ${maxPriority}, 
+        max_depth: ${maxDepth}, 
+        max_iterations: ${maxIterations}`);
+
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
         {
           file_path: "",
           incidents: [enhancedIncident],
-          max_priority: 0,
-          max_depth: 0,
-          max_iterations: 1,
+          max_priority: maxPriority,
+          max_depth: maxDepth,
+          max_iterations: maxIterations,
         },
       );
 
@@ -368,6 +380,7 @@ export class AnalyzerClient {
       this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);
       vscode.window.showErrorMessage("Get solution failed. See the output channel for details.");
     }
+
     this.fireSolutionStateChange(false);
   }
 
