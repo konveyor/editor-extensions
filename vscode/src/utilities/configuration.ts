@@ -144,3 +144,35 @@ export async function updateKaiProviderName(value: string): Promise<void> {
 export async function updateKaiProviderModel(value: string): Promise<void> {
   await updateConfigValue("kai.providerModel", value, vscode.ConfigurationTarget.Workspace);
 }
+
+export function getConfigMaxPriority(): number {
+  return getConfigValue<number>("kai.getSolutionMaxPriority") || 0;
+}
+
+export function getConfigMaxDepth(): number {
+  return getConfigValue<number>("kai.getSolutionMaxDepth") || 0;
+}
+
+export function getConfigMaxIterations(): number {
+  return getConfigValue<number>("kai.getSolutionMaxIterations") || 1;
+}
+
+export async function updateGetSolutionMaxPriority(value: number): Promise<void> {
+  await updateConfigValue(
+    "kai.getSolutionMaxPriority",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+}
+
+export async function updateGetSolutionMaxDepth(value: number): Promise<void> {
+  await updateConfigValue("kai.getSolutionMaxDepth", value, vscode.ConfigurationTarget.Workspace);
+}
+
+export async function updateGetSolutionMaxIterations(value: number): Promise<void> {
+  await updateConfigValue(
+    "kai.getSolutionMaxIterations",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+}
