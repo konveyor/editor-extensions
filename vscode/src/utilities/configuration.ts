@@ -70,7 +70,6 @@ export function getConfigKaiProviderArgs(): object {
 }
 
 export function getConfigKaiDemoMode(): boolean {
-  console.log("getConfigKaiDemoMode inside call", getConfigValue<boolean>("kai.demoMode"));
   return getConfigValue<boolean>("kai.demoMode") ?? false;
 }
 
