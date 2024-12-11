@@ -1,6 +1,7 @@
 export const SET_STATE = "SET_STATE";
 export const RUN_ANALYSIS = "RUN_ANALYSIS";
 export const START_SERVER = "START_SERVER";
+export const STOP_SERVER = "STOP_SERVER";
 export const CANCEL_SOLUTION = "CANCEL_SOLUTION";
 export const GET_SOLUTION = "GET_SOLUTION";
 export const OPEN_FILE = "OPEN_FILE";
@@ -13,6 +14,7 @@ export type WebviewActionType =
   | typeof SET_STATE
   | typeof RUN_ANALYSIS
   | typeof START_SERVER
+  | typeof STOP_SERVER
   | typeof CANCEL_SOLUTION
   | typeof GET_SOLUTION
   | typeof OPEN_FILE

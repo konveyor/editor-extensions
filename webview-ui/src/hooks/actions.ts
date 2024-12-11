@@ -25,6 +25,11 @@ export const startServer = (): WebviewAction<WebviewActionType, unknown> => ({
   payload: {},
 });
 
+export const stopServer = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "STOP_SERVER",
+  payload: {},
+});
+
 export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "CANCEL_SOLUTION",
   payload: {},

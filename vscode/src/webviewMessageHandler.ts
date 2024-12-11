@@ -6,16 +6,17 @@ import {
   GET_SOLUTION,
   LocalChange,
   OPEN_FILE,
-  Scope,
   RUN_ANALYSIS,
+  Scope,
   START_SERVER,
+  STOP_SERVER,
   VIEW_FIX,
   WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
 } from "@editor-extensions/shared";
 
-export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
+export function setupWebviewMessageListener(webview: vscode.Webview, _state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => messageHandler(message));
 }
 
@@ -82,6 +83,9 @@ const actions: {
   [START_SERVER]() {
     vscode.commands.executeCommand("konveyor.startServer");
   },
+  [STOP_SERVER]() {
+    vscode.commands.executeCommand("konveyor.stopServer");
+  },
 };
 
 export const messageHandler = async (message: WebviewAction<WebviewActionType, unknown>) => {
@@ -98,6 +102,7 @@ const defaultHandler = (message: WebviewAction<WebviewActionType, unknown>) => {
   console.error("Unknown message received from webview", message);
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function handleRequestQuickFix(uriString: string, lineNumber: number) {
   const uri = vscode.Uri.parse(uriString);
   try {

@@ -35,6 +35,7 @@ import {
   openFile,
   startServer,
   runAnalysis,
+  stopServer,
 } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
@@ -49,7 +50,6 @@ const AnalysisPage: React.FC = () => {
   } = state;
   const serverRunning = state.serverState === "running";
 
-  const [analysisMessage, setAnalysisMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
@@ -64,10 +64,7 @@ const AnalysisPage: React.FC = () => {
   const cancelSolutionRequest = () => dispatch(cancelSolution());
 
   const handleServerToggle = () => {
-    if (!serverRunning) {
-      dispatch(startServer());
-    }
-    // Add stopServer action when available
+    dispatch(serverRunning ? stopServer() : startServer());
   };
 
   const violations = useMemo(() => {
@@ -175,7 +172,7 @@ const AnalysisPage: React.FC = () => {
                     <EmptyStateBody>
                       {hasAnalysisResults
                         ? "Great job! Your analysis didn't find any violations."
-                        : analysisMessage || "Run an analysis to see results here."}
+                        : "Run an analysis to see results here."}
                     </EmptyStateBody>
                   </EmptyState>
                 )}
