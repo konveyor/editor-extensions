@@ -552,14 +552,6 @@ export class AnalyzerClient {
     return `log_level = "info"
 file_log_level = "debug"
 log_dir = "${log_dir}"
-
-[models]
-provider = "ChatIBMGenAI"
-
-[models.args]
-model_id = "meta-llama/llama-3-70b-instruct"
-parameters.max_new_tokens = "2048"
-
 `;
   }
 }

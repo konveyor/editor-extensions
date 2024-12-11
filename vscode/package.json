@@ -510,7 +510,12 @@
         },
         "konveyor.kai.providerArgs": {
           "type": "object",
-          "default": {},
+          "default": {
+            "model_id": "meta-llama/llama-3-1-70b-instruct",
+            "parameters": {
+              "max_new_tokens": 2048
+            }
+          },
           "description": "Kai provider arguments",
           "scope": "window"
         },
