@@ -525,6 +525,12 @@
           "description": "Generative AI Key",
           "scope": "window"
         },
+        "konveyor.kai.demoMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Demo mode for Kai",
+          "scope": "window"
+        },
         "konveyor.kai.getSolutionMaxPriority": {
           "type": "number",
           "default": 0,

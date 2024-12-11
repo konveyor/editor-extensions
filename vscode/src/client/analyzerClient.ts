@@ -11,7 +11,6 @@ import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
-  KONVEYOR_CONFIG_KEY,
   getConfigKaiBackendURL,
   getConfigLogLevel,
   getConfigKaiProviderName,
@@ -24,6 +23,7 @@ import {
   getConfigMaxDepth,
   getConfigMaxIterations,
   getConfigMaxPriority,
+  getConfigKaiDemoMode,
 } from "../utilities";
 
 export class AnalyzerClient {
@@ -163,19 +163,12 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`kai rpc server stopped`);
   }
 
-  // This config value is intentionally excluded from package.json
   protected isDemoMode(): boolean {
-    const configDemoMode = vscode.workspace
-      .getConfiguration(KONVEYOR_CONFIG_KEY)
-      ?.get<boolean>("konveyor.kai.demoMode");
+    const configDemoMode = getConfigKaiDemoMode();
 
-    let demoMode: boolean;
-    if (configDemoMode !== undefined) {
-      demoMode = configDemoMode;
-    } else {
-      demoMode = !Extension.getInstance(this.extContext).isProductionMode;
-    }
-    return demoMode;
+    return configDemoMode !== undefined
+      ? configDemoMode
+      : !Extension.getInstance(this.extContext).isProductionMode;
   }
 
   public async initialize(): Promise<void> {
