@@ -14,15 +14,21 @@ const defaultState: ExtensionData = {
   solutionScope: undefined,
 };
 
+const windowState =
+  typeof window["konveyorInitialData"] === "object"
+    ? (window["konveyorInitialData"] as ExtensionData)
+    : defaultState;
+
 export function useExtensionState(): [
   ExtensionData,
   (message: WebviewAction<WebviewActionType, unknown>) => void,
 ] {
-  const [state, setState] = useState<ExtensionData>(defaultState);
+  const [state, setState] = useState<ExtensionData>(windowState);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent<ExtensionData>) => setState(event.data);
-
+    const handleMessage = (event: MessageEvent<ExtensionData>) => {
+      setState(event.data);
+    };
     window.addEventListener("message", handleMessage);
 
     return () => {

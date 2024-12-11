@@ -1,11 +1,12 @@
 // App.tsx
 import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
-import AnalysisPage from "./components/AnalysisPage";
+import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
 import ResolutionPage from "./components/ResolutionsPage";
+import { WebviewType } from "@editor-extensions/shared";
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<string>(viewType);
+  const [currentView, setCurrentView] = useState<WebviewType>(viewType);
 
   useEffect(() => {
     // Update the view when viewType changes

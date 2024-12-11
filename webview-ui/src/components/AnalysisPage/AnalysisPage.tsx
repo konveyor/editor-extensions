@@ -1,3 +1,4 @@
+import "./styles.css";
 import React, { useState, useMemo } from "react";
 import {
   Button,
@@ -19,15 +20,24 @@ import {
   PageSection,
   Stack,
   StackItem,
+  Flex,
+  FlexItem,
 } from "@patternfly/react-core";
 import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
 
-import ProgressIndicator from "./ProgressIndicator";
-import ViolationIncidentsList from "./ViolationIncidentsList";
+import ProgressIndicator from "../ProgressIndicator";
+import ViolationIncidentsList from "../ViolationIncidentsList";
 import { Incident } from "@editor-extensions/shared";
-import { useExtensionState } from "../hooks/useExtensionState";
-import { cancelSolution, getSolution, openFile, startServer, runAnalysis } from "../hooks/actions";
-import { ServerStatusToggle } from "./ServerStatusToggle/ServerStatusToggle";
+import { useExtensionState } from "../../hooks/useExtensionState";
+import {
+  cancelSolution,
+  getSolution,
+  openFile,
+  startServer,
+  runAnalysis,
+} from "../../hooks/actions";
+import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
+import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 
 const AnalysisPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -105,7 +115,11 @@ const AnalysisPage: React.FC = () => {
           <StackItem>
             <Card>
               <CardHeader>
-                <CardTitle>Analysis Actions</CardTitle>
+                <Flex>
+                  <FlexItem>
+                    <CardTitle>Analysis Actions</CardTitle>
+                  </FlexItem>
+                </Flex>
               </CardHeader>
               <CardBody>
                 <Stack hasGutter>
@@ -134,7 +148,21 @@ const AnalysisPage: React.FC = () => {
           <StackItem>
             <Card>
               <CardHeader>
-                <CardTitle>Analysis Results</CardTitle>
+                <Flex className="header-layout">
+                  <FlexItem>
+                    <CardTitle>Analysis Results</CardTitle>
+                    <ViolationsCount
+                      violationsCount={violations.length}
+                      incidentsCount={violations.reduce(
+                        (prev, curr) => curr.incidents.length + prev,
+                        0,
+                      )}
+                    />
+                  </FlexItem>
+                  <>
+                    <FlexItem></FlexItem>
+                  </>
+                </Flex>
               </CardHeader>
               <CardBody>
                 {isAnalyzing && <ProgressIndicator progress={50} />}

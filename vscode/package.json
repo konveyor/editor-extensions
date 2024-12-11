@@ -29,10 +29,34 @@
   "contributes": {
     "commands": [
       {
-        "command": "konveyor.toggleFullScreen",
-        "title": "Toggle Fullscreen",
+        "command": "konveyor.configureGenAiKey",
+        "title": "Configure GenAI Key",
         "category": "Konveyor",
-        "icon": "$(fullscreen)"
+        "icon": "$(key)"
+      },
+      {
+        "command": "konveyor.showAnalysisPanel",
+        "title": "Open Konveyor Analysis View",
+        "category": "Konveyor",
+        "icon": "$(book)"
+      },
+      {
+        "command": "konveyor.expandAllIssues",
+        "title": "Expand All",
+        "category": "Konveyor",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "konveyor.expandSingleIssue",
+        "title": "Expand All",
+        "category": "Konveyor",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "konveyor.openAnalysisDetails",
+        "title": "Open Details",
+        "category": "Konveyor",
+        "icon": "$(book)"
       },
       {
         "command": "konveyor.overrideAnalyzerBinaries",
@@ -216,10 +240,8 @@
     "views": {
       "konveyor": [
         {
-          "type": "webview",
-          "id": "konveyor.konveyorAnalysisView",
-          "name": "Konveyor Analysis View",
-          "visibility": "visible"
+          "id": "konveyor.issueView",
+          "name": "Konveyor Issues"
         },
         {
           "id": "konveyor.diffView",
@@ -230,9 +252,14 @@
     "menus": {
       "view/title": [
         {
-          "command": "konveyor.toggleFullScreen",
+          "command": "konveyor.showAnalysisPanel",
           "group": "navigation@1",
-          "when": "view == konveyor.konveyorAnalysisView"
+          "when": "view == konveyor.issueView"
+        },
+        {
+          "command": "konveyor.expandAllIssues",
+          "group": "navigation@2",
+          "when": "view == konveyor.issueView"
         },
         {
           "command": "konveyor.applyAll",
@@ -251,6 +278,16 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "konveyor.expandSingleIssue",
+          "group": "inline@2",
+          "when": "view == konveyor.issueView && viewItem == incident-type-item"
+        },
+        {
+          "command": "konveyor.openAnalysisDetails",
+          "group": "inline@1",
+          "when": "view == konveyor.issueView && viewItem == incident-type-item"
+        },
         {
           "command": "konveyor.applyFile",
           "group": "inline",
@@ -280,13 +317,6 @@
           "command": "konveyor.copyPath",
           "group": "2@2",
           "when": "view == konveyor.diffView && viewItem == file-item"
-        }
-      ],
-      "editor/title": [
-        {
-          "command": "konveyor.toggleFullScreen",
-          "group": "navigation@1",
-          "when": "activeWebviewPanelId == konveyor.konveyorAnalysisView"
         }
       ],
       "diffEditor/gutter/selection": [
@@ -321,6 +351,10 @@
       ],
       "konveyor.submenu": [],
       "commandPalette": [
+        {
+          "command": "konveyor.expandSingleIssue",
+          "when": "never"
+        },
         {
           "command": "konveyor.loadRuleSets",
           "when": "never"
@@ -478,6 +512,12 @@
           },
           "description": "Kai provider arguments",
           "scope": "window"
+        },
+        "konveyor.kai.genAiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Generative AI Key",
+          "scope": "window"
         }
       }
     },
@@ -517,6 +557,17 @@
             ],
             "media": {
               "markdown": "media/walkthroughs/analysis-arguments.md"
+            }
+          },
+          {
+            "id": "configure-gen",
+            "title": "Configure Generative AI",
+            "description": "Configure Generative AI for your project\n[Configure GenAI Key](command:konveyor.configureGenAiKey)",
+            "completionEvents": [
+              "onCommand:konveyor.configureGenAiKey"
+            ],
+            "media": {
+              "markdown": "media/walkthroughs/gen-ai.md"
             }
           },
           {

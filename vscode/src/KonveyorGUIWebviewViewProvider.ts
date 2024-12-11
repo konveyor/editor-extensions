@@ -13,6 +13,8 @@ import {
   window,
 } from "vscode";
 import { getNonce } from "./utilities/getNonce";
+import { ExtensionData, WebviewType } from "@editor-extensions/shared";
+import { Immutable } from "immer";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly SIDEBAR_VIEW_TYPE = "konveyor.konveyorAnalysisView";
@@ -28,8 +30,12 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
   constructor(
     private readonly _extensionState: ExtensionState,
-    private readonly _viewType: string,
+    private readonly _viewType: WebviewType,
   ) {}
+
+  isAnalysisView() {
+    return this._viewType === "sidebar";
+  }
 
   public resolveWebviewView(
     webviewView: WebviewView,
@@ -37,51 +43,47 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     _token: CancellationToken,
   ): void | Thenable<void> {
     this._view = webviewView;
-    this.initializeWebview(webviewView.webview);
+    this.initializeWebview(webviewView.webview, this._extensionState.data);
   }
 
   public createWebviewPanel(): void {
-    if (!this._panel) {
-      this._panel = window.createWebviewPanel(
-        KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-        "Resolution Details",
-        ViewColumn.One,
-        {
-          enableScripts: true,
-          localResourceRoots: [this._extensionState.extensionContext.extensionUri],
-          retainContextWhenHidden: true,
-        },
-      );
-
-      this.initializeWebview(this._panel.webview);
-
-      if (this._viewType === KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE) {
-        const savedData = this._extensionState.data.resolutionPanelData;
-        if (savedData) {
-          this._panel.webview.postMessage(this._extensionState.data);
-        }
-      }
-
-      this._panel.onDidDispose(() => {
-        this.handleResolutionViewClosed();
-        this._panel = undefined;
-        this._isWebviewReady = false;
-        this._isPanelReady = false;
-      });
+    if (this._panel) {
+      return;
     }
+    this._panel = window.createWebviewPanel(
+      this.isAnalysisView()
+        ? KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE
+        : KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
+      this.isAnalysisView() ? "Konveyor Analysis View" : "Resolution Details",
+      ViewColumn.One,
+      {
+        enableScripts: true,
+        localResourceRoots: [this._extensionState.extensionContext.extensionUri],
+        retainContextWhenHidden: true,
+      },
+    );
+
+    this.initializeWebview(this._panel.webview, this._extensionState.data);
+
+    this._panel.onDidDispose(() => {
+      this.handleViewClosed();
+      this._panel = undefined;
+      this._isWebviewReady = false;
+      this._isPanelReady = false;
+    });
   }
 
-  private handleResolutionViewClosed(): void {
+  private handleViewClosed(): void {
     // Assuming the analysis webview is tracked and can be accessed via the ExtensionState or similar
-    const sidebarProvider = this._extensionState.webviewProviders.get("sidebar");
-    if (sidebarProvider?.webview && sidebarProvider._isWebviewReady) {
-      // sidebarProvider.webview.postMessage({
-      //   type: "solutionConfirmation",
-      //   data: { confirmed: true, solution: null },
-      // });
-    } else {
-      console.error("Analysis webview is not ready or not available.");
-    }
+    // const sidebarProvider = this._extensionState.webviewProviders.get("sidebar");
+    // if (sidebarProvider?.webview && sidebarProvider._isWebviewReady) {
+    // sidebarProvider.webview.postMessage({
+    //   type: "solutionConfirmation",
+    //   data: { confirmed: true, solution: null },
+    // });
+    // } else {
+    // console.error("Analysis webview is not ready or not available.");
+    // }
   }
 
   public showWebviewPanel(): void {
@@ -92,7 +94,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     }
   }
 
-  private initializeWebview(webview: Webview): void {
+  private initializeWebview(webview: Webview, data: Immutable<ExtensionData>): void {
     const isProd = process.env.NODE_ENV === "production";
     const extensionUri = this._extensionState.extensionContext.extensionUri;
 
@@ -108,11 +110,11 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       localResourceRoots: isProd ? [assetsUri] : [extensionUri],
     };
 
-    webview.html = this.getHtmlForWebview(webview);
+    webview.html = this.getHtmlForWebview(webview, data);
     this._setWebviewMessageListener(webview);
   }
 
-  public getHtmlForWebview(webview: Webview): string {
+  public getHtmlForWebview(webview: Webview, data: Immutable<ExtensionData>): string {
     const stylesUri = this._getStylesUri(webview);
     const scriptUri = this._getScriptUri(webview);
     const nonce = getNonce();
@@ -129,6 +131,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
           const vscode = acquireVsCodeApi();
           window.vscode = vscode;
           window.viewType = "${this._viewType}";
+          window.konveyorInitialData = ${JSON.stringify(data)};
         </script>
       </head>
       <body>
@@ -218,7 +221,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
           this._isPanelReady = true;
           while (this._messageQueue.length > 0) {
             const queuedMessage = this._messageQueue.shift();
-            webview.postMessage(queuedMessage);
+            this.sendMessage(queuedMessage, webview);
           }
         }
       },
@@ -235,11 +238,19 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       }
     }
   }
+  private sendMessage(message: any, webview: Webview) {
+    webview.postMessage(message).then((deliveryStatus) => {
+      if (!deliveryStatus) {
+        console.error(`Message to Konveyor webview '${this._viewType}' not delivered`);
+      }
+    });
+  }
+
   public sendMessageToWebview(message: any): void {
     if (this._view?.webview && this._isWebviewReady) {
-      this._view.webview.postMessage(message);
+      this.sendMessage(message, this._view.webview);
     } else if (this._panel && this._isPanelReady) {
-      this._panel.webview.postMessage(message);
+      this.sendMessage(message, this._panel.webview);
     } else {
       this._messageQueue.push(message);
     }

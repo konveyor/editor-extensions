@@ -1,3 +1,5 @@
+import { WebviewType } from "@editor-extensions/shared";
+
 // vscode.ts
 export interface VscodeApi {
   postMessage(message: any): void;
@@ -8,7 +10,7 @@ export interface VscodeApi {
 declare global {
   interface Window {
     vscode: VscodeApi;
-    viewType: "sidebar" | "resolution"; // Declare the expected types for viewType
+    viewType: WebviewType; // Declare the expected types for viewType
   }
 }
 
@@ -16,4 +18,4 @@ declare global {
 export const vscode: VscodeApi = window.vscode;
 
 // export const viewType: string = "sidebar" | "resolution";
-export const viewType: "sidebar" | "resolution" = window.viewType || "sidebar"; // Default to "sidebar" if not set
+export const viewType: WebviewType = window.viewType || "sidebar"; // Default to "sidebar" if not set
