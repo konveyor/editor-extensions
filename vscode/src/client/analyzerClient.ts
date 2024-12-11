@@ -1,7 +1,7 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { setTimeout } from "node:timers/promises";
+import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
@@ -33,6 +33,7 @@ export class AnalyzerClient {
   private outputChannel: vscode.OutputChannel;
   private assetPaths: AssetPaths;
   private kaiDir: string;
+  private kaiRuntimeDir: string;
   private kaiConfigToml: string;
   private fireStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
@@ -60,7 +61,11 @@ export class AnalyzerClient {
 
     this.assetPaths = buildAssetPaths(extContext);
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
+    this.kaiRuntimeDir = path.join(buildDataFolderPath()!, "kai-runtime");
     this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
+
+    fs.ensureDirSync(this.kaiDir);
+    fs.ensureDirSync(this.kaiRuntimeDir);
 
     this.outputChannel.appendLine(
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
@@ -77,20 +82,19 @@ export class AnalyzerClient {
       return;
     }
 
-    // TODO: If the server generates files in cwd, we should set this to something else
-    const serverCwd = this.extContext.extensionPath;
+    const serverCwd = this.kaiRuntimeDir;
+    const serverEnv = await this.getKaiRpcServerEnv();
+    const serverPath = this.getKaiRpcServerPath();
+    const serverArgs = this.getKaiRpcServerArgs();
 
     this.fireStateChange("starting");
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
-    this.outputChannel.appendLine(`server path: ${this.getKaiRpcServerPath()}`);
+    this.outputChannel.appendLine(`server path: ${serverPath}`);
     this.outputChannel.appendLine(`server args:`);
-    this.getKaiRpcServerArgs().forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
+    serverArgs.forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
-    // Retrieve the environment variables asynchronously
-    const serverEnv = await this.getKaiRpcServerEnv();
-
-    const kaiRpcServer = spawn(this.getKaiRpcServerPath(), this.getKaiRpcServerArgs(), {
+    const kaiRpcServer = spawn(serverPath, serverArgs, {
       cwd: serverCwd,
       env: serverEnv,
     });
@@ -528,10 +532,6 @@ export class AnalyzerClient {
   }
 
   public getKaiConfigTomlPath(): string {
-    if (!fs.existsSync(this.kaiDir)) {
-      fs.mkdirSync(this.kaiDir, { recursive: true });
-    }
-
     // Ensure the file exists with default content if it doesn't
     // Consider making this more robust, maybe this is an asset we can get from kai?
     if (!fs.existsSync(this.kaiConfigToml)) {
