@@ -356,20 +356,21 @@ export class AnalyzerClient {
     const maxIterations = getConfigMaxIterations();
 
     try {
-      this.outputChannel.appendLine(`Sending 'getCodeplanAgentSolution' with:
-        max_priority: ${maxPriority}, 
-        max_depth: ${maxDepth}, 
-        max_iterations: ${maxIterations}`);
+      const request = {
+        file_path: "",
+        incidents: [enhancedIncident],
+        max_priority: maxPriority,
+        max_depth: maxDepth,
+        max_iterations: maxIterations,
+      };
+
+      this.outputChannel.appendLine(
+        `getCodeplanAgentSolution request: ${JSON.stringify(request, null, 2)}`,
+      );
 
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
-        {
-          file_path: "",
-          incidents: [enhancedIncident],
-          max_priority: maxPriority,
-          max_depth: maxDepth,
-          max_iterations: maxIterations,
-        },
+        request,
       );
 
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
