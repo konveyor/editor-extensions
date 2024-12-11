@@ -177,6 +177,14 @@ export class AnalyzerClient {
       return;
     }
 
+    // Get the provider args from the user settings or the default settings
+    const config = vscode.workspace.getConfiguration("konveyor.kai");
+    const userProviderArgs = getConfigKaiProviderArgs();
+    const finalProviderArgs = userProviderArgs || config.get<object>("providerArgs");
+    this.outputChannel.appendLine(
+      `Using finalProviderArgs: ${JSON.stringify(finalProviderArgs, null, 2)}`,
+    );
+
     // Define the initialize request parameters
     const initializeParams = {
       process_id: null,
@@ -186,7 +194,7 @@ export class AnalyzerClient {
       log_dir_path: this.kaiDir,
       model_provider: {
         provider: getConfigKaiProviderName(),
-        args: getConfigKaiProviderArgs(),
+        args: finalProviderArgs,
       },
       file_log_level: getConfigLogLevel(),
       demo_mode: this.isDemoMode(),

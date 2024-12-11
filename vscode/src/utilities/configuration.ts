@@ -65,8 +65,37 @@ export function getConfigKaiProviderName(): string {
   return getConfigValue<string>("kai.providerName") || "ChatIBMGenAI";
 }
 
-export function getConfigKaiProviderArgs(): object {
-  return getConfigValue<object>("kai.providerArgs") || {};
+export function getConfigKaiProviderArgs(): object | undefined {
+  const config = vscode.workspace.getConfiguration("konveyor.kai");
+  const providerArgsConfig = config.inspect<object>("providerArgs");
+
+  if (!providerArgsConfig) {
+    console.log("No configuration found for providerArgs.");
+    return undefined;
+  }
+
+  const userDefinedValue =
+    providerArgsConfig.globalValue !== undefined ||
+    providerArgsConfig.workspaceValue !== undefined ||
+    providerArgsConfig.workspaceFolderValue !== undefined;
+
+  if (userDefinedValue) {
+    if (providerArgsConfig.workspaceFolderValue) {
+      console.log("Using workspaceFolder providerArgs:", providerArgsConfig.workspaceFolderValue);
+      return providerArgsConfig.workspaceFolderValue;
+    }
+    if (providerArgsConfig.workspaceValue) {
+      console.log("Using workspace providerArgs:", providerArgsConfig.workspaceValue);
+      return providerArgsConfig.workspaceValue;
+    }
+    if (providerArgsConfig.globalValue) {
+      console.log("Using global providerArgs:", providerArgsConfig.globalValue);
+      return providerArgsConfig.globalValue;
+    }
+  }
+
+  console.log("No user overrides for providerArgs. Using defaults from package.json.");
+  return undefined;
 }
 
 export function getConfigKaiDemoMode(): boolean {
