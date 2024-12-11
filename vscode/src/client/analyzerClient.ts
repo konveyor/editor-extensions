@@ -285,17 +285,25 @@ export class AnalyzerClient {
             return;
           }
 
-          const cancellationPromise = new Promise((_, reject) => {
+          const cancellationPromise = new Promise((resolve) => {
             token.onCancellationRequested(() => {
-              reject(new Error("Operation canceled by the user."));
+              resolve({ isCancelled: true });
             });
           });
 
-          const response: any = await Promise.race([
-            this.rpcConnection!.sendRequest("analysis_engine.Analyze", requestParams),
+          const { response, isCancelled }: any = await Promise.race([
+            this.rpcConnection!.sendRequest("analysis_engine.Analyze", requestParams).then(
+              (response) => ({ response }),
+            ),
             cancellationPromise,
           ]);
 
+          if (isCancelled) {
+            this.outputChannel.appendLine("Analysis operation was canceled.");
+            vscode.window.showInformationMessage("Analysis was canceled.");
+            this.fireAnalysisStateChange(false);
+            return;
+          }
           this.outputChannel.appendLine(`Response: ${JSON.stringify(response)}`);
 
           // Handle the result
@@ -310,13 +318,8 @@ export class AnalyzerClient {
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {
-          if (err.message === "Operation canceled by the user.") {
-            this.outputChannel.appendLine("Analysis operation was canceled.");
-            vscode.window.showInformationMessage("Analysis was canceled.");
-          } else {
-            this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
-            vscode.window.showErrorMessage("Analysis failed. See the output channel for details.");
-          }
+          this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
+          vscode.window.showErrorMessage("Analysis failed. See the output channel for details.");
         }
         this.fireAnalysisStateChange(false);
       },
