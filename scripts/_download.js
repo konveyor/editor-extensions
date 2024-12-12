@@ -133,7 +133,7 @@ export async function downloadGitHubRelease({
     };
 
     for (const { name, platform, arch, chmod } of assets) {
-      const releaseAsset = releaseAssets.find((a) => a.name === name);
+      const releaseAsset = releaseAssets.find((a) => a.name.toLowerCase() === name.toLowerCase());
       if (releaseAsset) {
         try {
           console.group(yellow(releaseAsset.name));

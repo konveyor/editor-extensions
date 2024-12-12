@@ -17,7 +17,7 @@ await downloadGitHubRelease({
 
   org: "konveyor",
   repo: "kai",
-  releaseTag: "v0.0.2",
+  releaseTag: "v0.0.3",
 
   /*
     Release asset filenames and nodejs equivalent platform/arch
@@ -26,9 +26,11 @@ await downloadGitHubRelease({
   */
   assets: [
     { name: "kai-rpc-server.linux-x86_64.zip", platform: "linux", arch: "x64", chmod: true },
-    { name: "kai-rpc-server.macos-arm64.zip", platform: "darwin", arch: "arm64", chmod: true },
+    { name: "kai-rpc-server.linux-aarch64.zip", platform: "linux", arch: "arm64", chmod: true },
     { name: "kai-rpc-server.macos-x86_64.zip", platform: "darwin", arch: "x64", chmod: true },
-    { name: "kai-rpc-server.windows-x86_64.zip", platform: "win32", arch: "x64" },
+    { name: "kai-rpc-server.macos-arm64.zip", platform: "darwin", arch: "arm64", chmod: true },
+    { name: "kai-rpc-server.windows-x64.zip", platform: "win32", arch: "x64" },
+    { name: "kai-rpc-server.windows-arm64.zip", platform: "win32", arch: "arm64" },
   ],
 });
 
