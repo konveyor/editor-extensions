@@ -175,6 +175,18 @@ export class AnalyzerClient {
       : !Extension.getInstance(this.extContext).isProductionMode;
   }
 
+  protected buildModelProviderConfig() {
+    const config = vscode.workspace.getConfiguration("konveyor.kai");
+    const userProviderArgs = getConfigKaiProviderArgs();
+    const providerArgs = userProviderArgs || config.get<object>("providerArgs");
+
+    const modelProviderSection = {
+      provider: getConfigKaiProviderName(),
+      args: providerArgs,
+    };
+    return modelProviderSection;
+  }
+
   public async initialize(): Promise<void> {
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
@@ -188,10 +200,8 @@ export class AnalyzerClient {
       root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
       log_level: getConfigLogLevel(),
       log_dir_path: this.kaiDir,
-      model_provider: {
-        provider: getConfigKaiProviderName(),
-        args: getConfigKaiProviderArgs(),
-      },
+      model_provider: this.buildModelProviderConfig(),
+
       file_log_level: getConfigLogLevel(),
       demo_mode: this.isDemoMode(),
       cache_dir: "",
