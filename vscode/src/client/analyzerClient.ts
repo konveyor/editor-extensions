@@ -41,31 +41,35 @@ export class AnalyzerClient {
 
   constructor(
     private extContext: vscode.ExtensionContext,
-    mutateExtensionState: (recipe: (draft: ExtensionData) => void) => void,
+    mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
   ) {
     this.fireStateChange = (state: ServerState) =>
-      mutateExtensionState((draft) => {
+      mutateExtensionData((draft) => {
         draft.serverState = state;
         draft.isStartingServer = state === "starting";
       });
     this.fireAnalysisStateChange = (flag: boolean) =>
-      mutateExtensionState((draft) => {
+      mutateExtensionData((draft) => {
         draft.isAnalyzing = flag;
       });
     this.fireSolutionStateChange = (flag: boolean) =>
-      mutateExtensionState((draft) => {
+      mutateExtensionData((draft) => {
         draft.isFetchingSolution = flag;
       });
 
-    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer"); //, { log: true });
-
+    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.assetPaths = buildAssetPaths(extContext);
+
+    // TODO: Move the directory and file creation to extension init...
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
     this.kaiRuntimeDir = path.join(buildDataFolderPath()!, "kai-runtime");
     this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
 
     fs.ensureDirSync(this.kaiDir);
     fs.ensureDirSync(this.kaiRuntimeDir);
+    // TODO: ...end
+
+    // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
 
     this.outputChannel.appendLine(
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
@@ -74,7 +78,23 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`Kai config toml: ${this.kaiConfigToml}`);
   }
 
+  /**
+   * Start the `kai-rpc-server`, wait until it is ready, and then setup the rpcConnection.
+   *
+   * Will only run if the sever state is: `stopped`, `configurationReady`
+   *
+   * Server state changes:
+   *   - `starting`
+   *   - `running`
+   *   - `startFailed`
+   *   - `stopped`: When the process exits (clean shutdown, aborted, killed, ...) the server
+   *                states changes to `stopped` via the process event `exit`
+   *
+   * @throws Error if the process cannot be started
+   */
   public async start(): Promise<void> {
+    // TODO: Ensure serverState is stopped || configurationReady
+
     if (!this.canAnalyze()) {
       vscode.window.showErrorMessage(
         "Cannot start the kai rpc server due to missing configuration.",
@@ -82,13 +102,47 @@ export class AnalyzerClient {
       return;
     }
 
+    this.outputChannel.appendLine(`Starting the kai rpc server ...`);
+    this.fireStateChange("starting");
+    try {
+      const [kaiRpcServer, pid] = await this.startProcessAndLogStderr();
+
+      kaiRpcServer.on("exit", (code, signal) => {
+        this.outputChannel.appendLine(`kai rpc server exited [signal: ${signal}, code: ${code}]`);
+        this.fireStateChange("stopped");
+      });
+
+      this.kaiRpcServer = kaiRpcServer;
+      this.outputChannel.appendLine(`kai rpc server successfully started [pid: ${pid}]`);
+      this.fireStateChange("readyToInitialize");
+    } catch (e) {
+      this.outputChannel.appendLine(`kai rpc server start failed [error: ${e}]`);
+      this.fireStateChange("startFailed");
+      throw e;
+    }
+
+    // Set up the JSON-RPC connection
+    this.rpcConnection = rpc.createMessageConnection(
+      new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
+      new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
+    );
+    this.rpcConnection.listen();
+  }
+
+  /**
+   * Start the server process, wire the process's stderr to the output channel,
+   * and wait (up to a maximum time) for the server to report itself ready.
+   */
+  protected async startProcessAndLogStderr(
+    maxTimeToWaitUntilReady: number = 10_000,
+  ): Promise<[ChildProcessWithoutNullStreams, number | undefined]> {
+    // TODO: Ensure serverState is starting
+
     const serverCwd = this.kaiRuntimeDir;
-    const serverEnv = await this.getKaiRpcServerEnv();
     const serverPath = this.getKaiRpcServerPath();
     const serverArgs = this.getKaiRpcServerArgs();
+    const serverEnv = await this.getKaiRpcServerEnv();
 
-    this.fireStateChange("starting");
-    this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
     this.outputChannel.appendLine(`server path: ${serverPath}`);
     this.outputChannel.appendLine(`server args:`);
@@ -98,73 +152,53 @@ export class AnalyzerClient {
       cwd: serverCwd,
       env: serverEnv,
     });
-    this.kaiRpcServer = kaiRpcServer;
 
     const pid = await new Promise<number | undefined>((resolve, reject) => {
       kaiRpcServer.on("spawn", () => {
-        this.outputChannel.appendLine(
-          `kai rpc server has been spawned! [${this.kaiRpcServer?.pid}]`,
-        );
-        resolve(this.kaiRpcServer?.pid);
+        this.outputChannel.appendLine(`kai rpc server has been spawned! [${kaiRpcServer.pid}]`);
+        resolve(kaiRpcServer.pid);
       });
 
       kaiRpcServer.on("error", (err) => {
-        const message = `error in process[${this.kaiRpcServer?.spawnfile}]: ${err}`;
+        const message = `error in process [${kaiRpcServer.spawnfile}]: ${err}`;
         this.outputChannel.appendLine(`[error] - ${message}`);
         reject(err);
       });
     });
 
-    this.kaiRpcServer.on("exit", (code, signal) => {
-      this.outputChannel.appendLine(`kai rpc server exited with signal ${signal}, code ${code}`);
-    });
-
-    this.kaiRpcServer.on("close", (code, signal) => {
-      this.outputChannel.appendLine(`kai rpc server closed with signal ${signal}, code ${code}`);
-      this.fireStateChange("stopped");
-    });
-
     let seenServerIsReady = false;
-    this.kaiRpcServer.stderr.on("data", (data) => {
-      const asString: string = data.toString();
+    kaiRpcServer.stderr.on("data", (data) => {
+      const asString: string = data.toString().trimEnd();
       this.outputChannel.appendLine(`${asString}`);
 
       if (!seenServerIsReady && asString.match(/kai-rpc-logger .*Started kai RPC Server/)) {
         seenServerIsReady = true;
-        this.kaiRpcServer?.emit("serverReportsReady", pid);
+        kaiRpcServer?.emit("serverReportsReady", pid);
       }
     });
 
-    // Set up the JSON-RPC connection
-    this.rpcConnection = rpc.createMessageConnection(
-      new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
-      new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
-    );
-    this.rpcConnection.listen();
-
-    await Promise.race([
-      new Promise<void>((resolve) => {
-        kaiRpcServer.on("serverReportsReady", (pid) => {
-          this.outputChannel.appendLine(`*** kai rpc server [${pid}] reports ready`);
-          resolve();
-        });
+    const untilReady = await Promise.race([
+      new Promise<string>((resolve) => {
+        if (seenServerIsReady) {
+          resolve("ready");
+        } else {
+          kaiRpcServer!.on("serverReportsReady", (_pid) => {
+            resolve("ready");
+          });
+        }
       }),
-      setTimeout(5000),
+      setTimeout(maxTimeToWaitUntilReady, "timeout"),
     ]);
 
-    this.outputChannel.appendLine(`Started the kai rpc server, pid: [${pid}]`);
-  }
-
-  // Stops the analyzer server
-  public stop(): void {
-    this.fireStateChange("stopping");
-    this.outputChannel.appendLine(`Stopping the kai rpc server ...`);
-    if (this.kaiRpcServer && !this.kaiRpcServer.killed) {
-      this.kaiRpcServer.kill();
+    if (untilReady === "timeout") {
+      this.outputChannel.appendLine(
+        `waited ${maxTimeToWaitUntilReady}ms for the kai rpc server to be ready, continuing anyway`,
+      );
+    } else if (untilReady === "ready") {
+      this.outputChannel.appendLine(`*** kai rpc server [${pid}] reports ready!`);
     }
-    this.rpcConnection?.dispose();
-    this.kaiRpcServer = null;
-    this.outputChannel.appendLine(`kai rpc server stopped`);
+
+    return [kaiRpcServer, pid];
   }
 
   protected isDemoMode(): boolean {
@@ -187,7 +221,16 @@ export class AnalyzerClient {
     return modelProviderSection;
   }
 
+  /**
+   * Request the server to __initialize__ with our analysis and solution configurations.
+   *
+   * Will only run if the sever state is: `readyToInitialize`
+   *
+   * Server state change: `running`
+   */
   public async initialize(): Promise<void> {
+    // TODO: Ensure serverState is readyToInitialize
+
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -222,50 +265,109 @@ export class AnalyzerClient {
       analyzer_lsp_rules_path: this.getRulesetsPath(),
     };
 
-    this.outputChannel.appendLine(
-      `initialize payload: ${JSON.stringify(initializeParams, null, 2)}`,
-    );
-
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: "Initializing Kai",
-        cancellable: true,
+        cancellable: false,
       },
       async (progress) => {
-        for (let attempt = 0; attempt < 10; attempt++) {
-          this.outputChannel.appendLine("Sending 'initialize' request.");
-          try {
-            progress.report({
-              message: "Sending 'initialize' request to RPC Server",
-            });
-            const response = await this.rpcConnection!.sendRequest<void>(
-              "initialize",
-              initializeParams,
-            );
-            this.outputChannel.appendLine(
-              `'initialize' response: ${JSON.stringify(response, null, 2)}`,
-            );
-            progress.report({ message: "RPC Server initialized" });
-            this.fireStateChange("running");
-            return;
-          } catch (err: any) {
-            this.outputChannel.appendLine(`Error: ${err}`);
-            await setTimeout(1000);
-            continue;
-          }
+        this.outputChannel.appendLine("Sending 'initialize' request.");
+        progress.report({
+          message: "Sending 'initialize' request to RPC Server",
+        });
+
+        try {
+          this.outputChannel.appendLine(
+            `initialize payload: ${JSON.stringify(initializeParams, null, 2)}`,
+          );
+
+          const response = await this.rpcConnection!.sendRequest<void>(
+            "initialize",
+            initializeParams,
+          );
+
+          this.outputChannel.appendLine(
+            `'initialize' response: ${JSON.stringify(response, null, 2)}`,
+          );
+          this.outputChannel.appendLine(`kai rpc server is initialized!`);
+          progress.report({ message: "RPC Server initialized" });
+          this.fireStateChange("running");
+        } catch (err) {
+          this.outputChannel.appendLine(`kai rpc server failed to initialize [err: ${err}]`);
+          progress.report({ message: "Kai initialization failed!" });
+          this.fireStateChange("startFailed");
         }
-        progress.report({ message: "Kai initialization failed!" });
-        this.fireStateChange("startFailed");
       },
     );
+  }
+
+  /**
+   * Request the server to __shutdown__
+   *
+   * Will only run if the sever state is: `running`, `initialized`
+   */
+  public async shutdown(): Promise<void> {
+    // TODO: Ensure serverState is running || initialized
+    try {
+      this.outputChannel.appendLine(`Requesting kai rpc server shutdown...`);
+      await this.rpcConnection?.sendRequest("shutdown", {});
+    } catch (err: any) {
+      this.outputChannel.appendLine(`Error during shutdown: ${err.message}`);
+      vscode.window.showErrorMessage("Shutdown failed. See the output channel for details.");
+    }
+  }
+
+  /**
+   * Shutdown and, if necessary, hard stops the server.
+   *
+   * Will run from any server state, and any running server process will be killed.
+   *
+   * Server state change: `stopping`
+   */
+  public async stop(): Promise<void> {
+    const exitPromise = this.kaiRpcServer
+      ? new Promise<string>((resolve) => {
+          if (this.kaiRpcServer!.exitCode !== null) {
+            resolve(`already exited, code: ${this.kaiRpcServer!.exitCode}`);
+          } else {
+            this.kaiRpcServer?.on("exit", () => {
+              resolve("exited");
+            });
+          }
+        })
+      : Promise.resolve("not started");
+
+    this.outputChannel.appendLine(`Stopping the kai rpc server...`);
+    this.fireStateChange("stopping");
+    await this.shutdown();
+
+    this.outputChannel.appendLine(`Closing connections to the kai rpc server...`);
+    this.rpcConnection?.end();
+    this.rpcConnection?.dispose();
+    this.rpcConnection = null;
+
+    const reason = await Promise.race([setTimeout(5_000, "timeout"), exitPromise]);
+    this.outputChannel.appendLine(`kai rpc server stopping [reason: ${reason}]`);
+    if (this.kaiRpcServer?.exitCode === null) {
+      this.kaiRpcServer.kill();
+    }
+    this.kaiRpcServer = null;
+    this.outputChannel.appendLine(`kai rpc server stopped`);
   }
 
   public isServerRunning(): boolean {
     return !!this.kaiRpcServer && !this.kaiRpcServer.killed;
   }
 
-  public async runAnalysis(filePaths?: string[]): Promise<any> {
+  /**
+   * Request the server to __Analyze__
+   *
+   * Will only run if the sever state is: `running`
+   */
+  public async runAnalysis(filePaths?: string[]): Promise<void> {
+    // TODO: Ensure serverState is running
+
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -340,11 +442,18 @@ export class AnalyzerClient {
     );
   }
 
+  /**
+   * Request the server to __getCodeplanAgentSolution__
+   *
+   * Will only run if the sever state is: `running`
+   */
   public async getSolution(
     state: ExtensionState,
     incident: Incident,
     violation: Violation,
-  ): Promise<any> {
+  ): Promise<void> {
+    // TODO: Ensure serverState is running
+
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
       return;
@@ -390,28 +499,6 @@ export class AnalyzerClient {
     }
 
     this.fireSolutionStateChange(false);
-  }
-
-  // Shutdown the server
-  public async shutdown(): Promise<void> {
-    try {
-      this.outputChannel.appendLine(`Requesting kai rpc server shutdown...`);
-      await this.rpcConnection?.sendRequest("shutdown", {});
-    } catch (err: any) {
-      this.outputChannel.appendLine(`Error during shutdown: ${err.message}`);
-      vscode.window.showErrorMessage("Shutdown failed. See the output channel for details.");
-    }
-  }
-
-  // Exit the server
-  public async exit(): Promise<void> {
-    try {
-      this.outputChannel.appendLine(`Requesting kai rpc server exit...`);
-      await this.rpcConnection?.sendRequest("exit", {});
-    } catch (err: any) {
-      this.outputChannel.appendLine(`Error during exit: ${err.message}`);
-      vscode.window.showErrorMessage("Exit failed. See the output channel for details.");
-    }
   }
 
   public canAnalyze(): boolean {
@@ -537,10 +624,7 @@ export class AnalyzerClient {
     return null;
   }
 
-  public getKaiConfigDir(): string {
-    return this.kaiDir;
-  }
-
+  // TODO: Move the directory and file creation to extension init
   public getKaiConfigTomlPath(): string {
     // Ensure the file exists with default content if it doesn't
     // Consider making this more robust, maybe this is an asset we can get from kai?
@@ -551,6 +635,7 @@ export class AnalyzerClient {
     return this.kaiConfigToml;
   }
 
+  // TODO: Move the default file to an asset and copy it in on extension init
   public defaultKaiConfigToml(log_dir: string) {
     return `log_level = "info"
 file_log_level = "debug"

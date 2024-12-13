@@ -1,6 +1,6 @@
 import { ExtensionState } from "./extensionState";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { WebviewPanel, window, commands, Uri, OpenDialogOptions } from "vscode";
+import { window, commands, Uri, OpenDialogOptions } from "vscode";
 import {
   cleanRuleSets,
   loadResultsFromDataFolder,
@@ -36,19 +36,19 @@ import {
 import { runPartialAnalysis } from "./analysis";
 import { IncidentTypeItem } from "./issueView";
 
-let fullScreenPanel: WebviewPanel | undefined;
+// let fullScreenPanel: WebviewPanel | undefined;
 
-function getFullScreenTab() {
-  const tabs = window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
-  return tabs.find((tab) =>
-    (tab.input as any)?.viewType?.endsWith("konveyor.konveyorAnalysisView"),
-  );
-}
+// function getFullScreenTab() {
+//   const tabs = window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
+//   return tabs.find((tab) =>
+//     (tab.input as any)?.viewType?.endsWith("konveyor.konveyorAnalysisView"),
+//   );
+// }
 
 const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
-  const { extensionContext } = state;
+  // const { extensionContext } = state;
   return {
     "konveyor.startServer": async () => {
       const analyzerClient = state.analyzerClient;
@@ -65,7 +65,6 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.stopServer": async () => {
       const analyzerClient = state.analyzerClient;
       try {
-        await analyzerClient.shutdown();
         await analyzerClient.stop();
       } catch (e) {
         console.error("Could not shutdown and stop the server", e);
@@ -75,7 +74,6 @@ const commandsMap: (state: ExtensionState) => {
       const analyzerClient = state.analyzerClient;
       try {
         if (analyzerClient.isServerRunning()) {
-          await analyzerClient.shutdown();
           await analyzerClient.stop();
         }
 

@@ -128,7 +128,10 @@ export interface ExtensionData {
 
 export type ServerState =
   | "initial"
+  | "configurationNeeded"
+  | "configurationReady"
   | "starting"
+  | "readyToInitialize"
   | "startFailed"
   | "running"
   | "stopping"
