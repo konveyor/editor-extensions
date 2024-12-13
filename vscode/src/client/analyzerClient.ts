@@ -237,6 +237,8 @@ export class AnalyzerClient {
     }
 
     // Define the initialize request parameters
+    // TODO: With konveyor/kai#526, config.toml will be dropped.  The initialize parameters may
+    // TODO: change.  They'll need to be updated here.
     const initializeParams = {
       process_id: null,
       kai_backend_url: getConfigKaiBackendURL(),
@@ -587,6 +589,8 @@ export class AnalyzerClient {
     return path;
   }
 
+  // TODO: With konveyor/kai#526, config.toml will be dropped.  Different cli arguments to configure
+  // TODO: logging levels and directories are expected.
   public getKaiRpcServerArgs(): string[] {
     return ["--config", this.getKaiConfigTomlPath()];
   }
@@ -624,7 +628,8 @@ export class AnalyzerClient {
     return null;
   }
 
-  // TODO: Move the directory and file creation to extension init
+  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
+  // TODO: change is released.
   public getKaiConfigTomlPath(): string {
     // Ensure the file exists with default content if it doesn't
     // Consider making this more robust, maybe this is an asset we can get from kai?
@@ -635,11 +640,22 @@ export class AnalyzerClient {
     return this.kaiConfigToml;
   }
 
-  // TODO: Move the default file to an asset and copy it in on extension init
+  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
+  // TODO: change is released.
   public defaultKaiConfigToml(log_dir: string) {
-    return `log_level = "info"
+    return `
+log_level = "info"
 file_log_level = "debug"
 log_dir = "${log_dir}"
+
+# These values are needed to start the server but shouldn't be used by the server
+# please ignore
+[models]
+provider = "ChatIBMGenAI"
+
+[models.args]
+model_id = "meta-llama/llama-3-70b-instruct"
+parameters.max_new_tokens = "2048"
 `;
   }
 }
