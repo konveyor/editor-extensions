@@ -141,6 +141,10 @@ let extension: VsCodeExtension | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   try {
+    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+      vscode.window.showErrorMessage("Please open a workspace folder before using this extension.");
+      return;
+    }
     extension = new VsCodeExtension(context);
   } catch (error) {
     console.error("Failed to activate Konveyor extension:", error);
