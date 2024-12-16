@@ -36,7 +36,7 @@ function getSeverityFromCategory(category: Category | undefined): vscode.Diagnos
 
 export const processIncidents = (
   ruleSets: Immutable<RuleSet[]>,
-): ReadonlyArray<[vscode.Uri, vscode.Diagnostic[] | undefined]> =>
+): ReadonlyArray<[vscode.Uri, vscode.Diagnostic[]]> =>
   ruleSets
     .flatMap((ruleSet) => Object.values(ruleSet.violations ?? {}))
     .flatMap((violation): [vscode.DiagnosticSeverity, Incident][] => {

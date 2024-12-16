@@ -24,7 +24,11 @@ import {
   getConfigMaxIterations,
   getConfigMaxPriority,
   getConfigKaiDemoMode,
+  isAnalysisResponse,
 } from "../utilities";
+import { allIncidents } from "../issueView";
+import { Immutable } from "immer";
+import { countIncidentsOnPaths } from "../analysis";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -42,6 +46,7 @@ export class AnalyzerClient {
   constructor(
     private extContext: vscode.ExtensionContext,
     mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
+    private getExtStateData: () => Immutable<ExtensionData>,
   ) {
     this.fireStateChange = (state: ServerState) =>
       mutateExtensionData((draft) => {
@@ -367,7 +372,7 @@ export class AnalyzerClient {
    *
    * Will only run if the sever state is: `running`
    */
-  public async runAnalysis(filePaths?: string[]): Promise<void> {
+  public async runAnalysis(filePaths?: vscode.Uri[]): Promise<void> {
     // TODO: Ensure serverState is running
 
     if (!this.rpcConnection) {
@@ -388,7 +393,7 @@ export class AnalyzerClient {
 
           const requestParams = {
             label_selector: getConfigLabelSelector(),
-            included_paths: filePaths,
+            included_paths: filePaths?.map((uri) => uri.fsPath),
           };
 
           this.outputChannel.appendLine(
@@ -409,7 +414,7 @@ export class AnalyzerClient {
             });
           });
 
-          const { response, isCancelled }: any = await Promise.race([
+          const { response: rawResponse, isCancelled }: any = await Promise.race([
             this.rpcConnection!.sendRequest("analysis_engine.Analyze", requestParams).then(
               (response) => ({ response }),
             ),
@@ -422,17 +427,47 @@ export class AnalyzerClient {
             this.fireAnalysisStateChange(false);
             return;
           }
-          this.outputChannel.appendLine(`Response: ${JSON.stringify(response)}`);
+          const isResponseWellFormed = isAnalysisResponse(rawResponse?.Rulesets);
+          const ruleSets: RuleSet[] = isResponseWellFormed ? rawResponse?.Rulesets : [];
+          const summary = isResponseWellFormed
+            ? {
+                wellFormed: true,
+                rawIncidentCount: ruleSets
+                  .flatMap((r) => Object.values(r.violations ?? {}))
+                  .flatMap((v) => v.incidents ?? []).length,
+                incidentCount: allIncidents(ruleSets).length,
+                partialAnalysis: filePaths
+                  ? {
+                      incidentsBefore: countIncidentsOnPaths(
+                        this.getExtStateData().ruleSets,
+                        filePaths.map((uri) => uri.toString()),
+                      ),
+                      incidentsAfter: countIncidentsOnPaths(
+                        ruleSets,
+                        filePaths.map((uri) => uri.toString()),
+                      ),
+                    }
+                  : {},
+              }
+            : { wellFormed: false };
+
+          this.outputChannel.appendLine(`Response received. Summary: ${JSON.stringify(summary)}`);
 
           // Handle the result
-          const rulesets = response?.Rulesets as RuleSet[];
-          if (!rulesets || rulesets.length === 0) {
+          if (!isResponseWellFormed) {
+            vscode.window.showErrorMessage(
+              "Analysis completed, but received results are not well formed.",
+            );
+            this.fireAnalysisStateChange(false);
+            return;
+          }
+          if (ruleSets.length === 0) {
             vscode.window.showInformationMessage("Analysis completed, but no RuleSets were found.");
             this.fireAnalysisStateChange(false);
             return;
           }
 
-          vscode.commands.executeCommand("konveyor.loadRuleSets", rulesets, filePaths);
+          vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets, filePaths);
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {

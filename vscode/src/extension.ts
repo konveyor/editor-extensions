@@ -45,7 +45,7 @@ class VsCodeExtension {
     };
 
     this.state = {
-      analyzerClient: new AnalyzerClient(context, mutateData),
+      analyzerClient: new AnalyzerClient(context, mutateData, getData),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),

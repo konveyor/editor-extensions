@@ -1,12 +1,14 @@
 import { getConfigAnalyzeOnSave } from "../utilities";
 import { ExtensionState } from "../extensionState";
-import { TextDocument, commands, window } from "vscode";
+import { TextDocument, Uri, commands, window } from "vscode";
 
 export const partialAnalysisTrigger = (textDoc: TextDocument) => {
-  commands.executeCommand("konveyor.partialAnalysis", [textDoc.fileName]);
+  if (textDoc.uri.scheme === "file") {
+    commands.executeCommand("konveyor.partialAnalysis", [textDoc.uri]);
+  }
 };
 
-export const runPartialAnalysis = async (state: ExtensionState, filePaths: string[]) => {
+export const runPartialAnalysis = async (state: ExtensionState, filePaths: Uri[]) => {
   if (!getConfigAnalyzeOnSave()) {
     return;
   }

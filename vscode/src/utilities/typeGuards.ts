@@ -38,13 +38,19 @@ export function isAnalysis(obj: unknown): obj is RuleSet {
     skipped: "object",
   };
 
+  const knownKeysAsString = knownKeys as Record<string, string>;
+
   return (
     isObject(obj) &&
     !isEmpty(obj) &&
     Object.entries(obj).every(
-      ([key, value]) => typeof value === (knownKeys as Record<string, string>)[key],
+      ([key, value]) => !knownKeysAsString[key] || typeof value === knownKeysAsString[key],
     )
   );
+}
+
+export function isAnalysisResponse(obj: unknown[]): obj is RuleSet[] {
+  return Array.isArray(obj) && obj.every((item) => isAnalysis(item));
 }
 
 export function isUri(obj: unknown): obj is Uri {

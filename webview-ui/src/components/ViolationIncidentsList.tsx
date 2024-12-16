@@ -10,7 +10,6 @@ import {
   Button,
   Stack,
   StackItem,
-  Tooltip,
   TextInput,
   Select,
   SelectOption,
@@ -18,7 +17,6 @@ import {
   Label,
   MenuToggleElement,
   InputGroup,
-  Divider,
   DataListAction,
   DataListCell,
   DataListItem,
@@ -26,7 +24,6 @@ import {
   DataListItemRow,
   CardHeader,
   CardExpandableContent,
-  CardFooter,
 } from "@patternfly/react-core";
 import { SortAmountDownIcon, TimesIcon, FileIcon, LightbulbIcon } from "@patternfly/react-icons";
 import { Incident, Violation, Severity } from "@editor-extensions/shared";
@@ -204,7 +201,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
       };
       const isExpanded = expandedViolations.has(violation.description);
       const highestSeverity = getHighestSeverity(violation.incidents);
-      const truncatedDescription = truncateText(violation.description, 35);
+      const truncatedDescription = truncateText(violation.description, 100);
 
       return (
         <Card
@@ -224,9 +221,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
             // }}
             onExpand={() => toggleViolation(violation.description)}
           >
-            <Tooltip content={violation.description}>
-              <Content style={{ marginBottom: "5px" }}>{truncatedDescription}</Content>
-            </Tooltip>
+            <Content style={{ marginBottom: "5px" }}>{truncatedDescription}</Content>
             <Flex>
               <Label color="blue" isCompact>
                 {violation.incidents.length} incidents
@@ -250,11 +245,9 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               {violation.incidents.map((incident) => (
                 <div key={`${incident.uri}-${incident.lineNumber}`}>
                   {renderIncident(incident, violation)}
-                  <Divider />
                 </div>
               ))}
             </CardBody>
-            <CardFooter>Additional Actions</CardFooter>
           </CardExpandableContent>
         </Card>
       );

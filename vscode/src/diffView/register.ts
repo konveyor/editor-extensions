@@ -60,11 +60,11 @@ export function registerDiffView({
         .map((change, index): [LocalChange, number] => [change, index])
         .filter(([change, index]) => hasChanged(change, index))
         .filter(([{ state }]) => state === "applied" || state === "discarded")
-        .map(([change, index]): [LocalChange, number, vscode.Uri[], string] => [
+        .map(([change, index]): [LocalChange, number, vscode.Uri[], vscode.Uri | undefined] => [
           change,
           index,
           copyFromTo(change),
-          change.state === "applied" ? change.originalUri.fsPath : "",
+          change.state === "applied" ? change.originalUri : undefined,
         ])
         .map(([change, index, [fromUri, toUri], filePath]) =>
           vscode.workspace.fs.copy(fromUri, toUri, { overwrite: true }).then(() => {
@@ -74,7 +74,7 @@ export function registerDiffView({
         ),
     );
 
-    const appliedPaths = allModifiedPaths.filter(Boolean);
+    const appliedPaths = allModifiedPaths.filter(Boolean).filter((uri) => uri?.scheme === "file");
     if (appliedPaths.length && getConfigAnalyzeOnSave()) {
       return vscode.commands.executeCommand("konveyor.partialAnalysis", appliedPaths);
     }

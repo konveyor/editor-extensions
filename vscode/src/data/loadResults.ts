@@ -9,7 +9,7 @@ import { processIncidents } from "./analyzerResults";
 import { ExtensionState } from "src/extensionState";
 import { deleteAllDataFilesByPrefix, writeDataFile } from "./storage";
 import { toLocalChanges, writeSolutionsToMemFs } from "./virtualStorage";
-import { window } from "vscode";
+import { Diagnostic, Uri, window } from "vscode";
 import {
   KONVEYOR_SCHEME,
   MERGED_RULE_SET_DATA_FILE_PREFIX,
@@ -20,10 +20,28 @@ import {
 import { castDraft, Immutable } from "immer";
 import { mergeRuleSets } from "../analysis";
 
+const diagnosticsForPaths = (
+  filePaths: Uri[],
+  diagnostics: Immutable<[Uri, Diagnostic[]][]>,
+): [Uri, Diagnostic[]][] => {
+  const paths = new Set(filePaths.map((it) => it.toString()));
+  return diagnostics.filter(([uri]) => paths.has(uri.toString())) as [Uri, Diagnostic[]][];
+};
+
+const countDiagnosticPerPath = (diagnostics: [Uri, readonly Diagnostic[] | undefined][]) =>
+  diagnostics.reduce(
+    (acc, [uri, items]) => {
+      const path = uri.toString();
+      acc[path] = (acc[path] ?? 0) + (items?.length ?? 0);
+      return acc;
+    },
+    {} as { [key: string]: number },
+  );
+
 export const loadRuleSets = async (
   state: ExtensionState,
   receivedRuleSets: RuleSet[],
-  filePaths?: string[],
+  filePaths?: Uri[],
 ) => {
   const isPartial = !!filePaths;
   if (isPartial) {
@@ -42,10 +60,28 @@ export const loadRuleSets = async (
       ? mergeRuleSets(draft.ruleSets, receivedRuleSets, filePaths)
       : receivedRuleSets;
   });
+  const diagnosticTuples = processIncidents(data.ruleSets);
   if (isPartial) {
     await writeDataFile(data.ruleSets, MERGED_RULE_SET_DATA_FILE_PREFIX);
+    console.log(
+      "Diagnostics on the selected paths before update",
+      countDiagnosticPerPath(filePaths.map((uri) => [uri, state.diagnosticCollection.get(uri)])),
+    );
+    const scopedChange = [
+      // remove existing markers by passing undefined first
+      ...filePaths.map((uri): [Uri, undefined] => [uri, undefined]),
+      // set new values
+      ...diagnosticsForPaths(filePaths, diagnosticTuples),
+    ];
+    state.diagnosticCollection.set(scopedChange);
+    console.log(
+      "Diagnostics on the selected paths after update",
+      countDiagnosticPerPath(filePaths.map((uri) => [uri, state.diagnosticCollection.get(uri)])),
+    );
+  } else {
+    state.diagnosticCollection.clear();
+    state.diagnosticCollection.set(diagnosticTuples);
   }
-  state.diagnosticCollection.set(processIncidents(data.ruleSets));
 };
 
 export const cleanRuleSets = (state: ExtensionState) => {

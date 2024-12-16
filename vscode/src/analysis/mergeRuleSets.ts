@@ -1,10 +1,28 @@
 import { RuleSet, Violation } from "@editor-extensions/shared";
-
+import { Immutable } from "immer";
+import { Uri } from "vscode";
 export const mergeRuleSets = (
+  draft: RuleSet[],
+  received: RuleSet[],
+  fileUris: Uri[],
+): RuleSet[] => {
+  // use the same path representation as in the response
+  // which is file:///some/path/File.java
+  const filePaths = fileUris.map((uri) => uri.toString());
+  return mergeRuleSetsWithStringPaths(draft, received, filePaths);
+};
+
+export const mergeRuleSetsWithStringPaths = (
   draft: RuleSet[],
   received: RuleSet[],
   filePaths: string[],
 ): RuleSet[] => {
+  if (draft.length === 0) {
+    // there were no full analysis yet or it's results were deleted
+    // nothing to merge - take the whole partial analysis response
+    draft.push(...received);
+    return draft;
+  }
   // remove old incidents in the files included in the partial analysis
   draft
     .flatMap((it) => [...Object.values(it.violations ?? {})])
@@ -21,7 +39,10 @@ export const mergeRuleSets = (
     ])
     .map(([name, violations]): [string, [string, Violation][]] => [
       name,
-      violations.filter(([, violation]) => violation.incidents?.length),
+      // reject incidents outside of requested scope
+      violations.filter(
+        ([, violation]) => violation.incidents?.filter((it) => filePaths.includes(it.uri))?.length,
+      ),
     ])
     .filter(([, violations]) => violations.length)
     // remaining violations contain incidents
@@ -57,3 +78,9 @@ export const mergeRuleSets = (
 
   return draft;
 };
+
+export const countIncidentsOnPaths = (ruleSets: Immutable<RuleSet[]>, filePaths: string[]) =>
+  ruleSets
+    .flatMap((r) => Object.values(r.violations ?? {}))
+    .flatMap((v) => v?.incidents ?? [])
+    .filter((it) => filePaths.includes(it.uri)).length;
