@@ -17,7 +17,7 @@ await downloadGitHubRelease({
 
   org: "konveyor",
   repo: "kai",
-  releaseTag: "v0.0.3",
+  releaseTag: "v0.0.4",
 
   /*
     Release asset filenames and nodejs equivalent platform/arch

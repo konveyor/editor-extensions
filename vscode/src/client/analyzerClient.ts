@@ -143,10 +143,14 @@ export class AnalyzerClient {
   ): Promise<[ChildProcessWithoutNullStreams, number | undefined]> {
     // TODO: Ensure serverState is starting
 
-    const serverCwd = this.kaiRuntimeDir;
+    const serverCwd = vscode.Uri.joinPath(this.extContext.storageUri!, "kai-rpc-server");
     const serverPath = this.getKaiRpcServerPath();
     const serverArgs = this.getKaiRpcServerArgs();
     const serverEnv = await this.getKaiRpcServerEnv();
+
+    if (!fs.existsSync(serverCwd.fsPath)) {
+      await vscode.workspace.fs.createDirectory(serverCwd);
+    }
 
     this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
     this.outputChannel.appendLine(`server path: ${serverPath}`);
@@ -154,7 +158,7 @@ export class AnalyzerClient {
     serverArgs.forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
     const kaiRpcServer = spawn(serverPath, serverArgs, {
-      cwd: serverCwd,
+      cwd: this.extContext.storageUri?.fsPath,
       env: serverEnv,
     });
 
