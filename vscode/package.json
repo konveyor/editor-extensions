@@ -1,6 +1,6 @@
 {
   "name": "editor-extensions-vscode",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "./out/extension.js",
   "publisher": "konveyor",
   "repository": {
