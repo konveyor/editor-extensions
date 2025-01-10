@@ -246,23 +246,27 @@ export class AnalyzerClient {
     }
 
     // Define the initialize request parameters
-    // TODO: With konveyor/kai#526, config.toml will be dropped.  The initialize parameters may
-    // TODO: change.  They'll need to be updated here.
     const initializeParams = {
       process_id: null,
-      kai_backend_url: getConfigKaiBackendURL(),
+      
       root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
-      log_level: getConfigLogLevel(),
-      log_dir_path: this.kaiDir,
       model_provider: this.buildModelProviderConfig(),
 
-      file_log_level: getConfigLogLevel(),
+      log_config: {
+        log_level: getConfigLogLevel(),
+        file_log_level: getConfigLogLevel(),
+        log_dir_path: this.kaiDir,
+      },
+      
       demo_mode: this.isDemoMode(),
       cache_dir: "",
+      
 
       // Analyzer and jdt.ls parameters
-      analyzer_lsp_rpc_path: this.getAnalyzerPath(),
       analyzer_lsp_lsp_path: this.assetPaths.jdtlsBin,
+      analyzer_lsp_rpc_path: this.getAnalyzerPath(),
+
+      analyzer_lsp_rules_path: this.getRulesetsPath(),
 
       // jdt.ls bundles (comma separated list of paths)
       analyzer_lsp_java_bundle_path: this.assetPaths.jdtlsBundleJars.join(","),
@@ -272,8 +276,6 @@ export class AnalyzerClient {
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
       // analyzer_lsp_fernflower: this.assetPaths.fernFlowerPath,
-
-      analyzer_lsp_rules_path: this.getRulesetsPath(),
     };
 
     vscode.window.withProgress(
