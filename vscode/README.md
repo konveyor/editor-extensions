@@ -1,63 +1,85 @@
-# konveyor-vscode
+# Kai VS Code Extension (`kai-vscode`)
 
-This extension allows the user to run Konveyor AI from VSCode.
-
-## Features
-
-TODO
-
-## Requirements
-
-TODO
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-TODO
-
-## Release Notes
-
-TODO
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+The Konveyor AI (Kai) VSCode Extension is a powerful tool for application
+modernization and migration analysis. It leverages cutting-edge AI to analyze
+code, identify modernization opportunities, and assist in migrating applications
+to newer platforms or architectures.
 
 ---
 
-## Following extension guidelines
+## Features
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+- **Analysis View**: Provides an overview of identified issues and modernization opportunities.
+- **Resolutions View**: Displays proposed resolutions and allows easy application or dismissal of changes.
+- **Customizability**: Configure analysis settings, rulesets, and incident filters.
+- **Integration with Generative AI**: Utilize advanced AI-powered insights with configurable backend support.
+- **Seamless Navigation**: Command palette, menus, and activity bar integration for intuitive usage.
 
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+---
 
-## Working with Markdown
+## Installation
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+1. Install [Visual Studio Code](https://code.visualstudio.com/).
+2. Search for `kai-vscode` in the Extensions Marketplace or [download it directly from GitHub Releases](https://github.com/konveyor/editor-extensions/releases).
+3. Follow the setup walkthrough to configure your environment. Alternatively, Command Palette, select "Welcome: Open Walkthrough", and select "Konveyor".
 
-- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+---
 
-## For more information
+## Getting Started
 
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+### Configure Generative AI Key
+
+Set up your AI backend by providing a Generative AI Key:
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
+2. Run `Konveyor: Configure GenAI Key`.
+
+### Run an Analysis
+
+1. Start the server: `Konveyor: Start Server` and `Konveyor: Run Analysis`.
+2. Run an analysis on your code: `Konveyor: Run Analysis`.
+3. Open the Analysis View to view issues: `Konveyor: Open Konveyor Analysis View`.
+
+### Get Solutions
+
+1. Find an violation or incident you would like to use Generative AI to fix.
+2. Run "Get Solution".
+3. View the proposed changes and accept/reject/modify them.
+
+---
+
+## Configuration Options
+
+Customize your setup through the VS Code settings:
+
+| Setting                           | Description                                  | Default          |
+| --------------------------------- | -------------------------------------------- | ---------------- |
+| `konveyor.analyzerPath`           | Path to a custom analyzer binary.            | Bundled Analyzer |
+| `konveyor.logLevel`               | Log level for the extension (`debug`, etc.). | `debug`          |
+| `konveyor.analysis.incidentLimit` | Max number of incidents reported.            | `10000`          |
+| `konveyor.analysis.customRules`   | Array of paths to custom rulesets.           | `[]`             |
+
+---
+
+## Commands
+
+Access these commands via the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
+
+| Command                         | Description                              |
+| ------------------------------- | ---------------------------------------- |
+| `Konveyor: Configure GenAI Key` | Configure your Generative AI Key.        |
+| `Konveyor: Start Server`        | Start the backend server.                |
+| `Konveyor: Run Analysis`        | Analyze your codebase for modernization. |
+| `Konveyor: Stop Server`         | Stop the backend server.                 |
+
+---
+
+## Contributing
+
+We welcome contributions! Please file issues on [GitHub](https://github.com/konveyor/editor-extensions/issues) or open a pull request.
+
+---
+
+## License
+
+This extension is licensed under the [Apache License 2.0](LICENSE).

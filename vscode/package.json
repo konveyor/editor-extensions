@@ -1,5 +1,10 @@
 {
-  "name": "editor-extensions-vscode",
+  "name": "konveyor-ai",
+  "displayName": "Konveyor AI (kai) Extension for VSCode",
+  "description": "Generative AI assisted migration and modernization tool",
+  "author": "Konveyor",
+  "icon": "resources/konveyor-icon-color.png",
+  "license": "Apache-2.0",
   "version": "0.0.4",
   "main": "./out/extension.js",
   "publisher": "konveyor",
@@ -8,6 +13,7 @@
     "url": "https://github.com/konveyor/editor-extensions"
   },
   "bugs": "https://github.com/konveyor/editor-extensions/issues",
+  "preview": false,
   "categories": [
     "Programming Languages",
     "Machine Learning",
