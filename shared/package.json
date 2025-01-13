@@ -11,8 +11,11 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
-    "build": "node build-shared.js && tsc --emitDeclarationOnly",
+    "build": "vite build && tsc --emitDeclarationOnly",
     "dev": "tsc --build --watch --preserveWatchOutput"
+  },
+  "devDependencies": {
+    "vite": "^5.4.9"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
