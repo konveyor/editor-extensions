@@ -255,7 +255,7 @@ export class AnalyzerClient {
         log_dir_path: this.kaiDir,
       },
       demo_mode: this.isDemoMode(),
-      cache_dir: "",
+      cache_dir: null,
       // Analyzer and jdt.ls parameters
       analyzer_lsp_lsp_path: this.assetPaths.jdtlsBin,
       analyzer_lsp_rpc_path: this.getAnalyzerPath(),
