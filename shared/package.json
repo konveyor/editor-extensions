@@ -2,14 +2,16 @@
   "name": "@editor-extensions/shared",
   "version": "0.0.1",
   "private": true,
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs.js",
+  "type": "module",
+  "module": "./dist/index.esm.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "clean": "rimraf dist",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
-    "build": "tsc --build",
+    "build": "node build-shared.js && tsc --emitDeclarationOnly",
     "dev": "tsc --build --watch --preserveWatchOutput"
   },
   "lint-staged": {
