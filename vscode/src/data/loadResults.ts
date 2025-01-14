@@ -9,7 +9,7 @@ import { processIncidents } from "./analyzerResults";
 import { ExtensionState } from "src/extensionState";
 import { writeDataFile } from "./storage";
 import { toLocalChanges, writeSolutionsToMemFs } from "./virtualStorage";
-import { Uri, window } from "vscode";
+import { window } from "vscode";
 import {
   KONVEYOR_SCHEME,
   RULE_SET_DATA_FILE_PREFIX,
@@ -17,11 +17,7 @@ import {
 } from "../utilities";
 import { castDraft, Immutable } from "immer";
 
-export const loadRuleSets = async (
-  state: ExtensionState,
-  receivedRuleSets: RuleSet[],
-  filePaths?: Uri[],
-) => {
+export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: RuleSet[]) => {
   await writeDataFile(receivedRuleSets, RULE_SET_DATA_FILE_PREFIX);
 
   const data = state.mutateData((draft) => {
