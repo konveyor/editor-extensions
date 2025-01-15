@@ -56,14 +56,14 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   onGetAllSolutions,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const initialSortBy = localStorage.getItem(SORT_STORAGE_KEY) || "description";
+  const initialSortBy = localStorage?.getItem(SORT_STORAGE_KEY) || "description";
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy as SortOption);
 
   const [isSortSelectOpen, setIsSortSelectOpen] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(SORT_STORAGE_KEY, sortBy);
+    localStorage?.setItem(SORT_STORAGE_KEY, sortBy);
   }, [sortBy]);
 
   const toggleViolation = useCallback(
