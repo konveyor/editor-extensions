@@ -483,8 +483,7 @@
         "konveyor.kai.providerName": {
           "type": "string",
           "default": "ChatIBMGenAI",
-          "description": "Kai provider name",
-          "deprecationMessage": "Kai configurations will be moved to an extension specific file.",
+          "description": "Kai provider name (Note: Kai configurations will be moved to an extension specific file.",
           "scope": "window",
           "order": 30
         },
@@ -496,16 +495,14 @@
               "max_new_tokens": 2048
             }
           },
-          "description": "Kai provider arguments",
-          "deprecationMessage": "Kai configurations will be moved to an extension specific file.",
+          "description": "Kai provider arguments (Note: Kai configurations will be moved to an extension specific file.",
           "scope": "window",
           "order": 30
         },
         "konveyor.kai.genAiKey": {
           "type": "string",
           "default": "",
-          "description": "Generative AI Key",
-          "deprecationMessage": "Kai configurations will be moved to an extension specific file.",
+          "description": "Generative AI Key (Note: Kai configurations will be moved to an extension specific file.",
           "scope": "window",
           "order": 30
         },
