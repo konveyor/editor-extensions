@@ -276,6 +276,13 @@ export class AnalyzerClient {
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
       // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
+
+      // TODO: Once konveyor/kai#550 is resolved, analyzer configurations can be supported
+      // analyzerIncidentLimit: getConfigIncidentLimit(),
+      // analyzerContextLines: getConfigContextLines(),
+      // analyzerCodeSnipLimit: getConfigCodeSnipLimit(),
+      // analyzerAnalyzeKnownLibraries: getConfigAnalyzeKnownLibraries(),
+      // analyzerAnalyzeDependencies: getConfigAnalyzeDependencies(),
     };
 
     vscode.window.withProgress(
