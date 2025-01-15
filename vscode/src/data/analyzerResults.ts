@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
-import { RuleSet, Category, Incident } from "@editor-extensions/shared";
+import { RuleSet, Category, Incident, Violation } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 
 //Assuming that output is in form of yaml
@@ -38,13 +38,15 @@ export const processIncidents = (
   ruleSets: Immutable<RuleSet[]>,
 ): ReadonlyArray<[vscode.Uri, vscode.Diagnostic[]]> =>
   ruleSets
-    .flatMap((ruleSet) => Object.values(ruleSet.violations ?? {}))
-    .flatMap((violation): [vscode.DiagnosticSeverity, Incident][] => {
+    .flatMap((ruleSet): [string, Immutable<Violation>][] =>
+      Object.entries(ruleSet.violations ?? {}),
+    )
+    .flatMap(([code, violation]): [string, vscode.DiagnosticSeverity, Incident][] => {
       const severity = getSeverityFromCategory(violation.category);
-      return violation.incidents.map((it) => [severity, it]);
+      return violation.incidents.map((it) => [code, severity, it]);
     })
-    .filter(([, incident]) => incident.uri)
-    .map(([severity, incident]) => {
+    .filter(([, , incident]) => incident.uri)
+    .map(([code, severity, incident]) => {
       const uri = vscode.Uri.parse(incident.uri);
       const line = (incident.lineNumber || 1) - 1;
       const message = incident.message || "No message provided";
@@ -53,9 +55,7 @@ export const processIncidents = (
       const diagnostic = new vscode.Diagnostic(range, message, severity);
 
       diagnostic.source = "konveyor";
-      if (incident.codeSnip) {
-        diagnostic.code = incident.codeSnip;
-      }
+      diagnostic.code = code;
 
       return [uri, [diagnostic]];
     });

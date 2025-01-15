@@ -27,7 +27,7 @@ const actions: {
     console.log("Webview is ready");
   },
   [GET_SOLUTION](scope: Scope) {
-    vscode.commands.executeCommand("konveyor.getSolution", scope.incident, scope.violation);
+    vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.violation);
 
     vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");

@@ -95,9 +95,9 @@ const commandsMap: (state: ExtensionState) => {
       }
       analyzerClient.runAnalysis();
     },
-    "konveyor.getSolution": async (incident: Incident, violation: Violation) => {
+    "konveyor.getSolution": async (incidents: Incident[], violation: Violation) => {
       const analyzerClient = state.analyzerClient;
-      analyzerClient.getSolution(state, incident, violation);
+      analyzerClient.getSolution(state, incidents, violation);
       // if (fullScreenPanel && fullScreenPanel.webview) {
       //   analyzerClient.runAnalysis(fullScreenPanel.webview, state);
       // } else if (sidebarProvider?.webview) {

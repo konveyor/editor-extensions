@@ -36,11 +36,11 @@ export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => (
 });
 
 export const getSolution = (
-  incident: Incident,
+  incidents: Incident[],
   violation: Violation,
 ): WebviewAction<WebviewActionType, Scope> => ({
   type: "GET_SOLUTION",
-  payload: { incident, violation },
+  payload: { incidents, violation },
 });
 
 export const openFile = (

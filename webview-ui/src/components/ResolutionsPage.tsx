@@ -131,8 +131,8 @@ const ResolutionPage: React.FC = () => {
               </CardTitle>
               <CardBody>
                 <IncidentList
-                  incidents={solutionScope?.incident ? [solutionScope?.incident] : []}
-                  selectedIncident={solutionScope?.incident}
+                  incidents={solutionScope?.incidents ?? []}
+                  selectedIncident={solutionScope?.incidents?.[0]}
                   onSelectIncident={() => {}}
                 />
               </CardBody>
@@ -151,11 +151,11 @@ const ResolutionPage: React.FC = () => {
                 />
               </CardBody>
             </Card>
-            {solutionScope?.incident && (
+            {solutionScope?.incidents?.length && (
               <Card className="pf-v5-u-mb-md">
                 <CardTitle>Incident Details</CardTitle>
                 <CardBody>
-                  <CodePreview incident={solutionScope?.incident} />
+                  <CodePreview incident={solutionScope?.incidents?.[0]} />
                 </CardBody>
               </Card>
             )}

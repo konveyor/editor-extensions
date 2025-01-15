@@ -490,7 +490,7 @@ export class AnalyzerClient {
    */
   public async getSolution(
     state: ExtensionState,
-    incident: Incident,
+    incidents: Incident[],
     violation: Violation,
   ): Promise<void> {
     // TODO: Ensure serverState is running
@@ -502,11 +502,11 @@ export class AnalyzerClient {
 
     this.fireSolutionStateChange(true);
 
-    const enhancedIncident = {
+    const enhancedIncidents = incidents.map((incident) => ({
       ...incident,
       ruleset_name: violation.category || "default_ruleset",
       violation_name: violation.description || "default_violation",
-    };
+    }));
 
     const maxPriority = getConfigMaxPriority();
     const maxDepth = getConfigMaxDepth();
@@ -515,7 +515,7 @@ export class AnalyzerClient {
     try {
       const request = {
         file_path: "",
-        incidents: [enhancedIncident],
+        incidents: enhancedIncidents,
         max_priority: maxPriority,
         max_depth: maxDepth,
         max_iterations: maxIterations,
@@ -531,7 +531,7 @@ export class AnalyzerClient {
       );
 
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
-        incident,
+        incidents,
         violation,
       });
     } catch (err: any) {

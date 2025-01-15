@@ -184,7 +184,7 @@ const AnalysisPage: React.FC = () => {
                     focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
                     onGetSolution={(incident, violation) =>
-                      dispatch(getSolution(incident, violation))
+                      dispatch(getSolution([incident], violation))
                     }
                     onGetAllSolutions={() => {}}
                     compact={false}

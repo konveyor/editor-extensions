@@ -108,7 +108,7 @@ export interface SolutionResponse {
 }
 
 export interface Scope {
-  incident: Incident;
+  incidents: Incident[];
   violation?: Violation;
 }
 
