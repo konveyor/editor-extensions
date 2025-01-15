@@ -639,7 +639,12 @@ export class AnalyzerClient {
 
   public getKaiRpcServerArgs(): string[] {
     return [
-      // TODO: Pickup configs here from `ServerCliArguments`
+      "--log-level",
+      getConfigLogLevel(),
+      "--file-log-level",
+      getConfigLogLevel(),
+      "--log-dir-path",
+      this.kaiDir,
     ].filter(Boolean);
   }
 
