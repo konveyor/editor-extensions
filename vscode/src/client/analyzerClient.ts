@@ -43,7 +43,6 @@ export class AnalyzerClient {
   private outputChannel: vscode.OutputChannel;
   private assetPaths: AssetPaths;
   private kaiDir: string;
-  private kaiRuntimeDir: string;
   private fireStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
   private fireSolutionStateChange: (flag: boolean) => void;
@@ -72,10 +71,7 @@ export class AnalyzerClient {
 
     // TODO: Move the directory and file creation to extension init...
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
-    this.kaiRuntimeDir = path.join(buildDataFolderPath()!, "kai-runtime");
-
     fs.ensureDirSync(this.kaiDir);
-    fs.ensureDirSync(this.kaiRuntimeDir);
     // TODO: ...end
 
     // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
@@ -146,22 +142,22 @@ export class AnalyzerClient {
   ): Promise<[ChildProcessWithoutNullStreams, number | undefined]> {
     // TODO: Ensure serverState is starting
 
-    const serverCwd = vscode.Uri.joinPath(this.extContext.storageUri!, "kai-rpc-server");
+    const serverCwdUri = vscode.Uri.joinPath(this.extContext.storageUri!, "kai-rpc-server");
     const serverPath = this.getKaiRpcServerPath();
     const serverArgs = this.getKaiRpcServerArgs();
     const serverEnv = await this.getKaiRpcServerEnv();
 
-    if (!fs.existsSync(serverCwd.fsPath)) {
-      await vscode.workspace.fs.createDirectory(serverCwd);
+    if (!fs.existsSync(serverCwdUri.fsPath)) {
+      await vscode.workspace.fs.createDirectory(serverCwdUri);
     }
 
-    this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
+    this.outputChannel.appendLine(`server cwd: ${serverCwdUri.fsPath}`);
     this.outputChannel.appendLine(`server path: ${serverPath}`);
     this.outputChannel.appendLine(`server args:`);
     serverArgs.forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
     const kaiRpcServer = spawn(serverPath, serverArgs, {
-      cwd: this.extContext.storageUri?.fsPath,
+      cwd: serverCwdUri.fsPath,
       env: serverEnv,
     });
 
