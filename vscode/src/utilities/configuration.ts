@@ -1,5 +1,6 @@
-import { KONVEYOR_CONFIG_KEY } from "./constants";
 import * as vscode from "vscode";
+import { ServerLogLevels } from "../client/types";
+import { KONVEYOR_CONFIG_KEY } from "./constants";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<T>(key);
@@ -13,18 +14,21 @@ export function getConfigKaiRpcServerPath(): string {
   return getConfigValue<string>("kaiRpcServerPath") || "";
 }
 
-export function getConfigLogLevel(): string {
-  return getConfigValue<string>("logLevel") || "debug";
+export function getConfigLogLevel(): ServerLogLevels {
+  return getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
 }
 
+// TODO: Is this used?
 export function getConfigIncidentLimit(): number {
   return getConfigValue<number>("analysis.incidentLimit") || 10000;
 }
 
+// TODO: Is this used?
 export function getConfigContextLines(): number {
   return getConfigValue<number>("analysis.contextLines") || 10;
 }
 
+// TODO: Is this used?
 export function getConfigCodeSnipLimit(): number {
   return getConfigValue<number>("analysis.codeSnipLimit") || 10;
 }
@@ -41,10 +45,12 @@ export function getConfigLabelSelector(): string {
   return getConfigValue<string>("analysis.labelSelector") || "discovery";
 }
 
+// TODO: Is this used?
 export function getConfigAnalyzeKnownLibraries(): boolean {
   return getConfigValue<boolean>("analysis.analyzeKnownLibraries") ?? false;
 }
 
+// TODO: Is this used?
 export function getConfigAnalyzeDependencies(): boolean {
   return getConfigValue<boolean>("analysis.analyzeDependencies") ?? true;
 }
@@ -54,11 +60,7 @@ export function getConfigAnalyzeOnSave(): boolean {
 }
 
 export function getConfigDiffEditorType(): string {
-  return getConfigValue<string>("diffEditorType") || "diff";
-}
-
-export function getConfigKaiBackendURL(): string {
-  return getConfigValue<string>("kai.backendURL") || "0.0.0.0:8080";
+  return getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
 }
 
 export function getConfigKaiProviderName(): string {
@@ -122,14 +124,17 @@ export async function updateLogLevel(value: string): Promise<void> {
   await updateConfigValue("logLevel", value, vscode.ConfigurationTarget.Workspace);
 }
 
+// TODO: Is this used?
 export async function updateIncidentLimit(value: number): Promise<void> {
   await updateConfigValue("analysis.incidentLimit", value, vscode.ConfigurationTarget.Workspace);
 }
 
+// TODO: Is this used?
 export async function updateContextLines(value: number): Promise<void> {
   await updateConfigValue("analysis.contextLines", value, vscode.ConfigurationTarget.Workspace);
 }
 
+// TODO: Is this used?
 export async function updateCodeSnipLimit(value: number): Promise<void> {
   await updateConfigValue("analysis.codeSnipLimit", value, vscode.ConfigurationTarget.Workspace);
 }
@@ -150,6 +155,7 @@ export async function updateLabelSelector(value: string): Promise<void> {
   await updateConfigValue("analysis.labelSelector", value, vscode.ConfigurationTarget.Workspace);
 }
 
+// TODO: Is this used?
 export async function updateAnalyzeKnownLibraries(value: boolean): Promise<void> {
   await updateConfigValue(
     "analysis.analyzeKnownLibraries",
@@ -158,6 +164,7 @@ export async function updateAnalyzeKnownLibraries(value: boolean): Promise<void>
   );
 }
 
+// TODO: Is this used?
 export async function updateAnalyzeDependencies(value: boolean): Promise<void> {
   await updateConfigValue(
     "analysis.analyzeDependencies",

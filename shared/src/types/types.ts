@@ -40,33 +40,6 @@ export interface RuleSet {
   skipped?: string[];
 }
 
-// KaiConfigModels type definition
-export interface KaiConfigModels {
-  provider: string;
-  args: Record<string, any>;
-  template?: string;
-  llamaHeader?: boolean;
-  llmRetries: number;
-  llmRetryDelay: number;
-}
-
-// KaiRpcApplicationConfig type definition
-export interface KaiInitializeParams {
-  rootPath: string;
-  modelProvider: KaiConfigModels;
-  kaiBackendUrl: string;
-
-  logLevel: string;
-  stderrLogLevel: string;
-  fileLogLevel?: string;
-  logDirPath?: string;
-
-  analyzerLspLspPath: string;
-  analyzerLspRpcPath: string;
-  analyzerLspRulesPath: string;
-  analyzerLspJavaBundlePath: string;
-}
-
 export interface GetSolutionParams {
   file_path: string;
   incidents: Incident[];

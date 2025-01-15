@@ -4,8 +4,14 @@ import { setTimeout } from "node:timers/promises";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
-import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
-import { ExtensionData, ServerState } from "@editor-extensions/shared";
+import {
+  Incident,
+  RuleSet,
+  SolutionResponse,
+  Violation,
+  ExtensionData,
+  ServerState,
+} from "@editor-extensions/shared";
 import { buildDataFolderPath } from "../data";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
@@ -28,6 +34,7 @@ import {
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
+import { KaiConfigModels, KaiRpcApplicationConfig } from "./types";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -37,7 +44,6 @@ export class AnalyzerClient {
   private assetPaths: AssetPaths;
   private kaiDir: string;
   private kaiRuntimeDir: string;
-  private kaiConfigToml: string;
   private fireStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
   private fireSolutionStateChange: (flag: boolean) => void;
@@ -67,7 +73,6 @@ export class AnalyzerClient {
     // TODO: Move the directory and file creation to extension init...
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
     this.kaiRuntimeDir = path.join(buildDataFolderPath()!, "kai-runtime");
-    this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
 
     fs.ensureDirSync(this.kaiDir);
     fs.ensureDirSync(this.kaiRuntimeDir);
@@ -79,7 +84,6 @@ export class AnalyzerClient {
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
     );
     this.outputChannel.appendLine(`Kai directory: ${this.kaiDir}`);
-    this.outputChannel.appendLine(`Kai config toml: ${this.kaiConfigToml}`);
   }
 
   /**
@@ -222,9 +226,9 @@ export class AnalyzerClient {
     const userProviderArgs = getConfigKaiProviderArgs();
     const providerArgs = userProviderArgs || config.get<object>("providerArgs");
 
-    const modelProviderSection = {
+    const modelProviderSection: KaiConfigModels = {
       provider: getConfigKaiProviderName(),
-      args: providerArgs,
+      args: providerArgs as Record<string, any>,
     };
     return modelProviderSection;
   }
@@ -245,27 +249,33 @@ export class AnalyzerClient {
     }
 
     // Define the initialize request parameters
-    const initializeParams = {
-      process_id: null,
-      root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
-      model_provider: this.buildModelProviderConfig(),
-      log_config: {
-        log_level: getConfigLogLevel(),
-        file_log_level: getConfigLogLevel(),
-        log_dir_path: this.kaiDir,
+    const initializeParams: KaiRpcApplicationConfig = {
+      rootPath: vscode.workspace.workspaceFolders![0].uri.fsPath,
+      modelProvider: this.buildModelProviderConfig(),
+
+      logConfig: {
+        logLevel: getConfigLogLevel(),
+        fileLogLevel: getConfigLogLevel(),
+        logDirPath: this.kaiDir,
       },
-      demo_mode: this.isDemoMode(),
-      cache_dir: null,
-      // Analyzer and jdt.ls parameters
-      analyzer_lsp_lsp_path: this.assetPaths.jdtlsBin,
-      analyzer_lsp_rpc_path: this.getAnalyzerPath(),
-      analyzer_lsp_rules_path: this.getRulesetsPath(),
-      // jdt.ls bundles (comma separated list of paths)
-      analyzer_lsp_java_bundle_path: this.assetPaths.jdtlsBundleJars.join(","),
-      // depOpenSourceLabelsFile
-      analyzer_lsp_dep_labels_path: this.assetPaths.openSourceLabelsFile,
+
+      demoMode: this.isDemoMode(),
+
+      // Paths to the Analyzer and jdt.ls
+      analyzerLspRpcPath: this.getAnalyzerPath(),
+      analyzerLspLspPath: this.assetPaths.jdtlsBin,
+
+      // TODO: With konveyor/kai#509, multiple paths will be accepted
+      analyzerLspRulesPath: this.getRulesetsPath(),
+
+      // TODO: Once konveyor/kai#547 is resolved, multiple bundles can be supported
+      // jdt.ls bundles
+      analyzerLspJavaBundlePath: this.assetPaths.jdtlsBundleJars[0],
+
+      analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
+
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
-      // analyzer_lsp_fernflower: this.assetPaths.fernFlowerPath,
+      // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
     };
 
     vscode.window.withProgress(
@@ -620,10 +630,10 @@ export class AnalyzerClient {
     return path;
   }
 
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  Different cli arguments to configure
-  // TODO: logging levels and directories are expected.
   public getKaiRpcServerArgs(): string[] {
-    return ["--config", this.getKaiConfigTomlPath()];
+    return [
+      // TODO: Pickup configs here from `ServerCliArguments`
+    ].filter(Boolean);
   }
 
   /**
@@ -657,36 +667,5 @@ export class AnalyzerClient {
       return storedRulesets ? JSON.parse(storedRulesets as string) : null;
     }
     return null;
-  }
-
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
-  // TODO: change is released.
-  public getKaiConfigTomlPath(): string {
-    // Ensure the file exists with default content if it doesn't
-    // Consider making this more robust, maybe this is an asset we can get from kai?
-    if (!fs.existsSync(this.kaiConfigToml)) {
-      fs.writeFileSync(this.kaiConfigToml, this.defaultKaiConfigToml(this.kaiDir));
-    }
-
-    return this.kaiConfigToml;
-  }
-
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
-  // TODO: change is released.
-  public defaultKaiConfigToml(log_dir: string) {
-    return `
-log_level = "info"
-file_log_level = "debug"
-log_dir = "${log_dir}"
-
-# These values are needed to start the server but shouldn't be used by the server
-# please ignore
-[models]
-provider = "ChatIBMGenAI"
-
-[models.args]
-model_id = "meta-llama/llama-3-70b-instruct"
-parameters.max_new_tokens = "2048"
-`;
   }
 }
