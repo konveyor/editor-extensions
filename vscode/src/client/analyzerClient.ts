@@ -651,6 +651,6 @@ export class AnalyzerClient {
     return [
       getConfigUseDefaultRulesets() && this.assetPaths.rulesets,
       ...getConfigCustomRules(),
-    ].filter(Boolean) as string[];
+    ].filter(Boolean);
   }
 }
