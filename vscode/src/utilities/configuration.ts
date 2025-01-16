@@ -1,5 +1,6 @@
-import { KONVEYOR_CONFIG_KEY } from "./constants";
 import * as vscode from "vscode";
+import { ServerLogLevels } from "../client/types";
+import { KONVEYOR_CONFIG_KEY } from "./constants";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<T>(key);
@@ -13,8 +14,8 @@ export function getConfigKaiRpcServerPath(): string {
   return getConfigValue<string>("kaiRpcServerPath") || "";
 }
 
-export function getConfigLogLevel(): string {
-  return getConfigValue<string>("logLevel") || "debug";
+export function getConfigLogLevel(): ServerLogLevels {
+  return getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
 }
 
 export function getConfigIncidentLimit(): number {
@@ -54,11 +55,7 @@ export function getConfigAnalyzeOnSave(): boolean {
 }
 
 export function getConfigDiffEditorType(): string {
-  return getConfigValue<string>("diffEditorType") || "diff";
-}
-
-export function getConfigKaiBackendURL(): string {
-  return getConfigValue<string>("kai.backendURL") || "0.0.0.0:8080";
+  return getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
 }
 
 export function getConfigKaiProviderName(): string {

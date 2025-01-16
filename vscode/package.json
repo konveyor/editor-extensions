@@ -409,12 +409,27 @@
       "type": "object",
       "title": "Konveyor",
       "properties": {
+        "konveyor.logLevel": {
+          "type": "string",
+          "enum": [
+            "TRACE",
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR",
+            "CRITICAL"
+          ],
+          "default": "DEBUG",
+          "description": "Logging level used for the server binaries",
+          "scope": "window",
+          "order": 0
+        },
         "konveyor.analyzerPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the analyzer binary. If not set, the extension will use the bundled analyzer.",
+          "description": "Path to the analyzer binary. If not set, the extension will use the bundled binary.",
           "scope": "machine",
-          "order": 0
+          "order": 2
         },
         "konveyor.kaiRpcServerPath": {
           "type": "string",
@@ -423,40 +438,12 @@
           "scope": "machine",
           "order": 1
         },
-        "konveyor.logLevel": {
-          "type": "string",
-          "default": "debug",
-          "description": "Log level to use with extension",
-          "scope": "window",
-          "order": 2
-        },
-        "konveyor.analysis.incidentLimit": {
-          "type": "number",
-          "default": 10000,
-          "description": "Maximum number of incidents to report",
-          "scope": "window",
-          "order": 1
-        },
-        "konveyor.analysis.contextLines": {
-          "type": "number",
-          "default": 10,
-          "description": "Number of lines of context to include in incident reports",
-          "scope": "window",
-          "order": 2
-        },
-        "konveyor.analysis.codeSnipLimit": {
-          "type": "number",
-          "default": 10,
-          "description": "Number of lines of code to include in incident reports",
-          "scope": "window",
-          "order": 3
-        },
         "konveyor.analysis.useDefaultRulesets": {
           "type": "boolean",
           "default": true,
-          "description": "Whether analysis should use the default rulesets, included in the extension",
+          "description": "Should the rulesets bundled in the extension be used?",
           "scope": "window",
-          "order": 4
+          "order": 3
         },
         "konveyor.analysis.customRules": {
           "type": "array",
@@ -464,55 +451,41 @@
             "type": "string"
           },
           "default": [],
-          "description": "Array of filepaths to additional rules for analysis",
+          "description": "Array of filepaths to additional rules for analysis.",
           "scope": "window",
-          "order": 5
+          "order": 4
         },
         "konveyor.analysis.labelSelector": {
           "type": "string",
           "default": "discovery",
           "description": "Expression to select incidents based on custom variables. Example: (!package=io.konveyor.demo.config-utils)",
           "scope": "window",
-          "order": 6
-        },
-        "konveyor.analysis.analyzeKnownLibraries": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether analysis should include known open-source libraries",
-          "scope": "window",
-          "order": 7
-        },
-        "konveyor.analysis.analyzeDependencies": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether analysis should include dependencies",
-          "scope": "window",
-          "order": 8
+          "order": 5
         },
         "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Whether analysis of file should be run when saved",
+          "description": "Should analysis of file be run when it is saved?",
           "scope": "window",
-          "order": 9
+          "order": 6
         },
         "konveyor.diffEditorType": {
           "type": "string",
+          "enum": [
+            "diff",
+            "merge"
+          ],
           "default": "diff",
-          "description": "Diff editor to use when resolving proposed solutions",
-          "scope": "window"
-        },
-        "konveyor.kai.backendURL": {
-          "type": "string",
-          "default": "0.0.0.0:8080",
-          "description": "Kai Backend URL",
-          "scope": "window"
+          "description": "Select the editor to use when resolving proposed solutions.",
+          "scope": "window",
+          "order": 7
         },
         "konveyor.kai.providerName": {
           "type": "string",
           "default": "ChatIBMGenAI",
-          "description": "URL for the Kai solution server",
-          "scope": "window"
+          "description": "Kai provider name (Note: Kai configurations will be moved to an extension specific file.",
+          "scope": "window",
+          "order": 30
         },
         "konveyor.kai.providerArgs": {
           "type": "object",
@@ -522,29 +495,72 @@
               "max_new_tokens": 2048
             }
           },
-          "description": "Kai provider arguments",
-          "scope": "window"
+          "description": "Kai provider arguments (Note: Kai configurations will be moved to an extension specific file.",
+          "scope": "window",
+          "order": 30
         },
         "konveyor.kai.genAiKey": {
           "type": "string",
           "default": "",
-          "description": "Generative AI Key",
-          "scope": "window"
+          "description": "Generative AI Key (Note: Kai configurations will be moved to an extension specific file.",
+          "scope": "window",
+          "order": 30
         },
         "konveyor.kai.getSolutionMaxPriority": {
           "type": "number",
           "default": 0,
-          "description": "Maximum priority for the getSolution request"
+          "description": "Maximum priority for the getSolution request",
+          "scope": "window",
+          "order": 40
         },
         "konveyor.kai.getSolutionMaxDepth": {
           "type": "number",
           "default": 0,
-          "description": "Max depth for the getSolution request"
+          "description": "Max depth for the getSolution request",
+          "scope": "window",
+          "order": 40
         },
         "konveyor.kai.getSolutionMaxIterations": {
           "type": "number",
           "default": 1,
-          "description": "Max iterations for the getSolution request"
+          "description": "Max iterations for the getSolution request",
+          "scope": "window",
+          "order": 40
+        },
+        "konveyor.analysis.incidentLimit": {
+          "type": "number",
+          "default": 10000,
+          "description": "Maximum number of incidents to report",
+          "scope": "window",
+          "order": 99
+        },
+        "konveyor.analysis.contextLines": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of lines of context to include in incident reports.",
+          "scope": "window",
+          "order": 99
+        },
+        "konveyor.analysis.codeSnipLimit": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of lines of code to include in incident reports.",
+          "scope": "window",
+          "order": 99
+        },
+        "konveyor.analysis.analyzeKnownLibraries": {
+          "type": "boolean",
+          "default": false,
+          "description": "Should the analyzer analyze known open-source libraries?",
+          "scope": "window",
+          "order": 99
+        },
+        "konveyor.analysis.analyzeDependencies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Should the analyzer analyze project dependencies?",
+          "scope": "window",
+          "order": 99
         }
       }
     },

@@ -4,14 +4,19 @@ import { setTimeout } from "node:timers/promises";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
-import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
-import { ExtensionData, ServerState } from "@editor-extensions/shared";
+import {
+  Incident,
+  RuleSet,
+  SolutionResponse,
+  Violation,
+  ExtensionData,
+  ServerState,
+} from "@editor-extensions/shared";
 import { buildDataFolderPath } from "../data";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
-  getConfigKaiBackendURL,
   getConfigLogLevel,
   getConfigKaiProviderName,
   getConfigKaiProviderArgs,
@@ -29,6 +34,7 @@ import {
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
+import { KaiConfigModels, KaiRpcApplicationConfig } from "./types";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -38,7 +44,6 @@ export class AnalyzerClient {
   private assetPaths: AssetPaths;
   private kaiDir: string;
   private kaiRuntimeDir: string;
-  private kaiConfigToml: string;
   private fireStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
   private fireSolutionStateChange: (flag: boolean) => void;
@@ -68,7 +73,6 @@ export class AnalyzerClient {
     // TODO: Move the directory and file creation to extension init...
     this.kaiDir = path.join(buildDataFolderPath()!, "kai");
     this.kaiRuntimeDir = path.join(buildDataFolderPath()!, "kai-runtime");
-    this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
 
     fs.ensureDirSync(this.kaiDir);
     fs.ensureDirSync(this.kaiRuntimeDir);
@@ -80,7 +84,6 @@ export class AnalyzerClient {
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
     );
     this.outputChannel.appendLine(`Kai directory: ${this.kaiDir}`);
-    this.outputChannel.appendLine(`Kai config toml: ${this.kaiConfigToml}`);
   }
 
   /**
@@ -223,9 +226,9 @@ export class AnalyzerClient {
     const userProviderArgs = getConfigKaiProviderArgs();
     const providerArgs = userProviderArgs || config.get<object>("providerArgs");
 
-    const modelProviderSection = {
+    const modelProviderSection: KaiConfigModels = {
       provider: getConfigKaiProviderName(),
-      args: providerArgs,
+      args: providerArgs as Record<string, any>,
     };
     return modelProviderSection;
   }
@@ -246,34 +249,40 @@ export class AnalyzerClient {
     }
 
     // Define the initialize request parameters
-    // TODO: With konveyor/kai#526, config.toml will be dropped.  The initialize parameters may
-    // TODO: change.  They'll need to be updated here.
-    const initializeParams = {
-      process_id: null,
-      kai_backend_url: getConfigKaiBackendURL(),
-      root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
-      log_level: getConfigLogLevel(),
-      log_dir_path: this.kaiDir,
-      model_provider: this.buildModelProviderConfig(),
+    const initializeParams: KaiRpcApplicationConfig = {
+      rootPath: vscode.workspace.workspaceFolders![0].uri.fsPath,
+      modelProvider: this.buildModelProviderConfig(),
 
-      file_log_level: getConfigLogLevel(),
-      demo_mode: this.isDemoMode(),
-      cache_dir: "",
+      logConfig: {
+        logLevel: getConfigLogLevel(),
+        fileLogLevel: getConfigLogLevel(),
+        logDirPath: this.kaiDir,
+      },
 
-      // Analyzer and jdt.ls parameters
-      analyzer_lsp_rpc_path: this.getAnalyzerPath(),
-      analyzer_lsp_lsp_path: this.assetPaths.jdtlsBin,
+      demoMode: this.isDemoMode(),
 
-      // jdt.ls bundles (comma separated list of paths)
-      analyzer_lsp_java_bundle_path: this.assetPaths.jdtlsBundleJars.join(","),
+      // Paths to the Analyzer and jdt.ls
+      analyzerLspRpcPath: this.getAnalyzerPath(),
+      analyzerLspLspPath: this.assetPaths.jdtlsBin,
 
-      // depOpenSourceLabelsFile
-      analyzer_lsp_dep_labels_path: this.assetPaths.openSourceLabelsFile,
+      // TODO: With konveyor/kai#509, multiple paths will be accepted
+      analyzerLspRulesPath: this.getRulesetsPath(),
+
+      // TODO: Once konveyor/kai#547 is resolved, multiple bundles can be supported
+      // jdt.ls bundles
+      analyzerLspJavaBundlePath: this.assetPaths.jdtlsBundleJars[0],
+
+      analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
-      // analyzer_lsp_fernflower: this.assetPaths.fernFlowerPath,
+      // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
 
-      analyzer_lsp_rules_path: this.getRulesetsPath(),
+      // TODO: Once konveyor/kai#550 is resolved, analyzer configurations can be supported
+      // analyzerIncidentLimit: getConfigIncidentLimit(),
+      // analyzerContextLines: getConfigContextLines(),
+      // analyzerCodeSnipLimit: getConfigCodeSnipLimit(),
+      // analyzerAnalyzeKnownLibraries: getConfigAnalyzeKnownLibraries(),
+      // analyzerAnalyzeDependencies: getConfigAnalyzeDependencies(),
     };
 
     vscode.window.withProgress(
@@ -628,10 +637,15 @@ export class AnalyzerClient {
     return path;
   }
 
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  Different cli arguments to configure
-  // TODO: logging levels and directories are expected.
   public getKaiRpcServerArgs(): string[] {
-    return ["--config", this.getKaiConfigTomlPath()];
+    return [
+      "--log-level",
+      getConfigLogLevel(),
+      "--file-log-level",
+      getConfigLogLevel(),
+      "--log-dir-path",
+      this.kaiDir,
+    ].filter(Boolean);
   }
 
   /**
@@ -665,36 +679,5 @@ export class AnalyzerClient {
       return storedRulesets ? JSON.parse(storedRulesets as string) : null;
     }
     return null;
-  }
-
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
-  // TODO: change is released.
-  public getKaiConfigTomlPath(): string {
-    // Ensure the file exists with default content if it doesn't
-    // Consider making this more robust, maybe this is an asset we can get from kai?
-    if (!fs.existsSync(this.kaiConfigToml)) {
-      fs.writeFileSync(this.kaiConfigToml, this.defaultKaiConfigToml(this.kaiDir));
-    }
-
-    return this.kaiConfigToml;
-  }
-
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
-  // TODO: change is released.
-  public defaultKaiConfigToml(log_dir: string) {
-    return `
-log_level = "info"
-file_log_level = "debug"
-log_dir = "${log_dir}"
-
-# These values are needed to start the server but shouldn't be used by the server
-# please ignore
-[models]
-provider = "ChatIBMGenAI"
-
-[models.args]
-model_id = "meta-llama/llama-3-70b-instruct"
-parameters.max_new_tokens = "2048"
-`;
   }
 }
