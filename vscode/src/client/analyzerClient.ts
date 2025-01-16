@@ -29,6 +29,8 @@ import {
   getConfigMaxIterations,
   getConfigMaxPriority,
   getConfigKaiDemoMode,
+  getConfigUseDefaultRulesets,
+  getConfigCustomRules,
   isAnalysisResponse,
 } from "../utilities";
 import { allIncidents } from "../issueView";
@@ -260,15 +262,11 @@ export class AnalyzerClient {
       // Paths to the Analyzer and jdt.ls
       analyzerLspRpcPath: this.getAnalyzerPath(),
       analyzerLspLspPath: this.assetPaths.jdtlsBin,
-
-      // TODO: With konveyor/kai#509, multiple paths will be accepted
-      analyzerLspRulesPath: this.getRulesetsPath(),
-
-      // TODO: Once konveyor/kai#547 is resolved, multiple bundles can be supported
-      // jdt.ls bundles
-      analyzerLspJavaBundlePath: this.assetPaths.jdtlsBundleJars[0],
-
+      analyzerLspRulesPaths: this.getRulesetsPath(),
+      analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
       analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
+      // TODO(djzager): https://github.com/konveyor/editor-extensions/issues/202
+      analyzerLspExcludedPaths: [this.kaiDir],
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
       // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
@@ -649,31 +647,10 @@ export class AnalyzerClient {
    * rulesets yaml files to provide to the analyzer.  After the issue is resolve, send all
    * of the rulesets directories either as `string[]` or as a joined list.
    */
-  public getRulesetsPath(): string {
-    const includedRulesets = this.assetPaths.rulesets;
-
-    // TODO(djzager): konveyor/kai#509
-    // const useDefaultRulesets = getConfigUseDefaultRulesets();
-    // const customRules = getConfigCustomRules();
-    // const rules: string[] = [];
-
-    // if (useDefaultRulesets) {
-    //   rules.push(includedRulesets);
-    // }
-    // if (customRules.length > 0) {
-    //   rules.push(...customRules);
-    // }
-    // return rules;
-
-    return includedRulesets;
-  }
-
-  // New method to retrieve stored rulesets
-  public getStoredRulesets(): RuleSet[] | null {
-    if (this.extContext) {
-      const storedRulesets = this.extContext.globalState.get("storedRulesets");
-      return storedRulesets ? JSON.parse(storedRulesets as string) : null;
-    }
-    return null;
+  public getRulesetsPath(): string[] {
+    return [
+      getConfigUseDefaultRulesets() && this.assetPaths.rulesets,
+      ...getConfigCustomRules(),
+    ].filter(Boolean) as string[];
   }
 }

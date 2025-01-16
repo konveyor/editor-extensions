@@ -57,9 +57,10 @@ export interface KaiRpcApplicationConfig {
 
   analyzerLspLspPath: string;
   analyzerLspRpcPath: string;
-  analyzerLspRulesPath: string; // TODO: See https://github.com/konveyor/kai/issues/509
-  analyzerLspJavaBundlePath: string; // TODO: See https://github.com/konveyor/kai/issues/547
+  analyzerLspRulesPaths: string[];
+  analyzerLspJavaBundlePaths: string[];
   analyzerLspDepLabelsPath?: string; // defaults to `None`
+  analyzerLspExcludedPaths: string[];
 
   // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
   // analyzerLspFernFlowerPath?: string;
