@@ -35,10 +35,10 @@
   "contributes": {
     "commands": [
       {
-        "command": "konveyor.configureGenAiKey",
-        "title": "Configure GenAI Key",
+        "command": "konveyor.openModelProviderSettings",
+        "title": "Open the GenAI model provider configuration file",
         "category": "Konveyor",
-        "icon": "$(key)"
+        "icon": "$(gear)"
       },
       {
         "command": "konveyor.showAnalysisPanel",
@@ -105,11 +105,6 @@
         "title": "Configure Analysis LabelSelector",
         "category": "Konveyor",
         "icon": "$(gear)"
-      },
-      {
-        "command": "konveyor.openKaiConfigToml",
-        "category": "Konveyor",
-        "title": "Open Kai config.toml"
       },
       {
         "command": "konveyor.startServer",
@@ -627,9 +622,9 @@
           {
             "id": "configure-gen",
             "title": "Configure Generative AI",
-            "description": "Configure Generative AI for your project\n[Configure GenAI Key](command:konveyor.configureGenAiKey)",
+            "description": "Configure Generative AI for your project\n[Configure GenAI model settings file](command:konveyor.openModelProviderSettings)",
             "completionEvents": [
-              "onCommand:konveyor.configureGenAiKey"
+              "onCommand:konveyor.openModelProviderSettings"
             ],
             "media": {
               "markdown": "media/walkthroughs/gen-ai.md"

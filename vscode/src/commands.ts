@@ -1,6 +1,6 @@
 import { ExtensionState } from "./extensionState";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { window, commands, Uri, OpenDialogOptions } from "vscode";
+import { window, commands, Uri, OpenDialogOptions, workspace } from "vscode";
 import {
   cleanRuleSets,
   loadResultsFromDataFolder,
@@ -28,13 +28,13 @@ import {
   updateUseDefaultRuleSets,
   getConfigLabelSelector,
   updateLabelSelector,
-  updateGenAiKey,
   updateGetSolutionMaxDepth,
   updateGetSolutionMaxIterations,
   updateGetSolutionMaxPriority,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
+import { paths } from "./paths";
 
 // let fullScreenPanel: WebviewPanel | undefined;
 
@@ -98,60 +98,6 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.getSolution": async (incidents: Incident[], violation?: Violation) => {
       const analyzerClient = state.analyzerClient;
       analyzerClient.getSolution(state, incidents, violation);
-      // if (fullScreenPanel && fullScreenPanel.webview) {
-      //   analyzerClient.runAnalysis(fullScreenPanel.webview, state);
-      // } else if (sidebarProvider?.webview) {
-      //   analyzerClient.runAnalysis(sidebarProvider.webview, state);
-      // } else {
-      //   window.showErrorMessage("No webview available to run analysis!");
-      // }
-    },
-    "konveyor.toggleFullScreen": () => {
-      // // TODO: refactor this to use showWebviewPanel
-      // // Check if full screen is already open by checking open tabs
-      // const fullScreenTab = getFullScreenTab();
-      // // Check if the active editor is the GUI View
-      // if (fullScreenTab && fullScreenTab.isActive) {
-      //   //Full screen open and focused - close it
-      //   commands.executeCommand("workbench.action.closeActiveEditor"); //this will trigger the onDidDispose listener below
-      //   return;
-      // }
-      // if (fullScreenTab && fullScreenPanel) {
-      //   //Full screen open, but not focused - focus it
-      //   fullScreenPanel.reveal();
-      //   return;
-      // }
-      // //create the full screen panel
-      // const panel = window.createWebviewPanel(
-      //   "konveyor.konveyorFullScreenView",
-      //   "Konveyor",
-      //   ViewColumn.One,
-      //   {
-      //     retainContextWhenHidden: true,
-      //     enableScripts: true,
-      //     localResourceRoots: [
-      //       Uri.joinPath(extensionContext.extensionUri, "media"),
-      //       Uri.joinPath(extensionContext.extensionUri, "out"),
-      //     ],
-      //   },
-      // );
-      // fullScreenPanel = panel;
-      // const sidebarProvider = state.webviewProviders?.get("sidebar");
-      // if (sidebarProvider) {
-      // panel.webview.html = sidebarProvider.getHtmlForWebview(panel.webview);
-      // setupWebviewMessageListener(panel.webview, state);
-      //   commands.executeCommand("workbench.action.closeSidebar");
-      //   //When panel closes, reset the webview and focus
-      //   panel.onDidDispose(
-      //     () => {
-      //       state.webviewProviders.delete("sidebar");
-      //       fullScreenPanel = undefined;
-      //       commands.executeCommand("konveyor.focusKonveyorInput");
-      //     },
-      //     null,
-      //     extensionContext.subscriptions,
-      //   );
-      // }
     },
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {
@@ -201,21 +147,9 @@ const commandsMap: (state: ExtensionState) => {
         window.showInformationMessage("No Kai rpc-server binary selected.");
       }
     },
-    "konveyor.configureGenAiKey": async () => {
-      const newKey = await window.showInputBox({
-        prompt: "Enter your GENAI_KEY",
-        placeHolder: "Your GenAI key...",
-        ignoreFocusOut: true,
-        password: true,
-      });
-
-      if (newKey === undefined) {
-        window.showInformationMessage("No GENAI_KEY entered. Configuration cancelled.");
-        return;
-      }
-
-      await updateGenAiKey(state.extensionContext, newKey);
-      window.showInformationMessage("GENAI_KEY updated successfully!");
+    "konveyor.openModelProviderSettings": async () => {
+      const settingsDocument = await workspace.openTextDocument(paths.settingsYaml);
+      window.showTextDocument(settingsDocument);
     },
     "konveyor.configureCustomRules": async () => {
       const options: OpenDialogOptions = {

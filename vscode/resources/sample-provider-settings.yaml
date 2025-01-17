@@ -1,0 +1,40 @@
+---
+# This is a sample settings file with a few common providers and models defined
+
+environment:
+  ALWAYS_APPLIED_KEY: "envvar to be set regardless of which model is active"
+
+models:
+  OpenAI: &active
+    environment:
+      OPENAI_API_KEY: "key"
+    provider: "ChatOpenAI"
+    args:
+      model: "gpt-4"
+
+  AmazonBedrock:
+    environment:
+      AWS_ACCESS_KEY_ID: "key id"
+      AWS_SECRET_ACCESS_KEY: "secret"
+      AWS_DEFAULT_REGION: "region"
+    provider: "ChatBedrock"
+    args:
+      model_id: "meta.llama3-70b-instruct-v1:0"
+
+  JustAnExample:
+    environment:
+      ANY_KEY_1: "any environment variable needed for this model provider"
+      ANY_KEY_2: "any environment variable needed for this model provider"
+
+    provider: "provider-string"
+    args:
+      anyArgumentName1: "argument one"
+      anyArgumentName2: "argument two"
+      any-argument-name-3: "argument three"
+
+    template: "template string" # optional
+    llamaHeader: "header string" # optional
+    llmRetries: 5 # optional number, defaults to 5
+    llmRetryDelay: 10.0 # optional float, default is 10.0
+
+active: *active

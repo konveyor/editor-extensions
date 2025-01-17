@@ -1,5 +1,4 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import * as path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
@@ -12,19 +11,16 @@ import {
   ExtensionData,
   ServerState,
 } from "@editor-extensions/shared";
-import { buildDataFolderPath } from "../data";
+import { paths, fsPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
   getConfigLogLevel,
-  getConfigKaiProviderName,
-  getConfigKaiProviderArgs,
   getConfigLabelSelector,
   updateUseDefaultRuleSets,
   getConfigKaiRpcServerPath,
   getConfigAnalyzerPath,
-  getGenAiKey,
   getConfigMaxDepth,
   getConfigMaxIterations,
   getConfigMaxPriority,
@@ -36,7 +32,8 @@ import {
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
-import { KaiConfigModels, KaiRpcApplicationConfig } from "./types";
+import { KaiRpcApplicationConfig } from "./types";
+import { getModelProvider, ModelProvider } from "./modelProvider";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -44,10 +41,11 @@ export class AnalyzerClient {
 
   private outputChannel: vscode.OutputChannel;
   private assetPaths: AssetPaths;
-  private kaiDir: string;
   private fireStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
   private fireSolutionStateChange: (flag: boolean) => void;
+
+  private modelProvider: ModelProvider | null = null;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -71,17 +69,12 @@ export class AnalyzerClient {
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.assetPaths = buildAssetPaths(extContext);
 
-    // TODO: Move the directory and file creation to extension init...
-    this.kaiDir = path.join(buildDataFolderPath()!, "kai");
-    fs.ensureDirSync(this.kaiDir);
-    // TODO: ...end
-
     // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
 
     this.outputChannel.appendLine(
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
     );
-    this.outputChannel.appendLine(`Kai directory: ${this.kaiDir}`);
+    this.outputChannel.appendLine(`extension paths: ${JSON.stringify(fsPaths, null, 2)}`);
   }
 
   /**
@@ -111,6 +104,7 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.fireStateChange("starting");
     try {
+      this.modelProvider = await getModelProvider(paths.settingsYaml);
       const [kaiRpcServer, pid] = await this.startProcessAndLogStderr();
 
       kaiRpcServer.on("exit", (code, signal) => {
@@ -144,22 +138,18 @@ export class AnalyzerClient {
   ): Promise<[ChildProcessWithoutNullStreams, number | undefined]> {
     // TODO: Ensure serverState is starting
 
-    const serverCwdUri = vscode.Uri.joinPath(this.extContext.storageUri!, "kai-rpc-server");
     const serverPath = this.getKaiRpcServerPath();
     const serverArgs = this.getKaiRpcServerArgs();
-    const serverEnv = await this.getKaiRpcServerEnv();
+    const serverEnv = this.getKaiRpcServerEnv();
 
-    if (!fs.existsSync(serverCwdUri.fsPath)) {
-      await vscode.workspace.fs.createDirectory(serverCwdUri);
-    }
-
-    this.outputChannel.appendLine(`server cwd: ${serverCwdUri.fsPath}`);
+    // this.outputChannel.appendLine(`server env: ${JSON.stringify(serverEnv, null, 2)}`);
+    this.outputChannel.appendLine(`server cwd: ${paths.serverCwd.fsPath}`);
     this.outputChannel.appendLine(`server path: ${serverPath}`);
     this.outputChannel.appendLine(`server args:`);
     serverArgs.forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
     const kaiRpcServer = spawn(serverPath, serverArgs, {
-      cwd: serverCwdUri.fsPath,
+      cwd: paths.serverCwd.fsPath,
       env: serverEnv,
     });
 
@@ -219,18 +209,6 @@ export class AnalyzerClient {
       : !Extension.getInstance(this.extContext).isProductionMode;
   }
 
-  protected buildModelProviderConfig() {
-    const config = vscode.workspace.getConfiguration("konveyor.kai");
-    const userProviderArgs = getConfigKaiProviderArgs();
-    const providerArgs = userProviderArgs || config.get<object>("providerArgs");
-
-    const modelProviderSection: KaiConfigModels = {
-      provider: getConfigKaiProviderName(),
-      args: providerArgs as Record<string, any>,
-    };
-    return modelProviderSection;
-  }
-
   /**
    * Request the server to __initialize__ with our analysis and solution configurations.
    *
@@ -246,15 +224,20 @@ export class AnalyzerClient {
       return;
     }
 
+    if (!this.modelProvider) {
+      vscode.window.showErrorMessage("Server cannot initialize without being started");
+      return;
+    }
+
     // Define the initialize request parameters
     const initializeParams: KaiRpcApplicationConfig = {
-      rootPath: vscode.workspace.workspaceFolders![0].uri.fsPath,
-      modelProvider: this.buildModelProviderConfig(),
+      rootPath: paths.workspaceRepo.fsPath,
+      modelProvider: this.modelProvider.modelProvider,
 
       logConfig: {
         logLevel: getConfigLogLevel(),
         fileLogLevel: getConfigLogLevel(),
-        logDirPath: this.kaiDir,
+        logDirPath: paths.serverLogs.fsPath,
       },
 
       demoMode: this.isDemoMode(),
@@ -265,8 +248,9 @@ export class AnalyzerClient {
       analyzerLspRulesPaths: this.getRulesetsPath(),
       analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
       analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
+
       // TODO(djzager): https://github.com/konveyor/editor-extensions/issues/202
-      analyzerLspExcludedPaths: [this.kaiDir],
+      analyzerLspExcludedPaths: [vscode.Uri.joinPath(paths.workspaceRepo, ".vscode").fsPath],
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
       // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
@@ -609,12 +593,10 @@ export class AnalyzerClient {
   /**
    * Build the process environment variables to be setup for the kai rpc server process.
    */
-  public async getKaiRpcServerEnv(): Promise<NodeJS.ProcessEnv> {
-    const genAiKey = await getGenAiKey(this.extContext);
-
+  public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
     return {
       ...process.env,
-      GENAI_KEY: genAiKey,
+      ...this.modelProvider!.env,
     };
   }
 
@@ -638,7 +620,7 @@ export class AnalyzerClient {
       "--file-log-level",
       getConfigLogLevel(),
       "--log-dir-path",
-      this.kaiDir,
+      paths.serverLogs.fsPath,
     ].filter(Boolean);
   }
 

@@ -10,6 +10,7 @@ import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { partialAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
+import { ensurePaths, ExtensionPaths } from "./paths";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -18,7 +19,10 @@ class VsCodeExtension {
   readonly onDidChangeData = this._onDidChange.event;
   private listeners: vscode.Disposable[] = [];
 
-  constructor(context: vscode.ExtensionContext) {
+  constructor(
+    public readonly paths: ExtensionPaths,
+    public readonly context: vscode.ExtensionContext,
+  ) {
     this.data = produce(
       {
         localChanges: [],
@@ -58,18 +62,16 @@ class VsCodeExtension {
       },
       mutateData,
     };
-
-    this.initializeExtension(context);
   }
 
-  private initializeExtension(context: vscode.ExtensionContext): void {
+  public initialize(): void {
     try {
       this.checkWorkspace();
-      this.registerWebviewProvider(context);
+      this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
-      this.registerLanguageProviders(context);
+      this.registerLanguageProviders();
       this.listeners.push(vscode.workspace.onDidSaveTextDocument(partialAnalysisTrigger));
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
     } catch (error) {
@@ -86,7 +88,7 @@ class VsCodeExtension {
     }
   }
 
-  private registerWebviewProvider(context: vscode.ExtensionContext): void {
+  private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
     this.state.webviewProviders.set("sidebar", sidebarProvider);
 
@@ -99,7 +101,7 @@ class VsCodeExtension {
       }),
     );
 
-    context.subscriptions.push(
+    this.context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
         KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
         sidebarProvider,
@@ -117,11 +119,11 @@ class VsCodeExtension {
     registerAllCommands(this.state);
   }
 
-  private registerLanguageProviders(context: vscode.ExtensionContext): void {
+  private registerLanguageProviders(): void {
     const languagesToRegister = ["java"];
 
     for (const language of languagesToRegister) {
-      context.subscriptions.push(
+      this.context.subscriptions.push(
         vscode.languages.registerCodeActionsProvider(language, new ViolationCodeActionProvider(), {
           providedCodeActionKinds: ViolationCodeActionProvider.providedCodeActionKinds,
         }),
@@ -129,7 +131,7 @@ class VsCodeExtension {
     }
   }
 
-  dispose() {
+  public dispose() {
     this.state.analyzerClient?.stop();
     const disposables = this.listeners.splice(0, this.listeners.length);
     for (const disposable of disposables) {
@@ -140,14 +142,30 @@ class VsCodeExtension {
 
 let extension: VsCodeExtension | undefined;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   try {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
       vscode.window.showErrorMessage("Please open a workspace folder before using this extension.");
       return;
     }
-    extension = new VsCodeExtension(context);
+
+    const paths = await ensurePaths(context);
+
+    // copy in the sample file if the settings file doesn't exist
+    try {
+      await vscode.workspace.fs.stat(paths.settingsYaml);
+    } catch {
+      await vscode.workspace.fs.copy(
+        vscode.Uri.joinPath(paths.extResources, "sample-provider-settings.yaml"),
+        paths.settingsYaml,
+      );
+    }
+
+    extension = new VsCodeExtension(paths, context);
+    extension.initialize();
   } catch (error) {
+    extension?.dispose();
+    extension = undefined;
     console.error("Failed to activate Konveyor extension:", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
   }
