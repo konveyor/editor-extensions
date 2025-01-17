@@ -37,7 +37,7 @@ async function ensureDirectory(uri: vscode.Uri, ...parts: string[]): Promise<vsc
   }
 
   if (needsCreate) {
-    vscode.workspace.fs.createDirectory(joined);
+    await vscode.workspace.fs.createDirectory(joined);
   }
   return joined;
 }
