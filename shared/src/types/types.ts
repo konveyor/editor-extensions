@@ -95,6 +95,7 @@ export interface ExtensionData {
   isAnalyzing: boolean;
   isFetchingSolution: boolean;
   isStartingServer: boolean;
+  isInitializingServer: boolean;
   serverState: ServerState;
   solutionState: SolutionState;
   solutionData?: Solution;
@@ -108,6 +109,7 @@ export type ServerState =
   | "configurationReady"
   | "starting"
   | "readyToInitialize"
+  | "initializing"
   | "startFailed"
   | "running"
   | "stopping"

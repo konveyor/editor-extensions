@@ -46,6 +46,7 @@ const AnalysisPage: React.FC = () => {
   const {
     isAnalyzing,
     isStartingServer,
+    isInitializingServer,
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     workspaceRoot,
@@ -112,6 +113,7 @@ const AnalysisPage: React.FC = () => {
                     <ServerStatusToggle
                       isRunning={serverRunning}
                       isStarting={isStartingServer}
+                      isInitializing={isInitializingServer}
                       onToggle={handleServerToggle}
                     />
                   </ToolbarItem>

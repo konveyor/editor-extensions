@@ -31,6 +31,7 @@ class VsCodeExtension {
         isAnalyzing: false,
         isFetchingSolution: false,
         isStartingServer: false,
+        isInitializingServer: false,
         solutionData: undefined,
         serverState: "initial",
         solutionScope: undefined,

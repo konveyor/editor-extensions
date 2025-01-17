@@ -6,10 +6,16 @@ import "./styles.css";
 interface ServerStatusToggleProps {
   isRunning: boolean;
   isStarting: boolean;
+  isInitializing: boolean;
   onToggle: () => void;
 }
 
-export function ServerStatusToggle({ isRunning, isStarting, onToggle }: ServerStatusToggleProps) {
+export function ServerStatusToggle({
+  isRunning,
+  isStarting,
+  isInitializing,
+  onToggle,
+}: ServerStatusToggleProps) {
   return (
     <div className="server-status-container">
       <div className="server-status-wrapper">
@@ -20,12 +26,12 @@ export function ServerStatusToggle({ isRunning, isStarting, onToggle }: ServerSt
         <div className="vertical-divider" />
         <Button
           variant="plain"
-          icon={isStarting ? <Spinner size="sm" /> : <OnIcon />}
+          icon={isStarting || isInitializing ? <Spinner size="sm" /> : <OnIcon />}
           onClick={onToggle}
-          isDisabled={isStarting}
+          isDisabled={isStarting || isInitializing}
           className="server-action-button"
         >
-          {isStarting ? "" : isRunning ? "Stop" : "Start"}
+          {isStarting || isInitializing ? "" : isRunning ? "Stop" : "Start"}
         </Button>
       </div>
     </div>

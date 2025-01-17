@@ -30,6 +30,7 @@ const ResolutionPage: React.FC = () => {
     solutionState,
     workspaceRoot,
   } = state;
+
   const getRemainingFiles = () => {
     if (!resolution) {
       return [];
@@ -56,17 +57,6 @@ const ResolutionPage: React.FC = () => {
   const handleIncidentClick = (incident: Incident) => {
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
   };
-
-  console.log("Resolution view state:", {
-    state,
-    isResolved,
-    isTriggeredByUser,
-    isHistorySolution,
-    hasResponseWithErrors,
-    hasResponse,
-    hasEmptyResponse,
-    hasNothingToView,
-  });
 
   return (
     <Page
