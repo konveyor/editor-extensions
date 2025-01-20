@@ -5,7 +5,10 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}/vscode"],
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode",
+        "--enable-proposed-api=konveyor.konveyor-ai"
+      ],
       "outFiles": ["${workspaceFolder}/vscode/out/**/*.js"],
       "env": {
         "VSCODE_DEBUG_MODE": "true"
