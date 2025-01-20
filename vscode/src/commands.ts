@@ -148,7 +148,7 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.openModelProviderSettings": async () => {
-      const settingsDocument = await workspace.openTextDocument(paths.settingsYaml);
+      const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },
     "konveyor.configureCustomRules": async () => {

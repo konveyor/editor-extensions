@@ -23,6 +23,8 @@ export interface ExtensionPaths {
   serverLogs: vscode.Uri;
 }
 
+export type ExtensionFsPaths = Record<keyof ExtensionPaths, string>;
+
 async function ensureDirectory(uri: vscode.Uri, ...parts: string[]): Promise<vscode.Uri> {
   const joined = vscode.Uri.joinPath(uri, ...parts);
 
@@ -54,7 +56,7 @@ export async function ensurePaths(context: vscode.ExtensionContext): Promise<Ext
   const extResources = vscode.Uri.joinPath(context.extensionUri, "resources");
   const settingsYaml = vscode.Uri.joinPath(globalScope, "settings", "provider-settings.yaml");
 
-  paths = {
+  _paths = {
     extResources,
     workspaceRepo: firstWorkspace.uri,
     data: await ensureDirectory(workspaceRepoScope, "konveyor"),
@@ -63,14 +65,28 @@ export async function ensurePaths(context: vscode.ExtensionContext): Promise<Ext
     serverCwd: await ensureDirectory(workspaceScope, "kai-rpc-server"),
     serverLogs: await ensureDirectory(workspaceRepoScope, "konveyor-logs"),
   };
-  fsPaths = Object.fromEntries(Object.entries(paths).map(([key, uri]) => [key, uri.fsPath]));
-  return paths;
+
+  _fsPaths = {} as ExtensionFsPaths;
+  for (const key of Object.keys(_paths) as Array<keyof ExtensionPaths>) {
+    _fsPaths[key] = _paths[key].fsPath;
+  }
+
+  return _paths;
 }
 
-export let paths: ExtensionPaths = new Proxy({} as ExtensionPaths, {
-  get: () => {
-    throw new Error("The extension has not been activated yet.");
-  },
-});
+let _paths: ExtensionPaths | undefined = undefined;
+let _fsPaths: Record<keyof ExtensionPaths, string> | undefined = undefined;
 
-export let fsPaths = {};
+export function paths(): ExtensionPaths {
+  if (_paths === undefined) {
+    throw new Error("The extension has not been activated yet.");
+  }
+  return _paths;
+}
+
+export function fsPaths(): ExtensionFsPaths {
+  if (_fsPaths === undefined) {
+    throw new Error("The extension has not been activated yet.");
+  }
+  return _fsPaths;
+}

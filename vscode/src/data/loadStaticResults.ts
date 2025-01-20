@@ -5,7 +5,7 @@ import { paths } from "../paths";
 
 export const loadStaticResults = async () => {
   const options: vscode.OpenDialogOptions = {
-    defaultUri: paths.workspaceRepo,
+    defaultUri: paths().workspaceRepo,
     openLabel: "Load Konveyor results",
     filters: { "json files": ["json"] },
     canSelectMany: true,

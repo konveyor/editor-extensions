@@ -15,7 +15,7 @@ import { Immutable } from "immer";
 const MAX_FILES = 5;
 
 const getDataFilesByPrefix = async (prefix: string) => {
-  const dataFolderPath = paths.data;
+  const dataFolderPath = paths().data;
   if (!dataFolderPath) {
     return [];
   }
@@ -28,7 +28,7 @@ const getDataFilesByPrefix = async (prefix: string) => {
 const deleteOldestDataFiles = async (prefix: string, maxCount: number) => {
   const files = await getDataFilesByPrefix(prefix);
 
-  const dataFolderPath = paths.data;
+  const dataFolderPath = paths().data;
   if (!dataFolderPath) {
     return;
   }
@@ -43,7 +43,7 @@ const deleteOldestDataFiles = async (prefix: string, maxCount: number) => {
 export const deleteAllDataFilesByPrefix = async (prefix: string) => {
   const files = await getDataFilesByPrefix(prefix);
 
-  const dataFolderPath = paths.data;
+  const dataFolderPath = paths().data;
   if (!dataFolderPath) {
     return;
   }
@@ -58,7 +58,7 @@ export async function writeDataFile(
   prefix: string,
   format: "json" = "json",
 ) {
-  const dataFolderPath = paths.data;
+  const dataFolderPath = paths().data;
   if (!dataFolderPath) {
     return;
   }
@@ -80,7 +80,7 @@ export async function writeDataFile(
 export const loadStateFromDataFolder = async (): Promise<
   [RuleSet[] | undefined, Solution | undefined]
 > => {
-  const dataFolder = paths.data;
+  const dataFolder = paths().data;
   if (!dataFolder) {
     return [undefined, undefined];
   }

@@ -29,7 +29,7 @@ export const toLocalChanges = (solution: Solution): LocalChange[] => {
 };
 
 const toAbsolutePathInsideWorkspace = (relativePath: string) =>
-  path.join(paths.workspaceRepo.fsPath ?? "", relativePath);
+  path.join(paths().workspaceRepo.fsPath ?? "", relativePath);
 
 const toLocalFromGetSolutionResult = (solution: GetSolutionResult): LocalChange[] =>
   solution.changes

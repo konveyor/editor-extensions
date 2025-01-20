@@ -74,7 +74,7 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
     );
-    this.outputChannel.appendLine(`extension paths: ${JSON.stringify(fsPaths, null, 2)}`);
+    this.outputChannel.appendLine(`extension paths: ${JSON.stringify(fsPaths(), null, 2)}`);
   }
 
   /**
@@ -104,7 +104,7 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.fireStateChange("starting");
     try {
-      this.modelProvider = await getModelProvider(paths.settingsYaml);
+      this.modelProvider = await getModelProvider(paths().settingsYaml);
       const [kaiRpcServer, pid] = await this.startProcessAndLogStderr();
 
       kaiRpcServer.on("exit", (code, signal) => {
@@ -143,13 +143,13 @@ export class AnalyzerClient {
     const serverEnv = this.getKaiRpcServerEnv();
 
     // this.outputChannel.appendLine(`server env: ${JSON.stringify(serverEnv, null, 2)}`);
-    this.outputChannel.appendLine(`server cwd: ${paths.serverCwd.fsPath}`);
+    this.outputChannel.appendLine(`server cwd: ${paths().serverCwd.fsPath}`);
     this.outputChannel.appendLine(`server path: ${serverPath}`);
     this.outputChannel.appendLine(`server args:`);
     serverArgs.forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
     const kaiRpcServer = spawn(serverPath, serverArgs, {
-      cwd: paths.serverCwd.fsPath,
+      cwd: paths().serverCwd.fsPath,
       env: serverEnv,
     });
 
@@ -231,13 +231,13 @@ export class AnalyzerClient {
 
     // Define the initialize request parameters
     const initializeParams: KaiRpcApplicationConfig = {
-      rootPath: paths.workspaceRepo.fsPath,
+      rootPath: paths().workspaceRepo.fsPath,
       modelProvider: this.modelProvider.modelProvider,
 
       logConfig: {
         logLevel: getConfigLogLevel(),
         fileLogLevel: getConfigLogLevel(),
-        logDirPath: paths.serverLogs.fsPath,
+        logDirPath: paths().serverLogs.fsPath,
       },
 
       demoMode: this.isDemoMode(),
@@ -250,7 +250,7 @@ export class AnalyzerClient {
       analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
 
       // TODO(djzager): https://github.com/konveyor/editor-extensions/issues/202
-      analyzerLspExcludedPaths: [vscode.Uri.joinPath(paths.workspaceRepo, ".vscode").fsPath],
+      analyzerLspExcludedPaths: [vscode.Uri.joinPath(paths().workspaceRepo, ".vscode").fsPath],
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
       // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
@@ -620,7 +620,7 @@ export class AnalyzerClient {
       "--file-log-level",
       getConfigLogLevel(),
       "--log-dir-path",
-      paths.serverLogs.fsPath,
+      paths().serverLogs.fsPath,
     ].filter(Boolean);
   }
 
