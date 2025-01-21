@@ -236,11 +236,15 @@ export class AnalyzerClient {
 
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
+      this.fireServerStateChange("startFailed");
+
       return;
     }
 
     if (!this.modelProvider) {
       vscode.window.showErrorMessage("Server cannot initialize without being started");
+      this.fireServerStateChange("startFailed");
+
       return;
     }
 
@@ -290,23 +294,27 @@ export class AnalyzerClient {
           message: "Sending 'initialize' request to RPC Server",
         });
 
+        const exitWatcher = new Promise<void>((_, reject) => {
+          this.kaiRpcServer!.once("exit", (code, signal) => {
+            reject(
+              new Error(`kai-rpc-server exited unexpectedly (code=${code}, signal=${signal})`),
+            );
+          });
+        });
+
         try {
-          this.outputChannel.appendLine(
-            `initialize payload: ${JSON.stringify(initializeParams, null, 2)}`,
-          );
+          // Race the RPC call vs. the “server exited” watcher
+          const response = await Promise.race([
+            this.rpcConnection!.sendRequest<void>("initialize", initializeParams),
+            exitWatcher,
+          ]);
 
-          const response = await this.rpcConnection!.sendRequest<void>(
-            "initialize",
-            initializeParams,
-          );
-
-          this.outputChannel.appendLine(
-            `'initialize' response: ${JSON.stringify(response, null, 2)}`,
-          );
+          this.outputChannel.appendLine(`'initialize' response: ${JSON.stringify(response)}`);
           this.outputChannel.appendLine(`kai rpc server is initialized!`);
-          progress.report({ message: "RPC Server initialized" });
           this.fireServerStateChange("running");
+          progress.report({ message: "Kai RPC Server is initialized." });
         } catch (err) {
+          // The race either saw a process exit or an RPC-level failure
           this.outputChannel.appendLine(`kai rpc server failed to initialize [err: ${err}]`);
           progress.report({ message: "Kai initialization failed!" });
           this.fireServerStateChange("startFailed");
