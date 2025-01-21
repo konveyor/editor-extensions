@@ -5,6 +5,7 @@ export const FOO: RuleSet = {
   violations: {
     "foo-01": {
       description: "foo-01 description",
+      id: "foo-01",
       category: "mandatory",
       labels: ["konveyor.io/target=foo", "konveyor.io/target=bar"],
       incidents: [
@@ -37,6 +38,7 @@ export const BAR: RuleSet = {
   violations: {
     "bar-01": {
       description: "bar-01 description",
+      id: "bar-01",
       category: "mandatory",
       labels: ["konveyor.io/target=foo", "konveyor.io/target=bar"],
       incidents: [
@@ -57,6 +59,7 @@ export const BAR: RuleSet = {
     },
     "bar-02": {
       description: "bar-02 description",
+      id: "bar-02",
       category: "mandatory",
       labels: ["konveyor.io/target=foo", "konveyor.io/target=bar"],
       incidents: [
@@ -86,6 +89,7 @@ export const DISCOVERY: RuleSet = {
   insights: {
     "discover-java-files": {
       description: "Java source files",
+      id: "discover-java-files",
       labels: [
         "konveyor.io/include=always",
         "konveyor.io/target=discovery",

@@ -20,12 +20,11 @@ export interface Link {
 export type Category = "potential" | "optional" | "mandatory";
 
 export interface Violation {
+  id: string;
   description: string;
   category?: Category;
   labels?: string[];
   incidents: Incident[];
-  links?: Link[];
-  extras?: unknown;
   effort?: number;
 }
 

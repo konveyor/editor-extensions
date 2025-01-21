@@ -143,17 +143,12 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         }
         return text.slice(0, maxLength) + "...";
       };
-      const isExpanded = expandedViolations.has(violation.description);
+      const isExpanded = expandedViolations.has(violation.id);
       const highestSeverity = getHighestSeverity(violation.incidents);
       const truncatedDescription = truncateText(violation.description, 100);
 
       return (
-        <Card
-          isExpanded={isExpanded}
-          isCompact
-          key={violation.description}
-          style={{ marginBottom: "10px" }}
-        >
+        <Card isExpanded={isExpanded} isCompact key={violation.id} style={{ marginBottom: "10px" }}>
           <CardHeader
             actions={{
               actions: (
@@ -167,7 +162,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
                 />
               ),
             }}
-            onExpand={() => toggleViolation(violation.description)}
+            onExpand={() => toggleViolation(violation.id)}
           >
             <Content style={{ marginBottom: "5px" }}>{truncatedDescription}</Content>
             <Flex>
