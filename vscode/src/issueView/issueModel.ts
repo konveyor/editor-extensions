@@ -27,7 +27,7 @@
  *  SOFTWARE.
  *--------------------------------------------------------------------------------------------*/
 
-import { Incident, RuleSet } from "@editor-extensions/shared";
+import { Incident, RuleSet, Violation, groupIncidentsByMsg } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import * as vscode from "vscode";
 import { allIncidents } from "./transformation";
@@ -39,6 +39,7 @@ export class IssuesModel {
   readonly onDidChangeTreeData = this._onDidChange.event;
 
   readonly items: IncidentTypeItem[] = [];
+  private ruleSets: Immutable<RuleSet[]> = [];
 
   constructor() {}
 
@@ -50,19 +51,10 @@ export class IssuesModel {
   }
 
   updateIssues(ruleSets: Immutable<RuleSet[]>) {
-    const incidentsByMsg: { [msg: string]: [string, Incident][] } = allIncidents(ruleSets)
-      .map((it): [string, string, Incident] => [it.message, it.uri, it])
-      .reduce(
-        (acc, [msg, uri, incident]) => {
-          if (!acc[msg]) {
-            acc[msg] = [];
-          }
-          acc[msg].push([uri, incident]);
-          return acc;
-        },
-        {} as { [msg: string]: [string, Incident][] },
-      );
-
+    this.ruleSets = ruleSets;
+    const incidentsByMsg: { [msg: string]: [string, Incident][] } = groupIncidentsByMsg(
+      allIncidents(ruleSets),
+    );
     // entries [msg, incidentsByFile]
     const treeItemsAsEntries: [string, { [uri: string]: Incident[] }][] = Object.entries(
       incidentsByMsg,
@@ -165,6 +157,20 @@ export class IssuesModel {
 
   remove(item: IncidentTypeItem | FileItem | ReferenceItem) {
     // TODO not implemented
+  }
+
+  findViolation(msg: string): Immutable<Violation> | undefined {
+    return this.ruleSets
+      .flatMap((r) => Object.values(r.violations ?? {}))
+      .find((v) => v.incidents?.some((it) => it.message === msg));
+  }
+
+  fix(incidentMessage: string, incidents: Incident[]) {
+    const firstViolation: Immutable<Violation> | undefined = this.findViolation(incidentMessage);
+    vscode.commands.executeCommand("konveyor.getSolution", incidents, firstViolation);
+
+    vscode.commands.executeCommand("konveyor.diffView.focus");
+    vscode.commands.executeCommand("konveyor.showResolutionPanel");
   }
 }
 
@@ -270,6 +276,13 @@ export class IncidentTypeItem {
   public hasOneChild() {
     return this.files.length === 1;
   }
+
+  public fix() {
+    this.model.fix(
+      this.msg,
+      this.files.flatMap((f) => f.references).map((r) => r.incident),
+    );
+  }
 }
 
 export class FileItem {
@@ -337,6 +350,10 @@ export class ReferenceItem {
 
   remove(): void {
     // TODO not implemented
+  }
+
+  public fix(): void {
+    this.model.fix(this.incident.message, [this.incident]);
   }
 }
 

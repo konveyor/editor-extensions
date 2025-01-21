@@ -12,6 +12,7 @@ const defaultState: ExtensionData = {
   solutionData: undefined,
   serverState: "initial",
   solutionScope: undefined,
+  workspaceRoot: "/",
 };
 
 const windowState =

@@ -8,16 +8,15 @@ import {
   MenuToggleElement,
 } from "@patternfly/react-core";
 import { EllipsisVIcon } from "@patternfly/react-icons";
-import { Violation } from "@editor-extensions/shared";
 
 interface ViolationActionsDropdownProps {
-  onGetAllSolutions: (violation) => void;
-  violation: Violation;
+  onGetAllSolutions: () => void;
+  fixMessage: string;
 }
 
 const ViolationActionsDropdown: React.FC<ViolationActionsDropdownProps> = ({
-  violation,
   onGetAllSolutions,
+  fixMessage,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -28,12 +27,12 @@ const ViolationActionsDropdown: React.FC<ViolationActionsDropdownProps> = ({
   return (
     <Dropdown
       className="violation-actions-dropdown"
-      id="violation-actions-dropdown-id"
       isOpen={isOpen}
       onSelect={() => setIsOpen(false)}
+      onOpenChange={(flag) => setIsOpen(flag)}
       popperProps={{
         appendTo: document.body,
-        position: "left",
+        position: "right",
         direction: "up",
         enableFlip: true,
       }}
@@ -42,22 +41,14 @@ const ViolationActionsDropdown: React.FC<ViolationActionsDropdownProps> = ({
           ref={toggleRef}
           onClick={toggleDropdown}
           isExpanded={isOpen}
-          aria-label="Violation actions"
+          aria-label="Incidents actions"
           variant="plain"
-        >
-          <EllipsisVIcon />
-        </MenuToggle>
+          icon={<EllipsisVIcon />}
+        />
       )}
     >
       <DropdownList>
-        <DropdownItem
-          key="getSolutions"
-          onClick={() => {
-            onGetAllSolutions(violation);
-          }}
-        >
-          Fix all
-        </DropdownItem>
+        <DropdownItem onClick={onGetAllSolutions}>{fixMessage}</DropdownItem>
       </DropdownList>
     </Dropdown>
   );

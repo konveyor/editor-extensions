@@ -1,34 +1,39 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import * as path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
-import { Incident, RuleSet, SolutionResponse, Violation } from "@editor-extensions/shared";
-import { ExtensionData, ServerState } from "@editor-extensions/shared";
-import { buildDataFolderPath } from "../data";
+import {
+  Incident,
+  RuleSet,
+  SolutionResponse,
+  Violation,
+  ExtensionData,
+  ServerState,
+} from "@editor-extensions/shared";
+import { paths, fsPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
-  getConfigKaiBackendURL,
   getConfigLogLevel,
-  getConfigKaiProviderName,
-  getConfigKaiProviderArgs,
   getConfigLabelSelector,
   updateUseDefaultRuleSets,
   getConfigKaiRpcServerPath,
   getConfigAnalyzerPath,
-  getGenAiKey,
   getConfigMaxDepth,
   getConfigMaxIterations,
   getConfigMaxPriority,
   getConfigKaiDemoMode,
+  getConfigUseDefaultRulesets,
+  getConfigCustomRules,
   isAnalysisResponse,
 } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
+import { KaiRpcApplicationConfig } from "./types";
+import { getModelProvider, ModelProvider } from "./modelProvider";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -36,12 +41,11 @@ export class AnalyzerClient {
 
   private outputChannel: vscode.OutputChannel;
   private assetPaths: AssetPaths;
-  private kaiDir: string;
-  private kaiRuntimeDir: string;
-  private kaiConfigToml: string;
   private fireStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
   private fireSolutionStateChange: (flag: boolean) => void;
+
+  private modelProvider: ModelProvider | null = null;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -65,22 +69,12 @@ export class AnalyzerClient {
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.assetPaths = buildAssetPaths(extContext);
 
-    // TODO: Move the directory and file creation to extension init...
-    this.kaiDir = path.join(buildDataFolderPath()!, "kai");
-    this.kaiRuntimeDir = path.join(buildDataFolderPath()!, "kai-runtime");
-    this.kaiConfigToml = path.join(this.kaiDir, "kai-config.toml");
-
-    fs.ensureDirSync(this.kaiDir);
-    fs.ensureDirSync(this.kaiRuntimeDir);
-    // TODO: ...end
-
     // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
 
     this.outputChannel.appendLine(
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
     );
-    this.outputChannel.appendLine(`Kai directory: ${this.kaiDir}`);
-    this.outputChannel.appendLine(`Kai config toml: ${this.kaiConfigToml}`);
+    this.outputChannel.appendLine(`extension paths: ${JSON.stringify(fsPaths(), null, 2)}`);
   }
 
   /**
@@ -110,6 +104,7 @@ export class AnalyzerClient {
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.fireStateChange("starting");
     try {
+      this.modelProvider = await getModelProvider(paths().settingsYaml);
       const [kaiRpcServer, pid] = await this.startProcessAndLogStderr();
 
       kaiRpcServer.on("exit", (code, signal) => {
@@ -143,22 +138,18 @@ export class AnalyzerClient {
   ): Promise<[ChildProcessWithoutNullStreams, number | undefined]> {
     // TODO: Ensure serverState is starting
 
-    const serverCwd = vscode.Uri.joinPath(this.extContext.storageUri!, "kai-rpc-server");
     const serverPath = this.getKaiRpcServerPath();
     const serverArgs = this.getKaiRpcServerArgs();
-    const serverEnv = await this.getKaiRpcServerEnv();
+    const serverEnv = this.getKaiRpcServerEnv();
 
-    if (!fs.existsSync(serverCwd.fsPath)) {
-      await vscode.workspace.fs.createDirectory(serverCwd);
-    }
-
-    this.outputChannel.appendLine(`server cwd: ${serverCwd}`);
+    // this.outputChannel.appendLine(`server env: ${JSON.stringify(serverEnv, null, 2)}`);
+    this.outputChannel.appendLine(`server cwd: ${paths().serverCwd.fsPath}`);
     this.outputChannel.appendLine(`server path: ${serverPath}`);
     this.outputChannel.appendLine(`server args:`);
     serverArgs.forEach((arg) => this.outputChannel.appendLine(`   ${arg}`));
 
     const kaiRpcServer = spawn(serverPath, serverArgs, {
-      cwd: this.extContext.storageUri?.fsPath,
+      cwd: paths().serverCwd.fsPath,
       env: serverEnv,
     });
 
@@ -218,18 +209,6 @@ export class AnalyzerClient {
       : !Extension.getInstance(this.extContext).isProductionMode;
   }
 
-  protected buildModelProviderConfig() {
-    const config = vscode.workspace.getConfiguration("konveyor.kai");
-    const userProviderArgs = getConfigKaiProviderArgs();
-    const providerArgs = userProviderArgs || config.get<object>("providerArgs");
-
-    const modelProviderSection = {
-      provider: getConfigKaiProviderName(),
-      args: providerArgs,
-    };
-    return modelProviderSection;
-  }
-
   /**
    * Request the server to __initialize__ with our analysis and solution configurations.
    *
@@ -245,35 +224,43 @@ export class AnalyzerClient {
       return;
     }
 
+    if (!this.modelProvider) {
+      vscode.window.showErrorMessage("Server cannot initialize without being started");
+      return;
+    }
+
     // Define the initialize request parameters
-    // TODO: With konveyor/kai#526, config.toml will be dropped.  The initialize parameters may
-    // TODO: change.  They'll need to be updated here.
-    const initializeParams = {
-      process_id: null,
-      kai_backend_url: getConfigKaiBackendURL(),
-      root_path: vscode.workspace.workspaceFolders![0].uri.fsPath,
-      log_level: getConfigLogLevel(),
-      log_dir_path: this.kaiDir,
-      model_provider: this.buildModelProviderConfig(),
+    const initializeParams: KaiRpcApplicationConfig = {
+      rootPath: paths().workspaceRepo.fsPath,
+      modelProvider: this.modelProvider.modelProvider,
 
-      file_log_level: getConfigLogLevel(),
-      demo_mode: this.isDemoMode(),
-      cache_dir: "",
+      logConfig: {
+        logLevel: getConfigLogLevel(),
+        fileLogLevel: getConfigLogLevel(),
+        logDirPath: paths().serverLogs.fsPath,
+      },
 
-      // Analyzer and jdt.ls parameters
-      analyzer_lsp_rpc_path: this.getAnalyzerPath(),
-      analyzer_lsp_lsp_path: this.assetPaths.jdtlsBin,
+      demoMode: this.isDemoMode(),
 
-      // jdt.ls bundles (comma separated list of paths)
-      analyzer_lsp_java_bundle_path: this.assetPaths.jdtlsBundleJars.join(","),
+      // Paths to the Analyzer and jdt.ls
+      analyzerLspRpcPath: this.getAnalyzerPath(),
+      analyzerLspLspPath: this.assetPaths.jdtlsBin,
+      analyzerLspRulesPaths: this.getRulesetsPath(),
+      analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
+      analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
 
-      // depOpenSourceLabelsFile
-      analyzer_lsp_dep_labels_path: this.assetPaths.openSourceLabelsFile,
+      // TODO(djzager): https://github.com/konveyor/editor-extensions/issues/202
+      analyzerLspExcludedPaths: [vscode.Uri.joinPath(paths().workspaceRepo, ".vscode").fsPath],
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
-      // analyzer_lsp_fernflower: this.assetPaths.fernFlowerPath,
+      // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
 
-      analyzer_lsp_rules_path: this.getRulesetsPath(),
+      // TODO: Once konveyor/kai#550 is resolved, analyzer configurations can be supported
+      // analyzerIncidentLimit: getConfigIncidentLimit(),
+      // analyzerContextLines: getConfigContextLines(),
+      // analyzerCodeSnipLimit: getConfigCodeSnipLimit(),
+      // analyzerAnalyzeKnownLibraries: getConfigAnalyzeKnownLibraries(),
+      // analyzerAnalyzeDependencies: getConfigAnalyzeDependencies(),
     };
 
     vscode.window.withProgress(
@@ -437,7 +424,7 @@ export class AnalyzerClient {
             ? {
                 wellFormed: true,
                 rawIncidentCount: ruleSets
-                  .flatMap((r) => Object.values(r.violations ?? {}))
+                  .flatMap((r) => Object.values<Violation>(r.violations ?? {}))
                   .flatMap((v) => v.incidents ?? []).length,
                 incidentCount: allIncidents(ruleSets).length,
                 partialAnalysis: filePaths
@@ -491,7 +478,7 @@ export class AnalyzerClient {
   public async getSolution(
     state: ExtensionState,
     incidents: Incident[],
-    violation: Violation,
+    violation?: Violation,
   ): Promise<void> {
     // TODO: Ensure serverState is running
 
@@ -504,8 +491,8 @@ export class AnalyzerClient {
 
     const enhancedIncidents = incidents.map((incident) => ({
       ...incident,
-      ruleset_name: violation.category || "default_ruleset",
-      violation_name: violation.description || "default_violation",
+      ruleset_name: violation?.category ?? "default_ruleset",
+      violation_name: violation?.description ?? "default_violation",
     }));
 
     const maxPriority = getConfigMaxPriority();
@@ -606,12 +593,10 @@ export class AnalyzerClient {
   /**
    * Build the process environment variables to be setup for the kai rpc server process.
    */
-  public async getKaiRpcServerEnv(): Promise<NodeJS.ProcessEnv> {
-    const genAiKey = await getGenAiKey(this.extContext);
-
+  public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
     return {
       ...process.env,
-      GENAI_KEY: genAiKey,
+      ...this.modelProvider!.env,
     };
   }
 
@@ -628,10 +613,15 @@ export class AnalyzerClient {
     return path;
   }
 
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  Different cli arguments to configure
-  // TODO: logging levels and directories are expected.
   public getKaiRpcServerArgs(): string[] {
-    return ["--config", this.getKaiConfigTomlPath()];
+    return [
+      "--log-level",
+      getConfigLogLevel(),
+      "--file-log-level",
+      getConfigLogLevel(),
+      "--log-dir-path",
+      paths().serverLogs.fsPath,
+    ].filter(Boolean);
   }
 
   /**
@@ -639,62 +629,10 @@ export class AnalyzerClient {
    * rulesets yaml files to provide to the analyzer.  After the issue is resolve, send all
    * of the rulesets directories either as `string[]` or as a joined list.
    */
-  public getRulesetsPath(): string {
-    const includedRulesets = this.assetPaths.rulesets;
-
-    // TODO(djzager): konveyor/kai#509
-    // const useDefaultRulesets = getConfigUseDefaultRulesets();
-    // const customRules = getConfigCustomRules();
-    // const rules: string[] = [];
-
-    // if (useDefaultRulesets) {
-    //   rules.push(includedRulesets);
-    // }
-    // if (customRules.length > 0) {
-    //   rules.push(...customRules);
-    // }
-    // return rules;
-
-    return includedRulesets;
-  }
-
-  // New method to retrieve stored rulesets
-  public getStoredRulesets(): RuleSet[] | null {
-    if (this.extContext) {
-      const storedRulesets = this.extContext.globalState.get("storedRulesets");
-      return storedRulesets ? JSON.parse(storedRulesets as string) : null;
-    }
-    return null;
-  }
-
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
-  // TODO: change is released.
-  public getKaiConfigTomlPath(): string {
-    // Ensure the file exists with default content if it doesn't
-    // Consider making this more robust, maybe this is an asset we can get from kai?
-    if (!fs.existsSync(this.kaiConfigToml)) {
-      fs.writeFileSync(this.kaiConfigToml, this.defaultKaiConfigToml(this.kaiDir));
-    }
-
-    return this.kaiConfigToml;
-  }
-
-  // TODO: With konveyor/kai#526, config.toml will be dropped.  This won't be needed after that
-  // TODO: change is released.
-  public defaultKaiConfigToml(log_dir: string) {
-    return `
-log_level = "info"
-file_log_level = "debug"
-log_dir = "${log_dir}"
-
-# These values are needed to start the server but shouldn't be used by the server
-# please ignore
-[models]
-provider = "ChatIBMGenAI"
-
-[models.args]
-model_id = "meta-llama/llama-3-70b-instruct"
-parameters.max_new_tokens = "2048"
-`;
+  public getRulesetsPath(): string[] {
+    return [
+      getConfigUseDefaultRulesets() && this.assetPaths.rulesets,
+      ...getConfigCustomRules(),
+    ].filter(Boolean);
   }
 }

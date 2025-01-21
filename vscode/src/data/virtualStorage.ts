@@ -16,6 +16,7 @@ import {
   KONVEYOR_SCHEME,
 } from "../utilities";
 import { Immutable } from "immer";
+import { paths } from "../paths";
 
 export const toLocalChanges = (solution: Solution): LocalChange[] => {
   if (isGetSolutionResult(solution)) {
@@ -28,7 +29,7 @@ export const toLocalChanges = (solution: Solution): LocalChange[] => {
 };
 
 const toAbsolutePathInsideWorkspace = (relativePath: string) =>
-  path.join(workspace.workspaceFolders?.[0].uri.fsPath ?? "", relativePath);
+  path.join(paths().workspaceRepo.fsPath ?? "", relativePath);
 
 const toLocalFromGetSolutionResult = (solution: GetSolutionResult): LocalChange[] =>
   solution.changes

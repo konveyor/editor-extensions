@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
 import { RuleSet } from "@editor-extensions/shared";
 import { loadStateFromDataFolder, readDataFiles } from "./storage";
+import { paths } from "../paths";
 
 export const loadStaticResults = async () => {
   const options: vscode.OpenDialogOptions = {
-    defaultUri: vscode.workspace.workspaceFolders?.[0].uri,
+    defaultUri: paths().workspaceRepo,
     openLabel: "Load Konveyor results",
     filters: { "json files": ["json"] },
     canSelectMany: true,

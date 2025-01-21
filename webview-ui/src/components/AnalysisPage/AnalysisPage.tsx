@@ -47,6 +47,7 @@ const AnalysisPage: React.FC = () => {
     isStartingServer,
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
+    workspaceRoot,
   } = state;
   const serverRunning = state.serverState === "running";
 
@@ -179,12 +180,13 @@ const AnalysisPage: React.FC = () => {
 
                 {hasViolations && !isAnalyzing && (
                   <ViolationIncidentsList
+                    workspaceRoot={workspaceRoot}
                     isRunning={serverRunning}
                     violations={violations}
                     focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
-                    onGetSolution={(incident, violation) =>
-                      dispatch(getSolution([incident], violation))
+                    onGetSolution={(incidents, violation) =>
+                      dispatch(getSolution(incidents, violation))
                     }
                     onGetAllSolutions={() => {}}
                     compact={false}
