@@ -35,7 +35,7 @@ import {
 
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
-import { Incident, Violation } from "@editor-extensions/shared";
+import { Incident, Violation, ViolationWithID } from "@editor-extensions/shared";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { getSolution, openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
@@ -68,7 +68,7 @@ const AnalysisPage: React.FC = () => {
     dispatch(serverRunning ? stopServer() : startServer());
   };
 
-  const violations = useMemo(() => {
+  const violations: ViolationWithID[] = useMemo(() => {
     if (!analysisResults?.length) {
       return [];
     }

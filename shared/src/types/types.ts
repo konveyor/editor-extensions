@@ -20,7 +20,6 @@ export interface Link {
 export type Category = "potential" | "optional" | "mandatory";
 
 export interface Violation {
-  id: string;
   description: string;
   category?: Category;
   labels?: string[];
@@ -28,12 +27,16 @@ export interface Violation {
   effort?: number;
 }
 
+export type ViolationWithID = Violation & {
+  id: string;
+};
+
 export interface RuleSet {
   name?: string;
   description?: string;
   tags?: string[];
-  violations?: { [key: string]: Violation };
-  insights?: { [key: string]: Violation };
+  violations?: { [key: string]: ViolationWithID };
+  insights?: { [key: string]: ViolationWithID };
   errors?: { [key: string]: string };
   unmatched?: string[];
   skipped?: string[];
