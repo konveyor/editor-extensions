@@ -35,20 +35,13 @@ import {
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
+import { checkIfExecutable } from "./utilities/fileUtils";
 
-// let fullScreenPanel: WebviewPanel | undefined;
-
-// function getFullScreenTab() {
-//   const tabs = window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
-//   return tabs.find((tab) =>
-//     (tab.input as any)?.viewType?.endsWith("konveyor.konveyorAnalysisView"),
-//   );
-// }
+const isWindows = process.platform === "win32";
 
 const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
-  // const { extensionContext } = state;
   return {
     "konveyor.startServer": async () => {
       const analyzerClient = state.analyzerClient;
@@ -103,15 +96,27 @@ const commandsMap: (state: ExtensionState) => {
       const options: OpenDialogOptions = {
         canSelectMany: false,
         openLabel: "Select Analyzer Binary",
-        filters: {
-          "Executable Files": ["exe", "sh", "bat", ""],
-          "All Files": ["*"],
-        },
+        filters: isWindows
+          ? {
+              "Executable Files": ["exe"],
+              "All Files": ["*"],
+            }
+          : {
+              "All Files": ["*"],
+            },
       };
 
       const fileUri = await window.showOpenDialog(options);
       if (fileUri && fileUri[0]) {
         const filePath = fileUri[0].fsPath;
+
+        const isExecutable = await checkIfExecutable(filePath);
+        if (!isExecutable) {
+          window.showErrorMessage(
+            `The selected file "${filePath}" is not executable. Please select a valid executable file.`,
+          );
+          return;
+        }
 
         // Update the user settings
         await updateAnalyzerPath(filePath);
@@ -126,21 +131,33 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.overrideKaiRpcServerBinaries": async () => {
       const options: OpenDialogOptions = {
         canSelectMany: false,
-        openLabel: "Select GenAI Binary",
-        filters: {
-          "Executable Files": ["exe", "sh", "bat", ""],
-          "All Files": ["*"],
-        },
+        openLabel: "Select Rpc Server Binary",
+        filters: isWindows
+          ? {
+              "Executable Files": ["exe"],
+              "All Files": ["*"],
+            }
+          : {
+              "All Files": ["*"],
+            },
       };
 
       const fileUri = await window.showOpenDialog(options);
       if (fileUri && fileUri[0]) {
         const filePath = fileUri[0].fsPath;
 
+        const isExecutable = await checkIfExecutable(filePath);
+        if (!isExecutable) {
+          window.showErrorMessage(
+            `The selected file "${filePath}" is not executable. Please select a valid executable file.`,
+          );
+          return;
+        }
+
         // Update the user settings
         await updateKaiRpcServerPath(filePath);
 
-        window.showInformationMessage(`Kai rpc server binary path updated to: ${filePath}`);
+        window.showInformationMessage(`Rpc server binary path updated to: ${filePath}`);
       } else {
         // Reset the setting to undefined or remove it
         await updateKaiRpcServerPath(undefined);
