@@ -113,7 +113,6 @@ export async function updateAnalyzerPath(value: string | undefined): Promise<voi
       ? vscode.ConfigurationTarget.Workspace
       : vscode.ConfigurationTarget.Global;
     await updateConfigValue("analyzerPath", value, scope);
-    vscode.window.showInformationMessage(`Updated analyzerPath to ${value}`);
   } catch (error) {
     console.error("Failed to update analyzerPath:", error);
   }
@@ -125,7 +124,6 @@ export async function updateKaiRpcServerPath(value: string | undefined): Promise
       ? vscode.ConfigurationTarget.Workspace
       : vscode.ConfigurationTarget.Global;
     await updateConfigValue("kaiRpcServerPath", value, scope);
-    vscode.window.showInformationMessage(`Updated kaiRpcServerPath to ${value}`);
   } catch (error) {
     console.error("Failed to update kaiRpcServerPath:", error);
   }

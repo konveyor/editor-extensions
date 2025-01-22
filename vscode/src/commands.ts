@@ -95,7 +95,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {
         canSelectMany: false,
-        openLabel: "Select Kai Rpc Server Binary",
+        openLabel: "Select Analyzer Binary",
         filters: isWindows
           ? {
               "Executable Files": ["exe"],
@@ -131,7 +131,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.overrideKaiRpcServerBinaries": async () => {
       const options: OpenDialogOptions = {
         canSelectMany: false,
-        openLabel: "Select Kai Rpc Server Binary",
+        openLabel: "Select Rpc Server Binary",
         filters: isWindows
           ? {
               "Executable Files": ["exe"],
@@ -157,7 +157,7 @@ const commandsMap: (state: ExtensionState) => {
         // Update the user settings
         await updateKaiRpcServerPath(filePath);
 
-        window.showInformationMessage(`Kai rpc server binary path updated to: ${filePath}`);
+        window.showInformationMessage(`Rpc server binary path updated to: ${filePath}`);
       } else {
         // Reset the setting to undefined or remove it
         await updateKaiRpcServerPath(undefined);

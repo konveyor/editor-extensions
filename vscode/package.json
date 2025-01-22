@@ -90,7 +90,7 @@
       },
       {
         "command": "konveyor.overrideKaiRpcServerBinaries",
-        "title": "Override Kai Rpc Server Binary",
+        "title": "Override Rpc Server Binary",
         "category": "Konveyor",
         "icon": "$(gear)"
       },
@@ -601,7 +601,7 @@
           {
             "id": "override-analyzer",
             "title": "Override Analyzer Binary",
-            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)\n[Override Kai Rpc Server Binary](command:konveyor.overrideKaiRpcServerBinaries)",
+            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)\n[Override Rpc Server Binary](command:konveyor.overrideKaiRpcServerBinaries)",
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/override-analyzer.md"
