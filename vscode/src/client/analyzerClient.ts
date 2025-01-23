@@ -634,7 +634,7 @@ export class AnalyzerClient {
     const path = getConfigKaiRpcServerPath() || this.assetPaths.kaiRpcServer;
 
     if (!fs.existsSync(path)) {
-      const message = `Kai RPC Server binary doesn't exist at ${path}`;
+      const message = `RPC Server binary doesn't exist at ${path}`;
       this.outputChannel.appendLine(`Error: ${message}`);
       vscode.window.showErrorMessage(message);
       throw new Error(message);

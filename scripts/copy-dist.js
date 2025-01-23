@@ -77,7 +77,7 @@ await copy({
     // seed assets - kai binaries
     {
       context: "downloaded_assets/kai",
-      src: ["**/*", "!**/*.zip"],
+      src: ["*/kai*", "!**/*.zip"],
       dest: "dist/assets/kai",
     },
   ],
