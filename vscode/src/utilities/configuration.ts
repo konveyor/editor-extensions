@@ -219,16 +219,28 @@ export async function updateGenAiKey(
   }
 }
 
-export function getConfigMaxPriority(): number {
-  return getConfigValue<number>("kai.getSolutionMaxPriority") || 0;
+export function getConfigMaxPriority(): number | undefined {
+  return getConfigValue<number>("kai.getSolutionMaxPriority") || undefined;
 }
 
-export function getConfigMaxDepth(): number {
-  return getConfigValue<number>("kai.getSolutionMaxDepth") || 0;
+export function getConfigMaxDepth(): number | undefined {
+  return getConfigValue<number>("kai.getSolutionMaxDepth") || undefined;
 }
 
-export function getConfigMaxIterations(): number {
-  return getConfigValue<number>("kai.getSolutionMaxIterations") || 1;
+export function getConfigMaxIterations(): number | undefined {
+  return getConfigValue<number | null>("kai.getSolutionMaxIterations") || undefined;
+}
+
+export function getConfigMultiMaxPriority(): number | undefined {
+  return getConfigValue<number>("kai.getMultiSolutionMaxPriority") || undefined;
+}
+
+export function getConfigMultiMaxDepth(): number | undefined {
+  return getConfigValue<number>("kai.getMultiSolutionMaxDepth") || undefined;
+}
+
+export function getConfigMultiMaxIterations(): number | undefined {
+  return getConfigValue<number>("kai.getMultiSolutionMaxIterations") || undefined;
 }
 
 export async function updateGetSolutionMaxPriority(value: number): Promise<void> {
