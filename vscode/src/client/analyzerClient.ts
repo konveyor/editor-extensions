@@ -28,6 +28,7 @@ import {
   getConfigMaxPriority,
   getConfigMultiMaxDepth,
   getConfigMultiMaxPriority,
+  getConfigMultiMaxIterations,
   getConfigKaiDemoMode,
   getConfigUseDefaultRulesets,
   getConfigCustomRules,
@@ -524,7 +525,7 @@ export class AnalyzerClient {
     const multiIncident = incidents.length > 0;
     const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
     const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
-    const maxIterations = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxIterations();
+    const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
 
     try {
       const request = {
