@@ -522,7 +522,7 @@ export class AnalyzerClient {
       violation_name: violation?.description ?? "default_violation",
     }));
 
-    const multiIncident = incidents.length > 0;
+    const multiIncident = incidents.length > 1;
     const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
     const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
     const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
