@@ -20,7 +20,7 @@ import {
   CardExpandableContent,
 } from "@patternfly/react-core";
 import { SortAmountDownIcon, TimesIcon } from "@patternfly/react-icons";
-import { Incident, Violation, Severity } from "@editor-extensions/shared";
+import { Incident, Violation, Severity, ViolationWithID } from "@editor-extensions/shared";
 import { IncidentTableGroup } from "./IncidentTable";
 import ViolationActionsDropdown from "./ViolationActionsDropdown";
 
@@ -28,7 +28,7 @@ type SortOption = "description" | "incidentCount" | "severity";
 
 interface ViolationIncidentsListProps {
   isRunning: boolean;
-  violations: Violation[];
+  violations: ViolationWithID[];
   focusedIncident?: Incident | null;
   onIncidentSelect: (incident: Incident) => void;
   onGetSolution: (incidents: Incident[], violation: Violation) => void;
@@ -136,24 +136,19 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   }, [violations, searchTerm, sortBy]);
 
   const renderViolation = useCallback(
-    (violation: Violation) => {
+    (violation: ViolationWithID) => {
       const truncateText = (text: string, maxLength: number) => {
         if (text.length <= maxLength) {
           return text;
         }
         return text.slice(0, maxLength) + "...";
       };
-      const isExpanded = expandedViolations.has(violation.description);
+      const isExpanded = expandedViolations.has(violation.id);
       const highestSeverity = getHighestSeverity(violation.incidents);
       const truncatedDescription = truncateText(violation.description, 100);
 
       return (
-        <Card
-          isExpanded={isExpanded}
-          isCompact
-          key={violation.description}
-          style={{ marginBottom: "10px" }}
-        >
+        <Card isExpanded={isExpanded} isCompact key={violation.id} style={{ marginBottom: "10px" }}>
           <CardHeader
             actions={{
               actions: (
@@ -167,7 +162,7 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
                 />
               ),
             }}
-            onExpand={() => toggleViolation(violation.description)}
+            onExpand={() => toggleViolation(violation.id)}
           >
             <Content style={{ marginBottom: "5px" }}>{truncatedDescription}</Content>
             <Flex>

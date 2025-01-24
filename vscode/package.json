@@ -5,7 +5,7 @@
   "author": "Konveyor",
   "icon": "resources/konveyor-icon-color.png",
   "license": "Apache-2.0",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "./out/extension.js",
   "publisher": "konveyor",
   "repository": {
@@ -539,25 +539,64 @@
           "order": 30
         },
         "konveyor.kai.getSolutionMaxPriority": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "default": 0,
           "description": "Maximum priority for the getSolution request",
           "scope": "window",
           "order": 40
         },
         "konveyor.kai.getSolutionMaxDepth": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "default": 0,
           "description": "Max depth for the getSolution request",
           "scope": "window",
           "order": 40
         },
         "konveyor.kai.getSolutionMaxIterations": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "default": 1,
           "description": "Max iterations for the getSolution request",
           "scope": "window",
           "order": 40
+        },
+        "konveyor.kai.getMultiSolutionMaxPriority": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": 0,
+          "description": "Maximum priority for the getSolution request with multiple incidents",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor.kai.getMultiSolutionMaxDepth": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": 1,
+          "description": "Max depth for the getSolution request with multiple incidents",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor.kai.getMultiSolutionMaxIterations": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "description": "Max iterations for the getSolution request with multiple incidents",
+          "scope": "window",
+          "order": 50
         },
         "konveyor.analysis.incidentLimit": {
           "type": "number",
@@ -643,17 +682,6 @@
             ],
             "media": {
               "markdown": "media/walkthroughs/gen-ai.md"
-            }
-          },
-          {
-            "id": "configure-get-solution",
-            "title": "Configure Get Solution Parameters",
-            "description": "Set up getSolution parameters\n[Configure Get Solution Parameters](command:konveyor.configureGetSolutionParams)",
-            "completionEvents": [
-              "onCommand:konveyor.configureGetSolutionParams"
-            ],
-            "media": {
-              "markdown": "media/walkthroughs/get-solution-params.md"
             }
           },
           {

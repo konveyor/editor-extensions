@@ -26,6 +26,9 @@ import {
   getConfigMaxDepth,
   getConfigMaxIterations,
   getConfigMaxPriority,
+  getConfigMultiMaxDepth,
+  getConfigMultiMaxPriority,
+  getConfigMultiMaxIterations,
   getConfigKaiDemoMode,
   getConfigUseDefaultRulesets,
   getConfigCustomRules,
@@ -519,9 +522,10 @@ export class AnalyzerClient {
       violation_name: violation?.description ?? "default_violation",
     }));
 
-    const maxPriority = getConfigMaxPriority();
-    const maxDepth = getConfigMaxDepth();
-    const maxIterations = getConfigMaxIterations();
+    const multiIncident = incidents.length > 1;
+    const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
+    const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
+    const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
 
     try {
       const request = {
