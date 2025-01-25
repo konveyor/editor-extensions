@@ -72,6 +72,7 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "@vscode/vsce": "^3.2.1",
     "colorette": "^2.0.20",
     "concurrently": "^8.2.2",
@@ -94,6 +95,9 @@
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.14.0",
     "unzipper": "^0.12.3",
+    "vite": "^6.1.0",
+    "vite-plugin-checker": "^0.8.0",
+    "vite-plugin-dts": "^4.5.0",
     "wait-on": "^8.0.2"
   },
   "dependencies": {
@@ -106,5 +110,10 @@
     "uuid": "^10.0.0",
     "vscode-jsonrpc": "^8.2.1",
     "yaml": "^2.7.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.34.8",
+    "@rollup/rollup-linux-x64-gnu": "^4.34.8",
+    "@rollup/rollup-win32-x64-msvc": "^4.34.8"
   }
 }

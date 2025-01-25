@@ -18,6 +18,8 @@ import { ExtensionData, WebviewType } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import jsesc from "jsesc";
 
+const DEV_SERVER_ROOT = "http://localhost:5173/out/webview";
+
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly SIDEBAR_VIEW_TYPE = "konveyor.konveyorAnalysisView";
   public static readonly RESOLUTION_VIEW_TYPE = "konveyor.konveyorResolutionView";
@@ -102,9 +104,9 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
     let assetsUri: Uri;
     if (isProd) {
-      assetsUri = Uri.joinPath(extensionUri, "out", "webview", "assets");
+      assetsUri = Uri.joinPath(extensionUri, "out", "webview");
     } else {
-      assetsUri = Uri.parse("http://localhost:5173");
+      assetsUri = Uri.parse(DEV_SERVER_ROOT);
     }
 
     webview.options = {
@@ -129,7 +131,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         <meta http-equiv="Content-Security-Policy" content="${this._getContentSecurityPolicy(nonce, webview)}">
         <link rel="stylesheet" type="text/css" href="${stylesUri}">
         <title>Konveyor IDE Extension</title>
-         <script nonce="${nonce}">
+        <script nonce="${nonce}">
           const vscode = acquireVsCodeApi();
           window.vscode = vscode;
           window.viewType = "${this._viewType}";
@@ -149,34 +151,48 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     </html>`;
   }
 
+  /**
+   * @link https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
+   */
   private _getContentSecurityPolicy(nonce: string, webview: Webview): string {
     const isProd = process.env.NODE_ENV === "production";
-    const localServerUrl = "localhost:5173";
-    return [
-      `default-src 'none';`,
-      `script-src 'unsafe-eval' https://* ${
-        isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} 'nonce-${nonce}' 'unsafe-inline'`
-      };`,
-      `style-src ${webview.cspSource} 'unsafe-inline' https://* ${isProd ? "" : `http://${localServerUrl}`};`,
+    const localServerUrl = "localhost:*";
 
+    const prodPolicy = [
+      `base-uri 'self';`,
+      `default-src 'none';`,
+      `script-src ${webview.cspSource} 'nonce-${nonce}';`,
+      `style-src ${webview.cspSource};`,
       `font-src ${webview.cspSource};`,
-      `connect-src https://* ${isProd ? `` : `ws://${localServerUrl} http://${localServerUrl}`};`,
-      `img-src https: data:;`,
-    ].join(" ");
+      `connect-src ${webview.cspSource};`,
+      `img-src data: ${webview.cspSource};`,
+    ];
+
+    const devPolicy = [
+      `base-uri 'self';`,
+      `default-src 'none';`,
+      `script-src ${webview.cspSource} 'nonce-${nonce}' http://${localServerUrl};`,
+      `style-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
+      `font-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
+      `connect-src ${webview.cspSource} ws://${localServerUrl} http://${localServerUrl};`,
+      `img-src data: ${webview.cspSource} http://${localServerUrl};`,
+    ];
+
+    return (isProd ? prodPolicy : devPolicy).filter(Boolean).join(" ");
   }
 
   private _getScriptUri(webview: Webview): Uri {
     const isProd = process.env.NODE_ENV === "production";
     return isProd
       ? this._getUri(webview, ["assets", "index.js"])
-      : Uri.parse("http://localhost:5173/src/index.tsx");
+      : Uri.parse(`${DEV_SERVER_ROOT}/src/index.tsx`);
   }
 
   private _getStylesUri(webview: Webview): Uri {
     const isProd = process.env.NODE_ENV === "production";
     return isProd
       ? this._getUri(webview, ["assets", "index.css"])
-      : Uri.parse("http://localhost:5173/src/index.css");
+      : Uri.parse(`${DEV_SERVER_ROOT}/src/index.css`);
   }
 
   private _getReactRefreshScript(nonce: string): string {
@@ -186,7 +202,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       ? ""
       : `
       <script type="module" nonce="${nonce}">
-        import RefreshRuntime from "http://localhost:5173/@react-refresh"
+        import RefreshRuntime from "${DEV_SERVER_ROOT}/@react-refresh"
         RefreshRuntime.injectIntoGlobalHook(window)
         window.$RefreshReg$ = () => {}
         window.$RefreshSig$ = () => (type) => type
@@ -207,9 +223,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         ),
       );
     } else {
-      const localServerUrl = "http://localhost:5173";
       const assetPath = pathList.join("/");
-      return Uri.parse(`${localServerUrl}/${assetPath}`);
+      return Uri.parse(`${DEV_SERVER_ROOT}/${assetPath}`);
     }
   }
 

@@ -2,9 +2,10 @@ import { resolve } from "path";
 import { defineConfig } from "vite";
 import nodeResolve from "@rollup/plugin-node-resolve";
 import checker from "vite-plugin-checker";
+import dts from "vite-plugin-dts";
 
 export default defineConfig({
-  plugins: [checker({ typescript: true })],
+  plugins: [checker({ typescript: true }), dts()],
   build: {
     lib: {
       entry: resolve(__dirname, "src/index.ts"),

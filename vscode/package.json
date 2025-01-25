@@ -733,12 +733,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
-    "build": "npm run compile",
-    "compile": "tsc && webpack --mode production",
-    "dev": "npm run watch",
-    "watch": "webpack --watch --mode development",
-    "test:local": "mocha",
-    "test": "npm run compile && npm run test:local && vscode-test"
+    "build": "webpack --mode production",
+    "dev": "webpack --watch --mode development",
+    "pretest": "npm run lint && npm run build",
+    "test": "npm run test:unit-tests && npm run test:integration",
+    "test:unit-tests": "mocha",
+    "test:integration": "vscode-test"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
@@ -746,6 +746,7 @@
   },
   "devDependencies": {
     "@types/diff": "^6.0.0",
+    "@types/jsesc": "^3.0.3",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.93.0",
     "@vscode/test-cli": "^0.0.10",
@@ -758,7 +759,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@types/jsesc": "^3.0.3",
     "diff": "^7.0.0",
     "jsesc": "^3.1.0"
   }

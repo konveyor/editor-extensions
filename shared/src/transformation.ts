@@ -1,4 +1,4 @@
-import { Incident } from "./types";
+import { Incident } from "./types/index";
 
 export const sanitizeIncidents = (incidents: Incident[]): Incident[] =>
   // ensure basic properties are valid

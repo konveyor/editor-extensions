@@ -1,29 +1,22 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "target": "esnext",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
+    "baseUrl": ".",
+    "outDir": "build",
+    "noEmit": true,
+
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "strict": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+
+    "useDefineForClassFields": true,
+    "isolatedModules": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": false,
-    "allowJs": false,
-    "baseUrl": ".",
-    "outDir": "dist",
-    "declaration": true,
-    "noEmit": false
+    "noImplicitAny": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
-  "exclude": ["node_modules", "build"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
 }

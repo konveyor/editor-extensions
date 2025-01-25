@@ -1,3 +1,5 @@
+/** @typedef {import('webpack').Configuration} WebpackConfig **/
+
 /* eslint-disable @typescript-eslint/no-require-imports */
 const path = require("path");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
@@ -6,9 +8,11 @@ module.exports = (env, argv) => {
   const mode = argv.mode || "none";
   const isDev = mode === "development";
 
+  /** @type WebpackConfig */
   const extensionConfig = {
     target: "node",
     mode: mode,
+
     entry: {
       extension: "./src/extension.ts",
     },
@@ -16,14 +20,14 @@ module.exports = (env, argv) => {
       path: path.resolve(__dirname, "out"),
       filename: "[name].js",
       libraryTarget: "commonjs2",
-      devtoolModuleFilenameTemplate: "../[resource-path]",
+      // devtoolModuleFilenameTemplate: "../[resource-path]",
     },
     externals: {
       vscode: "commonjs vscode",
     },
     resolve: {
       extensions: [".ts", ".js"],
-      preferRelative: true,
+      // preferRelative: true,
     },
     module: {
       rules: [
@@ -33,21 +37,26 @@ module.exports = (env, argv) => {
           use: [
             {
               loader: "ts-loader",
-              options: {
-                compilerOptions: {
-                  sourceMap: "true",
-                  transpileOnly: false,
-                },
-              },
+              // options: {
+              //   compilerOptions: {
+              //     sourceMap: "true",
+              //     transpileOnly: false,
+              //   },
+              // },
             },
           ],
         },
       ],
     },
-    devtool: isDev ? "source-map" : "nosources-source-map",
-    optimization: {
-      splitChunks: false,
+    devtool: "source-map",
+    infrastructureLogging: {
+      level: "log",
     },
+
+    // optimization: {
+    //   splitChunks: false,
+    // },
+
     plugins: [
       !isDev &&
         new CopyWebpackPlugin({
@@ -63,9 +72,6 @@ module.exports = (env, argv) => {
           ],
         }),
     ].filter(Boolean),
-    infrastructureLogging: {
-      level: "log",
-    },
   };
 
   return [extensionConfig];

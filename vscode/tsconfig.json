@@ -1,15 +1,8 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "esnext",
     "baseUrl": ".",
-    "outDir": "out",
-    "lib": ["ES2023"],
-    "sourceMap": true,
-    "rootDir": "src",
-    "strict": true,
-    "declaration": true
+    "outDir": "out"
   },
   "include": ["src/**/*.ts"]
 }

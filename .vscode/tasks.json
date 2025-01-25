@@ -2,10 +2,11 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "npm: dev",
+      "label": "npm run dev",
       "type": "npm",
       "script": "dev",
       "isBackground": true,
+      "group": "build",
       "problemMatcher": {
         "owner": "custom",
         "fileLocation": [

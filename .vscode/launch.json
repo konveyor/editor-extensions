@@ -9,14 +9,19 @@
         "--extensionDevelopmentPath=${workspaceFolder}/vscode",
         "--enable-proposed-api=konveyor.konveyor-ai"
       ],
+
+      "cwd": "${workspaceFolder}/vscode",
       "outFiles": ["${workspaceFolder}/vscode/out/**/*.js"],
-      "env": {
-        "VSCODE_DEBUG_MODE": "true"
-      },
-      "preLaunchTask": "npm: dev"
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/vscode/out/**",
+        "!**/node_modules/**"
+      ],
+
+      "preLaunchTask": "npm run dev"
     },
     {
-      "name": "Extension Tests",
+      "name": "__ Extension Tests (broken)",
       "type": "extensionHost",
       "request": "launch",
       "args": [
@@ -27,7 +32,7 @@
       "preLaunchTask": "npm: test-watch - vscode"
     },
     {
-      "name": "Run Dev Script",
+      "name": "__ Run Dev Script",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -35,9 +40,6 @@
       "runtimeArgs": ["run", "dev"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "env": {
-        "VSCODE_DEBUG_MODE": "true"
-      }
     }
   ]
 }
