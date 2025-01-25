@@ -144,7 +144,7 @@ const AnalysisPage: React.FC = () => {
       <PageSection>
         <Stack hasGutter>
           <StackItem>
-            <Card>
+            <Card className="results-card">
               <CardHeader>
                 <Flex className="header-layout">
                   <FlexItem>

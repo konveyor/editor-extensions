@@ -1,4 +1,4 @@
-.lightbulb-icon-style{
+.lightbulb-icon-style {
   /* color: #ffcc17; */
   color: #ffe072;
   height: 100%;
@@ -8,8 +8,11 @@
   position: relative;
   bottom: -2px;
 }
-.violation-actions-dropdown .pf-v6-c-menu{
+.violation-actions-dropdown .pf-v6-c-menu {
   right: auto !important;
   left: 0 !important;
+}
 
+.empty-state-violations {
+  /* padding-top:20vh; */
 }

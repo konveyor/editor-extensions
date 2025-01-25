@@ -2,27 +2,35 @@ import "./violations.css";
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Flex,
-  FlexItem,
   Content,
   Card,
   CardBody,
   Button,
   Stack,
   StackItem,
-  TextInput,
-  Select,
-  SelectOption,
-  MenuToggle,
   Label,
+  MenuToggle,
   MenuToggleElement,
-  InputGroup,
   CardHeader,
   CardExpandableContent,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+  ToolbarGroup,
+  ToolbarToggleGroup,
+  SearchInput,
+  Select,
+  SelectList,
+  SelectOption,
+  EmptyState,
+  EmptyStateBody,
+  EmptyStateVariant,
 } from "@patternfly/react-core";
-import { SortAmountDownIcon, TimesIcon } from "@patternfly/react-icons";
+import { FilterIcon, SortAmountDownIcon, SearchIcon } from "@patternfly/react-icons";
 import { Incident, Violation, Severity, ViolationWithID } from "@editor-extensions/shared";
 import { IncidentTableGroup } from "./IncidentTable";
 import ViolationActionsDropdown from "./ViolationActionsDropdown";
+import CubesIcon from "@patternfly/react-icons/dist/esm/icons/cubes-icon";
 
 type SortOption = "description" | "incidentCount" | "severity";
 
@@ -39,6 +47,7 @@ interface ViolationIncidentsListProps {
   setExpandedViolations: React.Dispatch<React.SetStateAction<Set<string>>>;
   workspaceRoot: string;
 }
+
 const SORT_STORAGE_KEY = "violationSortOption";
 
 const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
@@ -52,8 +61,9 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const initialSortBy = localStorage?.getItem(SORT_STORAGE_KEY) || "description";
   const [sortBy, setSortBy] = useState<SortOption>(initialSortBy as SortOption);
-
+  const [severityFilter, setSeverityFilter] = useState("");
   const [isSortSelectOpen, setIsSortSelectOpen] = useState(false);
+  const [isSeveritySelectOpen, setIsSeveritySelectOpen] = useState(false);
 
   useEffect(() => {
     localStorage?.setItem(SORT_STORAGE_KEY, sortBy);
@@ -87,24 +97,18 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
   const filteredAndSortedViolations = useMemo(() => {
     let result = violations;
 
+    // Apply search filter
     if (searchTerm) {
       const lowercaseSearchTerm = searchTerm.toLowerCase();
-
       result = result
-        .map((violation) => {
-          // Filter incidents within the violation based on the search term
-          const filteredIncidents = violation.incidents.filter(
+        .map((violation) => ({
+          ...violation,
+          incidents: violation.incidents.filter(
             (incident) =>
               incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
               incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-          );
-
-          return {
-            ...violation,
-            incidents: filteredIncidents,
-          };
-        })
-        // Only keep violations that have at least one matching incident or match in the description
+          ),
+        }))
         .filter(
           (violation) =>
             violation.incidents.length > 0 ||
@@ -112,7 +116,15 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         );
     }
 
-    // Sort the violations according to the selected criteria
+    // Apply severity filter
+    if (severityFilter) {
+      result = result.filter((violation) => {
+        const highestSeverity = getHighestSeverity(violation.incidents).toLowerCase();
+        return highestSeverity === severityFilter.toLowerCase();
+      });
+    }
+
+    // Sort the violations
     result.sort((a, b) => {
       switch (sortBy) {
         case "description":
@@ -121,10 +133,8 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
           return b.incidents.length - a.incidents.length;
         case "severity": {
           const severityOrder = { high: 3, medium: 2, low: 1 };
-          const aMaxSeverity =
-            severityOrder[getHighestSeverity(a.incidents) as keyof typeof severityOrder];
-          const bMaxSeverity =
-            severityOrder[getHighestSeverity(b.incidents) as keyof typeof severityOrder];
+          const aMaxSeverity = severityOrder[getHighestSeverity(a.incidents).toLowerCase()];
+          const bMaxSeverity = severityOrder[getHighestSeverity(b.incidents).toLowerCase()];
           return bMaxSeverity - aMaxSeverity;
         }
         default:
@@ -133,16 +143,15 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
     });
 
     return result;
-  }, [violations, searchTerm, sortBy]);
+  }, [violations, searchTerm, sortBy, severityFilter]);
 
   const renderViolation = useCallback(
     (violation: ViolationWithID) => {
       const truncateText = (text: string, maxLength: number) => {
-        if (text.length <= maxLength) {
-          return text;
-        }
+        if (text.length <= maxLength) return text;
         return text.slice(0, maxLength) + "...";
       };
+
       const isExpanded = expandedViolations.has(violation.id);
       const highestSeverity = getHighestSeverity(violation.incidents);
       const truncatedDescription = truncateText(violation.description, 100);
@@ -171,9 +180,9 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
               </Label>
               <Label
                 color={
-                  highestSeverity === "high"
+                  highestSeverity.toLowerCase() === "high"
                     ? "red"
-                    : highestSeverity === "medium"
+                    : highestSeverity.toLowerCase() === "medium"
                       ? "orange"
                       : "green"
                 }
@@ -196,69 +205,118 @@ const ViolationIncidentsList: React.FC<ViolationIncidentsListProps> = ({
         </Card>
       );
     },
-    [expandedViolations, toggleViolation],
+    [expandedViolations, toggleViolation, onGetSolution, onIncidentSelect, workspaceRoot],
   );
 
-  const onSortToggle = () => {
-    setIsSortSelectOpen(!isSortSelectOpen);
-  };
-
-  const sortToggle = (toggleRef: React.Ref<MenuToggleElement>) => (
-    <MenuToggle
-      ref={toggleRef}
-      onClick={onSortToggle}
-      isExpanded={isSortSelectOpen}
-      style={{ width: "200px" }}
-    >
-      <SortAmountDownIcon /> {sortBy}
-    </MenuToggle>
+  const toggleGroupItems = (
+    <React.Fragment>
+      <ToolbarItem>
+        <SearchInput
+          aria-label="Search violations and incidents"
+          onChange={(_event, value) => setSearchTerm(value)}
+          value={searchTerm}
+          onClear={() => setSearchTerm("")}
+        />
+      </ToolbarItem>
+      <ToolbarGroup variant="filter-group">
+        <ToolbarItem>
+          <Select
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={() => setIsSeveritySelectOpen(!isSeveritySelectOpen)}
+                isExpanded={isSeveritySelectOpen}
+                style={{ width: "150px" }}
+              >
+                {severityFilter || "Severity"}
+              </MenuToggle>
+            )}
+            onSelect={(_event, selection) => {
+              setSeverityFilter(selection as string);
+              setIsSeveritySelectOpen(false);
+            }}
+            selected={severityFilter}
+            isOpen={isSeveritySelectOpen}
+            onOpenChange={(isOpen) => setIsSeveritySelectOpen(isOpen)}
+          >
+            <SelectList>
+              {["", "High", "Medium", "Low"].map((option) => (
+                <SelectOption key={option} value={option}>
+                  {option || "All Severities"}
+                </SelectOption>
+              ))}
+            </SelectList>
+          </Select>
+        </ToolbarItem>
+        <ToolbarItem>
+          <Select
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={() => setIsSortSelectOpen(!isSortSelectOpen)}
+                isExpanded={isSortSelectOpen}
+                style={{ width: "150px" }}
+              >
+                <SortAmountDownIcon /> {sortBy}
+              </MenuToggle>
+            )}
+            onSelect={(_event, selection) => {
+              setSortBy(selection as SortOption);
+              setIsSortSelectOpen(false);
+            }}
+            selected={sortBy}
+            isOpen={isSortSelectOpen}
+            onOpenChange={(isOpen) => setIsSortSelectOpen(isOpen)}
+          >
+            <SelectList>
+              <SelectOption value="description">Description</SelectOption>
+              <SelectOption value="incidentCount">Incident Count</SelectOption>
+              <SelectOption value="severity">Severity</SelectOption>
+            </SelectList>
+          </Select>
+        </ToolbarItem>
+      </ToolbarGroup>
+    </React.Fragment>
   );
 
-  const clearSearch = () => {
-    setSearchTerm("");
+  const renderEmptyState = () => {
+    const hasFilters = searchTerm || severityFilter;
+    return (
+      <EmptyState
+        variant={EmptyStateVariant.xs}
+        icon={CubesIcon}
+        className="empty-state-violations"
+      >
+        <EmptyStateBody>
+          {hasFilters ? (
+            <>
+              No violations match the current filters.
+              {searchTerm && <div>Try changing your search term.</div>}
+              {severityFilter && <div>Try selecting a different severity level.</div>}
+            </>
+          ) : (
+            "No violations have been detected in your project."
+          )}
+        </EmptyStateBody>
+      </EmptyState>
+    );
   };
 
   return (
     <Stack hasGutter>
       <StackItem>
-        <Flex>
-          <FlexItem grow={{ default: "grow" }}>
-            <InputGroup>
-              <TextInput
-                type="text"
-                id="violation-search"
-                aria-label="Search violations and incidents"
-                placeholder="Search violations and incidents..."
-                value={searchTerm}
-                onChange={(_event, value) => setSearchTerm(value)}
-              />
-              {searchTerm && (
-                <Button variant="control" onClick={clearSearch} aria-label="Clear search">
-                  <TimesIcon />
-                </Button>
-              )}
-            </InputGroup>
-          </FlexItem>
-          <FlexItem>
-            <Select
-              toggle={sortToggle}
-              onSelect={(_event, value) => {
-                setSortBy(value as SortOption);
-                setIsSortSelectOpen(false);
-              }}
-              selected={sortBy}
-              isOpen={isSortSelectOpen}
-              aria-label="Select sort option"
-            >
-              <SelectOption value="description">Description</SelectOption>
-              <SelectOption value="incidentCount">Incident Count</SelectOption>
-              <SelectOption value="severity">Severity</SelectOption>
-            </Select>
-          </FlexItem>
-        </Flex>
+        <Toolbar id="violation-filter-toolbar" className="pf-m-toggle-group-container">
+          <ToolbarContent>
+            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
+              {toggleGroupItems}
+            </ToolbarToggleGroup>
+          </ToolbarContent>
+        </Toolbar>
       </StackItem>
       <StackItem isFilled>
-        {filteredAndSortedViolations.map((violation) => renderViolation(violation))}
+        {filteredAndSortedViolations.length > 0
+          ? filteredAndSortedViolations.map((violation) => renderViolation(violation))
+          : renderEmptyState()}
       </StackItem>
     </Stack>
   );

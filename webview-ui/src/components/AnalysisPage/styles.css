@@ -12,3 +12,7 @@
   margin: 0 8px;
   align-self: center;
 }
+
+.results-card {
+  min-height: 50vh;
+}
