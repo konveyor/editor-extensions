@@ -5,3 +5,4 @@ test_out
 .vscode-test/
 *.vsix
 org.eclipse*
+*.log

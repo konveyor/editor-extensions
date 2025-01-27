@@ -161,7 +161,7 @@ const AnalysisPage: React.FC = () => {
 
                 {!isAnalyzing && !hasViolations && (
                   <EmptyState variant="sm">
-                    <Title headingLevel="h2" size="md">
+                    <Title className="empty-state-analysis-results" headingLevel="h2" size="md">
                       {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
                     </Title>
                     <EmptyStateBody>
