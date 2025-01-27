@@ -1,0 +1,111 @@
+/* VSCode theme integration with PatternFly */
+.incident-table-container {
+  background-color: transparent;
+  color: var(--pf-global--Color--100);
+}
+
+.incident-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  table-layout: fixed;
+}
+
+.incident-table th {
+  background-color: var(--pf-global--BackgroundColor--100);
+  color: var(--pf-global--Color--100);
+  font-weight: var(--pf-global--FontWeight--bold);
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: var(--pf-global--BorderWidth--sm) solid var(--pf-global--BorderColor--100);
+  text-transform: uppercase;
+  font-size: var(--pf-global--FontSize--sm);
+  letter-spacing: 0.5px;
+}
+
+.incident-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: var(--pf-global--BorderWidth--sm) solid var(--pf-global--BorderColor--100);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.incident-table tr:hover {
+  background-color: var(--vscode-editor-background); /* Automatically adapts to theme */
+}
+
+.incident-link {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.folder-path {
+  color: var(--pf-global--Color--200);
+  font-style: italic;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line-number {
+  color: var(--pf-global--Color--200);
+}
+
+.incident-card {
+  background-color: transparent;
+  border: none;
+  margin: 0;
+}
+
+.incident-card-header {
+  padding: 1rem;
+  border-bottom: var(--pf-global--BorderWidth--sm) solid var(--pf-global--BorderColor--100);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.incident-card-header-content {
+  flex: 1;
+}
+
+.incident-card-body {
+  padding: 0;
+}
+
+/* Column widths */
+.incident-table th.col-issue {
+  width: 30%;
+}
+
+.incident-table th.col-folder {
+  width: 40%;
+}
+
+.incident-table th.col-location {
+  width: 30%;
+}
+
+.incident-table th.col-actions {
+  width: 10%;
+}
+
+.resolve-button-cell {
+  text-align: right;
+}
+
+/* PatternFly utility class for small margin right */
+.pf-v6-u-mr-xs {
+  margin-right: var(--pf-global--spacer--xs) !important;
+}
+
+/* PatternFly utility class for small padding */
+.pf-v6-u-p-sm {
+  padding: var(--pf-global--spacer--sm) !important;
+}

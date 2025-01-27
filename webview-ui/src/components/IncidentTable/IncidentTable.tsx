@@ -1,10 +1,10 @@
 import React, { FC, useCallback } from "react";
-import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
 import { Incident } from "@editor-extensions/shared";
-import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
-import ViolationActionsDropdown from "../ViolationActionsDropdown";
 import Markdown from "react-markdown";
+import { Button } from "@patternfly/react-core";
+import { WrenchIcon } from "@patternfly/react-icons";
+import "./styles.css";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
@@ -32,80 +32,78 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   );
   const uniqueId = (incident: Incident) => `${incident.uri}-${incident.lineNumber}`;
 
-  const ISSUE = "Issue";
-  const LOCATION = "Location";
-  const FOLDER = "Folder";
   return (
-    <>
-      <Card isPlain>
-        <CardHeader
-          actions={
-            getSolution
-              ? {
-                  hasNoOffset: true,
-                  actions: (
-                    <ViolationActionsDropdown
-                      onGetAllSolutions={() => getSolution(incidents)}
-                      fixMessage={
-                        incidents.length === 1
-                          ? "Resolve 1 incident"
-                          : `Resolve the ${incidents.length} incidents`
-                      }
-                    />
-                  ),
-                }
-              : undefined
-          }
-        >
-          <Markdown>{message}</Markdown>
-        </CardHeader>
+    <div className="incident-table-container">
+      <div className="incident-card">
+        <div className="incident-card-header">
+          <div className="incident-card-header-content">
+            <Markdown>{message}</Markdown>
+          </div>
+          {getSolution && (
+            <Button
+              variant="link"
+              icon={<WrenchIcon className="pf-v6-u-mr-xs" />}
+              onClick={() => getSolution(incidents)}
+              title={
+                incidents.length === 1
+                  ? "Resolve this incident"
+                  : `Resolve ${incidents.length} incidents`
+              }
+            >
+              {incidents.length === 1 ? "Resolve" : `Resolve (${incidents.length})`}
+            </Button>
+          )}
+        </div>
 
-        <Card isPlain>
-          <CardBody>
-            <Table aria-label="Incidents" variant="compact">
-              <Thead>
-                <Tr>
-                  <Th>{ISSUE}</Th>
-                  <Th width={50}>{FOLDER}</Th>
-                  <Th>{LOCATION}</Th>
-                  <Th />
-                </Tr>
-              </Thead>
-              <Tbody>
-                {incidents.map((it) => (
-                  <Tr key={uniqueId(it)}>
-                    <Td dataLabel={ISSUE}>
-                      <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
-                        <b>{fileName(it)}</b>
-                      </Button>
-                    </Td>
-                    <Td dataLabel={FOLDER}>
-                      <TableText wrapModifier="truncate">
-                        <i>{relativeDirname(it)}</i>
-                      </TableText>
-                    </Td>
-                    <Td dataLabel={LOCATION}>
-                      <TableText wrapModifier="nowrap">
-                        <Content component="p">Line {it.lineNumber ?? ""}</Content>
-                      </TableText>
-                    </Td>
-                    <Td isActionCell>
-                      {getSolution ? (
-                        <ViolationActionsDropdown
-                          onGetAllSolutions={() => getSolution([it])}
-                          fixMessage="Resolve this incident"
-                        />
-                      ) : (
-                        ""
-                      )}
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </CardBody>
-        </Card>
-      </Card>
-    </>
+        <div className="incident-card-body">
+          <table className="incident-table">
+            <thead>
+              <tr>
+                <th className="col-issue">Issue</th>
+                <th className="col-folder">Folder</th>
+                <th className="col-location">Location</th>
+                <th className="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents.map((it) => (
+                <tr key={uniqueId(it)}>
+                  <td>
+                    <Button
+                      variant="link"
+                      isInline
+                      className="incident-link"
+                      onClick={() => onIncidentSelect(it)}
+                      title={fileName(it)}
+                    >
+                      {fileName(it)}
+                    </Button>
+                  </td>
+                  <td>
+                    <span className="folder-path" title={relativeDirname(it)}>
+                      {relativeDirname(it)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="line-number">Line {it.lineNumber ?? ""}</span>
+                  </td>
+                  <td className="resolve-button-cell">
+                    {getSolution && (
+                      <Button
+                        variant="plain"
+                        icon={<WrenchIcon />}
+                        onClick={() => getSolution([it])}
+                        title="Resolve this incident"
+                        className="pf-v5-u-p-sm"
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 };

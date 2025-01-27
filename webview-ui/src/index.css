@@ -25,3 +25,11 @@
 .pf-c-expandable-section__content {
   margin-bottom: 10px;
 }
+
+:root {
+  --pf-global--BorderColor--100: none;
+  --pf-global--BorderRadius--sm: 2rem;
+  --pf-global--BoxShadow--sm: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background-color: var(--vscode-editor-background); /* Automatically adapts to theme */
+  color: var(--vscode-editor-foreground); /* Theme-based foreground color */
+}

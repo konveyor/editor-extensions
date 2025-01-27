@@ -13,7 +13,7 @@
 }
 
 .pf-v6-theme-dark .server-status-label {
-  color: #d2d4d8;
+  color: var(--vscode-editor-foreground); /* Theme-based foreground color */
 }
 
 .server-status-label {
@@ -26,7 +26,7 @@
 }
 
 .pf-v6-theme-dark .vertical-divider {
-  background-color: #4f5255;
+  background-color: var(--vscode-editor-background); /* Automatically adapts to theme */
 }
 
 .vertical-divider {
@@ -36,7 +36,7 @@
 }
 
 .pf-v6-theme-dark .server-action-button {
-  color: #d2d4d8 !important;
+  color: var(--vscode-editor-foreground); /* Theme-based foreground color */
 }
 
 .server-action-button {
@@ -47,7 +47,7 @@
 }
 
 .pf-v6-theme-dark .server-action-button:hover {
-  color: #ffffff !important;
+  color: var(--vscode-editor-foreground); /* Theme-based foreground color */
 }
 
 .server-action-button svg {
