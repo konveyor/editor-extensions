@@ -220,15 +220,15 @@ export async function updateGenAiKey(
 }
 
 export function getConfigMaxPriority(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? undefined;
+  return getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? 0;
 }
 
 export function getConfigMaxDepth(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxDepth") ?? undefined;
+  return getConfigValue<number | null>("kai.getSolutionMaxDepth") ?? 0;
 }
 
 export function getConfigMaxIterations(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxIterations") ?? undefined;
+  return getConfigValue<number | null>("kai.getSolutionMaxIterations") ?? 1;
 }
 
 export function getConfigMultiMaxPriority(): number | undefined {
