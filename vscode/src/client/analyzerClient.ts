@@ -303,7 +303,9 @@ export class AnalyzerClient {
         cancellable: false,
       },
       async (progress) => {
-        this.outputChannel.appendLine("Sending 'initialize' request.");
+        this.outputChannel.appendLine(
+          `Sending 'initialize' request: ${JSON.stringify(initializeParams)}`,
+        );
         progress.report({
           message: "Sending 'initialize' request to RPC Server",
         });
