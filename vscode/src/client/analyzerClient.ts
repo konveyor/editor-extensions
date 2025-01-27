@@ -479,7 +479,7 @@ export class AnalyzerClient {
             return;
           }
           if (ruleSets.length === 0) {
-            vscode.window.showInformationMessage("Analysis completed, but no RuleSets were found.");
+            vscode.window.showInformationMessage("Analysis completed. No incidents were found.");
             this.fireAnalysisStateChange(false);
             return;
           }
