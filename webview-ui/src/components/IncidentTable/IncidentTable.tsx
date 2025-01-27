@@ -5,6 +5,7 @@ import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-ta
 import * as path from "path-browserify";
 import ViolationActionsDropdown from "../ViolationActionsDropdown";
 import Markdown from "react-markdown";
+import "./style.css";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
@@ -65,9 +66,9 @@ export const IncidentTable: FC<IncidentTableProps> = ({
             <Table aria-label="Incidents" variant="compact">
               <Thead>
                 <Tr>
-                  <Th>{ISSUE}</Th>
+                  <Th width={10}>{ISSUE}</Th>
                   <Th width={50}>{FOLDER}</Th>
-                  <Th>{LOCATION}</Th>
+                  <Th width={10}>{LOCATION}</Th>
                   <Th />
                 </Tr>
               </Thead>
@@ -75,8 +76,13 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                 {incidents.map((it) => (
                   <Tr key={uniqueId(it)}>
                     <Td dataLabel={ISSUE}>
-                      <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
-                        <b>{fileName(it)}</b>
+                      <Button
+                        className="file-link-button"
+                        component="a"
+                        variant="link"
+                        onClick={() => onIncidentSelect(it)}
+                      >
+                        {fileName(it)}
                       </Button>
                     </Td>
                     <Td dataLabel={FOLDER}>

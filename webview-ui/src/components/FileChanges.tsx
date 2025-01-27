@@ -79,7 +79,7 @@ export function FileChanges({
                       variant={ButtonVariant.plain}
                       onClick={() => onFileClick(change)}
                       className="file-changes-action-icon"
-                      icon={<EyeIcon color="black" />}
+                      icon={<EyeIcon className="eye-icon" />}
                       aria-label="View changes"
                     />
                   </Tooltip>
