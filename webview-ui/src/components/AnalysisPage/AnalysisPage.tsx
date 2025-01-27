@@ -98,7 +98,9 @@ const AnalysisPage: React.FC = () => {
                 variant={ButtonVariant.primary}
                 onClick={runAnalysisRequest}
                 isLoading={isAnalyzing}
-                isDisabled={isAnalyzing || isStartingServer || !serverRunning}
+                isDisabled={
+                  isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
+                }
               >
                 {isAnalyzing ? "Analyzing..." : "Run Analysis"}
               </Button>
