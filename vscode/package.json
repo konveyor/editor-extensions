@@ -564,6 +564,7 @@
             "null"
           ],
           "default": 1,
+          "minimum": 1,
           "description": "Max iterations for the getSolution request",
           "scope": "window",
           "order": 40
@@ -594,6 +595,7 @@
             "null"
           ],
           "default": null,
+          "minimum": 1,
           "description": "Max iterations for the getSolution request with multiple incidents",
           "scope": "window",
           "order": 50
