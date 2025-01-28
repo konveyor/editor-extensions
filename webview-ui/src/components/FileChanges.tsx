@@ -18,7 +18,7 @@ import {
 } from "@patternfly/react-icons";
 import { LocalChange } from "@editor-extensions/shared";
 import * as path from "path-browserify";
-
+import "./fileChanges.css";
 interface FileChangesProps {
   changes: LocalChange[];
   onFileClick: (change: LocalChange) => void;
@@ -55,32 +55,15 @@ export function FileChanges({
                 spaceItems={{ default: "spaceItemsXs" }}
               >
                 <FlexItem>
-                  <FileIcon
-                    style={{
-                      fontSize: "1.1em",
-                      position: "relative",
-                      top: "1px",
-                      marginRight: "4px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                    }}
-                  />
-                  <span style={{ lineHeight: "1.5" }}>
+                  <FileIcon className="file-changes-file-icon" />
+                  <span className="file-changes-file-name">
                     {path.basename(change.originalUri.fsPath)}
                   </span>
                 </FlexItem>
                 <FlexItem>
-                  <ArrowRightIcon
-                    style={{
-                      fontSize: "0.8em",
-                      position: "relative",
-                      top: "1px",
-                      margin: "0 4px",
-                    }}
-                    className="pf-v5-u-color-200"
-                  />
+                  <ArrowRightIcon className="file-changes-arrow-icon" />
                 </FlexItem>
-                <FlexItem className="pf-v5-u-color-200 pf-v5-u-font-size-sm">
+                <FlexItem className="file-changes-change-summary">
                   {getFileChangeSummary(change)}
                 </FlexItem>
               </Flex>
@@ -95,12 +78,8 @@ export function FileChanges({
                     <Button
                       variant={ButtonVariant.plain}
                       onClick={() => onFileClick(change)}
-                      icon={<EyeIcon color="#6A6E73" />}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "6px",
-                      }}
+                      className="file-changes-action-icon"
+                      icon={<EyeIcon color="black" />}
                       aria-label="View changes"
                     />
                   </Tooltip>
@@ -109,14 +88,9 @@ export function FileChanges({
                   <Tooltip content="Apply changes">
                     <Button
                       variant={ButtonVariant.plain}
-                      icon={<CheckCircleIcon color="#d1f1bb" />}
+                      icon={<CheckCircleIcon color="green" />}
                       onClick={() => onApplyFix(change)}
-                      style={{
-                        color: "#3E8635",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "6px",
-                      }}
+                      className="file-changes-action-icon"
                       aria-label="Apply fix"
                     />
                   </Tooltip>
@@ -125,14 +99,9 @@ export function FileChanges({
                   <Tooltip content="Reject changes">
                     <Button
                       variant={ButtonVariant.plain}
-                      icon={<TimesCircleIcon color="#f9a8a8" />}
+                      icon={<TimesCircleIcon color="red" />}
                       onClick={() => onRejectChanges(change)}
-                      style={{
-                        color: "#C9190B",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "6px",
-                      }}
+                      className="file-changes-action-icon"
                       aria-label="Reject changes"
                     />
                   </Tooltip>

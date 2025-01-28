@@ -24,17 +24,19 @@ export interface Violation {
   category?: Category;
   labels?: string[];
   incidents: Incident[];
-  links?: Link[];
-  extras?: unknown;
   effort?: number;
 }
+
+export type ViolationWithID = Violation & {
+  id: string;
+};
 
 export interface RuleSet {
   name?: string;
   description?: string;
   tags?: string[];
-  violations?: { [key: string]: Violation };
-  insights?: { [key: string]: Violation };
+  violations?: { [key: string]: ViolationWithID };
+  insights?: { [key: string]: ViolationWithID };
   errors?: { [key: string]: string };
   unmatched?: string[];
   skipped?: string[];
@@ -95,9 +97,12 @@ export interface ExtensionData {
   isAnalyzing: boolean;
   isFetchingSolution: boolean;
   isStartingServer: boolean;
+  isInitializingServer: boolean;
   serverState: ServerState;
+  solutionState: SolutionState;
   solutionData?: Solution;
   solutionScope?: Scope;
+  solutionMessages: string[];
 }
 
 export type ServerState =
@@ -106,7 +111,16 @@ export type ServerState =
   | "configurationReady"
   | "starting"
   | "readyToInitialize"
+  | "initializing"
   | "startFailed"
   | "running"
   | "stopping"
   | "stopped";
+
+export type SolutionState =
+  | "none"
+  | "started"
+  | "sent"
+  | "received"
+  | "failedOnStart"
+  | "failedOnSending";

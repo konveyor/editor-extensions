@@ -108,11 +108,25 @@ async function updateConfigValue<T>(
 }
 
 export async function updateAnalyzerPath(value: string | undefined): Promise<void> {
-  await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
+  try {
+    const scope = vscode.workspace.workspaceFolders
+      ? vscode.ConfigurationTarget.Workspace
+      : vscode.ConfigurationTarget.Global;
+    await updateConfigValue("analyzerPath", value, scope);
+  } catch (error) {
+    console.error("Failed to update analyzerPath:", error);
+  }
 }
 
 export async function updateKaiRpcServerPath(value: string | undefined): Promise<void> {
-  await updateConfigValue("kaiRpcServerPath", value, vscode.ConfigurationTarget.Workspace);
+  try {
+    const scope = vscode.workspace.workspaceFolders
+      ? vscode.ConfigurationTarget.Workspace
+      : vscode.ConfigurationTarget.Global;
+    await updateConfigValue("kaiRpcServerPath", value, scope);
+  } catch (error) {
+    console.error("Failed to update kaiRpcServerPath:", error);
+  }
 }
 
 export async function updateLogLevel(value: string): Promise<void> {
@@ -205,16 +219,28 @@ export async function updateGenAiKey(
   }
 }
 
-export function getConfigMaxPriority(): number {
-  return getConfigValue<number>("kai.getSolutionMaxPriority") || 0;
+export function getConfigMaxPriority(): number | undefined {
+  return getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? undefined;
 }
 
-export function getConfigMaxDepth(): number {
-  return getConfigValue<number>("kai.getSolutionMaxDepth") || 0;
+export function getConfigMaxDepth(): number | undefined {
+  return getConfigValue<number | null>("kai.getSolutionMaxDepth") ?? undefined;
 }
 
-export function getConfigMaxIterations(): number {
-  return getConfigValue<number>("kai.getSolutionMaxIterations") || 1;
+export function getConfigMaxIterations(): number | undefined {
+  return getConfigValue<number | null>("kai.getSolutionMaxIterations") ?? undefined;
+}
+
+export function getConfigMultiMaxPriority(): number | undefined {
+  return getConfigValue<number | null>("kai.getMultiSolutionMaxPriority") ?? undefined;
+}
+
+export function getConfigMultiMaxDepth(): number | undefined {
+  return getConfigValue<number | null>("kai.getMultiSolutionMaxDepth") ?? undefined;
+}
+
+export function getConfigMultiMaxIterations(): number | undefined {
+  return getConfigValue<number | null>("kai.getMultiSolutionMaxIterations") ?? undefined;
 }
 
 export async function updateGetSolutionMaxPriority(value: number): Promise<void> {

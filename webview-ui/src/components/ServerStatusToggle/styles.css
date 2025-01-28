@@ -1,5 +1,4 @@
 .server-status-container {
-  background-color: #2a2a2a;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -13,8 +12,11 @@
   padding: 8px 16px;
 }
 
-.server-status-label {
+.pf-v6-theme-dark .server-status-label {
   color: #d2d4d8;
+}
+
+.server-status-label {
   font-size: 13px;
   font-weight: 500;
   margin: 0;
@@ -23,22 +25,28 @@
   text-transform: uppercase;
 }
 
+.pf-v6-theme-dark .vertical-divider {
+  background-color: #4f5255;
+}
+
 .vertical-divider {
   width: 1px;
   height: 20px;
-  background-color: #4f5255;
   margin: 0 8px;
+}
+
+.pf-v6-theme-dark .server-action-button {
+  color: #d2d4d8 !important;
 }
 
 .server-action-button {
   padding: 2px 8px !important;
-  color: #d2d4d8 !important;
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
 }
 
-.server-action-button:hover {
+.pf-v6-theme-dark .server-action-button:hover {
   color: #ffffff !important;
 }
 

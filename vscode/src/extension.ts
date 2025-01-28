@@ -31,10 +31,13 @@ class VsCodeExtension {
         isAnalyzing: false,
         isFetchingSolution: false,
         isStartingServer: false,
+        isInitializingServer: false,
         solutionData: undefined,
         serverState: "initial",
         solutionScope: undefined,
         workspaceRoot: paths.workspaceRepo.fsPath,
+        solutionMessages: [],
+        solutionState: "none",
       },
       () => {},
     );

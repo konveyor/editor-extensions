@@ -1,48 +1,52 @@
-import React from "react";
+import React, { FC } from "react";
 import {
-  Page,
-  PageSection,
-  Title,
-  Badge,
   Card,
   CardBody,
-  CardTitle,
   Flex,
   FlexItem,
-  Split,
-  SplitItem,
-  EmptyState,
-  EmptyStateBody,
-  Alert,
+  Label,
+  Page,
+  PageSection,
+  PageSidebar,
+  PageSidebarBody,
+  Spinner,
+  Title,
 } from "@patternfly/react-core";
-import { CheckCircleIcon, WarningTriangleIcon } from "@patternfly/react-icons";
-import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
-import IncidentList from "./IncidentList";
 import { FileChanges } from "./FileChanges";
-import { CodePreview } from "./CodePreview";
-import { LoadingScreen } from "./LoadingScreen";
-import { LocalChange } from "@editor-extensions/shared";
+import { Incident, LocalChange } from "@editor-extensions/shared";
 import { useExtensionState } from "../hooks/useExtensionState";
-import { applyFile, discardFile, viewFix } from "../hooks/actions";
+import { applyFile, discardFile, openFile, viewFix } from "../hooks/actions";
+import { IncidentTableGroup } from "./IncidentTable";
+import "./resolutionsPage.css";
 
 const ResolutionPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
   const {
     localChanges,
-    isAnalyzing,
     isFetchingSolution,
-    isStartingServer,
     solutionData: resolution,
     solutionScope,
+    solutionMessages,
+    solutionState,
+    workspaceRoot,
   } = state;
-  const isLoading = isAnalyzing || isFetchingSolution || isStartingServer;
+
   const getRemainingFiles = () => {
     if (!resolution) {
       return [];
     }
     return localChanges.filter(({ state }) => state === "pending");
   };
-  const isResolved = !!resolution && getRemainingFiles().length === 0;
+  const isTriggeredByUser = !!solutionScope?.incidents?.length;
+  const isHistorySolution = !isTriggeredByUser && !!localChanges.length;
+
+  const isResolved = localChanges.length !== 0 && getRemainingFiles().length === 0;
+  const hasResponseWithErrors =
+    solutionState === "received" && !!resolution?.encountered_errors?.length;
+  const hasResponse =
+    (solutionState === "received" || isHistorySolution) && localChanges.length > 0;
+  const hasEmptyResponse = solutionState === "received" && localChanges.length === 0;
+  const hasNothingToView = solutionState === "none" && localChanges.length === 0;
 
   const handleFileClick = (change: LocalChange) => dispatch(viewFix(change));
 
@@ -50,120 +54,146 @@ const ResolutionPage: React.FC = () => {
 
   const handleRejectClick = (change: LocalChange) => dispatch(discardFile(change));
 
-  // Display loading screen when fetching solution
-  if (isLoading) {
-    return (
-      <Page>
-        <PageSection className="pf-v5-u-px-xl pf-v5-u-py-md">
-          <LoadingScreen />
-        </PageSection>
-      </Page>
-    );
-  }
-
-  // Display "Changes Applied" when the solution is accepted
-  if (isResolved) {
-    return (
-      <Page>
-        <PageSection className="pf-v6-u-px-xl pf-v6-u-py-md">
-          <EmptyState variant="lg" icon={CheckCircleIcon} titleText="Changes Applied">
-            <EmptyStateBody>
-              The changes have been processed. You can close this panel or wait for the next
-              incident.
-            </EmptyStateBody>
-          </EmptyState>
-        </PageSection>
-      </Page>
-    );
-  }
-
-  // Display "No Active Solutions" when no resolution exists
-  if (!resolution) {
-    return (
-      <Page>
-        <PageSection className="pf-v5-u-px-xl pf-v5-u-py-md">
-          <EmptyState variant="lg" icon={WarningTriangleIcon} titleText="No Active Solutions">
-            <EmptyStateBody>There are no solutions to review at this time.</EmptyStateBody>
-          </EmptyState>
-        </PageSection>
-      </Page>
-    );
-  }
+  const handleIncidentClick = (incident: Incident) => {
+    dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
+  };
 
   return (
-    <Page>
-      <PageSection className="pf-v5-u-px-xl pf-v5-u-py-md">
+    <Page
+      sidebar={
+        <PageSidebar isSidebarOpen={false}>
+          <PageSidebarBody />
+        </PageSidebar>
+      }
+    >
+      <PageSection>
         <Flex>
           <FlexItem>
             <Title headingLevel="h1" size="2xl">
-              <Flex spaceItems={{ default: "spaceItemsMd" }}>
-                <FlexItem>
-                  <WarningTriangleIcon className="pf-v5-u-danger-color-100" />
-                </FlexItem>
-                <FlexItem>Kai Results</FlexItem>
-              </Flex>
+              Kai Results
             </Title>
           </FlexItem>
         </Flex>
       </PageSection>
 
-      {resolution.encountered_errors.length > 0 && (
-        <PageSection className="pf-v5-u-px-xl">
-          <Alert variant="warning" title="Encountered Errors">
-            <ul>
-              {resolution.encountered_errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </Alert>
-        </PageSection>
-      )}
-
-      <PageSection className="pf-v5-u-px-xl">
-        <Split hasGutter>
-          <SplitItem>
-            <Card isFullHeight className="incident-list-card">
-              <CardTitle>
-                {solutionScope?.violation?.description || "No Violation Data"}
-                <Badge className={spacing.mSm}>
-                  {solutionScope?.violation?.category ?? "optional"}
-                </Badge>
-              </CardTitle>
-              <CardBody>
-                <IncidentList
-                  incidents={solutionScope?.incidents ?? []}
-                  selectedIncident={solutionScope?.incidents?.[0]}
-                  onSelectIncident={() => {}}
-                />
-              </CardBody>
-            </Card>
-          </SplitItem>
-
-          <SplitItem isFilled>
-            <Card className={spacing.mbSm}>
-              <CardTitle>Affected Files</CardTitle>
-              <CardBody>
-                <FileChanges
-                  changes={getRemainingFiles()}
-                  onFileClick={handleFileClick}
-                  onApplyFix={handleAcceptClick}
-                  onRejectChanges={handleRejectClick}
-                />
-              </CardBody>
-            </Card>
-            {solutionScope?.incidents?.length && (
-              <Card className="pf-v5-u-mb-md">
-                <CardTitle>Incident Details</CardTitle>
-                <CardBody>
-                  <CodePreview incident={solutionScope?.incidents?.[0]} />
-                </CardBody>
-              </Card>
+      <PageSection>
+        <Flex
+          direction={{
+            default: "column",
+          }}
+        >
+          {isTriggeredByUser && (
+            <Flex
+              direction={{
+                default: "column",
+              }}
+              grow={{ default: "grow" }}
+              alignItems={{ default: "alignItemsFlexEnd" }}
+              justifyContent={{ default: "justifyContentFlexEnd" }}
+            >
+              <FlexItem>
+                <YellowLabel>Here is the scope of what I would like you to fix:</YellowLabel>
+              </FlexItem>
+              <FlexItem className="chat-card-container">
+                <ChatCard color="yellow">
+                  <IncidentTableGroup
+                    onIncidentSelect={handleIncidentClick}
+                    violation={solutionScope?.violation}
+                    incidents={solutionScope.incidents}
+                    workspaceRoot={workspaceRoot}
+                  />
+                </ChatCard>
+              </FlexItem>
+              <FlexItem>
+                <YellowLabel>Please provide resolution for this issue.</YellowLabel>
+              </FlexItem>
+            </Flex>
+          )}
+          <Flex
+            direction={{
+              default: "column",
+            }}
+            grow={{ default: "grow" }}
+            alignItems={{ default: "alignItemsFlexStart" }}
+          >
+            {hasNothingToView && (
+              <FlexItem>
+                <Label color="blue">No resolutions available.</Label>
+              </FlexItem>
             )}
-          </SplitItem>
-        </Split>
+            {isHistorySolution && (
+              <FlexItem>
+                <Label color="blue">Loaded last known resolution.</Label>
+              </FlexItem>
+            )}
+            {solutionMessages.map((msg) => (
+              <FlexItem key={msg}>
+                <Label color="blue">{msg}</Label>
+              </FlexItem>
+            ))}
+            {isFetchingSolution && <Spinner />}
+
+            {hasResponse && (
+              <FlexItem>
+                <ChatCard color="blue">
+                  <FileChanges
+                    changes={getRemainingFiles()}
+                    onFileClick={handleFileClick}
+                    onApplyFix={handleAcceptClick}
+                    onRejectChanges={handleRejectClick}
+                  />
+                </ChatCard>
+              </FlexItem>
+            )}
+            {hasEmptyResponse && !hasResponseWithErrors && (
+              <FlexItem>
+                <Label color="blue">Received response contains no resolutions.</Label>
+              </FlexItem>
+            )}
+
+            {hasResponseWithErrors && (
+              <>
+                <FlexItem>
+                  <Label color="blue">Response contains errors:</Label>
+                </FlexItem>
+                <FlexItem>
+                  <ChatCard color="blue">
+                    <ul>
+                      {resolution.encountered_errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </ChatCard>
+                </FlexItem>
+              </>
+            )}
+            {isResolved && !isFetchingSolution && (
+              <FlexItem>
+                <Label color="blue">All resolutions have been applied.</Label>
+              </FlexItem>
+            )}
+          </Flex>
+        </Flex>
       </PageSection>
     </Page>
   );
 };
+
+const ChatCard: FC<{ color: "blue" | "yellow"; children: JSX.Element }> = ({ children, color }) => (
+  <Card className={color === "blue" ? "pf-m-blue" : "pf-m-yellow"}>
+    <CardBody>{children}</CardBody>
+  </Card>
+);
+
+const YellowLabel: FC<{ children: JSX.Element | string }> = ({ children }) => (
+  <>
+    <Label className="resolutions-show-in-light" color="yellow">
+      {children}
+    </Label>
+    <Label className="resolutions-show-in-dark" variant="outline">
+      {children}
+    </Label>
+  </>
+);
 
 export default ResolutionPage;

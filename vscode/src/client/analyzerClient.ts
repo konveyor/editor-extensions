@@ -4,12 +4,14 @@ import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import {
+  ExtensionData,
   Incident,
   RuleSet,
-  SolutionResponse,
-  Violation,
-  ExtensionData,
+  Scope,
   ServerState,
+  SolutionResponse,
+  SolutionState,
+  Violation,
 } from "@editor-extensions/shared";
 import { paths, fsPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
@@ -24,6 +26,9 @@ import {
   getConfigMaxDepth,
   getConfigMaxIterations,
   getConfigMaxPriority,
+  getConfigMultiMaxDepth,
+  getConfigMultiMaxPriority,
+  getConfigMultiMaxIterations,
   getConfigKaiDemoMode,
   getConfigUseDefaultRulesets,
   getConfigCustomRules,
@@ -41,9 +46,9 @@ export class AnalyzerClient {
 
   private outputChannel: vscode.OutputChannel;
   private assetPaths: AssetPaths;
-  private fireStateChange: (state: ServerState) => void;
+  private fireServerStateChange: (state: ServerState) => void;
   private fireAnalysisStateChange: (flag: boolean) => void;
-  private fireSolutionStateChange: (flag: boolean) => void;
+  private fireSolutionStateChange: (state: SolutionState, message?: string, scope?: Scope) => void;
 
   private modelProvider: ModelProvider | null = null;
 
@@ -52,18 +57,27 @@ export class AnalyzerClient {
     mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
     private getExtStateData: () => Immutable<ExtensionData>,
   ) {
-    this.fireStateChange = (state: ServerState) =>
+    this.fireServerStateChange = (state: ServerState) =>
       mutateExtensionData((draft) => {
         draft.serverState = state;
         draft.isStartingServer = state === "starting";
+        draft.isInitializingServer = state === "initializing";
       });
     this.fireAnalysisStateChange = (flag: boolean) =>
       mutateExtensionData((draft) => {
         draft.isAnalyzing = flag;
       });
-    this.fireSolutionStateChange = (flag: boolean) =>
+    this.fireSolutionStateChange = (state: SolutionState, message?: string, scope?: Scope) =>
       mutateExtensionData((draft) => {
-        draft.isFetchingSolution = flag;
+        draft.isFetchingSolution = state === "sent";
+        draft.solutionState = state;
+        if (state === "started") {
+          draft.solutionMessages = [];
+          draft.solutionScope = scope;
+        }
+        if (message) {
+          draft.solutionMessages.push(message);
+        }
       });
 
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
@@ -102,22 +116,22 @@ export class AnalyzerClient {
     }
 
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
-    this.fireStateChange("starting");
+    this.fireServerStateChange("starting");
+
     try {
       this.modelProvider = await getModelProvider(paths().settingsYaml);
       const [kaiRpcServer, pid] = await this.startProcessAndLogStderr();
 
       kaiRpcServer.on("exit", (code, signal) => {
         this.outputChannel.appendLine(`kai rpc server exited [signal: ${signal}, code: ${code}]`);
-        this.fireStateChange("stopped");
+        this.fireServerStateChange("stopped");
       });
 
       this.kaiRpcServer = kaiRpcServer;
       this.outputChannel.appendLine(`kai rpc server successfully started [pid: ${pid}]`);
-      this.fireStateChange("readyToInitialize");
     } catch (e) {
       this.outputChannel.appendLine(`kai rpc server start failed [error: ${e}]`);
-      this.fireStateChange("startFailed");
+      this.fireServerStateChange("startFailed");
       throw e;
     }
 
@@ -191,6 +205,9 @@ export class AnalyzerClient {
     ]);
 
     if (untilReady === "timeout") {
+      //TODO: Handle the case where the server is not ready to initialize
+      // this.fireServerStateChange("readyToInitialize");
+
       this.outputChannel.appendLine(
         `waited ${maxTimeToWaitUntilReady}ms for the kai rpc server to be ready, continuing anyway`,
       );
@@ -218,14 +235,19 @@ export class AnalyzerClient {
    */
   public async initialize(): Promise<void> {
     // TODO: Ensure serverState is readyToInitialize
+    this.fireServerStateChange("initializing");
 
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
+      this.fireServerStateChange("startFailed");
+
       return;
     }
 
     if (!this.modelProvider) {
       vscode.window.showErrorMessage("Server cannot initialize without being started");
+      this.fireServerStateChange("startFailed");
+
       return;
     }
 
@@ -275,26 +297,30 @@ export class AnalyzerClient {
           message: "Sending 'initialize' request to RPC Server",
         });
 
+        const exitWatcher = new Promise<void>((_, reject) => {
+          this.kaiRpcServer!.once("exit", (code, signal) => {
+            reject(
+              new Error(`kai-rpc-server exited unexpectedly (code=${code}, signal=${signal})`),
+            );
+          });
+        });
+
         try {
-          this.outputChannel.appendLine(
-            `initialize payload: ${JSON.stringify(initializeParams, null, 2)}`,
-          );
+          // Race the RPC call vs. the “server exited” watcher
+          const response = await Promise.race([
+            this.rpcConnection!.sendRequest<void>("initialize", initializeParams),
+            exitWatcher,
+          ]);
 
-          const response = await this.rpcConnection!.sendRequest<void>(
-            "initialize",
-            initializeParams,
-          );
-
-          this.outputChannel.appendLine(
-            `'initialize' response: ${JSON.stringify(response, null, 2)}`,
-          );
+          this.outputChannel.appendLine(`'initialize' response: ${JSON.stringify(response)}`);
           this.outputChannel.appendLine(`kai rpc server is initialized!`);
-          progress.report({ message: "RPC Server initialized" });
-          this.fireStateChange("running");
+          this.fireServerStateChange("running");
+          progress.report({ message: "Kai RPC Server is initialized." });
         } catch (err) {
+          // The race either saw a process exit or an RPC-level failure
           this.outputChannel.appendLine(`kai rpc server failed to initialize [err: ${err}]`);
           progress.report({ message: "Kai initialization failed!" });
-          this.fireStateChange("startFailed");
+          this.fireServerStateChange("startFailed");
         }
       },
     );
@@ -337,7 +363,7 @@ export class AnalyzerClient {
       : Promise.resolve("not started");
 
     this.outputChannel.appendLine(`Stopping the kai rpc server...`);
-    this.fireStateChange("stopping");
+    this.fireServerStateChange("stopping");
     await this.shutdown();
 
     this.outputChannel.appendLine(`Closing connections to the kai rpc server...`);
@@ -482,12 +508,13 @@ export class AnalyzerClient {
   ): Promise<void> {
     // TODO: Ensure serverState is running
 
+    this.fireSolutionStateChange("started", "Checking server state...", { incidents, violation });
+
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
+      this.fireSolutionStateChange("failedOnStart", "RPC connection is not established.");
       return;
     }
-
-    this.fireSolutionStateChange(true);
 
     const enhancedIncidents = incidents.map((incident) => ({
       ...incident,
@@ -495,9 +522,10 @@ export class AnalyzerClient {
       violation_name: violation?.description ?? "default_violation",
     }));
 
-    const maxPriority = getConfigMaxPriority();
-    const maxDepth = getConfigMaxDepth();
-    const maxIterations = getConfigMaxIterations();
+    const multiIncident = incidents.length > 1;
+    const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
+    const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
+    const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
 
     try {
       const request = {
@@ -512,21 +540,27 @@ export class AnalyzerClient {
         `getCodeplanAgentSolution request: ${JSON.stringify(request, null, 2)}`,
       );
 
+      this.fireSolutionStateChange("sent", "Waiting for the resolution...");
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
         request,
       );
 
+      this.fireSolutionStateChange("received", "Received response...");
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
         incidents,
         violation,
       });
     } catch (err: any) {
       this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);
-      vscode.window.showErrorMessage("Get solution failed. See the output channel for details.");
+      vscode.window.showErrorMessage(
+        "Failed to provide resolutions. See the output channel for details.",
+      );
+      this.fireSolutionStateChange(
+        "failedOnSending",
+        `Failed to provide resolutions. Encountered error: ${err.message}. See the output channel for details.`,
+      );
     }
-
-    this.fireSolutionStateChange(false);
   }
 
   public canAnalyze(): boolean {
@@ -604,7 +638,7 @@ export class AnalyzerClient {
     const path = getConfigKaiRpcServerPath() || this.assetPaths.kaiRpcServer;
 
     if (!fs.existsSync(path)) {
-      const message = `Kai RPC Server binary doesn't exist at ${path}`;
+      const message = `RPC Server binary doesn't exist at ${path}`;
       this.outputChannel.appendLine(`Error: ${message}`);
       vscode.window.showErrorMessage(message);
       throw new Error(message);

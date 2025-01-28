@@ -9,10 +9,13 @@ const defaultState: ExtensionData = {
   isAnalyzing: false,
   isFetchingSolution: false,
   isStartingServer: false,
+  isInitializingServer: false,
   solutionData: undefined,
   serverState: "initial",
   solutionScope: undefined,
   workspaceRoot: "/",
+  solutionMessages: [],
+  solutionState: "none",
 };
 
 const windowState =

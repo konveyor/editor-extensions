@@ -8,14 +8,16 @@ export const IncidentTableGroup = ({
   onIncidentSelect,
   onGetSolution,
   workspaceRoot,
+  incidents,
 }: {
-  violation: Violation;
+  violation?: Violation;
   onIncidentSelect: (incident: Incident) => void;
-  onGetSolution: (incidents: Incident[], violation: Violation) => void;
+  onGetSolution?: (incidents: Incident[], violation: Violation) => void;
   workspaceRoot: string;
+  incidents?: Incident[];
 }) => {
   const items: [string, Incident[]][] = Object.entries(
-    groupIncidentsByMsg(violation.incidents),
+    groupIncidentsByMsg(incidents ?? violation?.incidents ?? []),
   ).map(([message, tuples]) => [message, tuples.map(([, incident]) => incident)]);
 
   return items.map(([message, incidents]) => (
@@ -23,7 +25,11 @@ export const IncidentTableGroup = ({
       onIncidentSelect={onIncidentSelect}
       key={message}
       message={message}
-      getSolution={(incidents: Incident[]) => onGetSolution(incidents, violation)}
+      getSolution={
+        violation && onGetSolution
+          ? (incidents: Incident[]) => onGetSolution(incidents, violation)
+          : undefined
+      }
       incidents={incidents}
       workspaceRoot={workspaceRoot}
     />
