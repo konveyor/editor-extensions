@@ -33,6 +33,8 @@ import {
   getConfigUseDefaultRulesets,
   getConfigCustomRules,
   isAnalysisResponse,
+  getCacheDir,
+  getTraceEnabled,
 } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
@@ -263,6 +265,8 @@ export class AnalyzerClient {
       },
 
       demoMode: this.isDemoMode(),
+      cacheDir: getCacheDir(),
+      traceEnabled: getTraceEnabled(),
 
       // Paths to the Analyzer and jdt.ls
       analyzerLspRpcPath: this.getAnalyzerPath(),

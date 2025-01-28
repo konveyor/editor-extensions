@@ -600,6 +600,23 @@
           "scope": "window",
           "order": 50
         },
+        "konveyor.kai.cacheDir": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Path to a directory containing cached responses",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor.kai.traceEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to create traces of the communication with the model",
+          "scope": "window",
+          "order": 50
+        },
         "konveyor.analysis.incidentLimit": {
           "type": "number",
           "default": 10000,

@@ -62,6 +62,14 @@ export function getConfigKaiProviderName(): string {
   return getConfigValue<string>("kai.providerName") || "ChatIBMGenAI";
 }
 
+export function getCacheDir(): string | undefined {
+  return getConfigValue<string>("kai.cacheDir");
+}
+
+export function getTraceEnabled(): boolean {
+  return getConfigValue<boolean>("kai.traceEnabled") || false;
+}
+
 export function getConfigKaiProviderArgs(): object | undefined {
   const config = vscode.workspace.getConfiguration("konveyor.kai");
   const providerArgsConfig = config.inspect<object>("providerArgs");
