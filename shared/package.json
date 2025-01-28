@@ -2,20 +2,31 @@
   "name": "@editor-extensions/shared",
   "version": "0.0.6",
   "private": true,
-  "main": "./dist/index.cjs.js",
   "type": "module",
-  "module": "./dist/index.esm.js",
   "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
-    "build": "vite build && tsc --emitDeclarationOnly",
-    "dev": "tsc --build --watch --preserveWatchOutput"
+    "build": "vite build && tsc",
+    "dev": "concurrently -c auto 'npm:dev:*'",
+    "dev:types": "tsc --watch",
+    "dev:build": "vite build --watch"
   },
   "devDependencies": {
-    "vite": "^5.4.9"
+    "vite": "^5.4.9",
+    "vite-plugin-checker": "^0.8.0"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",

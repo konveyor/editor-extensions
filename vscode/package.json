@@ -723,11 +723,11 @@
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
     "build": "npm run compile",
-    "compile": "tsc -b && webpack --mode production",
+    "compile": "tsc && webpack --mode production",
     "dev": "npm run watch",
     "watch": "webpack --watch --mode development",
     "test:local": "mocha --require ts-node/register src/**/__tests__/*test.ts",
-    "test": "npm run test:local && npm run compile && vscode-test"
+    "test": "npm run compile && npm run test:local && vscode-test"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",

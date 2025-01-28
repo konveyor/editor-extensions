@@ -9,7 +9,6 @@
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "composite": true,
     "declaration": true
   },
   "include": ["src/**/*.ts"]

@@ -20,7 +20,6 @@
     "noImplicitAny": false,
     "allowJs": false,
     "baseUrl": ".",
-    "composite": true,
     "outDir": "dist",
     "declaration": true,
     "noEmit": false

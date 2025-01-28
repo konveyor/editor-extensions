@@ -43,14 +43,13 @@
     "prepare": "husky",
     "postinstall": "npm run build -w shared",
     "clean": "rimraf ./dist ./downloaded_assets && npm run clean --workspaces --if-present",
-    "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/",
+    "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/ ./**/tsconfig.tsbuildinfo",
     "lint": "eslint ./scripts && npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
-    "predev": "npm run build -w shared",
     "dev": "concurrently -c auto 'npm:dev:shared' 'npm:dev:webview-ui' 'npm:dev:vscode'",
     "dev:shared": "npm run dev -w shared",
-    "dev:webview-ui": "npm run start -w webview-ui",
-    "dev:vscode": "npm run dev -w vscode",
+    "dev:webview-ui": "wait-on -d 500 shared/dist/index.mjs && npm run start -w webview-ui",
+    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && npm run dev -w vscode",
     "build": "npm run build --workspaces --if-present",
     "collect-assets": "rimraf ./downloaded_assets && node ./scripts/collect-assets.js",
     "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
@@ -63,6 +62,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.11.1",
+    "@rollup/plugin-node-resolve": "^16.0.0",
     "@types/fs-extra": "^11.0.4",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "22.x",
@@ -88,7 +88,8 @@
     "tar": "^7.4.3",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.14.0",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "wait-on": "^8.0.2"
   },
   "dependencies": {
     "fs-extra": "^11.2.0",

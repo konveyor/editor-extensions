@@ -7,7 +7,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
-    "composite": true,
-    "declaration": true
+    "declaration": true,
+    "preserveWatchOutput": true
   }
 }
