@@ -167,7 +167,7 @@ const ResolutionPage: React.FC = () => {
                 </FlexItem>
               </>
             )}
-            {isResolved && (
+            {isResolved && !isFetchingSolution && (
               <FlexItem>
                 <Label color="blue">All resolutions have been applied.</Label>
               </FlexItem>
