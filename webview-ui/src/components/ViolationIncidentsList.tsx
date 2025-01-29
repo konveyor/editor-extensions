@@ -36,6 +36,7 @@ import {
   Violation,
   EnhancedViolation,
 } from "@editor-extensions/shared";
+import { enhanceIncidents } from "../utils/transformation";
 
 interface ViolationIncidentsListProps {
   violations: EnhancedViolation[];
@@ -121,10 +122,10 @@ const ViolationIncidentsList = ({
   const handleGetSolution = (incidents: EnhancedIncident[]) => {
     if (incidents.length > 0) {
       const violation = violations.find((v) => v.id === incidents[0].violationId);
-      console.log("violation", violation);
-      console.log("incidents", incidents);
+
       if (violation) {
-        onGetSolution(incidents);
+        const enhancedIncidentsFromViolation = enhanceIncidents(incidents, violation);
+        onGetSolution(enhancedIncidentsFromViolation);
       }
     }
   };
