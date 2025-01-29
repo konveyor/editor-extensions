@@ -44,6 +44,7 @@ import { countIncidentsOnPaths } from "../analysis";
 import { KaiRpcApplicationConfig } from "./types";
 import { getModelProvider, ModelProvider } from "./modelProvider";
 import { tracer } from "./tracer";
+import { v4 as uuidv4 } from "uuid";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -550,12 +551,16 @@ export class AnalyzerClient {
     const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
 
     try {
+      // generate a uuid for the request
+      const chatToken = uuidv4();
+
       const request = {
         file_path: "",
         incidents: enhancedIncidents,
         max_priority: maxPriority,
         max_depth: maxDepth,
         max_iterations: maxIterations,
+        chat_token: chatToken,
       };
 
       this.outputChannel.appendLine(
@@ -563,6 +568,15 @@ export class AnalyzerClient {
       );
 
       this.fireSolutionStateChange("sent", "Waiting for the resolution...");
+      vscode.window.showErrorMessage(`12345`);
+      this.fireSolutionStateChange("sent", "6789");
+
+      this.rpcConnection!.onNotification((method, params) => {
+        vscode.window.showErrorMessage(`[$/progress] - ${JSON.stringify(params)}`);
+
+        this.fireSolutionStateChange("sent", "[$/progress] - " + JSON.stringify(params));
+      });
+
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
         request,
