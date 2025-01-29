@@ -185,13 +185,13 @@ const AnalysisPage: React.FC = () => {
                     workspaceRoot={workspaceRoot}
                     isRunning={serverRunning}
                     violations={violations}
-                    focusedIncident={focusedIncident}
+                    // focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
                     onGetSolution={(incidents, violation) =>
                       dispatch(getSolution(incidents, violation))
                     }
-                    onGetAllSolutions={() => {}}
-                    compact={false}
+                    // onGetAllSolutions={() => {}}
+                    // compact={false}
                     expandedViolations={expandedViolations}
                     setExpandedViolations={setExpandedViolations}
                   />
