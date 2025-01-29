@@ -519,8 +519,8 @@ export class AnalyzerClient {
 
     const enhancedIncidents = incidents.map((incident) => ({
       ...incident,
-      ruleset_name: violation?.category ?? "default_ruleset",
-      violation_name: violation?.description ?? "default_violation",
+      ruleset_name: incident.rulesetName ?? "default_ruleset",
+      violation_name: incident.violationName ?? "default_violation",
     }));
 
     const multiIncident = incidents.length > 1;

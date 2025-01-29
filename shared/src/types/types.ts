@@ -36,6 +36,8 @@ export type EnhancedViolation = Violation & {
 export interface EnhancedIncident extends Incident {
   violationId: string;
   violationDescription: string;
+  rulesetName?: string;
+  violationName?: string;
   uri: string;
   message: string;
   severity?: Severity;

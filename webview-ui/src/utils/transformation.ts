@@ -46,6 +46,8 @@ export function enhanceIncidents(
     ...incident,
     violationId: violation.id,
     violationDescription: violation.description,
+    rulesetName: violation.rulesetName,
+    violationName: violation.violationName,
     uri: incident.uri,
     message: incident.message,
     severity: incident.severity,

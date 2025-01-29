@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  Incident,
-  Violation,
-  EnhancedViolation,
-  EnhancedIncident,
-} from "@editor-extensions/shared";
+import { EnhancedViolation, EnhancedIncident } from "@editor-extensions/shared";
 import { enhanceIncidents, groupIncidentsByMsg } from "../../utils/transformation";
 import { IncidentTable } from "./IncidentTable";
 
