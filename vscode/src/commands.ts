@@ -253,18 +253,6 @@ const commandsMap: (state: ExtensionState) => {
         return result.map((item) => item.label);
       };
 
-      // Show QuickPick for sources
-      const selectedSources = await showQuickPick(
-        "Select Source Technologies",
-        "Choose one or more source technologies",
-        sourceOptions,
-        currentSources,
-      );
-      if (selectedSources === undefined) {
-        return;
-      }
-      state.sources = selectedSources;
-
       // Show QuickPick for targets
       const selectedTargets = await showQuickPick(
         "Select Target Technologies",
@@ -277,6 +265,18 @@ const commandsMap: (state: ExtensionState) => {
       }
       state.targets = selectedTargets;
 
+      // Show QuickPick for sources
+      const selectedSources = await showQuickPick(
+        "Select Source Technologies",
+        "Choose one or more source technologies",
+        sourceOptions,
+        currentSources,
+      );
+      if (selectedSources === undefined) {
+        return;
+      }
+      state.sources = selectedSources;
+
       // Compute initial label selector
       const sources = state.sources.map((source) => `konveyor.io/source=${source}`).join(" || ");
       const targets = state.targets.map((target) => `konveyor.io/target=${target}`).join(" || ");
@@ -287,24 +287,10 @@ const commandsMap: (state: ExtensionState) => {
 
       state.labelSelector = `(${[sources, targets].filter((part) => part !== "").join(" && ")}) || (discovery)`;
 
-      // Show input box for modifying label selector
-      const modifiedLabelSelector = await window.showInputBox({
-        prompt: "Modify the label selector if needed",
-        value: state.labelSelector,
-        placeHolder: "e.g., source=(java|spring) target=(quarkus)",
-      });
-
-      if (modifiedLabelSelector === undefined) {
-        return;
-      }
-      state.labelSelector = modifiedLabelSelector;
-
       // Update the user settings
       await updateLabelSelector(state.labelSelector);
 
-      window.showInformationMessage(
-        `Configuration updated: Sources: ${state.sources.join(", ")}, Targets: ${state.targets.join(", ")}, Label Selector: ${state.labelSelector}`,
-      );
+      window.showInformationMessage(`Label Selector Updated: ${state.labelSelector}`);
     },
     "konveyor.configureLabelSelector": async () => {
       const currentLabelSelector = getConfigLabelSelector();
