@@ -1,4 +1,3 @@
-import "./violations.css";
 import React, { useState } from "react";
 import {
   Dropdown,

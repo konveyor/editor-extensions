@@ -51,24 +51,8 @@ const ViolationIncidentsList = ({
   const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
   const [isGroupByExpanded, setIsGroupByExpanded] = React.useState(false);
   const [filters, setFilters] = React.useState({
-    severity: [] as Severity[],
     groupBy: ["violation"] as string[],
   });
-
-  const onSeveritySelect = (
-    _event: React.MouseEvent | undefined,
-    value: string | number | undefined,
-  ) => {
-    if (typeof value === "string") {
-      const severity = value as Severity;
-      setFilters((prev) => ({
-        ...prev,
-        severity: prev.severity.includes(severity)
-          ? prev.severity.filter((s) => s !== severity)
-          : [...prev.severity, severity],
-      }));
-    }
-  };
 
   const onGroupBySelect = (
     _event: React.MouseEvent | undefined,
@@ -81,19 +65,13 @@ const ViolationIncidentsList = ({
   };
 
   const onDelete = (type: string, id: string) => {
-    if (type === "Severity") {
-      setFilters({ ...filters, severity: filters.severity.filter((s) => s !== id) });
-    } else if (type === "Group By") {
+    if (type === "Group By") {
       setFilters({ ...filters, groupBy: [] });
-    } else {
-      setFilters({ severity: [], groupBy: [] });
     }
   };
 
   const onDeleteGroup = (type: string) => {
-    if (type === "Severity") {
-      setFilters({ ...filters, severity: [] });
-    } else if (type === "Group By") {
+    if (type === "Group By") {
       setFilters({ ...filters, groupBy: [] });
     }
   };
@@ -107,35 +85,6 @@ const ViolationIncidentsList = ({
     }
     setExpandedViolations(newSet);
   };
-
-  const severityMenuItems = (
-    <SelectList>
-      <SelectOption
-        hasCheckbox
-        key="severityLow"
-        value="Low"
-        isSelected={filters.severity.includes("Low")}
-      >
-        Low
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="severityMedium"
-        value="Medium"
-        isSelected={filters.severity.includes("Medium")}
-      >
-        Medium
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="severityHigh"
-        value="High"
-        isSelected={filters.severity.includes("High")}
-      >
-        High
-      </SelectOption>
-    </SelectList>
-  );
 
   const groupByMenuItems = (
     <SelectList>
@@ -213,34 +162,6 @@ const ViolationIncidentsList = ({
             {groupByMenuItems}
           </Select>
         </ToolbarFilter>
-        <ToolbarFilter
-          labels={filters.severity}
-          deleteLabel={(category, label) => onDelete(category as string, label as string)}
-          deleteLabelGroup={(category) => onDeleteGroup(category as string)}
-          categoryName="Severity"
-        >
-          <Select
-            aria-label="Severity"
-            role="menu"
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={() => setIsSeverityExpanded(!isSeverityExpanded)}
-                isExpanded={isSeverityExpanded}
-                style={{ width: "140px" }}
-              >
-                Severity
-                {filters.severity.length > 0 && <Badge isRead>{filters.severity.length}</Badge>}
-              </MenuToggle>
-            )}
-            onSelect={onSeveritySelect}
-            selected={filters.severity}
-            isOpen={isSeverityExpanded}
-            onOpenChange={(isOpen) => setIsSeverityExpanded(isOpen)}
-          >
-            {severityMenuItems}
-          </Select>
-        </ToolbarFilter>
       </ToolbarGroup>
     </React.Fragment>
   );
@@ -269,12 +190,6 @@ const ViolationIncidentsList = ({
         (incident) =>
           incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
           incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-      );
-    }
-
-    if (filters.severity.length > 0) {
-      filtered = filtered.filter((incident) =>
-        filters.severity.includes(incident.severity || "Low"),
       );
     }
 

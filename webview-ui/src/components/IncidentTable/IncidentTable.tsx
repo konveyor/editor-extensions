@@ -3,8 +3,8 @@ import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-c
 import { Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
-import ViolationActionsDropdown from "../ViolationActionsDropdown";
 import Markdown from "react-markdown";
+import ViolationActionsDropdown from "../ViolationActionsDropdown";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
