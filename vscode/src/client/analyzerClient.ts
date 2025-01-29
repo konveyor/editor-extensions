@@ -132,6 +132,13 @@ export class AnalyzerClient {
       this.kaiRpcServer = kaiRpcServer;
       this.outputChannel.appendLine(`kai rpc server successfully started [pid: ${pid}]`);
     } catch (e) {
+      vscode.window
+        .showErrorMessage(`kai rpc server failed to start`, "Open Output Console")
+        .then((selection) => {
+          if (selection === "Open Output Console") {
+            this.outputChannel.show(true);
+          }
+        });
       this.outputChannel.appendLine(`kai rpc server start failed [error: ${e}]`);
       this.fireServerStateChange("startFailed");
       throw e;
