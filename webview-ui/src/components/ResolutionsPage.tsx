@@ -56,11 +56,6 @@ const ResolutionPage: React.FC = () => {
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
   };
 
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localChanges, solutionMessages, isFetchingSolution]);
-
   return (
     <Page
       sidebar={
