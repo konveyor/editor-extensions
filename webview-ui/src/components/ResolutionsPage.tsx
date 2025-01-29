@@ -40,7 +40,8 @@ const ResolutionPage: React.FC = () => {
   const isTriggeredByUser = !!solutionScope?.incidents?.length;
   const isHistorySolution = !isTriggeredByUser && !!localChanges.length;
 
-  const isResolved = localChanges.length !== 0 && getRemainingFiles().length === 0;
+  const isResolved =
+    solutionState === "received" && localChanges.length !== 0 && getRemainingFiles().length === 0;
   const hasResponseWithErrors =
     solutionState === "received" && !!resolution?.encountered_errors?.length;
   const hasResponse =
