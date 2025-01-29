@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Button,
   Toolbar,
   ToolbarItem,
   ToolbarContent,
@@ -22,20 +23,29 @@ import {
   StackItem,
   Label,
   Flex,
+  Split,
+  SplitItem,
 } from "@patternfly/react-core";
-import { FilterIcon } from "@patternfly/react-icons";
+import { FilterIcon, WrenchIcon } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
-import { ViolationWithID, Incident, Severity, Violation } from "@editor-extensions/shared";
+import {
+  EnhancedIncident,
+  Incident,
+  Severity,
+  Violation,
+  EnhancedViolation,
+} from "@editor-extensions/shared";
 
 interface ViolationIncidentsListProps {
-  violations: ViolationWithID[];
+  violations: EnhancedViolation[];
   onIncidentSelect: (incident: Incident) => void;
   expandedViolations: Set<string>;
   setExpandedViolations: (value: Set<string>) => void;
-  onGetSolution: (incidents: Incident[], violation: ViolationWithID | Violation) => void;
+  onGetSolution: (enhancedIncidents: EnhancedIncident[]) => void;
   workspaceRoot: string;
   isRunning: boolean;
+  focusedIncident: Incident | null;
 }
 
 const ViolationIncidentsList = ({
@@ -51,8 +61,24 @@ const ViolationIncidentsList = ({
   const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
   const [isGroupByExpanded, setIsGroupByExpanded] = React.useState(false);
   const [filters, setFilters] = React.useState({
+    severity: [] as Severity[],
     groupBy: ["violation"] as string[],
   });
+
+  const onSeveritySelect = (
+    _event: React.MouseEvent | undefined,
+    value: string | number | undefined,
+  ) => {
+    if (typeof value === "string") {
+      const severity = value as Severity;
+      setFilters((prev) => ({
+        ...prev,
+        severity: prev.severity.includes(severity)
+          ? prev.severity.filter((s) => s !== severity)
+          : [...prev.severity, severity],
+      }));
+    }
+  };
 
   const onGroupBySelect = (
     _event: React.MouseEvent | undefined,
@@ -65,13 +91,19 @@ const ViolationIncidentsList = ({
   };
 
   const onDelete = (type: string, id: string) => {
-    if (type === "Group By") {
+    if (type === "Severity") {
+      setFilters({ ...filters, severity: filters.severity.filter((s) => s !== id) });
+    } else if (type === "Group By") {
       setFilters({ ...filters, groupBy: [] });
+    } else {
+      setFilters({ severity: [], groupBy: [] });
     }
   };
 
   const onDeleteGroup = (type: string) => {
-    if (type === "Group By") {
+    if (type === "Severity") {
+      setFilters({ ...filters, severity: [] });
+    } else if (type === "Group By") {
       setFilters({ ...filters, groupBy: [] });
     }
   };
@@ -85,6 +117,46 @@ const ViolationIncidentsList = ({
     }
     setExpandedViolations(newSet);
   };
+
+  const handleGetSolution = (incidents: EnhancedIncident[]) => {
+    if (incidents.length > 0) {
+      const violation = violations.find((v) => v.id === incidents[0].violationId);
+      console.log("violation", violation);
+      console.log("incidents", incidents);
+      if (violation) {
+        onGetSolution(incidents);
+      }
+    }
+  };
+
+  const severityMenuItems = (
+    <SelectList>
+      <SelectOption
+        hasCheckbox
+        key="severityLow"
+        value="Low"
+        isSelected={filters.severity.includes("Low")}
+      >
+        Low
+      </SelectOption>
+      <SelectOption
+        hasCheckbox
+        key="severityMedium"
+        value="Medium"
+        isSelected={filters.severity.includes("Medium")}
+      >
+        Medium
+      </SelectOption>
+      <SelectOption
+        hasCheckbox
+        key="severityHigh"
+        value="High"
+        isSelected={filters.severity.includes("High")}
+      >
+        High
+      </SelectOption>
+    </SelectList>
+  );
 
   const groupByMenuItems = (
     <SelectList>
@@ -162,26 +234,47 @@ const ViolationIncidentsList = ({
             {groupByMenuItems}
           </Select>
         </ToolbarFilter>
+        <ToolbarFilter
+          labels={filters.severity}
+          deleteLabel={(category, label) => onDelete(category as string, label as string)}
+          deleteLabelGroup={(category) => onDeleteGroup(category as string)}
+          categoryName="Severity"
+        >
+          <Select
+            aria-label="Severity"
+            role="menu"
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={() => setIsSeverityExpanded(!isSeverityExpanded)}
+                isExpanded={isSeverityExpanded}
+                style={{ width: "140px" }}
+              >
+                Severity
+                {filters.severity.length > 0 && <Badge isRead>{filters.severity.length}</Badge>}
+              </MenuToggle>
+            )}
+            onSelect={onSeveritySelect}
+            selected={filters.severity}
+            isOpen={isSeverityExpanded}
+            onOpenChange={(isOpen) => setIsSeverityExpanded(isOpen)}
+          >
+            {severityMenuItems}
+          </Select>
+        </ToolbarFilter>
       </ToolbarGroup>
-    </React.Fragment>
-  );
-
-  const toolbarItems = (
-    <React.Fragment>
-      <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-        {toggleGroupItems}
-      </ToolbarToggleGroup>
     </React.Fragment>
   );
 
   // Filter and group the incidents based on current filters
   const groupedIncidents = React.useMemo(() => {
-    let filtered = violations.flatMap((violation) =>
-      violation.incidents.map((incident) => ({
-        ...incident,
-        violationId: violation.id,
-        violationDescription: violation.description,
-      })),
+    let filtered = violations.flatMap(
+      (violation) =>
+        violation.incidents.map((incident) => ({
+          ...incident,
+          violationId: violation.id,
+          violationDescription: violation.description,
+        })) as EnhancedIncident[],
     );
 
     if (searchTerm) {
@@ -193,7 +286,13 @@ const ViolationIncidentsList = ({
       );
     }
 
-    const groups = new Map<string, { label: string; incidents: typeof filtered }>();
+    if (filters.severity.length > 0) {
+      filtered = filtered.filter((incident) =>
+        filters.severity.includes(incident.severity || "Low"),
+      );
+    }
+
+    const groups = new Map<string, { label: string; incidents: EnhancedIncident[] }>();
 
     const groupBy = filters.groupBy[0] || "none";
     filtered.forEach((incident) => {
@@ -231,6 +330,32 @@ const ViolationIncidentsList = ({
     }));
   }, [violations, searchTerm, filters]);
 
+  const toolbarItems = (
+    <React.Fragment>
+      <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
+        {toggleGroupItems}
+      </ToolbarToggleGroup>
+      <ToolbarGroup variant="action-group-inline">
+        <ToolbarItem>
+          {groupedIncidents.length > 0 && (
+            <Button
+              variant="plain"
+              aria-label="Resolve all visible incidents"
+              icon={<WrenchIcon />}
+              onClick={() => {
+                const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
+                handleGetSolution(allIncidents);
+              }}
+            >
+              Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
+              incidents
+            </Button>
+          )}
+        </ToolbarItem>
+      </ToolbarGroup>
+    </React.Fragment>
+  );
+
   return (
     <Stack hasGutter>
       <StackItem>
@@ -251,15 +376,38 @@ const ViolationIncidentsList = ({
             isCompact
             style={{ marginBottom: "10px" }}
           >
-            <CardHeader onExpand={() => toggleViolation(group.id)}>
-              <Content>
-                <h3>{group.label}</h3>
-                <Flex>
-                  <Label color="blue" isCompact>
-                    {group.incidents.length} incidents
-                  </Label>
-                </Flex>
-              </Content>
+            <CardHeader
+              onExpand={() => toggleViolation(group.id)}
+              actions={{
+                actions: [
+                  <Button
+                    key="get-solution"
+                    variant="plain"
+                    aria-label={`Resolve ${group.incidents.length} incidents`}
+                    icon={<WrenchIcon />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleGetSolution(group.incidents);
+                    }}
+                  >
+                    Resolve {group.incidents.length} incidents
+                  </Button>,
+                ],
+                hasNoOffset: true,
+              }}
+            >
+              <Split>
+                <SplitItem isFilled>
+                  <Content>
+                    <h3>{group.label}</h3>
+                    <Flex>
+                      <Label color="blue" isCompact>
+                        {group.incidents.length} incidents
+                      </Label>
+                    </Flex>
+                  </Content>
+                </SplitItem>
+              </Split>
             </CardHeader>
             <CardExpandableContent>
               <CardBody>

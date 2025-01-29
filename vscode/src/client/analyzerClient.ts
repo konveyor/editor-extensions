@@ -4,8 +4,9 @@ import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import {
+  EnhancedIncident,
+  EnhancedViolation,
   ExtensionData,
-  Incident,
   RuleSet,
   Scope,
   ServerState,
@@ -503,8 +504,8 @@ export class AnalyzerClient {
    */
   public async getSolution(
     state: ExtensionState,
-    incidents: Incident[],
-    violation?: Violation,
+    incidents: EnhancedIncident[],
+    violation?: EnhancedViolation,
   ): Promise<void> {
     // TODO: Ensure serverState is running
 

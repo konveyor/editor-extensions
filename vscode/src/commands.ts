@@ -9,7 +9,13 @@ import {
   loadStaticResults,
   reloadLastResolutions,
 } from "./data";
-import { Incident, RuleSet, Scope, Solution, Violation } from "@editor-extensions/shared";
+import {
+  EnhancedIncident,
+  EnhancedViolation,
+  RuleSet,
+  Scope,
+  Solution,
+} from "@editor-extensions/shared";
 import {
   applyAll,
   discardAll,
@@ -88,7 +94,10 @@ const commandsMap: (state: ExtensionState) => {
       }
       analyzerClient.runAnalysis();
     },
-    "konveyor.getSolution": async (incidents: Incident[], violation?: Violation) => {
+    "konveyor.getSolution": async (
+      incidents: EnhancedIncident[],
+      violation?: EnhancedViolation,
+    ) => {
       const analyzerClient = state.analyzerClient;
       analyzerClient.getSolution(state, incidents, violation);
     },

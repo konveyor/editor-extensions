@@ -1,4 +1,4 @@
-import { Incident } from "@editor-extensions/shared";
+import { EnhancedIncident, EnhancedViolation, Incident } from "@editor-extensions/shared";
 
 export const sanitizeIncidents = (incidents: Incident[]): Incident[] =>
   // ensure basic properties are valid
@@ -19,10 +19,10 @@ export const sanitizeIncidents = (incidents: Incident[]): Incident[] =>
     }));
 
 export const groupIncidentsByMsg = (
-  incidents: Incident[],
-): { [msg: string]: [string, Incident][] } =>
+  incidents: EnhancedIncident[],
+): { [msg: string]: [string, EnhancedIncident][] } =>
   incidents
-    .map((it): [string, string, Incident] => [it.message, it.uri, it])
+    .map((it): [string, string, EnhancedIncident] => [it.message, it.uri, it])
     .reduce(
       (acc, [msg, uri, incident]) => {
         if (!acc[msg]) {
@@ -31,5 +31,23 @@ export const groupIncidentsByMsg = (
         acc[msg].push([uri, incident]);
         return acc;
       },
-      {} as { [msg: string]: [string, Incident][] },
+      {} as { [msg: string]: [string, EnhancedIncident][] },
     );
+
+export function enhanceIncidents(
+  incidents: Incident[] | undefined,
+  violation: EnhancedViolation | undefined,
+): EnhancedIncident[] {
+  if (!incidents || !violation) {
+    return [];
+  }
+
+  return incidents.map((incident) => ({
+    ...incident,
+    violationId: violation.id,
+    violationDescription: violation.description,
+    uri: incident.uri,
+    message: incident.message,
+    severity: incident.severity,
+  }));
+}

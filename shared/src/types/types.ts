@@ -27,16 +27,26 @@ export interface Violation {
   effort?: number;
 }
 
-export type ViolationWithID = Violation & {
+export type EnhancedViolation = Violation & {
   id: string;
+  rulesetName?: string;
+  violationName?: string;
 };
+
+export interface EnhancedIncident extends Incident {
+  violationId: string;
+  violationDescription: string;
+  uri: string;
+  message: string;
+  severity?: Severity;
+}
 
 export interface RuleSet {
   name?: string;
   description?: string;
   tags?: string[];
-  violations?: { [key: string]: ViolationWithID };
-  insights?: { [key: string]: ViolationWithID };
+  violations?: { [key: string]: EnhancedViolation };
+  insights?: { [key: string]: EnhancedViolation };
   errors?: { [key: string]: string };
   unmatched?: string[];
   skipped?: string[];
@@ -83,8 +93,8 @@ export interface SolutionResponse {
 }
 
 export interface Scope {
-  incidents: Incident[];
-  violation?: Violation;
+  incidents: EnhancedIncident[];
+  violation?: EnhancedViolation;
 }
 
 export type Solution = GetSolutionResult | SolutionResponse;

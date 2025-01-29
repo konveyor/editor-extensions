@@ -1,6 +1,6 @@
 import React, { FC, useCallback } from "react";
 import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
-import { Incident } from "@editor-extensions/shared";
+import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
 import Markdown from "react-markdown";
@@ -8,10 +8,10 @@ import ViolationActionsDropdown from "../ViolationActionsDropdown";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
-  incidents: Incident[];
+  incidents: EnhancedIncident[];
   message: string;
-  getSolution?: (incidents: Incident[]) => void;
-  onIncidentSelect: (it: Incident) => void;
+  getSolution?: (incidents: EnhancedIncident[]) => void;
+  onIncidentSelect: (it: EnhancedIncident) => void;
 }
 
 export const IncidentTable: FC<IncidentTableProps> = ({

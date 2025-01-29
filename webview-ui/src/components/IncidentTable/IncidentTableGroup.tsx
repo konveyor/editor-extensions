@@ -1,6 +1,11 @@
 import React from "react";
-import { Incident, Violation } from "@editor-extensions/shared";
-import { groupIncidentsByMsg } from "../../utils/transformation";
+import {
+  Incident,
+  Violation,
+  EnhancedViolation,
+  EnhancedIncident,
+} from "@editor-extensions/shared";
+import { enhanceIncidents, groupIncidentsByMsg } from "../../utils/transformation";
 import { IncidentTable } from "./IncidentTable";
 
 export const IncidentTableGroup = ({
@@ -10,14 +15,16 @@ export const IncidentTableGroup = ({
   workspaceRoot,
   incidents,
 }: {
-  violation?: Violation;
-  onIncidentSelect: (incident: Incident) => void;
-  onGetSolution?: (incidents: Incident[], violation: Violation) => void;
+  violation?: EnhancedViolation;
+  onIncidentSelect: (incident: EnhancedIncident) => void;
+  onGetSolution?: (incidents: EnhancedIncident[]) => void;
   workspaceRoot: string;
-  incidents?: Incident[];
+  incidents?: EnhancedIncident[];
 }) => {
-  const items: [string, Incident[]][] = Object.entries(
-    groupIncidentsByMsg(incidents ?? violation?.incidents ?? []),
+  const enhancedIncidentsFromViolation = enhanceIncidents(incidents, violation);
+  const groupedIncidents = incidents ?? enhancedIncidentsFromViolation;
+  const items: [string, EnhancedIncident[]][] = Object.entries(
+    groupIncidentsByMsg(groupedIncidents ?? []),
   ).map(([message, tuples]) => [message, tuples.map(([, incident]) => incident)]);
 
   return items.map(([message, incidents]) => (
@@ -27,7 +34,7 @@ export const IncidentTableGroup = ({
       message={message}
       getSolution={
         violation && onGetSolution
-          ? (incidents: Incident[]) => onGetSolution(incidents, violation)
+          ? (incidents: EnhancedIncident[]) => onGetSolution(incidents)
           : undefined
       }
       incidents={incidents}
