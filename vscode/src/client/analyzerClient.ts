@@ -153,12 +153,22 @@ export class AnalyzerClient {
       new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
       new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
     );
+    
     if (getConfigLoggingTraceMessageConnection()) {
       this.rpcConnection.trace(
         rpc.Trace.Verbose,
         tracer(`${basename(this.kaiRpcServer.spawnfile)} message trace`),
       );
     }
+
+    this.rpcConnection.onNotification("my_progress", (params) => {
+      if (params.kind === "SimpleChatMessage") {
+        this.fireSolutionStateChange("sent", params.value.message);
+      } else {
+        this.fireSolutionStateChange("sent", JSON.stringify(params));
+      }
+    });
+
     this.rpcConnection.listen();
   }
 
@@ -568,14 +578,6 @@ export class AnalyzerClient {
       );
 
       this.fireSolutionStateChange("sent", "Waiting for the resolution...");
-      vscode.window.showErrorMessage(`12345`);
-      this.fireSolutionStateChange("sent", "6789");
-
-      this.rpcConnection!.onNotification((method, params) => {
-        vscode.window.showErrorMessage(`[$/progress] - ${JSON.stringify(params)}`);
-
-        this.fireSolutionStateChange("sent", "[$/progress] - " + JSON.stringify(params));
-      });
 
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
