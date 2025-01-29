@@ -213,7 +213,7 @@ const commandsMap: (state: ExtensionState) => {
 
       // Function to extract values from label selector
       const extractValuesFromSelector = (selector: string, key: string): string[] => {
-        const regex = new RegExp(`konveyor.io/${key}=(.*?)(?:\\s|$)`, "g");
+        const regex = new RegExp(`konveyor.io/${key}=([\\w.-]+)`, "g");
         const matches = selector.matchAll(regex);
         const values = Array.from(matches, (match) => match[1]);
         return values.flatMap((value) => value.split("|"));
