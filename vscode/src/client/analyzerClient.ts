@@ -1,5 +1,6 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
+import { basename } from "node:path";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
@@ -18,29 +19,31 @@ import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
-  getConfigLogLevel,
-  getConfigLabelSelector,
-  updateUseDefaultRuleSets,
-  getConfigKaiRpcServerPath,
+  getCacheDir,
   getConfigAnalyzerPath,
+  getConfigCustomRules,
+  getConfigKaiDemoMode,
+  getConfigKaiRpcServerPath,
+  getConfigLabelSelector,
+  getConfigLoggingTraceMessageConnection,
+  getConfigLogLevel,
   getConfigMaxDepth,
   getConfigMaxIterations,
   getConfigMaxPriority,
   getConfigMultiMaxDepth,
-  getConfigMultiMaxPriority,
   getConfigMultiMaxIterations,
-  getConfigKaiDemoMode,
+  getConfigMultiMaxPriority,
   getConfigUseDefaultRulesets,
-  getConfigCustomRules,
-  isAnalysisResponse,
-  getCacheDir,
   getTraceEnabled,
+  isAnalysisResponse,
+  updateUseDefaultRuleSets,
 } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
 import { KaiRpcApplicationConfig } from "./types";
 import { getModelProvider, ModelProvider } from "./modelProvider";
+import { tracer } from "./tracer";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -149,6 +152,12 @@ export class AnalyzerClient {
       new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
       new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
     );
+    if (getConfigLoggingTraceMessageConnection()) {
+      this.rpcConnection.trace(
+        rpc.Trace.Verbose,
+        tracer(`${basename(this.kaiRpcServer.spawnfile)} message trace`),
+      );
+    }
     this.rpcConnection.listen();
   }
 

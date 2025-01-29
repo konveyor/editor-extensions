@@ -18,6 +18,10 @@ export function getConfigLogLevel(): ServerLogLevels {
   return getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
 }
 
+export function getConfigLoggingTraceMessageConnection(): boolean {
+  return getConfigValue<boolean>("logging.traceMessageConnection") ?? false;
+}
+
 export function getConfigIncidentLimit(): number {
   return getConfigValue<number>("analysis.incidentLimit") || 10000;
 }

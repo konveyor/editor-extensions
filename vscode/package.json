@@ -651,6 +651,12 @@
           "description": "Should the analyzer analyze project dependencies?",
           "scope": "window",
           "order": 99
+        },
+        "konveyor.logging.traceMessageConnection": {
+          "type": "boolean",
+          "default": false,
+          "description": "Trace the jsonrpc calls between the extension and the kai server?",
+          "order": 100
         }
       }
     },
