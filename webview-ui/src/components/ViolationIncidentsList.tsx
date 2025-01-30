@@ -5,7 +5,6 @@ import {
   ToolbarItem,
   ToolbarContent,
   ToolbarFilter,
-  ToolbarToggleGroup,
   ToolbarGroup,
   Badge,
   MenuToggle,
@@ -25,11 +24,21 @@ import {
   Flex,
   Split,
   SplitItem,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@patternfly/react-core";
-import { FilterIcon, WrenchIcon } from "@patternfly/react-icons";
+import {
+  FilterIcon,
+  WrenchIcon,
+  ListIcon,
+  FileIcon,
+  LayerGroupIcon,
+} from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Severity, EnhancedViolation } from "@editor-extensions/shared";
+
+type GroupByOption = "none" | "file" | "violation";
 
 interface ViolationIncidentsListProps {
   violations: EnhancedViolation[];
@@ -54,10 +63,9 @@ const ViolationIncidentsList = ({
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
-  const [isGroupByExpanded, setIsGroupByExpanded] = React.useState(false);
   const [filters, setFilters] = React.useState({
     severity: [] as Severity[],
-    groupBy: ["violation"] as string[],
+    groupBy: "violation" as GroupByOption,
   });
 
   const onSeveritySelect = (
@@ -75,31 +83,21 @@ const ViolationIncidentsList = ({
     }
   };
 
-  const onGroupBySelect = (
-    _event: React.MouseEvent | undefined,
-    value: string | number | undefined,
-  ) => {
-    if (typeof value === "string") {
-      setFilters((prev) => ({ ...prev, groupBy: [value] }));
-      setIsGroupByExpanded(false);
-    }
+  const handleGroupBySelect = (groupBy: GroupByOption) => {
+    setFilters((prev) => ({ ...prev, groupBy }));
   };
 
   const onDelete = (type: string, id: string) => {
     if (type === "Severity") {
       setFilters({ ...filters, severity: filters.severity.filter((s) => s !== id) });
-    } else if (type === "Group By") {
-      setFilters({ ...filters, groupBy: [] });
     } else {
-      setFilters({ severity: [], groupBy: [] });
+      setFilters({ severity: [], groupBy: "violation" });
     }
   };
 
   const onDeleteGroup = (type: string) => {
     if (type === "Severity") {
       setFilters({ ...filters, severity: [] });
-    } else if (type === "Group By") {
-      setFilters({ ...filters, groupBy: [] });
     }
   };
 
@@ -117,12 +115,6 @@ const ViolationIncidentsList = ({
     if (incidents.length > 0) {
       onGetSolution(incidents);
     }
-    //   const violation = violations.find((v) => v.id === incidents[0].violationId);
-
-    //   if (violation) {
-    //     onGetSolution(enhancedIncidentsFromViolation);
-    //   }
-    // }
   };
 
   const severityMenuItems = (
@@ -154,82 +146,98 @@ const ViolationIncidentsList = ({
     </SelectList>
   );
 
-  const groupByMenuItems = (
-    <SelectList>
-      <SelectOption
-        hasCheckbox
-        key="groupByNone"
-        value="none"
-        isSelected={filters.groupBy.includes("none")}
-      >
-        No Grouping
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="groupByFile"
-        value="file"
-        isSelected={filters.groupBy.includes("file")}
-      >
-        File
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="groupByViolation"
-        value="violation"
-        isSelected={filters.groupBy.includes("violation")}
-      >
-        Violation
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="groupBySeverity"
-        value="severity"
-        isSelected={filters.groupBy.includes("severity")}
-      >
-        Severity
-      </SelectOption>
-    </SelectList>
-  );
+  // Filter and group the incidents based on current filters
+  const groupedIncidents = React.useMemo(() => {
+    let filtered = enhancedIncidents;
 
-  const toggleGroupItems = (
+    if (searchTerm) {
+      const lowercaseSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (incident) =>
+          incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
+          incident.uri.toLowerCase().includes(lowercaseSearchTerm),
+      );
+    }
+
+    if (filters.severity.length > 0) {
+      filtered = filtered.filter((incident) =>
+        filters.severity.includes(incident.severity || "Low"),
+      );
+    }
+
+    const groups = new Map<string, { label: string; incidents: EnhancedIncident[] }>();
+
+    filtered.forEach((incident) => {
+      let key: string;
+      let label: string;
+
+      switch (filters.groupBy) {
+        case "file":
+          key = incident.uri;
+          label = path.basename(incident.uri);
+          break;
+        case "violation":
+          key = incident.violationId;
+          label = incident?.violation_description || "Unknown Violation";
+          break;
+        default:
+          key = "all";
+          label = "All Incidents";
+      }
+
+      if (!groups.has(key)) {
+        groups.set(key, { label, incidents: [] });
+      }
+      groups.get(key)!.incidents.push(incident);
+    });
+
+    return Array.from(groups.entries()).map(([id, { label, incidents }]) => ({
+      id,
+      label,
+      incidents,
+    }));
+  }, [enhancedIncidents, searchTerm, filters]);
+
+  const toolbarItems = (
     <React.Fragment>
-      <ToolbarItem>
-        <SearchInput
-          aria-label="Search violations and incidents"
-          onChange={(_event, value) => setSearchTerm(value)}
-          value={searchTerm}
-          onClear={() => setSearchTerm("")}
-        />
-      </ToolbarItem>
+      <ToolbarGroup>
+        <ToolbarItem>
+          <SearchInput
+            aria-label="Search violations and incidents"
+            onChange={(_event, value) => setSearchTerm(value)}
+            value={searchTerm}
+            onClear={() => setSearchTerm("")}
+          />
+        </ToolbarItem>
+      </ToolbarGroup>
+      <ToolbarGroup>
+        <ToolbarItem>
+          <ToggleGroup aria-label="Group by options">
+            <ToggleGroupItem
+              icon={<ListIcon />}
+              text="All"
+              buttonId="none"
+              isSelected={filters.groupBy === "none"}
+              onChange={() => handleGroupBySelect("none")}
+            />
+            <ToggleGroupItem
+              icon={<FileIcon />}
+              text="Files"
+              buttonId="file"
+              isSelected={filters.groupBy === "file"}
+              onChange={() => handleGroupBySelect("file")}
+            />
+            <ToggleGroupItem
+              icon={<LayerGroupIcon />}
+              text="Violations"
+              buttonId="violation"
+              isSelected={filters.groupBy === "violation"}
+              onChange={() => handleGroupBySelect("violation")}
+            />
+          </ToggleGroup>
+        </ToolbarItem>
+      </ToolbarGroup>
       <ToolbarGroup variant="filter-group">
-        <ToolbarFilter
-          labels={filters.groupBy}
-          deleteLabel={(category, label) => onDelete(category as string, label as string)}
-          deleteLabelGroup={(category) => onDeleteGroup(category as string)}
-          categoryName="Group By"
-        >
-          <Select
-            aria-label="Group By"
-            role="menu"
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={() => setIsGroupByExpanded(!isGroupByExpanded)}
-                isExpanded={isGroupByExpanded}
-                style={{ width: "140px" }}
-              >
-                Group By
-                {filters.groupBy.length > 0 && <Badge isRead>{filters.groupBy.length}</Badge>}
-              </MenuToggle>
-            )}
-            onSelect={onGroupBySelect}
-            selected={filters.groupBy}
-            isOpen={isGroupByExpanded}
-            onOpenChange={(isOpen) => setIsGroupByExpanded(isOpen)}
-          >
-            {groupByMenuItems}
-          </Select>
-        </ToolbarFilter>
         <ToolbarFilter
           labels={filters.severity}
           deleteLabel={(category, label) => onDelete(category as string, label as string)}
@@ -259,72 +267,6 @@ const ViolationIncidentsList = ({
           </Select>
         </ToolbarFilter>
       </ToolbarGroup>
-    </React.Fragment>
-  );
-
-  // Filter and group the incidents based on current filters
-  const groupedIncidents = React.useMemo(() => {
-    let filtered = enhancedIncidents;
-
-    if (searchTerm) {
-      const lowercaseSearchTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (incident) =>
-          incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-          incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-      );
-    }
-
-    if (filters.severity.length > 0) {
-      filtered = filtered.filter((incident) =>
-        filters.severity.includes(incident.severity || "Low"),
-      );
-    }
-
-    const groups = new Map<string, { label: string; incidents: EnhancedIncident[] }>();
-
-    const groupBy = filters.groupBy[0] || "none";
-    filtered.forEach((incident) => {
-      let key: string;
-      let label: string;
-      console.log("violation:", incident.violationId, incident);
-
-      switch (groupBy) {
-        case "file":
-          key = incident.uri;
-          label = path.basename(incident.uri);
-          break;
-        case "violation":
-          key = incident.violationId;
-          label = incident?.violation_description || "Unknown Violation";
-          break;
-        case "severity":
-          key = incident.severity || "Low";
-          label = `Severity: ${incident.severity || "Low"}`;
-          break;
-        default:
-          key = "all";
-          label = "All Incidents";
-      }
-
-      if (!groups.has(key)) {
-        groups.set(key, { label, incidents: [] });
-      }
-      groups.get(key)!.incidents.push(incident);
-    });
-
-    return Array.from(groups.entries()).map(([id, { label, incidents }]) => ({
-      id,
-      label,
-      incidents,
-    }));
-  }, [violations, searchTerm, filters]);
-
-  const toolbarItems = (
-    <React.Fragment>
-      <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-        {toggleGroupItems}
-      </ToolbarToggleGroup>
       <ToolbarGroup variant="action-group-inline">
         <ToolbarItem>
           {groupedIncidents.length > 0 && (
