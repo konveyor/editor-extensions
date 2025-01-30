@@ -507,7 +507,7 @@
             "diff",
             "merge"
           ],
-          "default": "diff",
+          "default": "merge",
           "description": "Select the editor to use when resolving proposed solutions.",
           "scope": "window",
           "order": 7
@@ -600,6 +600,23 @@
           "scope": "window",
           "order": 50
         },
+        "konveyor.kai.cacheDir": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Path to a directory containing cached responses",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor.kai.traceEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to create traces of the communication with the model",
+          "scope": "window",
+          "order": 50
+        },
         "konveyor.analysis.incidentLimit": {
           "type": "number",
           "default": 10000,
@@ -634,6 +651,12 @@
           "description": "Should the analyzer analyze project dependencies?",
           "scope": "window",
           "order": 99
+        },
+        "konveyor.logging.traceMessageConnection": {
+          "type": "boolean",
+          "default": false,
+          "description": "Trace the jsonrpc calls between the extension and the kai server?",
+          "order": 100
         }
       }
     },

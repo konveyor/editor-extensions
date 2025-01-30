@@ -54,6 +54,7 @@ export interface KaiRpcApplicationConfig {
   demoMode?: boolean; // defaults to `false`
   cacheDir?: string; // defaults to `None`
   enableReflection?: boolean; // defaults to `true`
+  traceEnabled?: boolean; // defaults to `false`
 
   analyzerLspLspPath: string;
   analyzerLspRpcPath: string;
