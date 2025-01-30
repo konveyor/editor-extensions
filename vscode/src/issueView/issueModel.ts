@@ -52,9 +52,8 @@ export class IssuesModel {
 
   updateIssues(ruleSets: Immutable<RuleSet[]>) {
     this.ruleSets = ruleSets;
-    const incidentsByMsg: { [msg: string]: [string, Incident][] } = groupIncidentsByMsg(
-      allIncidents(ruleSets),
-    );
+    const incidentsByMsg: { [msg: string]: [string, EnhancedIncidentncident][] } =
+      groupIncidentsByMsg(allIncidents(ruleSets));
     // entries [msg, incidentsByFile]
     const treeItemsAsEntries: [string, { [uri: string]: Incident[] }][] = Object.entries(
       incidentsByMsg,

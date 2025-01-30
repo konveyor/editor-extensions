@@ -30,7 +30,7 @@ import {
 import { WrenchIcon, ListIcon, FileIcon, LayerGroupIcon } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
-import { EnhancedIncident, Incident, Severity, EnhancedViolation } from "@editor-extensions/shared";
+import { EnhancedIncident, Incident, Severity } from "@editor-extensions/shared";
 
 type GroupByOption = "none" | "file" | "violation";
 

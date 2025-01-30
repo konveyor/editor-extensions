@@ -176,7 +176,6 @@ const AnalysisPage: React.FC = () => {
                   <ViolationIncidentsList
                     workspaceRoot={workspaceRoot}
                     isRunning={serverRunning}
-                    violations={violations}
                     enhancedIncidents={enhancedIncidents}
                     focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
