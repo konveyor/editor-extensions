@@ -1,5 +1,5 @@
 import "./styles.css";
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   Button,
   ButtonVariant,
@@ -35,7 +35,7 @@ import {
 
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
-import { Incident, Violation, EnhancedViolation } from "@editor-extensions/shared";
+import { Incident } from "@editor-extensions/shared";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { getSolution, openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";

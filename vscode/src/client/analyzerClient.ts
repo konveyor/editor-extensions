@@ -5,7 +5,6 @@ import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import {
   EnhancedIncident,
-  EnhancedViolation,
   ExtensionData,
   RuleSet,
   Scope,
@@ -502,14 +501,10 @@ export class AnalyzerClient {
    *
    * Will only run if the sever state is: `running`
    */
-  public async getSolution(
-    state: ExtensionState,
-    incidents: EnhancedIncident[],
-    violation?: EnhancedViolation,
-  ): Promise<void> {
+  public async getSolution(state: ExtensionState, incidents: EnhancedIncident[]): Promise<void> {
     // TODO: Ensure serverState is running
 
-    this.fireSolutionStateChange("started", "Checking server state...", { incidents, violation });
+    this.fireSolutionStateChange("started", "Checking server state...", { incidents });
 
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
@@ -550,7 +545,6 @@ export class AnalyzerClient {
       this.fireSolutionStateChange("received", "Received response...");
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
         incidents,
-        violation,
       });
     } catch (err: any) {
       this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);

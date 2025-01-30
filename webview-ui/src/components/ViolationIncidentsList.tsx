@@ -29,13 +29,7 @@ import {
 import { FilterIcon, WrenchIcon } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
-import {
-  EnhancedIncident,
-  Incident,
-  Severity,
-  Violation,
-  EnhancedViolation,
-} from "@editor-extensions/shared";
+import { EnhancedIncident, Incident, Severity, EnhancedViolation } from "@editor-extensions/shared";
 import { enhanceIncidents } from "../utils/transformation";
 
 interface ViolationIncidentsListProps {
