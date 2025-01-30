@@ -4,7 +4,7 @@ import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
 import Markdown from "react-markdown";
-import ViolationActionsDropdown from "../ViolationActionsDropdown";
+import { WrenchIcon } from "@patternfly/react-icons";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
@@ -44,14 +44,20 @@ export const IncidentTable: FC<IncidentTableProps> = ({
               ? {
                   hasNoOffset: true,
                   actions: (
-                    <ViolationActionsDropdown
-                      onGetAllSolutions={() => getSolution(incidents)}
-                      fixMessage={
+                    <Button
+                      variant="plain"
+                      aria-label={
                         incidents.length === 1
                           ? "Resolve 1 incident"
-                          : `Resolve the ${incidents.length} incidents`
+                          : `Resolve ${incidents.length} incidents`
                       }
-                    />
+                      icon={<WrenchIcon />}
+                      onClick={() => getSolution(incidents)}
+                    >
+                      {incidents.length === 1
+                        ? "Resolve 1 incident"
+                        : `Resolve ${incidents.length} incidents`}
+                    </Button>
                   ),
                 }
               : undefined
@@ -90,13 +96,15 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                       </TableText>
                     </Td>
                     <Td isActionCell>
-                      {getSolution ? (
-                        <ViolationActionsDropdown
-                          onGetAllSolutions={() => getSolution([it])}
-                          fixMessage="Resolve this incident"
-                        />
-                      ) : (
-                        ""
+                      {getSolution && (
+                        <Button
+                          variant="plain"
+                          aria-label="Resolve incident"
+                          icon={<WrenchIcon />}
+                          onClick={() => getSolution([it])}
+                        >
+                          Resolve
+                        </Button>
                       )}
                     </Td>
                   </Tr>
