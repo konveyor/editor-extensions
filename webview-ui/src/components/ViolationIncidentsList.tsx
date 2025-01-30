@@ -416,6 +416,7 @@ const ViolationIncidentsList = ({
                   onGetSolution={onGetSolution}
                   onIncidentSelect={onIncidentSelect}
                   incidents={group.incidents}
+                  violation={violations.find((v) => v.id === group.incidents[0].violationId)}
                   workspaceRoot={workspaceRoot}
                 />
               </CardBody>
