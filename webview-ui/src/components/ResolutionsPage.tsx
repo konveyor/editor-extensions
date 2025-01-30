@@ -98,7 +98,6 @@ const ResolutionPage: React.FC = () => {
                 <ChatCard color="yellow">
                   <IncidentTableGroup
                     onIncidentSelect={handleIncidentClick}
-                    violation={solutionScope?.violation}
                     incidents={solutionScope.incidents}
                     workspaceRoot={workspaceRoot}
                   />
