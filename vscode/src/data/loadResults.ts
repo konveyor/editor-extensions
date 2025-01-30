@@ -1,5 +1,7 @@
 import {
+  EnhancedIncident,
   GetSolutionResult,
+  Incident,
   LocalChange,
   RuleSet,
   Scope,
@@ -19,9 +21,11 @@ import { castDraft, Immutable } from "immer";
 
 export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: RuleSet[]) => {
   await writeDataFile(receivedRuleSets, RULE_SET_DATA_FILE_PREFIX);
+  const enhancedIncidents = enhanceIncidentsFromRuleSets(receivedRuleSets);
 
   const data = state.mutateData((draft) => {
     draft.ruleSets = receivedRuleSets;
+    draft.enhancedIncidents = enhancedIncidents;
   });
   const diagnosticTuples = processIncidents(data.ruleSets);
   state.diagnosticCollection.clear();
@@ -70,3 +74,23 @@ const doLoadSolution = async (
     draft.solutionScope = castDraft(scope);
   });
 };
+
+function enhanceIncidentsFromRuleSets(ruleSets: RuleSet[]): EnhancedIncident[] {
+  return ruleSets.flatMap((ruleSet) =>
+    Object.entries(ruleSet.violations || {}).flatMap(([violationId, violation]) =>
+      violation.incidents.map((incident: Incident) => ({
+        ...incident,
+        ruleset_name: ruleSet.name,
+        ruleset_description: ruleSet.description,
+        violation_name: violationId,
+        violation_description: violation.description,
+        violation_category: violation.category,
+        violation_labels: violation.labels,
+        violationId,
+        uri: incident.uri,
+        message: incident.message,
+        severity: incident.severity,
+      })),
+    ),
+  );
+}

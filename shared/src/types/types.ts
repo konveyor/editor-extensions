@@ -35,12 +35,15 @@ export type EnhancedViolation = Violation & {
 
 export interface EnhancedIncident extends Incident {
   violationId: string;
-  violationDescription: string;
-  rulesetName?: string;
-  violationName?: string;
   uri: string;
   message: string;
   severity?: Severity;
+  ruleset_name?: string;
+  ruleset_description?: string;
+  violation_name?: string;
+  violation_description?: string;
+  violation_category?: Category;
+  violation_labels?: string[];
 }
 
 export interface RuleSet {
@@ -105,6 +108,7 @@ export interface ExtensionData {
   workspaceRoot: string;
   localChanges: LocalChange[];
   ruleSets: RuleSet[];
+  enhancedIncidents: EnhancedIncident[];
   resolutionPanelData: any;
   isAnalyzing: boolean;
   isFetchingSolution: boolean;

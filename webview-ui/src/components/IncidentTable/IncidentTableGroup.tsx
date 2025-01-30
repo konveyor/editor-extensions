@@ -1,6 +1,5 @@
 import React from "react";
 import { EnhancedViolation, EnhancedIncident } from "@editor-extensions/shared";
-import { enhanceIncidents } from "../../utils/transformation";
 import { IncidentTable } from "./IncidentTable";
 
 export const IncidentTableGroup = ({
@@ -16,8 +15,7 @@ export const IncidentTableGroup = ({
   workspaceRoot: string;
   incidents?: EnhancedIncident[];
 }) => {
-  const enhancedIncidentsFromViolation = enhanceIncidents(incidents, violation);
-  const groupedIncidents = incidents ?? enhancedIncidentsFromViolation;
+  const groupedIncidents = incidents || [];
 
   // Group incidents by message for display
   const messageGroups = groupedIncidents.reduce(

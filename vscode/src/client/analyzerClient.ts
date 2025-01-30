@@ -512,12 +512,6 @@ export class AnalyzerClient {
       return;
     }
 
-    const enhancedIncidents = incidents.map((incident) => ({
-      ...incident,
-      ruleset_name: incident.rulesetName ?? "default_ruleset",
-      violation_name: incident.violationName ?? "default_violation",
-    }));
-
     const multiIncident = incidents.length > 1;
     const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
     const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
@@ -526,7 +520,7 @@ export class AnalyzerClient {
     try {
       const request = {
         file_path: "",
-        incidents: enhancedIncidents,
+        incidents,
         max_priority: maxPriority,
         max_depth: maxDepth,
         max_iterations: maxIterations,

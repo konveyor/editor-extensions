@@ -27,6 +27,7 @@ class VsCodeExtension {
       {
         localChanges: [],
         ruleSets: [],
+        enhancedIncidents: [],
         resolutionPanelData: undefined,
         isAnalyzing: false,
         isFetchingSolution: false,

@@ -30,7 +30,6 @@ import { FilterIcon, WrenchIcon } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Severity, EnhancedViolation } from "@editor-extensions/shared";
-import { enhanceIncidents } from "../utils/transformation";
 
 interface ViolationIncidentsListProps {
   violations: EnhancedViolation[];
@@ -41,6 +40,7 @@ interface ViolationIncidentsListProps {
   workspaceRoot: string;
   isRunning: boolean;
   focusedIncident: Incident | null;
+  enhancedIncidents: EnhancedIncident[];
 }
 
 const ViolationIncidentsList = ({
@@ -50,7 +50,7 @@ const ViolationIncidentsList = ({
   setExpandedViolations,
   onGetSolution,
   workspaceRoot,
-  isRunning,
+  enhancedIncidents,
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
@@ -115,13 +115,14 @@ const ViolationIncidentsList = ({
 
   const handleGetSolution = (incidents: EnhancedIncident[]) => {
     if (incidents.length > 0) {
-      const violation = violations.find((v) => v.id === incidents[0].violationId);
-
-      if (violation) {
-        const enhancedIncidentsFromViolation = enhanceIncidents(incidents, violation);
-        onGetSolution(enhancedIncidentsFromViolation);
-      }
+      onGetSolution(incidents);
     }
+    //   const violation = violations.find((v) => v.id === incidents[0].violationId);
+
+    //   if (violation) {
+    //     onGetSolution(enhancedIncidentsFromViolation);
+    //   }
+    // }
   };
 
   const severityMenuItems = (
@@ -263,14 +264,7 @@ const ViolationIncidentsList = ({
 
   // Filter and group the incidents based on current filters
   const groupedIncidents = React.useMemo(() => {
-    let filtered = violations.flatMap(
-      (violation) =>
-        violation.incidents.map((incident) => ({
-          ...incident,
-          violationId: violation.id,
-          violationDescription: violation.description,
-        })) as EnhancedIncident[],
-    );
+    let filtered = enhancedIncidents;
 
     if (searchTerm) {
       const lowercaseSearchTerm = searchTerm.toLowerCase();
@@ -293,6 +287,7 @@ const ViolationIncidentsList = ({
     filtered.forEach((incident) => {
       let key: string;
       let label: string;
+      console.log("violation:", incident.violationId, incident);
 
       switch (groupBy) {
         case "file":
@@ -301,7 +296,7 @@ const ViolationIncidentsList = ({
           break;
         case "violation":
           key = incident.violationId;
-          label = incident.violationDescription;
+          label = incident?.violation_description || "Unknown Violation";
           break;
         case "severity":
           key = incident.severity || "Low";
