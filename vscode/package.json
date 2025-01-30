@@ -507,7 +507,7 @@
             "diff",
             "merge"
           ],
-          "default": "diff",
+          "default": "merge",
           "description": "Select the editor to use when resolving proposed solutions.",
           "scope": "window",
           "order": 7
