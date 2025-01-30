@@ -1,15 +1,13 @@
 import React from "react";
-import { EnhancedViolation, EnhancedIncident } from "@editor-extensions/shared";
+import { EnhancedIncident } from "@editor-extensions/shared";
 import { IncidentTable } from "./IncidentTable";
 
 export const IncidentTableGroup = ({
-  violation,
   onIncidentSelect,
   onGetSolution,
   workspaceRoot,
   incidents,
 }: {
-  violation?: EnhancedViolation;
   onIncidentSelect: (incident: EnhancedIncident) => void;
   onGetSolution?: (incidents: EnhancedIncident[]) => void;
   workspaceRoot: string;
@@ -35,9 +33,7 @@ export const IncidentTableGroup = ({
       key={message}
       message={message}
       getSolution={
-        violation && onGetSolution
-          ? (incidents: EnhancedIncident[]) => onGetSolution(incidents)
-          : undefined
+        onGetSolution ? (incidents: EnhancedIncident[]) => onGetSolution(incidents) : undefined
       }
       incidents={incidents}
       workspaceRoot={workspaceRoot}

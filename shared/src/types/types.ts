@@ -32,7 +32,8 @@ export type EnhancedViolation = Violation & {
   rulesetName?: string;
   violationName?: string;
 };
-
+// Keep EnhancedIncident type aligned with KAI backend type:
+// https://github.com/konveyor/kai/blob/82e195916be14eddd08c4e2bfb69afc0880edfcb/kai/analyzer_types.py#L89-L106
 export interface EnhancedIncident extends Incident {
   violationId: string;
   uri: string;
