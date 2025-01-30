@@ -27,13 +27,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@patternfly/react-core";
-import {
-  FilterIcon,
-  WrenchIcon,
-  ListIcon,
-  FileIcon,
-  LayerGroupIcon,
-} from "@patternfly/react-icons";
+import { WrenchIcon, ListIcon, FileIcon, LayerGroupIcon } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Severity, EnhancedViolation } from "@editor-extensions/shared";
@@ -41,7 +35,6 @@ import { EnhancedIncident, Incident, Severity, EnhancedViolation } from "@editor
 type GroupByOption = "none" | "file" | "violation";
 
 interface ViolationIncidentsListProps {
-  violations: EnhancedViolation[];
   onIncidentSelect: (incident: Incident) => void;
   expandedViolations: Set<string>;
   setExpandedViolations: (value: Set<string>) => void;
@@ -53,7 +46,6 @@ interface ViolationIncidentsListProps {
 }
 
 const ViolationIncidentsList = ({
-  violations,
   onIncidentSelect,
   expandedViolations,
   setExpandedViolations,
@@ -229,7 +221,8 @@ const ViolationIncidentsList = ({
             />
             <ToggleGroupItem
               icon={<LayerGroupIcon />}
-              text="Violations"
+              // ISSUES === VIOLATIONS.
+              text="Issues"
               buttonId="violation"
               isSelected={filters.groupBy === "violation"}
               onChange={() => handleGroupBySelect("violation")}
@@ -347,7 +340,6 @@ const ViolationIncidentsList = ({
                   onGetSolution={onGetSolution}
                   onIncidentSelect={onIncidentSelect}
                   incidents={group.incidents}
-                  violation={violations.find((v) => v.id === group.incidents[0].violationId)}
                   workspaceRoot={workspaceRoot}
                 />
               </CardBody>
