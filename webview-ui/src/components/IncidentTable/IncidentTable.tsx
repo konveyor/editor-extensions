@@ -1,3 +1,4 @@
+import "./incidentTable.css";
 import React, { FC, useCallback } from "react";
 import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
 import { EnhancedIncident, Incident } from "@editor-extensions/shared";
@@ -31,6 +32,11 @@ export const IncidentTable: FC<IncidentTableProps> = ({
     [workspaceRoot],
   );
   const uniqueId = (incident: Incident) => `${incident.uri}-${incident.lineNumber}`;
+
+  const tooltipProps = {
+    className: "incident-table-tooltip",
+    distance: 15,
+  };
 
   const ISSUE = "Issue";
   const LOCATION = "Location";
@@ -81,12 +87,18 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                 {incidents.map((it) => (
                   <Tr key={uniqueId(it)}>
                     <Td dataLabel={ISSUE}>
-                      <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
-                        <b>{fileName(it)}</b>
-                      </Button>
+                      <TableText tooltip={it.uri} tooltipProps={tooltipProps}>
+                        <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
+                          <b>{fileName(it)}</b>
+                        </Button>
+                      </TableText>
                     </Td>
                     <Td dataLabel={FOLDER}>
-                      <TableText wrapModifier="truncate">
+                      <TableText
+                        wrapModifier="truncate"
+                        tooltip={relativeDirname(it)}
+                        tooltipProps={tooltipProps}
+                      >
                         <i>{relativeDirname(it)}</i>
                       </TableText>
                     </Td>
@@ -99,7 +111,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                       {getSolution && (
                         <Button
                           variant="plain"
-                          aria-label="Resolve incident"
+                          aria-label="Resolve this incident"
                           icon={<WrenchIcon />}
                           onClick={() => getSolution([it])}
                         >
