@@ -544,61 +544,32 @@
             "null"
           ],
           "default": 0,
-          "description": "Maximum priority for the getSolution request",
+          "description": "(Advanced) The maximum priority for issues to be considered by kai in a getSolution request.",
           "scope": "window",
           "order": 40
         },
-        "konveyor.kai.getSolutionMaxDepth": {
-          "type": [
-            "number",
-            "null"
+        "konveyor.kai.getSolutionMaxEffort": {
+          "type": "string",
+          "enum": [
+            "Low",
+            "Medium",
+            "Maximum (experimental)"
           ],
-          "default": 0,
-          "description": "Max depth for the getSolution request",
+          "default": "Low",
+          "description": "Defines the effort level for solution generation. Higher values increase processing time.",
           "scope": "window",
           "order": 40
         },
-        "konveyor.kai.getSolutionMaxIterations": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 1,
-          "minimum": 1,
-          "description": "Max iterations for the getSolution request",
-          "scope": "window",
-          "order": 40
-        },
-        "konveyor.kai.getMultiSolutionMaxPriority": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 0,
-          "description": "Maximum priority for the getSolution request with multiple incidents",
-          "scope": "window",
-          "order": 50
-        },
-        "konveyor.kai.getMultiSolutionMaxDepth": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 1,
-          "description": "Max depth for the getSolution request with multiple incidents",
-          "scope": "window",
-          "order": 50
-        },
-        "konveyor.kai.getMultiSolutionMaxIterations": {
+        "konveyor.kai.getSolutionMaxLLMQueries": {
           "type": [
             "number",
             "null"
           ],
           "default": null,
           "minimum": 1,
-          "description": "Max iterations for the getSolution request with multiple incidents",
+          "description": "(Advanced) Maximum number of LLM queries to be made per solution request (default: No limit)",
           "scope": "window",
-          "order": 50
+          "order": 40
         },
         "konveyor.kai.cacheDir": {
           "type": [

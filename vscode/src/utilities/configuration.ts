@@ -231,28 +231,26 @@ export async function updateGenAiKey(
   }
 }
 
-export function getConfigMaxPriority(): number | undefined {
+export function getConfigSolutionMaxPriority(): number | undefined {
   return getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? undefined;
 }
 
-export function getConfigMaxDepth(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxDepth") ?? undefined;
+// getConfigSolutionMaxEffort takes the enum from the config and turns it into
+// a number for use in a getSolution request. This value corresponds to
+// the maximum depth kai will go in attempting to provide a solution.
+export function getConfigSolutionMaxEffort(): number | undefined {
+  const effortLevels: Record<string, number | undefined> = {
+    Low: 0,
+    Medium: 1,
+    "Maximum (experimental)": undefined,
+  };
+
+  const effortSetting = getConfigValue<string>("kai.getSolutionMaxEffort");
+  return effortLevels[effortSetting as keyof typeof effortLevels] ?? 0;
 }
 
-export function getConfigMaxIterations(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxIterations") ?? undefined;
-}
-
-export function getConfigMultiMaxPriority(): number | undefined {
-  return getConfigValue<number | null>("kai.getMultiSolutionMaxPriority") ?? undefined;
-}
-
-export function getConfigMultiMaxDepth(): number | undefined {
-  return getConfigValue<number | null>("kai.getMultiSolutionMaxDepth") ?? undefined;
-}
-
-export function getConfigMultiMaxIterations(): number | undefined {
-  return getConfigValue<number | null>("kai.getMultiSolutionMaxIterations") ?? undefined;
+export function getConfigMaxLLMQueries(): number | undefined {
+  return getConfigValue<number | null>("kai.getSolutionMaxLLMQueries") ?? undefined;
 }
 
 export async function updateGetSolutionMaxPriority(value: number): Promise<void> {

@@ -27,12 +27,9 @@ import {
   getConfigLabelSelector,
   getConfigLoggingTraceMessageConnection,
   getConfigLogLevel,
-  getConfigMaxDepth,
-  getConfigMaxIterations,
-  getConfigMaxPriority,
-  getConfigMultiMaxDepth,
-  getConfigMultiMaxIterations,
-  getConfigMultiMaxPriority,
+  getConfigSolutionMaxEffort,
+  getConfigMaxLLMQueries,
+  getConfigSolutionMaxPriority,
   getConfigUseDefaultRulesets,
   getTraceEnabled,
   isAnalysisResponse,
@@ -534,10 +531,9 @@ export class AnalyzerClient {
       return;
     }
 
-    const multiIncident = incidents.length > 1;
-    const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
-    const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
-    const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
+    const maxPriority = getConfigSolutionMaxPriority();
+    const maxDepth = getConfigSolutionMaxEffort();
+    const maxIterations = getConfigMaxLLMQueries();
 
     try {
       const request = {
