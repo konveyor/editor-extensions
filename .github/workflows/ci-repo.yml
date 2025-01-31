@@ -92,6 +92,19 @@ jobs:
         run: |
           npm ci
 
+      #
+      # TODO: To run a proper test, the Kai assets need to be downloaded for the proper place
+      # TODO: For example, this would be nice...
+      # - name: Collect assets needed to run Kai on the current runtime's platform/arch
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     npm run collect-assets \
+      #       --workflow \
+      #       --branch=main \
+      #       --platform=runtime \
+      #       --arch=runtime
+
       # Run tests on Linux
       - name: Run tests (Linux)
         if: matrix.arch == 'linux'
@@ -134,6 +147,8 @@ jobs:
           npm ci
 
       - name: Build the project and generate the .vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build
           npm run collect-assets

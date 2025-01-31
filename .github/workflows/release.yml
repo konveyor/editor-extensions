@@ -15,23 +15,24 @@ on:
         required: true
         type: boolean
         default: false
+
 # https://typicode.github.io/husky/how-to.html#ci-server-and-docker
 env:
   HUSKY: 0
 
 jobs:
-  release_prereq:
-    name: Build, Test, and Package (${{ matrix.arch }})
+  test_build_package:
+    name: Build, Test, and Package (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            arch: linux
+            platform: linux
           - os: macos-latest
-            arch: macos
+            platform: macos
           - os: windows-latest
-            arch: windows
+            platform: windows
       max-parallel: 3
     outputs:
       tag_name: ${{ steps.determine_tag.outputs.tag_name }}
@@ -60,15 +61,15 @@ jobs:
 
       # Run tests on different OSes
       - name: Run tests (Linux)
-        if: matrix.arch == 'linux'
+        if: matrix.platform == 'linux'
         run: xvfb-run -a npm run test
 
       - name: Run tests (macOS)
-        if: matrix.arch == 'macos'
+        if: matrix.platform == 'macos'
         run: npm test
 
       - name: Run tests (Windows)
-        if: matrix.arch == 'windows'
+        if: matrix.platform == 'windows'
         shell: cmd
         run: npm test
 
@@ -80,6 +81,8 @@ jobs:
 
       # Collect assets
       - name: Collect assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run collect-assets
 
       # Copy files to dist folder
@@ -90,20 +93,20 @@ jobs:
       - name: Build VSIX package
         run: npm run package
 
-      # Upload VSIX artifact (linux )
+      # Upload VSIX artifact (linux)
       - name: Upload VSIX artifact
-        if: matrix.arch == 'linux'
+        if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
-          name: vscode-extension-${{ matrix.arch }}
+          name: vscode-extension-${{ matrix.platform }}
           path: ./dist/*.vsix
 
   generate_changelog:
     name: Generate Changelog
-    needs: release_prereq
+    needs: test_build_package
     uses: konveyor/release-tools/.github/workflows/generate-changelog.yml@main
     with:
-      version: ${{ needs.release_prereq.outputs.tag_name }}
+      version: ${{ needs.test_build_package.outputs.tag_name }}
       prev_version: $(gh api repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
       repository: ${{ github.repository }}
       ref: ${{ github.sha }}
@@ -113,7 +116,7 @@ jobs:
   release:
     name: Final Release
     runs-on: ubuntu-latest
-    needs: [release_prereq, generate_changelog]
+    needs: [test_build_package, generate_changelog]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -141,12 +144,12 @@ jobs:
 
       - name: Rename VSIX Packages
         run: |
-          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.release_prereq.outputs.tag_name }}.vsix
+          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.test_build_package.outputs.tag_name }}.vsix
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.release_prereq.outputs.tag_name }}
+          tag: ${{ needs.test_build_package.outputs.tag_name }}
           commit: ${{ github.sha }}
           bodyFile: ./artifacts/release.md
           artifacts: |

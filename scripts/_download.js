@@ -2,61 +2,20 @@ import { join, extname, basename } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createHash } from "node:crypto";
+import { Octokit } from "@octokit/core";
 import fs from "fs-extra";
 import unzipper from "unzipper";
 import * as tar from "tar";
 import { bold, green, yellow } from "colorette";
-import { chmodOwnerPlusX } from "./_util.js";
-import { fetchFirstSuccessfulRun, fetchArtifactsForRun } from "./_github.js";
-
 import { globby } from "globby";
 
-const GITHUB_API = "https://api.github.com";
-
-/**
- * Fetch the JSON metadata for a GitHub repository release.
- *
- * @param {string} org GitHub organization/user for the release
- * @param {string} repo GitHub repository for the release
- * @param {string} releaseTag The release's tag
- * @returns {object}
- */
-export async function getGitHubReleaseMetadata(org, repo, releaseTag) {
-  const url = `${GITHUB_API}/repos/${org}/${repo}/releases/tags/${releaseTag}`;
-  console.log(
-    `Fetching GitHub release metadata for ${yellow(`${org}/${repo}`)} release: ${yellow(releaseTag)}`,
-  );
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch release metadata: ${response.statusText}`);
-  }
-
-  return await response.json();
-}
-
-/**
- * Fetch the commit sha for a GitHub repository release.
- *
- * @param {string} org GitHub organization/user for the release
- * @param {string} repo GitHub repository for the release
- * @param {string} releaseTag The release's tag
- * @returns The release tag's commit sha
- */
-export async function getGitHubReleaseTagSha(org, repo, releaseTag) {
-  const url = `${GITHUB_API}/repos/${org}/${repo}/commits/${releaseTag}`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github.sha",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch release tag sha: ${response.statusText}`);
-  }
-
-  return await response.text();
-}
+import { chmodOwnerPlusX } from "./_util.js";
+import {
+  fetchGitHubReleaseMetadata,
+  fetchGitHubReleaseTagSha,
+  fetchFirstSuccessfulRun,
+  fetchArtifactsForRun,
+} from "./_github.js";
 
 /**
  * @param {string} targetFile
@@ -79,20 +38,26 @@ async function streamResponseToFile(targetFile, fetchResponse) {
   return hash.digest("hex");
 }
 
-export async function downloadAndExtractGitHubAsset(
+export async function downloadAndExtractGitHubReleaseAsset(
   target,
   gitHubReleaseAsset,
   platform,
   arch,
   chmod = false,
+  token,
 ) {
   const assetDir = join(target, `${platform}-${arch}`);
   const assetFileName = join(assetDir, gitHubReleaseAsset.name);
 
   await fs.ensureDir(assetDir);
 
+  // TODO: Could use ETag/If-None-Match headers to trigger 304s and skip unnecessary
+  // TODO: Could also use If-Modified-Since and the file's GMT timestamp
+
   console.log(`Downloading asset: ${gitHubReleaseAsset.name}`);
-  const response = await fetch(gitHubReleaseAsset.browser_download_url);
+  const response = await fetch(gitHubReleaseAsset.browser_download_url, {
+    headers: token && { Authorization: `Bearer ${token}` },
+  });
   if (!response.ok) {
     throw new Error(`Failed to download ${gitHubReleaseAsset.name}: ${response.statusText}`);
   }
@@ -121,8 +86,14 @@ export async function downloadGitHubRelease({
   releaseTag,
   assets,
 }) {
-  const releaseData = await getGitHubReleaseMetadata(org, repo, releaseTag);
-  const commitId = await getGitHubReleaseTagSha(org, repo, releaseTag);
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+  octokit.request = octokit.request.defaults({ owner: org, repo });
+  console.log(
+    `Fetching GitHub release metadata for ${yellow(`${org}/${repo}`)} release: ${yellow(releaseTag)}`,
+  );
+
+  const releaseData = await fetchGitHubReleaseMetadata(octokit, releaseTag);
+  const commitId = await fetchGitHubReleaseTagSha(octokit, releaseTag);
   const releaseAssets = releaseData.assets;
 
   const metadata = {
@@ -136,23 +107,33 @@ export async function downloadGitHubRelease({
 
   for (const { name, platform, arch, chmod } of assets) {
     const releaseAsset = releaseAssets.find((a) => a.name.toLowerCase() === name.toLowerCase());
-    if (releaseAsset) {
-      try {
-        console.group(yellow(releaseAsset.name));
-        await downloadAndExtractGitHubAsset(targetDirectory, releaseAsset, platform, arch, chmod);
-      } finally {
-        console.groupEnd();
-      }
-      metadata.assets.push({
-        name: releaseAsset.name,
+    if (!releaseAsset) {
+      console.warn(
+        `Asset [${yellow(name)}] was not found in GitHub release ${releaseData.html_url}`,
+      );
+      continue;
+    }
+
+    try {
+      console.group(yellow(releaseAsset.name));
+      await downloadAndExtractGitHubReleaseAsset(
+        targetDirectory,
+        releaseAsset,
         platform,
         arch,
-        chmod: !!chmod,
-        updatedAt: releaseAsset.updated_at,
-      });
-    } else {
-      console.warn(`Asset [${name}] was not found in GitHub release ${releaseData.html_url}`);
+        chmod,
+        process.env.GITHUB_TOKEN,
+      );
+    } finally {
+      console.groupEnd();
     }
+    metadata.assets.push({
+      name: releaseAsset.name,
+      platform,
+      arch,
+      chmod: !!chmod,
+      updatedAt: releaseAsset.updated_at,
+    });
   }
 
   await fs.writeJson(metaFile, metadata, { spaces: 2 });
@@ -290,10 +271,13 @@ export async function downloadWorkflowArtifacts({
   metaFile,
   org,
   repo,
+  branch,
   workflow,
   assets,
 }) {
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  const octokit = new Octokit({ auth: GITHUB_TOKEN });
+  octokit.request = octokit.request.defaults({ owner: org, repo });
 
   if (!GITHUB_TOKEN) {
     const errorMessage = "GITHUB_TOKEN environment variable is not set.";
@@ -301,23 +285,31 @@ export async function downloadWorkflowArtifacts({
     throw new Error(errorMessage);
   }
 
-  console.log("Fetching first successful workflow run...");
-  const { workflowRunId, headSha } = await fetchFirstSuccessfulRun(org, repo, workflow);
-
+  console.log(
+    `Fetching most recent successful workflow run on repo ${yellow(`${org}/${repo}`)}, workflow: ${yellow(workflow)}, branch: ${yellow(branch)}`,
+  );
+  const { workflowRunId, workflowRunUrl, headSha } = await fetchFirstSuccessfulRun(
+    octokit,
+    branch,
+    workflow,
+  );
   if (!workflowRunId) {
     throw new Error("No successful workflow runs found.");
   }
+  console.log(
+    `Branch head commit sha: ${yellow(headSha)}, workflow run id: ${yellow(workflowRunId)}, url: ${workflowRunUrl}`,
+  );
 
-  console.log(`Workflow Run ID: ${workflowRunId}`);
-  const artifactUrls = await fetchArtifactsForRun(org, repo, workflowRunId);
-
+  const artifactUrls = await fetchArtifactsForRun(octokit, workflowRunId);
   if (!artifactUrls || artifactUrls.length === 0) {
     throw new Error("No artifacts found for the workflow run.");
   }
+  console.log("Artifact Download URLs:", artifactUrls);
 
   const metadata = {
     org,
     repo,
+    branch,
     workflow,
     workflowRunId,
     commitId: headSha,
@@ -335,6 +327,7 @@ export async function downloadWorkflowArtifacts({
     }
 
     try {
+      console.group(yellow(name));
       console.log(`Processing artifact: ${name}`);
 
       const downloadedFilePath = await downloadArtifact(
@@ -361,6 +354,8 @@ export async function downloadWorkflowArtifacts({
     } catch (error) {
       console.error(`Error processing artifact [${name}]:`, error.message);
       throw new Error(`Failed to process artifact ${name}: ${error.message}`);
+    } finally {
+      console.groupEnd();
     }
   }
 
