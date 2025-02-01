@@ -35,7 +35,7 @@ import {
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
-import { checkIfExecutable } from "./utilities/fileUtils";
+import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 
 const isWindows = process.platform === "win32";
 
@@ -164,7 +164,12 @@ const commandsMap: (state: ExtensionState) => {
         window.showInformationMessage("No Kai rpc-server binary selected.");
       }
     },
-    "konveyor.openModelProviderSettings": async () => {
+    "konveyor.modelProviderSettingsOpen": async () => {
+      const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
+      window.showTextDocument(settingsDocument);
+    },
+    "konveyor.modelProviderSettingsBackupReset": async () => {
+      await copySampleProviderSettings(true);
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },

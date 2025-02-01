@@ -39,8 +39,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "konveyor.openModelProviderSettings",
+        "command": "konveyor.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.modelProviderSettingsBackupReset",
+        "title": "Open the default the GenAI model provider configuration file and backup the current file",
         "category": "Konveyor",
         "icon": "$(gear)"
       },

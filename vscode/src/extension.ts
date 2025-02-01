@@ -11,6 +11,7 @@ import { Immutable, produce } from "immer";
 import { partialAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths } from "./paths";
+import { copySampleProviderSettings } from "./utilities/fileUtils";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -154,16 +155,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     const paths = await ensurePaths(context);
-
-    // copy in the sample file if the settings file doesn't exist
-    try {
-      await vscode.workspace.fs.stat(paths.settingsYaml);
-    } catch {
-      await vscode.workspace.fs.copy(
-        vscode.Uri.joinPath(paths.extResources, "sample-provider-settings.yaml"),
-        paths.settingsYaml,
-      );
-    }
+    await copySampleProviderSettings();
 
     extension = new VsCodeExtension(paths, context);
     extension.initialize();
