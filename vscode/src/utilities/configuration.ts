@@ -246,7 +246,7 @@ export function getConfigSolutionMaxEffort(): number | undefined {
   };
 
   const effortSetting = getConfigValue<string>("kai.getSolutionMaxEffort");
-  return effortLevels[effortSetting as keyof typeof effortLevels] ?? 0;
+  return effortLevels[effortSetting as keyof typeof effortLevels];
 }
 
 export function getConfigMaxLLMQueries(): number | undefined {
