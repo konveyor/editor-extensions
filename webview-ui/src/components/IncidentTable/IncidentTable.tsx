@@ -6,6 +6,7 @@ import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-ta
 import * as path from "path-browserify";
 import Markdown from "react-markdown";
 import { WrenchIcon } from "@patternfly/react-icons";
+import { getIncidentRelativeDir } from "../../utils/incident";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
@@ -25,9 +26,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   const fileName = (incident: Incident) => path.basename(incident.uri);
   const relativeDirname = useCallback(
     (incident: Incident) => {
-      const dir = path.dirname(incident.uri);
-      const re = new RegExp(`^${workspaceRoot}\\/*`);
-      return dir.replace(re, "");
+      return getIncidentRelativeDir(incident, workspaceRoot);
     },
     [workspaceRoot],
   );
