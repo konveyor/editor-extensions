@@ -104,7 +104,9 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                     </Td>
                     <Td dataLabel={LOCATION}>
                       <TableText wrapModifier="nowrap">
-                        <Content component="p">Line {it.lineNumber ?? ""}</Content>
+                        <Content component="p">
+                          {it.lineNumber !== undefined ? `Line ${it.lineNumber}` : "No line number"}
+                        </Content>
                       </TableText>
                     </Td>
                     <Td isActionCell>
