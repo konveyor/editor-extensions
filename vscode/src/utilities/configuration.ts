@@ -242,11 +242,14 @@ export function getConfigSolutionMaxEffort(): number | undefined {
   const effortLevels: Record<string, number | undefined> = {
     Low: 0,
     Medium: 1,
+    High: 2,
     "Maximum (experimental)": undefined,
   };
 
-  const effortSetting = getConfigValue<string>("kai.getSolutionMaxEffort");
-  return effortLevels[effortSetting as keyof typeof effortLevels];
+  const effortSetting = getConfigValue<string>(
+    "kai.getSolutionMaxEffort",
+  ) as keyof typeof effortLevels;
+  return effortSetting in effortLevels ? effortLevels[effortSetting] : 0;
 }
 
 export function getConfigMaxLLMQueries(): number | undefined {
