@@ -15,9 +15,10 @@ import { FileChanges } from "./FileChanges";
 import { Incident, LocalChange } from "@editor-extensions/shared";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
-import { ResponseWrapper } from "./ResponseWrapper";
 import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
+import { SentResponse } from "./SentResponse";
+import { ReceivedResponse } from "./ReceivedReponse";
 
 const ResolutionPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -82,9 +83,7 @@ const ResolutionPage: React.FC = () => {
               grow={{ default: "grow" }}
               alignItems={{ default: "alignItemsFlexEnd" }}
             >
-              <ResponseWrapper type="sent">
-                Here is the scope of what I would like you to fix:
-              </ResponseWrapper>
+              <SentResponse>Here is the scope of what I would like you to fix:</SentResponse>
               <FlexItem className="chat-card-container">
                 <ChatCard color="yellow">
                   <IncidentTableGroup
@@ -94,9 +93,7 @@ const ResolutionPage: React.FC = () => {
                   />
                 </ChatCard>
               </FlexItem>
-              <ResponseWrapper type="sent">
-                Please provide resolution for this issue.
-              </ResponseWrapper>
+              <SentResponse>Please provide resolution for this issue.</SentResponse>
             </Flex>
           )}
 
@@ -105,49 +102,43 @@ const ResolutionPage: React.FC = () => {
             grow={{ default: "grow" }}
             alignItems={{ default: "alignItemsFlexStart" }}
           >
-            {hasNothingToView && (
-              <ResponseWrapper type="received">No resolutions available.</ResponseWrapper>
-            )}
+            {hasNothingToView && <ReceivedResponse>No resolutions available.</ReceivedResponse>}
             {isHistorySolution && (
-              <ResponseWrapper type="received">Loaded last known resolution.</ResponseWrapper>
+              <ReceivedResponse>Loaded last known resolution.</ReceivedResponse>
             )}
             {solutionMessages.map((msg) => (
-              <ResponseWrapper key={msg} type="received">
-                {msg}
-              </ResponseWrapper>
+              <ReceivedResponse key={msg}>{msg}</ReceivedResponse>
             ))}
             {isFetchingSolution && <Spinner />}
 
             {hasResponse && (
-              <ResponseWrapper type="received">
+              <ReceivedResponse>
                 <FileChanges
                   changes={getRemainingFiles()}
                   onFileClick={handleFileClick}
                   onApplyFix={handleAcceptClick}
                   onRejectChanges={handleRejectClick}
                 />
-              </ResponseWrapper>
+              </ReceivedResponse>
             )}
             {hasEmptyResponse && !hasResponseWithErrors && (
-              <ResponseWrapper type="received">
-                Received response contains no resolutions.
-              </ResponseWrapper>
+              <ReceivedResponse>Received response contains no resolutions.</ReceivedResponse>
             )}
 
             {hasResponseWithErrors && (
               <>
-                <ResponseWrapper type="received">Response contains errors:</ResponseWrapper>
-                <ResponseWrapper type="received">
+                <ReceivedResponse>Response contains errors:</ReceivedResponse>
+                <ReceivedResponse>
                   <ul>
                     {resolution.encountered_errors.map((error, index) => (
                       <li key={index}>{error}</li>
                     ))}
                   </ul>
-                </ResponseWrapper>
+                </ReceivedResponse>
               </>
             )}
             {isResolved && !isFetchingSolution && (
-              <ResponseWrapper type="received">All resolutions have been applied.</ResponseWrapper>
+              <ReceivedResponse>All resolutions have been applied.</ReceivedResponse>
             )}
           </Flex>
         </Flex>
