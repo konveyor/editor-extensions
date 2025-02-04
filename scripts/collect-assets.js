@@ -43,7 +43,7 @@ if (process.env.WORKFLOW && process.env.WORKFLOW !== "False") {
     metaFile: join(DOWNLOAD_DIR, "kai", "collect.json"),
     org: "konveyor",
     repo: "kai",
-    releaseTag: "v0.0.7",
+    releaseTag: "v0.0.8",
     /*
       Release asset filenames and nodejs equivalent platform/arch
       platform: https://nodejs.org/docs/latest-v22.x/api/process.html#processplatform
