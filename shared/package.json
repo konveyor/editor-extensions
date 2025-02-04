@@ -19,14 +19,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
-    "build": "vite build && tsc",
-    "dev": "concurrently -c auto 'npm:dev:*'",
-    "dev:types": "tsc --watch",
-    "dev:build": "vite build --watch"
-  },
-  "devDependencies": {
-    "vite": "^5.4.9",
-    "vite-plugin-checker": "^0.8.0"
+    "build": "vite build",
+    "dev": "vite build --watch"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
