@@ -678,9 +678,9 @@
           {
             "id": "configure-gen",
             "title": "Configure Generative AI",
-            "description": "Configure Generative AI for your project\n[Configure GenAI model settings file](command:konveyor.openModelProviderSettings)",
+            "description": "Configure Generative AI for your project\n[Configure GenAI model settings file](command:konveyor.modelProviderSettingsOpen)",
             "completionEvents": [
-              "onCommand:konveyor.openModelProviderSettings"
+              "onCommand:konveyor.modelProviderSettingsOpen"
             ],
             "media": {
               "markdown": "media/walkthroughs/gen-ai.md"
