@@ -15,9 +15,10 @@ import { FileChanges } from "./FileChanges";
 import { Incident, LocalChange } from "@editor-extensions/shared";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
-import { ResponseWrapper } from "./ResponseWrapper";
 import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
+import { SentResponse } from "./SentResponse";
+import { ReceivedResponse } from "./ReceivedReponse";
 
 const ResolutionPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
