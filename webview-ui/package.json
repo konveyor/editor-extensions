@@ -10,7 +10,8 @@
     "prebuild": "npm run clean",
     "build": "tsc && vite build",
     "start": "vite",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "[ -n \"$(npx glob 'src/**/*.test.{ts,tsx}')\" ] && mocha || echo 'No tests found, add some!'"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
@@ -23,8 +24,8 @@
     "@patternfly/react-icons": "^5.4.0",
     "@patternfly/react-table": "^5.4.1",
     "path-browserify": "^1.0.1",
-    "vscode-webview": "^1.0.1-beta.1",
-    "react-markdown": "^9.0.3"
+    "react-markdown": "^9.0.3",
+    "vscode-webview": "^1.0.1-beta.1"
   },
   "devDependencies": {
     "@types/vscode-webview": "^1.57.5",
