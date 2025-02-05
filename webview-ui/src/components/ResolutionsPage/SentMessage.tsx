@@ -1,12 +1,12 @@
 import React from "react";
 import { FlexItem, Label } from "@patternfly/react-core";
 
-interface SentResponseProps {
+interface SentMessageProps {
   children: React.ReactNode;
   className?: string;
 }
 
-export const SentResponse: React.FC<SentResponseProps> = ({ children, className = "" }) => {
+export const SentMessage: React.FC<SentMessageProps> = ({ children, className = "" }) => {
   return (
     <FlexItem className={`response-wrapper ${className}`}>
       <Label className="resolutions-show-in-light" color="yellow">

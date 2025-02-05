@@ -17,8 +17,8 @@ import { useExtensionState } from "../../hooks/useExtensionState";
 import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
 import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
-import { SentResponse } from "./SentResponse";
-import { ReceivedResponse } from "./ReceivedReponse";
+import { SentMessage } from "./SentMessage";
+import { ReceivedMessage } from "./ReceivedMessage";
 
 const ResolutionPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -83,7 +83,7 @@ const ResolutionPage: React.FC = () => {
               grow={{ default: "grow" }}
               alignItems={{ default: "alignItemsFlexEnd" }}
             >
-              <SentResponse>Here is the scope of what I would like you to fix:</SentResponse>
+              <SentMessage>Here is the scope of what I would like you to fix:</SentMessage>
               <FlexItem className="chat-card-container">
                 <ChatCard color="yellow">
                   <IncidentTableGroup
@@ -93,7 +93,7 @@ const ResolutionPage: React.FC = () => {
                   />
                 </ChatCard>
               </FlexItem>
-              <SentResponse>Please provide resolution for this issue.</SentResponse>
+              <SentMessage>Please provide resolution for this issue.</SentMessage>
             </Flex>
           )}
 
@@ -102,43 +102,41 @@ const ResolutionPage: React.FC = () => {
             grow={{ default: "grow" }}
             alignItems={{ default: "alignItemsFlexStart" }}
           >
-            {hasNothingToView && <ReceivedResponse>No resolutions available.</ReceivedResponse>}
-            {isHistorySolution && (
-              <ReceivedResponse>Loaded last known resolution.</ReceivedResponse>
-            )}
+            {hasNothingToView && <ReceivedMessage>No resolutions available.</ReceivedMessage>}
+            {isHistorySolution && <ReceivedMessage>Loaded last known resolution.</ReceivedMessage>}
             {solutionMessages.map((msg) => (
-              <ReceivedResponse key={msg}>{msg}</ReceivedResponse>
+              <ReceivedMessage key={msg}>{msg}</ReceivedMessage>
             ))}
             {isFetchingSolution && <Spinner />}
 
             {hasResponse && (
-              <ReceivedResponse>
+              <ReceivedMessage>
                 <FileChanges
                   changes={getRemainingFiles()}
                   onFileClick={handleFileClick}
                   onApplyFix={handleAcceptClick}
                   onRejectChanges={handleRejectClick}
                 />
-              </ReceivedResponse>
+              </ReceivedMessage>
             )}
             {hasEmptyResponse && !hasResponseWithErrors && (
-              <ReceivedResponse>Received response contains no resolutions.</ReceivedResponse>
+              <ReceivedMessage>Received response contains no resolutions.</ReceivedMessage>
             )}
 
             {hasResponseWithErrors && (
               <>
-                <ReceivedResponse>Response contains errors:</ReceivedResponse>
-                <ReceivedResponse>
+                <ReceivedMessage>Response contains errors:</ReceivedMessage>
+                <ReceivedMessage>
                   <ul>
                     {resolution.encountered_errors.map((error, index) => (
                       <li key={index}>{error}</li>
                     ))}
                   </ul>
-                </ReceivedResponse>
+                </ReceivedMessage>
               </>
             )}
             {isResolved && !isFetchingSolution && (
-              <ReceivedResponse>All resolutions have been applied.</ReceivedResponse>
+              <ReceivedMessage>All resolutions have been applied.</ReceivedMessage>
             )}
           </Flex>
         </Flex>
