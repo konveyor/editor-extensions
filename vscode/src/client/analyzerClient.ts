@@ -150,7 +150,7 @@ export class AnalyzerClient {
       new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
       new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
     );
-    
+
     if (getConfigLoggingTraceMessageConnection()) {
       this.rpcConnection.trace(
         rpc.Trace.Verbose,
@@ -441,7 +441,12 @@ export class AnalyzerClient {
           const requestParams = {
             label_selector: getConfigLabelSelector(),
             included_paths: filePaths?.map((uri) => uri.fsPath),
+            reset: false,
           };
+
+          if (!requestParams.included_paths) {
+            requestParams.reset = true;
+          }
 
           this.outputChannel.appendLine(
             `Sending 'analysis_engine.Analyze' request with params: ${JSON.stringify(
