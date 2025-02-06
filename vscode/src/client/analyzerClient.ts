@@ -441,13 +441,8 @@ export class AnalyzerClient {
           const requestParams = {
             label_selector: getConfigLabelSelector(),
             included_paths: filePaths?.map((uri) => uri.fsPath),
-            reset: false,
+            reset: !(filePaths && filePaths.length > 0),
           };
-
-          if (!requestParams.included_paths) {
-            requestParams.reset = true;
-          }
-
           this.outputChannel.appendLine(
             `Sending 'analysis_engine.Analyze' request with params: ${JSON.stringify(
               requestParams,
