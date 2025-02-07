@@ -1,17 +1,18 @@
+import "./incidentTable.css";
 import React, { FC, useCallback } from "react";
 import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
-import { Incident } from "@editor-extensions/shared";
+import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
-import ViolationActionsDropdown from "../ViolationActionsDropdown";
 import Markdown from "react-markdown";
+import { WrenchIcon } from "@patternfly/react-icons";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
-  incidents: Incident[];
+  incidents: EnhancedIncident[];
   message: string;
-  getSolution?: (incidents: Incident[]) => void;
-  onIncidentSelect: (it: Incident) => void;
+  getSolution?: (incidents: EnhancedIncident[]) => void;
+  onIncidentSelect: (it: EnhancedIncident) => void;
 }
 
 export const IncidentTable: FC<IncidentTableProps> = ({
@@ -32,6 +33,11 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   );
   const uniqueId = (incident: Incident) => `${incident.uri}-${incident.lineNumber}`;
 
+  const tooltipProps = {
+    className: "incident-table-tooltip",
+    distance: 15,
+  };
+
   const ISSUE = "Issue";
   const LOCATION = "Location";
   const FOLDER = "Folder";
@@ -44,14 +50,20 @@ export const IncidentTable: FC<IncidentTableProps> = ({
               ? {
                   hasNoOffset: true,
                   actions: (
-                    <ViolationActionsDropdown
-                      onGetAllSolutions={() => getSolution(incidents)}
-                      fixMessage={
+                    <Button
+                      variant="plain"
+                      aria-label={
                         incidents.length === 1
                           ? "Resolve 1 incident"
-                          : `Resolve the ${incidents.length} incidents`
+                          : `Resolve ${incidents.length} incidents`
                       }
-                    />
+                      icon={<WrenchIcon />}
+                      onClick={() => getSolution(incidents)}
+                    >
+                      {incidents.length === 1
+                        ? "Resolve 1 incident"
+                        : `Resolve ${incidents.length} incidents`}
+                    </Button>
                   ),
                 }
               : undefined
@@ -75,28 +87,38 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                 {incidents.map((it) => (
                   <Tr key={uniqueId(it)}>
                     <Td dataLabel={ISSUE}>
-                      <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
-                        <b>{fileName(it)}</b>
-                      </Button>
+                      <TableText tooltip={it.uri} tooltipProps={tooltipProps}>
+                        <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
+                          <b>{fileName(it)}</b>
+                        </Button>
+                      </TableText>
                     </Td>
                     <Td dataLabel={FOLDER}>
-                      <TableText wrapModifier="truncate">
+                      <TableText
+                        wrapModifier="truncate"
+                        tooltip={relativeDirname(it)}
+                        tooltipProps={tooltipProps}
+                      >
                         <i>{relativeDirname(it)}</i>
                       </TableText>
                     </Td>
                     <Td dataLabel={LOCATION}>
                       <TableText wrapModifier="nowrap">
-                        <Content component="p">Line {it.lineNumber ?? ""}</Content>
+                        <Content component="p">
+                          {it.lineNumber !== undefined ? `Line ${it.lineNumber}` : "No line number"}
+                        </Content>
                       </TableText>
                     </Td>
                     <Td isActionCell>
-                      {getSolution ? (
-                        <ViolationActionsDropdown
-                          onGetAllSolutions={() => getSolution([it])}
-                          fixMessage="Resolve this incident"
-                        />
-                      ) : (
-                        ""
+                      {getSolution && (
+                        <Button
+                          variant="plain"
+                          aria-label="Resolve this incident"
+                          icon={<WrenchIcon />}
+                          onClick={() => getSolution([it])}
+                        >
+                          Resolve
+                        </Button>
                       )}
                     </Td>
                   </Tr>

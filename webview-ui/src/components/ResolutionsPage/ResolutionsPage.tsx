@@ -4,7 +4,6 @@ import {
   CardBody,
   Flex,
   FlexItem,
-  Label,
   Page,
   PageSection,
   PageSidebar,
@@ -14,10 +13,12 @@ import {
 } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { Incident, LocalChange } from "@editor-extensions/shared";
-import { useExtensionState } from "../hooks/useExtensionState";
-import { applyFile, discardFile, openFile, viewFix } from "../hooks/actions";
-import { IncidentTableGroup } from "./IncidentTable";
+import { useExtensionState } from "../../hooks/useExtensionState";
+import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
 import "./resolutionsPage.css";
+import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
+import { SentMessage } from "./SentMessage";
+import { ReceivedMessage } from "./ReceivedMessage";
 
 const ResolutionPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -50,11 +51,8 @@ const ResolutionPage: React.FC = () => {
   const hasNothingToView = solutionState === "none" && localChanges.length === 0;
 
   const handleFileClick = (change: LocalChange) => dispatch(viewFix(change));
-
   const handleAcceptClick = (change: LocalChange) => dispatch(applyFile(change));
-
   const handleRejectClick = (change: LocalChange) => dispatch(discardFile(change));
-
   const handleIncidentClick = (incident: Incident) => {
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
   };
@@ -78,100 +76,67 @@ const ResolutionPage: React.FC = () => {
       </PageSection>
 
       <PageSection>
-        <Flex
-          direction={{
-            default: "column",
-          }}
-        >
+        <Flex direction={{ default: "column" }} className="chat-container">
           {isTriggeredByUser && (
             <Flex
-              direction={{
-                default: "column",
-              }}
+              direction={{ default: "column" }}
               grow={{ default: "grow" }}
               alignItems={{ default: "alignItemsFlexEnd" }}
-              justifyContent={{ default: "justifyContentFlexEnd" }}
             >
-              <FlexItem>
-                <YellowLabel>Here is the scope of what I would like you to fix:</YellowLabel>
-              </FlexItem>
+              <SentMessage>Here is the scope of what I would like you to fix:</SentMessage>
               <FlexItem className="chat-card-container">
                 <ChatCard color="yellow">
                   <IncidentTableGroup
                     onIncidentSelect={handleIncidentClick}
-                    violation={solutionScope?.violation}
                     incidents={solutionScope.incidents}
                     workspaceRoot={workspaceRoot}
                   />
                 </ChatCard>
               </FlexItem>
-              <FlexItem>
-                <YellowLabel>Please provide resolution for this issue.</YellowLabel>
-              </FlexItem>
+              <SentMessage>Please provide resolution for this issue.</SentMessage>
             </Flex>
           )}
+
           <Flex
-            direction={{
-              default: "column",
-            }}
+            direction={{ default: "column" }}
             grow={{ default: "grow" }}
             alignItems={{ default: "alignItemsFlexStart" }}
           >
-            {hasNothingToView && (
-              <FlexItem>
-                <Label color="blue">No resolutions available.</Label>
-              </FlexItem>
-            )}
-            {isHistorySolution && (
-              <FlexItem>
-                <Label color="blue">Loaded last known resolution.</Label>
-              </FlexItem>
-            )}
+            {hasNothingToView && <ReceivedMessage>No resolutions available.</ReceivedMessage>}
+            {isHistorySolution && <ReceivedMessage>Loaded last known resolution.</ReceivedMessage>}
             {solutionMessages.map((msg) => (
-              <FlexItem key={msg}>
-                <Label color="blue">{msg}</Label>
-              </FlexItem>
+              <ReceivedMessage key={msg}>{msg}</ReceivedMessage>
             ))}
             {isFetchingSolution && <Spinner />}
 
             {hasResponse && (
-              <FlexItem>
-                <ChatCard color="blue">
-                  <FileChanges
-                    changes={getRemainingFiles()}
-                    onFileClick={handleFileClick}
-                    onApplyFix={handleAcceptClick}
-                    onRejectChanges={handleRejectClick}
-                  />
-                </ChatCard>
-              </FlexItem>
+              <ReceivedMessage>
+                <FileChanges
+                  changes={getRemainingFiles()}
+                  onFileClick={handleFileClick}
+                  onApplyFix={handleAcceptClick}
+                  onRejectChanges={handleRejectClick}
+                />
+              </ReceivedMessage>
             )}
             {hasEmptyResponse && !hasResponseWithErrors && (
-              <FlexItem>
-                <Label color="blue">Received response contains no resolutions.</Label>
-              </FlexItem>
+              <ReceivedMessage>Received response contains no resolutions.</ReceivedMessage>
             )}
 
             {hasResponseWithErrors && (
               <>
-                <FlexItem>
-                  <Label color="blue">Response contains errors:</Label>
-                </FlexItem>
-                <FlexItem>
-                  <ChatCard color="blue">
-                    <ul>
-                      {resolution.encountered_errors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                  </ChatCard>
-                </FlexItem>
+                <ReceivedMessage>Response contains errors:</ReceivedMessage>
+                <ReceivedMessage>
+                  <ul>
+                    {resolution.encountered_errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </ReceivedMessage>
               </>
             )}
             {isResolved && !isFetchingSolution && (
-              <FlexItem>
-                <Label color="blue">All resolutions have been applied.</Label>
-              </FlexItem>
+              <ReceivedMessage>All resolutions have been applied.</ReceivedMessage>
             )}
           </Flex>
         </Flex>
@@ -181,20 +146,9 @@ const ResolutionPage: React.FC = () => {
 };
 
 const ChatCard: FC<{ color: "blue" | "yellow"; children: JSX.Element }> = ({ children, color }) => (
-  <Card className={color === "blue" ? "pf-m-blue" : "pf-m-yellow"}>
+  <Card className={`chat-bubble pf-m-${color}`}>
     <CardBody>{children}</CardBody>
   </Card>
-);
-
-const YellowLabel: FC<{ children: JSX.Element | string }> = ({ children }) => (
-  <>
-    <Label className="resolutions-show-in-light" color="yellow">
-      {children}
-    </Label>
-    <Label className="resolutions-show-in-dark" variant="outline">
-      {children}
-    </Label>
-  </>
 );
 
 export default ResolutionPage;

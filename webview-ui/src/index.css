@@ -1,4 +1,20 @@
 @import "@patternfly/react-core/dist/styles/base.css";
+.pf-v6-c-masthead,
+.pf-v6-c-page,
+.pf-v6-c-page__main-container,
+.pf-v6-c-card {
+  background-color: var(--vscode-editor-background) !important;
+}
+
+:root {
+  --pf-v6-c-card--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--primary--default: var(--vscode-editor-background) !important;
+  --pf-v6-c-content--Color: var(--vscode-editor-foreground) !important;
+  --pf-v6-c-page--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-v6-c-page__main-container--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-t--global--text--color--link--100: #3794ff; /* VS Code textLink.foreground */
+  --pf-t--global--color--status--danger--100: #f48771; /* VS Code errorForeground */
+}
 
 #root {
   height: 100vh;
@@ -8,14 +24,6 @@
 .pf-c-page__main-section {
   height: calc(100vh - 76px); /* Adjust this value based on your header height */
   overflow-y: auto;
-}
-
-.truncate-text {
-  /* white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis; */
-  /* max-width: 100%;
-  display: inline-block; */
 }
 
 .pf-c-expandable-section__toggle-text {

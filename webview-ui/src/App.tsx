@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
 import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
-import ResolutionPage from "./components/ResolutionsPage";
+import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType } from "@editor-extensions/shared";
 
 const App: React.FC = () => {

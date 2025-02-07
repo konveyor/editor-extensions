@@ -8,7 +8,11 @@
 .vertical-divider {
   width: 1px;
   height: 24px;
-  background-color: #d2d2d2;
+  background-color: var(--vscode-editor-background);
   margin: 0 8px;
   align-self: center;
+}
+
+.empty-state-analysis-results {
+  color: var(--vscode-foreground);
 }

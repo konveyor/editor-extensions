@@ -23,6 +23,7 @@ if (process.env.WORKFLOW && process.env.WORKFLOW !== "False") {
     metaFile: join(DOWNLOAD_DIR, "kai", "collect.json"),
     org: "konveyor",
     repo: "kai",
+    branch: "main",
     workflow: "build-and-push-binaries.yml",
     assets: [
       { name: "java-deps.zip", chmod: false },
@@ -42,7 +43,7 @@ if (process.env.WORKFLOW && process.env.WORKFLOW !== "False") {
     metaFile: join(DOWNLOAD_DIR, "kai", "collect.json"),
     org: "konveyor",
     repo: "kai",
-    releaseTag: "v0.0.6",
+    releaseTag: "v0.0.9",
     /*
       Release asset filenames and nodejs equivalent platform/arch
       platform: https://nodejs.org/docs/latest-v22.x/api/process.html#processplatform
@@ -59,6 +60,7 @@ if (process.env.WORKFLOW && process.env.WORKFLOW !== "False") {
     ],
   });
 }
+
 // Download jdt.ls
 // Base release url: https://download.eclipse.org/jdtls/milestones/1.38.0/
 await downloadAndExtractTarGz({

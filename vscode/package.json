@@ -5,7 +5,7 @@
   "author": "Konveyor",
   "icon": "resources/konveyor-icon-color.png",
   "license": "Apache-2.0",
-  "version": "0.0.6",
+  "version": "0.0.9",
   "main": "./out/extension.js",
   "publisher": "konveyor",
   "repository": {
@@ -42,8 +42,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "konveyor.openModelProviderSettings",
+        "command": "konveyor.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor.modelProviderSettingsBackupReset",
+        "title": "Open the default the GenAI model provider configuration file and backup the current file",
         "category": "Konveyor",
         "icon": "$(gear)"
       },
@@ -510,7 +516,7 @@
             "diff",
             "merge"
           ],
-          "default": "diff",
+          "default": "merge",
           "description": "Select the editor to use when resolving proposed solutions.",
           "scope": "window",
           "order": 7
@@ -547,61 +553,33 @@
             "null"
           ],
           "default": 0,
-          "description": "Maximum priority for the getSolution request",
+          "description": "(Advanced) The maximum priority for issues to be considered by kai in a getSolution request.",
           "scope": "window",
           "order": 40
         },
-        "konveyor.kai.getSolutionMaxDepth": {
-          "type": [
-            "number",
-            "null"
+        "konveyor.kai.getSolutionMaxEffort": {
+          "type": "string",
+          "enum": [
+            "Low",
+            "Medium",
+            "High",
+            "Maximum (experimental)"
           ],
-          "default": 0,
-          "description": "Max depth for the getSolution request",
+          "default": "Low",
+          "description": "Defines the effort level for solution generation. Higher values increase processing time.",
           "scope": "window",
           "order": 40
         },
-        "konveyor.kai.getSolutionMaxIterations": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 1,
-          "minimum": 1,
-          "description": "Max iterations for the getSolution request",
-          "scope": "window",
-          "order": 40
-        },
-        "konveyor.kai.getMultiSolutionMaxPriority": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 0,
-          "description": "Maximum priority for the getSolution request with multiple incidents",
-          "scope": "window",
-          "order": 50
-        },
-        "konveyor.kai.getMultiSolutionMaxDepth": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 1,
-          "description": "Max depth for the getSolution request with multiple incidents",
-          "scope": "window",
-          "order": 50
-        },
-        "konveyor.kai.getMultiSolutionMaxIterations": {
+        "konveyor.kai.getSolutionMaxLLMQueries": {
           "type": [
             "number",
             "null"
           ],
           "default": null,
           "minimum": 1,
-          "description": "Max iterations for the getSolution request with multiple incidents",
+          "description": "(Advanced) Maximum number of LLM queries to be made per solution request (default: No limit)",
           "scope": "window",
-          "order": 50
+          "order": 40
         },
         "konveyor.kai.cacheDir": {
           "type": [
@@ -617,6 +595,13 @@
           "type": "boolean",
           "default": false,
           "description": "Whether to create traces of the communication with the model",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor.kai.demoMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to run Kai in demo mode i.e. use cached LLM responses",
           "scope": "window",
           "order": 50
         },
@@ -654,6 +639,12 @@
           "description": "Should the analyzer analyze project dependencies?",
           "scope": "window",
           "order": 99
+        },
+        "konveyor.logging.traceMessageConnection": {
+          "type": "boolean",
+          "default": false,
+          "description": "Trace the jsonrpc calls between the extension and the kai server?",
+          "order": 100
         }
       }
     },
@@ -698,9 +689,9 @@
           {
             "id": "configure-gen",
             "title": "Configure Generative AI",
-            "description": "Configure Generative AI for your project\n[Configure GenAI model settings file](command:konveyor.openModelProviderSettings)",
+            "description": "Configure Generative AI for your project\n[Configure GenAI model settings file](command:konveyor.modelProviderSettingsOpen)",
             "completionEvents": [
-              "onCommand:konveyor.openModelProviderSettings"
+              "onCommand:konveyor.modelProviderSettingsOpen"
             ],
             "media": {
               "markdown": "media/walkthroughs/gen-ai.md"
@@ -746,7 +737,7 @@
     "compile": "tsc && webpack --mode production",
     "dev": "npm run watch",
     "watch": "webpack --watch --mode development",
-    "test:local": "mocha --require ts-node/register src/**/__tests__/*test.ts",
+    "test:local": "mocha",
     "test": "npm run compile && npm run test:local && vscode-test"
   },
   "lint-staged": {
@@ -755,18 +746,14 @@
   },
   "devDependencies": {
     "@types/diff": "^6.0.0",
-    "@types/mocha": "^10.0.9",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.93.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "copy-webpack-plugin": "^12.0.2",
     "css-loader": "^7.1.2",
-    "expect": "^29.7.0",
-    "mocha": "^10.7.3",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
-    "ts-node": "10.9.2",
     "webpack": "^5.94.0",
     "webpack-cli": "^5.1.4"
   },

@@ -27,16 +27,32 @@ export interface Violation {
   effort?: number;
 }
 
-export type ViolationWithID = Violation & {
+export type EnhancedViolation = Violation & {
   id: string;
+  rulesetName?: string;
+  violationName?: string;
 };
+// Keep EnhancedIncident type aligned with KAI backend type:
+// https://github.com/konveyor/kai/blob/82e195916be14eddd08c4e2bfb69afc0880edfcb/kai/analyzer_types.py#L89-L106
+export interface EnhancedIncident extends Incident {
+  violationId: string;
+  uri: string;
+  message: string;
+  severity?: Severity;
+  ruleset_name?: string;
+  ruleset_description?: string;
+  violation_name?: string;
+  violation_description?: string;
+  violation_category?: Category;
+  violation_labels?: string[];
+}
 
 export interface RuleSet {
   name?: string;
   description?: string;
   tags?: string[];
-  violations?: { [key: string]: ViolationWithID };
-  insights?: { [key: string]: ViolationWithID };
+  violations?: { [key: string]: EnhancedViolation };
+  insights?: { [key: string]: EnhancedViolation };
   errors?: { [key: string]: string };
   unmatched?: string[];
   skipped?: string[];
@@ -83,8 +99,8 @@ export interface SolutionResponse {
 }
 
 export interface Scope {
-  incidents: Incident[];
-  violation?: Violation;
+  incidents: EnhancedIncident[];
+  violation?: EnhancedViolation;
 }
 
 export type Solution = GetSolutionResult | SolutionResponse;
@@ -93,6 +109,7 @@ export interface ExtensionData {
   workspaceRoot: string;
   localChanges: LocalChange[];
   ruleSets: RuleSet[];
+  enhancedIncidents: EnhancedIncident[];
   resolutionPanelData: any;
   isAnalyzing: boolean;
   isFetchingSolution: boolean;

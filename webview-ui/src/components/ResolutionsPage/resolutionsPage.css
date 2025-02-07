@@ -1,0 +1,72 @@
+/* Base chat container styles */
+.chat-card-container {
+  width: 80%;
+  min-width: 400px;
+  display: flex;
+  flex-direction: row-reverse;
+  margin: 8px 0;
+}
+
+/* Message bubble base styles */
+.pf-v6-c-card.chat-bubble {
+  max-width: 80%;
+  border-radius: 20px;
+  padding: 12px;
+  margin: 4px 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Sent message (yellow) */
+.pf-v6-c-card.pf-m-yellow {
+  border-top-right-radius: 4px;
+  background-color: var(--pf-v6-global--primary-color--100);
+  color: var(--pf-v6-global--Color--light-100);
+}
+
+/* VSCode dark theme adjustment for sent messages */
+.vscode-dark .pf-v6-c-card.pf-m-yellow {
+  background-color: var(--vscode-textLink-foreground);
+}
+
+/* High contrast theme adjustment for sent messages */
+.vscode-high-contrast .pf-v6-c-card.pf-m-yellow {
+  background-color: var(--vscode-textLink-activeForeground);
+  border: 1px solid var(--vscode-contrastBorder);
+}
+
+/* Received message (blue) */
+.pf-v6-c-card.pf-m-blue {
+  border-top-left-radius: 4px;
+  background-color: var(--pf-v6-global--BackgroundColor--200);
+}
+
+/* VSCode dark theme adjustment for received messages */
+.vscode-dark .pf-v6-c-card.pf-m-blue {
+  background-color: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+/* High contrast theme adjustment for received messages */
+.vscode-high-contrast .pf-v6-c-card.pf-m-blue {
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-contrastBorder);
+}
+
+/* Label visibility control */
+.resolutions-show-in-dark,
+.pf-v6-theme-dark .resolutions-show-in-light {
+  display: none;
+}
+
+.pf-v6-theme-dark .resolutions-show-in-dark {
+  display: revert;
+}
+
+/* Ensure text remains readable in all themes */
+.chat-bubble .pf-v6-c-card__body {
+  color: var(--vscode-editor-foreground);
+}
+
+/* High contrast specific text adjustments */
+.vscode-high-contrast .chat-bubble .pf-v6-c-card__body {
+  color: var(--vscode-editor-foreground);
+}

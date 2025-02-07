@@ -2,6 +2,8 @@ import path from "path";
 import fs from "fs";
 import { access } from "node:fs/promises";
 import { platform } from "node:process";
+import * as vscode from "vscode";
+import { paths } from "../paths";
 
 const isWindows = platform === "win32";
 
@@ -30,5 +32,37 @@ export const checkIfExecutable = async (filePath: string): Promise<boolean> => {
   } catch (err) {
     console.error("Error checking if file is executable:", err);
     return false;
+  }
+};
+
+/**
+ * Copy in the sample provider settings file if the settings file doesn't exist. If
+ * forced, backup the existing file first.
+ */
+export const copySampleProviderSettings = async (force: boolean = false) => {
+  let needCopy = force;
+  let backupUri;
+  try {
+    await vscode.workspace.fs.stat(paths().settingsYaml);
+    if (force) {
+      const { name, ext } = path.parse(paths().settingsYaml.fsPath);
+      const [date, time] = new Date().toISOString().split("T");
+      const backupName = `${name}.${date}_${time.replaceAll(":", "-").split(".")[0]}${ext}`;
+      backupUri = vscode.Uri.joinPath(paths().settingsYaml, "..", backupName);
+    }
+  } catch {
+    needCopy = true;
+  }
+
+  if (backupUri && needCopy) {
+    await vscode.workspace.fs.rename(paths().settingsYaml, backupUri);
+  }
+
+  if (needCopy) {
+    await vscode.workspace.fs.copy(
+      vscode.Uri.joinPath(paths().extResources, "sample-provider-settings.yaml"),
+      paths().settingsYaml,
+      { overwrite: true },
+    );
   }
 };

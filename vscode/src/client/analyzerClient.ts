@@ -1,11 +1,12 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
+import { basename } from "node:path";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import {
+  EnhancedIncident,
   ExtensionData,
-  Incident,
   RuleSet,
   Scope,
   ServerState,
@@ -18,29 +19,29 @@ import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
-  getConfigLogLevel,
-  getConfigLabelSelector,
-  updateUseDefaultRuleSets,
-  getConfigKaiRpcServerPath,
-  getConfigAnalyzerPath,
-  getConfigMaxDepth,
-  getConfigMaxIterations,
-  getConfigMaxPriority,
-  getConfigMultiMaxDepth,
-  getConfigMultiMaxPriority,
-  getConfigMultiMaxIterations,
-  getConfigKaiDemoMode,
-  getConfigUseDefaultRulesets,
-  getConfigCustomRules,
-  isAnalysisResponse,
   getCacheDir,
+  getConfigAnalyzerPath,
+  getConfigCustomRules,
+  getConfigKaiDemoMode,
+  getConfigKaiRpcServerPath,
+  getConfigLabelSelector,
+  getConfigLoggingTraceMessageConnection,
+  getConfigLogLevel,
+  getConfigSolutionMaxEffort,
+  getConfigMaxLLMQueries,
+  getConfigSolutionMaxPriority,
+  getConfigUseDefaultRulesets,
   getTraceEnabled,
+  isAnalysisResponse,
+  updateUseDefaultRuleSets,
 } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
 import { KaiRpcApplicationConfig } from "./types";
 import { getModelProvider, ModelProvider } from "./modelProvider";
+import { tracer } from "./tracer";
+import { v4 as uuidv4 } from "uuid";
 
 export class AnalyzerClient {
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
@@ -149,6 +150,22 @@ export class AnalyzerClient {
       new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
       new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
     );
+    
+    if (getConfigLoggingTraceMessageConnection()) {
+      this.rpcConnection.trace(
+        rpc.Trace.Verbose,
+        tracer(`${basename(this.kaiRpcServer.spawnfile)} message trace`),
+      );
+    }
+
+    this.rpcConnection.onNotification("my_progress", (params) => {
+      if (params.kind === "SimpleChatMessage") {
+        this.fireSolutionStateChange("sent", params.value.message);
+      } else {
+        this.fireSolutionStateChange("sent", JSON.stringify(params));
+      }
+    });
+
     this.rpcConnection.listen();
   }
 
@@ -303,7 +320,9 @@ export class AnalyzerClient {
         cancellable: false,
       },
       async (progress) => {
-        this.outputChannel.appendLine("Sending 'initialize' request.");
+        this.outputChannel.appendLine(
+          `Sending 'initialize' request: ${JSON.stringify(initializeParams)}`,
+        );
         progress.report({
           message: "Sending 'initialize' request to RPC Server",
         });
@@ -490,7 +509,7 @@ export class AnalyzerClient {
             return;
           }
           if (ruleSets.length === 0) {
-            vscode.window.showInformationMessage("Analysis completed, but no RuleSets were found.");
+            vscode.window.showInformationMessage("Analysis completed. No incidents were found.");
             this.fireAnalysisStateChange(false);
             return;
           }
@@ -512,14 +531,10 @@ export class AnalyzerClient {
    *
    * Will only run if the sever state is: `running`
    */
-  public async getSolution(
-    state: ExtensionState,
-    incidents: Incident[],
-    violation?: Violation,
-  ): Promise<void> {
+  public async getSolution(state: ExtensionState, incidents: EnhancedIncident[]): Promise<void> {
     // TODO: Ensure serverState is running
 
-    this.fireSolutionStateChange("started", "Checking server state...", { incidents, violation });
+    this.fireSolutionStateChange("started", "Checking server state...", { incidents });
 
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
@@ -527,24 +542,21 @@ export class AnalyzerClient {
       return;
     }
 
-    const enhancedIncidents = incidents.map((incident) => ({
-      ...incident,
-      ruleset_name: violation?.category ?? "default_ruleset",
-      violation_name: violation?.description ?? "default_violation",
-    }));
-
-    const multiIncident = incidents.length > 1;
-    const maxPriority = multiIncident ? getConfigMultiMaxPriority() : getConfigMaxPriority();
-    const maxDepth = multiIncident ? getConfigMultiMaxDepth() : getConfigMaxDepth();
-    const maxIterations = multiIncident ? getConfigMultiMaxIterations() : getConfigMaxIterations();
+    const maxPriority = getConfigSolutionMaxPriority();
+    const maxDepth = getConfigSolutionMaxEffort();
+    const maxIterations = getConfigMaxLLMQueries();
 
     try {
+      // generate a uuid for the request
+      const chatToken = uuidv4();
+
       const request = {
         file_path: "",
-        incidents: enhancedIncidents,
+        incidents,
         max_priority: maxPriority,
         max_depth: maxDepth,
         max_iterations: maxIterations,
+        chat_token: chatToken,
       };
 
       this.outputChannel.appendLine(
@@ -552,6 +564,7 @@ export class AnalyzerClient {
       );
 
       this.fireSolutionStateChange("sent", "Waiting for the resolution...");
+
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
         request,
@@ -560,7 +573,6 @@ export class AnalyzerClient {
       this.fireSolutionStateChange("received", "Received response...");
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
         incidents,
-        violation,
       });
     } catch (err: any) {
       this.outputChannel.appendLine(`Error during getSolution: ${err.message}`);

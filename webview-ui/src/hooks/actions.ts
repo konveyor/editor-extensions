@@ -1,9 +1,8 @@
 import {
+  EnhancedIncident,
   ExtensionData,
-  Incident,
   LocalChange,
   Scope,
-  Violation,
   WebviewAction,
   WebviewActionType,
 } from "@editor-extensions/shared";
@@ -36,11 +35,10 @@ export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => (
 });
 
 export const getSolution = (
-  incidents: Incident[],
-  violation: Violation,
+  incidents: EnhancedIncident[],
 ): WebviewAction<WebviewActionType, Scope> => ({
   type: "GET_SOLUTION",
-  payload: { incidents, violation },
+  payload: { incidents },
 });
 
 export const openFile = (

@@ -1,5 +1,5 @@
 import "./styles.css";
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   Button,
   ButtonVariant,
@@ -35,11 +35,12 @@ import {
 
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
-import { Incident, Violation, ViolationWithID } from "@editor-extensions/shared";
+import { Incident } from "@editor-extensions/shared";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { getSolution, openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
+import { useViolations } from "../..//hooks/useViolations";
 
 const AnalysisPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -49,6 +50,7 @@ const AnalysisPage: React.FC = () => {
     isInitializingServer,
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
+    enhancedIncidents,
     workspaceRoot,
   } = state;
   const serverRunning = state.serverState === "running";
@@ -68,17 +70,7 @@ const AnalysisPage: React.FC = () => {
     dispatch(serverRunning ? stopServer() : startServer());
   };
 
-  const violations: ViolationWithID[] = useMemo(() => {
-    if (!analysisResults?.length) {
-      return [];
-    }
-    return analysisResults.flatMap((ruleSet) =>
-      Object.entries<Violation>(ruleSet.violations || {}).map(([id, violation]) => ({
-        id,
-        ...violation,
-      })),
-    );
-  }, [analysisResults]);
+  const violations = useViolations(analysisResults);
 
   const hasViolations = violations.length > 0;
   const hasAnalysisResults = analysisResults !== undefined;
@@ -169,7 +161,7 @@ const AnalysisPage: React.FC = () => {
 
                 {!isAnalyzing && !hasViolations && (
                   <EmptyState variant="sm">
-                    <Title headingLevel="h2" size="md">
+                    <Title className="empty-state-analysis-results" headingLevel="h2" size="md">
                       {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
                     </Title>
                     <EmptyStateBody>
@@ -184,14 +176,10 @@ const AnalysisPage: React.FC = () => {
                   <ViolationIncidentsList
                     workspaceRoot={workspaceRoot}
                     isRunning={serverRunning}
-                    violations={violations}
+                    enhancedIncidents={enhancedIncidents}
                     focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
-                    onGetSolution={(incidents, violation) =>
-                      dispatch(getSolution(incidents, violation))
-                    }
-                    onGetAllSolutions={() => {}}
-                    compact={false}
+                    onGetSolution={(incidents) => dispatch(getSolution(incidents))}
                     expandedViolations={expandedViolations}
                     setExpandedViolations={setExpandedViolations}
                   />

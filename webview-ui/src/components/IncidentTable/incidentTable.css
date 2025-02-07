@@ -1,0 +1,7 @@
+.incident-table-tooltip {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  margin: 2rem !important;
+  padding: 0.5em;
+  border-radius: 2em;
+}
