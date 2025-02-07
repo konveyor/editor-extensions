@@ -136,8 +136,8 @@ class VsCodeExtension {
     }
   }
 
-  public dispose() {
-    this.state.analyzerClient?.stop();
+  public async dispose() {
+    await this.state.analyzerClient?.stop();
     const disposables = this.listeners.splice(0, this.listeners.length);
     for (const disposable of disposables) {
       disposable.dispose();
@@ -160,13 +160,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     extension = new VsCodeExtension(paths, context);
     extension.initialize();
   } catch (error) {
-    extension?.dispose();
+    await extension?.dispose();
     extension = undefined;
     console.error("Failed to activate Konveyor extension:", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
   }
 }
 
-export function deactivate(): void {
-  extension?.dispose();
+export async function deactivate(): Promise<void> {
+  await extension?.dispose();
 }
