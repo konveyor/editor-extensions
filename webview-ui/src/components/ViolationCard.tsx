@@ -64,7 +64,7 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({ incident, violatio
                 >
                   {incident.codeSnip}
                 </Content> */}
-                <Label color="blue">{incident.severity || "Low"}</Label>
+                <Label color="blue">{violation.category || "potential"}</Label>
               </FlexItem>
               <Divider />
             </>

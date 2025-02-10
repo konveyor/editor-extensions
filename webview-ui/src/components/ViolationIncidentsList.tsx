@@ -27,10 +27,17 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@patternfly/react-core";
-import { WrenchIcon, ListIcon, FileIcon, LayerGroupIcon } from "@patternfly/react-icons";
+import {
+  WrenchIcon,
+  ListIcon,
+  FileIcon,
+  LayerGroupIcon,
+  SortAmountDownIcon,
+  SortAmountUpIcon,
+} from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
-import { EnhancedIncident, Incident, Severity } from "@editor-extensions/shared";
+import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -54,23 +61,24 @@ const ViolationIncidentsList = ({
   enhancedIncidents,
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
+  const [isSortAscending, setIsSortAscending] = React.useState(true);
+  const [isCategoryExpanded, setIsCategoryExpanded] = React.useState(false);
   const [filters, setFilters] = React.useState({
-    severity: [] as Severity[],
+    category: [] as Category[],
     groupBy: "violation" as GroupByOption,
   });
 
-  const onSeveritySelect = (
+  const onCategorySelect = (
     _event: React.MouseEvent | undefined,
     value: string | number | undefined,
   ) => {
     if (typeof value === "string") {
-      const severity = value as Severity;
+      const category = value as Category;
       setFilters((prev) => ({
         ...prev,
-        severity: prev.severity.includes(severity)
-          ? prev.severity.filter((s) => s !== severity)
-          : [...prev.severity, severity],
+        category: prev.category.includes(category)
+          ? prev.category.filter((s) => s !== category)
+          : [...prev.category, category],
       }));
     }
   };
@@ -80,16 +88,16 @@ const ViolationIncidentsList = ({
   };
 
   const onDelete = (type: string, id: string) => {
-    if (type === "Severity") {
-      setFilters({ ...filters, severity: filters.severity.filter((s) => s !== id) });
+    if (type === "Category") {
+      setFilters({ ...filters, category: filters.category.filter((s) => s !== id) });
     } else {
-      setFilters({ severity: [], groupBy: "violation" });
+      setFilters({ category: [], groupBy: "violation" });
     }
   };
 
   const onDeleteGroup = (type: string) => {
-    if (type === "Severity") {
-      setFilters({ ...filters, severity: [] });
+    if (type === "Category") {
+      setFilters({ ...filters, category: [] });
     }
   };
 
@@ -109,33 +117,52 @@ const ViolationIncidentsList = ({
     }
   };
 
-  const severityMenuItems = (
+  const categoryMenuItems = (
     <SelectList>
       <SelectOption
         hasCheckbox
-        key="severityLow"
-        value="Low"
-        isSelected={filters.severity.includes("Low")}
+        key="categoryPotential"
+        value="potential"
+        isSelected={filters.category.includes("potential")}
       >
-        Low
+        Potential
       </SelectOption>
       <SelectOption
         hasCheckbox
-        key="severityMedium"
-        value="Medium"
-        isSelected={filters.severity.includes("Medium")}
+        key="categoryOptional"
+        value="optional"
+        isSelected={filters.category.includes("optional")}
       >
-        Medium
+        Optional
       </SelectOption>
       <SelectOption
         hasCheckbox
-        key="severityHigh"
-        value="High"
-        isSelected={filters.severity.includes("High")}
+        key="categoryMandatory"
+        value="mandatory"
+        isSelected={filters.category.includes("mandatory")}
       >
-        High
+        Mandatory
       </SelectOption>
     </SelectList>
+  );
+
+  const sortMenu = (
+    <ToggleGroup aria-label="Sort toggle group">
+      <ToggleGroupItem
+        icon={<SortAmountUpIcon />}
+        text="Ascending"
+        buttonId="sort-ascending"
+        isSelected={isSortAscending}
+        onChange={() => setIsSortAscending(true)}
+      />
+      <ToggleGroupItem
+        icon={<SortAmountDownIcon />}
+        text="Descending"
+        buttonId="sort-descending"
+        isSelected={!isSortAscending}
+        onChange={() => setIsSortAscending(false)}
+      />
+    </ToggleGroup>
   );
 
   // Filter and group the incidents based on current filters
@@ -151,9 +178,9 @@ const ViolationIncidentsList = ({
       );
     }
 
-    if (filters.severity.length > 0) {
+    if (filters.category.length > 0) {
       filtered = filtered.filter((incident) =>
-        filters.severity.includes(incident.severity || "Low"),
+        filters.category.includes(incident.violation_category || "potential"),
       );
     }
 
@@ -183,12 +210,20 @@ const ViolationIncidentsList = ({
       groups.get(key)!.incidents.push(incident);
     });
 
-    return Array.from(groups.entries()).map(([id, { label, incidents }]) => ({
+    const sortedGroups = Array.from(groups.entries()).map(([id, { label, incidents }]) => ({
       id,
       label,
       incidents,
     }));
-  }, [enhancedIncidents, searchTerm, filters]);
+
+    sortedGroups.sort((a, b) => {
+      const fieldA = a.label.toLowerCase();
+      const fieldB = b.label.toLowerCase();
+      return isSortAscending ? fieldA.localeCompare(fieldB) : fieldB.localeCompare(fieldA);
+    });
+
+    return sortedGroups;
+  }, [enhancedIncidents, searchTerm, filters, isSortAscending]);
 
   const toolbarItems = (
     <React.Fragment>
@@ -232,34 +267,35 @@ const ViolationIncidentsList = ({
       </ToolbarGroup>
       <ToolbarGroup variant="filter-group">
         <ToolbarFilter
-          labels={filters.severity}
+          labels={filters.category}
           deleteLabel={(category, label) => onDelete(category as string, label as string)}
           deleteLabelGroup={(category) => onDeleteGroup(category as string)}
-          categoryName="Severity"
+          categoryName="Category"
         >
           <Select
-            aria-label="Severity"
+            aria-label="Category"
             role="menu"
             toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
               <MenuToggle
                 ref={toggleRef}
-                onClick={() => setIsSeverityExpanded(!isSeverityExpanded)}
-                isExpanded={isSeverityExpanded}
+                onClick={() => setIsCategoryExpanded(!isCategoryExpanded)}
+                isExpanded={isCategoryExpanded}
                 style={{ width: "140px" }}
               >
-                Severity
-                {filters.severity.length > 0 && <Badge isRead>{filters.severity.length}</Badge>}
+                Category
+                {filters.category.length > 0 && <Badge isRead>{filters.category.length}</Badge>}
               </MenuToggle>
             )}
-            onSelect={onSeveritySelect}
-            selected={filters.severity}
-            isOpen={isSeverityExpanded}
-            onOpenChange={(isOpen) => setIsSeverityExpanded(isOpen)}
+            onSelect={onCategorySelect}
+            selected={filters.category}
+            isOpen={isCategoryExpanded}
+            onOpenChange={(isOpen) => setIsCategoryExpanded(isOpen)}
           >
-            {severityMenuItems}
+            {categoryMenuItems}
           </Select>
         </ToolbarFilter>
       </ToolbarGroup>
+      <ToolbarGroup>{sortMenu}</ToolbarGroup>
       <ToolbarGroup variant="action-group-inline">
         <ToolbarItem>
           {groupedIncidents.length > 0 && (

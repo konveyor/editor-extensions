@@ -2,12 +2,9 @@ import { Uri } from "vscode";
 
 export type WebviewType = "sidebar" | "resolution";
 
-export type Severity = "High" | "Medium" | "Low";
-
 export interface Incident {
   uri: string;
   lineNumber?: number;
-  severity?: Severity;
   message: string;
   codeSnip?: string;
 }
@@ -38,7 +35,6 @@ export interface EnhancedIncident extends Incident {
   violationId: string;
   uri: string;
   message: string;
-  severity?: Severity;
   ruleset_name?: string;
   ruleset_description?: string;
   violation_name?: string;

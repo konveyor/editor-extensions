@@ -89,7 +89,6 @@ function enhanceIncidentsFromRuleSets(ruleSets: RuleSet[]): EnhancedIncident[] {
         violationId,
         uri: incident.uri,
         message: incident.message,
-        severity: incident.severity,
       })),
     ),
   );
