@@ -15,7 +15,7 @@ const App: React.FC = () => {
 
   return (
     <div>
-      {currentView === "sidebar" && <AnalysisPage />}
+      {currentView === "chat" && <ChatPage />}
       {currentView === "resolution" && <ResolutionPage />}
     </div>
   );

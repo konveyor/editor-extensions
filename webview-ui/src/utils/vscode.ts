@@ -17,5 +17,4 @@ declare global {
 // Wait until the DOM is fully loaded before assigning vscode
 export const vscode: VscodeApi = window.vscode;
 
-// export const viewType: string = "sidebar" | "resolution";
-export const viewType: WebviewType = window.viewType || "sidebar"; // Default to "sidebar" if not set
+export const viewType: WebviewType = window.viewType || "chat";

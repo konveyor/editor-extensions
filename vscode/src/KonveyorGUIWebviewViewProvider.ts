@@ -19,7 +19,7 @@ import { Immutable } from "immer";
 import jsesc from "jsesc";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
-  public static readonly SIDEBAR_VIEW_TYPE = "konveyor.konveyorAnalysisView";
+  public static readonly CHAT_VIEW_TYPE = "konveyor.konveyorChatView";
   public static readonly RESOLUTION_VIEW_TYPE = "konveyor.konveyorResolutionView";
 
   private static instance: KonveyorGUIWebviewViewProvider;
@@ -35,8 +35,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     private readonly _viewType: WebviewType,
   ) {}
 
-  isAnalysisView() {
-    return this._viewType === "sidebar";
+  isChatView() {
+    return this._viewType === "chat";
   }
 
   public resolveWebviewView(
@@ -53,10 +53,10 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       return;
     }
     this._panel = window.createWebviewPanel(
-      this.isAnalysisView()
-        ? KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE
+      this.isChatView()
+        ? KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE
         : KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-      this.isAnalysisView() ? "Konveyor Analysis View" : "Resolution Details",
+      this.isChatView() ? "KAI Chat" : "Resolution Details",
       ViewColumn.One,
       {
         enableScripts: true,
@@ -75,18 +75,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     });
   }
 
-  private handleViewClosed(): void {
-    // Assuming the analysis webview is tracked and can be accessed via the ExtensionState or similar
-    // const sidebarProvider = this._extensionState.webviewProviders.get("sidebar");
-    // if (sidebarProvider?.webview && sidebarProvider._isWebviewReady) {
-    // sidebarProvider.webview.postMessage({
-    //   type: "solutionConfirmation",
-    //   data: { confirmed: true, solution: null },
-    // });
-    // } else {
-    // console.error("Analysis webview is not ready or not available.");
-    // }
-  }
+  private handleViewClosed(): void {}
 
   public showWebviewPanel(): void {
     if (this._panel) {
