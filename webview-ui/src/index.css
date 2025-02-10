@@ -5,6 +5,14 @@
 .pf-v6-c-card {
   background-color: var(--vscode-editor-background) !important;
 }
+.pf-chatbot {
+  width: 100% !important;
+  height: 100% !important;
+  position: unset !important;
+}
+.pf-chatbot-container {
+  padding: 2rem;
+}
 
 :root {
   --pf-v6-c-card--BackgroundColor: var(--vscode-editor-background) !important;
@@ -14,6 +22,8 @@
   --pf-v6-c-page__main-container--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-t--global--text--color--link--100: #3794ff; /* VS Code textLink.foreground */
   --pf-t--global--color--status--danger--100: #f48771; /* VS Code errorForeground */
+  --pf-v6-c-page__sidebar--Width: 0px !important;
+  --pf-v6-c-page__sidebar--xl--Width: 0px !important;
 }
 
 #root {

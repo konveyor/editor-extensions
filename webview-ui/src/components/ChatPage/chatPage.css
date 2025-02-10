@@ -70,3 +70,12 @@
 .vscode-high-contrast .chat-bubble .pf-v6-c-card__body {
   color: var(--vscode-editor-foreground);
 }
+.chatbot-welcome-prompt {
+  padding: 0.5rem;
+  margin: 0.5rem;
+}
+
+.chatbot-content {
+  padding: 1rem;
+  margin: 1rem;
+}
