@@ -16,16 +16,16 @@ const ActionLabels: React.FC<ActionLabelsProps> = ({ serverRunning }) => {
       label: "Run analysis ",
       onClick: () => console.log("Code Review clicked"),
     },
-    {
-      icon: <BrainIcon />,
-      label: "Explain Code",
-      onClick: () => console.log("Explain Code clicked"),
-    },
-    {
-      icon: <SearchIcon />,
-      label: "Find Issues",
-      onClick: () => console.log("Find Issues clicked"),
-    },
+    // {
+    //   icon: <BrainIcon />,
+    //   label: "Explain Code",
+    //   onClick: () => console.log("Explain Code clicked"),
+    // },
+    // {
+    //   icon: <SearchIcon />,
+    //   label: "Find Issues",
+    //   onClick: () => console.log("Find Issues clicked"),
+    // },
     // {
     //   icon: <GitBranchIcon />,
     //   label: "Git Help",

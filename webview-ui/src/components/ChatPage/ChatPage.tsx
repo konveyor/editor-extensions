@@ -39,8 +39,7 @@ import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { startServer, stopServer } from "../../hooks/actions";
 import ActionLabels from "./ActionLabels";
 const avatarImg =
-  "https://github.com/patternfly/patternfly-react/raw/main/packages/react-core/src/components/assets/avatarImg.svg";
-
+  "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
 const ChatPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
   const {
@@ -197,6 +196,14 @@ const ChatPage: React.FC = () => {
                 role="bot"
                 isLoading
                 content="Kai is preparing the environment..."
+                avatar={avatarImg}
+              />
+            )}
+            {serverRunning && (
+              <Message
+                name="Kai"
+                role="bot"
+                content="What can I help you with today?"
                 avatar={avatarImg}
               />
             )}
