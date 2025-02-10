@@ -1,4 +1,3 @@
-import "./chatPage.css";
 import React from "react";
 import {
   Bullseye,
@@ -9,13 +8,11 @@ import {
   PageSection,
   PageSidebar,
   PageSidebarBody,
-  Spinner,
   Toolbar,
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
 } from "@patternfly/react-core";
-import { useExtensionState } from "../../hooks/useExtensionState";
 import {
   Chatbot,
   ChatbotContent,
@@ -28,46 +25,86 @@ import {
   ChatbotHeaderSelectorDropdown,
   ChatbotHeaderTitle,
   ChatbotWelcomePrompt,
+  Message,
 } from "@patternfly/chatbot";
 import {
   OutlinedWindowRestoreIcon,
   OpenDrawerRightIcon,
   ExpandIcon,
 } from "@patternfly/react-icons";
+import QuickResponse from "@patternfly/chatbot/dist/cjs/Message/QuickResponse/QuickResponse";
+import { startServer, stopServer, runAnalysis } from "../../hooks/actions";
+
+import { useChatMessages } from "../../hooks/useChatMessages";
+import { useExtensionState } from "../../hooks/useExtensionState";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
-import { startServer, stopServer } from "../../hooks/actions";
-import ActionLabels from "./ActionLabels";
-import { Message } from "./Message";
+
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
 const userImg =
   "https://raw.githubusercontent.com/patternfly/patternfly-react/main/packages/react-core/src/components/assets/avatarImg.svg";
-const ChatPage: React.FC = () => {
-  const [state, dispatch] = useExtensionState();
-  const {
-    isFetchingSolution,
-    solutionScope,
-    solutionMessages,
-    solutionState,
-    isStartingServer,
-    isInitializingServer,
-    serverState,
-  } = state;
 
+function App() {
+  const [state, dispatch] = useExtensionState();
+  const { isStartingServer, isInitializingServer, serverState } = state;
+
+  const { messages, addMessage, clearMessages } = useChatMessages();
   const serverRunning = serverState === "running";
-  const isTriggeredByUser = !!solutionScope?.incidents?.length;
   const [selectedModel, setSelectedModel] = React.useState("Granite Code 7B");
-  const [showAll, setShowAll] = React.useState<boolean>(true);
-  const [showMenu, setShowMenu] = React.useState<boolean>(true);
-  const [showLogo, setShowLogo] = React.useState<boolean>(false);
-  const [showCenteredLogo, setShowCenteredLogo] = React.useState<boolean>(true);
   const [showSelectorDropdown, setShowSelectorDropdown] = React.useState<boolean>(false);
   const [showOptionsDropdown, setShowOptionsDropdown] = React.useState<boolean>(false);
-  const [showWelcomePrompts, setShowWelcomePrompts] = React.useState<boolean>(true);
 
   const handleServerToggle = () => {
-    dispatch(serverRunning ? stopServer() : startServer());
+    if (!serverRunning && !isStartingServer) {
+      clearMessages();
+      dispatch(startServer());
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "Starting the server...",
+        avatar: avatarImg,
+      });
+    } else if (serverRunning) {
+      dispatch(stopServer());
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "Server has been stopped.",
+        avatar: avatarImg,
+      });
+    }
   };
+
+  // Add initial welcome message if no messages exist
+  React.useEffect(() => {
+    if (messages.length === 0) {
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "Welcome to Kai Chat! To get started, you'll need to initialize the server.",
+        avatar: avatarImg,
+      });
+    }
+  }, []);
+
+  // Add server status messages
+  React.useEffect(() => {
+    if (isInitializingServer) {
+      // addMessage({
+      //   name: "Kai",
+      //   role: "bot",
+      //   content: "Initializing server components...",
+      //   avatar: avatarImg,
+      // });
+    } else if (serverRunning) {
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "What can I help you with today?",
+        avatar: avatarImg,
+      });
+    }
+  }, [isStartingServer, isInitializingServer, serverRunning]);
 
   const onSelectModel = (
     _event: React.MouseEvent<Element, MouseEvent> | undefined,
@@ -76,29 +113,24 @@ const ChatPage: React.FC = () => {
     setSelectedModel(value as string);
   };
 
-  const welcomePrompts = [
+  const handleRunAnalysis = () => {
+    dispatch(runAnalysis());
+    addMessage({
+      name: "User",
+      role: "user",
+      content: "Running analysis...",
+      avatar: userImg,
+    });
+  };
+
+  const analysisQuickResponses: QuickResponse[] = [
     {
-      title: "Start Server",
-      message: "Would you like to start the server to begin our conversation?",
-      onClick: () => {
-        if (!serverRunning && !isStartingServer) {
-          dispatch(startServer());
-        }
-      },
+      id: "run-analysis",
+      content: "Run analysis",
+      onClick: handleRunAnalysis,
     },
   ];
 
-  const getLoadingMessage = () => {
-    if (isStartingServer) {
-      return "Starting the server...";
-    }
-    if (isInitializingServer) {
-      return "Initializing server components...";
-    }
-    return "Preparing the environment...";
-  };
-
-  const title = "Kai Chat";
   return (
     <Page
       sidebar={
@@ -110,18 +142,9 @@ const ChatPage: React.FC = () => {
       <PageSection>
         <Chatbot>
           <ChatbotHeader>
-            {(showMenu || showLogo || showCenteredLogo) && (
-              <ChatbotHeaderMain>
-                {showMenu && (
-                  <ChatbotHeaderMenu onMenuToggle={() => alert("Menu toggle clicked")} />
-                )}
-                {/* {(showLogo || showCenteredLogo) && (
-                  <ChatbotHeaderTitle>
-                    {showCenteredLogo ? <Bullseye>{title}</Bullseye> : title}
-                  </ChatbotHeaderTitle>
-                )} */}
-              </ChatbotHeaderMain>
-            )}
+            <ChatbotHeaderMain>
+              <ChatbotHeaderMenu onMenuToggle={() => alert("Menu toggle clicked")} />
+            </ChatbotHeaderMain>
             <ChatbotHeaderActions>
               <Toolbar>
                 <ToolbarContent>
@@ -184,44 +207,23 @@ const ChatPage: React.FC = () => {
             </ChatbotHeaderActions>
           </ChatbotHeader>
           <ChatbotContent className="chatbot-content">
-            {!serverRunning && !isStartingServer && !isInitializingServer && (
-              <ChatbotWelcomePrompt
-                title="Welcome to Kai Chat"
-                description="To get started, you'll need to initialize the server."
-                prompts={welcomePrompts}
-                className="chatbot-welcome-prompt"
-              />
-            )}
-            {(isStartingServer || isInitializingServer) && (
+            {messages.map((message) => (
               <Message
-                name="Kai"
-                role="bot"
-                isLoading
-                content="Kai is preparing the environment..."
-                avatar={avatarImg}
+                key={message.id}
+                name={message.name}
+                role={message.role}
+                content={message.content}
+                avatar={message.avatar}
+                quickResponses={
+                  message.role === "user" && serverRunning ? analysisQuickResponses : undefined
+                }
               />
-            )}
-            {serverRunning && (
-              <>
-                <Message
-                  name="Kai"
-                  role="bot"
-                  content="What can I help you with today?"
-                  avatar={avatarImg}
-                />
-                <Message
-                  name="User"
-                  role="user"
-                  avatar={userImg}
-                  content={<ActionLabels serverRunning={serverRunning} />}
-                />
-              </>
-            )}
+            ))}
           </ChatbotContent>
         </Chatbot>
       </PageSection>
     </Page>
   );
-};
+}
 
-export default ChatPage;
+export default App;
