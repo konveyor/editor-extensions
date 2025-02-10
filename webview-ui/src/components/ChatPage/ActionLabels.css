@@ -13,9 +13,9 @@
 .action-label {
   display: inline-flex;
   align-items: center;
-  margin: 0.4rem;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  /* /* margin: 0.4rem; */
+  /* gap: 0.5rem; */
+  /* padding: 0.5rem 1rem;  */
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 9999px;

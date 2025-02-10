@@ -28,7 +28,6 @@ import {
   ChatbotHeaderSelectorDropdown,
   ChatbotHeaderTitle,
   ChatbotWelcomePrompt,
-  Message,
 } from "@patternfly/chatbot";
 import {
   OutlinedWindowRestoreIcon,
@@ -38,8 +37,11 @@ import {
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { startServer, stopServer } from "../../hooks/actions";
 import ActionLabels from "./ActionLabels";
+import { Message } from "./Message";
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
+const userImg =
+  "https://raw.githubusercontent.com/patternfly/patternfly-react/main/packages/react-core/src/components/assets/avatarImg.svg";
 const ChatPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
   const {
@@ -200,14 +202,21 @@ const ChatPage: React.FC = () => {
               />
             )}
             {serverRunning && (
-              <Message
-                name="Kai"
-                role="bot"
-                content="What can I help you with today?"
-                avatar={avatarImg}
-              />
+              <>
+                <Message
+                  name="Kai"
+                  role="bot"
+                  content="What can I help you with today?"
+                  avatar={avatarImg}
+                />
+                <Message
+                  name="User"
+                  role="user"
+                  avatar={userImg}
+                  content={<ActionLabels serverRunning={serverRunning} />}
+                />
+              </>
             )}
-            <ActionLabels serverRunning={serverRunning} />
           </ChatbotContent>
         </Chatbot>
       </PageSection>
