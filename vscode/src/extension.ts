@@ -79,9 +79,17 @@ class VsCodeExtension {
       this.registerLanguageProviders();
       this.listeners.push(vscode.workspace.onDidSaveTextDocument(partialAnalysisTrigger));
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
+      this.showChatView();
     } catch (error) {
       console.error("Error initializing extension:", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
+    }
+  }
+
+  private showChatView(): void {
+    const chatProvider = this.state.webviewProviders.get("chat");
+    if (chatProvider) {
+      chatProvider.showWebviewPanel();
     }
   }
 
@@ -94,13 +102,13 @@ class VsCodeExtension {
   }
 
   private registerWebviewProvider(): void {
-    const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
-    this.state.webviewProviders.set("sidebar", sidebarProvider);
+    const chatProvider = new KonveyorGUIWebviewViewProvider(this.state, "chat");
+    this.state.webviewProviders.set("chat", chatProvider);
 
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
     this.state.webviewProviders.set("resolution", resolutionViewProvider);
 
-    [sidebarProvider, resolutionViewProvider].forEach((provider) =>
+    [chatProvider, resolutionViewProvider].forEach((provider) =>
       this.onDidChangeData((data) => {
         provider.sendMessageToWebview(data);
       }),
@@ -108,8 +116,8 @@ class VsCodeExtension {
 
     this.context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
-        KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
-        sidebarProvider,
+        KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE,
+        chatProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
       ),
       vscode.window.registerWebviewViewProvider(

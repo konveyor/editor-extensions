@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
 import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
-import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType } from "@editor-extensions/shared";
+import ChatPage from "./components/ChatPage/ChatPage";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<WebviewType>(viewType);
@@ -16,7 +16,7 @@ const App: React.FC = () => {
   return (
     <div>
       {currentView === "chat" && <ChatPage />}
-      {currentView === "resolution" && <ResolutionPage />}
+      {/* {currentView === "resolution" && <ResolutionPage />} */}
     </div>
   );
 };

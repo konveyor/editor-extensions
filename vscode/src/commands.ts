@@ -334,6 +334,10 @@ const commandsMap: (state: ExtensionState) => {
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
     },
+    "konveyor.openChatView": () => {
+      const chatProvider = state.webviewProviders?.get("chat");
+      chatProvider?.showWebviewPanel();
+    },
     "konveyor.openAnalysisDetails": async (item: IncidentTypeItem) => {
       //TODO: pass the item to webview and move the focus
       console.log("Open details for ", item);

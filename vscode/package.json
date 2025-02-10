@@ -39,6 +39,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor.openChatView",
+        "title": "Open Chat View",
+        "category": "Konveyor",
+        "icon": "$(comment-discussion)"
+      },
+      {
         "command": "konveyor.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
         "category": "Konveyor",
@@ -287,13 +293,8 @@
     "menus": {
       "view/title": [
         {
-          "command": "konveyor.showAnalysisPanel",
+          "command": "konveyor.openChatView",
           "group": "navigation@1",
-          "when": "view == konveyor.issueView"
-        },
-        {
-          "command": "konveyor.showResolutionPanel",
-          "group": "navigation@2",
           "when": "view == konveyor.issueView"
         },
         {
