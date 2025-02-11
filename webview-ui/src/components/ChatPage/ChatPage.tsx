@@ -24,7 +24,6 @@ import { startServer, stopServer, runAnalysis } from "../../hooks/actions";
 import { useChatMessages } from "../../hooks/useChatMessages";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
-import { clear } from "console";
 
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
@@ -42,7 +41,6 @@ function App() {
 
   const openAnalysisModal = () => {
     handleActionSelect("View analysis");
-    // Add your modal logic here
   };
 
   useEffect(() => {
@@ -81,7 +79,6 @@ function App() {
     setLastActionIndex(messages.length);
     setIsLoading(true);
 
-    // Add user message showing selection
     addMessage({
       name: "User",
       role: "user",
@@ -90,7 +87,6 @@ function App() {
       disabled: true,
     });
 
-    // Simulate processing time
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     if (action === "Run analysis") {
@@ -113,20 +109,7 @@ function App() {
     setIsLoading(false);
   };
 
-  // Initial welcome message
-  React.useEffect(() => {
-    if (messages.length === 0) {
-      addMessage({
-        name: "Kai",
-        role: "bot",
-        content: "Welcome to Kai Chat! To get started, you'll need to initialize the server.",
-        avatar: avatarImg,
-      });
-    }
-  }, []);
-
-  // Server status messages
-  React.useEffect(() => {
+  useEffect(() => {
     if (serverRunning && !isInitializingServer) {
       addMessage({
         name: "Kai",
@@ -157,30 +140,32 @@ function App() {
         </PageSidebar>
       }
     >
-      <PageSection>
-        <Chatbot>
-          <ChatbotHeader>
-            <ChatbotHeaderMain>
-              <ChatbotHeaderMenu onMenuToggle={() => alert("Menu toggle clicked")} />
-            </ChatbotHeaderMain>
-            <ChatbotHeaderActions>
-              <Toolbar>
-                <ToolbarContent>
-                  <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
-                    <ToolbarItem>
-                      <ServerStatusToggle
-                        isRunning={serverRunning}
-                        isStarting={isStartingServer}
-                        isInitializing={isInitializingServer}
-                        onToggle={handleServerToggle}
-                      />
-                    </ToolbarItem>
-                  </ToolbarGroup>
-                </ToolbarContent>
-              </Toolbar>
-            </ChatbotHeaderActions>
-          </ChatbotHeader>
-          <ChatbotContent className="chatbot-content">
+      <PageSection className="p-0">
+        <div className="chat-container">
+          <div className="chat-header">
+            <ChatbotHeader>
+              <ChatbotHeaderMain>
+                <ChatbotHeaderMenu onMenuToggle={() => alert("Menu toggle clicked")} />
+              </ChatbotHeaderMain>
+              <ChatbotHeaderActions>
+                <Toolbar>
+                  <ToolbarContent>
+                    <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                      <ToolbarItem>
+                        <ServerStatusToggle
+                          isRunning={serverRunning}
+                          isStarting={isStartingServer}
+                          isInitializing={isInitializingServer}
+                          onToggle={handleServerToggle}
+                        />
+                      </ToolbarItem>
+                    </ToolbarGroup>
+                  </ToolbarContent>
+                </Toolbar>
+              </ChatbotHeaderActions>
+            </ChatbotHeader>
+          </div>
+          <div className="chat-messages">
             {messages.map((message, index) => (
               <Message
                 key={message.id}
@@ -201,8 +186,8 @@ function App() {
                 <Spinner size="lg" />
               </div>
             )}
-          </ChatbotContent>
-        </Chatbot>
+          </div>
+        </div>
       </PageSection>
     </Page>
   );
