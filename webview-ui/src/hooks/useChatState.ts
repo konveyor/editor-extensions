@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useChatMessages } from "./useChatMessages";
 import { useExtensionState } from "./useExtensionState";
 import { runAnalysis, startServer, stopServer } from "./actions";
+import { useViolations } from "./useViolations";
 
 type ChatState = "idle" | "starting" | "ready" | "analyzing" | "analyzed";
 
@@ -23,6 +24,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
     ruleSets: analysisResults,
   } = state;
 
+  const violations = useViolations(analysisResults);
   const serverRunning = serverState === "running";
 
   const getChatState = (): ChatState => {
@@ -118,6 +120,41 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
     return !(lastMessage.role === "bot" && lastMessage.quickResponses && !lastMessage.disabled);
   };
 
+  const getAnalysisSummaryQuickStart = () => {
+    if (violations.length === 0) {
+      return undefined;
+    }
+
+    const totalIncidents = violations.reduce(
+      (total, violation) => total + violation.incidents.length,
+      0,
+    );
+
+    return {
+      quickStart: {
+        apiVersion: "console.openshift.io/v1",
+        kind: "QuickStart",
+        metadata: {
+          name: "analysis-summary",
+        },
+        spec: {
+          version: 1,
+          displayName: "Analysis Results",
+          durationMinutes: 5,
+          description: "Review analysis results and detected violations",
+          prerequisites: [`${totalIncidents} total incidents to review`],
+          introduction: "This analysis has identified potential issues that need attention.",
+          tasks: violations.map((violation) => ({
+            title: violation.description,
+            description: `Found ${violation.incidents.length} incident(s)`,
+          })),
+          conclusion: "Review complete. Take necessary actions to address identified issues.",
+        },
+      },
+      onSelectQuickStart: () => {}, // QuickStart is used for display only
+    };
+  };
+
   // Handle state transitions
   useEffect(() => {
     const currentState = getChatState();
@@ -131,10 +168,25 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
         quickResponses: getQuickResponses(),
       });
     } else if (currentState === "analyzed" && !isAnalyzing && shouldAddNewMessage()) {
+      // Add analysis summary message
+      const summaryContent =
+        violations.length === 0
+          ? "No violations were found in the analysis. Great job!"
+          : `Found ${violations.length} violation type${violations.length > 1 ? "s" : ""} with a total of ${violations.reduce((total, v) => total + v.incidents.length, 0)} incident${violations.length > 1 ? "s" : ""}.`;
+
       addMessage({
         name: "Kai",
         role: "bot",
-        content: "Analysis complete! What would you like to do next?",
+        content: summaryContent,
+        avatar: avatarImg,
+        quickStarts: getAnalysisSummaryQuickStart(),
+      });
+
+      // Add action prompt message
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "What would you like to do next?",
         avatar: avatarImg,
         quickResponses: getQuickResponses(),
       });
