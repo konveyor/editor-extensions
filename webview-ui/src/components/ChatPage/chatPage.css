@@ -193,3 +193,22 @@
   color: #374151;
   font-weight: 500;
 }
+
+.header-layout {
+  align-items: center;
+  gap: 16px;
+  min-height: 36px;
+  padding: 4px 0;
+}
+
+.vertical-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--vscode-editor-background);
+  margin: 0 8px;
+  align-self: center;
+}
+
+.empty-state-analysis-results {
+  color: var(--vscode-foreground);
+}

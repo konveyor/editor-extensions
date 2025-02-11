@@ -20,7 +20,6 @@ import jsesc from "jsesc";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly CHAT_VIEW_TYPE = "konveyor.konveyorChatView";
-  public static readonly RESOLUTION_VIEW_TYPE = "konveyor.konveyorResolutionView";
 
   private static instance: KonveyorGUIWebviewViewProvider;
   private _disposables: Disposable[] = [];
@@ -34,10 +33,6 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     private readonly _extensionState: ExtensionState,
     private readonly _viewType: WebviewType,
   ) {}
-
-  isChatView() {
-    return this._viewType === "chat";
-  }
 
   public resolveWebviewView(
     webviewView: WebviewView,
@@ -53,10 +48,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       return;
     }
     this._panel = window.createWebviewPanel(
-      this.isChatView()
-        ? KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE
-        : KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-      this.isChatView() ? "KAI Chat" : "Resolution Details",
+      KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE,
+      "KAI Chat",
       ViewColumn.One,
       {
         enableScripts: true,

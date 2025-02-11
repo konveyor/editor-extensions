@@ -1,6 +1,6 @@
 import { Uri } from "vscode";
 
-export type WebviewType = "chat" | "resolution";
+export type WebviewType = "chat";
 
 export type Severity = "High" | "Medium" | "Low";
 

@@ -105,10 +105,7 @@ class VsCodeExtension {
     const chatProvider = new KonveyorGUIWebviewViewProvider(this.state, "chat");
     this.state.webviewProviders.set("chat", chatProvider);
 
-    const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
-    this.state.webviewProviders.set("resolution", resolutionViewProvider);
-
-    [chatProvider, resolutionViewProvider].forEach((provider) =>
+    [chatProvider].forEach((provider) =>
       this.onDidChangeData((data) => {
         provider.sendMessageToWebview(data);
       }),
@@ -118,11 +115,6 @@ class VsCodeExtension {
       vscode.window.registerWebviewViewProvider(
         KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE,
         chatProvider,
-        { webviewOptions: { retainContextWhenHidden: true } },
-      ),
-      vscode.window.registerWebviewViewProvider(
-        KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-        resolutionViewProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
       ),
     );
