@@ -82,41 +82,6 @@ const AnalysisPage: React.FC = () => {
           <PageSidebarBody />
         </PageSidebar>
       }
-      masthead={
-        <Masthead>
-          <MastheadMain>
-            <MastheadToggle>
-              <Button
-                variant={ButtonVariant.primary}
-                onClick={runAnalysisRequest}
-                isLoading={isAnalyzing}
-                isDisabled={
-                  isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
-                }
-              >
-                {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-              </Button>
-            </MastheadToggle>
-          </MastheadMain>
-
-          <MastheadContent>
-            <Toolbar>
-              <ToolbarContent>
-                <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
-                  <ToolbarItem>
-                    <ServerStatusToggle
-                      isRunning={serverRunning}
-                      isStarting={isStartingServer}
-                      isInitializing={isInitializingServer}
-                      onToggle={handleServerToggle}
-                    />
-                  </ToolbarItem>
-                </ToolbarGroup>
-              </ToolbarContent>
-            </Toolbar>
-          </MastheadContent>
-        </Masthead>
-      }
     >
       {errorMessage && (
         <PageSection padding={{ default: "noPadding" }}>

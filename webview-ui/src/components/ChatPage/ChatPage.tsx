@@ -1,5 +1,5 @@
 import "./chatPage.css";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Page,
   PageSection,
@@ -10,6 +10,7 @@ import {
   ToolbarGroup,
   ToolbarItem,
   Spinner,
+  Button,
 } from "@patternfly/react-core";
 import {
   Chatbot,
@@ -24,6 +25,8 @@ import { startServer, stopServer, runAnalysis } from "../../hooks/actions";
 import { useChatMessages } from "../../hooks/useChatMessages";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
+import { ArrowLeftIcon } from "@patternfly/react-icons";
+import AnalysisPage from "../AnalysisPage/AnalysisPage";
 
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
@@ -32,16 +35,21 @@ const userImg =
 
 function App() {
   const [state, dispatch] = useExtensionState();
-  const { isStartingServer, isInitializingServer, serverState } = state;
+  const {
+    isStartingServer,
+    isInitializingServer,
+    serverState,
+    isAnalyzing,
+    ruleSets: analysisResults,
+    enhancedIncidents,
+    workspaceRoot,
+  } = state;
   const { messages, addMessage, clearMessages } = useChatMessages();
   const serverRunning = serverState === "running";
   const [isLoading, setIsLoading] = React.useState(false);
   const [selectedAction, setSelectedAction] = React.useState<string | null>(null);
   const [lastActionIndex, setLastActionIndex] = React.useState<number>(-1);
-
-  const openAnalysisModal = () => {
-    handleActionSelect("View analysis");
-  };
+  const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
 
   useEffect(() => {
     clearMessages();
@@ -75,6 +83,11 @@ function App() {
   };
 
   const handleActionSelect = async (action: string) => {
+    if (action === "View analysis") {
+      setShowAnalysisOverlay(true);
+      return;
+    }
+
     setSelectedAction(action);
     setLastActionIndex(messages.length);
     setIsLoading(true);
@@ -97,16 +110,42 @@ function App() {
         content: "Starting analysis process...",
         avatar: avatarImg,
       });
-    } else {
-      addMessage({
-        name: "Kai",
-        role: "bot",
-        content: "Opening analysis results...",
-        avatar: avatarImg,
-      });
     }
 
     setIsLoading(false);
+  };
+
+  // Watch for analysis completion
+  useEffect(() => {
+    if (!isAnalyzing && analysisResults && selectedAction === "Run analysis") {
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "Analysis complete! What would you like to do next?",
+        avatar: avatarImg,
+        quickResponses: getQuickResponses(),
+      });
+    }
+  }, [isAnalyzing, analysisResults]);
+
+  const getQuickResponses = () => {
+    const responses = [
+      {
+        id: "run-analysis",
+        content: "Run analysis",
+        onClick: () => handleActionSelect("Run analysis"),
+      },
+    ];
+
+    if (analysisResults) {
+      responses.unshift({
+        id: "view-analysis",
+        content: "View analysis results",
+        onClick: () => handleActionSelect("View analysis"),
+      });
+    }
+
+    return responses;
   };
 
   useEffect(() => {
@@ -116,21 +155,34 @@ function App() {
         role: "bot",
         content: "What would you like to do?",
         avatar: avatarImg,
-        quickResponses: [
-          {
-            id: "run-analysis",
-            content: "Run analysis",
-            onClick: () => handleActionSelect("Run analysis"),
-          },
-          {
-            id: "view-analysis",
-            content: "View most recent analysis results",
-            onClick: () => handleActionSelect("View analysis"),
-          },
-        ],
+        quickResponses: getQuickResponses(),
       });
     }
   }, [isStartingServer, isInitializingServer, serverRunning]);
+
+  const handleOverlayClose = () => {
+    setShowAnalysisOverlay(false);
+    // Update the last bot message's quick responses instead of adding a new message
+    // updateLastBotMessage({
+    //   quickResponses: getQuickResponses(),
+    // });
+  };
+
+  if (showAnalysisOverlay) {
+    return (
+      <div className="analysis-overlay">
+        <div className="analysis-header">
+          <Button variant="plain" onClick={handleOverlayClose} className="back-button">
+            <ArrowLeftIcon />
+            <span className="ml-2">Back to Chat</span>
+          </Button>
+        </div>
+        <div className="analysis-content">
+          <AnalysisPage />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Page
