@@ -1,3 +1,4 @@
+import QuickResponse from "@patternfly/chatbot/dist/cjs/Message/QuickResponse/QuickResponse";
 import { useState, useEffect } from "react";
 
 export interface ChatMessage {
@@ -7,6 +8,8 @@ export interface ChatMessage {
   content: string;
   avatar: string;
   timestamp: number;
+  disabled?: boolean;
+  quickResponses?: QuickResponse[];
 }
 
 export const useChatMessages = () => {

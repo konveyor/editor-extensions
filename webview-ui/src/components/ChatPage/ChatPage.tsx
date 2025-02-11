@@ -1,9 +1,6 @@
-import React from "react";
+import "./chatPage.css";
+import React, { useEffect } from "react";
 import {
-  Bullseye,
-  DropdownGroup,
-  DropdownItem,
-  DropdownList,
   Page,
   PageSection,
   PageSidebar,
@@ -12,32 +9,22 @@ import {
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
+  Spinner,
 } from "@patternfly/react-core";
 import {
   Chatbot,
   ChatbotContent,
-  ChatbotDisplayMode,
   ChatbotHeader,
   ChatbotHeaderActions,
   ChatbotHeaderMain,
   ChatbotHeaderMenu,
-  ChatbotHeaderOptionsDropdown,
-  ChatbotHeaderSelectorDropdown,
-  ChatbotHeaderTitle,
-  ChatbotWelcomePrompt,
   Message,
 } from "@patternfly/chatbot";
-import {
-  OutlinedWindowRestoreIcon,
-  OpenDrawerRightIcon,
-  ExpandIcon,
-} from "@patternfly/react-icons";
-import QuickResponse from "@patternfly/chatbot/dist/cjs/Message/QuickResponse/QuickResponse";
 import { startServer, stopServer, runAnalysis } from "../../hooks/actions";
-
 import { useChatMessages } from "../../hooks/useChatMessages";
 import { useExtensionState } from "../../hooks/useExtensionState";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
+import { clear } from "console";
 
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
@@ -47,12 +34,26 @@ const userImg =
 function App() {
   const [state, dispatch] = useExtensionState();
   const { isStartingServer, isInitializingServer, serverState } = state;
-
   const { messages, addMessage, clearMessages } = useChatMessages();
   const serverRunning = serverState === "running";
-  const [selectedModel, setSelectedModel] = React.useState("Granite Code 7B");
-  const [showSelectorDropdown, setShowSelectorDropdown] = React.useState<boolean>(false);
-  const [showOptionsDropdown, setShowOptionsDropdown] = React.useState<boolean>(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [selectedAction, setSelectedAction] = React.useState<string | null>(null);
+  const [lastActionIndex, setLastActionIndex] = React.useState<number>(-1);
+
+  const openAnalysisModal = () => {
+    handleActionSelect("View analysis");
+    // Add your modal logic here
+  };
+
+  useEffect(() => {
+    clearMessages();
+    addMessage({
+      name: "Kai",
+      role: "bot",
+      content: "Welcome to Kai Chat! To get started, you'll need to initialize the server.",
+      avatar: avatarImg,
+    });
+  }, []);
 
   const handleServerToggle = () => {
     if (!serverRunning && !isStartingServer) {
@@ -75,7 +76,44 @@ function App() {
     }
   };
 
-  // Add initial welcome message if no messages exist
+  const handleActionSelect = async (action: string) => {
+    setSelectedAction(action);
+    setLastActionIndex(messages.length);
+    setIsLoading(true);
+
+    // Add user message showing selection
+    addMessage({
+      name: "User",
+      role: "user",
+      content: action,
+      avatar: userImg,
+      disabled: true,
+    });
+
+    // Simulate processing time
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    if (action === "Run analysis") {
+      dispatch(runAnalysis());
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "Starting analysis process...",
+        avatar: avatarImg,
+      });
+    } else {
+      addMessage({
+        name: "Kai",
+        role: "bot",
+        content: "Opening analysis results...",
+        avatar: avatarImg,
+      });
+    }
+
+    setIsLoading(false);
+  };
+
+  // Initial welcome message
   React.useEffect(() => {
     if (messages.length === 0) {
       addMessage({
@@ -87,49 +125,29 @@ function App() {
     }
   }, []);
 
-  // Add server status messages
+  // Server status messages
   React.useEffect(() => {
-    if (isInitializingServer) {
-      // addMessage({
-      //   name: "Kai",
-      //   role: "bot",
-      //   content: "Initializing server components...",
-      //   avatar: avatarImg,
-      // });
-    } else if (serverRunning) {
+    if (serverRunning && !isInitializingServer) {
       addMessage({
         name: "Kai",
         role: "bot",
-        content: "What can I help you with today?",
+        content: "What would you like to do?",
         avatar: avatarImg,
+        quickResponses: [
+          {
+            id: "run-analysis",
+            content: "Run analysis",
+            onClick: () => handleActionSelect("Run analysis"),
+          },
+          {
+            id: "view-analysis",
+            content: "View most recent analysis results",
+            onClick: () => handleActionSelect("View analysis"),
+          },
+        ],
       });
     }
   }, [isStartingServer, isInitializingServer, serverRunning]);
-
-  const onSelectModel = (
-    _event: React.MouseEvent<Element, MouseEvent> | undefined,
-    value: string | number | undefined,
-  ) => {
-    setSelectedModel(value as string);
-  };
-
-  const handleRunAnalysis = () => {
-    dispatch(runAnalysis());
-    addMessage({
-      name: "User",
-      role: "user",
-      content: "Running analysis...",
-      avatar: userImg,
-    });
-  };
-
-  const analysisQuickResponses: QuickResponse[] = [
-    {
-      id: "run-analysis",
-      content: "Run analysis",
-      onClick: handleRunAnalysis,
-    },
-  ];
 
   return (
     <Page
@@ -160,65 +178,29 @@ function App() {
                   </ToolbarGroup>
                 </ToolbarContent>
               </Toolbar>
-              {showSelectorDropdown && (
-                <ChatbotHeaderSelectorDropdown value={selectedModel} onSelect={onSelectModel}>
-                  <DropdownList>
-                    <DropdownItem value="Granite Code 7B" key="granite">
-                      Granite Code 7B
-                    </DropdownItem>
-                    <DropdownItem value="Llama 3.0" key="llama">
-                      Llama 3.0
-                    </DropdownItem>
-                    <DropdownItem value="Mistral 3B" key="mistral">
-                      Mistral 3B
-                    </DropdownItem>
-                  </DropdownList>
-                </ChatbotHeaderSelectorDropdown>
-              )}
-              {showOptionsDropdown && (
-                <ChatbotHeaderOptionsDropdown>
-                  <DropdownGroup label="Display mode">
-                    <DropdownList>
-                      <DropdownItem
-                        value={ChatbotDisplayMode.default}
-                        key="switchDisplayOverlay"
-                        icon={<OutlinedWindowRestoreIcon aria-hidden />}
-                      >
-                        <span>Overlay</span>
-                      </DropdownItem>
-                      <DropdownItem
-                        value={ChatbotDisplayMode.docked}
-                        key="switchDisplayDock"
-                        icon={<OpenDrawerRightIcon aria-hidden />}
-                      >
-                        <span>Dock to window</span>
-                      </DropdownItem>
-                      <DropdownItem
-                        value={ChatbotDisplayMode.fullscreen}
-                        key="switchDisplayFullscreen"
-                        icon={<ExpandIcon aria-hidden />}
-                      >
-                        <span>Fullscreen</span>
-                      </DropdownItem>
-                    </DropdownList>
-                  </DropdownGroup>
-                </ChatbotHeaderOptionsDropdown>
-              )}
             </ChatbotHeaderActions>
           </ChatbotHeader>
           <ChatbotContent className="chatbot-content">
-            {messages.map((message) => (
+            {messages.map((message, index) => (
               <Message
                 key={message.id}
                 name={message.name}
                 role={message.role}
                 content={message.content}
                 avatar={message.avatar}
+                disabled={message.disabled || (lastActionIndex >= 0 && index <= lastActionIndex)}
                 quickResponses={
-                  message.role === "user" && serverRunning ? analysisQuickResponses : undefined
+                  message.role === "bot" && index > lastActionIndex
+                    ? message.quickResponses
+                    : undefined
                 }
               />
             ))}
+            {isLoading && (
+              <div className="flex items-center justify-center p-4">
+                <Spinner size="lg" />
+              </div>
+            )}
           </ChatbotContent>
         </Chatbot>
       </PageSection>
