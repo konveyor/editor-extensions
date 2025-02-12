@@ -2,16 +2,22 @@ import React from "react";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { IncidentTable } from "./IncidentTable";
 
-export const IncidentTableGroup = ({
-  onIncidentSelect,
-  onGetSolution,
-  workspaceRoot,
-  incidents,
-}: {
+interface IncidentTableGroupProps {
   onIncidentSelect: (incident: EnhancedIncident) => void;
   onGetSolution?: (incidents: EnhancedIncident[]) => void;
   workspaceRoot: string;
   incidents?: EnhancedIncident[];
+  selectedIncidents?: Set<string>;
+  onIncidentSelectionChange?: (incidentId: string, isSelected: boolean) => void;
+}
+
+export const IncidentTableGroup: React.FC<IncidentTableGroupProps> = ({
+  onIncidentSelect,
+  onGetSolution,
+  workspaceRoot,
+  incidents,
+  selectedIncidents,
+  onIncidentSelectionChange,
 }) => {
   const groupedIncidents = incidents || [];
 
@@ -37,6 +43,8 @@ export const IncidentTableGroup = ({
       }
       incidents={incidents}
       workspaceRoot={workspaceRoot}
+      selectedIncidents={selectedIncidents}
+      onIncidentSelectionChange={onIncidentSelectionChange}
     />
   ));
 };

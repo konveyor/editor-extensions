@@ -26,11 +26,22 @@ import {
   SplitItem,
   ToggleGroup,
   ToggleGroupItem,
+  Checkbox,
+  Dropdown,
+  DropdownList,
+  DropdownItem,
+  Divider,
 } from "@patternfly/react-core";
-import { WrenchIcon, ListIcon, FileIcon, LayerGroupIcon } from "@patternfly/react-icons";
-import { IncidentTableGroup } from "./IncidentTable";
+import {
+  WrenchIcon,
+  ListIcon,
+  FileIcon,
+  LayerGroupIcon,
+  EllipsisVIcon,
+} from "@patternfly/react-icons";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Severity } from "@editor-extensions/shared";
+import { IncidentTableGroup } from "./IncidentTable/IncidentTableGroup";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -55,6 +66,9 @@ const ViolationIncidentsList = ({
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
+  const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
+  const [selectedIncidents, setSelectedIncidents] = React.useState<Set<string>>(new Set());
+  const [dropdownOpen, setDropdownOpen] = React.useState<{ [key: string]: boolean }>({});
   const [filters, setFilters] = React.useState({
     severity: [] as Severity[],
     groupBy: "violation" as GroupByOption,
@@ -101,6 +115,57 @@ const ViolationIncidentsList = ({
       newSet.add(violationId);
     }
     setExpandedViolations(newSet);
+  };
+
+  const toggleGroupSelection = (groupId: string) => {
+    const newSelected = new Set(selectedGroups);
+    if (newSelected.has(groupId)) {
+      newSelected.delete(groupId);
+      // Deselect all incidents in this group
+      const groupIncidents = groupedIncidents.find((g) => g.id === groupId)?.incidents || [];
+      const newSelectedIncidents = new Set(selectedIncidents);
+      groupIncidents.forEach((incident) => {
+        const incidentId = `${incident.uri}-${incident.lineNumber}`;
+        newSelectedIncidents.delete(incidentId);
+      });
+      setSelectedIncidents(newSelectedIncidents);
+    } else {
+      newSelected.add(groupId);
+      // Select all incidents in this group
+      const groupIncidents = groupedIncidents.find((g) => g.id === groupId)?.incidents || [];
+      const newSelectedIncidents = new Set(selectedIncidents);
+      groupIncidents.forEach((incident) => {
+        const incidentId = `${incident.uri}-${incident.lineNumber}`;
+        newSelectedIncidents.add(incidentId);
+      });
+      setSelectedIncidents(newSelectedIncidents);
+    }
+    setSelectedGroups(newSelected);
+  };
+
+  const handleIncidentSelectionChange = (incidentId: string, isSelected: boolean) => {
+    const newSelected = new Set(selectedIncidents);
+    if (isSelected) {
+      newSelected.add(incidentId);
+    } else {
+      newSelected.delete(incidentId);
+    }
+    setSelectedIncidents(newSelected);
+
+    // Update group selection state
+    const updatedGroups = new Set(selectedGroups);
+    groupedIncidents.forEach((group) => {
+      const groupIncidentIds = group.incidents.map(
+        (incident) => `${incident.uri}-${incident.lineNumber}`,
+      );
+      const allSelected = groupIncidentIds.every((id) => newSelected.has(id));
+      if (allSelected) {
+        updatedGroups.add(group.id);
+      } else {
+        updatedGroups.delete(group.id);
+      }
+    });
+    setSelectedGroups(updatedGroups);
   };
 
   const handleGetSolution = (incidents: EnhancedIncident[]) => {
@@ -190,6 +255,8 @@ const ViolationIncidentsList = ({
     }));
   }, [enhancedIncidents, searchTerm, filters]);
 
+  const selectedIncidentsCount = selectedIncidents.size;
+
   const toolbarItems = (
     <React.Fragment>
       <ToolbarGroup>
@@ -221,7 +288,6 @@ const ViolationIncidentsList = ({
             />
             <ToggleGroupItem
               icon={<LayerGroupIcon />}
-              // ISSUES === VIOLATIONS.
               text="Issues"
               buttonId="violation"
               isSelected={filters.groupBy === "violation"}
@@ -262,23 +328,49 @@ const ViolationIncidentsList = ({
       </ToolbarGroup>
       <ToolbarGroup variant="action-group-inline">
         <ToolbarItem>
-          {groupedIncidents.length > 0 && (
+          {selectedIncidentsCount > 0 ? (
             <Button
-              variant="plain"
-              aria-label="Resolve all visible incidents"
-              icon={<WrenchIcon />}
+              variant="primary"
               onClick={() => {
-                const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
-                handleGetSolution(allIncidents);
+                const selectedIncidentsList = enhancedIncidents.filter((incident) =>
+                  selectedIncidents.has(`${incident.uri}-${incident.lineNumber}`),
+                );
+                handleGetSolution(selectedIncidentsList);
               }}
             >
-              Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
-              incidents
+              Resolve {selectedIncidentsCount} selected incidents
             </Button>
+          ) : (
+            groupedIncidents.length > 0 && (
+              <Button
+                variant="plain"
+                aria-label="Resolve all visible incidents"
+                icon={<WrenchIcon />}
+                onClick={() => {
+                  const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
+                  handleGetSolution(allIncidents);
+                }}
+              >
+                Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
+                incidents
+              </Button>
+            )
           )}
         </ToolbarItem>
       </ToolbarGroup>
     </React.Fragment>
+  );
+
+  const renderDropdownItems = (group: { id: string; incidents: EnhancedIncident[] }) => (
+    <DropdownList>
+      <DropdownItem key="resolve" onClick={() => handleGetSolution(group.incidents)}>
+        Resolve all incidents
+      </DropdownItem>
+      <Divider key="divider" />
+      <DropdownItem key="expand" onClick={() => toggleViolation(group.id)}>
+        {expandedViolations.has(group.id) ? "Collapse" : "Expand"}
+      </DropdownItem>
+    </DropdownList>
   );
 
   return (
@@ -299,24 +391,40 @@ const ViolationIncidentsList = ({
             key={group.id}
             isExpanded={expandedViolations.has(group.id)}
             isCompact
+            isSelectable
             style={{ marginBottom: "10px" }}
           >
             <CardHeader
               onExpand={() => toggleViolation(group.id)}
               actions={{
                 actions: [
-                  <Button
-                    key="get-solution"
-                    variant="plain"
-                    aria-label={`Resolve ${group.incidents.length} incidents`}
-                    icon={<WrenchIcon />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGetSolution(group.incidents);
-                    }}
-                  >
-                    Resolve {group.incidents.length} incidents
-                  </Button>,
+                  <Dropdown
+                    key="actions-dropdown"
+                    onSelect={() => setDropdownOpen({ ...dropdownOpen, [group.id]: false })}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        onClick={() =>
+                          setDropdownOpen({
+                            ...dropdownOpen,
+                            [group.id]: !dropdownOpen[group.id],
+                          })
+                        }
+                        isExpanded={dropdownOpen[group.id]}
+                        aria-label="Actions"
+                        variant="plain"
+                        icon={<EllipsisVIcon />}
+                      />
+                    )}
+                    isOpen={dropdownOpen[group.id]}
+                  ></Dropdown>,
+                  <Checkbox
+                    key="select-group"
+                    aria-label={`Select ${group.label}`}
+                    id={`select-${group.id}`}
+                    isChecked={selectedGroups.has(group.id)}
+                    onChange={() => toggleGroupSelection(group.id)}
+                  />,
                 ],
                 hasNoOffset: true,
               }}
@@ -341,6 +449,8 @@ const ViolationIncidentsList = ({
                   onIncidentSelect={onIncidentSelect}
                   incidents={group.incidents}
                   workspaceRoot={workspaceRoot}
+                  selectedIncidents={selectedIncidents}
+                  onIncidentSelectionChange={handleIncidentSelectionChange}
                 />
               </CardBody>
             </CardExpandableContent>

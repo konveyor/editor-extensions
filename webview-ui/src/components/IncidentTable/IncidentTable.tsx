@@ -1,6 +1,6 @@
 import "./incidentTable.css";
 import React, { FC, useCallback } from "react";
-import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
+import { Content, Button, Card, CardBody, CardHeader, Checkbox } from "@patternfly/react-core";
 import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
@@ -13,6 +13,8 @@ export interface IncidentTableProps {
   message: string;
   getSolution?: (incidents: EnhancedIncident[]) => void;
   onIncidentSelect: (it: EnhancedIncident) => void;
+  selectedIncidents?: Set<string>;
+  onIncidentSelectionChange?: (incidentId: string, isSelected: boolean) => void;
 }
 
 export const IncidentTable: FC<IncidentTableProps> = ({
@@ -21,6 +23,8 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   getSolution,
   workspaceRoot,
   onIncidentSelect,
+  selectedIncidents,
+  onIncidentSelectionChange,
 }) => {
   const fileName = (incident: Incident) => path.basename(incident.uri);
   const relativeDirname = useCallback(
@@ -38,9 +42,22 @@ export const IncidentTable: FC<IncidentTableProps> = ({
     distance: 15,
   };
 
+  const isSelectable = selectedIncidents !== undefined && onIncidentSelectionChange !== undefined;
+  const allSelected =
+    isSelectable && incidents.every((incident) => selectedIncidents.has(uniqueId(incident)));
+
+  const handleSelectAll = (checked: boolean) => {
+    if (onIncidentSelectionChange) {
+      incidents.forEach((incident) => {
+        onIncidentSelectionChange(uniqueId(incident), checked);
+      });
+    }
+  };
+
   const ISSUE = "Issue";
   const LOCATION = "Location";
   const FOLDER = "Folder";
+
   return (
     <>
       <Card isPlain>
@@ -77,6 +94,16 @@ export const IncidentTable: FC<IncidentTableProps> = ({
             <Table aria-label="Incidents" variant="compact">
               <Thead>
                 <Tr>
+                  {isSelectable && (
+                    <Th>
+                      <Checkbox
+                        id={`select-all-${message}`}
+                        aria-label="Select all incidents"
+                        isChecked={allSelected}
+                        onChange={(_event, checked) => handleSelectAll(checked)}
+                      />
+                    </Th>
+                  )}
                   <Th>{ISSUE}</Th>
                   <Th width={50}>{FOLDER}</Th>
                   <Th>{LOCATION}</Th>
@@ -86,6 +113,18 @@ export const IncidentTable: FC<IncidentTableProps> = ({
               <Tbody>
                 {incidents.map((it) => (
                   <Tr key={uniqueId(it)}>
+                    {isSelectable && (
+                      <Td>
+                        <Checkbox
+                          id={`select-incident-${uniqueId(it)}`}
+                          aria-label={`Select incident ${fileName(it)}`}
+                          isChecked={selectedIncidents.has(uniqueId(it))}
+                          onChange={(_event, checked) =>
+                            onIncidentSelectionChange(uniqueId(it), checked)
+                          }
+                        />
+                      </Td>
+                    )}
                     <Td dataLabel={ISSUE}>
                       <TableText tooltip={it.uri} tooltipProps={tooltipProps}>
                         <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
