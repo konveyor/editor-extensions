@@ -11,10 +11,7 @@ export interface ChatMessage {
   timestamp: number;
   disabled?: boolean;
   quickResponses?: QuickResponse[];
-  quickStarts?: {
-    quickStart: QuickStart;
-    onSelectQuickStart: (id: string) => void;
-  };
+  quickStart?: QuickStart;
 }
 
 export const useChatMessages = () => {

@@ -43,6 +43,7 @@ import { useViolations } from "../../hooks/useViolations";
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
+import { QuickStart } from "@patternfly/chatbot/dist/cjs/Message/QuickStarts/types";
 
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
@@ -257,18 +258,28 @@ function App() {
           <div className="chat-messages">
             {messages.length === 0
               ? renderEmptyState()
-              : messages.map((message) => (
-                  <Message
-                    key={message.id}
-                    name={message.name}
-                    role={message.role}
-                    content={message.content}
-                    avatar={message.avatar}
-                    timestamp={formatTimestamp(message.timestamp)}
-                    disabled={message.disabled}
-                    quickResponses={message.quickResponses}
-                  />
-                ))}
+              : messages.map((message) => {
+                  let quickstart = message.quickStart ?? null;
+                  let quickstarts = quickstart
+                    ? {
+                        quickStart: quickstart as QuickStart,
+                        onSelectQuickStart: () => alert(`Selected quickstart `),
+                      }
+                    : undefined;
+                  return (
+                    <Message
+                      key={message.id}
+                      name={message.name}
+                      role={message.role}
+                      content={message.content}
+                      avatar={message.avatar}
+                      timestamp={formatTimestamp(message.timestamp)}
+                      disabled={message.disabled}
+                      quickResponses={message.quickResponses}
+                      quickStarts={quickstarts}
+                    />
+                  );
+                })}
             {chatState === "analyzing" && (
               <div className="flex items-center justify-center p-4">
                 <Spinner size="lg" />
