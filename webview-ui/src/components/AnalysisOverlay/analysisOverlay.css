@@ -1,0 +1,49 @@
+/* Analysis overlay styles */
+.analysis-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-header {
+  /* padding: 1rem; */
+  /* border-bottom: 1px solid #e5e7eb; */
+}
+
+.analysis-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  /* color: #374151; */
+  font-weight: 500;
+  padding-top: 0.3rem;
+}
+
+.header-layout {
+  align-items: center;
+  gap: 16px;
+  min-height: 36px;
+  padding: 4px 0;
+}
+
+.vertical-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--vscode-editor-background);
+  margin: 0 8px;
+  align-self: center;
+}
+
+.empty-state-analysis-results {
+  color: var(--vscode-foreground);
+}

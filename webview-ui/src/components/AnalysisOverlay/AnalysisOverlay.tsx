@@ -1,3 +1,4 @@
+import "./analysisOverlay.css";
 import React from "react";
 import {
   Page,
@@ -27,6 +28,7 @@ import { Incident } from "@editor-extensions/shared";
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
+import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
 
 interface AnalysisOverlayProps {
   onClose: () => void;
@@ -72,7 +74,7 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
       <div className="analysis-header">
         <Button variant="plain" onClick={onClose} className="back-button">
           <ArrowLeftIcon />
-          <span className="ml-2">Back to Chat</span>
+          <span className={spacing.mlSm}>Back to Chat</span>
         </Button>
       </div>
       <div className="analysis-content">
