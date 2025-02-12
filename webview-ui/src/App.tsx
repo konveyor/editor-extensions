@@ -1,18 +1,87 @@
-// App.tsx
-import React, { useState, useEffect } from "react";
-import { viewType } from "./utils/vscode";
-import { WebviewType } from "@editor-extensions/shared";
-import ChatPage from "./components/ChatPage/ChatPage";
+import React, { useState } from "react";
+import { Incident } from "@editor-extensions/shared";
+import { useChatState } from "./hooks/useChatState";
+import { useExtensionState } from "./hooks/useExtensionState";
+import { getSolution, openFile } from "./hooks/actions";
+import { useViolations } from "./hooks/useViolations";
+import { ChatPage } from "./components/ChatPage/ChatPage";
+import { AnalysisOverlay } from "./components/AnalysisOverlay/AnalysisOverlay";
 
-const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<WebviewType>(viewType);
+const avatarImg =
+  "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
+const userImg =
+  "https://raw.githubusercontent.com/patternfly/patternfly-react/main/packages/react-core/src/components/assets/avatarImg.svg";
 
-  useEffect(() => {
-    // Update the view when viewType changes
-    setCurrentView(viewType);
-  }, [viewType]);
+function App() {
+  const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
+  const [state, dispatch] = useExtensionState();
+  const {
+    isAnalyzing,
+    isFetchingSolution: isWaitingForSolution,
+    ruleSets: analysisResults,
+    enhancedIncidents,
+    workspaceRoot,
+  } = state;
 
-  return <div>{currentView === "chat" && <ChatPage />}</div>;
-};
+  const {
+    chatState,
+    messages,
+    isStartingServer,
+    isInitializingServer,
+    serverRunning,
+    handleServerToggle,
+  } = useChatState({
+    avatarImg,
+    userImg,
+    onShowAnalysis: () => setShowAnalysisOverlay(true),
+  });
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
+
+  const handleIncidentSelect = (incident: Incident) => {
+    setFocusedIncident(incident);
+    dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
+  };
+
+  const violations = useViolations(analysisResults);
+  const hasAnalysisResults = analysisResults !== undefined;
+
+  if (showAnalysisOverlay) {
+    return (
+      <AnalysisOverlay
+        onClose={() => setShowAnalysisOverlay(false)}
+        errorMessage={errorMessage}
+        setErrorMessage={setErrorMessage}
+        isAnalyzing={isAnalyzing}
+        isWaitingForSolution={isWaitingForSolution}
+        violations={violations}
+        hasAnalysisResults={hasAnalysisResults}
+        workspaceRoot={workspaceRoot}
+        serverRunning={serverRunning}
+        enhancedIncidents={enhancedIncidents}
+        focusedIncident={focusedIncident}
+        onIncidentSelect={handleIncidentSelect}
+        dispatch={dispatch}
+        getSolution={getSolution}
+        expandedViolations={expandedViolations}
+        setExpandedViolations={setExpandedViolations}
+      />
+    );
+  }
+
+  return (
+    <ChatPage
+      messages={messages}
+      chatState={chatState}
+      serverRunning={serverRunning}
+      isStartingServer={isStartingServer}
+      isInitializingServer={isInitializingServer}
+      handleServerToggle={handleServerToggle}
+      setShowAnalysisOverlay={setShowAnalysisOverlay}
+    />
+  );
+}
 
 export default App;

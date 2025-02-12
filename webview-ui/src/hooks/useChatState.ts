@@ -137,7 +137,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
       spec: {
         version: 1,
         displayName: "Analysis Results",
-        durationMinutes: 5,
+        // durationMinutes: 5,
         // icon: React.createElement(ChatIcon),
         icon: undefined,
         description: "Review analysis results and detected violations",
