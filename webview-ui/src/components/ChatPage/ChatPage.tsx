@@ -97,7 +97,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             </ChatbotHeader>
           </div>
           <div className="chat-messages">
-            {messages.length === 0
+            {messages.length === 0 || !serverRunning
               ? renderEmptyState()
               : messages.map((message) => {
                   let quickstart = message.quickStart ?? null;
@@ -116,8 +116,15 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                       avatar={message.avatar}
                       timestamp={formatTimestamp(message.timestamp)}
                       disabled={message.disabled}
+                      aria-disabled={message.disabled}
                       quickResponses={message.quickResponses}
-                      quickStarts={quickstarts}
+                      quickResponseContainerProps={{
+                        isCompact: true,
+                        "aria-disabled": true,
+                        disabled: true,
+                        className: message.disabled ? "disabled" : "",
+                      }}
+                      // quickStarts={quickstarts}
                     />
                   );
                 })}

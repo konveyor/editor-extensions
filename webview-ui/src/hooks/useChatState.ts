@@ -44,11 +44,13 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
   };
 
   const getQuickResponses = () => {
+    console.log("serverRunning", serverRunning);
     const responses = [
       {
         id: "run-analysis",
         content: "Run analysis",
         onClick: () => handleAction("Run analysis"),
+        disabled: !serverRunning,
       },
     ];
 
@@ -57,6 +59,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
         id: "view-analysis",
         content: "View analysis results",
         onClick: () => handleAction("View analysis"),
+        disabled: !serverRunning,
       });
     }
 
