@@ -46,13 +46,13 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   const allSelected =
     isSelectable && incidents.every((incident) => selectedIncidents.has(uniqueId(incident)));
 
-  const handleSelectAll = (checked: boolean) => {
-    if (onIncidentSelectionChange) {
-      incidents.forEach((incident) => {
-        onIncidentSelectionChange(uniqueId(incident), checked);
-      });
-    }
-  };
+  // const handleSelectAll = (checked: boolean) => {
+  //   if (onIncidentSelectionChange) {
+  //     incidents.forEach((incident) => {
+  //       onIncidentSelectionChange(uniqueId(incident), checked);
+  //     });
+  //   }
+  // };
 
   const ISSUE = "Issue";
   const LOCATION = "Location";
@@ -70,7 +70,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
             <Table aria-label="Incidents" variant="compact">
               <Thead>
                 <Tr>
-                  {isSelectable && (
+                  {/* {isSelectable && (
                     <Th width={10}>
                       <Checkbox
                         id={`select-all-${message}`}
@@ -79,7 +79,8 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                         onChange={(_event, checked) => handleSelectAll(checked)}
                       />
                     </Th>
-                  )}
+                  )} */}
+                  <Th width={10} />
                   <Th width={40}>{ISSUE}</Th>
                   <Th width={30}>{FOLDER}</Th>
                   <Th width={20}>{LOCATION}</Th>

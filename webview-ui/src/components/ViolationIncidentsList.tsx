@@ -255,7 +255,7 @@ const ViolationIncidentsList = ({
             aria-label="Select all incidents"
             isChecked={isAllSelected}
             onChange={(_event, checked) => handleSelectAll(checked)}
-            label={`Select all (${totalIncidents})`}
+            label={`Select all (${selectedIncidents.size})`}
           />
         </ToolbarItem>
       </ToolbarGroup>
