@@ -4,7 +4,6 @@ import { IncidentTable } from "./IncidentTable";
 
 interface IncidentTableGroupProps {
   onIncidentSelect: (incident: EnhancedIncident) => void;
-  onGetSolution?: (incidents: EnhancedIncident[]) => void;
   workspaceRoot: string;
   incidents?: EnhancedIncident[];
   selectedIncidents?: Set<string>;
@@ -13,7 +12,6 @@ interface IncidentTableGroupProps {
 
 export const IncidentTableGroup: React.FC<IncidentTableGroupProps> = ({
   onIncidentSelect,
-  onGetSolution,
   workspaceRoot,
   incidents,
   selectedIncidents,
@@ -38,9 +36,6 @@ export const IncidentTableGroup: React.FC<IncidentTableGroupProps> = ({
       onIncidentSelect={onIncidentSelect}
       key={message}
       message={message}
-      getSolution={
-        onGetSolution ? (incidents: EnhancedIncident[]) => onGetSolution(incidents) : undefined
-      }
       incidents={incidents}
       workspaceRoot={workspaceRoot}
       selectedIncidents={selectedIncidents}

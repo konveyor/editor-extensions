@@ -101,6 +101,7 @@ export interface SolutionResponse {
 export interface Scope {
   incidents: EnhancedIncident[];
   violation?: EnhancedViolation;
+  effortLevel?: string;
 }
 
 export type Solution = GetSolutionResult | SolutionResponse;

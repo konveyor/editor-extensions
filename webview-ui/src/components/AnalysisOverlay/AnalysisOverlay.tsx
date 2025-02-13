@@ -80,7 +80,6 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
   setExpandedViolations,
 }) => {
   const hasViolations = violations.length > 0;
-  const [autoApply, setAutoApply] = React.useState(false);
   const [selectedIncidents, setSelectedIncidents] = React.useState<Set<string>>(new Set());
   const [effortLevel, setEffortLevel] = React.useState<EffortLevel>("medium");
 
@@ -89,7 +88,8 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
       selectedIncidents.has(`${incident.uri}-${incident.lineNumber}`),
     );
     if (selectedIncidentsList.length > 0) {
-      dispatch(getSolution({ incidents: selectedIncidentsList, effortLevel }));
+      dispatch(getSolution(selectedIncidentsList, effortLevel));
+      onClose();
     }
   };
 
@@ -236,14 +236,10 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
                         enhancedIncidents={enhancedIncidents}
                         focusedIncident={focusedIncident}
                         onIncidentSelect={onIncidentSelect}
-                        onGetSolution={(incidents) =>
-                          dispatch(getSolution({ incidents, effortLevel }))
-                        }
                         expandedViolations={expandedViolations}
                         setExpandedViolations={setExpandedViolations}
                         selectedIncidents={selectedIncidents}
                         setSelectedIncidents={setSelectedIncidents}
-                        autoApply={autoApply}
                       />
                     )}
                   </CardBody>

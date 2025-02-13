@@ -16,7 +16,6 @@ import {
 } from "@editor-extensions/shared";
 import { paths, fsPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
-import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
   getCacheDir,
@@ -531,7 +530,9 @@ export class AnalyzerClient {
    *
    * Will only run if the sever state is: `running`
    */
-  public async getSolution(state: ExtensionState, incidents: EnhancedIncident[]): Promise<void> {
+  public async getSolution(incidents: EnhancedIncident[], effortLevel: string): Promise<void> {
+    console.log("state, incidents, effortLevel", incidents, effortLevel);
+
     // TODO: Ensure serverState is running
 
     this.fireSolutionStateChange("started", "Checking server state...", { incidents });

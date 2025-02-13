@@ -51,7 +51,10 @@ function App() {
   if (showAnalysisOverlay) {
     return (
       <AnalysisOverlay
-        onClose={() => setShowAnalysisOverlay(false)}
+        onClose={() => {
+          console.log("onClose");
+          setShowAnalysisOverlay(false);
+        }}
         errorMessage={errorMessage}
         setErrorMessage={setErrorMessage}
         isAnalyzing={isAnalyzing}

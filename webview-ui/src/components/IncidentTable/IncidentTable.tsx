@@ -11,7 +11,6 @@ export interface IncidentTableProps {
   workspaceRoot: string;
   incidents: EnhancedIncident[];
   message: string;
-  getSolution?: (incidents: EnhancedIncident[]) => void;
   onIncidentSelect: (it: EnhancedIncident) => void;
   selectedIncidents?: Set<string>;
   onIncidentSelectionChange?: (incidentId: string, isSelected: boolean) => void;
@@ -20,7 +19,6 @@ export interface IncidentTableProps {
 export const IncidentTable: FC<IncidentTableProps> = ({
   incidents,
   message,
-  getSolution,
   workspaceRoot,
   onIncidentSelect,
   selectedIncidents,

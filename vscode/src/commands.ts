@@ -88,9 +88,9 @@ const commandsMap: (state: ExtensionState) => {
       }
       analyzerClient.runAnalysis();
     },
-    "konveyor.getSolution": async (incidents: EnhancedIncident[]) => {
+    "konveyor.getSolution": async (incidents: EnhancedIncident[], effortLevel: string) => {
       const analyzerClient = state.analyzerClient;
-      analyzerClient.getSolution(state, incidents);
+      analyzerClient.getSolution(incidents, effortLevel);
     },
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {

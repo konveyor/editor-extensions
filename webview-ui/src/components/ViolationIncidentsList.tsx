@@ -1,13 +1,10 @@
 import "./violationIncidentsList.css";
 import React from "react";
 import {
-  Button,
   Toolbar,
   ToolbarItem,
   ToolbarContent,
   ToolbarGroup,
-  MenuToggle,
-  MenuToggleElement,
   SearchInput,
   Card,
   CardBody,
@@ -45,26 +42,22 @@ interface ViolationIncidentsListProps {
   onIncidentSelect: (incident: Incident) => void;
   expandedViolations: Set<string>;
   setExpandedViolations: (value: Set<string>) => void;
-  onGetSolution: (enhancedIncidents: EnhancedIncident[]) => void;
   workspaceRoot: string;
   isRunning: boolean;
   focusedIncident: Incident | null;
   enhancedIncidents: EnhancedIncident[];
   selectedIncidents: Set<string>;
   setSelectedIncidents: (value: Set<string>) => void;
-  autoApply: boolean;
 }
 
 const ViolationIncidentsList = ({
   onIncidentSelect,
   expandedViolations,
   setExpandedViolations,
-  onGetSolution,
   workspaceRoot,
   enhancedIncidents,
   selectedIncidents,
   setSelectedIncidents,
-  autoApply,
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
@@ -142,16 +135,6 @@ const ViolationIncidentsList = ({
       }
     });
     setSelectedGroups(updatedGroups);
-
-    // Auto-apply solution if enabled
-    if (autoApply && isSelected) {
-      const incident = enhancedIncidents.find(
-        (inc) => `${inc.uri}-${inc.lineNumber}` === incidentId,
-      );
-      if (incident) {
-        onGetSolution([incident]);
-      }
-    }
   };
 
   // Filter and group the incidents based on current filters
@@ -324,7 +307,6 @@ const ViolationIncidentsList = ({
             <CardExpandableContent>
               <CardBody>
                 <IncidentTableGroup
-                  onGetSolution={onGetSolution}
                   onIncidentSelect={onIncidentSelect}
                   incidents={group.incidents}
                   workspaceRoot={workspaceRoot}

@@ -36,9 +36,10 @@ export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => (
 
 export const getSolution = (
   incidents: EnhancedIncident[],
+  effortLevel: string,
 ): WebviewAction<WebviewActionType, Scope> => ({
   type: "GET_SOLUTION",
-  payload: { incidents },
+  payload: { incidents, effortLevel },
 });
 
 export const openFile = (
