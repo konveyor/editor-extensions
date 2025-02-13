@@ -24,13 +24,23 @@ import {
   Spinner,
   Tooltip,
   Switch,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@patternfly/react-core";
-import { ArrowLeftIcon, WrenchIcon } from "@patternfly/react-icons";
+import {
+  ArrowLeftIcon,
+  WrenchIcon,
+  LightbulbIcon,
+  BoltIcon,
+  CogIcon,
+} from "@patternfly/react-icons";
 import { Incident } from "@editor-extensions/shared";
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
+
+type EffortLevel = "low" | "medium" | "high";
 
 interface AnalysisOverlayProps {
   onClose: () => void;
@@ -72,13 +82,14 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
   const hasViolations = violations.length > 0;
   const [autoApply, setAutoApply] = React.useState(false);
   const [selectedIncidents, setSelectedIncidents] = React.useState<Set<string>>(new Set());
+  const [effortLevel, setEffortLevel] = React.useState<EffortLevel>("medium");
 
   const handleGetSolution = () => {
     const selectedIncidentsList = enhancedIncidents.filter((incident) =>
       selectedIncidents.has(`${incident.uri}-${incident.lineNumber}`),
     );
     if (selectedIncidentsList.length > 0) {
-      dispatch(getSolution(selectedIncidentsList));
+      dispatch(getSolution({ incidents: selectedIncidentsList, effortLevel }));
     }
   };
 
@@ -92,34 +103,68 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
               <span className={spacing.mlSm}>Back to Chat</span>
             </Button>
           </FlexItem>
-          {hasViolations && !isAnalyzing && selectedIncidents.size > 0 && (
-            <FlexItem align={{ default: "alignRight" }}>
-              {/* <Flex gap={{ default: "gap16" }}> */}
-              <Flex>
-                {/* <FlexItem>
-                  <Tooltip content="Automatically apply solutions when available">
-                    <Switch
-                      id="auto-apply"
-                      label="Auto-apply"
-                      labelOff="Auto-apply"
-                      isChecked={autoApply}
-                      onChange={() => setAutoApply(!autoApply)}
-                    />
-                  </Tooltip>
-                </FlexItem> */}
-                <FlexItem>
-                  <Button
-                    variant="primary"
-                    icon={<WrenchIcon />}
-                    onClick={handleGetSolution}
-                    isDisabled={isWaitingForSolution}
-                  >
-                    Get Solution ({selectedIncidents.size})
-                  </Button>
-                </FlexItem>
-              </Flex>
-            </FlexItem>
-          )}
+          <FlexItem align={{ default: "alignRight" }}>
+            <Flex>
+              <FlexItem>
+                <ToggleGroup aria-label="Solution effort level">
+                  <ToggleGroupItem
+                    // icon={<LightbulbIcon />}
+                    text="Low effort"
+                    buttonId="low"
+                    isSelected={effortLevel === "low"}
+                    onChange={() => setEffortLevel("low")}
+                    isDisabled={
+                      !hasViolations ||
+                      isAnalyzing ||
+                      selectedIncidents.size === 0 ||
+                      isWaitingForSolution
+                    }
+                  />
+                  <ToggleGroupItem
+                    // icon={<BoltIcon />}
+                    text="Medium effort"
+                    buttonId="medium"
+                    isSelected={effortLevel === "medium"}
+                    onChange={() => setEffortLevel("medium")}
+                    isDisabled={
+                      !hasViolations ||
+                      isAnalyzing ||
+                      selectedIncidents.size === 0 ||
+                      isWaitingForSolution
+                    }
+                  />
+                  <ToggleGroupItem
+                    icon={<BoltIcon />}
+                    text="High effort"
+                    buttonId="high"
+                    isSelected={effortLevel === "high"}
+                    onChange={() => setEffortLevel("high")}
+                    isDisabled={
+                      !hasViolations ||
+                      isAnalyzing ||
+                      selectedIncidents.size === 0 ||
+                      isWaitingForSolution
+                    }
+                  />
+                </ToggleGroup>
+              </FlexItem>
+              <FlexItem>
+                <Button
+                  variant="primary"
+                  icon={<WrenchIcon />}
+                  onClick={handleGetSolution}
+                  isDisabled={
+                    !hasViolations ||
+                    isAnalyzing ||
+                    selectedIncidents.size === 0 ||
+                    isWaitingForSolution
+                  }
+                >
+                  Get Solution {selectedIncidents.size > 0 && `(${selectedIncidents.size})`}
+                </Button>
+              </FlexItem>
+            </Flex>
+          </FlexItem>
         </Flex>
       </div>
       <div className="analysis-content">
@@ -191,7 +236,9 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
                         enhancedIncidents={enhancedIncidents}
                         focusedIncident={focusedIncident}
                         onIncidentSelect={onIncidentSelect}
-                        onGetSolution={(incidents) => dispatch(getSolution(incidents))}
+                        onGetSolution={(incidents) =>
+                          dispatch(getSolution({ incidents, effortLevel }))
+                        }
                         expandedViolations={expandedViolations}
                         setExpandedViolations={setExpandedViolations}
                         selectedIncidents={selectedIncidents}
