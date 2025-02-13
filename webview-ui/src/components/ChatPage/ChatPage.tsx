@@ -118,6 +118,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                       disabled={message.disabled}
                       aria-disabled={message.disabled}
                       quickResponses={message.quickResponses}
+                      isLoading={message.loading}
                       quickResponseContainerProps={{
                         isCompact: true,
                         "aria-disabled": true,

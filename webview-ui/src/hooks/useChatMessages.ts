@@ -10,6 +10,7 @@ export interface ChatMessage {
   avatar: string;
   timestamp: number;
   disabled?: boolean;
+  loading?: boolean;
   quickResponses?: QuickResponse[];
   quickStart?: QuickStart;
 }
