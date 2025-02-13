@@ -12,9 +12,15 @@ interface UseChatStateProps {
   avatarImg: string;
   userImg: string;
   onShowAnalysis: () => void;
+  onShowSolution: () => void;
 }
 
-export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStateProps) {
+export function useChatState({
+  avatarImg,
+  userImg,
+  onShowAnalysis,
+  onShowSolution,
+}: UseChatStateProps) {
   const [state, dispatch] = useExtensionState();
   const { messages, addMessage, clearMessages } = useChatMessages();
 
@@ -112,6 +118,16 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
         disabled: !serverRunning,
       });
     }
+    // Add View Changes option when we have solution data
+    // if (solutionData && "changes" in solutionData) {
+    if (solutionData) {
+      responses.unshift({
+        id: "view-changes",
+        content: "View Changes",
+        onClick: () => handleAction("View changes"),
+        disabled: false,
+      });
+    }
 
     return responses;
   };
@@ -138,6 +154,10 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
         content: "Starting analysis process...",
         avatar: avatarImg,
       });
+    }
+    if (action === "View changes") {
+      onShowSolution();
+      return;
     }
   };
 

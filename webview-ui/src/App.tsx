@@ -6,6 +6,7 @@ import { getSolution, openFile } from "./hooks/actions";
 import { useViolations } from "./hooks/useViolations";
 import { ChatPage } from "./components/ChatPage/ChatPage";
 import { AnalysisOverlay } from "./components/AnalysisOverlay/AnalysisOverlay";
+import { SolutionOverlay } from "./components/SolutionOverlay/SolutionOverlay";
 
 const avatarImg =
   "https://raw.githubusercontent.com/konveyor/tackle2-ui/refs/heads/main/branding/favicon.ico";
@@ -14,6 +15,8 @@ const userImg =
 
 function App() {
   const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
+  const [showSolutionOverlay, setShowSolutionOverlay] = useState(false);
+
   const [state, dispatch] = useExtensionState();
   const {
     isAnalyzing,
@@ -21,6 +24,8 @@ function App() {
     ruleSets: analysisResults,
     enhancedIncidents,
     workspaceRoot,
+    solutionData,
+    solutionState,
   } = state;
 
   const {
@@ -34,6 +39,9 @@ function App() {
     avatarImg,
     userImg,
     onShowAnalysis: () => setShowAnalysisOverlay(true),
+    onShowSolution: () => {
+      setShowSolutionOverlay(true);
+    },
   });
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -74,6 +82,24 @@ function App() {
     );
   }
 
+  if (showSolutionOverlay) {
+    return (
+      <SolutionOverlay
+        onClose={() => setShowSolutionOverlay(false)}
+        state={state}
+        onFileClick={(change) => {
+          // Handle file click/view
+        }}
+        onApplyFix={(change) => {
+          // Handle applying changes
+        }}
+        onRejectChanges={(change) => {
+          // Handle rejecting changes
+        }}
+      />
+    );
+  }
+
   return (
     <ChatPage
       messages={messages}
@@ -82,7 +108,6 @@ function App() {
       isStartingServer={isStartingServer}
       isInitializingServer={isInitializingServer}
       handleServerToggle={handleServerToggle}
-      setShowAnalysisOverlay={setShowAnalysisOverlay}
     />
   );
 }

@@ -31,7 +31,6 @@ interface ChatPageProps {
   isStartingServer: boolean;
   isInitializingServer: boolean;
   handleServerToggle: () => void;
-  setShowAnalysisOverlay: (show: boolean) => void;
 }
 
 export const ChatPage: React.FC<ChatPageProps> = ({
@@ -41,7 +40,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   isStartingServer,
   isInitializingServer,
   handleServerToggle,
-  setShowAnalysisOverlay,
 }) => {
   const renderEmptyState = () => (
     <EmptyState icon={ChatIcon} variant="xl">
@@ -100,13 +98,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             {messages.length === 0 || !serverRunning
               ? renderEmptyState()
               : messages.map((message) => {
-                  let quickstart = message.quickStart ?? null;
-                  let quickstarts = quickstart
-                    ? {
-                        quickStart: quickstart as QuickStart,
-                        onSelectQuickStart: () => setShowAnalysisOverlay(true),
-                      }
-                    : undefined;
+                  // let quickstart = message.quickStart ?? null;
+                  // let quickstarts = quickstart
+                  //   ? {
+                  //       quickStart: quickstart as QuickStart,
+                  //       onSelectQuickStart: () => setShowAnalysisOverlay(true),
+                  //     }
+                  //   : undefined;
                   return (
                     <Message
                       key={message.id}
