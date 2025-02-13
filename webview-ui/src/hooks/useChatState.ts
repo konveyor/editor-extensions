@@ -42,6 +42,9 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
   // Track whether we've shown the solution loading message
   const solutionLoadingShownRef = useRef(false);
 
+  // Track server start message
+  const serverStartMessageShownRef = useRef(false);
+
   const formatSolutionMessage = (solution: Solution, scope: Scope) => {
     const { incidents, effortLevel } = scope;
 
@@ -144,6 +147,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
       readyMessageShownRef.current = false;
       solutionLoadingShownRef.current = false;
       lastShownSolutionRef.current = null;
+      serverStartMessageShownRef.current = false;
       dispatch(startServer());
       addMessage({
         name: "Kai",
@@ -151,6 +155,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
         content: "Starting the server...",
         avatar: avatarImg,
       });
+      serverStartMessageShownRef.current = true;
     } else if (serverRunning) {
       dispatch(stopServer());
       addMessage({
@@ -164,12 +169,10 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
 
   // Effect for handling server ready state
   useEffect(() => {
-    if (
-      serverRunning &&
-      !isStartingServer &&
-      !readyMessageShownRef.current
-      //   messages.length === 0
-    ) {
+    const lastMessage = messages[messages.length - 1];
+    const isStartingMessage = lastMessage?.content === "Starting the server...";
+
+    if (serverRunning && !isStartingServer && !readyMessageShownRef.current && isStartingMessage) {
       readyMessageShownRef.current = true;
       addMessage({
         name: "Kai",
@@ -179,7 +182,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
         quickResponses: getQuickResponses(),
       });
     }
-  }, [serverRunning, isStartingServer, messages.length]);
+  }, [serverRunning, isStartingServer, messages]);
 
   // Effect for handling analysis state
   useEffect(() => {
@@ -220,7 +223,7 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
     }
   }, [isAnalyzing, analysisResults]);
 
-  // Effect for handling solution state
+  // Effect for handling solution loading state
   useEffect(() => {
     if (isFetchingSolution && !solutionLoadingShownRef.current) {
       solutionLoadingShownRef.current = true;
@@ -234,30 +237,39 @@ export function useChatState({ avatarImg, userImg, onShowAnalysis }: UseChatStat
     } else if (!isFetchingSolution) {
       solutionLoadingShownRef.current = false;
     }
+  }, [isFetchingSolution]);
 
+  // Separate effect for handling solution completion
+  useEffect(() => {
     if (solutionState === "received" && solutionData && solutionScope) {
-      const solutionId = JSON.stringify(solutionData);
-      if (lastShownSolutionRef.current !== solutionId) {
-        lastShownSolutionRef.current = solutionId;
+      const solutionId = JSON.stringify({ data: solutionData, scope: solutionScope });
+
+      if (lastShownSolutionRef.current !== solutionId && !isFetchingSolution) {
         const solutionMessage = formatSolutionMessage(solutionData, solutionScope);
 
-        addMessage({
-          name: "Kai",
-          role: "bot",
-          content: solutionMessage,
-          avatar: avatarImg,
-        });
+        // Only add messages if the last message was the loading message
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.content === "Generating solution...") {
+          lastShownSolutionRef.current = solutionId;
 
-        addMessage({
-          name: "Kai",
-          role: "bot",
-          content: "What would you like to do next?",
-          avatar: avatarImg,
-          quickResponses: getQuickResponses(),
-        });
+          addMessage({
+            name: "Kai",
+            role: "bot",
+            content: solutionMessage,
+            avatar: avatarImg,
+          });
+
+          addMessage({
+            name: "Kai",
+            role: "bot",
+            content: "What would you like to do next?",
+            avatar: avatarImg,
+            quickResponses: getQuickResponses(),
+          });
+        }
       }
     }
-  }, [isFetchingSolution, solutionState, solutionData, solutionScope]);
+  }, [solutionState, solutionData, solutionScope]);
 
   const getAnalysisSummaryQuickStart = (): QuickStart | undefined => {
     if (violations.length === 0) {
