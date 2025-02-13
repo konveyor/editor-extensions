@@ -9,9 +9,11 @@ import {
   ChatMessageType,
   EnhancedIncident,
   ExtensionData,
+  getEffortValue,
   RuleSet,
   Scope,
   ServerState,
+  SolutionEffortLevel,
   SolutionResponse,
   SolutionState,
   Violation,
@@ -29,7 +31,6 @@ import {
   getConfigLabelSelector,
   getConfigLoggingTraceMessageConnection,
   getConfigLogLevel,
-  getConfigSolutionMaxEffort,
   getConfigMaxLLMQueries,
   getConfigSolutionMaxPriority,
   getConfigUseDefaultRulesets,
@@ -574,10 +575,14 @@ export class AnalyzerClient {
    *
    * Will only run if the sever state is: `running`
    */
-  public async getSolution(state: ExtensionState, incidents: EnhancedIncident[]): Promise<void> {
+  public async getSolution(
+    state: ExtensionState,
+    incidents: EnhancedIncident[],
+    effort: SolutionEffortLevel,
+  ): Promise<void> {
     // TODO: Ensure serverState is running
 
-    this.fireSolutionStateChange("started", "Checking server state...", { incidents });
+    this.fireSolutionStateChange("started", "Checking server state...", { incidents, effort });
 
     if (!this.rpcConnection) {
       vscode.window.showErrorMessage("RPC connection is not established.");
@@ -586,7 +591,7 @@ export class AnalyzerClient {
     }
 
     const maxPriority = getConfigSolutionMaxPriority();
-    const maxDepth = getConfigSolutionMaxEffort();
+    const maxDepth = getEffortValue(effort);
     const maxIterations = getConfigMaxLLMQueries();
 
     try {

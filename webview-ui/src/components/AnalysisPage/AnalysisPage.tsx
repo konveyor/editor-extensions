@@ -36,7 +36,7 @@ import {
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { Incident } from "@editor-extensions/shared";
-import { getSolution, openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
+import { openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
@@ -52,7 +52,6 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
-    workspaceRoot,
   } = state;
   const serverRunning = state.serverState === "running";
 
@@ -175,12 +174,9 @@ const AnalysisPage: React.FC = () => {
 
                 {hasViolations && !isAnalyzing && (
                   <ViolationIncidentsList
-                    workspaceRoot={workspaceRoot}
-                    isRunning={serverRunning}
                     enhancedIncidents={enhancedIncidents}
                     focusedIncident={focusedIncident}
                     onIncidentSelect={handleIncidentSelect}
-                    onGetSolution={(incidents) => dispatch(getSolution(incidents))}
                     expandedViolations={expandedViolations}
                     setExpandedViolations={setExpandedViolations}
                   />

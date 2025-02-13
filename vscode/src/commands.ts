@@ -8,7 +8,13 @@ import {
   loadSolution,
   loadStaticResults,
 } from "./data";
-import { EnhancedIncident, RuleSet, Scope, Solution } from "@editor-extensions/shared";
+import {
+  EnhancedIncident,
+  RuleSet,
+  Scope,
+  Solution,
+  SolutionEffortLevel,
+} from "@editor-extensions/shared";
 import {
   applyAll,
   discardAll,
@@ -87,9 +93,9 @@ const commandsMap: (state: ExtensionState) => {
       }
       analyzerClient.runAnalysis();
     },
-    "konveyor.getSolution": async (incidents: EnhancedIncident[]) => {
+    "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
       const analyzerClient = state.analyzerClient;
-      analyzerClient.getSolution(state, incidents);
+      analyzerClient.getSolution(state, incidents, effort);
     },
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {

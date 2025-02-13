@@ -12,6 +12,7 @@ import { partialAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
+import { getConfigSolutionMaxEffortLevel } from "./utilities";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -40,6 +41,7 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
+        solutionEffort: getConfigSolutionMaxEffortLevel(),
       },
       () => {},
     );
@@ -78,6 +80,18 @@ class VsCodeExtension {
       this.registerCommands();
       this.registerLanguageProviders();
       this.listeners.push(vscode.workspace.onDidSaveTextDocument(partialAnalysisTrigger));
+      this.listeners.push(
+        vscode.workspace.onDidChangeConfiguration((event) => {
+          console.log("Configuration modified!");
+          if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
+            console.log("Effort modified!");
+            const effort = getConfigSolutionMaxEffortLevel();
+            this.state.mutateData((draft) => {
+              draft.solutionEffort = effort;
+            });
+          }
+        }),
+      );
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
     } catch (error) {
       console.error("Error initializing extension:", error);

@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Button,
   Toolbar,
   ToolbarItem,
   ToolbarContent,
@@ -28,7 +27,6 @@ import {
   ToggleGroupItem,
 } from "@patternfly/react-core";
 import {
-  WrenchIcon,
   ListIcon,
   FileIcon,
   LayerGroupIcon,
@@ -39,7 +37,7 @@ import {
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
-import { useExtensionStateContext } from "../context/ExtensionStateContext";
+import GetSolutionDropdown from "./GetSolutionDropdown";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -47,9 +45,6 @@ interface ViolationIncidentsListProps {
   onIncidentSelect: (incident: Incident) => void;
   expandedViolations: Set<string>;
   setExpandedViolations: (value: Set<string>) => void;
-  onGetSolution: (enhancedIncidents: EnhancedIncident[]) => void;
-  workspaceRoot: string;
-  isRunning: boolean;
   focusedIncident: Incident | null;
   enhancedIncidents: EnhancedIncident[];
 }
@@ -58,11 +53,8 @@ const ViolationIncidentsList = ({
   onIncidentSelect,
   expandedViolations,
   setExpandedViolations,
-  onGetSolution,
-  workspaceRoot,
   enhancedIncidents,
 }: ViolationIncidentsListProps) => {
-  const { state } = useExtensionStateContext();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSortAscending, setIsSortAscending] = React.useState(true);
   const [isCategoryExpanded, setIsCategoryExpanded] = React.useState(false);
@@ -70,9 +62,6 @@ const ViolationIncidentsList = ({
     category: [] as Category[],
     groupBy: "violation" as GroupByOption,
   });
-
-  const isGetSolutionDisabled =
-    state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
 
   const onCategorySelect = (
     _event: React.MouseEvent | undefined,
@@ -115,12 +104,6 @@ const ViolationIncidentsList = ({
       newSet.add(violationId);
     }
     setExpandedViolations(newSet);
-  };
-
-  const handleGetSolution = (incidents: EnhancedIncident[]) => {
-    if (incidents.length > 0) {
-      onGetSolution(incidents);
-    }
   };
 
   const categoryMenuItems = (
@@ -305,20 +288,10 @@ const ViolationIncidentsList = ({
             </ToolbarToggleGroup>
             <ToolbarItem variant="separator" />
             <ToolbarItem align={{ default: "alignEnd" }}>
-              {groupedIncidents.length > 0 && (
-                <Button
-                  isDisabled={isGetSolutionDisabled}
-                  variant="primary"
-                  icon={<WrenchIcon />}
-                  onClick={() => {
-                    const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
-                    handleGetSolution(allIncidents);
-                  }}
-                >
-                  Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
-                  incidents
-                </Button>
-              )}
+              <GetSolutionDropdown
+                incidents={groupedIncidents.flatMap((group) => group.incidents)}
+                scope="workspace"
+              />
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
@@ -332,19 +305,11 @@ const ViolationIncidentsList = ({
                   onExpand={() => toggleViolation(group.id)}
                   actions={{
                     actions: [
-                      <Button
-                        isDisabled={isGetSolutionDisabled}
+                      <GetSolutionDropdown
                         key="get-solution"
-                        variant="plain"
-                        aria-label={`Resolve ${group.incidents.length} incidents`}
-                        icon={<WrenchIcon />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGetSolution(group.incidents);
-                        }}
-                      >
-                        Resolve {group.incidents.length} incidents
-                      </Button>,
+                        incidents={group.incidents}
+                        scope="issue"
+                      />,
                     ],
                     hasNoOffset: true,
                   }}
@@ -365,10 +330,8 @@ const ViolationIncidentsList = ({
                 <CardExpandableContent>
                   <CardBody>
                     <IncidentTableGroup
-                      onGetSolution={onGetSolution}
                       onIncidentSelect={onIncidentSelect}
                       incidents={group.incidents}
-                      workspaceRoot={workspaceRoot}
                     />
                   </CardBody>
                 </CardExpandableContent>
