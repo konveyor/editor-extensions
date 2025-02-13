@@ -5,7 +5,7 @@ import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
 import Markdown from "react-markdown";
-import { WrenchIcon } from "@patternfly/react-icons";
+import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
@@ -61,31 +61,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   return (
     <>
       <Card isPlain>
-        <CardHeader
-          actions={
-            getSolution
-              ? {
-                  hasNoOffset: true,
-                  actions: (
-                    <Button
-                      variant="plain"
-                      aria-label={
-                        incidents.length === 1
-                          ? "Resolve 1 incident"
-                          : `Resolve ${incidents.length} incidents`
-                      }
-                      icon={<WrenchIcon />}
-                      onClick={() => getSolution(incidents)}
-                    >
-                      {incidents.length === 1
-                        ? "Resolve 1 incident"
-                        : `Resolve ${incidents.length} incidents`}
-                    </Button>
-                  ),
-                }
-              : undefined
-          }
-        >
+        <CardHeader>
           <Markdown>{message}</Markdown>
         </CardHeader>
 
@@ -95,7 +71,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
               <Thead>
                 <Tr>
                   {isSelectable && (
-                    <Th>
+                    <Th width={10}>
                       <Checkbox
                         id={`select-all-${message}`}
                         aria-label="Select all incidents"
@@ -104,9 +80,9 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                       />
                     </Th>
                   )}
-                  <Th>{ISSUE}</Th>
-                  <Th width={50}>{FOLDER}</Th>
-                  <Th>{LOCATION}</Th>
+                  <Th width={40}>{ISSUE}</Th>
+                  <Th width={30}>{FOLDER}</Th>
+                  <Th width={20}>{LOCATION}</Th>
                   <Th />
                 </Tr>
               </Thead>
@@ -126,19 +102,23 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                       </Td>
                     )}
                     <Td dataLabel={ISSUE}>
-                      <TableText tooltip={it.uri} tooltipProps={tooltipProps}>
-                        <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
+                      <TableText
+                        wrapModifier="truncate"
+                        tooltip={it.uri}
+                        tooltipProps={tooltipProps}
+                      >
+                        <a href="#" onClick={() => onIncidentSelect(it)}>
                           <b>{fileName(it)}</b>
-                        </Button>
+                        </a>
                       </TableText>
                     </Td>
-                    <Td dataLabel={FOLDER}>
+                    <Td dataLabel={FOLDER} width={30} className={spacing.prMd}>
                       <TableText
                         wrapModifier="truncate"
                         tooltip={relativeDirname(it)}
                         tooltipProps={tooltipProps}
                       >
-                        <i>{relativeDirname(it)}</i>
+                        <i className={spacing.prSm}>{relativeDirname(it)}</i>
                       </TableText>
                     </Td>
                     <Td dataLabel={LOCATION}>
@@ -147,18 +127,6 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                           {it.lineNumber !== undefined ? `Line ${it.lineNumber}` : "No line number"}
                         </Content>
                       </TableText>
-                    </Td>
-                    <Td isActionCell>
-                      {getSolution && (
-                        <Button
-                          variant="plain"
-                          aria-label="Resolve this incident"
-                          icon={<WrenchIcon />}
-                          onClick={() => getSolution([it])}
-                        >
-                          Resolve
-                        </Button>
-                      )}
                     </Td>
                   </Tr>
                 ))}

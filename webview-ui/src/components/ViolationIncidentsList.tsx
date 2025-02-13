@@ -4,15 +4,10 @@ import {
   Toolbar,
   ToolbarItem,
   ToolbarContent,
-  ToolbarFilter,
   ToolbarGroup,
-  Badge,
   MenuToggle,
   MenuToggleElement,
   SearchInput,
-  Select,
-  SelectList,
-  SelectOption,
   Card,
   CardBody,
   CardHeader,
@@ -65,47 +60,22 @@ const ViolationIncidentsList = ({
   enhancedIncidents,
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [isSeverityExpanded, setIsSeverityExpanded] = React.useState(false);
   const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
   const [selectedIncidents, setSelectedIncidents] = React.useState<Set<string>>(new Set());
   const [dropdownOpen, setDropdownOpen] = React.useState<{ [key: string]: boolean }>({});
   const [filters, setFilters] = React.useState({
-    severity: [] as Severity[],
     groupBy: "violation" as GroupByOption,
   });
-
-  const onSeveritySelect = (
-    _event: React.MouseEvent | undefined,
-    value: string | number | undefined,
-  ) => {
-    if (typeof value === "string") {
-      const severity = value as Severity;
-      setFilters((prev) => ({
-        ...prev,
-        severity: prev.severity.includes(severity)
-          ? prev.severity.filter((s) => s !== severity)
-          : [...prev.severity, severity],
-      }));
-    }
-  };
 
   const handleGroupBySelect = (groupBy: GroupByOption) => {
     setFilters((prev) => ({ ...prev, groupBy }));
   };
 
   const onDelete = (type: string, id: string) => {
-    if (type === "Severity") {
-      setFilters({ ...filters, severity: filters.severity.filter((s) => s !== id) });
-    } else {
-      setFilters({ severity: [], groupBy: "violation" });
-    }
+    setFilters({ groupBy: "violation" });
   };
 
-  const onDeleteGroup = (type: string) => {
-    if (type === "Severity") {
-      setFilters({ ...filters, severity: [] });
-    }
-  };
+  const onDeleteGroup = (type: string) => {};
 
   const toggleViolation = (violationId: string) => {
     const newSet = new Set(expandedViolations);
@@ -174,35 +144,6 @@ const ViolationIncidentsList = ({
     }
   };
 
-  const severityMenuItems = (
-    <SelectList>
-      <SelectOption
-        hasCheckbox
-        key="severityLow"
-        value="Low"
-        isSelected={filters.severity.includes("Low")}
-      >
-        Low
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="severityMedium"
-        value="Medium"
-        isSelected={filters.severity.includes("Medium")}
-      >
-        Medium
-      </SelectOption>
-      <SelectOption
-        hasCheckbox
-        key="severityHigh"
-        value="High"
-        isSelected={filters.severity.includes("High")}
-      >
-        High
-      </SelectOption>
-    </SelectList>
-  );
-
   // Filter and group the incidents based on current filters
   const groupedIncidents = React.useMemo(() => {
     let filtered = enhancedIncidents;
@@ -213,12 +154,6 @@ const ViolationIncidentsList = ({
         (incident) =>
           incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
           incident.uri.toLowerCase().includes(lowercaseSearchTerm),
-      );
-    }
-
-    if (filters.severity.length > 0) {
-      filtered = filtered.filter((incident) =>
-        filters.severity.includes(incident.severity || "Low"),
       );
     }
 
@@ -255,10 +190,29 @@ const ViolationIncidentsList = ({
     }));
   }, [enhancedIncidents, searchTerm, filters]);
 
-  const selectedIncidentsCount = selectedIncidents.size;
+  const totalIncidents = groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0);
+  const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
+  const allIncidentIds = new Set(
+    allIncidents.map((incident) => `${incident.uri}-${incident.lineNumber}`),
+  );
+  const isAllSelected =
+    allIncidentIds.size > 0 && Array.from(allIncidentIds).every((id) => selectedIncidents.has(id));
+  const isIndeterminate =
+    selectedIncidents.size > 0 && selectedIncidents.size < allIncidentIds.size;
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIncidents(allIncidentIds);
+      setSelectedGroups(new Set(groupedIncidents.map((group) => group.id)));
+    } else {
+      setSelectedIncidents(new Set());
+      setSelectedGroups(new Set());
+    }
+  };
 
   const toolbarItems = (
     <React.Fragment>
+      <ToolbarGroup></ToolbarGroup>
       <ToolbarGroup>
         <ToolbarItem>
           <SearchInput
@@ -295,40 +249,19 @@ const ViolationIncidentsList = ({
             />
           </ToggleGroup>
         </ToolbarItem>
-      </ToolbarGroup>
-      <ToolbarGroup variant="filter-group">
-        <ToolbarFilter
-          labels={filters.severity}
-          deleteLabel={(category, label) => onDelete(category as string, label as string)}
-          deleteLabelGroup={(category) => onDeleteGroup(category as string)}
-          categoryName="Severity"
-        >
-          <Select
-            aria-label="Severity"
-            role="menu"
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={() => setIsSeverityExpanded(!isSeverityExpanded)}
-                isExpanded={isSeverityExpanded}
-                style={{ width: "140px" }}
-              >
-                Severity
-                {filters.severity.length > 0 && <Badge isRead>{filters.severity.length}</Badge>}
-              </MenuToggle>
-            )}
-            onSelect={onSeveritySelect}
-            selected={filters.severity}
-            isOpen={isSeverityExpanded}
-            onOpenChange={(isOpen) => setIsSeverityExpanded(isOpen)}
-          >
-            {severityMenuItems}
-          </Select>
-        </ToolbarFilter>
-      </ToolbarGroup>
-      <ToolbarGroup variant="action-group-inline">
         <ToolbarItem>
-          {selectedIncidentsCount > 0 ? (
+          <Checkbox
+            id="select-all-incidents"
+            aria-label="Select all incidents"
+            isChecked={isAllSelected}
+            onChange={(_event, checked) => handleSelectAll(checked)}
+            label={`Select all (${totalIncidents})`}
+          />
+        </ToolbarItem>
+      </ToolbarGroup>
+      {selectedIncidents.size > 0 && (
+        <ToolbarGroup variant="action-group-inline">
+          <ToolbarItem>
             <Button
               variant="primary"
               onClick={() => {
@@ -338,39 +271,12 @@ const ViolationIncidentsList = ({
                 handleGetSolution(selectedIncidentsList);
               }}
             >
-              Resolve {selectedIncidentsCount} selected incidents
+              Resolve {selectedIncidents.size} selected incidents
             </Button>
-          ) : (
-            groupedIncidents.length > 0 && (
-              <Button
-                variant="plain"
-                aria-label="Resolve all visible incidents"
-                icon={<WrenchIcon />}
-                onClick={() => {
-                  const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
-                  handleGetSolution(allIncidents);
-                }}
-              >
-                Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
-                incidents
-              </Button>
-            )
-          )}
-        </ToolbarItem>
-      </ToolbarGroup>
+          </ToolbarItem>
+        </ToolbarGroup>
+      )}
     </React.Fragment>
-  );
-
-  const renderDropdownItems = (group: { id: string; incidents: EnhancedIncident[] }) => (
-    <DropdownList>
-      <DropdownItem key="resolve" onClick={() => handleGetSolution(group.incidents)}>
-        Resolve all incidents
-      </DropdownItem>
-      <Divider key="divider" />
-      <DropdownItem key="expand" onClick={() => toggleViolation(group.id)}>
-        {expandedViolations.has(group.id) ? "Collapse" : "Expand"}
-      </DropdownItem>
-    </DropdownList>
   );
 
   return (
@@ -398,26 +304,6 @@ const ViolationIncidentsList = ({
               onExpand={() => toggleViolation(group.id)}
               actions={{
                 actions: [
-                  <Dropdown
-                    key="actions-dropdown"
-                    onSelect={() => setDropdownOpen({ ...dropdownOpen, [group.id]: false })}
-                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                      <MenuToggle
-                        ref={toggleRef}
-                        onClick={() =>
-                          setDropdownOpen({
-                            ...dropdownOpen,
-                            [group.id]: !dropdownOpen[group.id],
-                          })
-                        }
-                        isExpanded={dropdownOpen[group.id]}
-                        aria-label="Actions"
-                        variant="plain"
-                        icon={<EllipsisVIcon />}
-                      />
-                    )}
-                    isOpen={dropdownOpen[group.id]}
-                  ></Dropdown>,
                   <Checkbox
                     key="select-group"
                     aria-label={`Select ${group.label}`}
