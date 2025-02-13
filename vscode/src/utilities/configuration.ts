@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
+import { effortLevels, getEffortValue, SolutionEffortLevel } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<T>(key);
@@ -238,18 +239,18 @@ export function getConfigSolutionMaxPriority(): number | undefined {
 // getConfigSolutionMaxEffort takes the enum from the config and turns it into
 // a number for use in a getSolution request. This value corresponds to
 // the maximum depth kai will go in attempting to provide a solution.
-export function getConfigSolutionMaxEffort(): number | undefined {
-  const effortLevels: Record<string, number | undefined> = {
-    Low: 0,
-    Medium: 1,
-    High: 2,
-    "Maximum (experimental)": undefined,
-  };
+export function getConfigSolutionMaxEffortValue(): number | undefined {
+  const effortLevel = getConfigValue<string>("kai.getSolutionMaxEffort");
 
-  const effortSetting = getConfigValue<string>(
-    "kai.getSolutionMaxEffort",
-  ) as keyof typeof effortLevels;
-  return effortSetting in effortLevels ? effortLevels[effortSetting] : 0;
+  if (effortLevel && effortLevel in effortLevels) {
+    return getEffortValue(effortLevel as SolutionEffortLevel);
+  }
+
+  return 0;
+}
+
+export function getConfigSolutionMaxEffortLevel(): SolutionEffortLevel {
+  return getConfigValue<string>("kai.getSolutionMaxEffort") as SolutionEffortLevel;
 }
 
 export function getConfigMaxLLMQueries(): number | undefined {

@@ -1,4 +1,5 @@
 import { Uri } from "vscode";
+import { SolutionEffortLevel } from "../effort";
 
 export type WebviewType = "sidebar" | "resolution";
 
@@ -96,7 +97,7 @@ export interface SolutionResponse {
 
 export interface Scope {
   incidents: EnhancedIncident[];
-  violation?: EnhancedViolation;
+  effort: SolutionEffortLevel;
 }
 
 export type Solution = GetSolutionResult | SolutionResponse;
@@ -129,6 +130,7 @@ export interface ExtensionData {
   solutionData?: Solution;
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
+  solutionEffort: SolutionEffortLevel;
 }
 
 export type ServerState =

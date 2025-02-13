@@ -30,7 +30,6 @@ const ResolutionPage: React.FC = () => {
     solutionScope,
     chatMessages,
     solutionState,
-    workspaceRoot,
   } = state;
 
   const getRemainingFiles = () => {
@@ -41,6 +40,7 @@ const ResolutionPage: React.FC = () => {
   };
   const isTriggeredByUser = !!solutionScope?.incidents?.length;
   const isHistorySolution = !isTriggeredByUser && !!localChanges.length;
+  const configuredEffort = solutionScope?.effort;
 
   const isResolved =
     solutionState === "received" && localChanges.length !== 0 && getRemainingFiles().length === 0;
@@ -90,11 +90,12 @@ const ResolutionPage: React.FC = () => {
                   <IncidentTableGroup
                     onIncidentSelect={handleIncidentClick}
                     incidents={solutionScope.incidents}
-                    workspaceRoot={workspaceRoot}
                   />
                 </ChatCard>
               </FlexItem>
-              <SentMessage>Please provide resolution for this issue.</SentMessage>
+              <SentMessage>
+                Please provide resolution for this issue with {configuredEffort} effort.
+              </SentMessage>
             </Flex>
           )}
 

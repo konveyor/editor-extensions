@@ -5,24 +5,18 @@ import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import * as path from "path-browserify";
 import Markdown from "react-markdown";
-import { WrenchIcon } from "@patternfly/react-icons";
 import { getIncidentRelativeDir } from "../../utils/incident";
+import { useExtensionState } from "../../hooks/useExtensionState";
+import GetSolutionDropdown from "../GetSolutionDropdown";
 
 export interface IncidentTableProps {
-  workspaceRoot: string;
   incidents: EnhancedIncident[];
   message: string;
-  getSolution?: (incidents: EnhancedIncident[]) => void;
   onIncidentSelect: (it: EnhancedIncident) => void;
 }
 
-export const IncidentTable: FC<IncidentTableProps> = ({
-  incidents,
-  message,
-  getSolution,
-  workspaceRoot,
-  onIncidentSelect,
-}) => {
+export const IncidentTable: FC<IncidentTableProps> = ({ incidents, message, onIncidentSelect }) => {
+  const [{ workspaceRoot }, dispatch] = useExtensionState();
   const fileName = (incident: Incident) => path.basename(incident.uri);
   const relativeDirname = useCallback(
     (incident: Incident) => {
@@ -44,29 +38,9 @@ export const IncidentTable: FC<IncidentTableProps> = ({
     <>
       <Card isPlain>
         <CardHeader
-          actions={
-            getSolution
-              ? {
-                  hasNoOffset: true,
-                  actions: (
-                    <Button
-                      variant="plain"
-                      aria-label={
-                        incidents.length === 1
-                          ? "Resolve 1 incident"
-                          : `Resolve ${incidents.length} incidents`
-                      }
-                      icon={<WrenchIcon />}
-                      onClick={() => getSolution(incidents)}
-                    >
-                      {incidents.length === 1
-                        ? "Resolve 1 incident"
-                        : `Resolve ${incidents.length} incidents`}
-                    </Button>
-                  ),
-                }
-              : undefined
-          }
+          actions={{
+            actions: <GetSolutionDropdown incidents={incidents} scope="in-between" />,
+          }}
         >
           <Markdown>{message}</Markdown>
         </CardHeader>
@@ -109,16 +83,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                       </TableText>
                     </Td>
                     <Td isActionCell>
-                      {getSolution && (
-                        <Button
-                          variant="plain"
-                          aria-label="Resolve this incident"
-                          icon={<WrenchIcon />}
-                          onClick={() => getSolution([it])}
-                        >
-                          Resolve
-                        </Button>
-                      )}
+                      <GetSolutionDropdown incidents={[it]} scope="incident" />
                     </Td>
                   </Tr>
                 ))}

@@ -17,6 +17,7 @@ const defaultState: ExtensionData = {
   workspaceRoot: "/",
   chatMessages: [],
   solutionState: "none",
+  solutionEffort: "Low",
 };
 
 const windowState =
