@@ -22,8 +22,10 @@ import {
   Stack,
   StackItem,
   Spinner,
+  Tooltip,
+  Switch,
 } from "@patternfly/react-core";
-import { ArrowLeftIcon } from "@patternfly/react-icons";
+import { ArrowLeftIcon, WrenchIcon } from "@patternfly/react-icons";
 import { Incident } from "@editor-extensions/shared";
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
@@ -68,14 +70,57 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
   setExpandedViolations,
 }) => {
   const hasViolations = violations.length > 0;
+  const [autoApply, setAutoApply] = React.useState(false);
+  const [selectedIncidents, setSelectedIncidents] = React.useState<Set<string>>(new Set());
+
+  const handleGetSolution = () => {
+    const selectedIncidentsList = enhancedIncidents.filter((incident) =>
+      selectedIncidents.has(`${incident.uri}-${incident.lineNumber}`),
+    );
+    if (selectedIncidentsList.length > 0) {
+      dispatch(getSolution(selectedIncidentsList));
+    }
+  };
 
   return (
     <div className="analysis-overlay">
       <div className="analysis-header">
-        <Button variant="plain" onClick={onClose} className="back-button">
-          <ArrowLeftIcon />
-          <span className={spacing.mlSm}>Back to Chat</span>
-        </Button>
+        <Flex className="header-content">
+          <FlexItem>
+            <Button variant="plain" onClick={onClose} className="back-button">
+              <ArrowLeftIcon />
+              <span className={spacing.mlSm}>Back to Chat</span>
+            </Button>
+          </FlexItem>
+          {hasViolations && !isAnalyzing && selectedIncidents.size > 0 && (
+            <FlexItem align={{ default: "alignRight" }}>
+              {/* <Flex gap={{ default: "gap16" }}> */}
+              <Flex>
+                {/* <FlexItem>
+                  <Tooltip content="Automatically apply solutions when available">
+                    <Switch
+                      id="auto-apply"
+                      label="Auto-apply"
+                      labelOff="Auto-apply"
+                      isChecked={autoApply}
+                      onChange={() => setAutoApply(!autoApply)}
+                    />
+                  </Tooltip>
+                </FlexItem> */}
+                <FlexItem>
+                  <Button
+                    variant="primary"
+                    icon={<WrenchIcon />}
+                    onClick={handleGetSolution}
+                    isDisabled={isWaitingForSolution}
+                  >
+                    Get Solution ({selectedIncidents.size})
+                  </Button>
+                </FlexItem>
+              </Flex>
+            </FlexItem>
+          )}
+        </Flex>
       </div>
       <div className="analysis-content">
         <Page
@@ -149,6 +194,9 @@ export const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({
                         onGetSolution={(incidents) => dispatch(getSolution(incidents))}
                         expandedViolations={expandedViolations}
                         setExpandedViolations={setExpandedViolations}
+                        selectedIncidents={selectedIncidents}
+                        setSelectedIncidents={setSelectedIncidents}
+                        autoApply={autoApply}
                       />
                     )}
                   </CardBody>

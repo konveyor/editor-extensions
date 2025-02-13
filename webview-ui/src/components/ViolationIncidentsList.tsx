@@ -1,3 +1,4 @@
+import "./violationIncidentsList.css";
 import React from "react";
 import {
   Button,
@@ -49,6 +50,9 @@ interface ViolationIncidentsListProps {
   isRunning: boolean;
   focusedIncident: Incident | null;
   enhancedIncidents: EnhancedIncident[];
+  selectedIncidents: Set<string>;
+  setSelectedIncidents: (value: Set<string>) => void;
+  autoApply: boolean;
 }
 
 const ViolationIncidentsList = ({
@@ -58,10 +62,12 @@ const ViolationIncidentsList = ({
   onGetSolution,
   workspaceRoot,
   enhancedIncidents,
+  selectedIncidents,
+  setSelectedIncidents,
+  autoApply,
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
-  const [selectedIncidents, setSelectedIncidents] = React.useState<Set<string>>(new Set());
   const [dropdownOpen, setDropdownOpen] = React.useState<{ [key: string]: boolean }>({});
   const [filters, setFilters] = React.useState({
     groupBy: "violation" as GroupByOption,
@@ -136,11 +142,15 @@ const ViolationIncidentsList = ({
       }
     });
     setSelectedGroups(updatedGroups);
-  };
 
-  const handleGetSolution = (incidents: EnhancedIncident[]) => {
-    if (incidents.length > 0) {
-      onGetSolution(incidents);
+    // Auto-apply solution if enabled
+    if (autoApply && isSelected) {
+      const incident = enhancedIncidents.find(
+        (inc) => `${inc.uri}-${inc.lineNumber}` === incidentId,
+      );
+      if (incident) {
+        onGetSolution([incident]);
+      }
     }
   };
 
@@ -259,29 +269,12 @@ const ViolationIncidentsList = ({
           />
         </ToolbarItem>
       </ToolbarGroup>
-      {selectedIncidents.size > 0 && (
-        <ToolbarGroup variant="action-group-inline">
-          <ToolbarItem>
-            <Button
-              variant="primary"
-              onClick={() => {
-                const selectedIncidentsList = enhancedIncidents.filter((incident) =>
-                  selectedIncidents.has(`${incident.uri}-${incident.lineNumber}`),
-                );
-                handleGetSolution(selectedIncidentsList);
-              }}
-            >
-              Resolve {selectedIncidents.size} selected incidents
-            </Button>
-          </ToolbarItem>
-        </ToolbarGroup>
-      )}
     </React.Fragment>
   );
 
   return (
     <Stack hasGutter>
-      <StackItem>
+      <StackItem className="sticky-toolbar-wrapper">
         <Toolbar
           id="violation-incidents-toolbar"
           className="pf-m-toggle-group-container"
