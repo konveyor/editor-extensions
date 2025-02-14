@@ -113,6 +113,7 @@ export interface ChatMessage {
   value: { message: string } | Record<string, unknown>;
   chatToken?: string;
   messageToken: string;
+  timestamp: string;
 }
 
 export interface ExtensionData {

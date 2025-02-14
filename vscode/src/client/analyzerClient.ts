@@ -102,6 +102,7 @@ export class AnalyzerClient {
           messageToken: uid("m"),
           kind: ChatMessageType.String,
           value: { message },
+          timestamp: new Date().toISOString(),
         });
       }
     });
@@ -123,7 +124,10 @@ export class AnalyzerClient {
       if (!draft.chatMessages) {
         draft.chatMessages = [];
       }
-      draft.chatMessages.push(message);
+      draft.chatMessages.push({
+        ...message,
+        timestamp: new Date().toISOString(),
+      });
     });
   }
 
