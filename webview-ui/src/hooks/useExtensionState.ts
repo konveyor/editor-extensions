@@ -15,7 +15,7 @@ const defaultState: ExtensionData = {
   serverState: "initial",
   solutionScope: undefined,
   workspaceRoot: "/",
-  solutionMessages: [],
+  chatMessages: [],
   solutionState: "none",
 };
 

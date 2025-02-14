@@ -38,7 +38,7 @@ class VsCodeExtension {
         serverState: "initial",
         solutionScope: undefined,
         workspaceRoot: paths.workspaceRepo.toString(true),
-        solutionMessages: [],
+        chatMessages: [],
         solutionState: "none",
       },
       () => {},

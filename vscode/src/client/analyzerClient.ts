@@ -5,6 +5,8 @@ import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import {
+  ChatMessage,
+  ChatMessageType,
   EnhancedIncident,
   ExtensionData,
   RuleSet,
@@ -43,55 +45,97 @@ import { getModelProvider, ModelProvider } from "./modelProvider";
 import { tracer } from "./tracer";
 import { v4 as uuidv4 } from "uuid";
 
+const uid = (() => {
+  let counter = 0;
+  return (prefix: string = "") => `${prefix}${counter++}`;
+})();
+
 export class AnalyzerClient {
+  private assetPaths: AssetPaths;
+  private outputChannel: vscode.OutputChannel;
+  private modelProvider: ModelProvider | null = null;
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
   private rpcConnection: rpc.MessageConnection | null = null;
 
-  private outputChannel: vscode.OutputChannel;
-  private assetPaths: AssetPaths;
-  private fireServerStateChange: (state: ServerState) => void;
-  private fireAnalysisStateChange: (flag: boolean) => void;
-  private fireSolutionStateChange: (state: SolutionState, message?: string, scope?: Scope) => void;
-
-  private modelProvider: ModelProvider | null = null;
-
   constructor(
     private extContext: vscode.ExtensionContext,
-    mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
+    private mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
     private getExtStateData: () => Immutable<ExtensionData>,
   ) {
-    this.fireServerStateChange = (state: ServerState) =>
-      mutateExtensionData((draft) => {
-        draft.serverState = state;
-        draft.isStartingServer = state === "starting";
-        draft.isInitializingServer = state === "initializing";
-      });
-    this.fireAnalysisStateChange = (flag: boolean) =>
-      mutateExtensionData((draft) => {
-        draft.isAnalyzing = flag;
-      });
-    this.fireSolutionStateChange = (state: SolutionState, message?: string, scope?: Scope) =>
-      mutateExtensionData((draft) => {
-        draft.isFetchingSolution = state === "sent";
-        draft.solutionState = state;
-        if (state === "started") {
-          draft.solutionMessages = [];
-          draft.solutionScope = scope;
-        }
-        if (message) {
-          draft.solutionMessages.push(message);
-        }
-      });
-
-    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.assetPaths = buildAssetPaths(extContext);
 
-    // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
-
+    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.outputChannel.appendLine(
       `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
     );
     this.outputChannel.appendLine(`extension paths: ${JSON.stringify(fsPaths(), null, 2)}`);
+
+    // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
+  }
+
+  private fireServerStateChange(state: ServerState) {
+    this.mutateExtensionData((draft) => {
+      draft.serverState = state;
+      draft.isStartingServer = state === "starting";
+      draft.isInitializingServer = state === "initializing";
+    });
+  }
+
+  private fireAnalysisStateChange(flag: boolean) {
+    this.mutateExtensionData((draft) => {
+      draft.isAnalyzing = flag;
+    });
+  }
+
+  private fireSolutionStateChange(state: SolutionState, message?: string, scope?: Scope) {
+    this.mutateExtensionData((draft) => {
+      draft.isFetchingSolution = state === "sent";
+      draft.solutionState = state;
+
+      if (state === "started") {
+        draft.chatMessages = [];
+        draft.solutionScope = scope;
+      }
+      if (message) {
+        draft.chatMessages.push({
+          messageToken: uid("m"),
+          kind: ChatMessageType.String,
+          value: { message },
+        });
+      }
+    });
+  }
+
+  private addSolutionChatMessage(message: ChatMessage) {
+    if (this.solutionState !== "sent") {
+      return;
+    }
+
+    // TODO: The `message.chatToken` and `message.messageToken` fields are being ignored
+    // TODO: for now.  They should influence the chatMessages array, but we don't have any
+    // TODO: solid semantics for that quite yet.
+
+    console.log("*** scm:", message);
+    message.messageToken = message.messageToken ?? uid("scm");
+
+    this.mutateExtensionData((draft) => {
+      if (!draft.chatMessages) {
+        draft.chatMessages = [];
+      }
+      draft.chatMessages.push(message);
+    });
+  }
+
+  public get serverState(): ServerState {
+    return this.getExtStateData().serverState;
+  }
+
+  public get analysisState(): boolean {
+    return this.getExtStateData().isAnalyzing;
+  }
+
+  public get solutionState(): SolutionState {
+    return this.getExtStateData().solutionState;
   }
 
   /**
@@ -158,12 +202,11 @@ export class AnalyzerClient {
       );
     }
 
-    this.rpcConnection.onNotification("my_progress", (params) => {
-      if (params.kind === "SimpleChatMessage") {
-        this.fireSolutionStateChange("sent", params.value.message);
-      } else {
-        this.fireSolutionStateChange("sent", JSON.stringify(params));
-      }
+    /**
+     * Handle server generated progress ChatMessages.
+     */
+    this.rpcConnection.onNotification("my_progress", (chatMessage: ChatMessage) => {
+      this.addSolutionChatMessage(chatMessage);
     });
 
     this.rpcConnection.listen();
@@ -565,10 +608,45 @@ export class AnalyzerClient {
 
       this.fireSolutionStateChange("sent", "Waiting for the resolution...");
 
+      const _m: ChatMessage[] = [
+        {
+          messageToken: uid("t"),
+          kind: ChatMessageType.String,
+          value: { message: "Normal string message!!!" },
+        },
+        {
+          messageToken: uid("t"),
+          kind: ChatMessageType.Markdown,
+          value: {
+            message: `
+# Header 1
+**Normal** _Markdown_
+## Header 2
+More text here.
+`,
+          },
+        },
+        {
+          messageToken: uid("t"),
+          kind: ChatMessageType.JSON,
+          value: {
+            foo: "bar",
+            bar: "foo",
+            one: 1,
+            fourtyTwo: [4, 2],
+          },
+        },
+      ];
+      const i = setInterval(() => {
+        if (_m.length > 0) {
+          this.addSolutionChatMessage(_m.shift()!);
+        }
+      }, 1000);
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
         request,
       );
+      clearInterval(i);
 
       this.fireSolutionStateChange("received", "Received response...");
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
@@ -681,11 +759,6 @@ export class AnalyzerClient {
     ].filter(Boolean);
   }
 
-  /**
-   * Until konveyor/kai#509 is resolved, return the single root directory for all of the
-   * rulesets yaml files to provide to the analyzer.  After the issue is resolve, send all
-   * of the rulesets directories either as `string[]` or as a joined list.
-   */
   public getRulesetsPath(): string[] {
     return [
       getConfigUseDefaultRulesets() && this.assetPaths.rulesets,

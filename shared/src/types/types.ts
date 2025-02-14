@@ -101,6 +101,19 @@ export interface Scope {
 
 export type Solution = GetSolutionResult | SolutionResponse;
 
+export enum ChatMessageType {
+  String = "SimpleChatMessage",
+  Markdown = "MarkdownChatMessage",
+  JSON = "JsonChatMessage",
+}
+
+export interface ChatMessage {
+  kind: ChatMessageType;
+  value: { message: string } | Record<string, unknown>;
+  chatToken?: string;
+  messageToken: string;
+}
+
 export interface ExtensionData {
   workspaceRoot: string;
   localChanges: LocalChange[];
@@ -115,7 +128,7 @@ export interface ExtensionData {
   solutionState: SolutionState;
   solutionData?: Solution;
   solutionScope?: Scope;
-  solutionMessages: string[];
+  chatMessages: ChatMessage[];
 }
 
 export type ServerState =
