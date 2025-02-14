@@ -1,20 +1,22 @@
+import { Message } from "@patternfly/chatbot";
 import React from "react";
-import { FlexItem, Label } from "@patternfly/react-core";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 
 interface SentMessageProps {
-  children: React.ReactNode;
-  className?: string;
+  children?: React.ReactNode;
+  mainContent: string;
 }
 
-export const SentMessage: React.FC<SentMessageProps> = ({ children, className = "" }) => {
+export const SentMessage: React.FC<SentMessageProps> = ({ children, mainContent }) => {
   return (
-    <FlexItem className={`response-wrapper ${className}`}>
-      <Label className="resolutions-show-in-light" color="yellow">
-        {children}
-      </Label>
-      <Label className="resolutions-show-in-dark" variant="outline">
-        {children}
-      </Label>
-    </FlexItem>
+    <Message
+      name="User"
+      role="user"
+      content={mainContent}
+      extraContent={{ afterMainContent: children }}
+      avatar="https://raw.githubusercontent.com/patternfly/patternfly-react/main/packages/react-core/src/components/assets/avatarImg.svg"
+      additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
+    />
   );
 };

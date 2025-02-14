@@ -1,15 +1,31 @@
+import { Message } from "@patternfly/chatbot";
 import React from "react";
-import { FlexItem, Label } from "@patternfly/react-core";
-
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 interface ReceivedMessageProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
+  isLoading?: boolean;
+  mainContent?: string;
 }
 
-export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({ children, className = "" }) => {
+export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
+  children,
+  mainContent,
+  isLoading,
+}) => {
   return (
-    <FlexItem className={`response-wrapper ${className}`}>
-      <Label color="blue">{children}</Label>
-    </FlexItem>
+    <Message
+      timestamp=""
+      isLoading={isLoading}
+      name="Konveyor"
+      role="bot"
+      content={mainContent}
+      extraContent={{
+        afterMainContent: children,
+      }}
+      avatar="https://www.konveyor.io/icons/icon-144x144.png?v=cf571f0074bfb1bc97f12bbac657f89"
+      additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
+    />
   );
 };

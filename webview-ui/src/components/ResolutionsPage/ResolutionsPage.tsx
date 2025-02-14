@@ -1,24 +1,12 @@
+import "./resolutionsPage.css";
 import React, { FC } from "react";
-import {
-  Card,
-  CardBody,
-  Flex,
-  FlexItem,
-  Page,
-  PageSection,
-  PageSidebar,
-  PageSidebarBody,
-  Spinner,
-  Title,
-} from "@patternfly/react-core";
+import { Card, CardBody, Grid, GridItem, Page, PageSection, Title } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { Incident, LocalChange } from "@editor-extensions/shared";
 import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
-import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
-import { ChatMessageComponent } from "./ChatMessageComponent";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 
 const ResolutionPage: React.FC = () => {
@@ -60,63 +48,37 @@ const ResolutionPage: React.FC = () => {
   };
 
   return (
-    <Page
-      sidebar={
-        <PageSidebar isSidebarOpen={false}>
-          <PageSidebarBody />
-        </PageSidebar>
-      }
-    >
+    <Page>
       <PageSection>
-        <Flex>
-          <FlexItem>
-            <Title headingLevel="h1" size="2xl">
-              Kai Results
-            </Title>
-          </FlexItem>
-        </Flex>
+        <Title headingLevel="h1" size="2xl">
+          Kai Results
+        </Title>
       </PageSection>
-
-      <PageSection>
-        <Flex direction={{ default: "column" }} className="chat-container">
-          {isTriggeredByUser && (
-            <Flex
-              direction={{ default: "column" }}
-              grow={{ default: "grow" }}
-              alignItems={{ default: "alignItemsFlexEnd" }}
-            >
-              <SentMessage>Here is the scope of what I would like you to fix:</SentMessage>
-              <FlexItem className="chat-card-container">
-                <ChatCard color="yellow">
-                  <IncidentTableGroup
-                    onIncidentSelect={handleIncidentClick}
-                    incidents={solutionScope.incidents}
-                    isReadOnly={true}
-                  />
-                </ChatCard>
-              </FlexItem>
-              <SentMessage>
-                Please provide resolution for this issue with {configuredEffort} effort.
-              </SentMessage>
-            </Flex>
-          )}
-
-          <Flex
-            direction={{ default: "column" }}
-            grow={{ default: "grow" }}
-            alignItems={{ default: "alignItemsFlexStart" }}
-          >
-            {hasNothingToView && <ReceivedMessage>No resolutions available.</ReceivedMessage>}
-            {isHistorySolution && <ReceivedMessage>Loaded last known resolution.</ReceivedMessage>}
-
+      <PageSection isWidthLimited>
+        <Grid hasGutter>
+          <GridItem span={12} sm={12} md={12} lg={12} xl={12}>
+            {isTriggeredByUser && (
+              <>
+                <SentMessage mainContent="Here is the scope of what I would like you to fix:">
+                  <ChatCard color="yellow">
+                    <IncidentTableGroup
+                      onIncidentSelect={handleIncidentClick}
+                      incidents={solutionScope.incidents}
+                    />
+                  </ChatCard>
+                </SentMessage>
+                <SentMessage mainContent="Please provide resolution for this issue."></SentMessage>
+              </>
+            )}
+            {hasNothingToView && <ReceivedMessage mainContent="No resolutions available." />}
+            {isHistorySolution && <ReceivedMessage mainContent="Loaded last known resolution." />}
             {chatMessages.map((msg) => (
-              <ReceivedMessage key={msg.messageToken}>
-                <ChatMessageComponent message={msg} />
-              </ReceivedMessage>
+              <ReceivedMessage
+                key={msg.value.message as string}
+                mainContent={msg.value.message as string}
+              />
             ))}
-
-            {isFetchingSolution && <Spinner />}
-
+            {isFetchingSolution && <ReceivedMessage isLoading />}
             {hasResponse && (
               <ReceivedMessage>
                 <FileChanges
@@ -132,8 +94,7 @@ const ResolutionPage: React.FC = () => {
             )}
             {hasResponseWithErrors && (
               <>
-                <ReceivedMessage>Response contains errors:</ReceivedMessage>
-                <ReceivedMessage>
+                <ReceivedMessage mainContent="Response contains errors">
                   <ul>
                     {resolution.encountered_errors.map((error, index) => (
                       <li key={index}>{error}</li>
@@ -142,12 +103,11 @@ const ResolutionPage: React.FC = () => {
                 </ReceivedMessage>
               </>
             )}
-
             {isResolved && !isFetchingSolution && (
-              <ReceivedMessage>All resolutions have been applied.</ReceivedMessage>
+              <ReceivedMessage mainContent="All resolutions have been applied"></ReceivedMessage>
             )}
-          </Flex>
-        </Flex>
+          </GridItem>
+        </Grid>
       </PageSection>
     </Page>
   );

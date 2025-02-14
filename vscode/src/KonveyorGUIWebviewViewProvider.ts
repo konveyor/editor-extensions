@@ -165,7 +165,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       `style-src ${webview.cspSource};`,
       `font-src ${webview.cspSource};`,
       `connect-src ${webview.cspSource};`,
-      `img-src data: ${webview.cspSource};`,
+      `img-src ${webview.cspSource} http://${localServerUrl} https://www.konveyor.io https://raw.githubusercontent.com;`,
     ];
 
     const devPolicy = [
@@ -175,7 +175,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       `style-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
       `font-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
       `connect-src ${webview.cspSource} ws://${localServerUrl} http://${localServerUrl};`,
-      `img-src data: ${webview.cspSource} http://${localServerUrl};`,
+      `img-src ${webview.cspSource} http://${localServerUrl} https://www.konveyor.io https://raw.githubusercontent.com;`,
     ];
 
     return (isProd ? prodPolicy : devPolicy).filter(Boolean).join(" ");

@@ -5,7 +5,6 @@
   margin-right: 4px;
   display: inline-flex;
   align-items: center;
-  color: black;
 }
 
 .file-changes-arrow-icon {
@@ -13,22 +12,18 @@
   position: relative;
   top: 1px;
   margin: 0 4px;
-  color: black;
 }
 
 .file-changes-change-summary {
-  color: black;
   font-size: 0.8em;
 }
 
 .file-changes-file-name {
   line-height: 1.5;
-  color: black;
 }
 
 .file-changes-action-icon {
   display: flex;
   align-items: center;
   padding: 6px;
-  color: black;
 }
