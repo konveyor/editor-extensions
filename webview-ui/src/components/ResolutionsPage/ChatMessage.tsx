@@ -4,8 +4,10 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeHighlight from "rehype-highlight";
+import rehypeSanitize from "rehype-sanitize";
 
 // css for markdown and plugins
+import "github-markdown-css/github-markdown.css";
 import "highlight.js/styles/github.min.css";
 
 interface RenderMessageProps {
@@ -18,7 +20,10 @@ const StringRender: React.FC<RenderMessageProps> = ({ value }) => {
 
 const MarkdownRender: React.FC<RenderMessageProps> = ({ value }) => {
   return (
-    <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight, rehypeRaw, rehypeSanitize]}
+    >
       {value.message as string}
     </Markdown>
   );
