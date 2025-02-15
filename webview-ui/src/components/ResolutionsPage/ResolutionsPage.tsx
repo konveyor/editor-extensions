@@ -19,7 +19,7 @@ import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
-import { ChatMessage } from "./ChatMessage";
+import { ChatMessageComponent } from "./ChatMessageComponent";
 
 const ResolutionPage: React.FC = () => {
   const [state, dispatch] = useExtensionState();
@@ -106,9 +106,9 @@ const ResolutionPage: React.FC = () => {
             {hasNothingToView && <ReceivedMessage>No resolutions available.</ReceivedMessage>}
             {isHistorySolution && <ReceivedMessage>Loaded last known resolution.</ReceivedMessage>}
 
-            {chatMessages.map((msg, index) => (
+            {chatMessages.map((msg) => (
               <ReceivedMessage key={msg.messageToken}>
-                <ChatMessage message={msg} />
+                <ChatMessageComponent message={msg} />
               </ReceivedMessage>
             ))}
 

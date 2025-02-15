@@ -1,5 +1,5 @@
 import React from "react";
-import { ChatMessageType, ChatMessage as ChatMessage_ } from "@editor-extensions/shared";
+import { ChatMessageType, ChatMessage } from "@editor-extensions/shared";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -11,7 +11,7 @@ import "github-markdown-css/github-markdown.css";
 import "highlight.js/styles/github.min.css";
 
 interface RenderMessageProps {
-  value: ChatMessage_["value"];
+  value: ChatMessage["value"];
 }
 
 const StringRender: React.FC<RenderMessageProps> = ({ value }) => {
@@ -41,11 +41,11 @@ const RENDER_MAPPING = {
   default: StringRender,
 };
 
-interface ChatMessageProps {
-  message: ChatMessage_;
+interface ChatMessageComponentProps {
+  message: ChatMessage;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+export const ChatMessageComponent: React.FC<ChatMessageComponentProps> = ({ message }) => {
   const Render = RENDER_MAPPING[message.kind] ?? RENDER_MAPPING.default;
 
   return (
