@@ -3,7 +3,10 @@ import { ChatMessageType, ChatMessage as ChatMessage_ } from "@editor-extensions
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { prettyPrintJson } from "pretty-print-json";
+import rehypeHighlight from "rehype-highlight";
+
+// css for markdown and plugins
+import "highlight.js/styles/github.min.css";
 
 interface RenderMessageProps {
   value: ChatMessage_["value"];
@@ -22,14 +25,8 @@ const MarkdownRender: React.FC<RenderMessageProps> = ({ value }) => {
 };
 
 const JsonRender: React.FC<RenderMessageProps> = ({ value }) => {
-  const jsonAsHtml = prettyPrintJson.toHtml(value, {
-    indent: 2,
-    lineNumbers: false,
-    linkUrls: false,
-    quoteKeys: false,
-    trailingCommas: false,
-  });
-  return <Markdown rehypePlugins={[rehypeRaw]}>{jsonAsHtml}</Markdown>;
+  const jsonAsMarkdown = "```json\n" + JSON.stringify(value, undefined, 2) + "\n```\n";
+  return <Markdown rehypePlugins={[rehypeHighlight]}>{jsonAsMarkdown}</Markdown>;
 };
 
 const RENDER_MAPPING = {
