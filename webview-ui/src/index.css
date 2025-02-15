@@ -32,3 +32,16 @@
 .pf-c-expandable-section__content {
   margin-bottom: 10px;
 }
+
+.response-wrapper .pf-v6-c-label {
+  --pf-v6-c-label--BorderRadius: 5px;
+  --pf-v6-c-label--PaddingBlockStart: 0.5rem;
+  --pf-v6-c-label--PaddingBlockEnd: 0.5rem;
+  --pf-v6-c-label--PaddingInlineStart: 1rem;
+  --pf-v6-c-label--PaddingInlineEnd: 1rem;
+}
+
+.response-wrapper code {
+  background-color: rgba(255, 255, 255, 0.5);
+  color: brown;
+}
