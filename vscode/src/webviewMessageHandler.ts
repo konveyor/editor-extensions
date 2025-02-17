@@ -26,6 +26,10 @@ const actions: {
   [WEBVIEW_READY]() {
     console.log("Webview is ready");
   },
+  // [SET_EFFORT](effort: string) {
+  //   vscode.commands.executeCommand("konveyor.setEffort", effort);
+  //TODO: Implement the setEffort command that would update config value
+  // },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.violation);
 

@@ -116,6 +116,7 @@ export interface ExtensionData {
   solutionData?: Solution;
   solutionScope?: Scope;
   solutionMessages: string[];
+  effortLevel?: number;
 }
 
 export type ServerState =

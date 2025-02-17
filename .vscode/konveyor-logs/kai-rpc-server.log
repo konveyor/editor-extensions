@@ -1,0 +1,27 @@
+INFO - 2025-02-17 09:59:12,830 - kai - MainThread - [logging.py:134 - init_logging()] - We have inited the logger: file_logging: DEBUG console_logging: DEBUG
+INFO - 2025-02-17 09:59:12,831 - kai.kai-rpc-logger - MainThread - [main.py:93 - main()] - using log config: log_level='DEBUG' stderr_log_level='TRACE' file_log_level='DEBUG' log_dir_path=PosixPath('/Users/ibolton/Development/editor-extensions/.vscode/konveyor-logs') log_file_name='kai-rpc-server.log'
+DEBUG - 2025-02-17 09:59:12,831 - kai.kai-rpc-logger - Thread-1 - [core.py:237 - run()] - Server thread started
+DEBUG - 2025-02-17 09:59:12,831 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+INFO - 2025-02-17 09:59:12,831 - kai.kai-rpc-logger - MainThread - [main.py:115 - main()] - Started kai RPC Server
+DEBUG - 2025-02-17 09:59:12,831 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+INFO - 2025-02-17 09:59:12,833 - kai.kai.cache - Thread-1 - [cache.py:90 - __init__()] - Using cache dir: /var/folders/ss/srhgsxwn06nbjqy8cgrh_1xc0000gn/T/_MEIyYFMlC/data/llm_cache
+DEBUG - 2025-02-17 09:59:14,499 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 09:59:14,499 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:28:32,096 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:28:32,096 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:31:52,468 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:31:52,468 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:34:06,219 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:34:06,219 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:34:45,778 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:34:45,778 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:39:56,335 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:39:56,335 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:40:39,460 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:40:39,460 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:42:56,983 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:42:56,983 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:48:07,114 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:48:07,114 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
+DEBUG - 2025-02-17 10:48:34,574 - kai.kai-rpc-logger - Thread-1 - [core.py:240 - run()] - Waiting for message
+DEBUG - 2025-02-17 10:48:34,574 - kai.jsonrpc - Thread-1 - [streams.py:109 - recv()] - Waiting for message
