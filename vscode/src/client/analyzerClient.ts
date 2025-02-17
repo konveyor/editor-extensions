@@ -608,35 +608,7 @@ export class AnalyzerClient {
 
       this.fireSolutionStateChange("sent", "Waiting for the resolution...");
 
-      const _m: ChatMessage[] = [
-        {
-          messageToken: uid("t"),
-          kind: ChatMessageType.String,
-          value: { message: "Normal string message!!!" },
-        },
-        {
-          messageToken: uid("t"),
-          kind: ChatMessageType.Markdown,
-          value: {
-            message: `
-# Header 1
-**Normal** _Markdown_
-## Header 2
-More text here.
-`,
-          },
-        },
-        {
-          messageToken: uid("t"),
-          kind: ChatMessageType.JSON,
-          value: {
-            foo: "bar",
-            bar: "foo",
-            one: 1,
-            fourtyTwo: [4, 2],
-          },
-        },
-      ];
+      const _m: ChatMessage[] = [];
       const i = setInterval(() => {
         if (_m.length > 0) {
           this.addSolutionChatMessage(_m.shift()!);
