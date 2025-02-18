@@ -4,7 +4,7 @@ import {
   Solution,
   SolutionResponse,
 } from "@editor-extensions/shared";
-import { Uri, window, workspace } from "vscode";
+import { FileSystemError, Uri, window, workspace } from "vscode";
 import { ExtensionState } from "src/extensionState";
 import * as Diff from "diff";
 import path from "path";
@@ -17,6 +17,7 @@ import {
 } from "../utilities";
 import { Immutable } from "immer";
 import { paths } from "../paths";
+import { MemFS } from "./fileSystemProvider";
 
 export const toLocalChanges = (solution: Solution): LocalChange[] => {
   if (isGetSolutionResult(solution)) {
@@ -68,33 +69,54 @@ export const writeSolutionsToMemFs = async (
   localChanges: Immutable<LocalChange[]>,
   { memFs }: ExtensionState,
 ) => {
-  // TODO: implement logic for deleted/added files
+  localChanges.forEach(({ modifiedUri }) => {
+    memFs.createDirectoriesIfNeeded(modifiedUri, KONVEYOR_SCHEME);
+  });
 
-  // create all the dirs synchronously
-  localChanges.forEach(({ modifiedUri }) =>
-    memFs.createDirectoriesIfNeeded(modifiedUri, KONVEYOR_SCHEME),
+  await Promise.all(
+    localChanges.map(async (change) => {
+      const { diff, originalUri, modifiedUri } = change;
+
+      try {
+        const originalContent = await readFileFromMemFsOrOriginal(memFs, modifiedUri, originalUri);
+
+        const patchedContent = Diff.applyPatch(originalContent, diff);
+        if (patchedContent === false) {
+          const msg = `Failed to apply solution diff for ${modifiedUri.path}`;
+          window.showErrorMessage(msg);
+          console.error(`${msg}\nSolution diff:\n${diff}`);
+          return;
+        }
+
+        memFs.writeFile(modifiedUri, Buffer.from(patchedContent), {
+          create: true,
+          overwrite: true,
+        });
+      } catch (error) {
+        const msg = `Unexpected error writing diff for ${modifiedUri.path}: ${String(error)}`;
+        window.showErrorMessage(msg);
+        console.error(msg);
+      }
+    }),
   );
 
-  const writeDiff = async ({ diff, originalUri, modifiedUri }: LocalChange) => {
-    const content = await applyDiff(originalUri, diff);
-    memFs.writeFile(modifiedUri, Buffer.from(content), {
-      create: true,
-      overwrite: true,
-    });
-  };
-  // write the content asynchronously (reading original file via VS Code is async)
-  await Promise.all(localChanges.map((change) => writeDiff(change)));
   return localChanges;
 };
 
-const applyDiff = async (original: Uri, diff: string) => {
-  const source = await workspace.fs.readFile(original);
-  const computed = Diff.applyPatch(source.toString(), diff);
-  if (computed === false) {
-    const msg = `Failed to apply solution diff for ${original.path}`;
-    window.showErrorMessage(msg);
-    console.error(`${msg}\nSolution diff:\n${diff}`);
+async function readFileFromMemFsOrOriginal(
+  memFs: MemFS,
+  modifiedUri: Uri,
+  originalUri: Uri,
+): Promise<string> {
+  try {
+    const memFsBuffer = await memFs.readFile(modifiedUri);
+    return memFsBuffer.toString();
+  } catch (error) {
+    if (error instanceof FileSystemError && error.code === "FileNotFound") {
+      const originalBuffer = await workspace.fs.readFile(originalUri);
+      return originalBuffer.toString();
+    } else {
+      throw error;
+    }
   }
-
-  return computed || diff;
-};
+}
