@@ -24,6 +24,12 @@ models:
     args:
       model_id: "meta.llama3-70b-instruct-v1:0"
 
+  # If running locally https://ollama.com/, get the model name via `ollama list`
+  ChatOllama:
+    provider: "ChatOllama"
+    args:
+      model": "your-model-here"
+
   JustAnExample:
     environment:
       ANY_KEY_1: "any environment variable needed for this model provider"
