@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dropdown,
   DropdownList,
@@ -8,15 +8,11 @@ import {
   MenuToggleAction,
   Badge,
 } from "@patternfly/react-core";
-import {
-  effortLevels,
-  getTruncatedEffortLevel,
-  SolutionEffortLevel,
-} from "@editor-extensions/shared";
+import { effortLevels, SolutionEffortLevel } from "@editor-extensions/shared";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionState } from "../hooks/useExtensionState";
 import { getSolution } from "../hooks/actions";
-import { WrenchIcon, EllipsisVIcon } from "@patternfly/react-icons";
+import { EllipsisVIcon } from "@patternfly/react-icons";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -36,20 +32,20 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     dispatch(getSolution(incidents, effort));
   };
 
-  const badgeText =
-    incidents.length > 1 ? `${incidents.length} incidents` : `${incidents.length} incident`;
+  // State to track button disabled status
+  const [isButtonDisabled, setIsButtonDisabled] = useState(true);
+
+  useEffect(() => {
+    setIsButtonDisabled(
+      isFetchingSolution || isAnalyzing || isStartingServer || isInitializingServer,
+    );
+  }, [isFetchingSolution, isAnalyzing, isStartingServer, isInitializingServer]);
 
   const menuToggle =
     scope === "workspace" || scope === "issue" ? (
       <MenuToggle
         variant="primary"
-        isDisabled={
-          isFetchingSolution ||
-          isAnalyzing ||
-          isStartingServer ||
-          isInitializingServer ||
-          state.serverState !== "running"
-        }
+        isDisabled={isButtonDisabled}
         splitButtonOptions={{
           items: [
             <MenuToggleAction
@@ -58,8 +54,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
               onClick={() => onGetSolution(incidents, state.solutionEffort)}
               aria-label="Get solution"
             >
-              <WrenchIcon />
-              {"  "} Resolve {incidents.length} {incidents.length > 1 ? "incidents" : "incident"}
+              Kai <Badge isRead>{incidents.length}</Badge>
             </MenuToggleAction>,
           ],
           variant: "action",
@@ -71,13 +66,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     ) : (
       <MenuToggle
         aria-label="kebab dropdown toggle"
-        isDisabled={
-          isFetchingSolution ||
-          isAnalyzing ||
-          isStartingServer ||
-          isInitializingServer ||
-          state.serverState !== "running"
-        }
+        isDisabled={isButtonDisabled}
         variant="plain"
         onClick={() => setIsOpen(!isOpen)}
         isExpanded={isOpen}
@@ -100,19 +89,12 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     >
       <DropdownList>
         <DropdownGroup
-          label={
-            scope === "workspace" || scope === "issue"
-              ? "Make request for solution with alternate effort"
-              : `Get solution for ${incidents.length} ${incidents.length > 1 ? "incidents" : "incident"}`
-          }
+          label={`Get solution for ${incidents.length} ${incidents.length > 1 ? "incidents" : "incident"}`}
           labelHeadingLevel="h3"
         >
           {Object.entries(effortLevels).map(([label]) => (
             <DropdownItem
               key={label}
-              isDisabled={
-                scope === "workspace" || scope === "issue" ? label === state.solutionEffort : false
-              }
               description={
                 label === state.solutionEffort ? "currently configured effort level" : ""
               }
