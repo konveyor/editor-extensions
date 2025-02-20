@@ -9,6 +9,7 @@ import rehypeSanitize from "rehype-sanitize";
 // css for markdown and plugins
 import "github-markdown-css/github-markdown.css";
 import "highlight.js/styles/github.min.css";
+import "./chatMessageComponent.css";
 
 interface RenderMessageProps {
   value: ChatMessage["value"];
