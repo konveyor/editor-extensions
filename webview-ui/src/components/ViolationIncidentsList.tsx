@@ -36,7 +36,7 @@ import {
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
-import EffortDropdown from "./GetSolutionDropdown";
+import GetSolutionDropdown from "./GetSolutionDropdown";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -287,7 +287,7 @@ const ViolationIncidentsList = ({
       <ToolbarGroup>{sortMenu}</ToolbarGroup>
       <ToolbarGroup variant="action-group-inline">
         <ToolbarItem>
-          <EffortDropdown
+          <GetSolutionDropdown
             incidents={groupedIncidents.flatMap((group) => group.incidents)}
             scope="workspace"
           />
@@ -320,7 +320,11 @@ const ViolationIncidentsList = ({
               onExpand={() => toggleViolation(group.id)}
               actions={{
                 actions: [
-                  <EffortDropdown key="get-solution" incidents={group.incidents} scope="issue" />,
+                  <GetSolutionDropdown
+                    key="get-solution"
+                    incidents={group.incidents}
+                    scope="issue"
+                  />,
                 ],
                 hasNoOffset: true,
               }}

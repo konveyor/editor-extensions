@@ -37,11 +37,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({ incidents, message, onIn
   return (
     <>
       <Card isPlain>
-        <CardHeader
-          actions={{
-            actions: <GetSolutionDropdown incidents={incidents} scope="in-between" />,
-          }}
-        >
+        <CardHeader>
           <Markdown>{message}</Markdown>
         </CardHeader>
 

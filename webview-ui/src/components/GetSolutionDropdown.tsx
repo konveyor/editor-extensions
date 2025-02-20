@@ -12,7 +12,7 @@ import { effortLevels, SolutionEffortLevel } from "@editor-extensions/shared";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionState } from "../hooks/useExtensionState";
 import { getSolution } from "../hooks/actions";
-import { EllipsisVIcon } from "@patternfly/react-icons";
+import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -45,23 +45,29 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     scope === "workspace" || scope === "issue" ? (
       <MenuToggle
         variant="primary"
+        size="sm"
         isDisabled={isButtonDisabled}
         splitButtonOptions={{
           items: [
             <MenuToggleAction
-              id="split-button-action-primary-example-with-toggle-button"
+              id="get-solution-button"
               key="split-action-primary"
               onClick={() => onGetSolution(incidents, state.solutionEffort)}
               aria-label="Get solution"
             >
-              Kai <Badge isRead>{incidents.length}</Badge>
+              <WrenchIcon />
+              <>
+                {" "}
+                <Badge isRead>{incidents.length}</Badge>{" "}
+              </>
             </MenuToggleAction>,
           ],
-          variant: "action",
+          variant: undefined,
         }}
         onClick={() => setIsOpen(!isOpen)}
         isExpanded={isOpen}
         aria-label="Effort Levels"
+        icon={<EllipsisVIcon />}
       />
     ) : (
       <MenuToggle
