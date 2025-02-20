@@ -50,11 +50,8 @@ const filePathsCorrect = (ruleSets: RuleSet[]) =>
     );
 
 export const loadResultsFromDataFolder = async () => {
-  const [analysisResults, solution] = await loadStateFromDataFolder();
+  const [analysisResults] = await loadStateFromDataFolder();
   if (analysisResults) {
     vscode.commands.executeCommand("konveyor.loadRuleSets", analysisResults);
-  }
-  if (solution) {
-    vscode.commands.executeCommand("konveyor.loadSolution", solution);
   }
 };

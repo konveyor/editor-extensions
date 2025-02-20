@@ -7,7 +7,6 @@ import {
   loadRuleSets,
   loadSolution,
   loadStaticResults,
-  reloadLastResolutions,
 } from "./data";
 import { EnhancedIncident, RuleSet, Scope, Solution } from "@editor-extensions/shared";
 import {
@@ -342,7 +341,6 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.fixGroupOfIncidents": fixGroupOfIncidents,
     "konveyor.fixIncident": fixGroupOfIncidents,
-    "konveyor.reloadLastResolutions": async () => reloadLastResolutions(state),
     "konveyor.diffView.applyBlock": applyBlock,
     "konveyor.diffView.applyBlockInline": applyBlock,
     "konveyor.diffView.applySelection": applyBlock,

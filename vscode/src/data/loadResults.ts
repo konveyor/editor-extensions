@@ -11,7 +11,6 @@ import { processIncidents } from "./analyzerResults";
 import { ExtensionState } from "src/extensionState";
 import { writeDataFile } from "./storage";
 import { toLocalChanges, writeSolutionsToMemFs } from "./virtualStorage";
-import { window } from "vscode";
 import {
   KONVEYOR_SCHEME,
   RULE_SET_DATA_FILE_PREFIX,
@@ -47,17 +46,6 @@ export const loadSolution = async (state: ExtensionState, solution: Solution, sc
     solution,
     scope ?? (solution as GetSolutionResult).scope,
   );
-};
-
-export const reloadLastResolutions = async (state: ExtensionState) => {
-  await doLoadSolution(
-    state,
-    state.data.localChanges.map((it) => ({ ...it })),
-    state.data.solutionData,
-    state.data.solutionScope,
-  );
-
-  window.showInformationMessage(`Loaded last available resolutions`);
 };
 
 const doLoadSolution = async (

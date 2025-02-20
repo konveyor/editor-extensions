@@ -181,12 +181,6 @@
         "icon": "$(check)"
       },
       {
-        "command": "konveyor.reloadLastResolutions",
-        "title": "Reload Last Resolutions",
-        "icon": "$(history)",
-        "category": "Konveyor"
-      },
-      {
         "command": "konveyor.discardAll",
         "title": "Discard All",
         "category": "Konveyor",
@@ -312,11 +306,6 @@
         {
           "command": "konveyor.discardAll",
           "group": "navigation@2",
-          "when": "view == konveyor.diffView"
-        },
-        {
-          "command": "konveyor.reloadLastResolutions",
-          "group": "navigation@3",
           "when": "view == konveyor.diffView"
         }
       ],
