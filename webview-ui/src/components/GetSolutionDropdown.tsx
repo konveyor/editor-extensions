@@ -41,44 +41,29 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     );
   }, [isFetchingSolution, isAnalyzing, isStartingServer, isInitializingServer]);
 
-  const menuToggle =
-    scope === "workspace" || scope === "issue" ? (
-      <MenuToggle
-        variant="primary"
-        size="sm"
-        isDisabled={isButtonDisabled}
-        splitButtonOptions={{
-          items: [
-            <MenuToggleAction
-              id="get-solution-button"
-              key="split-action-primary"
-              onClick={() => onGetSolution(incidents, state.solutionEffort)}
-              aria-label="Get solution"
-            >
-              <WrenchIcon />
-              <>
-                {" "}
-                <Badge isRead>{incidents.length}</Badge>{" "}
-              </>
-            </MenuToggleAction>,
-          ],
-          variant: undefined,
-        }}
-        onClick={() => setIsOpen(!isOpen)}
-        isExpanded={isOpen}
-        aria-label="Effort Levels"
-        icon={<EllipsisVIcon />}
-      />
-    ) : (
-      <MenuToggle
-        aria-label="kebab dropdown toggle"
-        isDisabled={isButtonDisabled}
-        variant="plain"
-        onClick={() => setIsOpen(!isOpen)}
-        isExpanded={isOpen}
-        icon={<EllipsisVIcon />}
-      />
-    );
+  const menuToggle = (
+    <MenuToggle
+      variant="primary"
+      size="sm"
+      isDisabled={isButtonDisabled}
+      splitButtonOptions={{
+        items: [
+          <MenuToggleAction
+            id="get-solution-button"
+            key="split-action-primary"
+            onClick={() => onGetSolution(incidents, state.solutionEffort)}
+            aria-label="Get solution"
+          >
+            <WrenchIcon />
+          </MenuToggleAction>,
+        ],
+      }}
+      onClick={() => setIsOpen(!isOpen)}
+      isExpanded={isOpen}
+      aria-label="Effort Levels"
+      icon={<EllipsisVIcon />}
+    />
+  );
 
   return (
     <Dropdown
@@ -90,6 +75,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
         appendTo: document.body,
         position: "right",
         enableFlip: true,
+        preventOverflow: true,
       }}
       ouiaId="EffortDropdown"
     >
