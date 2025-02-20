@@ -75,12 +75,19 @@ export const writeSolutionsToMemFs = async (
     memFs.createDirectoriesIfNeeded(modifiedUri, KONVEYOR_SCHEME),
   );
 
-  const writeDiff = async ({ diff, originalUri, modifiedUri }: LocalChange) => {
-    const content = await applyDiff(originalUri, diff);
-    memFs.writeFile(modifiedUri, Buffer.from(content), {
-      create: true,
-      overwrite: true,
-    });
+  const writeDiff = async (change: LocalChange) => {
+    const { originalUri, modifiedUri, diff, state } = change;
+    if (state === "applied") {
+      const msg = `Already applied solution for ${originalUri.path}.`;
+      window.showErrorMessage(msg);
+      return;
+    } else {
+      const content = await applyDiff(originalUri, diff);
+      memFs.writeFile(modifiedUri, Buffer.from(content), {
+        create: true,
+        overwrite: true,
+      });
+    }
   };
   // write the content asynchronously (reading original file via VS Code is async)
   await Promise.all(localChanges.map((change) => writeDiff(change)));

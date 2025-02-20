@@ -52,7 +52,7 @@ export const loadSolution = async (state: ExtensionState, solution: Solution, sc
 export const reloadLastResolutions = async (state: ExtensionState) => {
   await doLoadSolution(
     state,
-    state.data.localChanges.map((it) => ({ ...it, state: "pending" })),
+    state.data.localChanges.map((it) => ({ ...it })),
     state.data.solutionData,
     state.data.solutionScope,
   );
