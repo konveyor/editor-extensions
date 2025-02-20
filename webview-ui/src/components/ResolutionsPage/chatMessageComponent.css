@@ -1,6 +1,6 @@
 .chat-message {
   white-space: normal;
 }
-.chat-message > details {
+.chat-message > details > summary {
   cursor: pointer;
 }
