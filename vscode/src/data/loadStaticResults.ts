@@ -33,6 +33,7 @@ export const loadStaticResults = async () => {
     }
   }
   if (solution) {
+    vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.loadSolution", solution);
     vscode.window.showInformationMessage("Successfully loaded the solutions");
   }
