@@ -75,8 +75,7 @@ export const writeSolutionsToMemFs = async (
     memFs.createDirectoriesIfNeeded(modifiedUri, KONVEYOR_SCHEME),
   );
 
-  const writeDiff = async (change: LocalChange) => {
-    const { originalUri, modifiedUri, diff, state } = change;
+  const writeDiff = async ({ diff, originalUri, modifiedUri }: LocalChange) => {
     const content = await applyDiff(originalUri, diff);
     memFs.writeFile(modifiedUri, Buffer.from(content), {
       create: true,
