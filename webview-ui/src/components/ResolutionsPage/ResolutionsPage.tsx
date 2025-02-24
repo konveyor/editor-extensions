@@ -88,6 +88,7 @@ const ResolutionPage: React.FC = () => {
               <FlexItem className="chat-card-container">
                 <ChatCard color="yellow">
                   <IncidentTableGroup
+                    isReadOnly={true}
                     onIncidentSelect={handleIncidentClick}
                     incidents={solutionScope.incidents}
                   />

@@ -4,14 +4,12 @@ import { IncidentTable } from "./IncidentTable";
 
 export const IncidentTableGroup = ({
   onIncidentSelect,
-  onGetSolution,
-  workspaceRoot,
   incidents,
+  isReadOnly,
 }: {
   onIncidentSelect: (incident: EnhancedIncident) => void;
-  onGetSolution?: (incidents: EnhancedIncident[]) => void;
-  workspaceRoot: string;
   incidents?: EnhancedIncident[];
+  isReadOnly?: boolean;
 }) => {
   const groupedIncidents = incidents || [];
 
@@ -29,14 +27,11 @@ export const IncidentTableGroup = ({
 
   return Object.entries(messageGroups).map(([message, incidents]) => (
     <IncidentTable
+      isReadOnly={isReadOnly}
       onIncidentSelect={onIncidentSelect}
       key={message}
       message={message}
-      getSolution={
-        onGetSolution ? (incidents: EnhancedIncident[]) => onGetSolution(incidents) : undefined
-      }
       incidents={incidents}
-      workspaceRoot={workspaceRoot}
     />
   ));
 };

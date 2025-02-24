@@ -13,9 +13,15 @@ export interface IncidentTableProps {
   incidents: EnhancedIncident[];
   message: string;
   onIncidentSelect: (it: EnhancedIncident) => void;
+  isReadOnly?: boolean;
 }
 
-export const IncidentTable: FC<IncidentTableProps> = ({ incidents, message, onIncidentSelect }) => {
+export const IncidentTable: FC<IncidentTableProps> = ({
+  incidents,
+  message,
+  onIncidentSelect,
+  isReadOnly,
+}) => {
   const [{ workspaceRoot }, dispatch] = useExtensionState();
   const fileName = (incident: Incident) => path.basename(incident.uri);
   const relativeDirname = useCallback(
@@ -78,9 +84,11 @@ export const IncidentTable: FC<IncidentTableProps> = ({ incidents, message, onIn
                         </Content>
                       </TableText>
                     </Td>
-                    <Td isActionCell>
-                      <GetSolutionDropdown incidents={[it]} scope="incident" />
-                    </Td>
+                    {!isReadOnly && (
+                      <Td isActionCell>
+                        <GetSolutionDropdown incidents={[it]} scope="incident" />
+                      </Td>
+                    )}
                   </Tr>
                 ))}
               </Tbody>
