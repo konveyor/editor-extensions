@@ -4,9 +4,13 @@ import { IncidentTable } from "./IncidentTable";
 
 export const IncidentTableGroup = ({
   onIncidentSelect,
+  onGetSolution,
+  workspaceRoot,
   incidents,
 }: {
   onIncidentSelect: (incident: EnhancedIncident) => void;
+  onGetSolution?: (incidents: EnhancedIncident[]) => void;
+  workspaceRoot: string;
   incidents?: EnhancedIncident[];
 }) => {
   const groupedIncidents = incidents || [];
@@ -28,7 +32,11 @@ export const IncidentTableGroup = ({
       onIncidentSelect={onIncidentSelect}
       key={message}
       message={message}
+      getSolution={
+        onGetSolution ? (incidents: EnhancedIncident[]) => onGetSolution(incidents) : undefined
+      }
       incidents={incidents}
+      workspaceRoot={workspaceRoot}
     />
   ));
 };
