@@ -1,28 +1,28 @@
 import React from "react";
 import {
+  Stack,
+  StackItem,
+  Card,
+  CardHeader,
+  CardBody,
+  CardExpandableContent,
+  Split,
+  SplitItem,
+  Content,
+  Label,
+  Flex,
   Toolbar,
-  ToolbarItem,
   ToolbarContent,
-  ToolbarFilter,
   ToolbarGroup,
-  Badge,
-  MenuToggle,
-  MenuToggleElement,
+  ToolbarItem,
+  ToolbarToggleGroup,
   SearchInput,
   Select,
   SelectList,
   SelectOption,
-  Card,
-  CardBody,
-  CardHeader,
-  CardExpandableContent,
-  Content,
-  Stack,
-  StackItem,
-  Label,
-  Flex,
-  Split,
-  SplitItem,
+  MenuToggle,
+  MenuToggleElement,
+  Badge,
   ToggleGroup,
   ToggleGroupItem,
 } from "@patternfly/react-core";
@@ -32,11 +32,12 @@ import {
   LayerGroupIcon,
   SortAmountDownIcon,
   SortAmountUpIcon,
+  FilterIcon,
 } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
-import * as path from "path-browserify";
-import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
 import GetSolutionDropdown from "./GetSolutionDropdown";
+import { EnhancedIncident, Category, Incident } from "@editor-extensions/shared";
+import * as path from "path-browserify";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -135,25 +136,6 @@ const ViolationIncidentsList = ({
     </SelectList>
   );
 
-  const sortMenu = (
-    <ToggleGroup aria-label="Sort toggle group">
-      <ToggleGroupItem
-        icon={<SortAmountUpIcon />}
-        text="Ascending"
-        buttonId="sort-ascending"
-        isSelected={isSortAscending}
-        onChange={() => setIsSortAscending(true)}
-      />
-      <ToggleGroupItem
-        icon={<SortAmountDownIcon />}
-        text="Descending"
-        buttonId="sort-descending"
-        isSelected={!isSortAscending}
-        onChange={() => setIsSortAscending(false)}
-      />
-    </ToggleGroup>
-  );
-
   // Filter and group the incidents based on current filters
   const groupedIncidents = React.useMemo(() => {
     let filtered = enhancedIncidents;
@@ -214,19 +196,17 @@ const ViolationIncidentsList = ({
     return sortedGroups;
   }, [enhancedIncidents, searchTerm, filters, isSortAscending]);
 
-  const toolbarItems = (
+  const toggleGroupItems = (
     <React.Fragment>
-      <ToolbarGroup>
-        <ToolbarItem>
-          <SearchInput
-            aria-label="Search violations and incidents"
-            onChange={(_event, value) => setSearchTerm(value)}
-            value={searchTerm}
-            onClear={() => setSearchTerm("")}
-          />
-        </ToolbarItem>
-      </ToolbarGroup>
-      <ToolbarGroup>
+      <ToolbarItem>
+        <SearchInput
+          aria-label="Search violations and incidents"
+          onChange={(_event, value) => setSearchTerm(value)}
+          value={searchTerm}
+          onClear={() => setSearchTerm("")}
+        />
+      </ToolbarItem>
+      <ToolbarGroup variant="filter-group">
         <ToolbarItem>
           <ToggleGroup aria-label="Group by options">
             <ToggleGroupItem
@@ -245,7 +225,6 @@ const ViolationIncidentsList = ({
             />
             <ToggleGroupItem
               icon={<LayerGroupIcon />}
-              // ISSUES === VIOLATIONS.
               text="Issues"
               buttonId="violation"
               isSelected={filters.groupBy === "violation"}
@@ -254,45 +233,46 @@ const ViolationIncidentsList = ({
           </ToggleGroup>
         </ToolbarItem>
       </ToolbarGroup>
-      <ToolbarGroup variant="filter-group">
-        <ToolbarFilter
-          labels={filters.category}
-          deleteLabel={(category, label) => onDelete(category as string, label as string)}
-          deleteLabelGroup={(category) => onDeleteGroup(category as string)}
-          categoryName="Category"
+      <ToolbarItem variant="label" id="category-select">
+        Category
+      </ToolbarItem>
+      <ToolbarItem>
+        <Select
+          aria-labelledby="category-select"
+          toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+            <MenuToggle
+              ref={toggleRef}
+              onClick={() => setIsCategoryExpanded(!isCategoryExpanded)}
+              isExpanded={isCategoryExpanded}
+            >
+              Category
+              {filters.category.length > 0 && <Badge isRead>{filters.category.length}</Badge>}
+            </MenuToggle>
+          )}
+          onSelect={onCategorySelect}
+          selected={filters.category}
+          isOpen={isCategoryExpanded}
+          onOpenChange={(isOpen) => setIsCategoryExpanded(isOpen)}
         >
-          <Select
-            aria-label="Category"
-            role="menu"
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={() => setIsCategoryExpanded(!isCategoryExpanded)}
-                isExpanded={isCategoryExpanded}
-                style={{ width: "140px" }}
-              >
-                Category
-                {filters.category.length > 0 && <Badge isRead>{filters.category.length}</Badge>}
-              </MenuToggle>
-            )}
-            onSelect={onCategorySelect}
-            selected={filters.category}
-            isOpen={isCategoryExpanded}
-            onOpenChange={(isOpen) => setIsCategoryExpanded(isOpen)}
-          >
-            {categoryMenuItems}
-          </Select>
-        </ToolbarFilter>
-      </ToolbarGroup>
-      <ToolbarGroup>{sortMenu}</ToolbarGroup>
-      <ToolbarGroup variant="action-group-inline">
-        <ToolbarItem>
-          <GetSolutionDropdown
-            incidents={groupedIncidents.flatMap((group) => group.incidents)}
-            scope="workspace"
+          {categoryMenuItems}
+        </Select>
+      </ToolbarItem>
+      <ToolbarItem>
+        <ToggleGroup aria-label="Sort toggle group">
+          <ToggleGroupItem
+            icon={<SortAmountUpIcon />}
+            buttonId="sort-ascending"
+            isSelected={isSortAscending}
+            onChange={() => setIsSortAscending(true)}
           />
-        </ToolbarItem>
-      </ToolbarGroup>
+          <ToggleGroupItem
+            icon={<SortAmountDownIcon />}
+            buttonId="sort-descending"
+            isSelected={!isSortAscending}
+            onChange={() => setIsSortAscending(false)}
+          />
+        </ToggleGroup>
+      </ToolbarItem>
     </React.Fragment>
   );
 
@@ -302,10 +282,21 @@ const ViolationIncidentsList = ({
         <Toolbar
           id="violation-incidents-toolbar"
           className="pf-m-toggle-group-container"
-          collapseListedFiltersBreakpoint="xl"
+          collapseListedFiltersBreakpoint="lg"
           clearAllFilters={() => onDelete("", "")}
         >
-          <ToolbarContent>{toolbarItems}</ToolbarContent>
+          <ToolbarContent>
+            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
+              {toggleGroupItems}
+            </ToolbarToggleGroup>
+            <ToolbarItem variant="separator" />
+            <ToolbarItem align={{ default: "alignEnd" }}>
+              <GetSolutionDropdown
+                incidents={groupedIncidents.flatMap((group) => group.incidents)}
+                scope="workspace"
+              />
+            </ToolbarItem>
+          </ToolbarContent>
         </Toolbar>
       </StackItem>
       <StackItem isFilled>
