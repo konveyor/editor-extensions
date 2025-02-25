@@ -7,6 +7,7 @@ import * as path from "path-browserify";
 import Markdown from "react-markdown";
 import { WrenchIcon } from "@patternfly/react-icons";
 import { getIncidentRelativeDir } from "../../utils/incident";
+import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 
 export interface IncidentTableProps {
   workspaceRoot: string;
@@ -23,6 +24,10 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   workspaceRoot,
   onIncidentSelect,
 }) => {
+  const { state } = useExtensionStateContext();
+  const isGetSolutionDisabled =
+    state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
+
   const fileName = (incident: Incident) => path.basename(incident.uri);
   const relativeDirname = useCallback(
     (incident: Incident) => {
@@ -50,6 +55,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                   hasNoOffset: true,
                   actions: (
                     <Button
+                      disabled={isGetSolutionDisabled}
                       variant="plain"
                       aria-label={
                         incidents.length === 1

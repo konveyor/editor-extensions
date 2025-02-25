@@ -38,6 +38,7 @@ import {
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
+import { useExtensionStateContext } from "../context/ExtensionStateContext";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -60,6 +61,7 @@ const ViolationIncidentsList = ({
   workspaceRoot,
   enhancedIncidents,
 }: ViolationIncidentsListProps) => {
+  const { state } = useExtensionStateContext();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSortAscending, setIsSortAscending] = React.useState(true);
   const [isCategoryExpanded, setIsCategoryExpanded] = React.useState(false);
@@ -67,6 +69,9 @@ const ViolationIncidentsList = ({
     category: [] as Category[],
     groupBy: "violation" as GroupByOption,
   });
+
+  const isGetSolutionDisabled =
+    state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
 
   const onCategorySelect = (
     _event: React.MouseEvent | undefined,
@@ -300,6 +305,7 @@ const ViolationIncidentsList = ({
         <ToolbarItem>
           {groupedIncidents.length > 0 && (
             <Button
+              isDisabled={isGetSolutionDisabled}
               variant="plain"
               aria-label="Resolve all visible incidents"
               icon={<WrenchIcon />}
@@ -342,6 +348,7 @@ const ViolationIncidentsList = ({
               actions={{
                 actions: [
                   <Button
+                    isDisabled={isGetSolutionDisabled}
                     key="get-solution"
                     variant="plain"
                     aria-label={`Resolve ${group.incidents.length} incidents`}
