@@ -36,14 +36,15 @@ import {
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { Incident } from "@editor-extensions/shared";
-import { useExtensionState } from "../../hooks/useExtensionState";
 import { getSolution, openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
+import { useExtensionStateContext } from "src/context/ExtensionStateContext";
 
 const AnalysisPage: React.FC = () => {
-  const [state, dispatch] = useExtensionState();
+  const { state, dispatch } = useExtensionStateContext();
+
   const {
     isAnalyzing,
     isStartingServer,

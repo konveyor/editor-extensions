@@ -13,16 +13,17 @@ import {
 } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { Incident, LocalChange } from "@editor-extensions/shared";
-import { useExtensionState } from "../../hooks/useExtensionState";
 import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
 import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
 import { ChatMessageComponent } from "./ChatMessageComponent";
+import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 
 const ResolutionPage: React.FC = () => {
-  const [state, dispatch] = useExtensionState();
+  const { state, dispatch } = useExtensionStateContext();
+
   const {
     localChanges,
     isFetchingSolution,
