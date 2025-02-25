@@ -277,16 +277,16 @@ const ViolationIncidentsList = ({
   );
 
   return (
-    <Stack hasGutter>
+    <Stack hasGutter style={{ height: "100%", minHeight: "50vh" }}>
       <StackItem>
         <Toolbar
           id="violation-incidents-toolbar"
           className="pf-m-toggle-group-container"
-          collapseListedFiltersBreakpoint="lg"
+          collapseListedFiltersBreakpoint="md"
           clearAllFilters={() => onDelete("", "")}
         >
           <ToolbarContent>
-            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
+            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="md">
               {toggleGroupItems}
             </ToolbarToggleGroup>
             <ToolbarItem variant="separator" />
