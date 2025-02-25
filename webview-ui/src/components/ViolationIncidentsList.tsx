@@ -4,8 +4,8 @@ import {
   Toolbar,
   ToolbarItem,
   ToolbarContent,
-  ToolbarFilter,
   ToolbarGroup,
+  ToolbarToggleGroup,
   Badge,
   MenuToggle,
   MenuToggleElement,
@@ -34,6 +34,7 @@ import {
   LayerGroupIcon,
   SortAmountDownIcon,
   SortAmountUpIcon,
+  FilterIcon,
 } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import * as path from "path-browserify";
@@ -151,25 +152,6 @@ const ViolationIncidentsList = ({
     </SelectList>
   );
 
-  const sortMenu = (
-    <ToggleGroup aria-label="Sort toggle group">
-      <ToggleGroupItem
-        icon={<SortAmountUpIcon />}
-        text="Ascending"
-        buttonId="sort-ascending"
-        isSelected={isSortAscending}
-        onChange={() => setIsSortAscending(true)}
-      />
-      <ToggleGroupItem
-        icon={<SortAmountDownIcon />}
-        text="Descending"
-        buttonId="sort-descending"
-        isSelected={!isSortAscending}
-        onChange={() => setIsSortAscending(false)}
-      />
-    </ToggleGroup>
-  );
-
   // Filter and group the incidents based on current filters
   const groupedIncidents = React.useMemo(() => {
     let filtered = enhancedIncidents;
@@ -230,19 +212,17 @@ const ViolationIncidentsList = ({
     return sortedGroups;
   }, [enhancedIncidents, searchTerm, filters, isSortAscending]);
 
-  const toolbarItems = (
+  const toggleGroupItems = (
     <React.Fragment>
-      <ToolbarGroup>
-        <ToolbarItem>
-          <SearchInput
-            aria-label="Search violations and incidents"
-            onChange={(_event, value) => setSearchTerm(value)}
-            value={searchTerm}
-            onClear={() => setSearchTerm("")}
-          />
-        </ToolbarItem>
-      </ToolbarGroup>
-      <ToolbarGroup>
+      <ToolbarItem>
+        <SearchInput
+          aria-label="Search violations and incidents"
+          onChange={(_event, value) => setSearchTerm(value)}
+          value={searchTerm}
+          onClear={() => setSearchTerm("")}
+        />
+      </ToolbarItem>
+      <ToolbarGroup variant="filter-group">
         <ToolbarItem>
           <ToggleGroup aria-label="Group by options">
             <ToggleGroupItem
@@ -261,7 +241,6 @@ const ViolationIncidentsList = ({
             />
             <ToggleGroupItem
               icon={<LayerGroupIcon />}
-              // ISSUES === VIOLATIONS.
               text="Issues"
               buttonId="violation"
               isSelected={filters.groupBy === "violation"}
@@ -270,125 +249,133 @@ const ViolationIncidentsList = ({
           </ToggleGroup>
         </ToolbarItem>
       </ToolbarGroup>
-      <ToolbarGroup variant="filter-group">
-        <ToolbarFilter
-          labels={filters.category}
-          deleteLabel={(category, label) => onDelete(category as string, label as string)}
-          deleteLabelGroup={(category) => onDeleteGroup(category as string)}
-          categoryName="Category"
-        >
-          <Select
-            aria-label="Category"
-            role="menu"
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={() => setIsCategoryExpanded(!isCategoryExpanded)}
-                isExpanded={isCategoryExpanded}
-                style={{ width: "140px" }}
-              >
-                Category
-                {filters.category.length > 0 && <Badge isRead>{filters.category.length}</Badge>}
-              </MenuToggle>
-            )}
-            onSelect={onCategorySelect}
-            selected={filters.category}
-            isOpen={isCategoryExpanded}
-            onOpenChange={(isOpen) => setIsCategoryExpanded(isOpen)}
-          >
-            {categoryMenuItems}
-          </Select>
-        </ToolbarFilter>
-      </ToolbarGroup>
-      <ToolbarGroup>{sortMenu}</ToolbarGroup>
-      <ToolbarGroup variant="action-group-inline">
-        <ToolbarItem>
-          {groupedIncidents.length > 0 && (
-            <Button
-              isDisabled={isGetSolutionDisabled}
-              variant="plain"
-              aria-label="Resolve all visible incidents"
-              icon={<WrenchIcon />}
-              onClick={() => {
-                const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
-                handleGetSolution(allIncidents);
-              }}
+      <ToolbarItem>
+        <Select
+          aria-label="Category"
+          toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+            <MenuToggle
+              ref={toggleRef}
+              onClick={() => setIsCategoryExpanded(!isCategoryExpanded)}
+              isExpanded={isCategoryExpanded}
+              style={{ width: "140px" }}
             >
-              Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
-              incidents
-            </Button>
+              Category
+              {filters.category.length > 0 && <Badge isRead>{filters.category.length}</Badge>}
+            </MenuToggle>
           )}
-        </ToolbarItem>
-      </ToolbarGroup>
+          onSelect={onCategorySelect}
+          selected={filters.category}
+          isOpen={isCategoryExpanded}
+          onOpenChange={(isOpen) => setIsCategoryExpanded(isOpen)}
+        >
+          {categoryMenuItems}
+        </Select>
+      </ToolbarItem>
+      <ToolbarItem>
+        <ToggleGroup aria-label="Sort toggle group">
+          <ToggleGroupItem
+            icon={<SortAmountUpIcon />}
+            buttonId="sort-ascending"
+            isSelected={isSortAscending}
+            onChange={() => setIsSortAscending(true)}
+          />
+          <ToggleGroupItem
+            icon={<SortAmountDownIcon />}
+            buttonId="sort-descending"
+            isSelected={!isSortAscending}
+            onChange={() => setIsSortAscending(false)}
+          />
+        </ToggleGroup>
+      </ToolbarItem>
     </React.Fragment>
   );
 
   return (
-    <Stack hasGutter>
+    <Stack hasGutter style={{ height: "100%", minHeight: "100vh" }}>
       <StackItem>
         <Toolbar
           id="violation-incidents-toolbar"
           className="pf-m-toggle-group-container"
-          collapseListedFiltersBreakpoint="xl"
+          collapseListedFiltersBreakpoint="md"
           clearAllFilters={() => onDelete("", "")}
         >
-          <ToolbarContent>{toolbarItems}</ToolbarContent>
+          <ToolbarContent>
+            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="md">
+              {toggleGroupItems}
+            </ToolbarToggleGroup>
+            <ToolbarItem variant="separator" />
+            <ToolbarItem align={{ default: "alignEnd" }}>
+              {groupedIncidents.length > 0 && (
+                <Button
+                  isDisabled={isGetSolutionDisabled}
+                  variant="primary"
+                  icon={<WrenchIcon />}
+                  onClick={() => {
+                    const allIncidents = groupedIncidents.flatMap((group) => group.incidents);
+                    handleGetSolution(allIncidents);
+                  }}
+                >
+                  Resolve {groupedIncidents.reduce((sum, group) => sum + group.incidents.length, 0)}{" "}
+                  incidents
+                </Button>
+              )}
+            </ToolbarItem>
+          </ToolbarContent>
         </Toolbar>
       </StackItem>
-      <StackItem isFilled>
-        {groupedIncidents.map((group) => (
-          <Card
-            key={group.id}
-            isExpanded={expandedViolations.has(group.id)}
-            isCompact
-            style={{ marginBottom: "10px" }}
-          >
-            <CardHeader
-              onExpand={() => toggleViolation(group.id)}
-              actions={{
-                actions: [
-                  <Button
-                    isDisabled={isGetSolutionDisabled}
-                    key="get-solution"
-                    variant="plain"
-                    aria-label={`Resolve ${group.incidents.length} incidents`}
-                    icon={<WrenchIcon />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGetSolution(group.incidents);
-                    }}
-                  >
-                    Resolve {group.incidents.length} incidents
-                  </Button>,
-                ],
-                hasNoOffset: true,
-              }}
-            >
-              <Split>
-                <SplitItem isFilled>
-                  <Content>
-                    <h3>{group.label}</h3>
-                    <Flex>
-                      <Label color="blue" isCompact>
-                        {group.incidents.length} incidents
-                      </Label>
-                    </Flex>
-                  </Content>
-                </SplitItem>
-              </Split>
-            </CardHeader>
-            <CardExpandableContent>
-              <CardBody>
-                <IncidentTableGroup
-                  onGetSolution={onGetSolution}
-                  onIncidentSelect={onIncidentSelect}
-                  incidents={group.incidents}
-                  workspaceRoot={workspaceRoot}
-                />
-              </CardBody>
-            </CardExpandableContent>
-          </Card>
-        ))}
+      <StackItem isFilled style={{ minHeight: 0, overflow: "auto" }}>
+        <Stack hasGutter>
+          {groupedIncidents.map((group) => (
+            <StackItem key={group.id}>
+              <Card isExpanded={expandedViolations.has(group.id)} isCompact>
+                <CardHeader
+                  onExpand={() => toggleViolation(group.id)}
+                  actions={{
+                    actions: [
+                      <Button
+                        isDisabled={isGetSolutionDisabled}
+                        key="get-solution"
+                        variant="plain"
+                        aria-label={`Resolve ${group.incidents.length} incidents`}
+                        icon={<WrenchIcon />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGetSolution(group.incidents);
+                        }}
+                      >
+                        Resolve {group.incidents.length} incidents
+                      </Button>,
+                    ],
+                    hasNoOffset: true,
+                  }}
+                >
+                  <Split>
+                    <SplitItem isFilled>
+                      <Content>
+                        <h3>{group.label}</h3>
+                        <Flex>
+                          <Label color="blue" isCompact>
+                            {group.incidents.length} incidents
+                          </Label>
+                        </Flex>
+                      </Content>
+                    </SplitItem>
+                  </Split>
+                </CardHeader>
+                <CardExpandableContent>
+                  <CardBody>
+                    <IncidentTableGroup
+                      onGetSolution={onGetSolution}
+                      onIncidentSelect={onIncidentSelect}
+                      incidents={group.incidents}
+                      workspaceRoot={workspaceRoot}
+                    />
+                  </CardBody>
+                </CardExpandableContent>
+              </Card>
+            </StackItem>
+          ))}
+        </Stack>
       </StackItem>
     </Stack>
   );
