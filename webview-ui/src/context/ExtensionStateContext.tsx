@@ -1,6 +1,28 @@
-import React, { createContext, useContext, PropsWithChildren } from "react";
+import React, { createContext, useContext, useEffect, useState, PropsWithChildren } from "react";
 import { ExtensionData, WebviewAction, WebviewActionType } from "@editor-extensions/shared";
-import { useExtensionState } from "../hooks/useExtensionState";
+import { sendVscodeMessage as dispatch } from "../utils/vscodeMessaging";
+
+const defaultState: ExtensionData = {
+  localChanges: [],
+  ruleSets: [],
+  enhancedIncidents: [],
+  resolutionPanelData: undefined,
+  isAnalyzing: false,
+  isFetchingSolution: false,
+  isStartingServer: false,
+  isInitializingServer: false,
+  solutionData: undefined,
+  serverState: "initial",
+  solutionScope: undefined,
+  workspaceRoot: "/",
+  chatMessages: [],
+  solutionState: "none",
+};
+
+const windowState =
+  typeof window["konveyorInitialData"] === "object"
+    ? (window["konveyorInitialData"] as ExtensionData)
+    : defaultState;
 
 type ExtensionStateContextType = {
   state: ExtensionData;
@@ -10,7 +32,18 @@ type ExtensionStateContextType = {
 const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined);
 
 export function ExtensionStateProvider({ children }: PropsWithChildren) {
-  const [state, dispatch] = useExtensionState();
+  const [state, setState] = useState<ExtensionData>(windowState);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent<ExtensionData>) => {
+      setState(event.data);
+    };
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
 
   return (
     <ExtensionStateContext.Provider value={{ state, dispatch }}>
@@ -19,7 +52,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
   );
 }
 
-export function useExtensionStateContext() {
+export function useExtensionStateContext(): ExtensionStateContextType {
   const context = useContext(ExtensionStateContext);
   if (context === undefined) {
     throw new Error("useExtensionStateContext must be used within an ExtensionStateProvider");
