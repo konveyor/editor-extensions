@@ -40,7 +40,7 @@ import { getSolution, openFile, startServer, runAnalysis, stopServer } from "../
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
-import { useExtensionStateContext } from "src/context/ExtensionStateContext";
+import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
