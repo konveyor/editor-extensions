@@ -38,6 +38,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   const ISSUE = "Issue";
   const LOCATION = "Location";
   const FOLDER = "Folder";
+
   return (
     <>
       <Card isPlain>
@@ -60,9 +61,8 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                 <Tr>
                   {isReadOnly ? (
                     <>
-                      <Th width={15}>{ISSUE}</Th>
-                      <Th width={60}>{FOLDER}</Th>
-                      <Th width={25}>{LOCATION}</Th>
+                      <Th width={60}>{ISSUE}</Th>
+                      <Th width={40}>{LOCATION}</Th>
                     </>
                   ) : (
                     <>
@@ -77,7 +77,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
               <Tbody>
                 {incidents.map((it) => (
                   <Tr key={uniqueId(it)}>
-                    <Td dataLabel={ISSUE} width={isReadOnly ? 15 : 30}>
+                    <Td dataLabel={ISSUE} width={isReadOnly ? 60 : 30}>
                       <TableText tooltip={it.uri} tooltipProps={tooltipProps}>
                         <Button
                           component="a"
@@ -89,16 +89,18 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                         </Button>
                       </TableText>
                     </Td>
-                    <Td dataLabel={FOLDER} width={isReadOnly ? 60 : 40}>
-                      <TableText
-                        wrapModifier="truncate"
-                        tooltip={relativeDirname(it)}
-                        tooltipProps={tooltipProps}
-                      >
-                        <i>{relativeDirname(it)}</i>
-                      </TableText>
-                    </Td>
-                    <Td dataLabel={LOCATION} width={isReadOnly ? 25 : 20}>
+                    {!isReadOnly && (
+                      <Td dataLabel={FOLDER} width={40}>
+                        <TableText
+                          wrapModifier="truncate"
+                          tooltip={relativeDirname(it)}
+                          tooltipProps={tooltipProps}
+                        >
+                          <i>{relativeDirname(it)}</i>
+                        </TableText>
+                      </Td>
+                    )}
+                    <Td dataLabel={LOCATION} width={isReadOnly ? 40 : 20}>
                       <TableText wrapModifier="nowrap">
                         <Content component="p">
                           {it.lineNumber !== undefined ? `Line ${it.lineNumber}` : "No line number"}
