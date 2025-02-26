@@ -33,9 +33,14 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents }) 
   const isButtonDisabled =
     state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
 
+  // The disabled plain button looks terrible, just return undefined
+  if (isButtonDisabled) {
+    return undefined;
+  }
+
   const menuToggle = (
     <MenuToggle
-      variant="primary"
+      variant="plain"
       size="sm"
       isDisabled={isButtonDisabled}
       splitButtonOptions={{

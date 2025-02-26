@@ -35,9 +35,9 @@ import {
   FilterIcon,
 } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
-import * as path from "path-browserify";
 import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
 import GetSolutionDropdown from "./GetSolutionDropdown";
+import { getIncidentFile } from "../utils/incident";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -163,7 +163,7 @@ const ViolationIncidentsList = ({
       switch (filters.groupBy) {
         case "file":
           key = incident.uri;
-          label = path.basename(incident.uri);
+          label = getIncidentFile(incident);
           break;
         case "violation":
           key = incident.violationId;
@@ -286,7 +286,6 @@ const ViolationIncidentsList = ({
             <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="md">
               {toggleGroupItems}
             </ToolbarToggleGroup>
-            <ToolbarItem variant="separator" />
             <ToolbarItem align={{ default: "alignEnd" }}>
               <GetSolutionDropdown
                 incidents={groupedIncidents.flatMap((group) => group.incidents)}
