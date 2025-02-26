@@ -74,6 +74,7 @@ const ResolutionPage: React.FC = () => {
             {isHistorySolution && <ReceivedMessage mainContent="Loaded last known resolution." />}
             {chatMessages.map((msg) => (
               <ReceivedMessage
+                timestamp={msg.timestamp}
                 key={msg.value.message as string}
                 mainContent={msg.value.message as string}
               />
