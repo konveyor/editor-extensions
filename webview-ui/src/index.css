@@ -52,3 +52,6 @@
 .pf-chatbot__message-text > details > summary {
   cursor: pointer;
 }
+.pf-chatbot__content {
+  background-color: var(--vscode-editor-background) !important;
+}

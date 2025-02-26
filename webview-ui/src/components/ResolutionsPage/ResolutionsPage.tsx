@@ -8,6 +8,7 @@ import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -55,60 +56,62 @@ const ResolutionPage: React.FC = () => {
         </Title>
       </PageSection>
       <PageSection isWidthLimited>
-        <Grid hasGutter>
-          <GridItem span={12} sm={12} md={12} lg={12} xl={12}>
-            {isTriggeredByUser && (
-              <>
-                <SentMessage mainContent="Here is the scope of what I would like you to fix:">
-                  <ChatCard color="yellow">
-                    <IncidentTableGroup
-                      onIncidentSelect={handleIncidentClick}
-                      incidents={solutionScope.incidents}
-                    />
-                  </ChatCard>
-                </SentMessage>
-                <SentMessage mainContent="Please provide resolution for this issue."></SentMessage>
-              </>
-            )}
-            {hasNothingToView && <ReceivedMessage mainContent="No resolutions available." />}
-            {isHistorySolution && <ReceivedMessage mainContent="Loaded last known resolution." />}
-            {chatMessages.map((msg) => (
-              <ReceivedMessage
-                timestamp={msg.timestamp}
-                key={msg.value.message as string}
-                mainContent={msg.value.message as string}
-              />
-            ))}
-            {isFetchingSolution && <ReceivedMessage isLoading />}
-            {hasResponse && (
-              <ReceivedMessage>
-                <FileChanges
-                  changes={getRemainingFiles()}
-                  onFileClick={handleFileClick}
-                  onApplyFix={handleAcceptClick}
-                  onRejectChanges={handleRejectClick}
+        <Chatbot displayMode={ChatbotDisplayMode.embedded}>
+          <ChatbotContent>
+            <MessageBox>
+              {isTriggeredByUser && (
+                <>
+                  <SentMessage mainContent="Here is the scope of what I would like you to fix:">
+                    <ChatCard color="yellow">
+                      <IncidentTableGroup
+                        onIncidentSelect={handleIncidentClick}
+                        incidents={solutionScope.incidents}
+                      />
+                    </ChatCard>
+                  </SentMessage>
+                  <SentMessage mainContent="Please provide resolution for this issue."></SentMessage>
+                </>
+              )}
+              {hasNothingToView && <ReceivedMessage mainContent="No resolutions available." />}
+              {isHistorySolution && <ReceivedMessage mainContent="Loaded last known resolution." />}
+              {chatMessages.map((msg) => (
+                <ReceivedMessage
+                  timestamp={msg.timestamp}
+                  key={msg.value.message as string}
+                  mainContent={msg.value.message as string}
                 />
-              </ReceivedMessage>
-            )}
-            {hasEmptyResponse && !hasResponseWithErrors && (
-              <ReceivedMessage>Received response contains no resolutions.</ReceivedMessage>
-            )}
-            {hasResponseWithErrors && (
-              <>
-                <ReceivedMessage mainContent="Response contains errors">
-                  <ul>
-                    {resolution.encountered_errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
+              ))}
+              {isFetchingSolution && <ReceivedMessage isLoading />}
+              {hasResponse && (
+                <ReceivedMessage>
+                  <FileChanges
+                    changes={getRemainingFiles()}
+                    onFileClick={handleFileClick}
+                    onApplyFix={handleAcceptClick}
+                    onRejectChanges={handleRejectClick}
+                  />
                 </ReceivedMessage>
-              </>
-            )}
-            {isResolved && !isFetchingSolution && (
-              <ReceivedMessage mainContent="All resolutions have been applied"></ReceivedMessage>
-            )}
-          </GridItem>
-        </Grid>
+              )}
+              {hasEmptyResponse && !hasResponseWithErrors && (
+                <ReceivedMessage>Received response contains no resolutions.</ReceivedMessage>
+              )}
+              {hasResponseWithErrors && (
+                <>
+                  <ReceivedMessage mainContent="Response contains errors">
+                    <ul>
+                      {resolution.encountered_errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </ReceivedMessage>
+                </>
+              )}
+              {isResolved && !isFetchingSolution && (
+                <ReceivedMessage mainContent="All resolutions have been applied"></ReceivedMessage>
+              )}
+            </MessageBox>
+          </ChatbotContent>
+        </Chatbot>
       </PageSection>
     </Page>
   );
