@@ -3,9 +3,8 @@ import React, { FC, useCallback } from "react";
 import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
 import { EnhancedIncident, Incident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
-import * as path from "path-browserify";
 import Markdown from "react-markdown";
-import { getIncidentRelativeDir } from "../../utils/incident";
+import { getIncidentFile, getIncidentRelativeDir } from "../../utils/incident";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import GetSolutionDropdown from "../GetSolutionDropdown";
 
@@ -19,11 +18,10 @@ export interface IncidentTableProps {
 export const IncidentTable: FC<IncidentTableProps> = ({
   incidents,
   message,
-  isReadOnly,
+  isReadOnly = false,
   onIncidentSelect,
 }) => {
   const { state } = useExtensionStateContext();
-  const fileName = (incident: Incident) => path.basename(incident.uri);
   const relativeDirname = useCallback(
     (incident: Incident) => {
       return getIncidentRelativeDir(incident, state.workspaceRoot);
@@ -44,7 +42,13 @@ export const IncidentTable: FC<IncidentTableProps> = ({
     <>
       <Card isPlain>
         <CardHeader
-          actions={{ actions: <GetSolutionDropdown incidents={incidents} scope="in-between" /> }}
+          actions={
+            isReadOnly
+              ? undefined
+              : {
+                  actions: <GetSolutionDropdown incidents={incidents} scope="in-between" />,
+                }
+          }
         >
           <Markdown>{message}</Markdown>
         </CardHeader>
@@ -54,10 +58,20 @@ export const IncidentTable: FC<IncidentTableProps> = ({
             <Table aria-label="Incidents" variant="compact">
               <Thead>
                 <Tr>
-                  <Th>{ISSUE}</Th>
-                  <Th width={50}>{FOLDER}</Th>
-                  <Th>{LOCATION}</Th>
-                  <Th />
+                  {isReadOnly ? (
+                    <React.Fragment>
+                      <Th width={15}>{ISSUE}</Th>
+                      <Th width={60}>{FOLDER}</Th>
+                      <Th width={15}>{LOCATION}</Th>
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment>
+                      <Th width={30}>{ISSUE}</Th>
+                      <Th width={40}>{FOLDER}</Th>
+                      <Th width={20}>{LOCATION}</Th>
+                      <Th width={10} />
+                    </React.Fragment>
+                  )}
                 </Tr>
               </Thead>
               <Tbody>
@@ -65,8 +79,13 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                   <Tr key={uniqueId(it)}>
                     <Td dataLabel={ISSUE}>
                       <TableText tooltip={it.uri} tooltipProps={tooltipProps}>
-                        <Button component="a" variant="link" onClick={() => onIncidentSelect(it)}>
-                          <b>{fileName(it)}</b>
+                        <Button
+                          component="a"
+                          variant="link"
+                          isInline
+                          onClick={() => onIncidentSelect(it)}
+                        >
+                          <b>{getIncidentFile(it)}</b>
                         </Button>
                       </TableText>
                     </Td>
@@ -86,11 +105,11 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                         </Content>
                       </TableText>
                     </Td>
-                    <Td isActionCell>
-                      {isReadOnly ? null : (
+                    {!isReadOnly && (
+                      <Td isActionCell>
                         <GetSolutionDropdown incidents={[it]} scope="incident" />
-                      )}
-                    </Td>
+                      </Td>
+                    )}
                   </Tr>
                 ))}
               </Tbody>
