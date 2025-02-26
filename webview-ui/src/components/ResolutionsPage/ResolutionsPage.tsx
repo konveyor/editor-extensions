@@ -1,25 +1,14 @@
+import "./resolutionsPage.css";
 import React, { FC } from "react";
-import {
-  Card,
-  CardBody,
-  Flex,
-  FlexItem,
-  Page,
-  PageSection,
-  PageSidebar,
-  PageSidebarBody,
-  Spinner,
-  Title,
-} from "@patternfly/react-core";
+import { Card, CardBody, Grid, GridItem, Page, PageSection, Title } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { Incident, LocalChange } from "@editor-extensions/shared";
 import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
-import "./resolutionsPage.css";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
-import { ChatMessageComponent } from "./ChatMessageComponent";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -60,94 +49,69 @@ const ResolutionPage: React.FC = () => {
   };
 
   return (
-    <Page
-      sidebar={
-        <PageSidebar isSidebarOpen={false}>
-          <PageSidebarBody />
-        </PageSidebar>
-      }
-    >
+    <Page>
       <PageSection>
-        <Flex>
-          <FlexItem>
-            <Title headingLevel="h1" size="2xl">
-              Kai Results
-            </Title>
-          </FlexItem>
-        </Flex>
+        <Title headingLevel="h1" size="2xl">
+          Kai Results
+        </Title>
       </PageSection>
-
-      <PageSection>
-        <Flex direction={{ default: "column" }} className="chat-container">
-          {isTriggeredByUser && (
-            <Flex
-              direction={{ default: "column" }}
-              grow={{ default: "grow" }}
-              alignItems={{ default: "alignItemsFlexEnd" }}
-            >
-              <SentMessage>Here is the scope of what I would like you to fix:</SentMessage>
-              <FlexItem className="chat-card-container">
-                <ChatCard color="yellow">
-                  <IncidentTableGroup
-                    onIncidentSelect={handleIncidentClick}
-                    incidents={solutionScope.incidents}
-                    isReadOnly={true}
-                  />
-                </ChatCard>
-              </FlexItem>
-              <SentMessage>
-                Please provide resolution for this issue with {configuredEffort} effort.
-              </SentMessage>
-            </Flex>
-          )}
-
-          <Flex
-            direction={{ default: "column" }}
-            grow={{ default: "grow" }}
-            alignItems={{ default: "alignItemsFlexStart" }}
-          >
-            {hasNothingToView && <ReceivedMessage>No resolutions available.</ReceivedMessage>}
-            {isHistorySolution && <ReceivedMessage>Loaded last known resolution.</ReceivedMessage>}
-
-            {chatMessages.map((msg) => (
-              <ReceivedMessage key={msg.messageToken}>
-                <ChatMessageComponent message={msg} />
-              </ReceivedMessage>
-            ))}
-
-            {isFetchingSolution && <Spinner />}
-
-            {hasResponse && (
-              <ReceivedMessage>
-                <FileChanges
-                  changes={getRemainingFiles()}
-                  onFileClick={handleFileClick}
-                  onApplyFix={handleAcceptClick}
-                  onRejectChanges={handleRejectClick}
+      <PageSection isWidthLimited>
+        <Chatbot displayMode={ChatbotDisplayMode.embedded}>
+          <ChatbotContent>
+            <MessageBox>
+              {isTriggeredByUser && (
+                <>
+                  <SentMessage mainContent="Here is the scope of what I would like you to fix:">
+                    <ChatCard color="yellow">
+                      <IncidentTableGroup
+                        onIncidentSelect={handleIncidentClick}
+                        incidents={solutionScope.incidents}
+                      />
+                    </ChatCard>
+                  </SentMessage>
+                  <SentMessage mainContent="Please provide resolution for this issue."></SentMessage>
+                </>
+              )}
+              {hasNothingToView && <ReceivedMessage mainContent="No resolutions available." />}
+              {isHistorySolution && <ReceivedMessage mainContent="Loaded last known resolution." />}
+              {chatMessages.map((msg) => (
+                <ReceivedMessage
+                  timestamp={msg.timestamp}
+                  key={msg.value.message as string}
+                  mainContent={msg.value.message as string}
                 />
-              </ReceivedMessage>
-            )}
-            {hasEmptyResponse && !hasResponseWithErrors && (
-              <ReceivedMessage>Received response contains no resolutions.</ReceivedMessage>
-            )}
-            {hasResponseWithErrors && (
-              <>
-                <ReceivedMessage>Response contains errors:</ReceivedMessage>
+              ))}
+              {isFetchingSolution && <ReceivedMessage isLoading />}
+              {hasResponse && (
                 <ReceivedMessage>
-                  <ul>
-                    {resolution.encountered_errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
+                  <FileChanges
+                    changes={getRemainingFiles()}
+                    onFileClick={handleFileClick}
+                    onApplyFix={handleAcceptClick}
+                    onRejectChanges={handleRejectClick}
+                  />
                 </ReceivedMessage>
-              </>
-            )}
-
-            {isResolved && !isFetchingSolution && (
-              <ReceivedMessage>All resolutions have been applied.</ReceivedMessage>
-            )}
-          </Flex>
-        </Flex>
+              )}
+              {hasEmptyResponse && !hasResponseWithErrors && (
+                <ReceivedMessage>Received response contains no resolutions.</ReceivedMessage>
+              )}
+              {hasResponseWithErrors && (
+                <>
+                  <ReceivedMessage mainContent="Response contains errors">
+                    <ul>
+                      {resolution.encountered_errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </ReceivedMessage>
+                </>
+              )}
+              {isResolved && !isFetchingSolution && (
+                <ReceivedMessage mainContent="All resolutions have been applied"></ReceivedMessage>
+              )}
+            </MessageBox>
+          </ChatbotContent>
+        </Chatbot>
       </PageSection>
     </Page>
   );
