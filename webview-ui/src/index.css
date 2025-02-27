@@ -21,7 +21,7 @@
 }
 
 .pf-c-page__main-section {
-  height: calc(100vh - 76px); /* Adjust this value based on your header height */
+  height: calc(100vh - 76px);
   overflow-y: auto;
 }
 
@@ -49,15 +49,16 @@
 .pf-chatbot__message-text {
   word-break: break-word;
 }
+
 .pf-chatbot__message-text > details > summary {
   cursor: pointer;
 }
+
 .pf-chatbot {
   background-color: var(--vscode-editor-background) !important;
 }
 
 .pf-chatbot__content {
-  background-color: var(--vscode-editor-background) !important;
   background-color: var(--vscode-editor-background) !important;
 }
 
