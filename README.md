@@ -119,4 +119,4 @@ This project follows the Konveyor [Code of Conduct](https://github.com/konveyor/
 
 ## License
 
-See [LICENSE](LICENSE.md) file for details.
+See [LICENSE](LICENSE) file for details.
