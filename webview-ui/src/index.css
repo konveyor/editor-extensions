@@ -55,13 +55,21 @@
 .pf-chatbot {
   background-color: var(--vscode-editor-background) !important;
 }
-.pf-chatbot--embedded {
-  border: 1px solid var(--vscode-editor-foreground) !important;
-  border-radius: 20px;
+
+.pf-chatbot__content {
+  background-color: var(--vscode-editor-background) !important;
   background-color: var(--vscode-editor-background) !important;
 }
-.pf-chatbot__content {
-  border-radius: 20px;
-  background-color: var(--vscode-editor-background) !important;
-  background-color: var(--vscode-editor-background) !important;
+
+.pf-chatbot {
+  height: 100vh;
+}
+
+.pf-chatbot__messagebox {
+  width: 100%;
+  max-width: 100% !important; /* to ignore media queries */
+}
+
+.pf-chatbot__jump {
+  inset-inline-start: 95% !important;
 }

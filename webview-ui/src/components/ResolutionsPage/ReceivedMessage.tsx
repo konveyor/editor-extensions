@@ -2,7 +2,7 @@ import React from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import botAv from "./bot_avatar.svg";
+import botAv from "./bot_avatar.svg?inline";
 
 interface ReceivedMessageProps {
   content?: string;
