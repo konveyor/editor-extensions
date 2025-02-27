@@ -41,7 +41,6 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents }) 
   const menuToggle = (
     <MenuToggle
       variant="plain"
-      size="sm"
       isDisabled={isButtonDisabled}
       splitButtonOptions={{
         items: [
