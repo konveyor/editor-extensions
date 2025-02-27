@@ -1,3 +1,8 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
 .pf-v6-c-masthead,
 .pf-v6-c-page,
 .pf-v6-c-page__main-container,
@@ -18,6 +23,10 @@
 #root {
   height: 100vh;
   overflow: hidden;
+}
+
+.pf-v6-c-page {
+  --pf-v6-c-page--inset: 0;
 }
 
 .pf-c-page__main-section {
