@@ -8,7 +8,7 @@ import { AnalyzerClient } from "./client/analyzerClient";
 import { registerDiffView, KonveyorFileModel } from "./diffView";
 import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
-import { partialAnalysisTrigger } from "./analysis";
+import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
@@ -79,7 +79,9 @@ class VsCodeExtension {
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();
-      this.listeners.push(vscode.workspace.onDidSaveTextDocument(partialAnalysisTrigger));
+
+      registerAnalysisTrigger(this.listeners);
+
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           console.log("Configuration modified!");
