@@ -63,49 +63,12 @@ export function getConfigDiffEditorType(): string {
   return getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
 }
 
-export function getConfigKaiProviderName(): string {
-  return getConfigValue<string>("kai.providerName") || "ChatIBMGenAI";
-}
-
 export function getCacheDir(): string | undefined {
   return getConfigValue<string>("kai.cacheDir");
 }
 
 export function getTraceEnabled(): boolean {
   return getConfigValue<boolean>("kai.traceEnabled") || false;
-}
-
-export function getConfigKaiProviderArgs(): object | undefined {
-  const config = vscode.workspace.getConfiguration("konveyor.kai");
-  const providerArgsConfig = config.inspect<object>("providerArgs");
-
-  if (!providerArgsConfig) {
-    console.log("No configuration found for providerArgs.");
-    return undefined;
-  }
-
-  const userDefinedValue =
-    providerArgsConfig.globalValue !== undefined ||
-    providerArgsConfig.workspaceValue !== undefined ||
-    providerArgsConfig.workspaceFolderValue !== undefined;
-
-  if (userDefinedValue) {
-    if (providerArgsConfig.workspaceFolderValue) {
-      console.log("Using workspaceFolder providerArgs:", providerArgsConfig.workspaceFolderValue);
-      return providerArgsConfig.workspaceFolderValue;
-    }
-    if (providerArgsConfig.workspaceValue) {
-      console.log("Using workspace providerArgs:", providerArgsConfig.workspaceValue);
-      return providerArgsConfig.workspaceValue;
-    }
-    if (providerArgsConfig.globalValue) {
-      console.log("Using global providerArgs:", providerArgsConfig.globalValue);
-      return providerArgsConfig.globalValue;
-    }
-  }
-
-  console.log("No user overrides for providerArgs. Using defaults from package.json.");
-  return undefined;
 }
 
 export function getConfigKaiDemoMode(): boolean {
@@ -192,44 +155,6 @@ export async function updateAnalyzeDependencies(value: boolean): Promise<void> {
 
 export async function updateAnalyzeOnSave(value: boolean): Promise<void> {
   await updateConfigValue("analysis.analyzeOnSave", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateKaiProviderName(value: string): Promise<void> {
-  await updateConfigValue("kai.providerName", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateKaiProviderModel(value: string): Promise<void> {
-  await updateConfigValue("kai.providerModel", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function getGenAiKey(context: vscode.ExtensionContext): Promise<string | undefined> {
-  try {
-    const key = await context.secrets.get("genAiKey");
-
-    if (!key) {
-      await vscode.window.showWarningMessage("No GenAI key found in secure storage.");
-      return undefined;
-    }
-
-    return key;
-  } catch (error: any) {
-    console.error("Failed to retrieve GenAI key:", error);
-    await vscode.window.showErrorMessage("An error occurred while retrieving the GenAI key.");
-    return undefined;
-  }
-}
-
-export async function updateGenAiKey(
-  context: vscode.ExtensionContext,
-  newKey: string | undefined,
-): Promise<void> {
-  if (newKey) {
-    await context.secrets.store("genAiKey", newKey);
-    vscode.window.showInformationMessage("Key stored securely.");
-  } else {
-    await context.secrets.delete("genAiKey");
-    vscode.window.showInformationMessage("Key removed.");
-  }
 }
 
 export function getConfigSolutionMaxPriority(): number | undefined {
