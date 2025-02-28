@@ -76,6 +76,7 @@ export class AnalyzerClient {
 
   private fireServerStateChange(state: ServerState) {
     this.mutateExtensionData((draft) => {
+      this.outputChannel.appendLine(`serverState change from [${draft.serverState}] to [${state}]`);
       draft.serverState = state;
       draft.isStartingServer = state === "starting";
       draft.isInitializingServer = state === "initializing";
@@ -150,7 +151,7 @@ export class AnalyzerClient {
    *
    * Server state changes:
    *   - `starting`
-   *   - `running`
+   *   - `readyToInitialize`
    *   - `startFailed`
    *   - `stopped`: When the process exits (clean shutdown, aborted, killed, ...) the server
    *                states changes to `stopped` via the process event `exit`
@@ -215,6 +216,7 @@ export class AnalyzerClient {
     });
 
     this.rpcConnection.listen();
+    this.fireServerStateChange("readyToInitialize");
   }
 
   /**
@@ -222,10 +224,8 @@ export class AnalyzerClient {
    * and wait (up to a maximum time) for the server to report itself ready.
    */
   protected async startProcessAndLogStderr(
-    maxTimeToWaitUntilReady: number = 10_000,
+    maxTimeToWaitUntilReady: number = 30_000,
   ): Promise<[ChildProcessWithoutNullStreams, number | undefined]> {
-    // TODO: Ensure serverState is starting
-
     const serverPath = this.getKaiRpcServerPath();
     const serverArgs = this.getKaiRpcServerArgs();
     const serverEnv = this.getKaiRpcServerEnv();
@@ -265,7 +265,7 @@ export class AnalyzerClient {
       }
     });
 
-    const untilReady = await Promise.race([
+    const readyOrTimeout = await Promise.race([
       new Promise<string>((resolve) => {
         if (seenServerIsReady) {
           resolve("ready");
@@ -278,14 +278,12 @@ export class AnalyzerClient {
       setTimeout(maxTimeToWaitUntilReady, "timeout"),
     ]);
 
-    if (untilReady === "timeout") {
-      //TODO: Handle the case where the server is not ready to initialize
-      // this.fireServerStateChange("readyToInitialize");
-
+    if (readyOrTimeout === "timeout") {
+      // TODO: Handle the case where the server is not ready to initialize
       this.outputChannel.appendLine(
         `waited ${maxTimeToWaitUntilReady}ms for the kai rpc server to be ready, continuing anyway`,
       );
-    } else if (untilReady === "ready") {
+    } else if (readyOrTimeout === "ready") {
       this.outputChannel.appendLine(`*** kai rpc server [${pid}] reports ready!`);
     }
 
@@ -302,28 +300,14 @@ export class AnalyzerClient {
 
   /**
    * Request the server to __initialize__ with our analysis and solution configurations.
-   *
-   * Will only run if the sever state is: `readyToInitialize`
-   *
-   * Server state change: `running`
    */
   public async initialize(): Promise<void> {
-    // TODO: Ensure serverState is readyToInitialize
+    if (this.serverState !== "readyToInitialize" || !this.rpcConnection || !this.modelProvider) {
+      this.outputChannel.appendLine("kai rpc server is not ready to initialize.");
+      return;
+    }
+
     this.fireServerStateChange("initializing");
-
-    if (!this.rpcConnection) {
-      vscode.window.showErrorMessage("RPC connection is not established.");
-      this.fireServerStateChange("startFailed");
-
-      return;
-    }
-
-    if (!this.modelProvider) {
-      vscode.window.showErrorMessage("Server cannot initialize without being started");
-      this.fireServerStateChange("startFailed");
-
-      return;
-    }
 
     // Define the initialize request parameters
     const initializeParams: KaiRpcApplicationConfig = {
@@ -468,10 +452,8 @@ export class AnalyzerClient {
    * Will only run if the sever state is: `running`
    */
   public async runAnalysis(filePaths?: vscode.Uri[]): Promise<void> {
-    // TODO: Ensure serverState is running
-
-    if (!this.rpcConnection) {
-      vscode.window.showErrorMessage("RPC connection is not established.");
+    if (this.serverState !== "running" || !this.rpcConnection) {
+      this.outputChannel.appendLine("kai rpc server is not running, skipping runAnalysis.");
       return;
     }
 
@@ -584,13 +566,11 @@ export class AnalyzerClient {
     incidents: EnhancedIncident[],
     effort: SolutionEffortLevel,
   ): Promise<void> {
-    // TODO: Ensure serverState is running
-
     this.fireSolutionStateChange("started", "Checking server state...", { incidents, effort });
 
-    if (!this.rpcConnection) {
-      vscode.window.showErrorMessage("RPC connection is not established.");
-      this.fireSolutionStateChange("failedOnStart", "RPC connection is not established.");
+    if (this.serverState !== "running" || !this.rpcConnection) {
+      this.outputChannel.appendLine("kai rpc server is not running, skipping getSolution.");
+      this.fireSolutionStateChange("failedOnStart", "kai rpc server is not running");
       return;
     }
 
@@ -617,17 +597,10 @@ export class AnalyzerClient {
 
       this.fireSolutionStateChange("sent", "Waiting for the resolution...");
 
-      const _m: ChatMessage[] = [];
-      const i = setInterval(() => {
-        if (_m.length > 0) {
-          this.addSolutionChatMessage(_m.shift()!);
-        }
-      }, 1000);
       const response: SolutionResponse = await this.rpcConnection!.sendRequest(
         "getCodeplanAgentSolution",
         request,
       );
-      clearInterval(i);
 
       this.fireSolutionStateChange("received", "Received response...");
       vscode.commands.executeCommand("konveyor.loadSolution", response, {
