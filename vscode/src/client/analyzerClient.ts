@@ -18,7 +18,7 @@ import {
   SolutionState,
   Violation,
 } from "@editor-extensions/shared";
-import { paths, fsPaths } from "../paths";
+import { paths, fsPaths, ignoresToExcludedPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
@@ -331,8 +331,7 @@ export class AnalyzerClient {
       analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
       analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
 
-      // TODO(djzager): https://github.com/konveyor/editor-extensions/issues/202
-      analyzerLspExcludedPaths: [vscode.Uri.joinPath(paths().workspaceRepo, ".vscode").fsPath],
+      analyzerLspExcludedPaths: ignoresToExcludedPaths(),
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
       // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
@@ -667,7 +666,7 @@ export class AnalyzerClient {
     return true;
   }
 
-  public getAnalyzerPath(): string {
+  protected getAnalyzerPath(): string {
     const path = getConfigAnalyzerPath() || this.assetPaths.kaiAnalyzer;
 
     if (!fs.existsSync(path)) {
@@ -682,14 +681,14 @@ export class AnalyzerClient {
   /**
    * Build the process environment variables to be setup for the kai rpc server process.
    */
-  public getKaiRpcServerEnv(): NodeJS.ProcessEnv {
+  protected getKaiRpcServerEnv(): NodeJS.ProcessEnv {
     return {
       ...process.env,
       ...this.modelProvider!.env,
     };
   }
 
-  public getKaiRpcServerPath(): string {
+  protected getKaiRpcServerPath(): string {
     const path = getConfigKaiRpcServerPath() || this.assetPaths.kaiRpcServer;
 
     if (!fs.existsSync(path)) {
@@ -702,7 +701,7 @@ export class AnalyzerClient {
     return path;
   }
 
-  public getKaiRpcServerArgs(): string[] {
+  protected getKaiRpcServerArgs(): string[] {
     return [
       "--log-level",
       getConfigLogLevel(),
@@ -713,7 +712,7 @@ export class AnalyzerClient {
     ].filter(Boolean);
   }
 
-  public getRulesetsPath(): string[] {
+  protected getRulesetsPath(): string[] {
     return [
       getConfigUseDefaultRulesets() && this.assetPaths.rulesets,
       ...getConfigCustomRules(),

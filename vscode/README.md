@@ -29,10 +29,10 @@ to newer platforms or architectures.
 
 ### Configure Generative AI Key
 
-Set up your AI backend by providing a Generative AI Key:
+Set up your AI backend by providing a Generative AI configurations:
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`).
-2. Run `Konveyor: Configure GenAI Key`.
+2. Run `Konveyor: Open the GenAI model provider configuration file`.
 
 ### Run an Analysis
 
@@ -45,6 +45,29 @@ Set up your AI backend by providing a Generative AI Key:
 1. Find an violation or incident you would like to use Generative AI to fix.
 2. Run "Get Solution".
 3. View the proposed changes and accept/reject/modify them.
+
+---
+
+## Excluding paths from analysis
+
+The extension can be configured to ignore certain files and paths when performing analysis
+and report issues.
+
+Path exclusion configuration follow this priority ordering:
+
+1. The extension will look for `.konveyorignore` files first. They are expected to follow the
+   [standard `.gitignore` syntax](http://git-scm.com/docs/gitignore). If any `.konveyorignore`
+   files are found in the workspace, they will be used.
+
+2. If no `.konveyorignore` files are found, any found `.gitignore` files will be used.
+
+3. If neither are found, a default set of ignores will be used. (`.vscode/`, `target/`, `.git/`,
+   and `node_modules/`).
+
+Due to some restrictions in underlying technology, exclusions apply to directories only. While
+the [gitignore syntax](http://git-scm.com/docs/gitignore) allows for individual file exclusions.
+Only directory exclusion will be applied. This may cause some individual files to be included
+if they're named directly.
 
 ---
 
@@ -65,12 +88,12 @@ Customize your setup through the VS Code settings:
 
 Access these commands via the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
 
-| Command                         | Description                              |
-| ------------------------------- | ---------------------------------------- |
-| `Konveyor: Configure GenAI Key` | Configure your Generative AI Key.        |
-| `Konveyor: Start Server`        | Start the backend server.                |
-| `Konveyor: Run Analysis`        | Analyze your codebase for modernization. |
-| `Konveyor: Stop Server`         | Stop the backend server.                 |
+| Command                                                      | Description                              |
+| ------------------------------------------------------------ | ---------------------------------------- |
+| `Konveyor: Open the GenAI model provider configuration file` | Configure your Generative AI.            |
+| `Konveyor: Start Server`                                     | Start the backend server.                |
+| `Konveyor: Run Analysis`                                     | Analyze your codebase for modernization. |
+| `Konveyor: Stop Server`                                      | Stop the backend server.                 |
 
 ---
 

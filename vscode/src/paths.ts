@@ -1,4 +1,8 @@
+import { relative, dirname, posix } from "node:path";
+import { readFileSync } from "node:fs";
+import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
+import slash from "slash";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -90,3 +94,96 @@ export function fsPaths(): ExtensionFsPaths {
   }
   return _fsPaths;
 }
+
+const DEFAULT_IGNORES = [".git", ".vscode", "target", "node_modules"];
+const IGNORE_FILE_IN_PRIORITY_ORDER = [".konveyorignore", ".gitignore"];
+
+let _ignoreByFunction: undefined | ((path: string) => boolean);
+
+/**
+ * Find and use the right ignore settings to be able to ignore changes to a path.
+ */
+function isIgnoredBy(path: string): boolean {
+  if (!_ignoreByFunction) {
+    // Check for ignore files
+    for (const glob of IGNORE_FILE_IN_PRIORITY_ORDER) {
+      const ignoreFiles = globbySync(glob, { cwd: fsPaths().workspaceRepo });
+      if (ignoreFiles.length > 0) {
+        _ignoreByFunction = isIgnoredByIgnoreFilesSync(glob, {
+          cwd: fsPaths().workspaceRepo,
+        });
+        break;
+      }
+    }
+
+    // If no ignore files, use the default ignore patterns
+    if (!_ignoreByFunction) {
+      _ignoreByFunction = (path: string): boolean => {
+        const found = globbySync(path, {
+          cwd: fsPaths().workspaceRepo,
+          ignore: DEFAULT_IGNORES,
+        });
+        return found.length === 0;
+      };
+    }
+  }
+
+  return _ignoreByFunction(path);
+}
+
+/**
+ * Check a Uri to see if it should be ignored by a partial analysis on save.
+ */
+export const isUriIgnored = (uri: vscode.Uri): boolean => {
+  if (uri.scheme !== "file") {
+    return true;
+  }
+
+  const f = relative(fsPaths().workspaceRepo, uri.fsPath);
+  console.log(f);
+  return isIgnoredBy(f);
+};
+
+/**
+ * The analyzer needs to be told what paths to exclude from processing
+ * when the AnalyzerClient is initialized.  Build the array of excluded
+ * paths based on the contents of the workspace folder itself and the
+ * ignore files that can be found.
+ *
+ * Ignore files to consider:
+ *   - `.konveyorignore` that works like `.gitignore`
+ *   - `.gitignore`
+ *   - {@link DEFAULT_FILE_IGNORES}
+ *
+ * Only directories will be returned.
+ */
+export const ignoresToExcludedPaths = () => {
+  const cwd = fsPaths().workspaceRepo;
+  let ignores = DEFAULT_IGNORES;
+
+  for (const glob of IGNORE_FILE_IN_PRIORITY_ORDER) {
+    const ignoreFiles = globbySync(glob, { cwd, absolute: true });
+    if (ignoreFiles.length > 0) {
+      console.log("Using file:", ignoreFiles[0]);
+      const base = slash(relative(cwd, dirname(ignoreFiles[0])));
+
+      ignores = readFileSync(ignoreFiles[0], "utf-8")
+        .split(/\r?\n/)
+        .filter((line) => line && !line.startsWith("#"))
+        .map((pattern) => posix.join(pattern, base));
+
+      break;
+    }
+  }
+
+  const exclude = globbySync(ignores, {
+    cwd,
+    expandDirectories: false,
+    dot: true,
+    onlyDirectories: true,
+    markDirectories: true,
+    absolute: true,
+    unique: true,
+  });
+  return exclude;
+};

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { getConfigAnalyzeOnSave } from "../utilities";
 import { ExtensionState } from "../extensionState";
+import { isUriIgnored } from "../paths";
 
 export const registerAnalysisTrigger = (disposables: vscode.Disposable[]) => {
   const changedDocuments = new Set<vscode.Uri>();
@@ -28,9 +29,9 @@ export const registerAnalysisTrigger = (disposables: vscode.Disposable[]) => {
       if (changedDocuments.has(uri)) {
         changedDocuments.delete(uri);
 
-        // TODO: Any restrictions on if the document at `uri` should be
-        // TODO: sent through partial analysis should be done here.
-        if (uri.scheme === "file") {
+        // Any restrictions on if the document at `uri` should be
+        // sent through partial analysis should be done here.
+        if (!isUriIgnored(uri)) {
           vscode.commands.executeCommand("konveyor.partialAnalysis", [uri]);
         }
       }
