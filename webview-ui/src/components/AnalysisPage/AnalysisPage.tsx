@@ -41,9 +41,12 @@ import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { useWalkthroughCard } from "../../hooks/useWalkthroughCard";
+import { WalkthroughCard } from "../WalkthroughCard/WalkthroughCard";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
+  const { showWalkthroughCard, closeWalkthroughCard, openWalkthroughCard } = useWalkthroughCard();
 
   const {
     isAnalyzing,
@@ -137,6 +140,9 @@ const AnalysisPage: React.FC = () => {
 
       <PageSection>
         <Stack hasGutter>
+          <StackItem>
+            {showWalkthroughCard !== false && <WalkthroughCard onClose={closeWalkthroughCard} />}
+          </StackItem>
           <StackItem>
             <Card>
               <CardHeader>

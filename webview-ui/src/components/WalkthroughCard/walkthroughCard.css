@@ -1,0 +1,16 @@
+.close-button {
+  display: flex;
+  grid-area: close;
+  align-items: flex-end;
+  justify-content: flex-end;
+  position: sticky;
+}
+.close-button > button {
+  padding-block-start: 0.5rem;
+  padding-block-end: 0.5rem;
+  /* background-color: transparent;
+    border: none; */
+  /* cursor: pointer; */
+  /* font-size: 1.5rem; */
+  /* color: var(--color-text); */
+}
