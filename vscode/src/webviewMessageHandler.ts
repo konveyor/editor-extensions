@@ -5,6 +5,8 @@ import {
   DISCARD_FILE,
   GET_SOLUTION,
   LocalChange,
+  OPEN_EXTENSION_WALKTHROUGH,
+  OPEN_EXTERNAL_LINK,
   OPEN_FILE,
   RUN_ANALYSIS,
   Scope,
@@ -64,6 +66,12 @@ const actions: {
   [RUN_ANALYSIS]() {
     console.log("Running analysis...");
     vscode.commands.executeCommand("konveyor.runAnalysis");
+  },
+  async [OPEN_EXTERNAL_LINK]({ url }) {
+    vscode.env.openExternal(vscode.Uri.parse(url));
+  },
+  async [OPEN_EXTENSION_WALKTHROUGH]() {
+    vscode.commands.executeCommand("konveyor.openExtensionWalkthrough");
   },
   async [OPEN_FILE]({ file, line }) {
     const fileUri = vscode.Uri.parse(file);

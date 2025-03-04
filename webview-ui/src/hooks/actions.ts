@@ -67,3 +67,8 @@ export const discardFile = (
   type: "DISCARD_FILE",
   payload: change,
 });
+
+export const openExtensionWalkthrough = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OPEN_EXTENSION_WALKTHROUGH",
+  payload: {},
+});
