@@ -1,21 +1,19 @@
-import { join, extname, basename, relative } from "node:path";
+import { join, basename } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createHash } from "node:crypto";
 import { Octokit } from "@octokit/core";
 import fs from "fs-extra";
-import unzipper from "unzipper";
-import * as tar from "tar";
-import { bold, green, yellow } from "colorette";
-import { globby } from "globby";
+import { blue, bold, green, yellow } from "colorette";
 
-import { chmodOwnerPlusX } from "./_util.js";
+import { fileSha256, isFile } from "./_util.js";
 import {
   fetchGitHubReleaseMetadata,
-  fetchGitHubReleaseTagSha,
+  fetchGitHubTagSha,
   fetchFirstSuccessfulRun,
   fetchArtifactsForRun,
 } from "./_github.js";
+import { unpackAsset, unpackTarGz } from "./_unpack.js";
 
 /**
  * @param {string} targetFile
@@ -35,128 +33,62 @@ async function streamResponseToFile(targetFile, fetchResponse) {
 
   // run them both, reject if either rejects, resolve with the hash
   await Promise.all([pipeToFile, pipeToHash]);
+
+  // push the server side last modified time to the downloaded file for caching purposes
+  const lastModified = fetchResponse.headers.get("Last-Modified");
+  if (lastModified) {
+    await fs.utimes(targetFile, new Date(lastModified), new Date(lastModified));
+  }
   return hash.digest("hex");
 }
 
-export async function downloadAndExtractGitHubReleaseAsset(
-  target,
-  gitHubReleaseAsset,
-  platform,
-  arch,
-  chmod = false,
-  token,
-) {
-  const assetDir = join(target, `${platform}-${arch}`);
-  const assetFileName = join(assetDir, gitHubReleaseAsset.name);
-
-  await fs.ensureDir(assetDir);
-
-  // TODO: Could use ETag/If-None-Match headers to trigger 304s and skip unnecessary
-  // TODO: Could also use If-Modified-Since and the file's GMT timestamp
-
-  console.log(`Downloading asset: ${gitHubReleaseAsset.name}`);
-  const response = await fetch(gitHubReleaseAsset.browser_download_url, {
-    headers: token && { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to download ${gitHubReleaseAsset.name}: ${response.statusText}`);
-  }
-  const sha256 = await streamResponseToFile(assetFileName, response);
-
-  console.log(`Asset sha256: ${green(sha256)}`);
-  console.log(`Extracting to: ${assetDir}`);
-  const zipFile = await unzipper.Open.file(assetFileName);
-  await zipFile.extract({ path: assetDir });
-
-  const extractedFiles = await fs.readdir(assetDir);
-  for (const file of extractedFiles) {
-    if (chmod && extname(file) !== ".zip") {
-      chmodOwnerPlusX(join(assetDir, file));
-    }
-  }
-
-  console.log(`Extracted: ${gitHubReleaseAsset.name}`);
-}
-
-export async function downloadGitHubRelease({
-  targetDirectory,
-  metaFile,
-  org,
-  repo,
-  releaseTag,
-  assets,
-}) {
-  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-  octokit.request = octokit.request.defaults({ owner: org, repo });
-  console.log(
-    `Fetching GitHub release metadata for ${yellow(`${org}/${repo}`)} release: ${yellow(releaseTag)}`,
-  );
-
-  const releaseData = await fetchGitHubReleaseMetadata(octokit, releaseTag);
-  const commitId = await fetchGitHubReleaseTagSha(octokit, releaseTag);
-  const releaseAssets = releaseData.assets;
-
-  const metadata = {
-    org,
-    repo,
-    releaseTag,
-    commitId,
-    collectedAt: new Date().toISOString(),
-    assets: [],
+export async function downloadUrl({ downloadDirectory, url, targetFileName, sha256, bearerToken }) {
+  const fileName = targetFileName ?? basename(new URL(url).pathname);
+  const targetFile = join(downloadDirectory, fileName);
+  const meta = {
+    url,
+    fileName,
+    lastModified: null,
+    etag: null,
   };
 
-  for (const { name, platform, arch, chmod } of assets) {
-    const releaseAsset = releaseAssets.find((a) => a.name.toLowerCase() === name.toLowerCase());
-    if (!releaseAsset) {
-      console.warn(
-        `Asset [${yellow(name)}] was not found in GitHub release ${releaseData.html_url}`,
-      );
-      continue;
-    }
-
-    try {
-      console.group(yellow(releaseAsset.name));
-      await downloadAndExtractGitHubReleaseAsset(
-        targetDirectory,
-        releaseAsset,
-        platform,
-        arch,
-        chmod,
-        process.env.GITHUB_TOKEN,
-      );
-    } finally {
-      console.groupEnd();
-    }
-    metadata.assets.push({
-      name: releaseAsset.name,
-      platform,
-      arch,
-      chmod: !!chmod,
-      updatedAt: releaseAsset.updated_at,
-    });
-  }
-
-  await fs.writeJson(metaFile, metadata, { spaces: 2 });
-  console.log(`Metadata written to ${metaFile}`);
-  console.log(`All assets downloaded to: ${targetDirectory}`);
-}
-
-export async function downloadAndExtractTarGz({ targetDirectory, url, sha256 }) {
+  console.group(bold("Download:"), blue(url));
+  console.log("Destination:", downloadDirectory);
   try {
-    console.group(yellow(url));
-    console.log(bold("Download:"), url, bold("To:"), targetDirectory);
-    await fs.ensureDir(targetDirectory);
+    await fs.ensureDir(downloadDirectory);
 
-    // Download the tar.gz file
-    const fileName = basename(new URL(url).pathname);
-    const targetFile = join(targetDirectory, fileName);
+    const headers = {};
+    if (bearerToken) {
+      headers["Authorization"] = `Bearer ${bearerToken}`;
+    }
+
+    let existingFileHash;
+    if ((await isFile(targetFile)) && (await isFile(targetFile + ".etag"))) {
+      try {
+        existingFileHash = await fileSha256(targetFile);
+        const etagFile = await fs.readFile(targetFile + ".etag");
+        const [hash, etag] = etagFile.toString().split("/");
+        if (hash === existingFileHash) {
+          headers["If-None-Match"] = etag;
+          console.log(`Found existing file sha256: ${green(hash)}, ETag: ${green(etag)}`);
+        }
+      } catch (err) {
+        console.log("Skipping ETag check", err);
+      }
+    }
 
     console.log("Downloading:", yellow(fileName));
-    const response = await fetch(url);
-    if (!response.ok) {
+    const response = await fetch(url, { headers });
+    if (!response.ok && response.status !== 304) {
       throw new Error(`Failed to download ${url}: ${response.statusText}`);
     }
-    const downloadSha256 = await streamResponseToFile(targetFile, response);
+    if (response.status === 304) {
+      console.log("The downloaded copy is current!");
+    }
+    const downloadSha256 =
+      response.status === 304
+        ? (existingFileHash ?? (await fileSha256(targetFile)))
+        : await streamResponseToFile(targetFile, response);
 
     // If a sha256 is provided, verify against the downloaded file
     console.log(`Asset sha256: ${green(downloadSha256)}`);
@@ -170,216 +102,206 @@ export async function downloadAndExtractTarGz({ targetDirectory, url, sha256 }) 
       }
     }
 
+    meta.sha256 = downloadSha256;
+    meta.lastModified = response.headers.get("Last-Modified") ?? headers["If-Modified-Since"];
+    meta.etag = response.headers.get("ETag");
+    await fs.writeFile(targetFile + ".etag", [meta.sha256, meta.etag].join("/"));
+  } catch (error) {
+    console.error("Error downloading:", error);
+    throw error;
+  } finally {
+    console.groupEnd();
+  }
+
+  return [targetFile, meta];
+}
+
+export async function downloadGitHubReleaseAssets({
+  targetDirectory,
+  org,
+  repo,
+  releaseTag,
+  bearerToken,
+  assets,
+}) {
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+  octokit.request = octokit.request.defaults({ owner: org, repo });
+  const metadata = {
+    org,
+    repo,
+    releaseTag,
+  };
+
+  console.group(`GitHub repo: ${yellow(`${org}/${repo}`)}, release: ${yellow(releaseTag)}`);
+  try {
+    const releaseData = await fetchGitHubReleaseMetadata(octokit, releaseTag);
+    const commitId = await fetchGitHubTagSha(octokit, releaseTag);
+    const releaseAssets = releaseData.assets;
+
+    metadata.commitId = commitId;
+    metadata.collectedAt = new Date().toISOString();
+    metadata.assets = [];
+
+    for (const { name } of assets) {
+      const releaseAsset = releaseAssets.find((a) => a.name === name);
+      if (!releaseAsset) {
+        throw new Error(
+          `Asset [${yellow(name)}] was not found in GitHub release ${releaseData.html_url}`,
+        );
+      }
+
+      const [, assetMeta] = await downloadUrl({
+        downloadDirectory: targetDirectory,
+        targetFileName: name,
+        url: releaseAsset.browser_download_url,
+        bearerToken,
+      });
+
+      metadata.assets.push({
+        name,
+        ...assetMeta,
+      });
+    }
+  } finally {
+    console.groupEnd();
+  }
+
+  return metadata;
+}
+
+export async function downloadAndExtractTarGz({ downloadDirectory, targetDirectory, url, sha256 }) {
+  let meta = {
+    url,
+    fileName: null,
+    sha256,
+    lastModified: null,
+    etag: null,
+    fileSetDirectory: targetDirectory,
+  };
+
+  console.group("Download and extract:", blue(url));
+  try {
+    // Download the file
+    const [targetFile, urlMeta] = await downloadUrl({ downloadDirectory, url, sha256 });
+    meta = { ...meta, ...urlMeta };
+
     // Extract the tar.gz file
-    console.log(`Extracting to ${targetDirectory}`);
-    tar.extract({
-      f: targetFile,
-      z: true,
-      cwd: targetDirectory,
-    });
+    console.group(bold("Unpacking:"), yellow(targetFile));
+    console.log(`Destination: ${targetDirectory}`);
+    try {
+      await fs.ensureDir(targetDirectory);
+      meta.fileSet = await unpackTarGz({
+        sourceFile: targetFile,
+        targetDirectory,
+      });
+      console.log(`Extracted ${green(meta.fileSet.length)} items`);
+    } finally {
+      console.groupEnd();
+    }
   } catch (error) {
     console.error("Error downloading/extracting tar.gz:", error);
   } finally {
     console.groupEnd();
   }
+
+  return meta;
 }
 
 /**
- * Download a workflow artifact from GitHub
- *
- * @param {string} url - Download URL for the artifact
- * @param {string} name - Name of the artifact file
- * @param {string} outputDir - Directory to save the downloaded artifact
- * @returns {Promise<string>} - Path to the downloaded artifact file
+ * Download workflow artifacts and extract contents as assets
  */
-export async function downloadArtifact(url, name, outputDir, token) {
-  const assetDir = join(outputDir);
-  const assetFileName = join(assetDir, `${name}`);
-  await fs.ensureDir(assetDir);
-
-  console.log(`Downloading asset: ${name}`);
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github.v3+json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to download ${name}: ${response.statusText}`);
-  }
-
-  const sha256 = await streamResponseToFile(assetFileName, response);
-  console.log(`Verifying download of: ${name}`);
-  console.log(`Asset sha256: ${green(sha256)}`);
-
-  console.log(`Downloaded ${name} to ${assetFileName}`);
-  return assetFileName;
-}
-
-/**
- * Extract an artifact ZIP file.
- *
- * @param {string} filePath - Path to the ZIP file
- * @param {string} tempDir - Temporary directory for extraction
- * @param {string} finalDir - Final directory for extracted files
- */
-export async function extractArtifact(filePath, tempDir, finalDir) {
-  console.log(`Checking if ${filePath} is a valid ZIP archive.`);
-
-  // First extraction to temporary directory
-  console.log(`Extracting ${filePath} to temporary directory: ${tempDir}`);
-  const unzipArtifact = await unzipper.Open.file(filePath);
-  await unzipArtifact.extract({ path: tempDir });
-
-  // Find and extract any nested zip files in the temp directory
-  const zipFiles = await globby("*.zip", { cwd: tempDir });
-  if (zipFiles.length > 0) {
-    for (const file of zipFiles) {
-      const nestedZipPath = join(tempDir, file);
-      console.log(`Extracting nested zip: ${nestedZipPath} to ${finalDir}`);
-      const unzipNestedArtifact = await unzipper.Open.file(nestedZipPath);
-      await unzipNestedArtifact.extract({ path: finalDir });
-      await fs.unlink(nestedZipPath);
-    }
-  } else {
-    // If no nested zip files were found, move all extracted files into finalDir.
-    const files = await globby(["**/*"], { cwd: tempDir, absolute: true });
-    for (const file of files) {
-      const relativePath = relative(tempDir, file);
-      const destPath = join(finalDir, relativePath);
-      await fs.move(file, destPath, { overwrite: true });
-    }
-  }
-
-  // Cleanup temporary directory
-  await fs.rm(tempDir, { recursive: true, force: true });
-
-  // Cleanup the original zip file
-  await fs.unlink(filePath);
-
-  console.log(`Extraction complete: ${filePath} -> ${finalDir}`);
-}
-
-/**
- * Download and process workflow artifacts.
- *
- * @param {string} targetDirectory - Directory to store downloaded artifacts
- * @param {string} metaFile - Path to the metadata file
- * @param {string} org - GH org
- * @param {string} repo - GH repo
- * @param {string} workflow - Name of the workflow file
- * @param {Array} assets - List of assets to download
- */
-export async function downloadWorkflowArtifacts({
+export async function downloadWorkflowArtifactsAndExtractAssets({
+  downloadDirectory,
   targetDirectory,
-  metaFile,
   org,
   repo,
   branch,
   workflow,
-  assets,
+  bearerToken,
+  artifacts,
 }) {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  const octokit = new Octokit({ auth: GITHUB_TOKEN });
-  octokit.request = octokit.request.defaults({ owner: org, repo });
-
-  if (!GITHUB_TOKEN) {
-    const errorMessage = "GITHUB_TOKEN environment variable is not set.";
+  if (!bearerToken) {
+    const errorMessage =
+      "A bearer token is required. Ensure the GITHUB_TOKEN environment variable is set.";
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
 
-  console.log(
-    `Fetching most recent successful workflow run on repo ${yellow(`${org}/${repo}`)}, workflow: ${yellow(workflow)}, branch: ${yellow(branch)}`,
-  );
-  const { workflowRunId, workflowRunUrl, headSha } = await fetchFirstSuccessfulRun(
-    octokit,
-    branch,
-    workflow,
-  );
-  if (!workflowRunId) {
-    throw new Error("No successful workflow runs found.");
-  }
-  console.log(
-    `Branch head commit sha: ${yellow(headSha)}, workflow run id: ${yellow(workflowRunId)}, url: ${workflowRunUrl}`,
-  );
-
-  const artifactUrls = await fetchArtifactsForRun(octokit, workflowRunId);
-  if (!artifactUrls || artifactUrls.length === 0) {
-    throw new Error("No artifacts found for the workflow run.");
-  }
-  console.log("Artifact Download URLs:", artifactUrls);
-
+  const octokit = new Octokit({ auth: bearerToken });
+  octokit.request = octokit.request.defaults({ owner: org, repo });
   const metadata = {
     org,
     repo,
     branch,
     workflow,
-    workflowRunId,
-    commitId: headSha,
-    collectedAt: new Date().toISOString(),
-    assets: [],
   };
 
-  for (const asset of assets) {
-    const { name, platform, arch, chmod: shouldChmod } = asset;
-    const artifact = artifactUrls.find((a) => a.name === name);
-    if (!artifact) {
-      console.warn(`Asset [${name}] was not found in the workflow artifacts.`);
-      continue;
+  console.group(
+    `GitHub repo: ${yellow(`${org}/${repo}`)}, branch: ${yellow(branch)}, workflow: ${yellow(workflow)}`,
+  );
+  try {
+    await fs.ensureDir(targetDirectory);
+
+    // Figure out the source workflow artifacts
+    const { workflowRunId, workflowRunUrl, headSha } = await fetchFirstSuccessfulRun(
+      octokit,
+      branch,
+      workflow,
+    );
+    if (!workflowRunId) {
+      throw new Error("No successful workflow runs found.");
     }
 
-    try {
-      console.group(yellow(name));
-      console.log(`Processing artifact: ${name}`);
+    const artifactUrls = await fetchArtifactsForRun(octokit, workflowRunId);
+    if (!artifactUrls || artifactUrls.length === 0) {
+      throw new Error("No artifacts found for the workflow run.");
+    }
 
-      const finalDir =
-        platform && arch
-          ? join(targetDirectory, `${platform}-${arch}`)
-          : join(targetDirectory, name.replace(/\.zip$/, ""));
+    console.log(`Using workflow run: ${yellow(workflowRunId)}, url: ${workflowRunUrl}`);
+    console.log(`Branch head commit sha: ${yellow(headSha)}`);
+    console.log("Found workflow artifacts:", artifactUrls);
 
-      const tempDir = join(targetDirectory, "temp", name.replace(/\.zip$/, ""));
-      await fs.mkdirp(tempDir);
-      await fs.mkdirp(finalDir);
+    metadata.workflowRunId = workflowRunId;
+    metadata.commitId = headSha;
+    metadata.collectedAt = new Date().toISOString();
+    metadata.artifacts = [];
 
-      // Download the artifact zip
-      const downloadedFilePath = await downloadArtifact(
-        artifact.url,
-        name,
-        targetDirectory,
-        GITHUB_TOKEN,
-      );
-
-      // Extract the artifact (moves files from tempDir into finalDir)
-      await extractArtifact(downloadedFilePath, tempDir, finalDir);
-
-      //set executable permission on extracted files
-      if (shouldChmod) {
-        for (const file of await globby(["*", "!*.zip"], { cwd: finalDir, absolute: true })) {
-          chmodOwnerPlusX(file);
-        }
+    // Download and unpack contents from the artifacts
+    for (const { name, contents } of artifacts) {
+      const artifact = artifactUrls.find((a) => a.name === name);
+      if (!artifact) {
+        console.warn(`Artifact [${name}] was not found in the workflow artifacts.`);
+        continue;
       }
-      metadata.assets.push({
-        name,
-        extractionDir: finalDir,
-        downloadedAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error(`Error processing artifact [${name}]:`, error.message);
-      throw new Error(`Failed to process artifact ${name}: ${error.message}`);
-    } finally {
-      console.groupEnd();
+
+      console.group(yellow(name));
+      try {
+        const [downloadedFile, artifactMeta] = await downloadUrl({
+          downloadDirectory,
+          targetFileName: name,
+          url: artifact.url,
+          bearerToken,
+        });
+
+        const fileSet = await unpackAsset({
+          sourceFile: downloadedFile,
+          globs: contents,
+          targetDirectory,
+        });
+
+        metadata.artifacts.push({
+          name,
+          ...artifactMeta,
+          fileSetDirectory: targetDirectory,
+          fileSet,
+        });
+      } finally {
+        console.groupEnd();
+      }
     }
+  } finally {
+    console.groupEnd();
   }
 
-  await fs.writeJson(metaFile, metadata, { spaces: 2 });
-  console.log(`Metadata written to ${metaFile}`);
-
-  // Cleanup the parent "temp" folder if it exists.
-  const parentTempDir = join(targetDirectory, "temp");
-  if (await fs.pathExists(parentTempDir)) {
-    await fs.rm(parentTempDir, { recursive: true, force: true });
-    console.log(`Cleaned up temporary folder: ${parentTempDir}`);
-  }
+  return metadata;
 }

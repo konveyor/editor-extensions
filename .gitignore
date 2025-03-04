@@ -3,6 +3,7 @@ out/
 build/
 dist/
 downloaded_assets/
+downloaded_cache/
 *.vsix
 
 # TypeScript build info

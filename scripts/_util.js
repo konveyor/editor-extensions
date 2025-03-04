@@ -1,8 +1,11 @@
 import process from "node:process";
 import path from "node:path";
-import fs from "node:fs";
+import fs from "fs-extra";
+import { parseArgs } from "node:util";
 
 import { italic, gray } from "colorette";
+import { createHash } from "node:crypto";
+import { pipeline } from "node:stream/promises";
 
 /**
  * Change the process's cwd to the project root (as per the normal location of this file).
@@ -11,6 +14,7 @@ export function cwdToProjectRoot() {
   const getProjectRoot = path.resolve(path.dirname(process.argv[1]), "..");
   process.chdir(getProjectRoot);
   console.log(gray(italic(`working from: ${getProjectRoot}`)));
+  return getProjectRoot;
 }
 
 /**
@@ -22,4 +26,101 @@ export function cwdToProjectRoot() {
 export function chmodOwnerPlusX(path) {
   const { mode = fs.constants.S_IRUSR } = fs.statSync(path);
   fs.chmodSync(path, mode | fs.constants.S_IXUSR);
+}
+
+export async function isFile(path) {
+  return (await fs.pathExists(path)) && (await fs.stat(path)).isFile;
+}
+
+export async function isDirectory(path) {
+  return (await fs.pathExists(path)) && (await fs.stat(path)).isDirectory;
+}
+
+export async function fileSha256(path) {
+  if (!isFile(path)) {
+    return "";
+  }
+
+  const hash = createHash("sha256");
+  await pipeline(fs.createReadStream(path), hash);
+  return hash.digest("hex");
+}
+
+/**
+ * @param {string[]} directories
+ */
+export async function ensureDirs(directories) {
+  return await Promise.all(
+    directories.map(async (dir) => {
+      const fullPath = path.resolve(dir);
+      await fs.ensureDir(fullPath);
+      return fullPath;
+    }),
+  );
+}
+
+export function parseCli({ org, repo, releaseTag, workflow, branch }, useDefault = "release") {
+  const { values } = parseArgs({
+    options: {
+      "use-release": {
+        type: "boolean",
+        short: "R",
+        default: useDefault === "release",
+      },
+      // TODO: Would a better name be "use-latest"?
+      "use-workflow-artifacts": {
+        type: "boolean",
+        short: "W",
+        default: useDefault === "workflow",
+      },
+      org: {
+        type: "string",
+        short: "o",
+        default: org,
+      },
+      repo: {
+        type: "string",
+        short: "r",
+        default: repo,
+      },
+      "release-tag": {
+        type: "string",
+        short: "R",
+        default: releaseTag,
+      },
+      workflow: {
+        type: "string",
+        short: "w",
+        default: workflow,
+      },
+      branch: {
+        type: "string",
+        short: "b",
+        default: branch,
+      },
+    },
+    allowNegative: true,
+  });
+
+  if (values["use-workflow-artifacts"] && values.workflow && values.branch) {
+    return {
+      useWorkflow: true,
+      org: values.org,
+      repo: values.repo,
+      workflow: values.workflow,
+      branch: values.branch,
+    };
+  }
+  if (values["use-release"] && values["release-tag"]) {
+    return {
+      useRelease: true,
+      org: values.org,
+      repo: values.repo,
+      releaseTag: values["release-tag"],
+    };
+  }
+  return {
+    org: values.org,
+    repo: values.repo,
+  };
 }

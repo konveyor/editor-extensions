@@ -15,14 +15,14 @@ export async function fetchGitHubReleaseMetadata(octokit, releaseTag) {
 }
 
 /**
- * Fetch the commit sha for a GitHub repository release.
+ * Fetch the commit sha for a GitHub repository tag.
  *
  * @param {Octokit} octokit Octokit configured for auth and the target owner/repo
- * @param {string} releaseTag The release's tag
+ * @param {string} tag The commit's tag
  */
-export async function fetchGitHubReleaseTagSha(octokit, releaseTag) {
+export async function fetchGitHubTagSha(octokit, tag) {
   const response = await octokit.request("GET /repos/{owner}/{repo}/commits/{tag}", {
-    tag: releaseTag,
+    tag,
   });
 
   return await response.data.sha;
