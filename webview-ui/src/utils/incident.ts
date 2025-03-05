@@ -16,3 +16,10 @@ export function getIncidentRelativeDir(incident: Incident, workspaceRoot: string
   }
   return dir.replace(normalizedRoot + "/", "");
 }
+
+export function getIncidentRelativePath(incident: Incident, workspaceRoot: string): string {
+  const normalizedRoot = workspaceRoot.toLocaleLowerCase().replace(/\/$/, "");
+  const normalizedIncidentPath = incident.uri.replace(/\\/g, "/").toLocaleLowerCase();
+
+  return normalizedIncidentPath.replace(normalizedRoot, "");
+}

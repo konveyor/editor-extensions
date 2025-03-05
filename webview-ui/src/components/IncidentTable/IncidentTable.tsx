@@ -1,10 +1,10 @@
 import "./incidentTable.css";
-import React, { FC, useCallback } from "react";
-import { Content, Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
-import { EnhancedIncident, Incident } from "@editor-extensions/shared";
+import React, { FC } from "react";
+import { Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
+import { EnhancedIncident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import Markdown from "react-markdown";
-import { getIncidentFile, getIncidentRelativeDir } from "../../utils/incident";
+import { getIncidentRelativePath } from "../../utils/incident";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import GetSolutionDropdown from "../GetSolutionDropdown";
 
@@ -22,13 +22,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   onIncidentSelect,
 }) => {
   const { state } = useExtensionStateContext();
-  const relativeDirname = useCallback(
-    (incident: Incident) => {
-      return getIncidentRelativeDir(incident, state.workspaceRoot);
-    },
-    [state.workspaceRoot],
-  );
-  const uniqueId = (incident: Incident) => `${incident.uri}-${incident.lineNumber}`;
+  const uniqueId = (incident: EnhancedIncident) => `${incident.uri}-${incident.lineNumber}`;
 
   const tooltipProps = {
     className: "incident-table-tooltip",
@@ -36,8 +30,6 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   };
 
   const ISSUE = "Issue";
-  const LOCATION = "Location";
-  const FOLDER = "Folder";
 
   return (
     <>
@@ -61,14 +53,11 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                 <Tr>
                   {isReadOnly ? (
                     <>
-                      <Th width={60}>{ISSUE}</Th>
-                      <Th width={40}>{LOCATION}</Th>
+                      <Th width={100}>{ISSUE}</Th>
                     </>
                   ) : (
                     <>
-                      <Th width={30}>{ISSUE}</Th>
-                      <Th width={40}>{FOLDER}</Th>
-                      <Th width={20}>{LOCATION}</Th>
+                      <Th width={90}>{ISSUE}</Th>
                       <Th width={10} />
                     </>
                   )}
@@ -85,26 +74,10 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                           isInline
                           onClick={() => onIncidentSelect(it)}
                         >
-                          <b>{getIncidentFile(it)}</b>
+                          <b>
+                            {getIncidentRelativePath(it, state.workspaceRoot)}:{it.lineNumber}
+                          </b>
                         </Button>
-                      </TableText>
-                    </Td>
-                    {!isReadOnly && (
-                      <Td dataLabel={FOLDER} width={40}>
-                        <TableText
-                          wrapModifier="truncate"
-                          tooltip={relativeDirname(it)}
-                          tooltipProps={tooltipProps}
-                        >
-                          <i>{relativeDirname(it)}</i>
-                        </TableText>
-                      </Td>
-                    )}
-                    <Td dataLabel={LOCATION} width={isReadOnly ? 40 : 20}>
-                      <TableText wrapModifier="nowrap">
-                        <Content component="p">
-                          {it.lineNumber !== undefined ? `Line ${it.lineNumber}` : "No line number"}
-                        </Content>
                       </TableText>
                     </Td>
                     {!isReadOnly && (
