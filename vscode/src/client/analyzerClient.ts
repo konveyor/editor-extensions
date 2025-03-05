@@ -539,11 +539,9 @@ export class AnalyzerClient {
           }
           if (ruleSets.length === 0) {
             vscode.window.showInformationMessage("Analysis completed. No incidents were found.");
-            this.fireAnalysisStateChange(false);
-            return;
           }
 
-          vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets, filePaths);
+          vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets);
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {
