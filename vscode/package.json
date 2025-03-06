@@ -662,8 +662,8 @@
           },
           {
             "id": "start-server",
-            "title": "Start Server",
-            "description": "Start the analyzer\n[Start Analyzer](command:konveyor.startServer)",
+            "title": "Open Analysis Panel",
+            "description": "Open the Konveyor Analysis Panel to manage the server and view its status.\n[Open Analysis Panel](command:konveyor.showAnalysisPanel)",
             "completionEvents": [],
             "media": {
               "markdown": "media/walkthroughs/start-server.md"
