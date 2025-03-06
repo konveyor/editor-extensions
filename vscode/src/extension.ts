@@ -81,6 +81,7 @@ class VsCodeExtension {
       this.registerLanguageProviders();
 
       registerAnalysisTrigger(this.listeners);
+      vscode.commands.executeCommand("konveyor.showAnalysisPanel");
 
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {

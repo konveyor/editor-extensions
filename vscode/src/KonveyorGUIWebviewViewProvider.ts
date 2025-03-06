@@ -52,6 +52,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
   public createWebviewPanel(): void {
     if (this._panel) {
+      this._panel.reveal(ViewColumn.One);
       return;
     }
     this._panel = window.createWebviewPanel(
