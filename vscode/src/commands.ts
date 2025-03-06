@@ -1,5 +1,4 @@
 import { ExtensionState } from "./extensionState";
-import { sourceOptions, targetOptions } from "./config/labels";
 import { window, commands, Uri, OpenDialogOptions, workspace } from "vscode";
 import {
   cleanRuleSets,
@@ -41,6 +40,7 @@ import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
+import { configureSourcesTargetsQuickPick } from "./configureSourcesTargetsQuickPick";
 
 const isWindows = process.platform === "win32";
 
@@ -219,88 +219,7 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.configureSourcesTargets": async () => {
-      const currentLabelSelector = getConfigLabelSelector();
-
-      // Function to extract values from label selector
-      const extractValuesFromSelector = (selector: string, key: string): string[] => {
-        const regex = new RegExp(`konveyor.io/${key}=([\\w.-]+)`, "g");
-        const matches = selector.matchAll(regex);
-        const values = Array.from(matches, (match) => match[1]);
-        return values.flatMap((value) => value.split("|"));
-      };
-
-      // Extract sources and targets from the current label selector
-      const currentSources = extractValuesFromSelector(currentLabelSelector, "source");
-      const currentTargets = extractValuesFromSelector(currentLabelSelector, "target");
-
-      const state: { sources: string[]; targets: string[]; labelSelector: string } = {
-        sources: [],
-        targets: [],
-        labelSelector: "",
-      };
-
-      // Function to show QuickPick for sources and targets
-      const showQuickPick = async (
-        title: string,
-        placeholder: string,
-        items: string[],
-        selectedItems: string[],
-      ): Promise<string[] | undefined> => {
-        const result = await window.showQuickPick(
-          items.map((item) => ({
-            label: item,
-            picked: selectedItems.includes(item),
-          })),
-          {
-            canPickMany: true,
-            placeHolder: placeholder,
-            title: title,
-          },
-        );
-        if (result === undefined) {
-          return undefined;
-        }
-        return result.map((item) => item.label);
-      };
-
-      // Show QuickPick for targets
-      const selectedTargets = await showQuickPick(
-        "Select Target Technologies",
-        "Choose one or more target technologies",
-        targetOptions,
-        currentTargets,
-      );
-      if (selectedTargets === undefined) {
-        return;
-      }
-      state.targets = selectedTargets;
-
-      // Show QuickPick for sources
-      const selectedSources = await showQuickPick(
-        "Select Source Technologies",
-        "Choose one or more source technologies",
-        sourceOptions,
-        currentSources,
-      );
-      if (selectedSources === undefined) {
-        return;
-      }
-      state.sources = selectedSources;
-
-      // Compute initial label selector
-      const sources = state.sources.map((source) => `konveyor.io/source=${source}`).join(" || ");
-      const targets = state.targets.map((target) => `konveyor.io/target=${target}`).join(" || ");
-      if (sources === "" && targets === "") {
-        window.showInformationMessage("No sources or targets selected.");
-        return;
-      }
-
-      state.labelSelector = `(${[sources, targets].filter((part) => part !== "").join(" && ")}) || (discovery)`;
-
-      // Update the user settings
-      await updateLabelSelector(state.labelSelector);
-
-      window.showInformationMessage(`Label Selector Updated: ${state.labelSelector}`);
+      configureSourcesTargetsQuickPick();
     },
     "konveyor.configureLabelSelector": async () => {
       const currentLabelSelector = getConfigLabelSelector();
