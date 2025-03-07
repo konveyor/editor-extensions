@@ -661,12 +661,12 @@
             }
           },
           {
-            "id": "start-server",
-            "title": "Start Server",
-            "description": "Start the analyzer\n[Start Analyzer](command:konveyor.startServer)",
+            "id": "open-analysis-panel",
+            "title": "Open Analysis Panel",
+            "description": "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks. The Kai server processes analysis requests, so ensure it is started before running any analysis tasks.\n[Open Analysis Panel](command:konveyor.showAnalysisPanel)",
             "completionEvents": [],
             "media": {
-              "markdown": "media/walkthroughs/start-server.md"
+              "markdown": "media/walkthroughs/open-analysis-panel.md"
             }
           }
         ]

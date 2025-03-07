@@ -1,6 +1,6 @@
-# Start Server
+# Open Analysis Panel
 
-Start kai server. Under the hood it is using the rules-based analysis engine.
+Open the analysis panel to view and manage your analysis tasks. Under the hood, it utilizes the rules-based analysis engine.
 
 Remember to configure your analysis settings beforehand for the best results:
 
