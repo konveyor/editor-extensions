@@ -1,3 +1,4 @@
+import "./receivedMessage.css";
 import React from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
