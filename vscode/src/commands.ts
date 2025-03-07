@@ -1,6 +1,6 @@
 import { ExtensionState } from "./extensionState";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { window, commands, Uri, OpenDialogOptions, workspace } from "vscode";
+import { window, commands, Uri, OpenDialogOptions, workspace, extensions } from "vscode";
 import {
   cleanRuleSets,
   loadResultsFromDataFolder,
@@ -48,6 +48,17 @@ const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   return {
+    "konveyor.openExtensionWalkthrough": async () => {
+      const contributions =
+        extensions.getExtension("konveyor.konveyor-ai")?.packageJSON.contributes ?? "";
+      console.log(contributions.walkthroughs);
+      const walkthroughId = "konveyor.konveyor-ai#konveyor-setup";
+      try {
+        await commands.executeCommand("workbench.action.openWalkthrough", walkthroughId, "", true);
+      } catch (e) {
+        console.error("Failed to open walkthrough:", e);
+      }
+    },
     "konveyor.startServer": async () => {
       const analyzerClient = state.analyzerClient;
       if (!(await analyzerClient.canAnalyzeInteractive())) {
