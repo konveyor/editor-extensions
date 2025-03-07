@@ -330,7 +330,7 @@ export class AnalyzerClient {
       analyzerLspRulesPaths: this.getRulesetsPath(),
       analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
       analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
-
+      analyzerLspLabelSelector: getConfigLabelSelector(),
       analyzerLspExcludedPaths: ignoresToExcludedPaths(),
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
