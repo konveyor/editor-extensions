@@ -114,6 +114,7 @@ export interface ChatMessage {
   chatToken?: string;
   messageToken: string;
   timestamp: string;
+  extraContent?: React.ReactNode;
 }
 
 export interface ExtensionData {
