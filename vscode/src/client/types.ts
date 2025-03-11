@@ -62,6 +62,7 @@ export interface KaiRpcApplicationConfig {
   analyzerLspJavaBundlePaths: string[];
   analyzerLspDepLabelsPath?: string; // defaults to `None`
   analyzerLspExcludedPaths: string[];
+  analyzerLspLabelSelector: string;
 
   // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
   // analyzerLspFernFlowerPath?: string;
