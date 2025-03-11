@@ -60,13 +60,3 @@
 .pf-v6-theme-dark .resolutions-show-in-dark {
   display: revert;
 }
-
-/* Ensure text remains readable in all themes */
-.chat-bubble .pf-v6-c-card__body {
-  color: var(--vscode-editor-foreground);
-}
-
-/* High contrast specific text adjustments */
-.vscode-high-contrast .chat-bubble .pf-v6-c-card__body {
-  color: var(--vscode-editor-foreground);
-}
