@@ -61,10 +61,17 @@ await copy({
       dest: "dist/out/webview/",
     },
 
-    // seed assets - rulesets, jdtls bundles, fernflower
+    // seed assets - (repo local)
     {
       src: "assets/**/*",
       dest: "dist/",
+    },
+
+    // seed assets - jdtls bundles
+    {
+      context: "downloaded_assets/jdtls-bundles",
+      src: ["**/*.jar"],
+      dest: "dist/assets/jdtls",
     },
 
     // seed assets - jdt.ls v1.38.0

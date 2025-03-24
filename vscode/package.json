@@ -687,7 +687,7 @@
     "kai": "../downloaded_assets/kai",
     "fernFlowerPath": "../assets/fernflower/fernflower.jar",
     "jdtls": "../downloaded_assets/jdt.ls-1.38.0",
-    "jdtlsBundles": "../assets/jdtls-bundles",
+    "jdtlsBundles": "../downloaded_assets/jdtls-bundles",
     "openSourceLabelsFile": "../assets/opensource-labels-file/maven.default.index",
     "rulesets": "../assets/rulesets"
   },
