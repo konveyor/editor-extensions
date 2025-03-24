@@ -34,25 +34,34 @@ Ensure that you have the following installed:
    ```
 
 2. Install the dependencies for both the extension and the web UI:
+
    ```bash
    npm install
    ```
 
+3. Download the necessary assets to run the Kai server:
+   ```bash
+   npm run collect-assets
+   ```
+
 ### Running the Extension in Development Mode
 
-Once you've installed all dependencies, you can run the extension in development mode by following these steps:
+Once you've installed all dependencies, and downloaded the runtime assets, you can run the
+extension in development mode by following these steps:
 
 Press the F5 key inside Visual Studio Code to open a new Extension Development Host window.
 
-This command performs the following actions:
+This command starts the `npm run dev` script, performing the following actions:
 
-- Compiles the extension source code using Webpack
+- Compiles the shared code in watch mode
 - Starts the Vite dev server for the webview UI
-- Runs Webpack in watch mode to automatically rebuild the extension on file changes
+- Compiles the vscode extension in watch mode (to automatically rebuild the extension on file changes)
 
-Note: The extension will not be visible in the Extension Development Host window until you open the Konveyor UI.
+Note: The extension requires vscode to be open on a workspace. It will not be visible in the
+Extension Development Host window until you open a folder.
 
-Inside the Extension Development Host window, press Ctrl+Shift+P (or Cmd+Shift+P on Mac) to open the Command Palette and type View: Show Konveyor to open the Konveyor UI within the host.
+Inside the Extension Development Host window, press Ctrl+Shift+P (or Cmd+Shift+P on Mac) to open
+the Command Palette and type `View: Show Konveyor` to open the Konveyor UI within the host.
 
 ### Watch Mode
 
@@ -64,50 +73,64 @@ Use the following npm command to run the extension and webview UI in watch mode:
 npm run dev
 ```
 
-This command:
+### Linting and formatting code
 
-- Starts Vite for the webview UI
-- Runs Webpack for the extension in watch mode to track changes and recompile
+The `eslint` and `prettier` packages are used across the repo to standardize formatting and enforce
+some code conventions. At `npm install` time, a git pre-commit hook is setup by [husky](https://github.com/typicode/husky) that will run [lint-staged](https://github.com/lint-staged/lint-staged) when
+`git commit` is run. This will run `eslint` and `prettier` rule and formatting against any staged
+changes. Keeping these steps automated at `git commit` time helps ensure consistent formatting
+and fewer linting fails in CI.
 
-### Building the Extension
+## Building the Extension into a vsix archive that can be installed to vscode
 
-To build the extension, run the following command:
+To build the extension and generate a vsix, run the following commands:
 
 ```bash
 npm run build
+npm run collect-assets
+npm run dist
+npm run package
 ```
 
-This command:
+These command:
 
-- Compiles the extension source code using Webpack
-- Bundles the webview UI using Vite
+- Compiles the shared, webview-ui and vcsode sources using Vite and Webpack
+- Download all of the runtime assets required
+- Copy everything needed for the vsix to the `dist/` folder
+- Package the contents of `dist/` into a vsix archive
 
-The build output is placed in the out directory.
-Note: Webpack copy plugin is used to copy the webview UI assets to the out directory.
+When packaging is complete, the vsix will be `dist/konveyor-ai-0.1.0.vsix` (version number will match
+the `vscode/package.json` version number).
 
 ## Project Structure
 
-```
-├── vscode/            # The main VS Code extension source code
-│   ├── src/           # Extension source files
-│   ├── webpack.config.js # Webpack configuration for bundling the extension
-│   └── node_modules/   # Dependencies for the extension
-│
-├── webview-ui/        # Webview UI source code for the extension
-│   ├── src/           # React components and logic for the webview UI
-│   ├── vite.config.ts # Vite configuration for bundling the webview UI
-│   └── node_modules/  # Dependencies for the webview UI
-│
-└── package.json       # Main package configuration and scripts
-```
+The project uses a number of npm workspaces to organize the code.
 
-## Available npm Scripts
+Project workspaces:
 
-The following npm scripts are available:
+- [`extra-types`](./extra-types/) <br>
+  Extra TypeScript types useful in our projects (i.e. make types on `[].filter(Boolean)` act nicely).
 
-- `npm run dev`: Runs the extension and webview UI in watch mode with live reloading
-- `npm run build`: Builds both the extension and the webview UI for production
-- `npm run test`: Runs unit tests for the extension
+- [`shared`](./shared/) <br>
+  Contains the types and code shared between the workspaces, especially types and actions
+  that bridge vscode extension code to the webview code.
+
+- [`vscode`](./vscode/) <br>
+  The main vscode extension sources. Webpack is used to transpile and package the extension.
+  In dev mode, webviews are dynamically incorporated via the vite dev server. In build mode,
+  webview packaged code is copied in place and accessed statically.
+
+- [`webview-ui`](./webview-ui/) <br>
+  Webview UI sources built with React and PatternFly. Vite is used to transpile and package
+  the views.
+
+Non project folders:
+
+- [`docs`](./docs/) <br>
+  Project documentation, roadmaps and wireframes.
+
+- [`scripts`](./scripts/) <br>
+  Javascript scripts used to setup the environment, build, and package the project.
 
 ## Contributing
 
