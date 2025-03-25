@@ -61,10 +61,11 @@ await copy({
       dest: "dist/out/webview/",
     },
 
-    // seed assets - (repo local)
+    // seed assets - rulesets
     {
-      src: "assets/**/*",
-      dest: "dist/",
+      context: "downloaded_assets/rulesets",
+      src: ["**/*"],
+      dest: "dist/assets/rulesets",
     },
 
     // seed assets - jdtls bundles

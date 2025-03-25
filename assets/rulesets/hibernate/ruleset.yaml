@@ -1,3 +1,0 @@
-name: hibernate
-description: This ruleset provides analysis of deprecated Hibernate java constructs
-  and their migration to newer one.

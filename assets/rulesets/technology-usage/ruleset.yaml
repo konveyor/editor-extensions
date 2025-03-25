@@ -1,4 +1,0 @@
-name: technology-usage
-description: This ruleset provides analysis of logging libraries.
-labels:
-  - discovery
