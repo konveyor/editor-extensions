@@ -17,6 +17,9 @@ const cli = parseCli(
     releaseTag: "v0.1.0",
     branch: "main",
     workflow: "build-and-push-binaries.yml",
+    rulesetOrg: "konveyor",
+    rulesetRepo: "rulesets",
+    rulesetReleaseTag: "v0.6.1",
   },
   "release",
 );
@@ -114,9 +117,9 @@ const actions = [
       downloadDirectory: join(DOWNLOAD_CACHE, "sources"),
       targetDirectory: join(DOWNLOAD_DIR, "rulesets"),
 
-      org: "konveyor",
-      repo: "rulesets",
-      releaseTag: "v0.6.1",
+      org: cli.rulesetOrg,
+      repo: cli.rulesetRepo,
+      releaseTag: cli.rulesetReleaseTag,
       bearerToken,
 
       context: "{{root}}/default/generated",
