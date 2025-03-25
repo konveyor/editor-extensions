@@ -1,3 +1,0 @@
-name: jws5
-description: This ruleset provides analysis of applications that need to change their
-  pom dependencies to upgrade dependencies that belong to the groupId `org.apache.tomcat`

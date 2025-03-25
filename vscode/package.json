@@ -689,7 +689,7 @@
     "jdtls": "../downloaded_assets/jdt.ls-1.38.0",
     "jdtlsBundles": "../downloaded_assets/jdtls-bundles",
     "openSourceLabelsFile": "../downloaded_assets/opensource-labels-file/maven.default.index",
-    "rulesets": "../assets/rulesets"
+    "rulesets": "../downloaded_assets/rulesets"
   },
   "scripts": {
     "clean": "rimraf out",
