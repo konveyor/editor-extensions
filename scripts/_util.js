@@ -36,6 +36,10 @@ export async function isDirectory(path) {
   return (await fs.pathExists(path)) && (await fs.stat(path)).isDirectory;
 }
 
+export function relativeToCwd(pathTo) {
+  return path.relative(path.resolve("."), path.resolve(pathTo));
+}
+
 export async function fileSha256(path) {
   if (!isFile(path)) {
     return "";

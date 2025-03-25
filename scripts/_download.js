@@ -6,7 +6,7 @@ import { Octokit } from "@octokit/core";
 import fs from "fs-extra";
 import { blue, bold, green, yellow } from "colorette";
 
-import { fileSha256, isFile } from "./_util.js";
+import { fileSha256, isFile, relativeToCwd } from "./_util.js";
 import {
   fetchGitHubReleaseMetadata,
   fetchGitHubTagSha,
@@ -67,7 +67,7 @@ export async function downloadUrl({ downloadDirectory, url, targetFileName, sha2
       try {
         existingFileHash = await fileSha256(targetFile);
         const etagFile = await fs.readFile(targetFile + ".etag");
-        const [hash, etag] = etagFile.toString().split("/");
+        const [hash, etag] = etagFile.toString().split(",");
         if (hash === existingFileHash) {
           headers["If-None-Match"] = etag;
           console.log(`Found existing file sha256: ${green(hash)}, ETag: ${green(etag)}`);
@@ -105,7 +105,7 @@ export async function downloadUrl({ downloadDirectory, url, targetFileName, sha2
     meta.sha256 = downloadSha256;
     meta.lastModified = response.headers.get("Last-Modified") ?? headers["If-Modified-Since"];
     meta.etag = response.headers.get("ETag");
-    await fs.writeFile(targetFile + ".etag", [meta.sha256, meta.etag].join("/"));
+    await fs.writeFile(targetFile + ".etag", [meta.sha256, meta.etag].join(","));
   } catch (error) {
     console.error("Error downloading:", error);
     throw error;
@@ -132,7 +132,9 @@ export async function downloadGitHubReleaseAssets({
     releaseTag,
   };
 
-  console.group(`GitHub repo: ${yellow(`${org}/${repo}`)}, release: ${yellow(releaseTag)}`);
+  console.group(
+    `Download release assets, GitHub repo: ${yellow(`${org}/${repo}`)}, release: ${yellow(releaseTag)}`,
+  );
   try {
     const releaseData = await fetchGitHubReleaseMetadata(octokit, releaseTag);
     const commitId = await fetchGitHubTagSha(octokit, releaseTag);
@@ -169,6 +171,85 @@ export async function downloadGitHubReleaseAssets({
   return metadata;
 }
 
+export async function downloadGitHubReleaseSourceCode({
+  targetDirectory,
+  org,
+  repo,
+  releaseTag,
+  bearerToken,
+}) {
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+  octokit.request = octokit.request.defaults({ owner: org, repo });
+  const metadata = {
+    org,
+    repo,
+    releaseTag,
+  };
+
+  console.group(
+    `Download sources, GitHub repo: ${yellow(`${org}/${repo}`)}, release: ${yellow(releaseTag)}`,
+  );
+  try {
+    const releaseData = await fetchGitHubReleaseMetadata(octokit, releaseTag);
+    const commitId = await fetchGitHubTagSha(octokit, releaseTag);
+
+    const [, assetMeta] = await downloadUrl({
+      downloadDirectory: targetDirectory,
+      targetFileName: `${org}-${repo}-${releaseTag}-sources.zip`,
+      url: releaseData.zipball_url,
+      bearerToken,
+    });
+
+    metadata.commitId = commitId;
+    metadata.collectedAt = new Date().toISOString();
+    metadata.sourceCode = assetMeta;
+  } finally {
+    console.groupEnd();
+  }
+
+  return metadata;
+}
+
+export async function downloadAndExtractGitHubReleaseSourceCode({
+  downloadDirectory,
+  targetDirectory,
+  org,
+  repo,
+  releaseTag,
+  bearerToken,
+  context,
+  globs,
+}) {
+  let meta = {};
+  console.group("Download and extract GitHub repo sources");
+  try {
+    const releaseMeta = await downloadGitHubReleaseSourceCode({
+      targetDirectory: downloadDirectory,
+      org,
+      repo,
+      releaseTag,
+      bearerToken,
+    });
+    const zipballRoot = `${org}-${repo}-${releaseMeta.commitId.substring(0, 7)}`;
+    await fs.ensureDir(targetDirectory);
+    const assetMeta = await unpackAsset({
+      sourceFile: join(downloadDirectory, releaseMeta.sourceCode.fileName),
+      targetDirectory,
+      context: !context ? zipballRoot : context.replace("{{root}}", zipballRoot),
+      globs,
+    });
+
+    meta = {
+      ...releaseMeta,
+      sources: assetMeta,
+    };
+  } finally {
+    console.groupEnd();
+  }
+
+  return meta;
+}
+
 export async function downloadAndExtractTarGz({ downloadDirectory, targetDirectory, url, sha256 }) {
   let meta = {
     url,
@@ -176,7 +257,7 @@ export async function downloadAndExtractTarGz({ downloadDirectory, targetDirecto
     sha256,
     lastModified: null,
     etag: null,
-    fileSetDirectory: targetDirectory,
+    fileSetDirectory: relativeToCwd(targetDirectory),
   };
 
   console.group("Download and extract:", blue(url));
@@ -237,7 +318,7 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
   };
 
   console.group(
-    `GitHub repo: ${yellow(`${org}/${repo}`)}, branch: ${yellow(branch)}, workflow: ${yellow(workflow)}`,
+    `Download workflow artifacts, GitHub repo: ${yellow(`${org}/${repo}`)}, branch: ${yellow(branch)}, workflow: ${yellow(workflow)}`,
   );
   try {
     await fs.ensureDir(targetDirectory);
@@ -283,7 +364,8 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
           bearerToken,
         });
 
-        const fileSet = await unpackAsset({
+        await fs.ensureDir(targetDirectory);
+        const assetMeta = await unpackAsset({
           sourceFile: downloadedFile,
           globs: contents,
           targetDirectory,
@@ -292,8 +374,7 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
         metadata.artifacts.push({
           name,
           ...artifactMeta,
-          fileSetDirectory: targetDirectory,
-          fileSet,
+          ...assetMeta,
         });
       } finally {
         console.groupEnd();

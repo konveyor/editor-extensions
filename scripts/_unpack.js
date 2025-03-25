@@ -6,7 +6,7 @@ import micromatch from "micromatch";
 import * as tar from "tar";
 import unzipper from "unzipper";
 import { blue, bold, green, yellow } from "colorette";
-import { isFile, isDirectory, chmodOwnerPlusX } from "./_util.js";
+import { isFile, isDirectory, chmodOwnerPlusX, relativeToCwd } from "./_util.js";
 
 /**
  * @param {{
@@ -23,7 +23,11 @@ export async function unpackTarGz({ sourceFile, globs = ["**/*"], targetDirector
     throw new Error(`Destination path does not exist: ${targetDirectory}`);
   }
 
-  const pathsExtracted = [];
+  const meta = {
+    fileSetDirectory: relativeToCwd(targetDirectory),
+    fileSet: [],
+  };
+
   const matcher = micromatch.matcher(globs);
   try {
     await tar.extract({
@@ -33,7 +37,7 @@ export async function unpackTarGz({ sourceFile, globs = ["**/*"], targetDirector
       filter: (path) => {
         const isMatch = matcher(path);
         if (isMatch) {
-          pathsExtracted.push(path);
+          meta.fileSet.push(path);
         }
         return isMatch;
       },
@@ -41,17 +45,18 @@ export async function unpackTarGz({ sourceFile, globs = ["**/*"], targetDirector
   } catch (err) {
     throw new Error(`Could not unpack ${sourceFile}`, { cause: err });
   }
-  return pathsExtracted;
+  return meta;
 }
 
 /**
  * @param {{
  *  sourceFile: string,
+ *  context?: string,
  *  globs?: string[],
  *  targetDirectory: string
  * }} args
  */
-export async function unpackZip({ sourceFile, globs = ["**/*"], targetDirectory }) {
+export async function unpackZip({ sourceFile, context, globs = ["**/*"], targetDirectory }) {
   if (!(await isFile(sourceFile))) {
     throw new Error(`Source file does not exist: ${sourceFile}`);
   }
@@ -59,13 +64,23 @@ export async function unpackZip({ sourceFile, globs = ["**/*"], targetDirectory 
     throw new Error(`Destination path does not exist: ${targetDirectory}`);
   }
 
-  const pathsExtracted = [];
+  const meta = {
+    context,
+    fileSetDirectory: relativeToCwd(targetDirectory),
+    fileSet: [],
+  };
   try {
     const matcher = micromatch.matcher(globs);
     const directory = await unzipper.Open.file(sourceFile);
-    for (const file of directory.files.filter((file) => matcher(file.path))) {
+    const files = directory.files.filter((file) =>
+      context
+        ? file.path.startsWith(context) && matcher(file.path.substring(context.length))
+        : matcher(file.path),
+    );
+    for (const file of files) {
       // See: https://github.com/ZJONSSON/node-unzipper/blob/d19c3fb9c1bbdce6e6bcb701ac65ddb071e1eb31/lib/extract.js#L18-L40
-      const extractPath = join(targetDirectory, file.path.replace(/\\/g, "/"));
+      const contextFilePath = context ? file.path.substring(context.length) : file.path;
+      const extractPath = join(targetDirectory, contextFilePath.replace(/\\/g, "/"));
       if (extractPath.indexOf(targetDirectory) !== 0) {
         continue;
       }
@@ -75,29 +90,30 @@ export async function unpackZip({ sourceFile, globs = ["**/*"], targetDirectory 
         await fs.ensureDir(dirname(extractPath));
         await pipeline(file.stream(), createWriteStream(extractPath));
       }
-      pathsExtracted.push(file.path);
+      meta.fileSet.push(file.path);
     }
   } catch (err) {
     throw new Error(`Could not unpack ${sourceFile}`, { cause: err });
   }
-  return pathsExtracted;
+  return meta;
 }
 
 /**
  * @param {{
  *  sourceFile: string,
+ *  context?: string,
  *  globs?: string[],
  *  targetDirectory: string,
  *  chmod: boolean,
  * }} args
  */
-export async function unpackAsset({ sourceFile, globs, targetDirectory, chmod }) {
-  let pathsExtracted = [];
+export async function unpackAsset({ sourceFile, context, globs, targetDirectory, chmod }) {
+  let meta = {};
   console.group(bold("Unpacking:"), yellow(sourceFile));
   console.log("Destination:", targetDirectory);
   try {
-    pathsExtracted = await unpackZip({ sourceFile, globs, targetDirectory });
-    console.log(`Extracted ${green(pathsExtracted.length)} items`);
+    meta = await unpackZip({ sourceFile, context, globs, targetDirectory });
+    console.log(`Extracted ${green(meta.fileSet.length)} items`);
 
     if (chmod) {
       const extractedFiles = await fs.readdir(targetDirectory);
@@ -109,18 +125,26 @@ export async function unpackAsset({ sourceFile, globs, targetDirectory, chmod })
   } finally {
     console.groupEnd();
   }
-  return pathsExtracted;
+  return meta;
 }
 
 /**
  * @param {{
  *  sourceDirectory: string,
+ *  context?: string,
  *  globs?: string[],
  *  targetDirectory: function,
  *  assets: [{*}]
  * }} args
  */
-export async function unpackAssets({ title, sourceDirectory, globs, targetDirectory, assets }) {
+export async function unpackAssets({
+  title,
+  sourceDirectory,
+  context,
+  globs,
+  targetDirectory,
+  assets,
+}) {
   if (!(await isDirectory(sourceDirectory))) {
     throw new Error(`Source directory does not exist: ${sourceDirectory}`);
   }
@@ -133,17 +157,17 @@ export async function unpackAssets({ title, sourceDirectory, globs, targetDirect
       const target = targetDirectory(asset);
       await fs.ensureDir(target);
 
-      const pathsExtracted = await unpackAsset({
+      const assetMeta = await unpackAsset({
         sourceFile: source,
         targetDirectory: target,
+        context,
         globs,
         chmod: asset.chmod,
       });
 
       meta.assets.push({
         ...asset,
-        fileSetDirectory: target,
-        fileSet: pathsExtracted,
+        ...assetMeta,
       });
     }
   } finally {
