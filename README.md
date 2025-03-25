@@ -20,7 +20,7 @@ To set up and run the extension, follow the steps below.
 
 Ensure that you have the following installed:
 
-- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [Node.js](https://nodejs.org/) (LTS version recommended - see [.nvmrc](.nvmrc) for the version used by the project)
 - [npm](https://www.npmjs.com/)
 - [Visual Studio Code](https://code.visualstudio.com/)
 
@@ -102,6 +102,79 @@ These command:
 When packaging is complete, the vsix will be `dist/konveyor-ai-0.1.0.vsix` (version number will match
 the `vscode/package.json` version number).
 
+## Downloading the extension's runtime assets
+
+The extension requires a few assets to be downloaded and available to function. While preparing
+the dev environment, or when packaging, the extension will download GitHub release asset and
+extract the necessary component.
+
+The core components needed to support the kai json-rpc server:
+
+- **kai json-rpc server** &rarr; The json-rpc server itself manages code analysis and creating
+  genAI solution.
+
+- **jdt.ls** &rarr; The [Java Language Server](https://github.com/eclipse-jdtls/eclipse.jdt.ls) used
+  by the analyzer.
+
+- **jdt.ls bundle** &rarr; To support the use of jdt.ls by the analyzer, the
+  [Konveyor java-analyzer-bundle](https://github.com/konveyor/java-analyzer-bundle) is used.
+
+- **opensource labels file** &rarr; A maven index file of open source libraries used by the analyzer.
+
+- **rulesets** &rarr; Base set of [Konveyor's static code analysis rules](https://github.com/konveyor/rulesets)
+  to drive analysis.
+
+All of these components are downloaded and unpacked into the correct place by the [collect-assets.js](./scripts/collect-assets.js)
+script. There are cli parameters to override the default configuration values. The assets can be
+downloaded from a GitHub release, or for a GitHub action workflow artifacts.
+
+The base use case to download everything from the default release locations:
+
+```bash
+npm run collect-assets
+```
+
+To download from a specific release `v01.0-special.0`:
+
+```bash
+npm run collect-assets -- --release-tag=v0.1.0-special.0
+```
+
+To download from a release in a fork of the kai repository:
+
+```bash
+npm run collect-assets -- \
+    --org=myUserName1 \
+    --repo=kaiForked \
+    --release=v0.1.2
+```
+
+To download from the latest successful build workflow on the head of the main branch of the kai repository:
+
+```bash
+GITHUB_TOKEN=$(gh auth token) npm run collect-assets -- --use-workflow-artifacts
+```
+
+### GITHUB_TOKEN for collect-assets
+
+Using a `GITHUB_TOKEN` is good to avoid rate limiting when downloading from the releases,
+and to allow the download of workflow artifacts. Workflow artifacts may only be downloaded
+by a user who is logged in to GitHub. The REST api verifies the user as logged in using a bearer
+token. The collect-asset script will send the bearer token as long as it is set in the `GITHUB_TOKEN`
+environment variable.
+
+There are a few common ways to get your token:
+
+- Use the `gh` [command line tool](https://cli.github.com/) to [login](https://cli.github.com/manual/gh_auth_login).
+  Once logged in, the command `gh auth token` will show your token. The bash command to use the workflow artifacts
+  as the download source uses this as the source for the bearer token.
+
+- Open the [Tokens page](https://github.com/settings/tokens) on GitHub and generate a new token.
+
+  - For new tokens, only the **Public repositories** "Read-only access to public repositories" access is needed.
+
+  - For classic tokens, only the **public_repo** scope is needed.
+
 ## Project Structure
 
 The project uses a number of npm workspaces to organize the code.
@@ -124,7 +197,7 @@ Project workspaces:
   Webview UI sources built with React and PatternFly. Vite is used to transpile and package
   the views.
 
-Non project folders:
+Non workspace folders:
 
 - [`docs`](./docs/) <br>
   Project documentation, roadmaps and wireframes.
