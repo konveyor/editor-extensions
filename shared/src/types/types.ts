@@ -100,6 +100,10 @@ export interface Scope {
   effort: SolutionEffortLevel;
 }
 
+export interface ScopeWithKonveyorContext {
+  incident: EnhancedIncident;
+}
+
 export type Solution = GetSolutionResult | SolutionResponse;
 
 export enum ChatMessageType {

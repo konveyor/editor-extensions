@@ -96,6 +96,7 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
       const analyzerClient = state.analyzerClient;
       analyzerClient.getSolution(state, incidents, effort);
+      commands.executeCommand("konveyor.showResolutionPanel");
     },
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {

@@ -26,7 +26,7 @@ export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: Rule
     draft.ruleSets = receivedRuleSets;
     draft.enhancedIncidents = enhancedIncidents;
   });
-  const diagnosticTuples = processIncidents(data.ruleSets);
+  const diagnosticTuples = processIncidents(enhancedIncidents);
   state.diagnosticCollection.clear();
   state.diagnosticCollection.set(diagnosticTuples);
 };

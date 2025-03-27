@@ -75,6 +75,13 @@ export function getConfigKaiDemoMode(): boolean {
   return getConfigValue<boolean>("kai.demoMode") ?? false;
 }
 
+export function getConfigPromptTemplate(): string {
+  return (
+    getConfigValue<string>("kai.promptTemplate") ??
+    "Help me address this Konveyor migration issue:\nRule: {{ruleset_name}} - {{ruleset_description}}\nViolation: {{violation_name}} - {{violation_description}}\nCategory: {{violation_category}}\nMessage: {{message}}"
+  );
+}
+
 async function updateConfigValue<T>(
   key: string,
   value: T | undefined,
