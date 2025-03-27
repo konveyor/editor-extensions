@@ -642,8 +642,7 @@
             "title": "Configure Analysis Arguments",
             "description": "Set up analysis arguments such as sources, targets, and label selector\n[Configure Analysis Sources and Targets](command:konveyor.configureSourcesTargets)\n[Configure Analysis Label Selector](command:konveyor.configureLabelSelector)",
             "completionEvents": [
-              "onCommand:konveyor.configureSourcesTargets",
-              "onCommand:konveyor.configureLabelSelector"
+              "onContext:konveyor.analysisConfigReady"
             ],
             "media": {
               "markdown": "media/walkthroughs/analysis-arguments.md"

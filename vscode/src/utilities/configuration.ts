@@ -201,3 +201,13 @@ export async function updateGetSolutionMaxIterations(value: number): Promise<voi
     vscode.ConfigurationTarget.Workspace,
   );
 }
+
+export function updateAnalysisConfigContext() {
+  const config = vscode.workspace.getConfiguration("konveyor.analysis");
+  const labelSelector = config.get<string>("labelSelector");
+  const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+
+  const isConfigured = !UNCONFIGURED_VALUES.includes(labelSelector);
+
+  vscode.commands.executeCommand("setContext", "konveyor.analysisConfigReady", isConfigured);
+}
