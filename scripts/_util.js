@@ -36,6 +36,10 @@ export async function isDirectory(path) {
   return (await fs.pathExists(path)) && (await fs.stat(path)).isDirectory;
 }
 
+export function relativeToCwd(pathTo) {
+  return path.relative(path.resolve("."), path.resolve(pathTo));
+}
+
 export async function fileSha256(path) {
   if (!isFile(path)) {
     return "";
@@ -59,7 +63,10 @@ export async function ensureDirs(directories) {
   );
 }
 
-export function parseCli({ org, repo, releaseTag, workflow, branch }, useDefault = "release") {
+export function parseCli(
+  { org, repo, releaseTag, workflow, branch, rulesetOrg, rulesetRepo, rulesetReleaseTag },
+  useDefault = "release",
+) {
   const { values } = parseArgs({
     options: {
       "use-release": {
@@ -98,9 +105,27 @@ export function parseCli({ org, repo, releaseTag, workflow, branch }, useDefault
         short: "b",
         default: branch,
       },
+      "ruleset-org": {
+        type: "string",
+        default: rulesetOrg,
+      },
+      "ruleset-repo": {
+        type: "string",
+        default: rulesetRepo,
+      },
+      "ruleset-release-tag": {
+        type: "string",
+        default: rulesetReleaseTag,
+      },
     },
     allowNegative: true,
   });
+
+  const ruleset = {
+    rulesetOrg: values["ruleset-org"],
+    rulesetRepo: values["ruleset-repo"],
+    rulesetReleaseTag: values["ruleset-release-tag"],
+  };
 
   if (values["use-workflow-artifacts"] && values.workflow && values.branch) {
     return {
@@ -109,6 +134,7 @@ export function parseCli({ org, repo, releaseTag, workflow, branch }, useDefault
       repo: values.repo,
       workflow: values.workflow,
       branch: values.branch,
+      ...ruleset,
     };
   }
   if (values["use-release"] && values["release-tag"]) {
@@ -117,10 +143,12 @@ export function parseCli({ org, repo, releaseTag, workflow, branch }, useDefault
       org: values.org,
       repo: values.repo,
       releaseTag: values["release-tag"],
+      ...ruleset,
     };
   }
   return {
     org: values.org,
     repo: values.repo,
+    ...ruleset,
   };
 }

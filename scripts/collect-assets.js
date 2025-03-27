@@ -3,6 +3,7 @@ import { writeJson } from "fs-extra/esm";
 import { join } from "path";
 import { cwdToProjectRoot, ensureDirs, parseCli } from "./_util.js";
 import {
+  downloadAndExtractGitHubReleaseSourceCode,
   downloadAndExtractTarGz,
   downloadGitHubReleaseAssets,
   downloadWorkflowArtifactsAndExtractAssets,
@@ -16,6 +17,9 @@ const cli = parseCli(
     releaseTag: "v0.1.0",
     branch: "main",
     workflow: "build-and-push-binaries.yml",
+    rulesetOrg: "konveyor",
+    rulesetRepo: "rulesets",
+    rulesetReleaseTag: "v0.6.1",
   },
   "release",
 );
@@ -106,16 +110,20 @@ const actions = [
     }),
   }),
 
-  // Extract seed rulesets from the linux-x64_64 downloaded workflow artifact or release asset
+  // Download and extract seed rulesets from a rulesets repo release
   async () => ({
     id: "seed rulesets",
-    meta: await unpackAssets({
-      title: "rulesets",
-      sourceDirectory: join(DOWNLOAD_CACHE, "assets"),
-      targetDirectory: () => join(DOWNLOAD_DIR, "rulesets"),
+    meta: await downloadAndExtractGitHubReleaseSourceCode({
+      downloadDirectory: join(DOWNLOAD_CACHE, "sources"),
+      targetDirectory: join(DOWNLOAD_DIR, "rulesets"),
 
-      globs: ["example/analysis/rulesets/**/*"],
-      assets: [{ name: "kai-rpc-server.linux-x86_64.zip" }],
+      org: cli.rulesetOrg,
+      repo: cli.rulesetRepo,
+      releaseTag: cli.rulesetReleaseTag,
+      bearerToken,
+
+      context: "{{root}}/default/generated",
+      globs: ["**/*"],
     }),
   }),
 
