@@ -31,6 +31,13 @@ import {
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
+  Drawer,
+  DrawerContent,
+  DrawerContentBody,
+  DrawerActions,
+  DrawerCloseButton,
+  DrawerHead,
+  DrawerPanelContent,
 } from "@patternfly/react-core";
 
 import ProgressIndicator from "../ProgressIndicator";
@@ -41,6 +48,8 @@ import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import CogIcon from "@patternfly/react-icons/dist/esm/icons/cog-icon";
+import ConfigOverlay from "../ConfigOverlay/ConfigOverlay";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -58,6 +67,7 @@ const AnalysisPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
@@ -75,129 +85,179 @@ const AnalysisPage: React.FC = () => {
   const hasViolations = violations.length > 0;
   const hasAnalysisResults = analysisResults !== undefined;
 
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+
+  const panelContent = (
+    <DrawerPanelContent>
+      <DrawerHead>
+        <span tabIndex={isConfigOpen ? 0 : -1} ref={drawerRef}>
+          Configuration
+        </span>
+        <DrawerActions>
+          <DrawerCloseButton onClick={() => setIsConfigOpen(false)} />
+        </DrawerActions>
+      </DrawerHead>
+      <DrawerContentBody>
+        {/* Replace with your real config UI later */}
+        <p style={{ padding: "1rem" }}>Configuration options go here</p>
+      </DrawerContentBody>
+    </DrawerPanelContent>
+  );
+
   return (
-    <Page
-      sidebar={
-        <PageSidebar isSidebarOpen={false}>
-          <PageSidebarBody />
-        </PageSidebar>
-      }
-      masthead={
-        <Masthead>
-          <MastheadMain>
-            <MastheadToggle>
-              <Button
-                variant={ButtonVariant.primary}
-                onClick={runAnalysisRequest}
-                isLoading={isAnalyzing}
-                isDisabled={
-                  isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
-                }
-              >
-                {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-              </Button>
-            </MastheadToggle>
-          </MastheadMain>
+    <Drawer isExpanded={isConfigOpen}>
+      <DrawerContent panelContent={panelContent}>
+        <DrawerContentBody>
+          <Page
+            sidebar={
+              <PageSidebar isSidebarOpen={false}>
+                <PageSidebarBody />
+              </PageSidebar>
+            }
+            masthead={
+              <Masthead>
+                <MastheadMain>
+                  <MastheadToggle>
+                    <Button
+                      variant={ButtonVariant.primary}
+                      onClick={runAnalysisRequest}
+                      isLoading={isAnalyzing}
+                      isDisabled={
+                        isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
+                      }
+                    >
+                      {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                    </Button>
+                  </MastheadToggle>
+                </MastheadMain>
 
-          <MastheadContent>
-            <Toolbar>
-              <ToolbarContent>
-                <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
-                  <ToolbarItem>
-                    <ServerStatusToggle
-                      isRunning={serverRunning}
-                      isStarting={isStartingServer}
-                      isInitializing={isInitializingServer}
-                      onToggle={handleServerToggle}
-                    />
-                  </ToolbarItem>
-                </ToolbarGroup>
-              </ToolbarContent>
-            </Toolbar>
-          </MastheadContent>
-        </Masthead>
-      }
-    >
-      {errorMessage && (
-        <PageSection padding={{ default: "noPadding" }}>
-          <AlertGroup isToast>
-            <Alert
-              variant="danger"
-              title={errorMessage}
-              actionClose={
-                <AlertActionCloseButton
-                  title={errorMessage}
-                  onClose={() => setErrorMessage(null)}
-                />
-              }
+                <MastheadContent>
+                  <Toolbar>
+                    <ToolbarContent>
+                      <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                        <ToolbarItem>
+                          <ServerStatusToggle
+                            isRunning={serverRunning}
+                            isStarting={isStartingServer}
+                            isInitializing={isInitializingServer}
+                            onToggle={handleServerToggle}
+                          />
+                        </ToolbarItem>
+                        <ToolbarItem>
+                          <Button
+                            variant="plain"
+                            onClick={() => {
+                              console.log("clicked config button");
+                              setIsConfigOpen(true);
+                            }}
+                            icon={<CogIcon />}
+                          >
+                            Configuration
+                          </Button>
+                        </ToolbarItem>
+                      </ToolbarGroup>
+                    </ToolbarContent>
+                  </Toolbar>
+                </MastheadContent>
+              </Masthead>
+            }
+          >
+            <ConfigOverlay
+              isOpen={isConfigOpen}
+              onClose={() => {
+                console.log("closing config overlay");
+                setIsConfigOpen(false);
+              }}
+              variant="drawer"
             />
-          </AlertGroup>
-        </PageSection>
-      )}
 
-      <PageSection>
-        <Stack hasGutter>
-          <StackItem>
-            <Card>
-              <CardHeader>
-                <Flex className="header-layout">
-                  <FlexItem>
-                    <CardTitle>Analysis Results</CardTitle>
-                    <ViolationsCount
-                      violationsCount={violations.length}
-                      incidentsCount={violations.reduce(
-                        (prev, curr) => curr.incidents.length + prev,
-                        0,
-                      )}
-                    />
-                  </FlexItem>
-                  <>
-                    <FlexItem></FlexItem>
-                  </>
-                </Flex>
-              </CardHeader>
-              <CardBody>
-                {isAnalyzing && <ProgressIndicator progress={50} />}
-
-                {!isAnalyzing && !hasViolations && (
-                  <EmptyState variant="sm">
-                    <Title className="empty-state-analysis-results" headingLevel="h2" size="md">
-                      {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
-                    </Title>
-                    <EmptyStateBody>
-                      {hasAnalysisResults
-                        ? "Great job! Your analysis didn't find any violations."
-                        : "Run an analysis to see results here."}
-                    </EmptyStateBody>
-                  </EmptyState>
-                )}
-
-                {hasViolations && !isAnalyzing && (
-                  <ViolationIncidentsList
-                    enhancedIncidents={enhancedIncidents}
-                    focusedIncident={focusedIncident}
-                    onIncidentSelect={handleIncidentSelect}
-                    expandedViolations={expandedViolations}
-                    setExpandedViolations={setExpandedViolations}
+            {errorMessage && (
+              <PageSection padding={{ default: "noPadding" }}>
+                <AlertGroup isToast>
+                  <Alert
+                    variant="danger"
+                    title={errorMessage}
+                    actionClose={
+                      <AlertActionCloseButton
+                        title={errorMessage}
+                        onClose={() => setErrorMessage(null)}
+                      />
+                    }
                   />
-                )}
-              </CardBody>
-            </Card>
-          </StackItem>
-        </Stack>
-      </PageSection>
+                </AlertGroup>
+              </PageSection>
+            )}
 
-      {isWaitingForSolution && (
-        <Backdrop>
-          <div style={{ textAlign: "center", paddingTop: "15rem" }}>
-            <Spinner size="lg" />
-            <Title headingLevel="h2" size="lg">
-              Waiting for solution confirmation...
-            </Title>
-          </div>
-        </Backdrop>
-      )}
-    </Page>
+            <PageSection>
+              <Stack hasGutter>
+                <StackItem>
+                  <Card>
+                    <CardHeader>
+                      <Flex className="header-layout">
+                        <FlexItem>
+                          <CardTitle>Analysis Results</CardTitle>
+                          <ViolationsCount
+                            violationsCount={violations.length}
+                            incidentsCount={violations.reduce(
+                              (prev, curr) => curr.incidents.length + prev,
+                              0,
+                            )}
+                          />
+                        </FlexItem>
+                        <>
+                          <FlexItem></FlexItem>
+                        </>
+                      </Flex>
+                    </CardHeader>
+                    <CardBody>
+                      {isAnalyzing && <ProgressIndicator progress={50} />}
+
+                      {!isAnalyzing && !hasViolations && (
+                        <EmptyState variant="sm">
+                          <Title
+                            className="empty-state-analysis-results"
+                            headingLevel="h2"
+                            size="md"
+                          >
+                            {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
+                          </Title>
+                          <EmptyStateBody>
+                            {hasAnalysisResults
+                              ? "Great job! Your analysis didn't find any violations."
+                              : "Run an analysis to see results here."}
+                          </EmptyStateBody>
+                        </EmptyState>
+                      )}
+
+                      {hasViolations && !isAnalyzing && (
+                        <ViolationIncidentsList
+                          enhancedIncidents={enhancedIncidents}
+                          focusedIncident={focusedIncident}
+                          onIncidentSelect={handleIncidentSelect}
+                          expandedViolations={expandedViolations}
+                          setExpandedViolations={setExpandedViolations}
+                        />
+                      )}
+                    </CardBody>
+                  </Card>
+                </StackItem>
+              </Stack>
+            </PageSection>
+
+            {isWaitingForSolution && (
+              <Backdrop>
+                <div style={{ textAlign: "center", paddingTop: "15rem" }}>
+                  <Spinner size="lg" />
+                  <Title headingLevel="h2" size="lg">
+                    Waiting for solution confirmation...
+                  </Title>
+                </div>
+              </Backdrop>
+            )}
+          </Page>
+        </DrawerContentBody>
+      </DrawerContent>
+    </Drawer>
   );
 };
 
