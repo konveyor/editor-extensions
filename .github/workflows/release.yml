@@ -122,7 +122,7 @@ jobs:
     needs: test_the_release
     uses: konveyor/release-tools/.github/workflows/generate-changelog.yml@main
     with:
-      version: ${{ needs.test_build_package.outputs.tag_name }}
+      version: ${{ needs.test_the_release.outputs.tag_name }}
       prev_version: $(gh api repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
       repository: ${{ github.repository }}
       ref: ${{ github.sha }}
@@ -160,13 +160,13 @@ jobs:
 
       - name: Rename VSIX Packages
         run: |
-          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.test_build_package.outputs.tag_name }}.vsix
+          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix
 
       - name: Create Release
         if: ${{ github.event.inputs.dry-run == 'false' }}
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.test_build_package.outputs.tag_name }}
+          tag: ${{ needs.test_the_release.outputs.tag_name }}
           commit: ${{ github.sha }}
           bodyFile: ./artifacts/release.md
           artifacts: |
