@@ -132,8 +132,17 @@ jobs:
   release:
     name: Final Release
     runs-on: ubuntu-latest
-    needs: [package, generate_changelog]
+    needs: [test_the_release, package, generate_changelog]
     steps:
+      - name: Add release details to the step summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Release Information
+          Tag: __${{ needs.test_the_release.outputs.tag_name }}__
+          Pre-Release: __${{ github.event.inputs.prerelease }}__
+          Dry run? __${{ github.event.inputs.dry-run}}__
+          EOF
+
       - name: Checkout code
         uses: actions/checkout@v4
 
