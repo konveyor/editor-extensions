@@ -14,6 +14,7 @@ import {
   Content,
 } from "@patternfly/react-core";
 import { CheckCircleIcon, InProgressIcon, PendingIcon } from "@patternfly/react-icons";
+import { AnalysisConfig } from "@editor-extensions/shared";
 
 interface Step {
   id: string;
@@ -37,17 +38,22 @@ interface WalkthroughDrawerProps {
   onClose: () => void;
   drawerRef: React.RefObject<HTMLSpanElement>;
   walkthroughs: Walkthrough[];
+  analysisConfig: AnalysisConfig;
 }
 
-function getStepStatus(step: Step) {
-  if (step.completionEvents.length === 0) {
-    return { icon: <PendingIcon className="text-gray-500" />, status: "Not started" };
+function getStepStatus(step: Step, analysisConfig?: AnalysisConfig) {
+  if (step.id === "configure-analysis-arguments") {
+    const valid = analysisConfig?.labelSelectorValid; // or more advanced checks
+    return valid
+      ? { icon: <CheckCircleIcon className="text-green-500" />, status: "Completed" }
+      : { icon: <PendingIcon className="text-gray-500" />, status: "Not configured" };
   }
-  // This is a placeholder - you would typically check against actual completion events
-  const isCompleted = false; // Replace with actual completion check
-  return isCompleted
-    ? { icon: <CheckCircleIcon className="text-green-500" />, status: "Completed" }
-    : { icon: <InProgressIcon className="text-blue-500" />, status: "In progress" };
+
+  // Default for steps relying on completionEvents or unknown state
+  return {
+    icon: <PendingIcon className="text-gray-500" />,
+    status: "Unknown",
+  };
 }
 
 export function WalkthroughDrawer({
@@ -55,6 +61,7 @@ export function WalkthroughDrawer({
   onClose,
   drawerRef,
   walkthroughs,
+  analysisConfig,
 }: WalkthroughDrawerProps) {
   return (
     <DrawerPanelContent>
@@ -76,7 +83,7 @@ export function WalkthroughDrawer({
               <Content className="mb-6">{walkthrough.description}</Content>
               <Gallery hasGutter>
                 {walkthrough.steps.map((step) => {
-                  const { icon, status } = getStepStatus(step);
+                  const { icon, status } = getStepStatus(step, analysisConfig);
                   return (
                     <GalleryItem key={step.id}>
                       <Card isCompact>

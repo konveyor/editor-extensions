@@ -62,6 +62,7 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
+    analysisConfig,
   } = state;
   const serverRunning = state.serverState === "running";
 
@@ -94,24 +95,24 @@ const AnalysisPage: React.FC = () => {
       title: "Set up Konveyor",
       description: "Configure Konveyor for your project",
       steps: [
-        {
-          id: "override-analyzer",
-          title: "Override Analyzer Binary",
-          description: "Specify a custom path for the analyzer binary",
-          completionEvents: [],
-          media: {
-            markdown: "media/walkthroughs/override-analyzer.md",
-          },
-        },
-        {
-          id: "configure-custom-rules",
-          title: "Configure Custom Rules",
-          description: "Add custom rules for analysis",
-          completionEvents: ["onCommand:konveyor.configureCustomRules"],
-          media: {
-            markdown: "media/walkthroughs/custom-rules.md",
-          },
-        },
+        // {
+        //   id: "override-analyzer",
+        //   title: "Override Analyzer Binary",
+        //   description: "Specify a custom path for the analyzer binary",
+        //   completionEvents: [],
+        //   media: {
+        //     markdown: "media/walkthroughs/override-analyzer.md",
+        //   },
+        // },
+        // {
+        //   id: "configure-custom-rules",
+        //   title: "Configure Custom Rules",
+        //   description: "Add custom rules for analysis",
+        //   completionEvents: ["onCommand:konveyor.configureCustomRules"],
+        //   media: {
+        //     markdown: "media/walkthroughs/custom-rules.md",
+        //   },
+        // },
         {
           id: "configure-analysis-arguments",
           title: "Configure Analysis Arguments",
@@ -124,25 +125,25 @@ const AnalysisPage: React.FC = () => {
             markdown: "media/walkthroughs/analysis-arguments.md",
           },
         },
-        {
-          id: "configure-gen",
-          title: "Configure Generative AI",
-          description: "Configure Generative AI for your project",
-          completionEvents: ["onCommand:konveyor.modelProviderSettingsOpen"],
-          media: {
-            markdown: "media/walkthroughs/gen-ai.md",
-          },
-        },
-        {
-          id: "open-analysis-panel",
-          title: "Open Analysis Panel",
-          description:
-            "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks.",
-          completionEvents: [],
-          media: {
-            markdown: "media/walkthroughs/open-analysis-panel.md",
-          },
-        },
+        // {
+        //   id: "configure-gen",
+        //   title: "Configure Generative AI",
+        //   description: "Configure Generative AI for your project",
+        //   completionEvents: ["onCommand:konveyor.modelProviderSettingsOpen"],
+        //   media: {
+        //     markdown: "media/walkthroughs/gen-ai.md",
+        //   },
+        // },
+        // {
+        //   id: "open-analysis-panel",
+        //   title: "Open Analysis Panel",
+        //   description:
+        //     "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks.",
+        //   completionEvents: [],
+        //   media: {
+        //     markdown: "media/walkthroughs/open-analysis-panel.md",
+        //   },
+        // },
       ],
     },
   ];
@@ -153,6 +154,7 @@ const AnalysisPage: React.FC = () => {
       onClose={() => setIsConfigOpen(false)}
       drawerRef={drawerRef}
       walkthroughs={walkthroughs}
+      analysisConfig={analysisConfig}
     />
   );
 

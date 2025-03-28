@@ -18,6 +18,11 @@ const defaultState: ExtensionData = {
   chatMessages: [],
   solutionState: "none",
   solutionEffort: "Low",
+  analysisConfig: {
+    labelSelectorValid: false,
+    sourcesValid: false,
+    targetsValid: false,
+  },
 };
 
 const windowState =

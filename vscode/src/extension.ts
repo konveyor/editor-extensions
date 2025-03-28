@@ -42,6 +42,11 @@ class VsCodeExtension {
         chatMessages: [],
         solutionState: "none",
         solutionEffort: getConfigSolutionMaxEffortLevel(),
+        analysisConfig: {
+          labelSelectorValid: false,
+          sourcesValid: false,
+          targetsValid: false,
+        },
       },
       () => {},
     );
@@ -85,6 +90,7 @@ class VsCodeExtension {
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           console.log("Configuration modified!");
+
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
             console.log("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
@@ -92,9 +98,37 @@ class VsCodeExtension {
               draft.solutionEffort = effort;
             });
           }
+
+          if (event.affectsConfiguration("konveyor.analysis.labelSelector")) {
+            const config = vscode.workspace.getConfiguration("konveyor.analysis");
+            const labelSelector = config.get<string>("labelSelector");
+            const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+            const isValid = !UNCONFIGURED_VALUES.includes(labelSelector);
+
+            this.state.mutateData((draft) => {
+              draft.analysisConfig.labelSelectorValid = isValid;
+            });
+
+            vscode.commands.executeCommand("setContext", "konveyor.analysisConfigReady", isValid);
+          }
+
+          // You could also listen to sources/targets changes here in future
         }),
       );
+
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
+
+      this.state.mutateData((draft) => {
+        const config = vscode.workspace.getConfiguration("konveyor.analysis");
+        const labelSelector = config.get<string>("labelSelector");
+
+        const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+        draft.analysisConfig = {
+          labelSelectorValid: !UNCONFIGURED_VALUES.includes(labelSelector),
+          sourcesValid: true, // TODO
+          targetsValid: true, // TODO
+        };
+      });
     } catch (error) {
       console.error("Error initializing extension:", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
