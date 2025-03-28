@@ -50,6 +50,7 @@ import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import CogIcon from "@patternfly/react-icons/dist/esm/icons/cog-icon";
 import ConfigOverlay from "../ConfigOverlay/ConfigOverlay";
+import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -87,21 +88,72 @@ const AnalysisPage: React.FC = () => {
 
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
+  const walkthroughs = [
+    {
+      id: "konveyor-setup",
+      title: "Set up Konveyor",
+      description: "Configure Konveyor for your project",
+      steps: [
+        {
+          id: "override-analyzer",
+          title: "Override Analyzer Binary",
+          description: "Specify a custom path for the analyzer binary",
+          completionEvents: [],
+          media: {
+            markdown: "media/walkthroughs/override-analyzer.md",
+          },
+        },
+        {
+          id: "configure-custom-rules",
+          title: "Configure Custom Rules",
+          description: "Add custom rules for analysis",
+          completionEvents: ["onCommand:konveyor.configureCustomRules"],
+          media: {
+            markdown: "media/walkthroughs/custom-rules.md",
+          },
+        },
+        {
+          id: "configure-analysis-arguments",
+          title: "Configure Analysis Arguments",
+          description: "Set up analysis arguments such as sources, targets, and label selector",
+          completionEvents: [
+            "onCommand:konveyor.configureSourcesTargets",
+            "onCommand:konveyor.configureLabelSelector",
+          ],
+          media: {
+            markdown: "media/walkthroughs/analysis-arguments.md",
+          },
+        },
+        {
+          id: "configure-gen",
+          title: "Configure Generative AI",
+          description: "Configure Generative AI for your project",
+          completionEvents: ["onCommand:konveyor.modelProviderSettingsOpen"],
+          media: {
+            markdown: "media/walkthroughs/gen-ai.md",
+          },
+        },
+        {
+          id: "open-analysis-panel",
+          title: "Open Analysis Panel",
+          description:
+            "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks.",
+          completionEvents: [],
+          media: {
+            markdown: "media/walkthroughs/open-analysis-panel.md",
+          },
+        },
+      ],
+    },
+  ];
+
   const panelContent = (
-    <DrawerPanelContent>
-      <DrawerHead>
-        <span tabIndex={isConfigOpen ? 0 : -1} ref={drawerRef}>
-          Configuration
-        </span>
-        <DrawerActions>
-          <DrawerCloseButton onClick={() => setIsConfigOpen(false)} />
-        </DrawerActions>
-      </DrawerHead>
-      <DrawerContentBody>
-        {/* Replace with your real config UI later */}
-        <p style={{ padding: "1rem" }}>Configuration options go here</p>
-      </DrawerContentBody>
-    </DrawerPanelContent>
+    <WalkthroughDrawer
+      isOpen={isConfigOpen}
+      onClose={() => setIsConfigOpen(false)}
+      drawerRef={drawerRef}
+      walkthroughs={walkthroughs}
+    />
   );
 
   return (
