@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
+import * as yaml from "js-yaml";
+import * as fs from "fs";
+import deepEqual from "fast-deep-equal";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
+import { ExtensionData, GenAIConfigFile, GenAIConfigStatus } from "@editor-extensions/shared";
 import { effortLevels, getEffortValue, SolutionEffortLevel } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
@@ -207,4 +211,58 @@ export async function updateGetSolutionMaxIterations(value: number): Promise<voi
     value,
     vscode.ConfigurationTarget.Workspace,
   );
+}
+
+export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
+  try {
+    const fileContents = fs.readFileSync(filepath, "utf8");
+    const config = yaml.load(fileContents) as GenAIConfigFile;
+
+    const models = config?.models ?? {};
+    const activeConfig = config?.active;
+
+    if (!activeConfig || typeof activeConfig !== "object") {
+      return { configured: false, keyMissing: false, usingDefault: true };
+    }
+
+    let resolvedActiveKey: string | undefined = undefined;
+    for (const [key, model] of Object.entries(models)) {
+      if (deepEqual(model, activeConfig)) {
+        resolvedActiveKey = key;
+        break;
+      }
+    }
+
+    const env = activeConfig.environment ?? {};
+    const apiKey = env.OPENAI_API_KEY?.trim?.();
+
+    return {
+      configured: Boolean(apiKey),
+      keyMissing: apiKey === "" || apiKey === undefined,
+      usingDefault:
+        resolvedActiveKey === "OpenAI" &&
+        activeConfig?.args?.model === "gpt-4o" &&
+        Object.values(env).every((v) => !v || v.trim() === ""),
+      activeKey: resolvedActiveKey,
+    };
+  } catch (err) {
+    console.error("Error parsing GenAI config:", err);
+    return { configured: false, keyMissing: false, usingDefault: true };
+  }
+}
+
+export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string): void {
+  const currentLabelSelector = getConfigLabelSelector();
+  const customRules = getConfigCustomRules();
+
+  const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+  const status = getGenAIConfigStatus(settingsPath);
+
+  draft.analysisConfig = {
+    labelSelectorValid: !UNCONFIGURED_VALUES.includes(currentLabelSelector),
+    genAIConfigured: status.configured,
+    genAIKeyMissing: status.keyMissing,
+    genAIUsingDefault: status.usingDefault,
+    customRulesConfigured: customRules.length > 0,
+  };
 }

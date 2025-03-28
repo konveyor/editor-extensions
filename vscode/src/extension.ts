@@ -10,9 +10,9 @@ import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
-import { ensurePaths, ExtensionPaths } from "./paths";
+import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
-import { getConfigSolutionMaxEffortLevel } from "./utilities";
+import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -42,6 +42,13 @@ class VsCodeExtension {
         chatMessages: [],
         solutionState: "none",
         solutionEffort: getConfigSolutionMaxEffortLevel(),
+        analysisConfig: {
+          labelSelectorValid: false,
+          genAIConfigured: false,
+          genAIKeyMissing: false,
+          genAIUsingDefault: false,
+          customRulesConfigured: false,
+        },
       },
       () => {},
     );
@@ -83,8 +90,19 @@ class VsCodeExtension {
       registerAnalysisTrigger(this.listeners);
 
       this.listeners.push(
+        vscode.workspace.onDidSaveTextDocument((doc) => {
+          if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
+            this.state.mutateData((draft) => {
+              updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+            });
+          }
+        }),
+      );
+
+      this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           console.log("Configuration modified!");
+
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
             console.log("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
@@ -92,9 +110,26 @@ class VsCodeExtension {
               draft.solutionEffort = effort;
             });
           }
+
+          if (event.affectsConfiguration("konveyor.analysis.labelSelector")) {
+            this.state.mutateData((draft) => {
+              updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+            });
+          }
+
+          if (event.affectsConfiguration("konveyor.analysis.customRules")) {
+            this.state.mutateData((draft) => {
+              updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+            });
+          }
         }),
       );
+
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
+
+      this.state.mutateData((draft) => {
+        updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+      });
     } catch (error) {
       console.error("Error initializing extension:", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);

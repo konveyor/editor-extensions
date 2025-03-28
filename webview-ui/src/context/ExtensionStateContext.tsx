@@ -18,6 +18,13 @@ const defaultState: ExtensionData = {
   chatMessages: [],
   solutionState: "none",
   solutionEffort: "Low",
+  analysisConfig: {
+    labelSelectorValid: false,
+    genAIConfigured: false,
+    genAIKeyMissing: false,
+    genAIUsingDefault: false,
+    customRulesConfigured: false,
+  },
 };
 
 const windowState =

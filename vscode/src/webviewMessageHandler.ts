@@ -2,11 +2,17 @@ import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
 import {
   APPLY_FILE,
+  CONFIGURE_CUSTOM_RULES,
+  CONFIGURE_LABEL_SELECTOR,
+  CONFIGURE_SOURCES_TARGETS,
   DISCARD_FILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
   LocalChange,
   OPEN_FILE,
+  OPEN_GENAI_SETTINGS,
+  OVERRIDE_ANALYZER_BINARIES,
+  OVERRIDE_RPC_SERVER_BINARIES,
   RUN_ANALYSIS,
   Scope,
   START_SERVER,
@@ -27,6 +33,30 @@ const actions: {
 } = {
   [WEBVIEW_READY]() {
     console.log("Webview is ready");
+  },
+  [CONFIGURE_SOURCES_TARGETS]() {
+    console.log("Configuring sources and targets...");
+    vscode.commands.executeCommand("konveyor.configureSourcesTargets");
+  },
+  [CONFIGURE_LABEL_SELECTOR]() {
+    console.log("Configuring label selector...");
+    vscode.commands.executeCommand("konveyor.configureLabelSelector");
+  },
+  [OVERRIDE_ANALYZER_BINARIES]() {
+    console.log("Overriding analyzer binaries...");
+    vscode.commands.executeCommand("konveyor.overrideAnalyzerBinaries");
+  },
+  [OVERRIDE_RPC_SERVER_BINARIES]() {
+    console.log("Overriding RPC server binaries...");
+    vscode.commands.executeCommand("konveyor.overrideKaiRpcServerBinaries");
+  },
+  [CONFIGURE_CUSTOM_RULES]() {
+    console.log("Configuring custom rules...");
+    vscode.commands.executeCommand("konveyor.configureCustomRules");
+  },
+  [OPEN_GENAI_SETTINGS]() {
+    console.log("Opening GenAI settings...");
+    vscode.commands.executeCommand("konveyor.modelProviderSettingsOpen");
   },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.effort);

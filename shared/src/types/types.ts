@@ -137,7 +137,15 @@ export interface ExtensionData {
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   solutionEffort: SolutionEffortLevel;
+  analysisConfig: AnalysisConfig;
 }
+export type AnalysisConfig = {
+  labelSelectorValid: boolean;
+  genAIConfigured: boolean;
+  genAIKeyMissing: boolean;
+  genAIUsingDefault: boolean;
+  customRulesConfigured: boolean;
+};
 
 export type ServerState =
   | "initial"
@@ -160,3 +168,27 @@ export type SolutionState =
   | "failedOnSending";
 
 export const DiagnosticSource = "konveyor";
+
+export interface GenAIModelConfig {
+  args?: {
+    model?: string;
+    [key: string]: any;
+  };
+  environment?: {
+    OPENAI_API_KEY?: string;
+    [key: string]: string | undefined;
+  };
+  [key: string]: any;
+}
+
+export interface GenAIConfigFile {
+  models?: Record<string, GenAIModelConfig>;
+  active?: GenAIModelConfig;
+}
+
+export interface GenAIConfigStatus {
+  configured: boolean;
+  keyMissing: boolean;
+  usingDefault: boolean;
+  activeKey?: string;
+}

@@ -619,67 +619,6 @@
         }
       }
     },
-    "walkthroughs": [
-      {
-        "id": "konveyor-setup",
-        "title": "Set up Konveyor",
-        "description": "Configure Konveyor for your project",
-        "steps": [
-          {
-            "id": "override-analyzer",
-            "title": "Override Analyzer Binary",
-            "description": "Specify a custom path for the analyzer binary\n[Override Analyzer Binary](command:konveyor.overrideAnalyzerBinaries)\n[Override Rpc Server Binary](command:konveyor.overrideKaiRpcServerBinaries)",
-            "completionEvents": [],
-            "media": {
-              "markdown": "media/walkthroughs/override-analyzer.md"
-            }
-          },
-          {
-            "id": "configure-custom-rules",
-            "title": "Configure Custom Rules",
-            "description": "Add custom rules for analysis\n[Configure Custom Rules](command:konveyor.configureCustomRules)",
-            "completionEvents": [
-              "onCommand:konveyor.configureCustomRules"
-            ],
-            "media": {
-              "markdown": "media/walkthroughs/custom-rules.md"
-            }
-          },
-          {
-            "id": "configure-analysis-arguments",
-            "title": "Configure Analysis Arguments",
-            "description": "Set up analysis arguments such as sources, targets, and label selector\n[Configure Analysis Sources and Targets](command:konveyor.configureSourcesTargets)\n[Configure Analysis Label Selector](command:konveyor.configureLabelSelector)",
-            "completionEvents": [
-              "onCommand:konveyor.configureSourcesTargets",
-              "onCommand:konveyor.configureLabelSelector"
-            ],
-            "media": {
-              "markdown": "media/walkthroughs/analysis-arguments.md"
-            }
-          },
-          {
-            "id": "configure-gen",
-            "title": "Configure Generative AI",
-            "description": "Configure Generative AI for your project\n[Configure GenAI model settings file](command:konveyor.modelProviderSettingsOpen)",
-            "completionEvents": [
-              "onCommand:konveyor.modelProviderSettingsOpen"
-            ],
-            "media": {
-              "markdown": "media/walkthroughs/gen-ai.md"
-            }
-          },
-          {
-            "id": "open-analysis-panel",
-            "title": "Open Analysis Panel",
-            "description": "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks. The Kai server processes analysis requests, so ensure it is started before running any analysis tasks.\n[Open Analysis Panel](command:konveyor.showAnalysisPanel)",
-            "completionEvents": [],
-            "media": {
-              "markdown": "media/walkthroughs/open-analysis-panel.md"
-            }
-          }
-        ]
-      }
-    ],
     "keybindings": [
       {
         "command": "konveyor.diffView.next",

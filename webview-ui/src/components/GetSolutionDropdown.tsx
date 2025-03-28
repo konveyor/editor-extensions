@@ -46,18 +46,16 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     <MenuToggle
       variant="plain"
       isDisabled={isButtonDisabled}
-      splitButtonOptions={{
-        items: [
-          <MenuToggleAction
-            id="get-solution-button"
-            key="split-action-primary"
-            onClick={() => onGetSolution(incidents, state.solutionEffort)}
-            aria-label="Get solution"
-          >
-            <WrenchIcon />
-          </MenuToggleAction>,
-        ],
-      }}
+      splitButtonItems={[
+        <MenuToggleAction
+          id="get-solution-button"
+          key="split-action-primary"
+          onClick={() => onGetSolution(incidents, state.solutionEffort)}
+          aria-label="Get solution"
+        >
+          <WrenchIcon />
+        </MenuToggleAction>,
+      ]}
       onClick={() => setIsOpen(!isOpen)}
       isExpanded={isOpen}
       aria-label="Effort Levels"
