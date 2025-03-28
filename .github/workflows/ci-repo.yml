@@ -99,8 +99,8 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #   run: |
-      #     npm run collect-assets \
-      #       --workflow \
+      #     npm run collect-assets -- \
+      #       --use-workflow-artifacts \
       #       --branch=main \
       #       --platform=runtime \
       #       --arch=runtime
@@ -151,7 +151,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build
-          npm run collect-assets
+          npm run collect-assets -- --use-workflow-artifacts --branch=main
           npm run dist
           npm run package
 
