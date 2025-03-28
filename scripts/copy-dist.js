@@ -71,7 +71,7 @@ await copy({
     {
       context: "downloaded_assets/jdtls-bundles",
       src: ["**/*.jar"],
-      dest: "dist/assets/jdtls",
+      dest: "dist/assets/jdtls-bundles",
     },
 
     // seed assets - opensource-labels-file
