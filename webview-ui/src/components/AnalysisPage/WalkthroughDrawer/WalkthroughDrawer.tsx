@@ -37,7 +37,6 @@ interface WalkthroughDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   drawerRef: React.RefObject<HTMLSpanElement>;
-  walkthroughs: Walkthrough[];
   analysisConfig: AnalysisConfig;
 }
 
@@ -60,9 +59,66 @@ export function WalkthroughDrawer({
   isOpen,
   onClose,
   drawerRef,
-  walkthroughs,
   analysisConfig,
 }: WalkthroughDrawerProps) {
+  const walkthroughs: Walkthrough[] = [
+    {
+      id: "konveyor-setup",
+      title: "Set up Konveyor",
+      description: "Configure Konveyor for your project",
+      steps: [
+        // {
+        //   id: "override-analyzer",
+        //   title: "Override Analyzer Binary",
+        //   description: "Specify a custom path for the analyzer binary",
+        //   completionEvents: [],
+        //   media: {
+        //     markdown: "media/walkthroughs/override-analyzer.md",
+        //   },
+        // },
+        // {
+        //   id: "configure-custom-rules",
+        //   title: "Configure Custom Rules",
+        //   description: "Add custom rules for analysis",
+        //   completionEvents: ["onCommand:konveyor.configureCustomRules"],
+        //   media: {
+        //     markdown: "media/walkthroughs/custom-rules.md",
+        //   },
+        // },
+        {
+          id: "configure-analysis-arguments",
+          title: "Configure Analysis Arguments",
+          description: "Set up analysis arguments such as sources, targets, and label selector",
+          completionEvents: [
+            "onCommand:konveyor.configureSourcesTargets",
+            "onCommand:konveyor.configureLabelSelector",
+          ],
+          media: {
+            markdown: "media/walkthroughs/analysis-arguments.md",
+          },
+        },
+        // {
+        //   id: "configure-gen",
+        //   title: "Configure Generative AI",
+        //   description: "Configure Generative AI for your project",
+        //   completionEvents: ["onCommand:konveyor.modelProviderSettingsOpen"],
+        //   media: {
+        //     markdown: "media/walkthroughs/gen-ai.md",
+        //   },
+        // },
+        // {
+        //   id: "open-analysis-panel",
+        //   title: "Open Analysis Panel",
+        //   description:
+        //     "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks.",
+        //   completionEvents: [],
+        //   media: {
+        //     markdown: "media/walkthroughs/open-analysis-panel.md",
+        //   },
+        // },
+      ],
+    },
+  ];
   return (
     <DrawerPanelContent>
       <DrawerHead>
