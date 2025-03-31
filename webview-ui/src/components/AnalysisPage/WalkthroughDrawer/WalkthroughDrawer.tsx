@@ -24,6 +24,12 @@ import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import { AnalysisConfig } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
+import {
+  t_global_color_status_success_default as pfSuccessColor,
+  t_global_text_color_status_on_success_default as pfSuccessTextColor,
+  t_global_icon_color_nonstatus_on_green_default as pfSuccessIconColor,
+} from "@patternfly/react-tokens";
+
 import "./walkthroughDrawer.css";
 
 interface Step {
@@ -49,7 +55,7 @@ function getStepStatus(step: Step, analysisConfig?: AnalysisConfig) {
     const valid = analysisConfig?.labelSelectorValid;
     return valid
       ? {
-          icon: <CheckCircleIcon className="status-icon--completed" />,
+          icon: <CheckCircleIcon color="green" className="status-icon--completed" />,
           status: "Completed",
           variant: "success" as const,
         }
@@ -160,12 +166,21 @@ export function WalkthroughDrawer({
   ];
 
   const handleCommand = (command: string) => {
-    // In a real implementation, this would use the VS Code API to execute commands
-    console.log(`Executing command: ${command}`);
     if (command === "konveyor.configureSourcesTargets") {
       dispatch({ type: "CONFIGURE_SOURCES_TARGETS", payload: {} });
     }
   };
+
+  function getLabelStatus(status: string) {
+    switch (status) {
+      case "Completed":
+        return "success";
+      case "Not configured":
+        return "warning";
+      default:
+        return "info"; // or "blue", "cyan", etc.
+    }
+  }
 
   return (
     <DrawerPanelContent>
@@ -200,7 +215,9 @@ export function WalkthroughDrawer({
                             <Title headingLevel="h3">{step.title}</Title>
                           </SplitItem>
                           <SplitItem>
-                            <Label variant="outline">{status}</Label>
+                            <Label variant="filled" status={getLabelStatus(status)}>
+                              {status}
+                            </Label>
                           </SplitItem>
                         </Split>
                       </CardHeader>

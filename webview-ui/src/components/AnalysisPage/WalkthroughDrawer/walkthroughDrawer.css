@@ -1,5 +1,5 @@
 .status-icon--completed {
-  color: var(--pf-t--global--icon--color--severity--none--default);
+  /* color: var(--pf-t--global--icon--color--severity--none--default); */
   margin-right: var(--pf-t--global--spacer--sm);
 }
 
