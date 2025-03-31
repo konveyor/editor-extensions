@@ -12,3 +12,14 @@
   color: var(--pf-t--global--icon--color--subtle);
   margin-right: var(--pf-t--global--spacer--sm);
 }
+.pf-v6-c-drawer__panel {
+  display: flex; /* if you need a flex layout */
+  flex-direction: column; /* column so the body can grow vertically */
+  max-height: 100vh; /* give it a bounding height */
+}
+
+.walkthrough-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--pf-t--global--spacer--md);
+}
