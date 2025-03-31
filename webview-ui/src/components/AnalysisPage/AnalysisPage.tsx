@@ -34,10 +34,6 @@ import {
   Drawer,
   DrawerContent,
   DrawerContentBody,
-  DrawerActions,
-  DrawerCloseButton,
-  DrawerHead,
-  DrawerPanelContent,
 } from "@patternfly/react-core";
 
 import ProgressIndicator from "../ProgressIndicator";
@@ -48,7 +44,6 @@ import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import CogIcon from "@patternfly/react-icons/dist/esm/icons/cog-icon";
 import ConfigOverlay from "../ConfigOverlay/ConfigOverlay";
 import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
 import { ConfigButton } from "./ConfigButton/ConfigButton";

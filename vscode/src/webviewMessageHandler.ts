@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
 import {
   APPLY_FILE,
+  CONFIGURE_SOURCES_TARGETS,
   DISCARD_FILE,
   GET_SOLUTION,
   LocalChange,
@@ -25,6 +26,10 @@ const actions: {
 } = {
   [WEBVIEW_READY]() {
     console.log("Webview is ready");
+  },
+  [CONFIGURE_SOURCES_TARGETS]() {
+    console.log("Configuring sources and targets...");
+    vscode.commands.executeCommand("konveyor.configureSourcesTargets");
   },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.effort);

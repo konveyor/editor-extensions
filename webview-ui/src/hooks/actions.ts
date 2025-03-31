@@ -67,3 +67,18 @@ export const discardFile = (
   type: "DISCARD_FILE",
   payload: change,
 });
+
+export const configureLabelSelector = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "CONFIGURE_LABEL_SELECTOR",
+  payload: {}, // no payload needed here, but could pass data if needed
+});
+
+export const configureSourcesTargets = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "CONFIGURE_SOURCES_TARGETS",
+  payload: {},
+});
+
+export const overrideAnalyzerBinaries = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OVERRIDE_ANALYZER_BINARIES",
+  payload: {},
+});

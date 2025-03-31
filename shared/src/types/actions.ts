@@ -9,6 +9,9 @@ export const VIEW_FIX = "VIEW_FIX";
 export const APPLY_FILE = "APPLY_FILE";
 export const DISCARD_FILE = "DISCARD_FILE";
 export const WEBVIEW_READY = "WEBVIEW_READY";
+export const CONFIGURE_LABEL_SELECTOR = "CONFIGURE_LABEL_SELECTOR";
+export const CONFIGURE_SOURCES_TARGETS = "CONFIGURE_SOURCES_TARGETS";
+export const OVERRIDE_ANALYZER_BINARIES = "OVERRIDE_ANALYZER_BINARIES";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -21,6 +24,9 @@ export type WebviewActionType =
   | typeof VIEW_FIX
   | typeof APPLY_FILE
   | typeof DISCARD_FILE
+  | typeof CONFIGURE_LABEL_SELECTOR
+  | typeof CONFIGURE_SOURCES_TARGETS
+  | typeof OVERRIDE_ANALYZER_BINARIES
   | typeof WEBVIEW_READY;
 
 export interface WebviewAction<S, T> {
