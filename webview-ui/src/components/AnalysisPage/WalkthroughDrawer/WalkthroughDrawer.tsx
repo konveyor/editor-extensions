@@ -19,6 +19,7 @@ import {
   SplitItem,
   Label,
   Panel,
+  Icon,
 } from "@patternfly/react-core";
 import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
@@ -209,10 +210,12 @@ export function WalkthroughDrawer({
                   <GalleryItem key={step.id}>
                     <Card isCompact>
                       <CardHeader>
-                        <Split hasGutter>
-                          <SplitItem>{icon}</SplitItem>
+                        <Split hasGutter style={{ alignItems: "center" }}>
+                          <SplitItem>
+                            <Icon size="lg">{icon}</Icon>
+                          </SplitItem>
                           <SplitItem isFilled>
-                            <Title headingLevel="h3">{step.title}</Title>
+                            <Title headingLevel="h4">{step.title}</Title>
                           </SplitItem>
                           <SplitItem>
                             <Label variant="filled" status={getLabelStatus(status)}>

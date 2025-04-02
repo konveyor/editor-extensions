@@ -1,16 +1,13 @@
 .status-icon--completed {
   /* color: var(--pf-t--global--icon--color--severity--none--default); */
-  margin-right: var(--pf-t--global--spacer--sm);
 }
 
 .status-icon--not-configured {
   color: var(--pf-t--global--icon--color--status--custom--default);
-  margin-right: var(--pf-t--global--spacer--sm);
 }
 
 .status-icon--unknown {
   color: var(--pf-t--global--icon--color--subtle);
-  margin-right: var(--pf-t--global--spacer--sm);
 }
 .pf-v6-c-drawer__panel {
   display: flex; /* if you need a flex layout */

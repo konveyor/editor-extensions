@@ -1,7 +1,8 @@
 import "./configButton.css";
 import React from "react";
-import { Button, Tooltip } from "@patternfly/react-core";
-import { CogIcon, ExclamationTriangleIcon } from "@patternfly/react-icons";
+import { Button, Icon, Tooltip } from "@patternfly/react-core";
+import CogIcon from "@patternfly/react-icons/dist/esm/icons/cog-icon";
+import ExclamationTriangleIcon from "@patternfly/react-icons/dist/esm/icons/exclamation-triangle-icon";
 
 interface ConfigButtonProps {
   onClick: () => void;
@@ -23,7 +24,9 @@ export function ConfigButton({
         className="config-button"
       >
         <span className="config-button__icon-wrapper">
-          <CogIcon />
+          <Icon isInline>
+            <CogIcon />
+          </Icon>
           {hasWarning && <ExclamationTriangleIcon className="config-button__warning-icon" />}
         </span>
       </Button>
