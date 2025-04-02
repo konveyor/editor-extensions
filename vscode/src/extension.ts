@@ -12,7 +12,7 @@ import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
-import { getConfigSolutionMaxEffortLevel } from "./utilities";
+import { getConfigSolutionMaxEffortLevel, updateAnalysisConfigContext } from "./utilities";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -20,6 +20,15 @@ class VsCodeExtension {
   private _onDidChange = new vscode.EventEmitter<Immutable<ExtensionData>>();
   readonly onDidChangeData = this._onDidChange.event;
   private listeners: vscode.Disposable[] = [];
+
+  private setContextKeys(): void {
+    //TODO - set context keys for show/hiding panels based on server & config status using when conditionals
+    // in the package.json
+    // const data = this.state.data;
+    // vscode.commands.executeCommand("setContext", "konveyor.serverRunning", data.isStartingServer);
+    // vscode.commands.executeCommand("setContext", "konveyor.configReady", data.isInitializingServer);
+    // vscode.commands.executeCommand("setContext", "konveyor.analysisReady", data.isAnalyzing);
+  }
 
   constructor(
     public readonly paths: ExtensionPaths,
@@ -77,20 +86,26 @@ class VsCodeExtension {
       this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
+      this.listeners.push(
+        this.onDidChangeData((e) => {
+          this.setContextKeys();
+        }),
+      );
       this.registerCommands();
       this.registerLanguageProviders();
 
       registerAnalysisTrigger(this.listeners);
-
+      updateAnalysisConfigContext();
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
-          console.log("Configuration modified!");
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
-            console.log("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
             this.state.mutateData((draft) => {
               draft.solutionEffort = effort;
             });
+          }
+          if (event.affectsConfiguration("konveyor.analysis")) {
+            updateAnalysisConfigContext();
           }
         }),
       );
