@@ -236,11 +236,11 @@ export function WalkthroughDrawer({
       <DrawerContentBody className="walkthrough-drawer-body">
         <Stack hasGutter>
           <StackItem>
-            <Gallery hasGutter>
+            <Stack hasGutter>
               {steps.map((step) => {
                 const { icon, status, variant } = getStepStatus(step, analysisConfig);
                 return (
-                  <GalleryItem key={step.id}>
+                  <StackItem key={step.id}>
                     <Card isCompact>
                       <CardHeader>
                         <Split hasGutter style={{ alignItems: "center" }}>
@@ -280,10 +280,10 @@ export function WalkthroughDrawer({
                         </Stack>
                       </CardBody>
                     </Card>
-                  </GalleryItem>
+                  </StackItem>
                 );
               })}
-            </Gallery>
+            </Stack>
           </StackItem>
         </Stack>
       </DrawerContentBody>
