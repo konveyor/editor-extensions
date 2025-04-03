@@ -37,11 +37,11 @@ interface Step {
   id: string;
   title: string;
   description: string;
+  priority: number;
   actions: Array<{
     label: string;
     command: string;
   }>;
-  completionEvents?: string[];
 }
 
 interface WalkthroughDrawerProps {
@@ -52,9 +52,9 @@ interface WalkthroughDrawerProps {
 }
 
 function getStepStatus(step: Step, analysisConfig?: AnalysisConfig) {
-  if (step.id === "configure-analysis-arguments") {
-    const valid = analysisConfig?.labelSelectorValid;
-    return valid
+  // Helper function to create status objects
+  const createStatus = (isCompleted: boolean) => {
+    return isCompleted
       ? {
           icon: <CheckCircleIcon color="green" className="status-icon--completed" />,
           status: "Completed",
@@ -62,25 +62,51 @@ function getStepStatus(step: Step, analysisConfig?: AnalysisConfig) {
         }
       : {
           icon: <PendingIcon className="status-icon--not-configured" />,
-          status: "Not configured",
+          status: step.priority === 0 ? "Optional" : "Not configured",
           variant: "outline" as const,
         };
-  }
-
-  // For other steps, check if they have completion events
-  if (step.completionEvents?.length === 0) {
-    return {
-      icon: <PendingIcon className="status-icon--not-configured" />,
-      status: "Optional",
-      variant: "outline" as const,
-    };
-  }
-
-  return {
-    icon: <PendingIcon className="status-icon--not-configured" />,
-    status: "Not configured",
-    variant: "outline" as const,
   };
+
+  switch (step.id) {
+    case "configure-analysis-arguments":
+      if (analysisConfig?.labelSelectorValid === false) {
+        return {
+          icon: <PendingIcon className="status-icon--not-configured warning-icon" />,
+          status: "Analysis arguments not set",
+          variant: "outline" as const,
+        };
+      }
+      return createStatus(true);
+
+    case "configure-gen":
+      if (analysisConfig?.genAIKeyMissing) {
+        return {
+          icon: <PendingIcon className="status-icon--not-configured warning-icon" />,
+          status: "Key not set",
+          variant: "outline" as const,
+        };
+      }
+
+      if (!analysisConfig?.genAIConfigured && analysisConfig?.genAIUsingDefault) {
+        return {
+          icon: <PendingIcon className="status-icon--not-configured" />,
+          status: "Default config in use",
+          variant: "outline" as const,
+        };
+      }
+
+      return createStatus(true);
+
+    case "configure-custom-rules":
+      return createStatus(analysisConfig?.customRulesConfigured === true);
+
+    default:
+      return {
+        icon: <PendingIcon className="status-icon--not-configured" />,
+        status: step.priority === 0 ? "Optional" : "Not configured",
+        variant: "outline" as const,
+      };
+  }
 }
 
 export function WalkthroughDrawer({
@@ -93,37 +119,10 @@ export function WalkthroughDrawer({
 
   const steps: Step[] = [
     {
-      id: "override-analyzer",
-      title: "Override Analyzer Binary",
-      description: "Specify a custom path for the analyzer binary",
-      actions: [
-        {
-          label: "Override Analyzer Binary",
-          command: "konveyor.overrideAnalyzerBinaries",
-        },
-        {
-          label: "Override RPC Server Binary",
-          command: "konveyor.overrideKaiRpcServerBinaries",
-        },
-      ],
-      completionEvents: [],
-    },
-    {
-      id: "configure-custom-rules",
-      title: "Configure Custom Rules",
-      description: "Add custom rules for analysis",
-      actions: [
-        {
-          label: "Configure Custom Rules",
-          command: "konveyor.configureCustomRules",
-        },
-      ],
-      completionEvents: ["onCommand:konveyor.configureCustomRules"],
-    },
-    {
       id: "configure-analysis-arguments",
       title: "Configure Analysis Arguments",
       description: "Set up analysis arguments such as sources, targets, and label selector",
+      priority: 3, // Highest priority - must be configured
       actions: [
         {
           label: "Configure Sources and Targets",
@@ -134,41 +133,69 @@ export function WalkthroughDrawer({
           command: "konveyor.configureLabelSelector",
         },
       ],
-      completionEvents: [
-        "onCommand:konveyor.configureSourcesTargets",
-        "onCommand:konveyor.configureLabelSelector",
-      ],
     },
     {
       id: "configure-gen",
       title: "Configure Generative AI",
       description: "Configure Generative AI for your project",
+      priority: 2, // Second highest priority - required
       actions: [
         {
           label: "Configure GenAI Settings",
           command: "konveyor.modelProviderSettingsOpen",
         },
       ],
-      completionEvents: ["onCommand:konveyor.modelProviderSettingsOpen"],
     },
     {
-      id: "open-analysis-panel",
-      title: "Open Analysis Panel",
-      description:
-        "Open the Konveyor Analysis Panel to manage and monitor your analysis tasks. The Kai server processes analysis requests, so ensure it is started before running any analysis tasks.",
+      id: "configure-custom-rules",
+      title: "Configure Custom Rules",
+      description: "Add custom rules for analysis",
+      priority: 1, // Lower priority - optional but recommended
       actions: [
         {
-          label: "Open Analysis Panel",
-          command: "konveyor.showAnalysisPanel",
+          label: "Configure Custom Rules",
+          command: "konveyor.configureCustomRules",
         },
       ],
-      completionEvents: [],
     },
-  ];
+    {
+      id: "override-analyzer",
+      title: "Override Analyzer Binary",
+      description: "Specify a custom path for the analyzer binary",
+      priority: 0, // Optional
+      actions: [
+        {
+          label: "Override Analyzer Binary",
+          command: "konveyor.overrideAnalyzerBinaries",
+        },
+        {
+          label: "Override RPC Server Binary",
+          command: "konveyor.overrideKaiRpcServerBinaries",
+        },
+      ],
+    },
+  ].sort((a, b) => b.priority - a.priority);
 
   const handleCommand = (command: string) => {
-    if (command === "konveyor.configureSourcesTargets") {
-      dispatch({ type: "CONFIGURE_SOURCES_TARGETS", payload: {} });
+    switch (command) {
+      case "konveyor.configureSourcesTargets":
+        dispatch({ type: "CONFIGURE_SOURCES_TARGETS", payload: {} });
+        break;
+      case "konveyor.configureLabelSelector":
+        dispatch({ type: "CONFIGURE_LABEL_SELECTOR", payload: {} });
+        break;
+      case "konveyor.modelProviderSettingsOpen":
+        dispatch({ type: "OPEN_GENAI_SETTINGS", payload: {} });
+        break;
+      case "konveyor.configureCustomRules":
+        dispatch({ type: "CONFIGURE_CUSTOM_RULES", payload: {} });
+        break;
+      case "konveyor.overrideAnalyzerBinaries":
+        dispatch({ type: "OVERRIDE_ANALYZER_BINARIES", payload: {} });
+        break;
+      case "konveyor.overrideKaiRpcServerBinaries":
+        dispatch({ type: "OVERRIDE_RPC_SERVER_BINARIES", payload: {} });
+        break;
     }
   };
 
@@ -176,10 +203,16 @@ export function WalkthroughDrawer({
     switch (status) {
       case "Completed":
         return "success";
+      case "Default config in use":
+        return "info";
       case "Not configured":
         return "warning";
+      case "Analysis arguments not set":
+        return "danger";
+      case "Key not set":
+        return "danger";
       default:
-        return "info"; // or "blue", "cyan", etc.
+        return "info";
     }
   }
 
@@ -227,15 +260,16 @@ export function WalkthroughDrawer({
                       <CardBody>
                         <Stack hasGutter>
                           <StackItem>
-                            <Content>{step.description}</Content>
+                            <Content className="step-description">{step.description}</Content>
                           </StackItem>
                           <StackItem>
                             <Stack hasGutter>
                               {step.actions.map((action, index) => (
                                 <StackItem key={index}>
                                   <Button
-                                    variant="plain"
+                                    variant="secondary"
                                     onClick={() => handleCommand(action.command)}
+                                    className="step-action-button"
                                   >
                                     {action.label}
                                   </Button>
@@ -256,3 +290,5 @@ export function WalkthroughDrawer({
     </DrawerPanelContent>
   );
 }
+
+export default WalkthroughDrawer;

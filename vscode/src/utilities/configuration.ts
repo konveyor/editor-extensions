@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as yaml from "js-yaml";
+import * as fs from "fs";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
 import { effortLevels, getEffortValue, SolutionEffortLevel } from "@editor-extensions/shared";
@@ -200,4 +202,107 @@ export async function updateGetSolutionMaxIterations(value: number): Promise<voi
     value,
     vscode.ConfigurationTarget.Workspace,
   );
+}
+
+export function isGenAIConfigured(filepath: string): boolean {
+  try {
+    const fileContents = fs.readFileSync(filepath, "utf8");
+    const config = yaml.load(fileContents) as any;
+
+    const activeModel = config?.active;
+    const models = config?.models ?? {};
+
+    const activeConfig = Object.values(models).find(
+      (model: any) => model && model === activeModel,
+    ) as any;
+
+    const hasApiKey =
+      activeConfig?.environment &&
+      Object.values(activeConfig.environment).some((val: any) => val?.trim() !== "");
+
+    return Boolean(hasApiKey);
+  } catch (err) {
+    console.error("Error reading GenAI config:", err);
+    return false;
+  }
+}
+
+interface GenAIConfigStatus {
+  configured: boolean;
+  keyMissing: boolean;
+  usingDefault: boolean;
+}
+
+interface GenAIConfigStatus {
+  configured: boolean;
+  keyMissing: boolean;
+  usingDefault: boolean;
+  activeKey?: string;
+}
+
+// Deep compare two plain objects (arrays and functions not needed here)
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+
+  for (const key of aKeys) {
+    /*eslint-disable-next-line no-prototype-builtins*/
+    if (!b.hasOwnProperty(key)) {
+      return false;
+    }
+    if (!deepEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
+  try {
+    const fileContents = fs.readFileSync(filepath, "utf8");
+    const config = yaml.load(fileContents) as any;
+
+    const models = config?.models ?? {};
+    const activeConfig = config?.active;
+
+    if (!activeConfig || typeof activeConfig !== "object") {
+      return { configured: false, keyMissing: false, usingDefault: true };
+    }
+
+    // Manually find the model key whose value matches the active config
+    let resolvedActiveKey: string | undefined = undefined;
+    for (const [key, model] of Object.entries(models)) {
+      if (deepEqual(model, activeConfig)) {
+        resolvedActiveKey = key;
+        break;
+      }
+    }
+
+    const env = activeConfig.environment ?? {};
+    const apiKey = env.OPENAI_API_KEY?.trim?.();
+
+    return {
+      configured: Boolean(apiKey),
+      keyMissing: apiKey === "" || apiKey === undefined,
+      usingDefault:
+        resolvedActiveKey === "OpenAI" &&
+        activeConfig?.args?.model === "gpt-4o" &&
+        Object.values(env).every((v: any) => !v || v.trim() === ""),
+      activeKey: resolvedActiveKey,
+    };
+  } catch (err) {
+    console.error("Error parsing GenAI config:", err);
+    return { configured: false, keyMissing: false, usingDefault: true };
+  }
 }

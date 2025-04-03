@@ -137,8 +137,10 @@ export interface ExtensionData {
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;
-  sourcesValid: boolean;
-  targetsValid: boolean;
+  genAIConfigured: boolean;
+  genAIKeyMissing: boolean;
+  genAIUsingDefault: boolean;
+  customRulesConfigured: boolean;
 };
 
 export type ServerState =

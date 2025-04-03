@@ -10,9 +10,9 @@ import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
-import { ensurePaths, ExtensionPaths } from "./paths";
+import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
-import { getConfigSolutionMaxEffortLevel } from "./utilities";
+import { getConfigSolutionMaxEffortLevel, getGenAIConfigStatus } from "./utilities";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -44,8 +44,10 @@ class VsCodeExtension {
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         analysisConfig: {
           labelSelectorValid: false,
-          sourcesValid: false,
-          targetsValid: false,
+          genAIConfigured: false,
+          genAIKeyMissing: false,
+          genAIUsingDefault: false,
+          customRulesConfigured: false,
         },
       },
       () => {},
@@ -88,6 +90,27 @@ class VsCodeExtension {
       registerAnalysisTrigger(this.listeners);
 
       this.listeners.push(
+        vscode.workspace.onDidSaveTextDocument((doc) => {
+          if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
+            this.state.mutateData((draft) => {
+              const config = vscode.workspace.getConfiguration("konveyor.analysis");
+              const labelSelector = config.get<string>("labelSelector");
+
+              const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+              const status = getGenAIConfigStatus(paths().settingsYaml.fsPath);
+              draft.analysisConfig = {
+                labelSelectorValid: !UNCONFIGURED_VALUES.includes(labelSelector),
+                genAIConfigured: status.configured,
+                genAIKeyMissing: status.keyMissing,
+                genAIUsingDefault: status.usingDefault,
+                customRulesConfigured: false,
+              };
+            });
+          }
+        }),
+      );
+
+      this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           console.log("Configuration modified!");
 
@@ -123,10 +146,13 @@ class VsCodeExtension {
         const labelSelector = config.get<string>("labelSelector");
 
         const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+        const status = getGenAIConfigStatus(paths().settingsYaml.fsPath);
         draft.analysisConfig = {
           labelSelectorValid: !UNCONFIGURED_VALUES.includes(labelSelector),
-          sourcesValid: true, // TODO
-          targetsValid: true, // TODO
+          genAIConfigured: status.configured,
+          genAIKeyMissing: status.keyMissing,
+          genAIUsingDefault: status.usingDefault,
+          customRulesConfigured: false,
         };
       });
     } catch (error) {
