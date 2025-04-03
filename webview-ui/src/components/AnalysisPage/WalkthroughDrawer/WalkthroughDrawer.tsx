@@ -150,7 +150,7 @@ export function WalkthroughDrawer({
       id: "configure-custom-rules",
       title: "Configure Custom Rules",
       description: "Add custom rules for analysis",
-      priority: 1, // Lower priority - optional but recommended
+      priority: 0,
       actions: [
         {
           label: "Configure Custom Rules",
@@ -245,7 +245,9 @@ export function WalkthroughDrawer({
                       <CardHeader>
                         <Split hasGutter style={{ alignItems: "center" }}>
                           <SplitItem>
-                            <Icon size="lg">{icon}</Icon>
+                            <Icon size="lg" isInline>
+                              {icon}
+                            </Icon>
                           </SplitItem>
                           <SplitItem isFilled>
                             <Title headingLevel="h4">{step.title}</Title>
