@@ -3,6 +3,7 @@ import * as yaml from "js-yaml";
 import * as fs from "fs";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
+import { ExtensionData } from "@editor-extensions/shared";
 import { effortLevels, getEffortValue, SolutionEffortLevel } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
@@ -305,4 +306,19 @@ export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
     console.error("Error parsing GenAI config:", err);
     return { configured: false, keyMissing: false, usingDefault: true };
   }
+}
+
+export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string): void {
+  const config = vscode.workspace.getConfiguration("konveyor.analysis");
+  const labelSelector = config.get<string>("labelSelector");
+  const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
+  const status = getGenAIConfigStatus(settingsPath);
+
+  draft.analysisConfig = {
+    labelSelectorValid: !UNCONFIGURED_VALUES.includes(labelSelector),
+    genAIConfigured: status.configured,
+    genAIKeyMissing: status.keyMissing,
+    genAIUsingDefault: status.usingDefault,
+    customRulesConfigured: false,
+  };
 }
