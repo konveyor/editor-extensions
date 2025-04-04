@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
-import { RuleSet, Category, EnhancedIncident } from "@editor-extensions/shared";
+import { RuleSet, Category, EnhancedIncident, DiagnosticSource } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 
 //Assuming that output is in form of yaml
@@ -39,7 +39,7 @@ export const processIncidents = (
 ): ReadonlyArray<[vscode.Uri, vscode.Diagnostic[]]> =>
   incidents
     .filter((incident) => incident.uri)
-    .map((incident) => {
+    .map((incident, index) => {
       const uri = vscode.Uri.parse(incident.uri);
       const line = (incident.lineNumber || 1) - 1;
       const range = new vscode.Range(line, 0, line, 0);
@@ -65,8 +65,8 @@ export const processIncidents = (
         message,
         getSeverityFromCategory(incident.violation_category),
       );
-      diagnostic.source = "konveyor";
-      diagnostic.code = `${incident.violationId}-${incident.uri}-${incident.lineNumber}`;
+      diagnostic.source = DiagnosticSource;
+      diagnostic.code = `${index}`;
 
       return [uri, [diagnostic]];
     });

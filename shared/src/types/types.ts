@@ -158,3 +158,5 @@ export type SolutionState =
   | "received"
   | "failedOnStart"
   | "failedOnSending";
+
+export const DiagnosticSource = "konveyor";

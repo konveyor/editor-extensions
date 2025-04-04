@@ -1,5 +1,16 @@
 import { ExtensionState } from "./extensionState";
-import { window, commands, Uri, OpenDialogOptions, workspace } from "vscode";
+import {
+  window,
+  commands,
+  Uri,
+  OpenDialogOptions,
+  workspace,
+  Range,
+  Selection,
+  TextEditorRevealType,
+  Position,
+  extensions,
+} from "vscode";
 import {
   cleanRuleSets,
   loadResultsFromDataFolder,
@@ -35,13 +46,14 @@ import {
   updateGetSolutionMaxDepth,
   updateGetSolutionMaxIterations,
   updateGetSolutionMaxPriority,
+  getConfigPromptTemplate,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { configureSourcesTargetsQuickPick } from "./configureSourcesTargetsQuickPick";
-
+import Mustache from "mustache";
 const isWindows = process.platform === "win32";
 
 const commandsMap: (state: ExtensionState) => {
@@ -97,6 +109,49 @@ const commandsMap: (state: ExtensionState) => {
       const analyzerClient = state.analyzerClient;
       analyzerClient.getSolution(state, incidents, effort);
       commands.executeCommand("konveyor.showResolutionPanel");
+    },
+    "konveyor.askContinue": async (incident: EnhancedIncident) => {
+      // This should be a redundant check as we shouldn't render buttons that
+      // map to this command when continue is not installed.
+      const continueExt = extensions.getExtension("Continue.continue");
+      if (!continueExt) {
+        window.showErrorMessage("The Continue extension is not installed");
+        return;
+      }
+
+      const lineNumber = (incident.lineNumber ?? 1) - 1; // Convert to 0-based index
+
+      // Open the document and get surrounding context
+      try {
+        const doc = await workspace.openTextDocument(Uri.parse(incident.uri));
+        const startLine = Math.max(0, lineNumber - 5);
+        const endLine = Math.min(doc.lineCount - 1, lineNumber + 5);
+
+        // Show the document in the editor
+        const editor = await window.showTextDocument(doc, { preview: true });
+
+        // Move cursor to the incident line
+        const position = new Position(lineNumber, 0);
+        editor.selection = new Selection(position, position);
+        editor.revealRange(new Range(position, position), TextEditorRevealType.InCenter);
+
+        const promptTemplate = getConfigPromptTemplate();
+        const prompt = Mustache.render(promptTemplate, incident);
+        // Execute the Continue command with prompt and range
+        await commands.executeCommand(
+          "continue.customQuickActionSendToChat",
+          prompt,
+          new Range(
+            new Position(startLine, 0),
+            new Position(endLine, doc.lineAt(endLine).text.length),
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to open document:", error);
+        window.showErrorMessage(
+          `Failed to open document: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     },
     "konveyor.overrideAnalyzerBinaries": async () => {
       const options: OpenDialogOptions = {

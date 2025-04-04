@@ -15,19 +15,11 @@ import {
   WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
-  EnhancedIncident,
   ScopeWithKonveyorContext,
 } from "@editor-extensions/shared";
-import { getConfigPromptTemplate } from "./utilities/configuration";
-import Mustache from "mustache";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, _state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => messageHandler(message));
-}
-
-function getPromptForIncident(incident: EnhancedIncident): string {
-  const promptTemplate = getConfigPromptTemplate();
-  return Mustache.render(promptTemplate, incident);
 }
 
 const actions: {
@@ -59,48 +51,8 @@ const actions: {
       true,
     );
   },
-  [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
-    if (!incident.lineNumber) {
-      console.error("Incident has no line number:", incident);
-      return;
-    }
-
-    const lineNumber = incident.lineNumber - 1; // Convert to 0-based index
-
-    // Open the document and get surrounding context
-    void (async () => {
-      try {
-        const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(incident.uri));
-        const startLine = Math.max(0, lineNumber - 5);
-        const endLine = Math.min(doc.lineCount - 1, lineNumber + 5);
-
-        // Show the document in the editor
-        const editor = await vscode.window.showTextDocument(doc, { preview: true });
-
-        // Move cursor to the incident line
-        const position = new vscode.Position(lineNumber, 0);
-        editor.selection = new vscode.Selection(position, position);
-        editor.revealRange(
-          new vscode.Range(position, position),
-          vscode.TextEditorRevealType.InCenter,
-        );
-
-        // Execute the Continue command with prompt and range
-        await vscode.commands.executeCommand(
-          "continue.customQuickActionSendToChat",
-          getPromptForIncident(incident),
-          new vscode.Range(
-            new vscode.Position(startLine, 0),
-            new vscode.Position(endLine, doc.lineAt(endLine).text.length),
-          ),
-        );
-      } catch (error) {
-        console.error("Failed to open document:", error);
-        vscode.window.showErrorMessage(
-          `Failed to open document: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    })();
+  async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
+    vscode.commands.executeCommand("konveyor.askContinue", incident);
   },
   // [REQUEST_QUICK_FIX]({uri,line}){
   // await handleRequestQuickFix(uri, line);
