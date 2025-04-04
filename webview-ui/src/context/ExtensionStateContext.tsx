@@ -20,8 +20,10 @@ const defaultState: ExtensionData = {
   solutionEffort: "Low",
   analysisConfig: {
     labelSelectorValid: false,
-    sourcesValid: false,
-    targetsValid: false,
+    genAIConfigured: false,
+    genAIKeyMissing: false,
+    genAIUsingDefault: false,
+    customRulesConfigured: false,
   },
 };
 
