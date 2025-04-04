@@ -3,6 +3,7 @@ import {
   ExtensionData,
   LocalChange,
   Scope,
+  ScopeWithKonveyorContext,
   SolutionEffortLevel,
   WebviewAction,
   WebviewActionType,
@@ -41,6 +42,13 @@ export const getSolution = (
 ): WebviewAction<WebviewActionType, Scope> => ({
   type: "GET_SOLUTION",
   payload: { incidents, effort },
+});
+
+export const getSolutionWithKonveyorContext = (
+  incident: EnhancedIncident,
+): WebviewAction<WebviewActionType, ScopeWithKonveyorContext> => ({
+  type: "GET_SOLUTION_WITH_KONVEYOR_CONTEXT",
+  payload: { incident },
 });
 
 export const openFile = (

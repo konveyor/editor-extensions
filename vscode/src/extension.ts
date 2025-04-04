@@ -141,15 +141,27 @@ class VsCodeExtension {
   }
 
   private registerLanguageProviders(): void {
-    const languagesToRegister = ["java"];
+    const documentSelectors: vscode.DocumentSelector = [
+      // Language IDs
+      "java",
+      "yaml",
+      "properties",
+      "groovy", // for Gradle files
+      // Specific file patterns
+      { pattern: "**/pom.xml" },
+      { pattern: "**/build.gradle" },
+      { pattern: "**/build.gradle.kts" },
+    ];
 
-    for (const language of languagesToRegister) {
-      this.context.subscriptions.push(
-        vscode.languages.registerCodeActionsProvider(language, new ViolationCodeActionProvider(), {
+    this.context.subscriptions.push(
+      vscode.languages.registerCodeActionsProvider(
+        documentSelectors,
+        new ViolationCodeActionProvider(this.state),
+        {
           providedCodeActionKinds: ViolationCodeActionProvider.providedCodeActionKinds,
-        }),
-      );
-    }
+        },
+      ),
+    );
   }
 
   public async dispose() {

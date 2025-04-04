@@ -10,7 +10,7 @@ import {
 import { effortLevels, SolutionEffortLevel } from "@editor-extensions/shared";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
-import { getSolution } from "../hooks/actions";
+import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
 
 type GetSolutionDropdownProps = {
@@ -18,7 +18,7 @@ type GetSolutionDropdownProps = {
   scope: "workspace" | "issue" | "in-between" | "incident";
 };
 
-const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents }) => {
+const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, scope }) => {
   if (!incidents || incidents.length === 0) {
     console.log("Empty Incidents");
     return null;
@@ -28,6 +28,10 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents }) 
   const { state, dispatch } = useExtensionStateContext();
   const onGetSolution = (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
     dispatch(getSolution(incidents, effort));
+  };
+
+  const onGetSolutionWithKonveyorContext = (incident: EnhancedIncident) => {
+    dispatch(getSolutionWithKonveyorContext(incident));
   };
 
   const isButtonDisabled =
@@ -89,6 +93,14 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents }) 
               Resolve with {label} effort
             </DropdownItem>
           ))}
+          {scope === "incident" && incidents.length === 1 && (
+            <DropdownItem
+              key="ask-continue-konveyor"
+              onClick={() => onGetSolutionWithKonveyorContext(incidents[0])}
+            >
+              Ask Continue with Konveyor Context
+            </DropdownItem>
+          )}
         </DropdownGroup>
       </DropdownList>
     </Dropdown>
