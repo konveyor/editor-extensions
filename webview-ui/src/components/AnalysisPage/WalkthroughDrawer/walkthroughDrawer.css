@@ -1,0 +1,32 @@
+.status-icon--completed {
+  /* color: var(--pf-t--global--icon--color--severity--none--default); */
+}
+
+.status-icon--not-configured {
+  color: var(--pf-t--global--icon--color--status--custom--default);
+}
+
+.status-icon--unknown {
+  color: var(--pf-t--global--icon--color--subtle);
+}
+.pf-v6-c-drawer__panel {
+  display: flex; /* if you need a flex layout */
+  flex-direction: column; /* column so the body can grow vertically */
+  max-height: 100vh; /* give it a bounding height */
+}
+
+.walkthrough-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--pf-t--global--spacer--md);
+}
+.step-description {
+  font-size: 0.875rem;
+  color: var(--pf-global--Color--200); /* Slightly muted */
+  margin-bottom: 0.5rem;
+}
+
+.step-action-button {
+  margin-top: 0.25rem;
+  margin-right: 0.5rem;
+}

@@ -133,7 +133,15 @@ export interface ExtensionData {
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   solutionEffort: SolutionEffortLevel;
+  analysisConfig: AnalysisConfig;
 }
+export type AnalysisConfig = {
+  labelSelectorValid: boolean;
+  genAIConfigured: boolean;
+  genAIKeyMissing: boolean;
+  genAIUsingDefault: boolean;
+  customRulesConfigured: boolean;
+};
 
 export type ServerState =
   | "initial"
