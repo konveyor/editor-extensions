@@ -38,7 +38,7 @@ import {
 
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
-import { Incident } from "@editor-extensions/shared";
+import { AnalysisConfig, Incident } from "@editor-extensions/shared";
 import { openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
@@ -94,6 +94,19 @@ const AnalysisPage: React.FC = () => {
     />
   );
 
+  function getConfigWarning(config: AnalysisConfig): string | null {
+    if (!config.labelSelectorValid) {
+      return "Label selector is not configured. Please configure sources, targets, or a label selector.";
+    }
+    if (config.genAIKeyMissing) {
+      return "GenAI API key is missing. Please set your key in settings.";
+    }
+    if (config.genAIUsingDefault && !config.genAIConfigured) {
+      return "Using default GenAI settings. Consider updating them for best results.";
+    }
+    return null;
+  }
+
   return (
     <Drawer isExpanded={isConfigOpen}>
       <DrawerContent panelContent={panelContent}>
@@ -134,20 +147,10 @@ const AnalysisPage: React.FC = () => {
                           />
                         </ToolbarItem>
                         <ToolbarItem>
-                          {/* <Button
-                            variant="plain"
-                            onClick={() => {
-                              console.log("clicked config button");
-                              setIsConfigOpen(true);
-                            }}
-                            icon={<CogIcon />}
-                          >
-                            Configuration */}
-                          {/* </Button> */}
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
                             hasWarning={!analysisConfig.labelSelectorValid}
-                            warningMessage={"warning"}
+                            warningMessage={getConfigWarning(analysisConfig)}
                           />
                         </ToolbarItem>
                       </ToolbarGroup>

@@ -205,68 +205,11 @@ export async function updateGetSolutionMaxIterations(value: number): Promise<voi
   );
 }
 
-export function isGenAIConfigured(filepath: string): boolean {
-  try {
-    const fileContents = fs.readFileSync(filepath, "utf8");
-    const config = yaml.load(fileContents) as any;
-
-    const activeModel = config?.active;
-    const models = config?.models ?? {};
-
-    const activeConfig = Object.values(models).find(
-      (model: any) => model && model === activeModel,
-    ) as any;
-
-    const hasApiKey =
-      activeConfig?.environment &&
-      Object.values(activeConfig.environment).some((val: any) => val?.trim() !== "");
-
-    return Boolean(hasApiKey);
-  } catch (err) {
-    console.error("Error reading GenAI config:", err);
-    return false;
-  }
-}
-
-interface GenAIConfigStatus {
-  configured: boolean;
-  keyMissing: boolean;
-  usingDefault: boolean;
-}
-
 interface GenAIConfigStatus {
   configured: boolean;
   keyMissing: boolean;
   usingDefault: boolean;
   activeKey?: string;
-}
-
-// Deep compare two plain objects (arrays and functions not needed here)
-function deepEqual(a: any, b: any): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
-    return false;
-  }
-
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) {
-    return false;
-  }
-
-  for (const key of aKeys) {
-    /*eslint-disable-next-line no-prototype-builtins*/
-    if (!b.hasOwnProperty(key)) {
-      return false;
-    }
-    if (!deepEqual(a[key], b[key])) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
@@ -321,4 +264,31 @@ export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string)
     genAIUsingDefault: status.usingDefault,
     customRulesConfigured: false,
   };
+}
+
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+
+  for (const key of aKeys) {
+    /*eslint-disable-next-line no-prototype-builtins*/
+    if (!b.hasOwnProperty(key)) {
+      return false;
+    }
+    if (!deepEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+
+  return true;
 }

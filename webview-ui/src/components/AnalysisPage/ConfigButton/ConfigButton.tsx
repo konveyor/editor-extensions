@@ -7,7 +7,7 @@ import ExclamationTriangleIcon from "@patternfly/react-icons/dist/esm/icons/excl
 interface ConfigButtonProps {
   onClick: () => void;
   hasWarning?: boolean;
-  warningMessage?: string;
+  warningMessage?: string | null;
 }
 
 export function ConfigButton({
