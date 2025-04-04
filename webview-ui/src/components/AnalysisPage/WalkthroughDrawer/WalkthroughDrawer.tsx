@@ -25,18 +25,15 @@ import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import { AnalysisConfig } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
-import {
-  t_global_color_status_success_default as pfSuccessColor,
-  t_global_text_color_status_on_success_default as pfSuccessTextColor,
-  t_global_icon_color_nonstatus_on_green_default as pfSuccessIconColor,
-} from "@patternfly/react-tokens";
+import { TruncatedDescription } from "../../TruncatedDescription/TruncatedDescription";
 
 import "./walkthroughDrawer.css";
 
 interface Step {
   id: string;
   title: string;
-  description: string;
+  shortDescription: string;
+  fullDescription: string;
   priority: number;
   actions: Array<{
     label: string;
@@ -121,57 +118,45 @@ export function WalkthroughDrawer({
     {
       id: "configure-analysis-arguments",
       title: "Configure Analysis Arguments",
-      description: "Set up analysis arguments such as sources, targets, and label selector",
-      priority: 3, // Highest priority - must be configured
+      shortDescription: "Set up sources, targets, and label selector...",
+      fullDescription:
+        "Set up analysis arguments such as sources, targets, and label selector. The labelSelector determines which rules apply to your project during analysis. You can configure it using the “Configure Sources and Targets” or “Configure Label Selector” commands.",
+      priority: 3,
       actions: [
-        {
-          label: "Configure Sources and Targets",
-          command: "konveyor.configureSourcesTargets",
-        },
-        {
-          label: "Configure Label Selector",
-          command: "konveyor.configureLabelSelector",
-        },
+        { label: "Configure Sources and Targets", command: "konveyor.configureSourcesTargets" },
+        { label: "Configure Label Selector", command: "konveyor.configureLabelSelector" },
       ],
     },
     {
       id: "configure-gen",
       title: "Configure Generative AI",
-      description: "Configure Generative AI for your project",
-      priority: 2, // Second highest priority - required
+      shortDescription: "Enable GenAI features using your API key...",
+      fullDescription:
+        "GenAI is a powerful tool that can help generate code snippets, documentation, and more. Set your API key to enable GenAI in the Konveyor extension.",
+      priority: 2,
       actions: [
-        {
-          label: "Configure GenAI Settings",
-          command: "konveyor.modelProviderSettingsOpen",
-        },
+        { label: "Configure GenAI Settings", command: "konveyor.modelProviderSettingsOpen" },
       ],
     },
     {
       id: "configure-custom-rules",
       title: "Configure Custom Rules",
-      description: "Add custom rules for analysis",
+      shortDescription: "Add your own rules to customize analysis...",
+      fullDescription:
+        "The Konveyor extension allows you to add custom rules to the analyzer. This is useful if you want to tailor the analysis to your project's specific needs. Run the 'Configure Custom Rules' command to select the rule files.",
       priority: 0,
-      actions: [
-        {
-          label: "Configure Custom Rules",
-          command: "konveyor.configureCustomRules",
-        },
-      ],
+      actions: [{ label: "Configure Custom Rules", command: "konveyor.configureCustomRules" }],
     },
     {
       id: "override-analyzer",
       title: "Override Analyzer Binary",
-      description: "Specify a custom path for the analyzer binary",
-      priority: 0, // Optional
+      shortDescription: "Use custom binaries for analyzer or RPC...",
+      fullDescription:
+        "The Konveyor extension comes packaged with default analyzer and RPC server binaries. You can override these with custom versions by running the corresponding override commands from the command palette.",
+      priority: 0,
       actions: [
-        {
-          label: "Override Analyzer Binary",
-          command: "konveyor.overrideAnalyzerBinaries",
-        },
-        {
-          label: "Override RPC Server Binary",
-          command: "konveyor.overrideKaiRpcServerBinaries",
-        },
+        { label: "Override Analyzer Binary", command: "konveyor.overrideAnalyzerBinaries" },
+        { label: "Override RPC Server Binary", command: "konveyor.overrideKaiRpcServerBinaries" },
       ],
     },
   ].sort((a, b) => b.priority - a.priority);
@@ -262,7 +247,11 @@ export function WalkthroughDrawer({
                       <CardBody>
                         <Stack hasGutter>
                           <StackItem>
-                            <Content className="step-description">{step.description}</Content>
+                            {/* <Content className="step-description">{step.description}</Content> */}
+                            <TruncatedDescription
+                              shortText={step.shortDescription}
+                              fullText={step.fullDescription}
+                            />
                           </StackItem>
                           <StackItem>
                             <Stack hasGutter>
