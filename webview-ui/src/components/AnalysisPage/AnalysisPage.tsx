@@ -44,7 +44,6 @@ import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import ConfigOverlay from "../ConfigOverlay/ConfigOverlay";
 import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
 import { ConfigButton } from "./ConfigButton/ConfigButton";
 
@@ -160,15 +159,6 @@ const AnalysisPage: React.FC = () => {
               </Masthead>
             }
           >
-            <ConfigOverlay
-              isOpen={isConfigOpen}
-              onClose={() => {
-                console.log("closing config overlay");
-                setIsConfigOpen(false);
-              }}
-              variant="drawer"
-            />
-
             {errorMessage && (
               <PageSection padding={{ default: "noPadding" }}>
                 <AlertGroup isToast>
