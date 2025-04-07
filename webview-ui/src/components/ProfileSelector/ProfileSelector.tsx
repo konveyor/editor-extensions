@@ -6,8 +6,7 @@ import {
   MenuToggle,
   MenuToggleElement,
 } from "@patternfly/react-core";
-
-import { useExtensionStateContext } from "src/context/ExtensionStateContext";
+import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 
 interface Profile {
   name: string;
@@ -33,7 +32,8 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
     setIsOpen((prev) => !prev);
   };
 
-  const onSelect = (_event: React.MouseEvent, value: string | number | undefined) => {
+  const onSelect = (_event?: React.MouseEvent<Element, MouseEvent>, value?: string | number) => {
+    if (value === undefined) return;
     const selectedProfile = value as string;
     setIsOpen(false);
     onChange(selectedProfile);
