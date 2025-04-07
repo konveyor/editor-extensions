@@ -35,12 +35,14 @@ import {
 
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
-import { Incident } from "@editor-extensions/shared";
+import { AnalysisProfile, Incident } from "@editor-extensions/shared";
 import { openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
+import { NewProfileModal } from "../NewProfileModal/NewProfileModal";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -52,7 +54,14 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
+    profiles: initialProfiles,
+    activeProfileName: initialActiveProfile,
   } = state;
+
+  const [profiles, setProfiles] = useState(initialProfiles);
+  const [activeProfile, setActiveProfile] = useState(initialActiveProfile);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
   const serverRunning = state.serverState === "running";
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -68,6 +77,28 @@ const AnalysisPage: React.FC = () => {
 
   const handleServerToggle = () => {
     dispatch(serverRunning ? stopServer() : startServer());
+  };
+
+  const handleProfileChange = (newProfile: string) => {
+    setActiveProfile(newProfile);
+    dispatch({
+      type: "SET_ACTIVE_PROFILE",
+      payload: newProfile,
+    });
+  };
+
+  const handleSaveProfile = (newProfile: AnalysisProfile) => {
+    // Add to extension state
+    // dispatch({ type: "ADD_PROFILE", payload: newProfile });
+
+    // Send to backend for persistence
+    window.vscode.postMessage({
+      type: "ADD_PROFILE",
+      payload: newProfile,
+    });
+
+    // Activate it
+    // dispatch({ type: "UPDATE_ACTIVE_PROFILE", payload: newProfile.name });
   };
 
   const violations = useViolations(analysisResults);
@@ -103,6 +134,18 @@ const AnalysisPage: React.FC = () => {
             <Toolbar>
               <ToolbarContent>
                 <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                  <ToolbarItem>
+                    <ProfileSelector
+                      profiles={profiles ?? []}
+                      activeProfile={activeProfile ?? ""}
+                      onChange={handleProfileChange}
+                    />
+                  </ToolbarItem>
+                  <ToolbarItem>
+                    <Button variant="secondary" onClick={() => setShowProfileModal(true)}>
+                      + New Profile
+                    </Button>
+                  </ToolbarItem>
                   <ToolbarItem>
                     <ServerStatusToggle
                       isRunning={serverRunning}
@@ -186,6 +229,14 @@ const AnalysisPage: React.FC = () => {
           </StackItem>
         </Stack>
       </PageSection>
+      <NewProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onSave={(profile) => {
+          // dispatch({ type: "ADD_PROFILE", payload: profile });
+          // window.vscode.postMessage({ type: "ADD_PROFILE", payload: profile });
+        }}
+      />
 
       {isWaitingForSolution && (
         <Backdrop>

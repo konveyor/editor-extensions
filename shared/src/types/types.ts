@@ -133,6 +133,8 @@ export interface ExtensionData {
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   solutionEffort: SolutionEffortLevel;
+  profiles?: AnalysisProfile[];
+  activeProfileName?: string;
 }
 
 export type ServerState =
@@ -154,3 +156,12 @@ export type SolutionState =
   | "received"
   | "failedOnStart"
   | "failedOnSending";
+
+export interface AnalysisProfile {
+  name: string;
+  mode: AnalysisMode;
+  customRules: string[];
+  useDefaultRules: boolean;
+  labelSelector: string;
+}
+export type AnalysisMode = "source-only" | "source-and-dependencies";
