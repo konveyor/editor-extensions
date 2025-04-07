@@ -39,10 +39,6 @@ import {
 import {
   updateAnalyzerPath,
   updateKaiRpcServerPath,
-  updateCustomRules,
-  updateUseDefaultRuleSets,
-  getConfigLabelSelector,
-  updateLabelSelector,
   updateGetSolutionMaxDepth,
   updateGetSolutionMaxIterations,
   updateGetSolutionMaxPriority,
@@ -52,14 +48,22 @@ import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
-import { configureSourcesTargetsQuickPick } from "./configureSourcesTargetsQuickPick";
 import Mustache from "mustache";
+import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
 const isWindows = process.platform === "win32";
 
 const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   return {
+    "konveyor.openProfilesPanel": async () => {
+      const provider = state.webviewProviders.get("profiles");
+      if (provider) {
+        provider.showWebviewPanel();
+      } else {
+        console.error("Profiles provider not found");
+      }
+    },
     "konveyor.startServer": async () => {
       const analyzerClient = state.analyzerClient;
       if (!(await analyzerClient.canAnalyzeInteractive())) {
@@ -234,64 +238,8 @@ const commandsMap: (state: ExtensionState) => {
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },
-    "konveyor.configureCustomRules": async () => {
-      const options: OpenDialogOptions = {
-        canSelectMany: true,
-        canSelectFolders: true,
-        canSelectFiles: true,
-        openLabel: "Select Custom Rules",
-        filters: {
-          "All Files": ["*"],
-        },
-      };
-
-      const fileUris = await window.showOpenDialog(options);
-
-      if (fileUris && fileUris.length > 0) {
-        const customRules = fileUris.map((uri) => uri.fsPath);
-
-        // TODO(djzager): Should we verify the rules provided are valid?
-
-        // Update the user settings
-        await updateCustomRules(customRules);
-
-        // Ask the user if they want to disable the default ruleset
-        const useDefaultRulesets = await window.showQuickPick(["Yes", "No"], {
-          placeHolder: "Do you want to use the default rulesets?",
-          canPickMany: false,
-        });
-
-        if (useDefaultRulesets === "Yes") {
-          await updateUseDefaultRuleSets(true);
-        } else if (useDefaultRulesets === "No") {
-          await updateUseDefaultRuleSets(false);
-        }
-
-        window.showInformationMessage(
-          `Custom Rules Updated: ${customRules}\nUse Default Rulesets: ${useDefaultRulesets}`,
-        );
-      } else {
-        window.showInformationMessage("No custom rules selected.");
-      }
-    },
-    "konveyor.configureSourcesTargets": async () => {
-      configureSourcesTargetsQuickPick();
-    },
-    "konveyor.configureLabelSelector": async () => {
-      const currentLabelSelector = getConfigLabelSelector();
-
-      const modifiedLabelSelector = await window.showInputBox({
-        prompt: "Modify the label selector if needed",
-        value: currentLabelSelector,
-        placeHolder: "e.g., source=(java|spring) target=(quarkus)",
-      });
-
-      if (modifiedLabelSelector === undefined) {
-        return;
-      }
-
-      // Update the user settings
-      await updateLabelSelector(modifiedLabelSelector);
+    "konveyor.configureCustomRules": async (profileId: string) => {
+      await handleConfigureCustomRules(profileId, state);
     },
     "konveyor.loadRuleSets": async (ruleSets: RuleSet[]) => loadRuleSets(state, ruleSets),
     "konveyor.cleanRuleSets": () => cleanRuleSets(state),

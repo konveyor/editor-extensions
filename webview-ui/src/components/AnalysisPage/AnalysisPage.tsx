@@ -1,51 +1,56 @@
 import "./styles.css";
+
 import React, { useState } from "react";
 import {
+  Alert,
+  AlertGroup,
+  Backdrop,
   Button,
-  ButtonVariant,
   Card,
   CardBody,
   CardHeader,
   CardTitle,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Drawer,
+  DrawerContent,
+  DrawerContentBody,
   EmptyState,
   EmptyStateBody,
-  Title,
-  Alert,
-  AlertActionCloseButton,
-  AlertGroup,
-  Spinner,
-  Backdrop,
-  Page,
-  PageSection,
-  Stack,
-  StackItem,
+  ExpandableSectionToggle,
   Flex,
   FlexItem,
+  Masthead,
+  MastheadContent,
+  MastheadMain,
+  Page,
+  PageSection,
   PageSidebar,
   PageSidebarBody,
-  Masthead,
-  MastheadMain,
-  MastheadToggle,
-  MastheadContent,
+  Spinner,
+  Stack,
+  StackItem,
+  Title,
   Toolbar,
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
-  Drawer,
-  DrawerContent,
-  DrawerContentBody,
 } from "@patternfly/react-core";
 
-import ProgressIndicator from "../ProgressIndicator";
-import ViolationIncidentsList from "../ViolationIncidentsList";
-import { AnalysisConfig, Incident } from "@editor-extensions/shared";
 import { openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
-import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
-import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
-import { useViolations } from "../..//hooks/useViolations";
+import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
 import { ConfigButton } from "./ConfigButton/ConfigButton";
+import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
+import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
+import ViolationIncidentsList from "../ViolationIncidentsList";
+import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
+import ProgressIndicator from "../ProgressIndicator";
+import { Incident, AnalysisConfig } from "@editor-extensions/shared";
+import { PencilAltIcon } from "@patternfly/react-icons";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -58,53 +63,64 @@ const AnalysisPage: React.FC = () => {
     ruleSets: analysisResults,
     enhancedIncidents,
     analysisConfig,
+    profiles,
+    activeProfileId,
+    serverState,
   } = state;
-  const serverRunning = state.serverState === "running";
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
+  const violations = useViolations(analysisResults);
+  const hasViolations = violations.length > 0;
+  const hasAnalysisResults = !!analysisResults;
+  const serverRunning = serverState === "running";
+
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
   };
 
-  const runAnalysisRequest = () => dispatch(runAnalysis());
+  const handleRunAnalysis = () => dispatch(runAnalysis());
+  const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
 
-  const handleServerToggle = () => {
-    dispatch(serverRunning ? stopServer() : startServer());
+  const getConfigWarning = (
+    config: AnalysisConfig,
+  ): { message: string; variant: "warning" | "danger" } | null => {
+    if (!config.labelSelectorValid) {
+      return { message: "Label selector is not configured.", variant: "warning" };
+    }
+    if (config.genAIKeyMissing) {
+      return { message: "GenAI API key is missing.", variant: "danger" };
+    }
+    if (config.genAIUsingDefault && !config.genAIConfigured) {
+      return { message: "Using default GenAI settings.", variant: "warning" };
+    }
+    return null;
   };
 
-  const violations = useViolations(analysisResults);
-
-  const hasViolations = violations.length > 0;
-  const hasAnalysisResults = analysisResults !== undefined;
-
-  const drawerRef = React.useRef<HTMLDivElement>(null);
+  const configWarning = getConfigWarning(analysisConfig);
+  const hasConfigWarning = configWarning !== null;
 
   const panelContent = (
     <WalkthroughDrawer
       isOpen={isConfigOpen}
       onClose={() => setIsConfigOpen(false)}
       drawerRef={drawerRef}
-      analysisConfig={analysisConfig}
     />
   );
 
-  function getConfigWarning(config: AnalysisConfig): string | null {
-    if (!config.labelSelectorValid) {
-      return "Label selector is not configured. Please configure sources, targets, or a label selector.";
-    }
-    if (config.genAIKeyMissing) {
-      return "GenAI API key is missing. Please set your key in settings.";
-    }
-    if (config.genAIUsingDefault && !config.genAIConfigured) {
-      return "Using default GenAI settings. Consider updating them for best results.";
-    }
-    return null;
-  }
+  const selectedProfile = profiles.find((p) => p.id === activeProfileId);
+
+  const configInvalid =
+    !selectedProfile?.labelSelector?.trim() ||
+    (!selectedProfile.useDefaultRules && (selectedProfile.customRules?.length ?? 0) === 0);
+
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <Drawer isExpanded={isConfigOpen}>
@@ -118,39 +134,30 @@ const AnalysisPage: React.FC = () => {
             }
             masthead={
               <Masthead>
-                <MastheadMain>
-                  <MastheadToggle>
-                    <Button
-                      variant={ButtonVariant.primary}
-                      onClick={runAnalysisRequest}
-                      isLoading={isAnalyzing}
-                      isDisabled={
-                        isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
-                      }
-                    >
-                      {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-                    </Button>
-                  </MastheadToggle>
-                </MastheadMain>
-
+                <MastheadMain />
                 <MastheadContent>
                   <Toolbar>
                     <ToolbarContent>
-                      <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                      <ToolbarGroup>
                         <ToolbarItem>
                           <ServerStatusToggle
                             isRunning={serverRunning}
                             isStarting={isStartingServer}
                             isInitializing={isInitializingServer}
                             onToggle={handleServerToggle}
-                            hasWarning={!analysisConfig.labelSelectorValid}
+                            hasWarning={configInvalid}
                           />
                         </ToolbarItem>
+                      </ToolbarGroup>
+
+                      <ToolbarGroup></ToolbarGroup>
+
+                      <ToolbarGroup align={{ default: "alignEnd" }}>
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
-                            hasWarning={!analysisConfig.labelSelectorValid}
-                            warningMessage={getConfigWarning(analysisConfig)}
+                            hasWarning={hasConfigWarning}
+                            warningMessage={configWarning?.message}
                           />
                         </ToolbarItem>
                       </ToolbarGroup>
@@ -166,16 +173,94 @@ const AnalysisPage: React.FC = () => {
                   <Alert
                     variant="danger"
                     title={errorMessage}
-                    actionClose={
-                      <AlertActionCloseButton
-                        title={errorMessage}
-                        onClose={() => setErrorMessage(null)}
-                      />
-                    }
+                    // actionClose={<AlertActionCloseButton onClose={() => setErrorMessage(null)} />}
                   />
                 </AlertGroup>
               </PageSection>
             )}
+            {hasConfigWarning && (
+              <PageSection padding={{ default: "noPadding" }}>
+                <Alert variant={configWarning!.variant} title={configWarning!.message}>
+                  <p>Please review your configuration before running analysis.</p>
+                </Alert>
+              </PageSection>
+            )}
+
+            <PageSection padding={{ default: "padding" }}>
+              <Card isCompact>
+                <CardHeader>
+                  <Flex
+                    justifyContent={{ default: "justifyContentSpaceBetween" }}
+                    alignItems={{ default: "alignItemsCenter" }}
+                    style={{ width: "100%" }}
+                  >
+                    <Flex
+                      spaceItems={{ default: "spaceItemsMd" }}
+                      alignItems={{ default: "alignItemsCenter" }}
+                    >
+                      <ExpandableSectionToggle
+                        isExpanded={isExpanded}
+                        onToggle={(isExpanded) => setIsExpanded(isExpanded)}
+                        toggleId="profile-details-toggle"
+                      />
+                      <ProfileSelector
+                        profiles={profiles}
+                        activeProfile={activeProfileId}
+                        onChange={(id) => dispatch({ type: "SET_ACTIVE_PROFILE", payload: id })}
+                        onManageProfiles={() =>
+                          dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
+                        }
+                        isDisabled={isStartingServer || isAnalyzing}
+                      />
+                    </Flex>
+                    <Button
+                      variant="primary"
+                      onClick={handleRunAnalysis}
+                      isLoading={isAnalyzing}
+                      isDisabled={
+                        isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
+                      }
+                    >
+                      {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                    </Button>
+                  </Flex>
+                </CardHeader>
+                {isExpanded && (
+                  <CardBody>
+                    <DescriptionList isCompact columnModifier={{ default: "1Col" }}>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Label Selector</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          <code>{selectedProfile?.labelSelector ?? "Not set"}</code>
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                      {(selectedProfile?.customRules?.length ?? 0) > 0 && (
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Custom Rules</DescriptionListTerm>
+                          <DescriptionListDescription>
+                            {selectedProfile?.customRules.length} file(s)
+                          </DescriptionListDescription>
+                        </DescriptionListGroup>
+                      )}
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Use Default Rules</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          {selectedProfile?.useDefaultRules ? "Yes" : "No"}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                    </DescriptionList>
+                    <Button
+                      variant="link"
+                      icon={<PencilAltIcon />}
+                      onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                      style={{ paddingLeft: 0 }}
+                    >
+                      Edit Profile
+                    </Button>
+                  </CardBody>
+                )}
+              </Card>
+            </PageSection>
 
             <PageSection>
               <Stack hasGutter>
@@ -188,25 +273,21 @@ const AnalysisPage: React.FC = () => {
                           <ViolationsCount
                             violationsCount={violations.length}
                             incidentsCount={violations.reduce(
-                              (prev, curr) => curr.incidents.length + prev,
+                              (prev, curr) => prev + curr.incidents.length,
                               0,
                             )}
                           />
                         </FlexItem>
-                        <>
-                          <FlexItem></FlexItem>
-                        </>
                       </Flex>
                     </CardHeader>
                     <CardBody>
                       {isAnalyzing && <ProgressIndicator progress={50} />}
-
                       {!isAnalyzing && !hasViolations && (
                         <EmptyState variant="sm">
                           <Title
-                            className="empty-state-analysis-results"
                             headingLevel="h2"
                             size="md"
+                            className="empty-state-analysis-results"
                           >
                             {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
                           </Title>
@@ -217,7 +298,6 @@ const AnalysisPage: React.FC = () => {
                           </EmptyStateBody>
                         </EmptyState>
                       )}
-
                       {hasViolations && !isAnalyzing && (
                         <ViolationIncidentsList
                           enhancedIncidents={enhancedIncidents}
@@ -232,7 +312,6 @@ const AnalysisPage: React.FC = () => {
                 </StackItem>
               </Stack>
             </PageSection>
-
             {isWaitingForSolution && (
               <Backdrop>
                 <div style={{ textAlign: "center", paddingTop: "15rem" }}>

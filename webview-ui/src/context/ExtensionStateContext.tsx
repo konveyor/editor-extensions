@@ -25,6 +25,8 @@ const defaultState: ExtensionData = {
     genAIUsingDefault: false,
     customRulesConfigured: false,
   },
+  profiles: [],
+  activeProfileId: "",
 };
 
 const windowState =

@@ -23,6 +23,7 @@ const DEV_SERVER_ROOT = "http://localhost:5173/out/webview";
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly SIDEBAR_VIEW_TYPE = "konveyor.konveyorAnalysisView";
   public static readonly RESOLUTION_VIEW_TYPE = "konveyor.konveyorResolutionView";
+  public static readonly PROFILES_VIEW_TYPE = "konveyor.konveyorProfilesView";
 
   private static instance: KonveyorGUIWebviewViewProvider;
   private _disposables: Disposable[] = [];
@@ -49,16 +50,36 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     this._view = webviewView;
     this.initializeWebview(webviewView.webview, this._extensionState.data);
   }
-
   public createWebviewPanel(): void {
     if (this._panel) {
       return;
     }
+
+    const panelOptions: { viewType: string; title: string } = (() => {
+      switch (this._viewType) {
+        case "sidebar":
+          return {
+            viewType: KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
+            title: "Konveyor Analysis View",
+          };
+        case "resolution":
+          return {
+            viewType: KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
+            title: "Resolution Details",
+          };
+        case "profiles":
+          return {
+            viewType: KonveyorGUIWebviewViewProvider.PROFILES_VIEW_TYPE,
+            title: "Manage Profiles",
+          };
+        default:
+          throw new Error(`Unsupported view type: ${this._viewType}`);
+      }
+    })();
+
     this._panel = window.createWebviewPanel(
-      this.isAnalysisView()
-        ? KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE
-        : KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-      this.isAnalysisView() ? "Konveyor Analysis View" : "Resolution Details",
+      panelOptions.viewType,
+      panelOptions.title,
       ViewColumn.One,
       {
         enableScripts: true,

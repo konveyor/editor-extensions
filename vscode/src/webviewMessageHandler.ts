@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
 import {
+  ADD_PROFILE,
+  AnalysisProfile,
   APPLY_FILE,
   CONFIGURE_CUSTOM_RULES,
   CONFIGURE_LABEL_SELECTOR,
   CONFIGURE_SOURCES_TARGETS,
+  DELETE_PROFILE,
   DISCARD_FILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
@@ -13,56 +16,151 @@ import {
   OPEN_GENAI_SETTINGS,
   OVERRIDE_ANALYZER_BINARIES,
   OVERRIDE_RPC_SERVER_BINARIES,
+  OPEN_PROFILE_MANAGER,
   RUN_ANALYSIS,
   Scope,
+  SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
+  UPDATE_PROFILE,
   VIEW_FIX,
   WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
   ScopeWithKonveyorContext,
+  ExtensionData,
 } from "@editor-extensions/shared";
 
-export function setupWebviewMessageListener(webview: vscode.Webview, _state: ExtensionState) {
-  webview.onDidReceiveMessage(async (message) => messageHandler(message));
+import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
+import {
+  getUserProfiles,
+  saveUserProfiles,
+  setActiveProfileId,
+} from "./utilities/profiles/profileService";
+
+export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
+  webview.onDidReceiveMessage(async (message) => {
+    await messageHandler(message, state);
+  });
 }
 
 const actions: {
-  [name: string]: (payload: any) => void;
+  [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
+  [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
+    const userProfiles = getUserProfiles(state.extensionContext);
+
+    if (userProfiles.some((p) => p.name === profile.name)) {
+      vscode.window.showErrorMessage(`A profile named "${profile.name}" already exists.`);
+      return;
+    }
+
+    const updated = [...userProfiles, profile];
+    saveUserProfiles(state.extensionContext, updated);
+
+    const allProfiles = [...getBundledProfiles(), ...updated];
+    setActiveProfileId(profile.id, state);
+
+    state.mutateData((draft) => {
+      draft.profiles = allProfiles;
+      draft.activeProfileId = profile.id;
+      updateAnalysisConfigFromActiveProfile(draft);
+    });
+  },
+
+  [DELETE_PROFILE]: async (profileId: string, state) => {
+    const userProfiles = getUserProfiles(state.extensionContext);
+    const filtered = userProfiles.filter((p) => p.id !== profileId);
+
+    saveUserProfiles(state.extensionContext, filtered);
+
+    const fullProfiles = [...getBundledProfiles(), ...filtered];
+    state.mutateData((draft) => {
+      draft.profiles = fullProfiles;
+
+      if (draft.activeProfileId === profileId) {
+        draft.activeProfileId = fullProfiles[0]?.id ?? "";
+        state.extensionContext.workspaceState.update("activeProfileId", draft.activeProfileId);
+      }
+      updateAnalysisConfigFromActiveProfile(draft);
+    });
+  },
+
+  [UPDATE_PROFILE]: async ({ originalId, updatedProfile }, state) => {
+    const allProfiles = [...getBundledProfiles(), ...getUserProfiles(state.extensionContext)];
+    const isBundled = allProfiles.find((p) => p.id === originalId)?.readOnly;
+
+    if (isBundled) {
+      vscode.window.showWarningMessage(
+        "Built-in profiles cannot be edited. Copy it to a new profile first.",
+      );
+      return;
+    }
+
+    const updatedList = allProfiles.map((p) =>
+      p.id === originalId ? { ...p, ...updatedProfile } : p,
+    );
+
+    const userProfiles = updatedList.filter((p) => !p.readOnly);
+    saveUserProfiles(state.extensionContext, userProfiles);
+
+    const fullProfiles = [...getBundledProfiles(), ...userProfiles];
+    state.mutateData((draft) => {
+      draft.profiles = fullProfiles;
+
+      if (draft.activeProfileId === originalId) {
+        draft.activeProfileId = updatedProfile.id;
+      }
+      updateAnalysisConfigFromActiveProfile(draft);
+    });
+  },
+
+  [SET_ACTIVE_PROFILE]: async (profileId: string, state) => {
+    const allProfiles = [...getBundledProfiles(), ...getUserProfiles(state.extensionContext)];
+    const valid = allProfiles.find((p) => p.id === profileId);
+    if (!valid) {
+      vscode.window.showErrorMessage(`Cannot set active profile. Profile not found.`);
+      return;
+    }
+    setActiveProfileId(profileId, state);
+    state.mutateData((draft) => {
+      draft.activeProfileId = profileId;
+      updateAnalysisConfigFromActiveProfile(draft);
+    });
+  },
+
+  [OPEN_PROFILE_MANAGER]() {
+    vscode.commands.executeCommand("konveyor.openProfilesPanel");
+  },
   [WEBVIEW_READY]() {
     console.log("Webview is ready");
   },
   [CONFIGURE_SOURCES_TARGETS]() {
-    console.log("Configuring sources and targets...");
     vscode.commands.executeCommand("konveyor.configureSourcesTargets");
   },
   [CONFIGURE_LABEL_SELECTOR]() {
-    console.log("Configuring label selector...");
     vscode.commands.executeCommand("konveyor.configureLabelSelector");
   },
+  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, state) => {
+    vscode.commands.executeCommand("konveyor.configureCustomRules", profileId, state);
+  },
+
   [OVERRIDE_ANALYZER_BINARIES]() {
-    console.log("Overriding analyzer binaries...");
     vscode.commands.executeCommand("konveyor.overrideAnalyzerBinaries");
   },
   [OVERRIDE_RPC_SERVER_BINARIES]() {
-    console.log("Overriding RPC server binaries...");
     vscode.commands.executeCommand("konveyor.overrideKaiRpcServerBinaries");
   },
-  [CONFIGURE_CUSTOM_RULES]() {
-    console.log("Configuring custom rules...");
-    vscode.commands.executeCommand("konveyor.configureCustomRules");
-  },
   [OPEN_GENAI_SETTINGS]() {
-    console.log("Opening GenAI settings...");
     vscode.commands.executeCommand("konveyor.modelProviderSettingsOpen");
   },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.effort);
-
     vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");
+  },
+  async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
+    vscode.commands.executeCommand("konveyor.askContinue", incident);
   },
   [VIEW_FIX](change: LocalChange) {
     vscode.commands.executeCommand(
@@ -81,32 +179,14 @@ const actions: {
       true,
     );
   },
-  async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
-    vscode.commands.executeCommand("konveyor.askContinue", incident);
-  },
-  // [REQUEST_QUICK_FIX]({uri,line}){
-  // await handleRequestQuickFix(uri, line);
-  // Implement the quick fix logic here
-  // For example, replace the problematic code with a suggested fix
-  // const suggestedCode = message.diagnostic.message; // You might need to parse this appropriately
-  // const action = new vscode.CodeAction("Apply Quick Fix", vscode.CodeActionKind.QuickFix);
-  // action.edit = new vscode.WorkspaceEdit();
-  // action.edit.replace(message.documentUri, message.range, suggestedCode);
-  // action.diagnostics = [message.diagnostic];
-  // action.isPreferred = true;
-  // vscode.commands.executeCommand("vscode.executeCodeActionProvider", message.documentUri, message.range, action);
-  // },
   [RUN_ANALYSIS]() {
-    console.log("Running analysis...");
     vscode.commands.executeCommand("konveyor.runAnalysis");
   },
   async [OPEN_FILE]({ file, line }) {
     const fileUri = vscode.Uri.parse(file);
     try {
       const doc = await vscode.workspace.openTextDocument(fileUri);
-      const editor = await vscode.window.showTextDocument(doc, {
-        preview: true,
-      });
+      const editor = await vscode.window.showTextDocument(doc, { preview: true });
       const position = new vscode.Position(line - 1, 0);
       const range = new vscode.Range(position, position);
       editor.selection = new vscode.Selection(position, position);
@@ -123,39 +203,37 @@ const actions: {
   },
 };
 
-export const messageHandler = async (message: WebviewAction<WebviewActionType, unknown>) => {
-  console.log("Received message inside message handler...", message);
+export const messageHandler = async (
+  message: WebviewAction<WebviewActionType, unknown>,
+  state: ExtensionState,
+) => {
   const handler = actions?.[message?.type];
   if (handler) {
-    await handler(message.payload);
+    await handler(message.payload, state);
   } else {
     defaultHandler(message);
   }
 };
 
 const defaultHandler = (message: WebviewAction<WebviewActionType, unknown>) => {
-  console.error("Unknown message received from webview", message);
+  console.error("Unknown message from webview:", message);
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function handleRequestQuickFix(uriString: string, lineNumber: number) {
-  const uri = vscode.Uri.parse(uriString);
-  try {
-    // Open the document
-    const document = await vscode.workspace.openTextDocument(uri);
+function updateAnalysisConfigFromActiveProfile(draft: ExtensionData) {
+  const activeProfile = draft.profiles.find((p) => p.id === draft.activeProfileId);
 
-    // Show the document in the editor
-    const editor = await vscode.window.showTextDocument(document, { preview: false });
-
-    // Move the cursor to the specified line and character
-    const position = new vscode.Position(lineNumber - 1, 0); // Adjust line number (0-based index)
-    const range = new vscode.Range(position, position);
-    editor.selection = new vscode.Selection(position, position);
-    editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
-
-    // Trigger the quick fix action at the cursor position
-    await vscode.commands.executeCommand("editor.action.quickFix");
-  } catch (error: any) {
-    vscode.window.showErrorMessage(`Could not open file: ${error?.message as string}`);
+  if (!activeProfile) {
+    draft.analysisConfig = {
+      labelSelectorValid: false,
+      genAIConfigured: false,
+      genAIKeyMissing: false,
+      genAIUsingDefault: false,
+      customRulesConfigured: false,
+    };
+    return;
   }
+
+  draft.analysisConfig.labelSelectorValid = !!activeProfile.labelSelector?.trim();
+  draft.analysisConfig.customRulesConfigured =
+    activeProfile.useDefaultRules || (activeProfile.customRules?.length ?? 0) > 0;
 }

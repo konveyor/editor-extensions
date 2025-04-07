@@ -16,6 +16,11 @@ export const OVERRIDE_ANALYZER_BINARIES = "OVERRIDE_ANALYZER_BINARIES";
 export const OPEN_GENAI_SETTINGS = "OPEN_GENAI_SETTINGS";
 export const CONFIGURE_CUSTOM_RULES = "CONFIGURE_CUSTOM_RULES";
 export const OVERRIDE_RPC_SERVER_BINARIES = "OVERRIDE_RPC_SERVER_BINARIES";
+export const SET_ACTIVE_PROFILE = "SET_ACTIVE_PROFILE";
+export const OPEN_PROFILE_MANAGER = "OPEN_PROFILE_MANAGER";
+export const ADD_PROFILE = "ADD_PROFILE";
+export const DELETE_PROFILE = "DELETE_PROFILE";
+export const UPDATE_PROFILE = "UPDATE_PROFILE";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -36,8 +41,12 @@ export type WebviewActionType =
   | typeof OVERRIDE_RPC_SERVER_BINARIES
   | typeof OPEN_GENAI_SETTINGS
   | typeof CONFIGURE_CUSTOM_RULES
-  | typeof WEBVIEW_READY;
-
+  | typeof WEBVIEW_READY
+  | typeof SET_ACTIVE_PROFILE
+  | typeof ADD_PROFILE
+  | typeof DELETE_PROFILE
+  | typeof UPDATE_PROFILE
+  | typeof OPEN_PROFILE_MANAGER;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

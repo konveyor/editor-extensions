@@ -3,7 +3,7 @@ import { KonveyorFileModel } from "./diffView";
 import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
-import { ExtensionData } from "@editor-extensions/shared";
+import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 
@@ -17,4 +17,6 @@ export interface ExtensionState {
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
   mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  profiles?: AnalysisProfile[];
+  activeProfileId?: string;
 }

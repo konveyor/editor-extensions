@@ -1,57 +1,7 @@
-.server-status-container {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
 .server-status-wrapper {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  padding: 8px 16px;
-}
-
-.server-status-label {
-  color: var(--vscode-foreground);
-}
-
-.server-status-label {
-  font-size: 13px;
-  font-weight: 500;
-  margin: 0;
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.pf-v6-theme-dark .vertical-divider {
-  background-color: var(--vscode-editor-background);
-}
-
-.vertical-divider {
-  width: 1px;
-  height: 20px;
-  margin: 0 8px;
-}
-
-.pf-v6-theme-dark .server-action-button {
-  color: var(--vscode-foreground);
-}
-
-.server-action-button {
-  padding: 2px 8px !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-}
-
-.pf-v6-theme-dark .server-action-button:hover {
-  color: var(--vscode-foreground);
-}
-
-.server-action-button svg {
-  width: 16px;
-  height: 16px;
-  margin: 0 !important;
+  padding: 8px 0px;
 }

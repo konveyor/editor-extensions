@@ -25,18 +25,14 @@ import { buildAssetPaths, AssetPaths } from "./paths";
 import {
   getCacheDir,
   getConfigAnalyzerPath,
-  getConfigCustomRules,
   getConfigKaiDemoMode,
   getConfigKaiRpcServerPath,
-  getConfigLabelSelector,
   getConfigLoggingTraceMessageConnection,
   getConfigLogLevel,
   getConfigMaxLLMQueries,
   getConfigSolutionMaxPriority,
-  getConfigUseDefaultRulesets,
   getTraceEnabled,
   isAnalysisResponse,
-  updateUseDefaultRuleSets,
 } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
@@ -310,6 +306,8 @@ export class AnalyzerClient {
     this.fireServerStateChange("initializing");
 
     // Define the initialize request parameters
+    const { labelSelector, rulesets } = this.getActiveProfileConfig();
+
     const initializeParams: KaiRpcApplicationConfig = {
       rootPath: paths().workspaceRepo.fsPath,
       modelProvider: this.modelProvider.modelProvider,
@@ -327,10 +325,10 @@ export class AnalyzerClient {
       // Paths to the Analyzer and jdt.ls
       analyzerLspRpcPath: this.getAnalyzerPath(),
       analyzerLspLspPath: this.assetPaths.jdtlsBin,
-      analyzerLspRulesPaths: this.getRulesetsPath(),
+      analyzerLspRulesPaths: rulesets,
       analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
       analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
-      analyzerLspLabelSelector: getConfigLabelSelector(),
+      analyzerLspLabelSelector: labelSelector,
       analyzerLspExcludedPaths: ignoresToExcludedPaths(),
 
       // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
@@ -466,9 +464,24 @@ export class AnalyzerClient {
         try {
           progress.report({ message: "Running..." });
           this.fireAnalysisStateChange(true);
+          const activeProfile = this.getExtStateData().profiles.find(
+            (p) => p.id === this.getExtStateData().activeProfileId,
+          );
+          if (!activeProfile) {
+            this.outputChannel.appendLine("No active profile found.");
+            vscode.window.showErrorMessage("No active profile found.");
+            this.fireAnalysisStateChange(false);
+            return;
+          }
+          if (!activeProfile.labelSelector) {
+            this.outputChannel.appendLine("LabelSelector is not configured.");
+            vscode.window.showErrorMessage("LabelSelector is not configured.");
+            this.fireAnalysisStateChange(false);
+            return;
+          }
 
           const requestParams = {
-            label_selector: getConfigLabelSelector(),
+            label_selector: activeProfile.labelSelector,
             included_paths: filePaths?.map((uri) => uri.fsPath),
             reset_cache: !(filePaths && filePaths.length > 0),
           };
@@ -616,48 +629,47 @@ export class AnalyzerClient {
   }
 
   public canAnalyze(): boolean {
-    return !!getConfigLabelSelector() && this.getRulesetsPath().length !== 0;
+    const { activeProfileId, profiles } = this.getExtStateData();
+    const profile = profiles.find((p) => p.id === activeProfileId);
+    return (
+      !!profile?.labelSelector && (profile?.useDefaultRules || profile?.customRules.length > 0)
+    );
   }
 
   public async canAnalyzeInteractive(): Promise<boolean> {
-    const labelSelector = getConfigLabelSelector();
-
-    if (!labelSelector) {
-      const selection = await vscode.window.showErrorMessage(
-        "LabelSelector is not configured. Please configure it before starting the analyzer.",
-        "Select Sources and Targets",
-        "Configure LabelSelector",
-        "Cancel",
-      );
-
-      switch (selection) {
-        case "Select Sources and Targets":
-          await vscode.commands.executeCommand("konveyor.configureSourcesTargets");
-          break;
-        case "Configure LabelSelector":
-          await vscode.commands.executeCommand("konveyor.configureLabelSelector");
-          break;
-      }
+    let config;
+    try {
+      config = this.getActiveProfileConfig();
+    } catch (err) {
+      vscode.window.showErrorMessage("No active analysis profile is configured.");
       return false;
     }
 
-    if (this.getRulesetsPath().length === 0) {
-      const selection = await vscode.window.showWarningMessage(
-        "Default rulesets are disabled and no custom rules are defined. Please choose an option to proceed.",
-        "Enable Default Rulesets",
-        "Configure Custom Rules",
+    if (!config.labelSelector) {
+      const selection = await vscode.window.showErrorMessage(
+        "Label selector is missing from the active profile. Please configure it before starting the analyzer.",
+        "Manage Profiles",
         "Cancel",
       );
 
-      switch (selection) {
-        case "Enable Default Rulesets":
-          await updateUseDefaultRuleSets(true);
-          vscode.window.showInformationMessage("Default rulesets have been enabled.");
-          break;
-        case "Configure Custom Rules":
-          await vscode.commands.executeCommand("konveyor.configureCustomRules");
-          break;
+      if (selection === "Manage Profiles") {
+        await vscode.commands.executeCommand("konveyor.openProfileManager");
       }
+
+      return false;
+    }
+
+    if (config.rulesets.length === 0) {
+      const selection = await vscode.window.showWarningMessage(
+        "No rules are defined in the active profile. Enable default rules or provide custom rules.",
+        "Manage Profiles",
+        "Cancel",
+      );
+
+      if (selection === "Manage Profiles") {
+        await vscode.commands.executeCommand("konveyor.openProfileManager");
+      }
+
       return false;
     }
 
@@ -711,9 +723,25 @@ export class AnalyzerClient {
   }
 
   protected getRulesetsPath(): string[] {
-    return [
-      getConfigUseDefaultRulesets() && this.assetPaths.rulesets,
-      ...getConfigCustomRules(),
-    ].filter(Boolean);
+    return this.getActiveProfileConfig().rulesets;
+  }
+
+  protected getActiveProfileConfig() {
+    const { activeProfileId, profiles } = this.getExtStateData();
+    const profile = profiles.find((p) => p.id === activeProfileId);
+    if (!profile) {
+      throw new Error("No active profile configured.");
+    }
+
+    const rulesets: string[] = [
+      profile.useDefaultRules ? this.assetPaths.rulesets : null,
+      ...(profile.customRules || []),
+    ].filter(Boolean) as string[];
+
+    return {
+      labelSelector: profile.labelSelector,
+      rulesets,
+      isValid: !!profile.labelSelector && rulesets.length > 0,
+    };
   }
 }

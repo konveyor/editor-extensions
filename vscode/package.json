@@ -42,6 +42,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor.openProfilesPanel",
+        "title": "Manage Analysis Profiles",
+        "category": "Konveyor",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "konveyor.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
         "category": "Konveyor",
@@ -467,30 +473,6 @@
           "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
           "scope": "resource",
           "order": 1
-        },
-        "konveyor.analysis.useDefaultRulesets": {
-          "type": "boolean",
-          "default": true,
-          "description": "Should the rulesets bundled in the extension be used?",
-          "scope": "window",
-          "order": 3
-        },
-        "konveyor.analysis.customRules": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "Array of filepaths to additional rules for analysis.",
-          "scope": "window",
-          "order": 4
-        },
-        "konveyor.analysis.labelSelector": {
-          "type": "string",
-          "default": "discovery",
-          "description": "Expression to select incidents based on custom variables. Example: (!package=io.konveyor.demo.config-utils)",
-          "scope": "window",
-          "order": 5
         },
         "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",

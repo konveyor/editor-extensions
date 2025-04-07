@@ -19,22 +19,28 @@ export function ServerStatusToggle({
   onToggle,
 }: ServerStatusToggleProps) {
   return (
-    <div className="server-status-container">
+    <div>
       <div className="server-status-wrapper">
-        <p className="server-status-label">Server Status</p>
+        {isStarting ? (
+          <Spinner size="sm" aria-label="Loading spinner" className="server-status-spinner" />
+        ) : isInitializing ? (
+          <Spinner size="sm" aria-label="Loading spinner" className="server-status-spinner" />
+        ) : (
+          <Button
+            variant="control"
+            size="sm"
+            icon={<OnIcon />}
+            onClick={onToggle}
+            isDisabled={isStarting || isInitializing || hasWarning}
+            className="server-action-button"
+          >
+            {isStarting || isInitializing ? "" : isRunning ? "Stop" : "Start"}
+          </Button>
+        )}
+        <p>Server Status</p>
         <Label color={isRunning ? "green" : "red"} isCompact>
           {isRunning ? "Running" : "Stopped"}
         </Label>
-        <div className="vertical-divider" />
-        <Button
-          variant="plain"
-          icon={isStarting || isInitializing ? <Spinner size="sm" /> : <OnIcon />}
-          onClick={onToggle}
-          isDisabled={isStarting || isInitializing || hasWarning}
-          className="server-action-button"
-        >
-          {isStarting || isInitializing ? "" : isRunning ? "Stop" : "Start"}
-        </Button>
       </div>
     </div>
   );

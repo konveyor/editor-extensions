@@ -4,86 +4,19 @@ import * as fs from "fs";
 import deepEqual from "fast-deep-equal";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
-import { ExtensionData, GenAIConfigFile, GenAIConfigStatus } from "@editor-extensions/shared";
-import { effortLevels, getEffortValue, SolutionEffortLevel } from "@editor-extensions/shared";
+import { ExtensionState } from "../extensionState";
+import {
+  AnalysisProfile,
+  ExtensionData,
+  GenAIConfigFile,
+  GenAIConfigStatus,
+  effortLevels,
+  getEffortValue,
+  SolutionEffortLevel,
+} from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<T>(key);
-}
-
-export function getConfigAnalyzerPath(): string {
-  return getConfigValue<string>("analyzerPath") || "";
-}
-
-export function getConfigKaiRpcServerPath(): string {
-  return getConfigValue<string>("kaiRpcServerPath") || "";
-}
-
-export function getConfigLogLevel(): ServerLogLevels {
-  return getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
-}
-
-export function getConfigLoggingTraceMessageConnection(): boolean {
-  return getConfigValue<boolean>("logging.traceMessageConnection") ?? false;
-}
-
-export function getConfigIncidentLimit(): number {
-  return getConfigValue<number>("analysis.incidentLimit") || 10000;
-}
-
-export function getConfigContextLines(): number {
-  return getConfigValue<number>("analysis.contextLines") || 10;
-}
-
-export function getConfigCodeSnipLimit(): number {
-  return getConfigValue<number>("analysis.codeSnipLimit") || 10;
-}
-
-export function getConfigUseDefaultRulesets(): boolean {
-  return getConfigValue<boolean>("analysis.useDefaultRulesets") ?? true;
-}
-
-export function getConfigCustomRules(): string[] {
-  return getConfigValue<string[]>("analysis.customRules") || [];
-}
-
-export function getConfigLabelSelector(): string {
-  return getConfigValue<string>("analysis.labelSelector") || "discovery";
-}
-
-export function getConfigAnalyzeKnownLibraries(): boolean {
-  return getConfigValue<boolean>("analysis.analyzeKnownLibraries") ?? false;
-}
-
-export function getConfigAnalyzeDependencies(): boolean {
-  return getConfigValue<boolean>("analysis.analyzeDependencies") ?? true;
-}
-
-export function getConfigAnalyzeOnSave(): boolean {
-  return getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
-}
-
-export function getConfigDiffEditorType(): string {
-  return getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
-}
-
-export function getCacheDir(): string | undefined {
-  return getConfigValue<string>("kai.cacheDir");
-}
-
-export function getTraceEnabled(): boolean {
-  return getConfigValue<boolean>("kai.traceEnabled") || false;
-}
-
-export function getConfigKaiDemoMode(): boolean {
-  return getConfigValue<boolean>("kai.demoMode") ?? false;
-}
-
-export function getConfigPromptTemplate(): string {
-  return (
-    getConfigValue<string>("kai.promptTemplate") ??
-    "Help me address this Konveyor migration issue:\nRule: {{ruleset_name}} - {{ruleset_description}}\nViolation: {{violation_name}} - {{violation_description}}\nCategory: {{violation_category}}\nMessage: {{message}}"
-  );
 }
 
 async function updateConfigValue<T>(
@@ -94,130 +27,53 @@ async function updateConfigValue<T>(
   await vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY).update(key, value, scope);
 }
 
-export async function updateAnalyzerPath(value: string | undefined): Promise<void> {
-  try {
-    const scope = vscode.workspace.workspaceFolders
-      ? vscode.ConfigurationTarget.Workspace
-      : vscode.ConfigurationTarget.Global;
-    await updateConfigValue("analyzerPath", value, scope);
-  } catch (error) {
-    console.error("Failed to update analyzerPath:", error);
-  }
-}
+export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
+export const getConfigKaiRpcServerPath = (): string =>
+  getConfigValue<string>("kaiRpcServerPath") || "";
+export const getConfigLogLevel = (): ServerLogLevels =>
+  getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
+export const getConfigLoggingTraceMessageConnection = (): boolean =>
+  getConfigValue<boolean>("logging.traceMessageConnection") ?? false;
+export const getConfigIncidentLimit = (): number =>
+  getConfigValue<number>("analysis.incidentLimit") || 10000;
+export const getConfigContextLines = (): number =>
+  getConfigValue<number>("analysis.contextLines") || 10;
 
-export async function updateKaiRpcServerPath(value: string | undefined): Promise<void> {
-  try {
-    const scope = vscode.workspace.workspaceFolders
-      ? vscode.ConfigurationTarget.Workspace
-      : vscode.ConfigurationTarget.Global;
-    await updateConfigValue("kaiRpcServerPath", value, scope);
-  } catch (error) {
-    console.error("Failed to update kaiRpcServerPath:", error);
-  }
-}
+export const getConfigCodeSnipLimit = (): number =>
+  getConfigValue<number>("analysis.codeSnipLimit") || 10;
 
-export async function updateLogLevel(value: string): Promise<void> {
-  await updateConfigValue("logLevel", value, vscode.ConfigurationTarget.Workspace);
-}
+export const getConfigLabelSelector = (): string =>
+  getConfigValue<string>("analysis.labelSelector") || "discovery";
+export const getConfigAnalyzeKnownLibraries = (): boolean =>
+  getConfigValue<boolean>("analysis.analyzeKnownLibraries") ?? false;
+export const getConfigAnalyzeDependencies = (): boolean =>
+  getConfigValue<boolean>("analysis.analyzeDependencies") ?? true;
+export const getConfigAnalyzeOnSave = (): boolean =>
+  getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
+export const getConfigDiffEditorType = (): string =>
+  getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
+export const getCacheDir = (): string | undefined => getConfigValue<string>("kai.cacheDir");
+export const getTraceEnabled = (): boolean => getConfigValue<boolean>("kai.traceEnabled") || false;
+export const getConfigKaiDemoMode = (): boolean => getConfigValue<boolean>("kai.demoMode") ?? false;
+export const getConfigPromptTemplate = (): string =>
+  getConfigValue<string>("kai.promptTemplate") ??
+  "Help me address this Konveyor migration issue:\nRule: {{ruleset_name}} - {{ruleset_description}}\nViolation: {{violation_name}} - {{violation_description}}\nCategory: {{violation_category}}\nMessage: {{message}}";
 
-export async function updateIncidentLimit(value: number): Promise<void> {
-  await updateConfigValue("analysis.incidentLimit", value, vscode.ConfigurationTarget.Workspace);
-}
+export const getConfigSolutionMaxPriority = (): number | undefined =>
+  getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? undefined;
+export const getConfigSolutionMaxEffortLevel = (): SolutionEffortLevel =>
+  getConfigValue<string>("kai.getSolutionMaxEffort") as SolutionEffortLevel;
+export const getConfigSolutionMaxEffortValue = (): number | undefined => {
+  const level = getConfigValue<string>("kai.getSolutionMaxEffort");
+  return level && level in effortLevels ? getEffortValue(level as SolutionEffortLevel) : 0;
+};
+export const getConfigMaxLLMQueries = (): number | undefined =>
+  getConfigValue<number | null>("kai.getSolutionMaxLLMQueries") ?? undefined;
 
-export async function updateContextLines(value: number): Promise<void> {
-  await updateConfigValue("analysis.contextLines", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateCodeSnipLimit(value: number): Promise<void> {
-  await updateConfigValue("analysis.codeSnipLimit", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateUseDefaultRuleSets(value: boolean): Promise<void> {
-  await updateConfigValue(
-    "analysis.useDefaultRulesets",
-    value,
-    vscode.ConfigurationTarget.Workspace,
-  );
-}
-
-export async function updateCustomRules(value: string[]): Promise<void> {
-  await updateConfigValue("analysis.customRules", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateLabelSelector(value: string): Promise<void> {
-  await updateConfigValue("analysis.labelSelector", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateAnalyzeKnownLibraries(value: boolean): Promise<void> {
-  await updateConfigValue(
-    "analysis.analyzeKnownLibraries",
-    value,
-    vscode.ConfigurationTarget.Workspace,
-  );
-}
-
-export async function updateAnalyzeDependencies(value: boolean): Promise<void> {
-  await updateConfigValue(
-    "analysis.analyzeDependencies",
-    value,
-    vscode.ConfigurationTarget.Workspace,
-  );
-}
-
-export async function updateAnalyzeOnSave(value: boolean): Promise<void> {
-  await updateConfigValue("analysis.analyzeOnSave", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export function getConfigSolutionMaxPriority(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? undefined;
-}
-
-// getConfigSolutionMaxEffort takes the enum from the config and turns it into
-// a number for use in a getSolution request. This value corresponds to
-// the maximum depth kai will go in attempting to provide a solution.
-export function getConfigSolutionMaxEffortValue(): number | undefined {
-  const effortLevel = getConfigValue<string>("kai.getSolutionMaxEffort");
-
-  if (effortLevel && effortLevel in effortLevels) {
-    return getEffortValue(effortLevel as SolutionEffortLevel);
-  }
-
-  return 0;
-}
-
-export function getConfigSolutionMaxEffortLevel(): SolutionEffortLevel {
-  return getConfigValue<string>("kai.getSolutionMaxEffort") as SolutionEffortLevel;
-}
-
-export function getConfigMaxLLMQueries(): number | undefined {
-  return getConfigValue<number | null>("kai.getSolutionMaxLLMQueries") ?? undefined;
-}
-
-export async function updateGetSolutionMaxPriority(value: number): Promise<void> {
-  await updateConfigValue(
-    "kai.getSolutionMaxPriority",
-    value,
-    vscode.ConfigurationTarget.Workspace,
-  );
-}
-
-export async function updateGetSolutionMaxDepth(value: number): Promise<void> {
-  await updateConfigValue("kai.getSolutionMaxDepth", value, vscode.ConfigurationTarget.Workspace);
-}
-
-export async function updateGetSolutionMaxIterations(value: number): Promise<void> {
-  await updateConfigValue(
-    "kai.getSolutionMaxIterations",
-    value,
-    vscode.ConfigurationTarget.Workspace,
-  );
-}
-
-export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
+export const getGenAIConfigStatus = (filepath: string): GenAIConfigStatus => {
   try {
     const fileContents = fs.readFileSync(filepath, "utf8");
     const config = yaml.load(fileContents) as GenAIConfigFile;
-
     const models = config?.models ?? {};
     const activeConfig = config?.active;
 
@@ -238,7 +94,7 @@ export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
 
     return {
       configured: Boolean(apiKey),
-      keyMissing: apiKey === "" || apiKey === undefined,
+      keyMissing: !apiKey,
       usingDefault:
         resolvedActiveKey === "OpenAI" &&
         activeConfig?.args?.model === "gpt-4o" &&
@@ -249,20 +105,133 @@ export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
     console.error("Error parsing GenAI config:", err);
     return { configured: false, keyMissing: false, usingDefault: true };
   }
-}
+};
+
+export const updateSolutionMaxEffortLevel = async (value: SolutionEffortLevel): Promise<void> => {
+  await updateConfigValue("kai.getSolutionMaxEffort", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateGetSolutionMaxPriority = async (value: number | null): Promise<void> => {
+  await updateConfigValue(
+    "kai.getSolutionMaxPriority",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+};
+export const updateGetSolutionMaxDepth = async (value: number | null): Promise<void> => {
+  await updateConfigValue("kai.getSolutionMaxDepth", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateKaiRpcServerPath = async (value: string | undefined): Promise<void> => {
+  await updateConfigValue("kaiRpcServerPath", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
+  await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
+};
+
+export const updateGetSolutionMaxIterations = async (value: number | null): Promise<void> => {
+  await updateConfigValue(
+    "kai.getSolutionMaxIterations",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+};
+export const updateUseDefaultRuleSets = async (value: boolean): Promise<void> => {
+  await updateConfigValue(
+    "analysis.useDefaultRulesets",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+};
+export const updateLabelSelector = async (value: string): Promise<void> => {
+  await updateConfigValue("analysis.labelSelector", value, vscode.ConfigurationTarget.Workspace);
+};
 
 export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string): void {
-  const currentLabelSelector = getConfigLabelSelector();
-  const customRules = getConfigCustomRules();
-
-  const UNCONFIGURED_VALUES = [undefined, "discovery", "(discovery)"];
   const status = getGenAIConfigStatus(settingsPath);
 
+  const { activeProfileId, profiles } = draft;
+  const profile = profiles.find((p) => p.id === activeProfileId);
+
+  const labelSelectorValid = !!profile?.labelSelector;
+
   draft.analysisConfig = {
-    labelSelectorValid: !UNCONFIGURED_VALUES.includes(currentLabelSelector),
+    labelSelectorValid,
+    customRulesConfigured: !!profile?.customRules?.length,
     genAIConfigured: status.configured,
     genAIKeyMissing: status.keyMissing,
     genAIUsingDefault: status.usingDefault,
-    customRulesConfigured: customRules.length > 0,
   };
+
+  // If either check fails, show the incomplete config prompt in the sidebar
+}
+
+export const getConfigProfiles = (): AnalysisProfile[] =>
+  getConfigValue<unknown[]>("profiles")?.map((p: any) => ({
+    id: p.id ?? crypto.randomUUID(),
+    name: p.name ?? "",
+    mode: p.mode ?? "source-only",
+    customRules: Array.isArray(p.customRules) ? [...p.customRules] : [],
+    useDefaultRules: !!p.useDefaultRules,
+    labelSelector: p.labelSelector ?? "",
+  })) || [];
+
+export const getConfigActiveProfileId = (): string | undefined => {
+  const id = getConfigValue<string>("activeProfileId");
+  const profiles = getConfigProfiles();
+  return profiles.find((p) => p.id === id)?.id ?? profiles[0]?.id;
+};
+
+export const updateConfigActiveProfileIdfileId = async (id: string) => {
+  return updateConfigValue("activeProfileId", id, vscode.ConfigurationTarget.Workspace);
+};
+
+export const updateConfigProfiles = async (profiles: AnalysisProfile[]): Promise<void> => {
+  const safeProfiles = profiles.map((p) => {
+    const { id, name, mode, customRules, useDefaultRules, labelSelector } = p;
+    return {
+      id,
+      name,
+      mode,
+      customRules: Array.isArray(customRules) ? [...customRules] : [],
+      useDefaultRules: !!useDefaultRules,
+      labelSelector: labelSelector ?? "",
+    };
+  });
+  await updateConfigValue("profiles", safeProfiles, vscode.ConfigurationTarget.Workspace);
+};
+
+export const updateConfigActiveProfileId = async (profileId: string): Promise<void> => {
+  await updateConfigValue("activeProfileId", profileId, vscode.ConfigurationTarget.Workspace);
+};
+
+export const registerConfigChangeListener = (
+  state: ExtensionState,
+  settingsPath: string,
+): vscode.Disposable => {
+  return vscode.workspace.onDidChangeConfiguration((event) => {
+    if (
+      event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort") ||
+      event.affectsConfiguration("konveyor.kai.getSolutionMaxLLMQueries") ||
+      event.affectsConfiguration("konveyor.kai.getSolutionMaxPriority")
+    ) {
+      state.mutateData((draft) => {
+        draft.solutionEffort = getConfigSolutionMaxEffortLevel();
+        updateAnalysisConfig(draft, settingsPath);
+      });
+    }
+  });
+};
+
+export function updateActiveProfileValidity(draft: ExtensionData, assetRulesetPath: string): void {
+  const active = draft.profiles.find((p) => p.id === draft.activeProfileId);
+  if (!active) {
+    return;
+  }
+
+  const rulesets = [
+    active.useDefaultRules ? assetRulesetPath : null,
+    ...(active.customRules ?? []),
+  ].filter(Boolean);
+
+  draft.analysisConfig.labelSelectorValid = !!active.labelSelector;
+  draft.analysisConfig.customRulesConfigured = rulesets.length > 0;
 }
