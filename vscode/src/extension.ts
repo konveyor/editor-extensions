@@ -13,7 +13,6 @@ import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
-
 class VsCodeExtension {
   private state: ExtensionState;
   private data: Immutable<ExtensionData>;
@@ -49,6 +48,8 @@ class VsCodeExtension {
           genAIUsingDefault: false,
           customRulesConfigured: false,
         },
+        activeProfileName: "",
+        profiles: [],
       },
       () => {},
     );
@@ -78,9 +79,18 @@ class VsCodeExtension {
     };
   }
 
-  public initialize(): void {
+  public async initialize(): Promise<void> {
     try {
       this.checkWorkspace();
+
+      const profiles = getConfigProfiles();
+      const activeProfile = getConfigActiveProfileName();
+
+      this.state.mutateData((draft) => {
+        draft.profiles = profiles;
+        draft.activeProfileName = activeProfile;
+      });
+
       this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
@@ -146,12 +156,14 @@ class VsCodeExtension {
 
   private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
-    this.state.webviewProviders.set("sidebar", sidebarProvider);
-
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
-    this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
 
-    [sidebarProvider, resolutionViewProvider].forEach((provider) =>
+    this.state.webviewProviders.set("sidebar", sidebarProvider);
+    this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    this.state.webviewProviders.set("profiles", profilesViewProvider);
+
+    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
       this.onDidChangeData((data) => {
         provider.sendMessageToWebview(data);
       }),
@@ -167,6 +179,13 @@ class VsCodeExtension {
         KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
         resolutionViewProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
+      ),
+      vscode.window.registerWebviewViewProvider(
+        KonveyorGUIWebviewViewProvider.PROFILES_VIEW_TYPE,
+        profilesViewProvider,
+        {
+          webviewOptions: { retainContextWhenHidden: true },
+        },
       ),
     );
   }
@@ -221,7 +240,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await copySampleProviderSettings();
 
     extension = new VsCodeExtension(paths, context);
-    extension.initialize();
+    await extension.initialize();
   } catch (error) {
     await extension?.dispose();
     extension = undefined;

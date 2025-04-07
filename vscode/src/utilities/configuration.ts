@@ -4,8 +4,18 @@ import * as fs from "fs";
 import deepEqual from "fast-deep-equal";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
+<<<<<<< HEAD
 import { ExtensionData, GenAIConfigFile, GenAIConfigStatus } from "@editor-extensions/shared";
 import { effortLevels, getEffortValue, SolutionEffortLevel } from "@editor-extensions/shared";
+=======
+import {
+  AnalysisProfile,
+  effortLevels,
+  getEffortValue,
+  SolutionEffortLevel,
+} from "@editor-extensions/shared";
+import { ExtensionState } from "src/extensionState";
+>>>>>>> 9842302 (Initial changes for profile creation setting)
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<T>(key);
@@ -213,6 +223,7 @@ export async function updateGetSolutionMaxIterations(value: number): Promise<voi
   );
 }
 
+<<<<<<< HEAD
 export function getGenAIConfigStatus(filepath: string): GenAIConfigStatus {
   try {
     const fileContents = fs.readFileSync(filepath, "utf8");
@@ -265,4 +276,40 @@ export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string)
     genAIUsingDefault: status.usingDefault,
     customRulesConfigured: customRules.length > 0,
   };
+=======
+export function getConfigProfiles(): AnalysisProfile[] {
+  return getConfigValue<AnalysisProfile[]>("profiles") || [];
+}
+
+export function getConfigActiveProfileName(): string {
+  return getConfigValue<string>("activeProfileName") || "";
+}
+
+export async function updateConfigProfiles(profiles: AnalysisProfile[]) {
+  await updateConfigValue("profiles", profiles, vscode.ConfigurationTarget.Workspace);
+}
+
+export async function updateConfigActiveProfileName(profileName: string) {
+  await updateConfigValue("activeProfileName", profileName, vscode.ConfigurationTarget.Workspace);
+}
+
+export async function updateProfilesAndState(
+  state: ExtensionState,
+  profiles: AnalysisProfile[],
+): Promise<void> {
+  state.mutateData((draft) => {
+    draft.profiles = profiles;
+  });
+  await updateConfigProfiles(profiles);
+}
+
+export async function updateActiveProfileAndState(
+  state: ExtensionState,
+  profileName: string,
+): Promise<void> {
+  state.mutateData((draft) => {
+    draft.activeProfileName = profileName;
+  });
+  await updateConfigActiveProfileName(profileName);
+>>>>>>> 9842302 (Initial changes for profile creation setting)
 }

@@ -38,14 +38,23 @@ import {
 
 import ProgressIndicator from "../ProgressIndicator";
 import ViolationIncidentsList from "../ViolationIncidentsList";
+<<<<<<< HEAD
 import { AnalysisConfig, Incident } from "@editor-extensions/shared";
+=======
+import { AnalysisProfile, Incident } from "@editor-extensions/shared";
+>>>>>>> 9842302 (Initial changes for profile creation setting)
 import { openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
 import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+<<<<<<< HEAD
 import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
 import { ConfigButton } from "./ConfigButton/ConfigButton";
+=======
+import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
+import { NewProfileModal } from "../NewProfileModal/NewProfileModal";
+>>>>>>> 9842302 (Initial changes for profile creation setting)
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -57,8 +66,18 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
+<<<<<<< HEAD
     analysisConfig,
+=======
+    profiles: initialProfiles,
+    activeProfileName: initialActiveProfile,
+>>>>>>> 9842302 (Initial changes for profile creation setting)
   } = state;
+
+  const [profiles, setProfiles] = useState(initialProfiles);
+  const [activeProfile, setActiveProfile] = useState(initialActiveProfile);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
   const serverRunning = state.serverState === "running";
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -75,6 +94,28 @@ const AnalysisPage: React.FC = () => {
 
   const handleServerToggle = () => {
     dispatch(serverRunning ? stopServer() : startServer());
+  };
+
+  const handleProfileChange = (newProfile: string) => {
+    setActiveProfile(newProfile);
+    dispatch({
+      type: "SET_ACTIVE_PROFILE",
+      payload: newProfile,
+    });
+  };
+
+  const handleSaveProfile = (newProfile: AnalysisProfile) => {
+    // Add to extension state
+    // dispatch({ type: "ADD_PROFILE", payload: newProfile });
+
+    // Send to backend for persistence
+    window.vscode.postMessage({
+      type: "ADD_PROFILE",
+      payload: newProfile,
+    });
+
+    // Activate it
+    // dispatch({ type: "UPDATE_ACTIVE_PROFILE", payload: newProfile.name });
   };
 
   const violations = useViolations(analysisResults);
@@ -133,6 +174,7 @@ const AnalysisPage: React.FC = () => {
                   </MastheadToggle>
                 </MastheadMain>
 
+<<<<<<< HEAD
                 <MastheadContent>
                   <Toolbar>
                     <ToolbarContent>
@@ -176,6 +218,118 @@ const AnalysisPage: React.FC = () => {
                 </AlertGroup>
               </PageSection>
             )}
+=======
+          <MastheadContent>
+            <Toolbar>
+              <ToolbarContent>
+                <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                  <ToolbarItem>
+                    <ProfileSelector
+                      profiles={profiles ?? []}
+                      activeProfile={activeProfile ?? ""}
+                      onChange={handleProfileChange}
+                    />
+                  </ToolbarItem>
+                  <ToolbarItem>
+                    <Button
+                      variant="secondary"
+                      onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                    >
+                      Manage Profiles
+                    </Button>
+                  </ToolbarItem>
+                  <ToolbarItem>
+                    <ServerStatusToggle
+                      isRunning={serverRunning}
+                      isStarting={isStartingServer}
+                      isInitializing={isInitializingServer}
+                      onToggle={handleServerToggle}
+                    />
+                  </ToolbarItem>
+                </ToolbarGroup>
+              </ToolbarContent>
+            </Toolbar>
+          </MastheadContent>
+        </Masthead>
+      }
+    >
+      {errorMessage && (
+        <PageSection padding={{ default: "noPadding" }}>
+          <AlertGroup isToast>
+            <Alert
+              variant="danger"
+              title={errorMessage}
+              actionClose={
+                <AlertActionCloseButton
+                  title={errorMessage}
+                  onClose={() => setErrorMessage(null)}
+                />
+              }
+            />
+          </AlertGroup>
+        </PageSection>
+      )}
+
+      <PageSection>
+        <Stack hasGutter>
+          <StackItem>
+            <Card>
+              <CardHeader>
+                <Flex className="header-layout">
+                  <FlexItem>
+                    <CardTitle>Analysis Results</CardTitle>
+                    <ViolationsCount
+                      violationsCount={violations.length}
+                      incidentsCount={violations.reduce(
+                        (prev, curr) => curr.incidents.length + prev,
+                        0,
+                      )}
+                    />
+                  </FlexItem>
+                  <>
+                    <FlexItem></FlexItem>
+                  </>
+                </Flex>
+              </CardHeader>
+              <CardBody>
+                {isAnalyzing && <ProgressIndicator progress={50} />}
+
+                {!isAnalyzing && !hasViolations && (
+                  <EmptyState variant="sm">
+                    <Title className="empty-state-analysis-results" headingLevel="h2" size="md">
+                      {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
+                    </Title>
+                    <EmptyStateBody>
+                      {hasAnalysisResults
+                        ? "Great job! Your analysis didn't find any violations."
+                        : "Run an analysis to see results here."}
+                    </EmptyStateBody>
+                  </EmptyState>
+                )}
+
+                {hasViolations && !isAnalyzing && (
+                  <ViolationIncidentsList
+                    enhancedIncidents={enhancedIncidents}
+                    focusedIncident={focusedIncident}
+                    onIncidentSelect={handleIncidentSelect}
+                    expandedViolations={expandedViolations}
+                    setExpandedViolations={setExpandedViolations}
+                  />
+                )}
+              </CardBody>
+            </Card>
+          </StackItem>
+        </Stack>
+      </PageSection>
+      <NewProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onSave={(profile) => {
+          // dispatch({ type: "ADD_PROFILE", payload: profile });
+          // window.vscode.postMessage({ type: "ADD_PROFILE", payload: profile });
+        }}
+      />
+>>>>>>> 9842302 (Initial changes for profile creation setting)
 
             <PageSection>
               <Stack hasGutter>
