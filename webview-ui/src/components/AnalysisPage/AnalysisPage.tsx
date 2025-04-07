@@ -41,6 +41,7 @@ import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
 import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import { useViolations } from "../..//hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -52,7 +53,12 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
+    profiles: initialProfiles,
+    activeProfileName: initialActiveProfile,
   } = state;
+
+  const [profiles, setProfiles] = useState(initialProfiles);
+  const [activeProfile, setActiveProfile] = useState(initialActiveProfile);
   const serverRunning = state.serverState === "running";
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -68,6 +74,14 @@ const AnalysisPage: React.FC = () => {
 
   const handleServerToggle = () => {
     dispatch(serverRunning ? stopServer() : startServer());
+  };
+
+  const handleProfileChange = (newProfile: string) => {
+    setActiveProfile(newProfile);
+    dispatch({
+      type: "SET_ACTIVE_PROFILE",
+      payload: newProfile,
+    });
   };
 
   const violations = useViolations(analysisResults);
@@ -103,6 +117,13 @@ const AnalysisPage: React.FC = () => {
             <Toolbar>
               <ToolbarContent>
                 <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                  <ToolbarItem>
+                    <ProfileSelector
+                      profiles={profiles ?? []}
+                      activeProfile={activeProfile ?? ""}
+                      onChange={handleProfileChange}
+                    />
+                  </ToolbarItem>
                   <ToolbarItem>
                     <ServerStatusToggle
                       isRunning={serverRunning}

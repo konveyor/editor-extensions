@@ -8,6 +8,7 @@ import {
   OPEN_FILE,
   RUN_ANALYSIS,
   Scope,
+  SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
   VIEW_FIX,
@@ -15,13 +16,16 @@ import {
   WebviewAction,
   WebviewActionType,
 } from "@editor-extensions/shared";
+import { updateActiveProfile } from "./utilities/profiles";
 
-export function setupWebviewMessageListener(webview: vscode.Webview, _state: ExtensionState) {
-  webview.onDidReceiveMessage(async (message) => messageHandler(message));
+export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
+  webview.onDidReceiveMessage(async (message) => {
+    await messageHandler(message, state);
+  });
 }
 
 const actions: {
-  [name: string]: (payload: any) => void;
+  [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
   [WEBVIEW_READY]() {
     console.log("Webview is ready");
@@ -49,6 +53,12 @@ const actions: {
       true,
     );
   },
+
+  [SET_ACTIVE_PROFILE]: async (profileName: string, state: ExtensionState) => {
+    await updateActiveProfile(state, profileName);
+    console.log("✅ Active profile set to:", profileName);
+  },
+
   // [REQUEST_QUICK_FIX]({uri,line}){
   // await handleRequestQuickFix(uri, line);
   // Implement the quick fix logic here
@@ -88,11 +98,14 @@ const actions: {
   },
 };
 
-export const messageHandler = async (message: WebviewAction<WebviewActionType, unknown>) => {
+export const messageHandler = async (
+  message: WebviewAction<WebviewActionType, unknown>,
+  state: ExtensionState,
+) => {
   console.log("Received message inside message handler...", message);
   const handler = actions?.[message?.type];
   if (handler) {
-    await handler(message.payload);
+    await handler(message.payload, state); // 🧠 pass state here
   } else {
     defaultHandler(message);
   }

@@ -13,6 +13,7 @@ import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel } from "./utilities";
+import { getActiveProfile, getProfiles } from "./utilities/profiles";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -71,9 +72,18 @@ class VsCodeExtension {
     };
   }
 
-  public initialize(): void {
+  public async initialize(): Promise<void> {
     try {
       this.checkWorkspace();
+
+      const profiles = await getProfiles(this.context);
+      const activeProfile = await getActiveProfile(this.context);
+
+      this.state.mutateData((draft) => {
+        draft.profiles = profiles;
+        draft.activeProfileName = activeProfile;
+      });
+
       this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
@@ -174,7 +184,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await copySampleProviderSettings();
 
     extension = new VsCodeExtension(paths, context);
-    extension.initialize();
+    await extension.initialize();
   } catch (error) {
     await extension?.dispose();
     extension = undefined;
