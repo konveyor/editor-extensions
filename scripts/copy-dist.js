@@ -95,5 +95,12 @@ await copy({
       src: ["*/kai*", "!**/*.zip"],
       dest: "dist/assets/kai",
     },
+
+    // include the collect-assets metadata
+    {
+      context: "downloaded_assets",
+      src: "collect-assets-meta.json",
+      dest: "dist/assets",
+    },
   ],
 });
