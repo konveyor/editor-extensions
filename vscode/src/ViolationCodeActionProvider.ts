@@ -44,37 +44,44 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
     const actions: vscode.CodeAction[] = [];
     const continueExt = vscode.extensions.getExtension("Continue.continue");
 
-    for (const diagnostic of context.diagnostics) {
-      if (diagnostic.source === DiagnosticSource) {
-        const incident = this.findMatchingIncident(diagnostic);
-        if (incident) {
-          // Add Ask Kai action
-          const askKaiAction = new vscode.CodeAction("Ask Kai", vscode.CodeActionKind.QuickFix);
-          askKaiAction.command = {
-            command: "konveyor.getSolution",
-            title: "Ask Kai",
-            arguments: [[incident], this.state.data.solutionEffort],
-          };
-          askKaiAction.diagnostics = [diagnostic];
-          actions.push(askKaiAction);
+    // Only process if there are diagnostics
+    if (context.diagnostics.length === 0) {
+      return actions;
+    }
 
-          // Add Ask Continue action if Continue is installed
-          if (continueExt) {
-            const askContinueAction = new vscode.CodeAction(
-              "Ask Continue with Konveyor Context",
-              vscode.CodeActionKind.QuickFix,
-            );
+    // Get the first diagnostic that's from our source
+    const diagnostic = context.diagnostics.find((d) => d.source === DiagnosticSource);
+    if (!diagnostic) {
+      return actions;
+    }
 
-            askContinueAction.command = {
-              command: "konveyor.askContinue",
-              title: "Ask Continue with Konveyor Context",
-              arguments: [incident],
-            };
-            askContinueAction.diagnostics = [diagnostic];
-            actions.push(askContinueAction);
-          }
-        }
-      }
+    const incident = this.findMatchingIncident(diagnostic);
+    if (!incident) {
+      return actions;
+    }
+
+    const askKaiAction = new vscode.CodeAction("Ask Kai", vscode.CodeActionKind.QuickFix);
+    askKaiAction.command = {
+      command: "konveyor.getSolution",
+      title: "Ask Kai",
+      arguments: [[incident], this.state.data.solutionEffort],
+    };
+    askKaiAction.diagnostics = [diagnostic];
+    actions.push(askKaiAction);
+
+    if (continueExt) {
+      const askContinueAction = new vscode.CodeAction(
+        "Ask Continue with Konveyor Context",
+        vscode.CodeActionKind.QuickFix,
+      );
+
+      askContinueAction.command = {
+        command: "konveyor.askContinue",
+        title: "Ask Continue with Konveyor Context",
+        arguments: [incident],
+      };
+      askContinueAction.diagnostics = [diagnostic];
+      actions.push(askContinueAction);
     }
 
     return actions;
