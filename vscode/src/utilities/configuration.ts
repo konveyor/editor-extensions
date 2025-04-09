@@ -11,10 +11,6 @@ export function getConfigAnalyzerPath(): string {
   return getConfigValue<string>("analyzerPath") || "";
 }
 
-export function getConfigKaiRpcServerPath(): string {
-  return getConfigValue<string>("kaiRpcServerPath") || "";
-}
-
 export function getConfigLogLevel(): ServerLogLevels {
   return getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
 }
@@ -91,17 +87,6 @@ export async function updateAnalyzerPath(value: string | undefined): Promise<voi
     await updateConfigValue("analyzerPath", value, scope);
   } catch (error) {
     console.error("Failed to update analyzerPath:", error);
-  }
-}
-
-export async function updateKaiRpcServerPath(value: string | undefined): Promise<void> {
-  try {
-    const scope = vscode.workspace.workspaceFolders
-      ? vscode.ConfigurationTarget.Workspace
-      : vscode.ConfigurationTarget.Global;
-    await updateConfigValue("kaiRpcServerPath", value, scope);
-  } catch (error) {
-    console.error("Failed to update kaiRpcServerPath:", error);
   }
 }
 

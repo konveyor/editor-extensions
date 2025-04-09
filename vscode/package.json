@@ -441,14 +441,7 @@
       "properties": {
         "konveyor.logLevel": {
           "type": "string",
-          "enum": [
-            "TRACE",
-            "DEBUG",
-            "INFO",
-            "WARN",
-            "ERROR",
-            "CRITICAL"
-          ],
+          "pattern": "^(TRACE|DEBUG|INFO|WARN|ERROR|CRITICAL)(?:[+-]\\d+)?$",
           "default": "DEBUG",
           "description": "Logging level used for the server binaries",
           "scope": "window",
@@ -460,13 +453,6 @@
           "description": "Path to the analyzer binary. If not set, the extension will use the bundled binary.",
           "scope": "resource",
           "order": 2
-        },
-        "konveyor.kaiRpcServerPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
-          "scope": "resource",
-          "order": 1
         },
         "konveyor.analysis.useDefaultRulesets": {
           "type": "boolean",

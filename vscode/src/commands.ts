@@ -27,7 +27,6 @@ import {
 } from "./diffView";
 import {
   updateAnalyzerPath,
-  updateKaiRpcServerPath,
   updateCustomRules,
   updateUseDefaultRuleSets,
   getConfigLabelSelector,
@@ -55,7 +54,6 @@ const commandsMap: (state: ExtensionState) => {
       }
       try {
         await analyzerClient.start();
-        await analyzerClient.initialize();
       } catch (e) {
         console.error("Could not start the server", e);
       }
@@ -79,7 +77,6 @@ const commandsMap: (state: ExtensionState) => {
           return;
         }
         await analyzerClient.start();
-        await analyzerClient.initialize();
       } catch (e) {
         console.error("Could not restart the server", e);
       }
@@ -131,42 +128,6 @@ const commandsMap: (state: ExtensionState) => {
         // Reset the setting to undefined or remove it
         await updateAnalyzerPath(undefined);
         window.showInformationMessage("No analyzer binary selected.");
-      }
-    },
-    "konveyor.overrideKaiRpcServerBinaries": async () => {
-      const options: OpenDialogOptions = {
-        canSelectMany: false,
-        openLabel: "Select Rpc Server Binary",
-        filters: isWindows
-          ? {
-              "Executable Files": ["exe"],
-              "All Files": ["*"],
-            }
-          : {
-              "All Files": ["*"],
-            },
-      };
-
-      const fileUri = await window.showOpenDialog(options);
-      if (fileUri && fileUri[0]) {
-        const filePath = fileUri[0].fsPath;
-
-        const isExecutable = await checkIfExecutable(filePath);
-        if (!isExecutable) {
-          window.showErrorMessage(
-            `The selected file "${filePath}" is not executable. Please select a valid executable file.`,
-          );
-          return;
-        }
-
-        // Update the user settings
-        await updateKaiRpcServerPath(filePath);
-
-        window.showInformationMessage(`Rpc server binary path updated to: ${filePath}`);
-      } else {
-        // Reset the setting to undefined or remove it
-        await updateKaiRpcServerPath(undefined);
-        window.showInformationMessage("No Kai rpc-server binary selected.");
       }
     },
     "konveyor.modelProviderSettingsOpen": async () => {
