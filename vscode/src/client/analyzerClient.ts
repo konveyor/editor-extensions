@@ -53,6 +53,8 @@ export class AnalyzerClient {
   private modelProvider: ModelProvider | null = null;
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
   private rpcConnection: rpc.MessageConnection | null = null;
+  private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
+  private analyzerRpcConnection?: rpc.MessageConnection | null;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -164,6 +166,8 @@ export class AnalyzerClient {
       return;
     }
 
+    this.outputChannel.appendLine("Starting kai analyzer rpc");
+
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.fireServerStateChange("starting");
 
@@ -191,6 +195,54 @@ export class AnalyzerClient {
       throw e;
     }
 
+    const pipeName = rpc.generateRandomPipeName();
+    // const [analyzerRpcServer, analyzerPid] = await this.startAnalysisServer(pipeName);
+    // analyzerRpcServer.on("exit", (code, signal) => {
+    //   this.outputChannel.appendLine(`analyzer rpc server exited [signal: ${signal}, code: ${code}]`);
+    //   this.fireServerStateChange("stopped");
+    // });
+    // this.analyzerRpcServer = analyzerRpcServer;
+    // this.outputChannel.appendLine(`analyzer rpc server successfully started [pid: ${analyzerPid}]`);
+
+    // const socket = net.connect(pipeName)
+    // this.analyzerRpcConnection = rpc.createMessageConnection(
+    //   new rpc.StreamMessageReader(socket),
+    //   new rpc.StreamMessageWriter(socket),
+    // )
+    // socket.addListener("connectionAttempt", function(ip, port, family) {
+    //   console.log(ip + " " + port + " "+ family);
+    // });
+    // socket.addListener("connectionAttemptFailed", function(ip, port, family) {
+    //   console.log("faild" + ip + " " + port + " "+ family);
+    // });
+    // socket.addListener("connectionAttemptTimeout", function(hadErr) {
+    //   console.log("timeout" + hadErr);
+    // })
+    const transports = await rpc.createClientPipeTransport(pipeName).then((transport) => {
+      const [analyzerRpcServer, analyzerPid] = this.startAnalysisServer(pipeName);
+      analyzerRpcServer.on("exit", (code, signal) => {
+        this.outputChannel.appendLine(
+          `analyzer rpc server exited [signal: ${signal}, code: ${code}]`,
+        );
+        this.fireServerStateChange("stopped");
+      });
+      analyzerRpcServer.stderr.on("data", (data) => this.outputChannel.appendLine(data));
+      analyzerRpcServer.stdout.on("data", (data) => this.outputChannel.appendLine(data));
+      return transport.onConnected().then((protocol) => {
+        return { reader: protocol[0], writer: protocol[1] };
+      });
+    });
+
+    this.analyzerRpcConnection = await rpc.createMessageConnection(
+      transports.reader,
+      transports.writer,
+    );
+    this.analyzerRpcConnection.onNotification(function (method: string, params: any) {
+      console.log("got " + method + " with params " + params);
+    });
+    this.analyzerRpcConnection.listen();
+    this.analyzerRpcConnection.sendNotification("start", { type: "start" });
+
     // Set up the JSON-RPC connection
     this.rpcConnection = rpc.createMessageConnection(
       new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
@@ -212,7 +264,36 @@ export class AnalyzerClient {
     });
 
     this.rpcConnection.listen();
-    this.fireServerStateChange("readyToInitialize");
+    //this.fireServerStateChange("readyToInitialize");
+  }
+
+  protected startAnalysisServer(
+    pipeName: string,
+    maxTimeToWaitUntilReady: number = 30_000,
+  ): [ChildProcessWithoutNullStreams, number | undefined] {
+    const analyzerPath = this.getAnalyzerPath();
+    const serverEnv = this.getKaiRpcServerEnv();
+    const analyzerLspRulesPaths = this.getRulesetsPath().join(",");
+    const location = paths().workspaceRepo.fsPath;
+    this.outputChannel.appendLine(`server cwd: ${paths().serverCwd.fsPath}`);
+    this.outputChannel.appendLine(`analysis server path: ${analyzerPath}`);
+
+    this.outputChannel.appendLine(`server args:`);
+    const analyzerRpcServer = spawn(
+      analyzerPath,
+      ["-pipePath", pipeName, "-rules", analyzerLspRulesPaths, "-source-directory", location],
+      {
+        cwd: paths().serverCwd.fsPath,
+        env: serverEnv,
+      },
+    );
+
+    analyzerRpcServer.stderr.on("data", (data) => {
+      const asString: string = data.toString().trimEnd();
+      this.outputChannel.appendLine(`${asString}`);
+    });
+
+    return [analyzerRpcServer, analyzerRpcServer.pid];
   }
 
   /**
