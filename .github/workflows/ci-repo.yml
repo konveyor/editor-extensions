@@ -26,7 +26,29 @@ env:
   HUSKY: 0
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install workspace dependencies
+        run: |
+          npm ci
+
+      - name: Lint sources
+        run: |
+          npm run lint
+
   build:
+    needs: lint
     name: Build (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -55,10 +77,6 @@ jobs:
       - name: Install workspace dependencies
         run: |
           npm ci
-
-      - name: Lint sources
-        run: |
-          npm run lint
 
       - name: Build
         run: |
