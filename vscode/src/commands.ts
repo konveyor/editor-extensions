@@ -48,6 +48,14 @@ const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   return {
+    "konveyor.openProfilesPanel": async () => {
+      const provider = state.webviewProviders.get("profiles");
+      if (provider) {
+        provider.showWebviewPanel();
+      } else {
+        console.error("Profiles provider not found");
+      }
+    },
     "konveyor.startServer": async () => {
       const analyzerClient = state.analyzerClient;
       if (!(await analyzerClient.canAnalyzeInteractive())) {

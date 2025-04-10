@@ -42,6 +42,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor.openProfilesPanel",
+        "title": "Manage Analysis Profiles",
+        "category": "Konveyor",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "konveyor.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
         "category": "Konveyor",

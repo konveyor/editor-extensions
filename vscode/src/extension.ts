@@ -121,12 +121,14 @@ class VsCodeExtension {
 
   private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
-    this.state.webviewProviders.set("sidebar", sidebarProvider);
-
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
-    this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
 
-    [sidebarProvider, resolutionViewProvider].forEach((provider) =>
+    this.state.webviewProviders.set("sidebar", sidebarProvider);
+    this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    this.state.webviewProviders.set("profiles", profilesViewProvider);
+
+    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
       this.onDidChangeData((data) => {
         provider.sendMessageToWebview(data);
       }),
@@ -142,6 +144,13 @@ class VsCodeExtension {
         KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
         resolutionViewProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
+      ),
+      vscode.window.registerWebviewViewProvider(
+        KonveyorGUIWebviewViewProvider.PROFILES_VIEW_TYPE,
+        profilesViewProvider,
+        {
+          webviewOptions: { retainContextWhenHidden: true },
+        },
       ),
     );
   }
