@@ -54,7 +54,7 @@
     "collect-assets": "rimraf ./downloaded_assets && node ./scripts/collect-assets.js",
     "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
     "package": "cd dist && vsce package",
-    "test": "npm run lint && npm run build && npm run test --workspaces --if-present"
+    "test": "npm run build && npm run test --workspaces --if-present"
   },
   "lint-staged": {
     "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",

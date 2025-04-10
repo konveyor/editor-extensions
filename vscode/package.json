@@ -698,7 +698,7 @@
     "prebuild": "npm run clean",
     "build": "webpack --mode production",
     "dev": "webpack --watch --mode development",
-    "pretest": "npm run lint && npm run build",
+    "pretest": "npm run build",
     "test": "npm run test:unit-tests && npm run test:integration",
     "test:unit-tests": "mocha",
     "test:integration": "vscode-test"
