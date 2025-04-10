@@ -10,6 +10,7 @@ export const APPLY_FILE = "APPLY_FILE";
 export const DISCARD_FILE = "DISCARD_FILE";
 export const WEBVIEW_READY = "WEBVIEW_READY";
 export const SET_ACTIVE_PROFILE = "SET_ACTIVE_PROFILE";
+export const OPEN_PROFILE_MANAGER = "OPEN_PROFILE_MANAGER";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -23,8 +24,8 @@ export type WebviewActionType =
   | typeof APPLY_FILE
   | typeof DISCARD_FILE
   | typeof WEBVIEW_READY
-  | typeof SET_ACTIVE_PROFILE;
-
+  | typeof SET_ACTIVE_PROFILE
+  | typeof OPEN_PROFILE_MANAGER;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

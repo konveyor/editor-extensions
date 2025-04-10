@@ -142,8 +142,11 @@ const AnalysisPage: React.FC = () => {
                     />
                   </ToolbarItem>
                   <ToolbarItem>
-                    <Button variant="secondary" onClick={() => setShowProfileModal(true)}>
-                      + New Profile
+                    <Button
+                      variant="secondary"
+                      onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                    >
+                      Manage Profiles
                     </Button>
                   </ToolbarItem>
                   <ToolbarItem>

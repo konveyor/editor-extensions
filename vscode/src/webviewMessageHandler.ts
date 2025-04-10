@@ -6,6 +6,7 @@ import {
   GET_SOLUTION,
   LocalChange,
   OPEN_FILE,
+  OPEN_PROFILE_MANAGER,
   RUN_ANALYSIS,
   Scope,
   SET_ACTIVE_PROFILE,
@@ -27,6 +28,9 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
 const actions: {
   [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
+  [OPEN_PROFILE_MANAGER]() {
+    vscode.commands.executeCommand("konveyor.openProfilesPanel");
+  },
   [WEBVIEW_READY]() {
     console.log("Webview is ready");
   },
