@@ -12,10 +12,8 @@ export async function saveProfiles(context: vscode.ExtensionContext, profiles: A
   return context.globalState.update(PROFILES_KEY, profiles);
 }
 
-export async function getActiveProfile(
-  context: vscode.ExtensionContext,
-): Promise<string | undefined> {
-  return context.globalState.get<string>("analysis.activeProfile");
+export async function getActiveProfile(context: vscode.ExtensionContext): Promise<string> {
+  return context.globalState.get<string>("analysis.activeProfile") ?? "";
 }
 
 export async function setActiveProfile(context: vscode.ExtensionContext, profileName: string) {

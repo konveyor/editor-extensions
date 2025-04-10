@@ -43,6 +43,8 @@ class VsCodeExtension {
         chatMessages: [],
         solutionState: "none",
         solutionEffort: getConfigSolutionMaxEffortLevel(),
+        activeProfileName: "",
+        profiles: [],
       },
       () => {},
     );
