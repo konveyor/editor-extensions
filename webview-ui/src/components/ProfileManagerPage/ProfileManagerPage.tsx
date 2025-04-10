@@ -5,7 +5,6 @@ import {
   Split,
   SplitItem,
   Bullseye,
-  Text,
   DataList,
   DataListItem,
   DataListItemRow,
@@ -18,14 +17,16 @@ import {
   FormGroup,
   TextInput,
   Switch,
-  Select,
-  SelectOption,
   DataListAction,
   Dropdown,
   DropdownList,
   DropdownItem,
   MenuToggle,
   MenuToggleElement,
+  FormSelect,
+  FormSelectOption,
+  Content,
+  ContentVariants,
 } from "@patternfly/react-core";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
@@ -126,7 +127,7 @@ const ProfileEditorForm: React.FC<{
         <TextInput
           id="profile-name"
           value={profile.name}
-          onChange={(value) => handleInputChange(value, "name")}
+          onChange={(_e, value) => handleInputChange(value, "name")}
         />
       </FormGroup>
 
@@ -134,7 +135,7 @@ const ProfileEditorForm: React.FC<{
         <TextInput
           id="label-selector"
           value={profile.labelSelector}
-          onChange={(value) => handleInputChange(value, "labelSelector")}
+          onChange={(_e, value) => handleInputChange(value, "labelSelector")}
         />
       </FormGroup>
 
@@ -142,20 +143,19 @@ const ProfileEditorForm: React.FC<{
         <Switch
           id="use-default-rules"
           isChecked={profile.useDefaultRules}
-          onChange={(checked) => handleSwitchChange(checked, "useDefaultRules")}
+          onChange={(_e, checked) => handleSwitchChange(checked, "useDefaultRules")}
         />
       </FormGroup>
 
       <FormGroup label="Mode" fieldId="mode">
-        <Select
+        <FormSelect
           id="mode"
-          selections={profile.mode}
-          onSelect={(event, value) => handleInputChange(value as string, "mode")}
-          isOpen={false} // Add toggle logic if needed
+          value={profile.mode}
+          onChange={(_e, value) => handleInputChange(value, "mode")}
         >
-          <SelectOption value="source-only" />
-          <SelectOption value="full-analysis" />
-        </Select>
+          <FormSelectOption value="source-only" label="Source Only" />
+          <FormSelectOption value="full-analysis" label="Full Analysis" />
+        </FormSelect>
       </FormGroup>
 
       <Flex spaceItems={{ default: "spaceItemsMd" }}>
@@ -206,7 +206,7 @@ export const ProfileManagerPage: React.FC = () => {
   const handleDeleteProfile = () => {
     if (selectedProfileName) {
       window.vscode.postMessage({ type: "DELETE_PROFILE", payload: selectedProfileName });
-      setSelectedProfileName(null);
+      setSelectedProfileName("");
     }
   };
 
@@ -239,7 +239,7 @@ export const ProfileManagerPage: React.FC = () => {
               />
             ) : (
               <Bullseye>
-                <Text>Select or create a profile</Text>
+                <Content component={ContentVariants.p}>Select or create a profile</Content>
               </Bullseye>
             )}
           </SplitItem>

@@ -18,6 +18,8 @@ const defaultState: ExtensionData = {
   chatMessages: [],
   solutionState: "none",
   solutionEffort: "Low",
+  profiles: [],
+  activeProfileName: "",
 };
 
 const windowState =

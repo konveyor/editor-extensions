@@ -133,8 +133,8 @@ export interface ExtensionData {
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   solutionEffort: SolutionEffortLevel;
-  profiles?: AnalysisProfile[];
-  activeProfileName?: string;
+  profiles: AnalysisProfile[];
+  activeProfileName: string;
 }
 
 export type ServerState =
