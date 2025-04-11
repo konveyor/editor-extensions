@@ -24,6 +24,8 @@ import {
   Scope,
   Solution,
   SolutionEffortLevel,
+  ChatMessageType,
+  GetSolutionResult,
 } from "@editor-extensions/shared";
 import {
   applyAll,
@@ -54,6 +56,12 @@ import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { configureSourcesTargetsQuickPick } from "./configureSourcesTargetsQuickPick";
 import Mustache from "mustache";
+import { ChatOpenAI } from "@langchain/openai";
+import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import * as vscode from "vscode";
+import { getModelProvider } from "./client/modelProvider";
+import { createPatch } from "diff";
+
 const isWindows = process.platform === "win32";
 
 const commandsMap: (state: ExtensionState) => {
@@ -106,9 +114,201 @@ const commandsMap: (state: ExtensionState) => {
       analyzerClient.runAnalysis();
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
-      const analyzerClient = state.analyzerClient;
-      analyzerClient.getSolution(state, incidents, effort);
-      commands.executeCommand("konveyor.showResolutionPanel");
+      await vscode.commands.executeCommand("konveyor.showResolutionPanel");
+
+      // Group incidents by URI
+      const incidentsByUri = incidents.reduce(
+        (acc, incident) => {
+          if (!acc[incident.uri]) {
+            acc[incident.uri] = [];
+          }
+          acc[incident.uri].push(incident);
+          return acc;
+        },
+        {} as { [uri: string]: EnhancedIncident[] },
+      );
+
+      // Create a scope for the solution
+      const scope: Scope = { incidents, effort };
+
+      // Update the state to indicate we're starting to fetch a solution
+      state.mutateData((draft) => {
+        draft.isFetchingSolution = true;
+        draft.solutionState = "started";
+        draft.solutionScope = scope;
+      });
+
+      try {
+        // Get the model provider configuration from settings YAML
+        const modelProvider = await getModelProvider(paths().settingsYaml);
+        if (!modelProvider) {
+          throw new Error("Model provider configuration not found in settings YAML.");
+        }
+
+        // Initialize the OpenAI model with the configuration from the model provider
+        const model = new ChatOpenAI({
+          openAIApiKey: modelProvider.env.OPENAI_API_KEY,
+          modelName: modelProvider.modelProvider.args["model"],
+          streaming: true,
+          temperature: 0.7,
+        });
+
+        // Prepare the system prompt
+        const systemPrompt = `
+You are an experienced java developer, who specializes in migrating code from
+spring to quarkus.  You are also an expert in migrating code from java 8 to java
+17.  Your task is to analyze the provided incidents and suggest code changes to
+resolve them.  First, explain your reasoning and approach to fixing the issues.
+Then, provide the actual code changes as a unified diff that can be applied to
+the codebase.
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Modified Code
+\`\`\`java
+// Return the complete file content with your changes
+// Do not include diff markers or git headers
+// Just return the file as it should look after changes
+\`\`\`
+
+## Additional Information
+
+If you have any additional details or steps that need to be performed, put it here.`;
+
+        // Process each file's incidents
+        const allDiffs: { original: string; modified: string; diff: string }[] = [];
+        const modifiedFiles = new Set<string>();
+
+        for (const [uri, fileIncidents] of Object.entries(incidentsByUri)) {
+          const parsedURI = Uri.parse(uri);
+          const relativePath = workspace.asRelativePath(parsedURI);
+
+          state.mutateData((draft) => {
+            draft.chatMessages.push(
+              {
+                messageToken: `m${Date.now()}`,
+                kind: ChatMessageType.String,
+                value: {
+                  message: `Analyzing file: ${relativePath} with incidents: ${fileIncidents.map((incident) => incident.violationId).join(", ")}\n\n`,
+                },
+                timestamp: new Date().toISOString(),
+              },
+              {
+                messageToken: `m${Date.now()}`,
+                kind: ChatMessageType.String,
+                value: { message: "" },
+                timestamp: new Date().toISOString(),
+              },
+            );
+          });
+
+          // Get the entire file content
+          const doc = await workspace.openTextDocument(parsedURI);
+          const fileContent = doc.getText();
+
+          // Prepare the incidents description for this file
+          const incidentsDescription = fileIncidents
+            .map((incident) => `* ${incident.lineNumber}: ${incident.message}`)
+            .join();
+
+          // Prepare the human prompt
+          const humanPrompt = `Please analyze these incidents in the file and suggest code changes:
+File: ${uri}
+
+Incidents:
+${incidentsDescription}
+
+File Content:
+\`\`\`
+${fileContent}
+\`\`\`
+
+Please provide a solution that addresses these issues.`;
+
+          // Stream the response
+          const stream = await model.stream([
+            new SystemMessage(systemPrompt),
+            new HumanMessage(humanPrompt),
+          ]);
+
+          // Process the stream
+          let fullResponse = "";
+          for await (const chunk of stream) {
+            const content =
+              typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
+            fullResponse += chunk.content;
+            state.mutateData((draft) => {
+              draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
+            });
+          }
+
+          // Match any language identifier after the backticks
+          const codeMatch = fullResponse.match(/```\w*\n([\s\S]*?)\n```/);
+          if (codeMatch) {
+            const modifiedContent = codeMatch[1];
+            const originalContent = fileContent;
+            // Use relative path for the diff to match the expected format
+            const diff = createPatch(relativePath, originalContent, modifiedContent, "", "", {
+              context: 3,
+            });
+
+            allDiffs.push({
+              original: relativePath,
+              modified: relativePath,
+              diff,
+            });
+            modifiedFiles.add(parsedURI.fsPath);
+          }
+        }
+
+        if (allDiffs.length === 0) {
+          throw new Error("No diffs found in the response");
+        }
+
+        // Create a solution response with properly structured changes
+        const solutionResponse: GetSolutionResult = {
+          changes: allDiffs,
+          encountered_errors: [],
+          scope: { incidents, effort },
+        };
+
+        // Update the state with the solution and reasoning
+        state.mutateData((draft) => {
+          draft.solutionState = "received";
+          draft.isFetchingSolution = false;
+          draft.solutionData = solutionResponse;
+
+          draft.chatMessages.push({
+            messageToken: `m${Date.now()}`,
+            kind: ChatMessageType.String,
+            value: { message: "Solution generated successfully!" },
+            timestamp: new Date().toISOString(),
+          });
+        });
+
+        // Load the solution
+        vscode.commands.executeCommand("konveyor.loadSolution", solutionResponse, { incidents });
+      } catch (error: any) {
+        console.error("Error in getSolution:", error);
+
+        // Update the state to indicate an error
+        state.mutateData((draft) => {
+          draft.solutionState = "failedOnSending";
+          draft.isFetchingSolution = false;
+          draft.chatMessages.push({
+            messageToken: `m${Date.now()}`,
+            kind: ChatMessageType.String,
+            value: { message: `Error: ${error.message}` },
+            timestamp: new Date().toISOString(),
+          });
+        });
+
+        vscode.window.showErrorMessage(`Failed to generate solution: ${error.message}`);
+      }
     },
     "konveyor.askContinue": async (incident: EnhancedIncident) => {
       // This should be a redundant check as we shouldn't render buttons that
