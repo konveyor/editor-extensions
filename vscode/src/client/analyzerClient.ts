@@ -242,9 +242,6 @@ export class AnalyzerClient {
 
   protected async getSocket(pipeName: string): Promise<Socket> {
     const s = createConnection(pipeName);
-    s.on("connectionAttemptFailed", (e) =>
-      this.outputChannel.appendLine("connection Attempt Failed"),
-    );
     let ready = false;
     s.on("ready", () => {
       this.outputChannel.appendLine("got ready message");
@@ -252,7 +249,6 @@ export class AnalyzerClient {
     });
     while ((s.connecting || !s.readable) && !ready) {
       await setTimeout(200);
-      this.outputChannel.appendLine("waiting for connection");
       if (!s.connecting && s.readable) {
         break;
       }
@@ -534,7 +530,7 @@ export class AnalyzerClient {
    * Will only run if the sever state is: `running`
    */
   public async runAnalysis(filePaths?: vscode.Uri[]): Promise<void> {
-    if (this.serverState !== "running" || !this.rpcConnection) {
+    if (this.serverState !== "running" || !this.analyzerRpcConnection) {
       this.outputChannel.appendLine("kai rpc server is not running, skipping runAnalysis.");
       return;
     }
@@ -574,7 +570,7 @@ export class AnalyzerClient {
           });
 
           const { response: rawResponse, isCancelled }: any = await Promise.race([
-            this.rpcConnection!.sendRequest("analysis_engine.Analyze", requestParams).then(
+            this.analyzerRpcConnection!.sendRequest("analysis_engine.Analyze", requestParams).then(
               (response) => ({ response }),
             ),
             cancellationPromise,
