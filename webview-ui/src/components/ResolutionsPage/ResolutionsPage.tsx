@@ -50,11 +50,8 @@ const ResolutionPage: React.FC = () => {
   // We keep a ref to the bottom element to scroll chat
   const scrollToBottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll the chat window
   useEffect(() => {
-    if (state.chatMessages.length > 2) {
-      scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.chatMessages]);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
@@ -122,8 +119,6 @@ const ResolutionPage: React.FC = () => {
                 content={msg.value.message as string}
               />
             ))}
-
-            {isFetchingSolution && <ReceivedMessage isLoading />}
 
             {hasResponse && (
               <ReceivedMessage

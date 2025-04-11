@@ -55,9 +55,6 @@ export const getConfigDiffEditorType = (): string =>
 export const getCacheDir = (): string | undefined => getConfigValue<string>("kai.cacheDir");
 export const getTraceEnabled = (): boolean => getConfigValue<boolean>("kai.traceEnabled") || false;
 export const getConfigKaiDemoMode = (): boolean => getConfigValue<boolean>("kai.demoMode") ?? false;
-export const getConfigPromptTemplate = (): string =>
-  getConfigValue<string>("kai.promptTemplate") ??
-  "Help me address this Konveyor migration issue:\nRule: {{ruleset_name}} - {{ruleset_description}}\nViolation: {{violation_name}} - {{violation_description}}\nCategory: {{violation_category}}\nMessage: {{message}}";
 
 export const getConfigSolutionMaxPriority = (): number | undefined =>
   getConfigValue<number | null>("kai.getSolutionMaxPriority") ?? undefined;

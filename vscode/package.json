@@ -543,14 +543,6 @@
           "scope": "window",
           "order": 50
         },
-        "konveyor.kai.promptTemplate": {
-          "type": "string",
-          "default": "Help me address this Konveyor migration issue:\nRule: {{{ruleset_name}}} - {{{ruleset_description}}}\nViolation: {{{violation_name}}} - {{{violation_description}}}\nCategory: {{{violation_category}}}\nMessage: {{{message}}}",
-          "description": "Template for the prompt used when asking Continue about a violation.\nAvailable variables:\n{{{violationId}}} - The ID of the violation\n{{{message}}} - The message of the violation\n{{{ruleset_name}}} - The name of the ruleset\n{{{ruleset_description}}} - The description of the ruleset\n{{{violation_name}}} - The name of the violation\n{{{violation_description}}} - The description of the violation\n{{{violation_category}}} - The category of the violation\n{{{violation_labels}}} - The labels of the violation",
-          "scope": "window",
-          "order": 51,
-          "editPresentation": "multilineText"
-        },
         "konveyor.kai.demoMode": {
           "type": "boolean",
           "default": false,

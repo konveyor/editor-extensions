@@ -7,7 +7,7 @@ import {
   MenuToggle,
   MenuToggleAction,
 } from "@patternfly/react-core";
-import { effortLevels, SolutionEffortLevel } from "@editor-extensions/shared";
+import { SolutionEffortLevel } from "@editor-extensions/shared";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
@@ -42,33 +42,32 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     return undefined;
   }
 
-  const menuToggle = (
-    <MenuToggle
-      variant="plain"
-      isDisabled={isButtonDisabled}
-      splitButtonItems={[
-        <MenuToggleAction
-          id="get-solution-button"
-          key="split-action-primary"
-          onClick={() => onGetSolution(incidents, state.solutionEffort)}
-          aria-label="Get solution"
-        >
-          <WrenchIcon />
-        </MenuToggleAction>,
-      ]}
-      onClick={() => setIsOpen(!isOpen)}
-      isExpanded={isOpen}
-      aria-label="Effort Levels"
-      icon={<EllipsisVIcon />}
-    />
-  );
-
   return (
     <Dropdown
       isOpen={isOpen}
       onSelect={() => setIsOpen(false)}
       onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}
-      toggle={(toggleRef) => React.cloneElement(menuToggle, { ref: toggleRef })}
+      toggle={(toggleRef) => (
+        <MenuToggle
+          ref={toggleRef}
+          variant="plain"
+          isDisabled={isButtonDisabled}
+          splitButtonItems={[
+            <MenuToggleAction
+              id="get-solution-button"
+              key="split-action-primary"
+              onClick={() => onGetSolution(incidents, state.solutionEffort)}
+              aria-label="Get solution"
+            >
+              <WrenchIcon />
+            </MenuToggleAction>,
+          ]}
+          onClick={() => setIsOpen(!isOpen)}
+          isExpanded={isOpen}
+          aria-label="Effort Levels"
+          icon={<EllipsisVIcon />}
+        />
+      )}
       popperProps={{
         appendTo: document.body,
         position: "right",
@@ -82,16 +81,13 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
           label={`Get solution for ${incidents.length} ${incidents.length > 1 ? "incidents" : "incident"}`}
           labelHeadingLevel="h3"
         >
-          {Object.entries(effortLevels).map(([label]) => (
-            <DropdownItem
-              key={label}
-              description={label === state.solutionEffort && "currently configured effort level"}
-              onClick={() => onGetSolution(incidents, label as SolutionEffortLevel)}
-            >
-              Resolve with {label} effort
-            </DropdownItem>
-          ))}
-          {scope === "incident" && incidents.length === 1 && (
+          <DropdownItem
+            key="get-rag-solution"
+            onClick={() => onGetSolution(incidents, state.solutionEffort)}
+          >
+            Get RAG solution
+          </DropdownItem>
+          {scope === "incident" && incidents.length === 1 && state.isContinueInstalled && (
             <DropdownItem
               key="ask-continue-konveyor"
               onClick={() => onGetSolutionWithKonveyorContext(incidents[0])}

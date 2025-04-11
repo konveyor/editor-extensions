@@ -42,7 +42,7 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
     _token: vscode.CancellationToken,
   ): Promise<vscode.CodeAction[]> {
     const actions: vscode.CodeAction[] = [];
-    const continueExt = vscode.extensions.getExtension("Continue.continue");
+    const continueExt = this.state.data.isContinueInstalled;
 
     // Only process if there are diagnostics
     if (context.diagnostics.length === 0) {

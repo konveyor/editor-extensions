@@ -37,6 +37,7 @@ class VsCodeExtension {
         isFetchingSolution: false,
         isStartingServer: false,
         isInitializingServer: false,
+        isContinueInstalled: false,
         solutionData: undefined,
         serverState: "initial",
         solutionScope: undefined,
@@ -108,6 +109,14 @@ class VsCodeExtension {
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();
+      this.checkContinueInstalled();
+
+      // Listen for extension changes to update Continue installation status
+      this.listeners.push(
+        vscode.extensions.onDidChange(() => {
+          this.checkContinueInstalled();
+        }),
+      );
 
       registerAnalysisTrigger(this.listeners);
 
@@ -212,6 +221,13 @@ class VsCodeExtension {
         },
       ),
     );
+  }
+
+  private checkContinueInstalled(): void {
+    const continueExt = vscode.extensions.getExtension("Continue.continue");
+    this.state.mutateData((draft) => {
+      draft.isContinueInstalled = !!continueExt;
+    });
   }
 
   public async dispose() {
