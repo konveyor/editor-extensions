@@ -40,6 +40,9 @@
     "onFileSystem:konveyorReadOnly"
   ],
   "contributes": {
+    "javaExtensions": [
+      "./jdtls-plugin/bundle.jar"
+    ],
     "commands": [
       {
         "command": "konveyor.openProfilesPanel",

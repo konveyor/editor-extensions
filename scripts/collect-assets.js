@@ -30,6 +30,7 @@ const cwd = cwdToProjectRoot();
 
 // Setup download target
 const [DOWNLOAD_CACHE, DOWNLOAD_DIR] = await ensureDirs(["downloaded_cache", "downloaded_assets"]);
+const [JDTLS_EXTENSION] = await ensureDirs(["vscode/jdtls-plugin"]);
 const { useWorkflow, useRelease, org, repo, releaseTag, branch, workflow } = cli;
 const bearerToken = process.env.GITHUB_TOKEN ?? undefined;
 
@@ -133,7 +134,7 @@ const actions = [
     meta: await unpackAssets({
       title: "jdt.ls bundles",
       sourceDirectory: join(DOWNLOAD_CACHE, "assets"),
-      targetDirectory: () => join(DOWNLOAD_DIR, "jdtls-bundles"),
+      targetDirectory: () => JDTLS_EXTENSION,
 
       globs: ["*.jar"],
       assets: [{ name: "kai-rpc-server.linux-x86_64.zip" }],

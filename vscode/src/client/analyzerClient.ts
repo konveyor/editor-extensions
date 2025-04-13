@@ -46,6 +46,11 @@ const uid = (() => {
   return (prefix: string = "") => `${prefix}${counter++}`;
 })();
 
+export class WorksapceCommandParams {
+  public command: string | undefined;
+  public arguments: any[] | undefined;
+}
+
 export class AnalyzerClient {
   private assetPaths: AssetPaths;
   private outputChannel: vscode.OutputChannel;
@@ -230,6 +235,18 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.onUnhandledNotification((e) => {
       this.outputChannel.appendLine("got: " + e.method + " " + e.params);
     });
+    this.analyzerRpcConnection.onRequest(
+      "workspace/executeCommand",
+      (params: WorksapceCommandParams) => {
+        this.outputChannel.appendLine("pramas" + JSON.stringify(params));
+        return vscode.commands
+          .executeCommand("java.execute.workspaceCommand", params.command, params.arguments![0])
+          .then((res) => {
+            this.outputChannel.appendLine(JSON.stringify(res));
+            return res;
+          });
+      },
+    );
     this.analyzerRpcConnection.onError((e) => {
       this.outputChannel.appendLine("hererere" + e);
     });
