@@ -100,6 +100,8 @@ export const ProfileManagerPage: React.FC = () => {
             ) : localSelectedProfile ? (
               <ProfileEditorForm
                 profile={localSelectedProfile}
+                allProfiles={profiles}
+                originalName={selectedProfileName}
                 isActive={localSelectedProfile.name === activeProfileName}
                 onChange={handleProfileChange}
                 onDelete={handleDeleteProfile}

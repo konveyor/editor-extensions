@@ -9,8 +9,12 @@ import {
   FlexItem,
   FormSelect,
   FormSelectOption,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
 } from "@patternfly/react-core";
 import { AnalysisMode, AnalysisProfile } from "../../../../shared/dist/types";
+import { ExclamationCircleIcon } from "@patternfly/react-icons";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,8 +33,11 @@ export const ProfileEditorForm: React.FC<{
   onChange: (profile: any) => void;
   onDelete: () => void;
   onMakeActive: (name: string) => void;
-}> = ({ profile, isActive, onChange, onDelete, onMakeActive }) => {
+  allProfiles: AnalysisProfile[];
+  originalName: string;
+}> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles, originalName }) => {
   const [localProfile, setLocalProfile] = useState(profile);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   // Sync form if parent profile changes
   useEffect(() => {
@@ -40,18 +47,41 @@ export const ProfileEditorForm: React.FC<{
   const debouncedChange = useDebouncedCallback(onChange, 300);
 
   const handleBlur = () => {
+    const isDupelicate =
+      localProfile.name !== originalName && allProfiles.some((p) => p.name === localProfile.name);
+    if (isDupelicate) {
+      setNameError("Profile name already exists");
+      return;
+    }
+    setNameError(null);
     debouncedChange(localProfile);
   };
-
   return (
     <Form isWidthLimited>
-      <FormGroup label="Profile Name" fieldId="profile-name">
+      <FormGroup
+        label="Profile Name"
+        fieldId="profile-name"
+        // validated={nameError ? "error" : "default"}
+
+        // helperTextInvalid={nameError}
+      >
         <TextInput
           id="profile-name"
           value={localProfile.name}
           onChange={(_e, value) => setLocalProfile((prev) => ({ ...prev, name: value }))}
           onBlur={handleBlur}
+          validated={nameError ? "error" : "default"}
         />
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem
+              icon={<ExclamationCircleIcon />}
+              variant={nameError ? "error" : "default"}
+            >
+              {nameError ? nameError : "Name of the profile"}
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
       </FormGroup>
 
       <FormGroup label="Label Selector" fieldId="label-selector">
