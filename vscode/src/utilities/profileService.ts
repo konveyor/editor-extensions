@@ -1,48 +1,49 @@
-import { ExtensionState } from "../extensionState";
 import { AnalysisProfile } from "@editor-extensions/shared";
-import { updateConfigProfiles, updateConfigActiveProfileName } from "../utilities/configuration";
+import {
+  getConfigProfiles,
+  updateConfigProfiles,
+  updateConfigActiveProfileName,
+} from "../utilities/configuration";
 
-export async function addProfile(profile: AnalysisProfile, state: ExtensionState): Promise<void> {
-  const profiles = [...state.data.profiles, { ...profile }];
-  state.mutateData((draft) => {
-    draft.profiles = profiles;
-    draft.activeProfileName = profile.name;
-  });
-  await updateConfigProfiles(profiles);
+/**
+ * Add a new profile and make it active.
+ */
+export async function addProfile(profile: AnalysisProfile): Promise<void> {
+  const currentProfiles = getConfigProfiles();
+  const updated = [...currentProfiles, { ...profile, customRules: [...profile.customRules] }];
+  await updateConfigProfiles(updated);
   await updateConfigActiveProfileName(profile.name);
 }
 
-export async function deleteProfile(name: string, state: ExtensionState): Promise<void> {
-  const profiles = state.data.profiles.filter((p) => p.name !== name);
-  state.mutateData((draft) => {
-    draft.profiles = profiles;
-  });
-  await updateConfigProfiles(profiles);
+/**
+ * Remove a profile by name.
+ */
+export async function deleteProfile(name: string): Promise<void> {
+  const currentProfiles = getConfigProfiles();
+  const updated = currentProfiles.filter((p) => p.name !== name);
+  await updateConfigProfiles(updated);
 }
 
+/**
+ * Update a profile by replacing it with a new version (by original name).
+ */
 export async function updateProfile(
   originalName: string,
   updatedProfile: AnalysisProfile,
-  state: ExtensionState,
 ): Promise<void> {
-  const updatedProfiles = state.data.profiles.map((p) =>
+  const currentProfiles = getConfigProfiles();
+  const updated = currentProfiles.map((p) =>
     p.name === originalName
       ? { ...updatedProfile, customRules: [...updatedProfile.customRules] }
-      : { ...p },
+      : { ...p, customRules: [...p.customRules] },
   );
-
-  state.mutateData((draft) => {
-    draft.profiles = updatedProfiles;
-    draft.activeProfileName = updatedProfile.name;
-  });
-
-  await updateConfigProfiles(updatedProfiles);
+  await updateConfigProfiles(updated);
   await updateConfigActiveProfileName(updatedProfile.name);
 }
 
-export async function setActiveProfile(name: string, state: ExtensionState): Promise<void> {
-  state.mutateData((draft) => {
-    draft.activeProfileName = name;
-  });
+/**
+ * Set active profile name.
+ */
+export async function setActiveProfile(name: string): Promise<void> {
   await updateConfigActiveProfileName(name);
 }

@@ -12,7 +12,13 @@ import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
-import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
+import {
+  getConfigActiveProfileName,
+  getConfigProfiles,
+  getConfigSolutionMaxEffortLevel,
+  updateAnalysisConfig,
+} from "./utilities";
+
 class VsCodeExtension {
   private state: ExtensionState;
   private data: Immutable<ExtensionData>;
@@ -87,8 +93,9 @@ class VsCodeExtension {
       const activeProfile = getConfigActiveProfileName();
 
       this.state.mutateData((draft) => {
-        draft.profiles = profiles;
+        draft.profiles = [...profiles];
         draft.activeProfileName = activeProfile;
+        updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
       });
 
       this.registerWebviewProvider();
@@ -121,14 +128,17 @@ class VsCodeExtension {
             });
           }
 
-          if (event.affectsConfiguration("konveyor.analysis.labelSelector")) {
+          if (
+            event.affectsConfiguration("konveyor.analysis.labelSelector") ||
+            event.affectsConfiguration("konveyor.analysis.customRules") ||
+            event.affectsConfiguration("konveyor.profiles") ||
+            event.affectsConfiguration("konveyor.activeProfileName")
+          ) {
+            const profiles = getConfigProfiles();
+            const activeProfile = getConfigActiveProfileName();
             this.state.mutateData((draft) => {
-              updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
-            });
-          }
-
-          if (event.affectsConfiguration("konveyor.analysis.customRules")) {
-            this.state.mutateData((draft) => {
+              draft.profiles = [...profiles];
+              draft.activeProfileName = activeProfile;
               updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
             });
           }
@@ -136,10 +146,6 @@ class VsCodeExtension {
       );
 
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
-
-      this.state.mutateData((draft) => {
-        updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
-      });
     } catch (error) {
       console.error("Error initializing extension:", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
@@ -196,12 +202,10 @@ class VsCodeExtension {
 
   private registerLanguageProviders(): void {
     const documentSelectors: vscode.DocumentSelector = [
-      // Language IDs
       "java",
       "yaml",
       "properties",
-      "groovy", // for Gradle files
-      // Specific file patterns
+      "groovy",
       { pattern: "**/pom.xml" },
       { pattern: "**/build.gradle" },
       { pattern: "**/build.gradle.kts" },
