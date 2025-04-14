@@ -1,6 +1,6 @@
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
-import { basename } from "node:path";
+import path from "node:path";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import * as rpc from "vscode-jsonrpc/node";
@@ -18,38 +18,39 @@ import {
   SolutionState,
   Violation,
 } from "@editor-extensions/shared";
-import { paths, fsPaths, ignoresToExcludedPaths } from "../paths";
+import { paths, fsPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
 import { ExtensionState } from "../extensionState";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import {
-  getCacheDir,
   getConfigAnalyzerPath,
   getConfigCustomRules,
   getConfigKaiDemoMode,
   getConfigKaiRpcServerPath,
   getConfigLabelSelector,
-  getConfigLoggingTraceMessageConnection,
   getConfigLogLevel,
   getConfigMaxLLMQueries,
   getConfigSolutionMaxPriority,
   getConfigUseDefaultRulesets,
-  getTraceEnabled,
   isAnalysisResponse,
   updateUseDefaultRuleSets,
 } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
-import { KaiRpcApplicationConfig } from "./types";
 import { getModelProvider, ModelProvider } from "./modelProvider";
-import { tracer } from "./tracer";
 import { v4 as uuidv4 } from "uuid";
+import { createConnection, Socket } from "node:net";
 
 const uid = (() => {
   let counter = 0;
   return (prefix: string = "") => `${prefix}${counter++}`;
 })();
+
+export class WorksapceCommandParams {
+  public command: string | undefined;
+  public arguments: any[] | undefined;
+}
 
 export class AnalyzerClient {
   private assetPaths: AssetPaths;
@@ -57,6 +58,8 @@ export class AnalyzerClient {
   private modelProvider: ModelProvider | null = null;
   private kaiRpcServer: ChildProcessWithoutNullStreams | null = null;
   private rpcConnection: rpc.MessageConnection | null = null;
+  private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
+  private analyzerRpcConnection?: rpc.MessageConnection | null;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -168,55 +171,152 @@ export class AnalyzerClient {
       return;
     }
 
+    this.outputChannel.appendLine("Starting kai analyzer rpc");
+
     this.outputChannel.appendLine(`Starting the kai rpc server ...`);
     this.fireServerStateChange("starting");
 
-    try {
-      this.modelProvider = await getModelProvider(paths().settingsYaml);
-      const [kaiRpcServer, pid] = await this.startProcessAndLogStderr();
-
-      kaiRpcServer.on("exit", (code, signal) => {
-        this.outputChannel.appendLine(`kai rpc server exited [signal: ${signal}, code: ${code}]`);
-        this.fireServerStateChange("stopped");
-      });
-
-      this.kaiRpcServer = kaiRpcServer;
-      this.outputChannel.appendLine(`kai rpc server successfully started [pid: ${pid}]`);
-    } catch (e) {
-      vscode.window
-        .showErrorMessage(`kai rpc server failed to start`, "Open Output Console")
-        .then((selection) => {
-          if (selection === "Open Output Console") {
-            this.outputChannel.show(true);
-          }
-        });
-      this.outputChannel.appendLine(`kai rpc server start failed [error: ${e}]`);
-      this.fireServerStateChange("startFailed");
-      throw e;
-    }
-
-    // Set up the JSON-RPC connection
-    this.rpcConnection = rpc.createMessageConnection(
-      new rpc.StreamMessageReader(this.kaiRpcServer.stdout),
-      new rpc.StreamMessageWriter(this.kaiRpcServer.stdin),
-    );
-
-    if (getConfigLoggingTraceMessageConnection()) {
-      this.rpcConnection.trace(
-        rpc.Trace.Verbose,
-        tracer(`${basename(this.kaiRpcServer.spawnfile)} message trace`),
+    this.modelProvider = await getModelProvider(paths().settingsYaml);
+    const pipeName = rpc.generateRandomPipeName();
+    const [analyzerRpcServer, analyzerPid] = await this.startAnalysisServer(pipeName);
+    analyzerRpcServer.on("exit", (code, signal) => {
+      this.outputChannel.appendLine(
+        `analyzer rpc server exited [signal: ${signal}, code: ${code}]`,
       );
-    }
+      this.fireServerStateChange("stopped");
+    });
+    this.analyzerRpcServer = analyzerRpcServer;
+    this.outputChannel.appendLine(`analyzer rpc server successfully started [pid: ${analyzerPid}]`);
 
-    /**
-     * Handle server generated progress ChatMessages.
-     */
-    this.rpcConnection.onNotification("my_progress", (chatMessage: ChatMessage) => {
-      this.addSolutionChatMessage(chatMessage);
+    const socket: Socket = await this.getSocket(pipeName);
+    socket.addListener("connectionAttempt", () => {
+      this.outputChannel.appendLine("connectAttempt");
+    });
+    socket.addListener("connectionAttemptFailed", () => {
+      this.outputChannel.appendLine("connectAttemptFailed");
+    });
+    socket.on("data", (data) => {
+      this.outputChannel.appendLine("herelasdkjfalskdfjasld;kfjhewe" + data.toString());
+    });
+    const reader = new rpc.SocketMessageReader(socket, "utf-8");
+    const writer = new rpc.SocketMessageWriter(socket, "utf-8");
+
+    reader.onClose(() => {
+      this.outputChannel.appendLine("reader-closed");
+    });
+    reader.onError(() => {
+      this.outputChannel.appendLine("reader-onerr");
+    });
+    writer.onClose(() => {
+      this.outputChannel.appendLine("writer-closed");
+    });
+    writer.onError((e) => {
+      this.outputChannel.appendLine("writer-onerr" + e?.toLocaleString());
+    });
+    this.analyzerRpcConnection = await rpc.createMessageConnection(reader, writer);
+    this.analyzerRpcConnection.trace(rpc.Trace.Messages, console, false);
+    this.analyzerRpcConnection.onUnhandledNotification((e) => {
+      this.outputChannel.appendLine("here");
     });
 
-    this.rpcConnection.listen();
+    this.analyzerRpcConnection.onClose(() =>
+      this.outputChannel.appendLine("HEHRHEHRHERHEHRHERHEHR"),
+    );
+    this.analyzerRpcConnection.onRequest((method, params) => {
+      this.outputChannel.appendLine("got " + method + " with params " + params);
+    });
+
+    this.analyzerRpcConnection.onNotification("started", (v: []) => {
+      this.outputChannel.appendLine("got started: " + v);
+    });
+    this.analyzerRpcConnection.onNotification((method: string, params: any) => {
+      console.log("got " + method + " with params " + params);
+      this.outputChannel.appendLine("got " + method + " with params " + params);
+    });
+    this.analyzerRpcConnection.onUnhandledNotification((e) => {
+      this.outputChannel.appendLine("got: " + e.method + " " + e.params);
+    });
+    this.analyzerRpcConnection.onRequest(
+      "workspace/executeCommand",
+      (params: WorksapceCommandParams) => {
+        this.outputChannel.appendLine("pramas" + JSON.stringify(params));
+        return vscode.commands
+          .executeCommand("java.execute.workspaceCommand", params.command, params.arguments![0])
+          .then((res) => {
+            this.outputChannel.appendLine(JSON.stringify(res));
+            return res;
+          });
+      },
+    );
+    this.analyzerRpcConnection.onError((e) => {
+      this.outputChannel.appendLine("hererere" + e);
+    });
+    this.analyzerRpcConnection.listen();
+    this.analyzerRpcConnection.sendNotification("start", { type: "start" });
+
     this.fireServerStateChange("readyToInitialize");
+  }
+
+  protected async getSocket(pipeName: string): Promise<Socket> {
+    const s = createConnection(pipeName);
+    let ready = false;
+    s.on("ready", () => {
+      this.outputChannel.appendLine("got ready message");
+      ready = true;
+    });
+    while ((s.connecting || !s.readable) && !ready) {
+      await setTimeout(200);
+      if (!s.connecting && s.readable) {
+        break;
+      }
+      if (!s.connecting) {
+        s.connect(pipeName);
+      }
+    }
+    if (s.readable) {
+      return s;
+    } else {
+      throw Error("unable to connect");
+    }
+  }
+
+  protected startAnalysisServer(
+    pipeName: string,
+    maxTimeToWaitUntilReady: number = 30_000,
+  ): [ChildProcessWithoutNullStreams, number | undefined] {
+    const analyzerPath = this.getAnalyzerPath();
+    const serverEnv = this.getKaiRpcServerEnv();
+    const analyzerLspRulesPaths = this.getRulesetsPath().join(",");
+    const location = paths().workspaceRepo.fsPath;
+    const logs = path.join(paths().serverLogs.fsPath, "pipe.log");
+    this.outputChannel.appendLine(`server cwd: ${paths().serverCwd.fsPath}`);
+    this.outputChannel.appendLine(`analysis server path: ${analyzerPath}`);
+
+    this.outputChannel.appendLine(`server args:`);
+    const analyzerRpcServer = spawn(
+      analyzerPath,
+      [
+        "-pipePath",
+        pipeName,
+        "-rules",
+        analyzerLspRulesPaths,
+        "-source-directory",
+        location,
+        "-log-file",
+        logs,
+      ],
+      {
+        cwd: paths().serverCwd.fsPath,
+        env: serverEnv,
+      },
+    );
+
+    analyzerRpcServer.stderr.on("data", (data) => {
+      const asString: string = data.toString().trimEnd();
+      this.outputChannel.appendLine(`${asString}`);
+    });
+
+    return [analyzerRpcServer, analyzerRpcServer.pid];
   }
 
   /**
@@ -254,15 +354,14 @@ export class AnalyzerClient {
       });
     });
 
-    let seenServerIsReady = false;
+    const seenServerIsReady = false;
     kaiRpcServer.stderr.on("data", (data) => {
-      const asString: string = data.toString().trimEnd();
-      this.outputChannel.appendLine(`${asString}`);
-
-      if (!seenServerIsReady && asString.match(/kai-rpc-logger .*Started kai RPC Server/)) {
-        seenServerIsReady = true;
-        kaiRpcServer?.emit("serverReportsReady", pid);
-      }
+      // const asString: string = data.toString().trimEnd();
+      // this.outputChannel.appendLine(`${asString}`);
+      // if (!seenServerIsReady && asString.match(/kai-rpc-logger .*Started kai RPC Server/)) {
+      //   seenServerIsReady = true;
+      //   kaiRpcServer?.emit("serverReportsReady", pid);
+      // }
     });
 
     const readyOrTimeout = await Promise.race([
@@ -302,47 +401,42 @@ export class AnalyzerClient {
    * Request the server to __initialize__ with our analysis and solution configurations.
    */
   public async initialize(): Promise<void> {
-    if (this.serverState !== "readyToInitialize" || !this.rpcConnection || !this.modelProvider) {
-      this.outputChannel.appendLine("kai rpc server is not ready to initialize.");
-      return;
-    }
-
     this.fireServerStateChange("initializing");
 
-    // Define the initialize request parameters
-    const initializeParams: KaiRpcApplicationConfig = {
-      rootPath: paths().workspaceRepo.fsPath,
-      modelProvider: this.modelProvider.modelProvider,
+    // // Define the initialize request parameters
+    // const initializeParams: KaiRpcApplicationConfig = {
+    //   rootPath: paths().workspaceRepo.fsPath,
+    //   modelProvider: this.modelProvider.modelProvider,
 
-      logConfig: {
-        logLevel: getConfigLogLevel(),
-        fileLogLevel: getConfigLogLevel(),
-        logDirPath: paths().serverLogs.fsPath,
-      },
+    //   logConfig: {
+    //     logLevel: getConfigLogLevel(),
+    //     fileLogLevel: getConfigLogLevel(),
+    //     logDirPath: paths().serverLogs.fsPath,
+    //   },
 
-      demoMode: this.isDemoMode(),
-      cacheDir: getCacheDir(),
-      traceEnabled: getTraceEnabled(),
+    //   demoMode: this.isDemoMode(),
+    //   cacheDir: getCacheDir(),
+    //   traceEnabled: getTraceEnabled(),
 
-      // Paths to the Analyzer and jdt.ls
-      analyzerLspRpcPath: this.getAnalyzerPath(),
-      analyzerLspLspPath: this.assetPaths.jdtlsBin,
-      analyzerLspRulesPaths: this.getRulesetsPath(),
-      analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
-      analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
-      analyzerLspLabelSelector: getConfigLabelSelector(),
-      analyzerLspExcludedPaths: ignoresToExcludedPaths(),
+    //   // Paths to the Analyzer and jdt.ls
+    //   analyzerLspRpcPath: this.getAnalyzerPath(),
+    //   analyzerLspLspPath: this.assetPaths.jdtlsBin,
+    //   analyzerLspRulesPaths: this.getRulesetsPath(),
+    //   analyzerLspJavaBundlePaths: this.assetPaths.jdtlsBundleJars,
+    //   analyzerLspDepLabelsPath: this.assetPaths.openSourceLabelsFile,
+    //   analyzerLspLabelSelector: getConfigLabelSelector(),
+    //   analyzerLspExcludedPaths: ignoresToExcludedPaths(),
 
-      // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
-      // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
+    // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
+    // analyzerLspFernFlowerPath: this.assetPaths.fernFlowerPath,
 
-      // TODO: Once konveyor/kai#550 is resolved, analyzer configurations can be supported
-      // analyzerIncidentLimit: getConfigIncidentLimit(),
-      // analyzerContextLines: getConfigContextLines(),
-      // analyzerCodeSnipLimit: getConfigCodeSnipLimit(),
-      // analyzerAnalyzeKnownLibraries: getConfigAnalyzeKnownLibraries(),
-      // analyzerAnalyzeDependencies: getConfigAnalyzeDependencies(),
-    };
+    // TODO: Once konveyor/kai#550 is resolved, analyzer configurations can be supported
+    // analyzerIncidentLimit: getConfigIncidentLimit(),
+    // analyzerContextLines: getConfigContextLines(),
+    // analyzerCodeSnipLimit: getConfigCodeSnipLimit(),
+    // analyzerAnalyzeKnownLibraries: getConfigAnalyzeKnownLibraries(),
+    // analyzerAnalyzeDependencies: getConfigAnalyzeDependencies(),
+    // };
 
     vscode.window.withProgress(
       {
@@ -351,35 +445,37 @@ export class AnalyzerClient {
         cancellable: false,
       },
       async (progress) => {
-        this.outputChannel.appendLine(
-          `Sending 'initialize' request: ${JSON.stringify(initializeParams)}`,
-        );
+        // this.outputChannel.appendLine(
+        //   // `Sending 'initialize' request: ${JSON.stringify(initializeParams)}`,
+        // );
         progress.report({
           message: "Sending 'initialize' request to RPC Server",
         });
 
         const exitWatcher = new Promise<void>((_, reject) => {
-          this.kaiRpcServer!.once("exit", (code, signal) => {
+          this.analyzerRpcServer!.once("exit", (code, signal) => {
             reject(
-              new Error(`kai-rpc-server exited unexpectedly (code=${code}, signal=${signal})`),
+              new Error(`kai-analyzer-server exited unexpectedly (code=${code}, signal=${signal})`),
             );
           });
         });
 
         try {
           // Race the RPC call vs. the “server exited” watcher
-          const response = await Promise.race([
-            this.rpcConnection!.sendRequest<void>("initialize", initializeParams),
-            exitWatcher,
-          ]);
+          // const response = await Promise.race([
+          //   this.rpcConnection!.sendRequest<void>("initialize", initializeParams),
+          //   exitWatcher,
+          // ]);
 
-          this.outputChannel.appendLine(`'initialize' response: ${JSON.stringify(response)}`);
-          this.outputChannel.appendLine(`kai rpc server is initialized!`);
+          // this.outputChannel.appendLine(`'initialize' response: ${JSON.stringify(response)}`);
+          this.outputChannel.appendLine(`kai analyzer rpc server is initialized!`);
           this.fireServerStateChange("running");
           progress.report({ message: "Kai RPC Server is initialized." });
         } catch (err) {
           // The race either saw a process exit or an RPC-level failure
-          this.outputChannel.appendLine(`kai rpc server failed to initialize [err: ${err}]`);
+          this.outputChannel.appendLine(
+            `kai analyzer rpc server failed to initialize [err: ${err}]`,
+          );
           progress.report({ message: "Kai initialization failed!" });
           this.fireServerStateChange("startFailed");
         }
@@ -451,7 +547,7 @@ export class AnalyzerClient {
    * Will only run if the sever state is: `running`
    */
   public async runAnalysis(filePaths?: vscode.Uri[]): Promise<void> {
-    if (this.serverState !== "running" || !this.rpcConnection) {
+    if (this.serverState !== "running" || !this.analyzerRpcConnection) {
       this.outputChannel.appendLine("kai rpc server is not running, skipping runAnalysis.");
       return;
     }
@@ -491,7 +587,7 @@ export class AnalyzerClient {
           });
 
           const { response: rawResponse, isCancelled }: any = await Promise.race([
-            this.rpcConnection!.sendRequest("analysis_engine.Analyze", requestParams).then(
+            this.analyzerRpcConnection!.sendRequest("analysis_engine.Analyze", requestParams).then(
               (response) => ({ response }),
             ),
             cancellationPromise,
