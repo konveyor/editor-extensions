@@ -18,7 +18,6 @@ const defaultState: ExtensionData = {
   chatMessages: [],
   solutionState: "none",
   solutionEffort: "Low",
-<<<<<<< HEAD
   analysisConfig: {
     labelSelectorValid: false,
     genAIConfigured: false,
@@ -26,10 +25,8 @@ const defaultState: ExtensionData = {
     genAIUsingDefault: false,
     customRulesConfigured: false,
   },
-=======
   profiles: [],
   activeProfileName: "",
->>>>>>> 9842302 (Initial changes for profile creation setting)
 };
 
 const windowState =
