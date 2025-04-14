@@ -167,16 +167,43 @@ export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string)
 }
 
 export const getConfigProfiles = (): AnalysisProfile[] =>
-  getConfigValue<AnalysisProfile[]>("profiles")?.map((p) => ({
-    ...p,
-    customRules: [...p.customRules],
+  getConfigValue<unknown[]>("profiles")?.map((p: any) => ({
+    name: p.name ?? "",
+    mode: p.mode ?? "source-only",
+    customRules: Array.isArray(p.customRules) ? [...p.customRules] : [],
+    useDefaultRules: !!p.useDefaultRules,
+    labelSelector: p.labelSelector ?? "",
   })) || [];
 
-export const getConfigActiveProfileName = (): string =>
-  getConfigValue<string>("activeProfileName") || "";
+export const getConfigActiveProfileName = (): string => {
+  const profiles = getConfigProfiles();
+  const name = getConfigValue<string>("activeProfileName");
+
+  if (name && profiles.some((p) => p.name === name)) {
+    return name;
+  }
+
+  // fallback: first valid profile name if available
+  if (profiles.length > 0) {
+    return profiles[0].name;
+  }
+
+  // fallback: safe sentinel (not an empty string)
+  return "__no_active_profile__";
+};
 
 export const updateConfigProfiles = async (profiles: AnalysisProfile[]): Promise<void> => {
-  await updateConfigValue("profiles", profiles, vscode.ConfigurationTarget.Workspace);
+  const safeProfiles = profiles.map((p) => {
+    const { name, mode, customRules, useDefaultRules, labelSelector } = p;
+    return {
+      name,
+      mode,
+      customRules: Array.isArray(customRules) ? [...customRules] : [],
+      useDefaultRules: !!useDefaultRules,
+      labelSelector: labelSelector ?? "",
+    };
+  });
+  await updateConfigValue("profiles", safeProfiles, vscode.ConfigurationTarget.Workspace);
 };
 
 export const updateConfigActiveProfileName = async (profileName: string): Promise<void> => {

@@ -34,6 +34,7 @@ import {
   updateConfigProfiles,
   updateConfigActiveProfileName,
   getConfigProfiles,
+  getConfigActiveProfileName,
 } from "./utilities/configuration";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
@@ -60,11 +61,25 @@ const actions: {
     await updateConfigProfiles(profiles);
   },
 
-  [UPDATE_PROFILE]: async (payload: { originalName: string; updatedProfile: AnalysisProfile }) => {
-    const { originalName, updatedProfile } = payload;
-    const profiles = getConfigProfiles().map((p) => (p.name === originalName ? updatedProfile : p));
+  [UPDATE_PROFILE]: async ({ originalName, updatedProfile }) => {
+    const cleanProfile: AnalysisProfile = {
+      name: updatedProfile.name,
+      mode: updatedProfile.mode ?? "source-only",
+      customRules: Array.isArray(updatedProfile.customRules) ? [...updatedProfile.customRules] : [],
+      useDefaultRules: !!updatedProfile.useDefaultRules,
+      labelSelector: updatedProfile.labelSelector ?? "",
+    };
+
+    const existingProfiles = getConfigProfiles();
+    const isActive = getConfigActiveProfileName() === originalName;
+
+    const profiles = existingProfiles.map((p) => (p.name === originalName ? cleanProfile : p));
+
     await updateConfigProfiles(profiles);
-    await updateConfigActiveProfileName(updatedProfile.name);
+
+    if (isActive) {
+      await updateConfigActiveProfileName(cleanProfile.name);
+    }
   },
 
   [SET_ACTIVE_PROFILE]: async (profileName: string) => {

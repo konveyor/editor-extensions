@@ -192,10 +192,12 @@ export const ProfileManagerPage: React.FC = () => {
       type: "UPDATE_PROFILE",
       payload: {
         originalName: selectedProfileName,
-        updatedProfile: { ...updatedProfile, name: selectedProfileName },
+        updatedProfile: updatedProfile,
       },
     });
-    // window.vscode.postMessage({ type: "UPDATE_PROFILE", payload: updatedProfile });
+    if (updatedProfile.name !== selectedProfileName) {
+      setSelectedProfileName(updatedProfile.name);
+    }
   };
 
   const handleCreateProfile = () => {
