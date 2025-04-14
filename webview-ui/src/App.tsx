@@ -5,7 +5,7 @@ import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
 import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType } from "@editor-extensions/shared";
 import { ExtensionStateProvider } from "./context/ExtensionStateContext";
-import { ProfileManagerPage } from "./components/ProfileManagerPage/ProfileManagerPage";
+import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<WebviewType>(viewType);
