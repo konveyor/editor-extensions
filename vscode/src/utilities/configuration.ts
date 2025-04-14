@@ -110,6 +110,47 @@ export const getGenAIConfigStatus = (filepath: string): GenAIConfigStatus => {
   }
 };
 
+export const updateSolutionMaxEffortLevel = async (value: SolutionEffortLevel): Promise<void> => {
+  await updateConfigValue("kai.getSolutionMaxEffort", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateGetSolutionMaxPriority = async (value: number | null): Promise<void> => {
+  await updateConfigValue(
+    "kai.getSolutionMaxPriority",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+};
+export const updateGetSolutionMaxDepth = async (value: number | null): Promise<void> => {
+  await updateConfigValue("kai.getSolutionMaxDepth", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateKaiRpcServerPath = async (value: string | undefined): Promise<void> => {
+  await updateConfigValue("kaiRpcServerPath", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
+  await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
+};
+
+export const updateGetSolutionMaxIterations = async (value: number | null): Promise<void> => {
+  await updateConfigValue(
+    "kai.getSolutionMaxIterations",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+};
+export const updateUseDefaultRuleSets = async (value: boolean): Promise<void> => {
+  await updateConfigValue(
+    "analysis.useDefaultRulesets",
+    value,
+    vscode.ConfigurationTarget.Workspace,
+  );
+};
+export const updateLabelSelector = async (value: string): Promise<void> => {
+  await updateConfigValue("analysis.labelSelector", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateCustomRules = async (value: string[]): Promise<void> => {
+  await updateConfigValue("analysis.customRules", value, vscode.ConfigurationTarget.Workspace);
+};
+
 export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string): void {
   const currentLabelSelector = getConfigLabelSelector();
   const customRules = getConfigCustomRules();

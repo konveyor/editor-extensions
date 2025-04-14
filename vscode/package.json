@@ -445,6 +445,48 @@
       "type": "object",
       "title": "Konveyor",
       "properties": {
+        "konveyor.profiles": {
+          "type": "array",
+          "description": "User-defined analysis profiles.",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              },
+              "labelSelector": {
+                "type": "string"
+              },
+              "useDefaultRules": {
+                "type": "boolean"
+              },
+              "customRules": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "name",
+              "mode",
+              "labelSelector",
+              "useDefaultRules",
+              "customRules"
+            ]
+          },
+          "scope": "workspace"
+        },
+        "konveyor.activeProfileName": {
+          "type": "string",
+          "description": "Name of the currently active analysis profile.",
+          "default": "",
+          "scope": "workspace"
+        },
         "konveyor.logLevel": {
           "type": "string",
           "enum": [
