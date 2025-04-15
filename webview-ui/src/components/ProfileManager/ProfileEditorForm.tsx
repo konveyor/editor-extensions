@@ -12,36 +12,36 @@ import {
   FormHelperText,
   HelperText,
   HelperTextItem,
+  FormAlert,
+  Alert,
 } from "@patternfly/react-core";
 import { AnalysisMode, AnalysisProfile } from "../../../../shared/dist/types";
 import { ExclamationCircleIcon } from "@patternfly/react-icons";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   return (...args: any[]) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => callback(...args), delay);
   };
 }
+
 export const ProfileEditorForm: React.FC<{
   profile: AnalysisProfile;
   isActive: boolean;
   onChange: (profile: AnalysisProfile) => void;
   onDelete: () => void;
-  onMakeActive: (name: string) => void;
+  onMakeActive: (id: string) => void;
   allProfiles: AnalysisProfile[];
 }> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles }) => {
   const [localProfile, setLocalProfile] = useState(profile);
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameValidation, setNameValidation] = useState<"default" | "error">("default");
+  const [nameErrorMsg, setNameErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalProfile(profile);
-    setNameError(null);
+    setNameValidation("default");
+    setNameErrorMsg(null);
   }, [profile]);
 
   const debouncedChange = useDebouncedCallback(onChange, 300);
@@ -52,32 +52,55 @@ export const ProfileEditorForm: React.FC<{
   };
 
   const handleBlur = () => {
+    const trimmedName = localProfile.name.trim();
+
     const isDuplicate =
-      localProfile.name !== profile.name && allProfiles.some((p) => p.name === localProfile.name);
+      trimmedName !== profile.name && allProfiles.some((p) => p.name === trimmedName);
+    const isEmpty = trimmedName === "";
+
+    if (isEmpty) {
+      setNameValidation("error");
+      setNameErrorMsg("Profile name is required.");
+      return;
+    }
 
     if (isDuplicate) {
-      setNameError("A profile with this name already exists.");
-    } else {
-      setNameError(null);
-      debouncedChange(localProfile);
+      setNameValidation("error");
+      setNameErrorMsg("A profile with this name already exists.");
+      return;
     }
+
+    setNameValidation("default");
+    setNameErrorMsg(null);
+    debouncedChange({ ...localProfile, name: trimmedName });
   };
 
   return (
     <Form isWidthLimited>
-      <FormGroup label="Profile Name" fieldId="profile-name">
+      {nameValidation === "error" && (
+        <FormAlert>
+          <Alert
+            variant="danger"
+            title="Fix validation errors before continuing."
+            isInline
+            aria-live="polite"
+          />
+        </FormAlert>
+      )}
+
+      <FormGroup label="Profile Name" fieldId="profile-name" isRequired>
         <TextInput
           id="profile-name"
           value={localProfile.name}
           onChange={(_e, value) => handleInputChange(value, "name")}
           onBlur={handleBlur}
-          validated={nameError ? "error" : "default"}
+          validated={nameValidation}
         />
-        {nameError && (
+        {nameErrorMsg && (
           <FormHelperText>
             <HelperText>
               <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
-                {nameError}
+                {nameErrorMsg}
               </HelperTextItem>
             </HelperText>
           </FormHelperText>
@@ -89,7 +112,7 @@ export const ProfileEditorForm: React.FC<{
           id="label-selector"
           value={localProfile.labelSelector}
           onChange={(_e, value) => handleInputChange(value, "labelSelector")}
-          onBlur={handleBlur}
+          onBlur={() => debouncedChange(localProfile)}
         />
       </FormGroup>
 
