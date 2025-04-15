@@ -26,7 +26,7 @@ const defaultState: ExtensionData = {
     customRulesConfigured: false,
   },
   profiles: [],
-  activeProfileName: "",
+  activeProfileId: "",
 };
 
 const windowState =

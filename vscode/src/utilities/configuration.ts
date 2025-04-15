@@ -168,6 +168,7 @@ export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string)
 
 export const getConfigProfiles = (): AnalysisProfile[] =>
   getConfigValue<unknown[]>("profiles")?.map((p: any) => ({
+    id: p.id ?? crypto.randomUUID(),
     name: p.name ?? "",
     mode: p.mode ?? "source-only",
     customRules: Array.isArray(p.customRules) ? [...p.customRules] : [],
@@ -175,27 +176,21 @@ export const getConfigProfiles = (): AnalysisProfile[] =>
     labelSelector: p.labelSelector ?? "",
   })) || [];
 
-export const getConfigActiveProfileName = (): string => {
+export const getConfigActiveProfileId = (): string | undefined => {
+  const id = getConfigValue<string>("activeProfileId");
   const profiles = getConfigProfiles();
-  const name = getConfigValue<string>("activeProfileName");
+  return profiles.find((p) => p.id === id)?.id ?? profiles[0]?.id;
+};
 
-  if (name && profiles.some((p) => p.name === name)) {
-    return name;
-  }
-
-  // fallback: first valid profile name if available
-  if (profiles.length > 0) {
-    return profiles[0].name;
-  }
-
-  // fallback: safe sentinel (not an empty string)
-  return "__no_active_profile__";
+export const updateConfigActiveProfileIdfileId = async (id: string) => {
+  return updateConfigValue("activeProfileId", id, vscode.ConfigurationTarget.Workspace);
 };
 
 export const updateConfigProfiles = async (profiles: AnalysisProfile[]): Promise<void> => {
   const safeProfiles = profiles.map((p) => {
-    const { name, mode, customRules, useDefaultRules, labelSelector } = p;
+    const { id, name, mode, customRules, useDefaultRules, labelSelector } = p;
     return {
+      id,
       name,
       mode,
       customRules: Array.isArray(customRules) ? [...customRules] : [],
@@ -206,8 +201,8 @@ export const updateConfigProfiles = async (profiles: AnalysisProfile[]): Promise
   await updateConfigValue("profiles", safeProfiles, vscode.ConfigurationTarget.Workspace);
 };
 
-export const updateConfigActiveProfileName = async (profileName: string): Promise<void> => {
-  await updateConfigValue("activeProfileName", profileName, vscode.ConfigurationTarget.Workspace);
+export const updateConfigActiveProfileId = async (profileId: string): Promise<void> => {
+  await updateConfigValue("activeProfileId", profileId, vscode.ConfigurationTarget.Workspace);
 };
 
 export const registerConfigChangeListener = (

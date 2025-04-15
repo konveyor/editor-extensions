@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Page,
   PageSection,
@@ -7,76 +7,85 @@ import {
   Bullseye,
   Content,
   ContentVariants,
-  Spinner,
 } from "@patternfly/react-core";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { ProfileList } from "./ProfileList";
 import { ProfileEditorForm } from "./ProfileEditorForm";
+import { AnalysisProfile } from "../../../../shared/dist/types";
 
 export const ProfileManagerPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
-  const { profiles, activeProfileName } = state;
-
-  const [selectedProfileName, setSelectedProfileName] = useState(
-    activeProfileName || profiles[0]?.name,
+  const { profiles, activeProfileId } = state;
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    activeProfileId ?? profiles[0]?.id ?? null,
   );
-  const [localSelectedProfile, setLocalSelectedProfile] = useState(
-    profiles.find((p) => p.name === selectedProfileName) ?? null,
-  );
+  console.log("activeProfileId:", activeProfileId);
 
-  React.useEffect(() => {
-    const fresh = profiles.find((p) => p.name === selectedProfileName);
-    if (fresh) {
-      setLocalSelectedProfile(fresh);
-    }
-    // 👇 do not set to null here
-  }, [profiles, selectedProfileName]);
+  //debig
+  useEffect(() => {
+    console.log(
+      "profiles updated:",
+      profiles.map((p) => p.id),
+    );
+    console.log("selectedProfileId:", selectedProfileId);
+    console.log(
+      "selectedProfile:",
+      profiles.find((p) => p.id === selectedProfileId),
+    );
+  }, [profiles, selectedProfileId]);
 
-  const handleProfileChange = (updatedProfile) => {
-    if (updatedProfile.name !== selectedProfileName) {
-      setSelectedProfileName(updatedProfile.name);
-    }
+  //
 
-    setLocalSelectedProfile(updatedProfile);
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
 
+  const isActiveProfile = selectedProfile?.id === activeProfileId;
+
+  const handleProfileChange = (updatedProfile: AnalysisProfile) => {
     dispatch({
       type: "UPDATE_PROFILE",
       payload: {
-        originalName: selectedProfileName,
+        originalId: selectedProfileId,
         updatedProfile,
       },
     });
+
+    // Keep selection in sync if ID changes (shouldn’t happen now, but good practice)
+    if (updatedProfile.id !== selectedProfileId) {
+      setSelectedProfileId(updatedProfile.id);
+    }
   };
 
   const handleCreateProfile = () => {
     const baseName = "New Profile";
     let index = 1;
     let newName = baseName;
-    while (profiles.find((p) => p.name === newName)) {
+    while (profiles.some((p) => p.name === newName)) {
       newName = `${baseName} ${index++}`;
     }
-    const newProfile = {
+
+    const newProfile: AnalysisProfile = {
+      id: crypto.randomUUID(),
       name: newName,
       mode: "source-only",
       customRules: [],
       useDefaultRules: true,
       labelSelector: "",
     };
+
     dispatch({ type: "ADD_PROFILE", payload: newProfile });
-    // window.vscode.postMessage({ type: "ADD_PROFILE", payload: newProfile });
-    setSelectedProfileName(newProfile.name);
+    setSelectedProfileId(newProfile.id); // <- Keep this
   };
 
   const handleDeleteProfile = () => {
-    if (selectedProfileName) {
-      window.vscode.postMessage({ type: "DELETE_PROFILE", payload: selectedProfileName });
-      setSelectedProfileName("");
+    if (selectedProfileId) {
+      window.vscode.postMessage({ type: "DELETE_PROFILE", payload: selectedProfileId });
+      setSelectedProfileId(null);
     }
   };
 
-  const handleMakeActive = (name: string) => {
-    dispatch({ type: "SET_ACTIVE_PROFILE", payload: name });
-    window.vscode.postMessage({ type: "SET_ACTIVE_PROFILE", payload: name });
+  const handleMakeActive = (id: string) => {
+    dispatch({ type: "SET_ACTIVE_PROFILE", payload: id });
+    window.vscode.postMessage({ type: "SET_ACTIVE_PROFILE", payload: id });
   };
 
   return (
@@ -86,31 +95,25 @@ export const ProfileManagerPage: React.FC = () => {
           <SplitItem isFilled style={{ width: "300px", flex: "0 0 300px" }}>
             <ProfileList
               profiles={profiles}
-              selected={selectedProfileName}
-              active={activeProfileName}
-              onSelect={setSelectedProfileName}
+              selected={selectedProfileId}
+              active={activeProfileId}
+              onSelect={setSelectedProfileId}
               onCreate={handleCreateProfile}
             />
           </SplitItem>
           <SplitItem isFilled style={{ flex: "1 1 auto" }}>
-            {profiles.length === 0 ? (
-              <Bullseye>
-                <Content component={ContentVariants.p}>No profiles defined</Content>
-              </Bullseye>
-            ) : localSelectedProfile ? (
+            {selectedProfile ? (
               <ProfileEditorForm
-                profile={localSelectedProfile}
                 allProfiles={profiles}
-                originalName={selectedProfileName}
-                isActive={localSelectedProfile.name === activeProfileName}
+                profile={selectedProfile}
+                isActive={isActiveProfile}
                 onChange={handleProfileChange}
                 onDelete={handleDeleteProfile}
                 onMakeActive={handleMakeActive}
               />
             ) : (
               <Bullseye>
-                {/* <Content component={ContentVariants.p}>Loading profile…</Content> */}
-                <Spinner size="xl" aria-label="Loading profile…" style={{ margin: "auto" }} />
+                <Content component={ContentVariants.p}>Select or create a profile</Content>
               </Bullseye>
             )}
           </SplitItem>

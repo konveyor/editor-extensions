@@ -18,5 +18,5 @@ export interface ExtensionState {
   data: Immutable<ExtensionData>;
   mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   profiles?: AnalysisProfile[];
-  activeProfileName?: string;
+  activeProfileId?: string;
 }

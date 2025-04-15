@@ -60,7 +60,7 @@ const AnalysisPage: React.FC = () => {
     enhancedIncidents,
     analysisConfig,
     profiles,
-    activeProfileName,
+    activeProfileId,
     serverState,
   } = state;
 
@@ -135,7 +135,7 @@ const AnalysisPage: React.FC = () => {
                         <ToolbarItem>
                           <ProfileSelector
                             profiles={profiles}
-                            activeProfile={activeProfileName}
+                            activeProfile={activeProfileId}
                             onChange={(name) =>
                               dispatch({ type: "SET_ACTIVE_PROFILE", payload: name })
                             }

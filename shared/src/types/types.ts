@@ -139,7 +139,7 @@ export interface ExtensionData {
   solutionEffort: SolutionEffortLevel;
   analysisConfig: AnalysisConfig;
   profiles: AnalysisProfile[];
-  activeProfileName: string;
+  activeProfileId: string;
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;
@@ -195,6 +195,7 @@ export interface GenAIConfigStatus {
   activeKey?: string;
 }
 export interface AnalysisProfile {
+  id: string;
   name: string;
   mode: AnalysisMode;
   customRules: string[];

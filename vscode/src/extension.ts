@@ -13,7 +13,7 @@ import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
-  getConfigActiveProfileName,
+  getConfigActiveProfileId,
   getConfigProfiles,
   getConfigSolutionMaxEffortLevel,
   updateAnalysisConfig,
@@ -54,7 +54,7 @@ class VsCodeExtension {
           genAIUsingDefault: false,
           customRulesConfigured: false,
         },
-        activeProfileName: "",
+        activeProfileId: "",
         profiles: [],
       },
       () => {},
@@ -90,11 +90,14 @@ class VsCodeExtension {
       this.checkWorkspace();
 
       const profiles = getConfigProfiles();
-      const activeProfile = getConfigActiveProfileName();
+      const activeProfileId = getConfigActiveProfileId();
 
       this.state.mutateData((draft) => {
         draft.profiles = [...profiles];
-        draft.activeProfileName = activeProfile;
+        if (activeProfileId) {
+          draft.activeProfileId = activeProfileId;
+        }
+
         updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
       });
 
@@ -132,13 +135,15 @@ class VsCodeExtension {
             event.affectsConfiguration("konveyor.analysis.labelSelector") ||
             event.affectsConfiguration("konveyor.analysis.customRules") ||
             event.affectsConfiguration("konveyor.profiles") ||
-            event.affectsConfiguration("konveyor.activeProfileName")
+            event.affectsConfiguration("konveyor.activeProfileId")
           ) {
             const profiles = getConfigProfiles();
-            const activeProfile = getConfigActiveProfileName();
+            const activeProfile = getConfigActiveProfileId();
             this.state.mutateData((draft) => {
               draft.profiles = [...profiles];
-              draft.activeProfileName = activeProfile;
+              if (activeProfile) {
+                draft.activeProfileId = activeProfile;
+              }
               updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
             });
           }

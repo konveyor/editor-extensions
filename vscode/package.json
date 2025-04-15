@@ -482,7 +482,7 @@
           },
           "scope": "workspace"
         },
-        "konveyor.activeProfileName": {
+        "konveyor.activeProfileId": {
           "type": "string",
           "description": "Name of the currently active analysis profile.",
           "default": "",

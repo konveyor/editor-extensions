@@ -32,9 +32,9 @@ import {
 
 import {
   updateConfigProfiles,
-  updateConfigActiveProfileName,
   getConfigProfiles,
-  getConfigActiveProfileName,
+  getConfigActiveProfileId,
+  updateConfigActiveProfileId,
 } from "./utilities/configuration";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
@@ -53,37 +53,54 @@ const actions: {
       return;
     }
     await updateConfigProfiles([...profiles, profile]);
-    await updateConfigActiveProfileName(profile.name);
+    await updateConfigActiveProfileId(profile.id);
   },
 
-  [DELETE_PROFILE]: async (profileName: string) => {
-    const profiles = getConfigProfiles().filter((p) => p.name !== profileName);
+  [DELETE_PROFILE]: async (profileId: string) => {
+    const profiles = getConfigProfiles().filter((p) => p.id !== profileId);
     await updateConfigProfiles(profiles);
+
+    const activeId = getConfigActiveProfileId();
+    if (activeId === profileId) {
+      const newActive = profiles[0]?.id;
+      if (newActive) {
+        await updateConfigActiveProfileId(newActive);
+      } else {
+        await updateConfigActiveProfileId("");
+      }
+    }
   },
 
-  [UPDATE_PROFILE]: async ({ originalName, updatedProfile }) => {
+  [UPDATE_PROFILE]: async ({ originalId, updatedProfile }) => {
     const cleanProfile: AnalysisProfile = {
+      id: updatedProfile.id,
       name: updatedProfile.name,
       mode: updatedProfile.mode ?? "source-only",
       customRules: Array.isArray(updatedProfile.customRules) ? [...updatedProfile.customRules] : [],
       useDefaultRules: !!updatedProfile.useDefaultRules,
       labelSelector: updatedProfile.labelSelector ?? "",
     };
-
     const existingProfiles = getConfigProfiles();
-    const isActive = getConfigActiveProfileName() === originalName;
-
-    const profiles = existingProfiles.map((p) => (p.name === originalName ? cleanProfile : p));
+    const isActive = getConfigActiveProfileId() === originalId;
+    const profiles: AnalysisProfile[] = existingProfiles.map((p) =>
+      p.id === originalId
+        ? cleanProfile
+        : {
+            ...p,
+            customRules: Array.isArray(p.customRules) ? [...p.customRules] : [],
+          },
+    );
 
     await updateConfigProfiles(profiles);
 
     if (isActive) {
-      await updateConfigActiveProfileName(cleanProfile.name);
+      await updateConfigActiveProfileId(cleanProfile.id);
     }
   },
 
-  [SET_ACTIVE_PROFILE]: async (profileName: string) => {
-    await updateConfigActiveProfileName(profileName);
+  [SET_ACTIVE_PROFILE]: async (profileId: string) => {
+    console.log("Setting active profile to:", profileId);
+    await updateConfigActiveProfileId(profileId);
   },
 
   [OPEN_PROFILE_MANAGER]() {

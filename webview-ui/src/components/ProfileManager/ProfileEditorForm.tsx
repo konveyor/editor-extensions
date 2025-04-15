@@ -20,75 +20,75 @@ function useDebouncedCallback(callback: (...args: any[]) => void, delay: number)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   return (...args: any[]) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     timeoutRef.current = setTimeout(() => {
       callback(...args);
     }, delay);
   };
 }
-
 export const ProfileEditorForm: React.FC<{
   profile: AnalysisProfile;
   isActive: boolean;
-  onChange: (profile: any) => void;
+  onChange: (profile: AnalysisProfile) => void;
   onDelete: () => void;
   onMakeActive: (name: string) => void;
   allProfiles: AnalysisProfile[];
-  originalName: string;
-}> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles, originalName }) => {
+}> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles }) => {
   const [localProfile, setLocalProfile] = useState(profile);
   const [nameError, setNameError] = useState<string | null>(null);
 
-  // Sync form if parent profile changes
   useEffect(() => {
     setLocalProfile(profile);
+    setNameError(null);
   }, [profile]);
 
   const debouncedChange = useDebouncedCallback(onChange, 300);
 
-  const handleBlur = () => {
-    const isDupelicate =
-      localProfile.name !== originalName && allProfiles.some((p) => p.name === localProfile.name);
-    if (isDupelicate) {
-      setNameError("Profile name already exists");
-      return;
-    }
-    setNameError(null);
-    debouncedChange(localProfile);
+  const handleInputChange = (value: string, field: keyof AnalysisProfile) => {
+    const updated = { ...localProfile, [field]: value };
+    setLocalProfile(updated);
   };
+
+  const handleBlur = () => {
+    const isDuplicate =
+      localProfile.name !== profile.name && allProfiles.some((p) => p.name === localProfile.name);
+
+    if (isDuplicate) {
+      setNameError("A profile with this name already exists.");
+    } else {
+      setNameError(null);
+      debouncedChange(localProfile);
+    }
+  };
+
   return (
     <Form isWidthLimited>
-      <FormGroup
-        label="Profile Name"
-        fieldId="profile-name"
-        // validated={nameError ? "error" : "default"}
-
-        // helperTextInvalid={nameError}
-      >
+      <FormGroup label="Profile Name" fieldId="profile-name">
         <TextInput
           id="profile-name"
           value={localProfile.name}
-          onChange={(_e, value) => setLocalProfile((prev) => ({ ...prev, name: value }))}
+          onChange={(_e, value) => handleInputChange(value, "name")}
           onBlur={handleBlur}
           validated={nameError ? "error" : "default"}
         />
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem
-              icon={<ExclamationCircleIcon />}
-              variant={nameError ? "error" : "default"}
-            >
-              {nameError ? nameError : "Name of the profile"}
-            </HelperTextItem>
-          </HelperText>
-        </FormHelperText>
+        {nameError && (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                {nameError}
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        )}
       </FormGroup>
 
       <FormGroup label="Label Selector" fieldId="label-selector">
         <TextInput
           id="label-selector"
           value={localProfile.labelSelector}
-          onChange={(_e, value) => setLocalProfile((prev) => ({ ...prev, labelSelector: value }))}
+          onChange={(_e, value) => handleInputChange(value, "labelSelector")}
           onBlur={handleBlur}
         />
       </FormGroup>
@@ -124,7 +124,7 @@ export const ProfileEditorForm: React.FC<{
         <FlexItem>
           <Button
             variant="secondary"
-            onClick={() => onMakeActive(localProfile.name)}
+            onClick={() => onMakeActive(profile.id)}
             isDisabled={isActive}
           >
             Make Active
