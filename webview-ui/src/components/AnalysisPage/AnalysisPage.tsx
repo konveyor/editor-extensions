@@ -136,9 +136,7 @@ const AnalysisPage: React.FC = () => {
                           <ProfileSelector
                             profiles={profiles}
                             activeProfile={activeProfileId}
-                            onChange={(name) =>
-                              dispatch({ type: "SET_ACTIVE_PROFILE", payload: name })
-                            }
+                            onChange={(id) => dispatch({ type: "SET_ACTIVE_PROFILE", payload: id })}
                           />
                         </ToolbarItem>
                         <ToolbarItem>

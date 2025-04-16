@@ -12,12 +12,9 @@ import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
-import {
-  getConfigActiveProfileId,
-  getConfigProfiles,
-  getConfigSolutionMaxEffortLevel,
-  updateAnalysisConfig,
-} from "./utilities";
+import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
+import { getBundledProfiles } from "./utilities/bundledProfiles";
+import { getUserProfiles } from "./utilities/profileStorage";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -89,15 +86,15 @@ class VsCodeExtension {
     try {
       this.checkWorkspace();
 
-      const profiles = getConfigProfiles();
-      const activeProfileId = getConfigActiveProfileId();
+      const bundled = getBundledProfiles();
+      const user = getUserProfiles(this.context);
+      const allProfiles = [...bundled, ...user];
+
+      const activeId = this.context.workspaceState.get<string>("activeProfileId") ?? bundled[0].id;
 
       this.state.mutateData((draft) => {
-        draft.profiles = [...profiles];
-        if (activeProfileId) {
-          draft.activeProfileId = activeProfileId;
-        }
-
+        draft.profiles = allProfiles;
+        draft.activeProfileId = allProfiles.find((p) => p.id === activeId)?.id ?? bundled[0].id;
         updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
       });
 
@@ -133,17 +130,9 @@ class VsCodeExtension {
 
           if (
             event.affectsConfiguration("konveyor.analysis.labelSelector") ||
-            event.affectsConfiguration("konveyor.analysis.customRules") ||
-            event.affectsConfiguration("konveyor.profiles") ||
-            event.affectsConfiguration("konveyor.activeProfileId")
+            event.affectsConfiguration("konveyor.analysis.customRules")
           ) {
-            const profiles = getConfigProfiles();
-            const activeProfile = getConfigActiveProfileId();
             this.state.mutateData((draft) => {
-              draft.profiles = [...profiles];
-              if (activeProfile) {
-                draft.activeProfileId = activeProfile;
-              }
               updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
             });
           }

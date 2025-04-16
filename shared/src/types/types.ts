@@ -201,5 +201,6 @@ export interface AnalysisProfile {
   customRules: string[];
   useDefaultRules: boolean;
   labelSelector: string;
+  readOnly?: boolean;
 }
 export type AnalysisMode = "source-only" | "source-and-dependencies";

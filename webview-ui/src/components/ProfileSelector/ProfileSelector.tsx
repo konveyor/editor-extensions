@@ -7,15 +7,12 @@ import {
   MenuToggleElement,
 } from "@patternfly/react-core";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-
-interface Profile {
-  name: string;
-}
+import { AnalysisProfile } from "../../../../shared/dist/types";
 
 interface ProfileSelectorProps {
-  profiles: Profile[];
+  profiles: AnalysisProfile[];
   activeProfile: string;
-  onChange: (newProfile: string) => void;
+  onChange: (newProfileId: string) => void;
   isDisabled?: boolean;
 }
 
@@ -26,18 +23,17 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   isDisabled = false,
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const { state, dispatch } = useExtensionStateContext();
 
-  const onToggleClick = () => {
-    setIsOpen((prev) => !prev);
+  const onToggleClick = () => setIsOpen((prev) => !prev);
+
+  const onSelect = (_event?: React.MouseEvent<Element>, value?: string | number) => {
+    if (typeof value === "string") {
+      onChange(value);
+      setIsOpen(false);
+    }
   };
 
-  const onSelect = (_event?: React.MouseEvent<Element, MouseEvent>, value?: string | number) => {
-    if (value === undefined) return;
-    const selectedProfile = value as string;
-    setIsOpen(false);
-    onChange(selectedProfile);
-  };
+  const selected = profiles.find((p) => p.id === activeProfile);
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
@@ -47,7 +43,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
       isDisabled={isDisabled}
       style={{ width: "200px" }}
     >
-      {activeProfile || "Select a profile"}
+      {selected?.name ?? "Select a profile"}
     </MenuToggle>
   );
 
@@ -64,7 +60,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
       <SelectList>
         {profiles.length > 0 ? (
           profiles.map((profile) => (
-            <SelectOption key={profile.name} value={profile.name}>
+            <SelectOption key={profile.id} value={profile.id}>
               {profile.name}
             </SelectOption>
           ))

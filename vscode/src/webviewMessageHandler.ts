@@ -30,12 +30,8 @@ import {
   ScopeWithKonveyorContext,
 } from "@editor-extensions/shared";
 
-import {
-  updateConfigProfiles,
-  getConfigProfiles,
-  getConfigActiveProfileId,
-  updateConfigActiveProfileId,
-} from "./utilities/configuration";
+import { getBundledProfiles } from "./utilities/bundledProfiles";
+import { getUserProfiles, saveUserProfiles, setActiveProfileId } from "./utilities/profileStorage";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
@@ -46,61 +42,80 @@ export function setupWebviewMessageListener(webview: vscode.Webview, state: Exte
 const actions: {
   [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
-  [ADD_PROFILE]: async (profile: AnalysisProfile) => {
-    const profiles = getConfigProfiles();
-    if (profiles.find((p) => p.name === profile.name)) {
-      vscode.window.showErrorMessage(`Profile "${profile.name}" already exists.`);
+  [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
+    const userProfiles = getUserProfiles(state.extensionContext);
+
+    if (userProfiles.some((p) => p.name === profile.name)) {
+      vscode.window.showErrorMessage(`A profile named "${profile.name}" already exists.`);
       return;
     }
-    await updateConfigProfiles([...profiles, profile]);
-    await updateConfigActiveProfileId(profile.id);
+
+    const updated = [...userProfiles, profile];
+    saveUserProfiles(state.extensionContext, updated);
+
+    const allProfiles = [...getBundledProfiles(), ...updated];
+
+    state.mutateData((draft) => {
+      draft.profiles = allProfiles;
+    });
+    setActiveProfileId(profile.id, state);
   },
 
-  [DELETE_PROFILE]: async (profileId: string) => {
-    const profiles = getConfigProfiles().filter((p) => p.id !== profileId);
-    await updateConfigProfiles(profiles);
+  [DELETE_PROFILE]: async (profileId: string, state) => {
+    const userProfiles = getUserProfiles(state.extensionContext);
+    const filtered = userProfiles.filter((p) => p.id !== profileId);
 
-    const activeId = getConfigActiveProfileId();
-    if (activeId === profileId) {
-      const newActive = profiles[0]?.id;
-      if (newActive) {
-        await updateConfigActiveProfileId(newActive);
-      } else {
-        await updateConfigActiveProfileId("");
+    saveUserProfiles(state.extensionContext, filtered);
+
+    const fullProfiles = [...getBundledProfiles(), ...filtered];
+    state.mutateData((draft) => {
+      draft.profiles = fullProfiles;
+
+      if (draft.activeProfileId === profileId) {
+        draft.activeProfileId = fullProfiles[0]?.id ?? "";
+        state.extensionContext.workspaceState.update("activeProfileId", draft.activeProfileId);
       }
-    }
+    });
   },
 
-  [UPDATE_PROFILE]: async ({ originalId, updatedProfile }) => {
-    const cleanProfile: AnalysisProfile = {
-      id: updatedProfile.id,
-      name: updatedProfile.name,
-      mode: updatedProfile.mode ?? "source-only",
-      customRules: Array.isArray(updatedProfile.customRules) ? [...updatedProfile.customRules] : [],
-      useDefaultRules: !!updatedProfile.useDefaultRules,
-      labelSelector: updatedProfile.labelSelector ?? "",
-    };
-    const existingProfiles = getConfigProfiles();
-    const isActive = getConfigActiveProfileId() === originalId;
-    const profiles: AnalysisProfile[] = existingProfiles.map((p) =>
-      p.id === originalId
-        ? cleanProfile
-        : {
-            ...p,
-            customRules: Array.isArray(p.customRules) ? [...p.customRules] : [],
-          },
+  [UPDATE_PROFILE]: async ({ originalId, updatedProfile }, state) => {
+    const allProfiles = [...getBundledProfiles(), ...getUserProfiles(state.extensionContext)];
+    const isBundled = allProfiles.find((p) => p.id === originalId)?.readOnly;
+
+    if (isBundled) {
+      vscode.window.showWarningMessage(
+        "Built-in profiles cannot be edited. Copy it to a new profile first.",
+      );
+      return;
+    }
+
+    const updatedList = allProfiles.map((p) =>
+      p.id === originalId ? { ...p, ...updatedProfile } : p,
     );
 
-    await updateConfigProfiles(profiles);
+    // Save only user profiles
+    const userProfiles = updatedList.filter((p) => !p.readOnly);
+    saveUserProfiles(state.extensionContext, userProfiles);
 
-    if (isActive) {
-      await updateConfigActiveProfileId(cleanProfile.id);
-    }
+    // Update extension state
+    const fullProfiles = [...getBundledProfiles(), ...userProfiles];
+    state.mutateData((draft) => {
+      draft.profiles = fullProfiles;
+
+      if (draft.activeProfileId === originalId) {
+        draft.activeProfileId = updatedProfile.id;
+      }
+    });
   },
 
-  [SET_ACTIVE_PROFILE]: async (profileId: string) => {
-    console.log("Setting active profile to:", profileId);
-    await updateConfigActiveProfileId(profileId);
+  [SET_ACTIVE_PROFILE]: async (profileId: string, state) => {
+    const allProfiles = [...getBundledProfiles(), ...getUserProfiles(state.extensionContext)];
+    const valid = allProfiles.find((p) => p.id === profileId);
+    if (!valid) {
+      vscode.window.showErrorMessage(`Cannot set active profile. Profile not found.`);
+      return;
+    }
+    setActiveProfileId(profileId, state);
   },
 
   [OPEN_PROFILE_MANAGER]() {
