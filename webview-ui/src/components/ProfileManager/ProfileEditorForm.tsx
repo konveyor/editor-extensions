@@ -91,6 +91,7 @@ export const ProfileEditorForm: React.FC<{
       <FormGroup label="Profile Name" fieldId="profile-name" isRequired>
         <TextInput
           id="profile-name"
+          isDisabled={profile.readOnly}
           value={localProfile.name}
           onChange={(_e, value) => handleInputChange(value, "name")}
           onBlur={handleBlur}
@@ -110,6 +111,7 @@ export const ProfileEditorForm: React.FC<{
       <FormGroup label="Label Selector" fieldId="label-selector">
         <TextInput
           id="label-selector"
+          isDisabled={profile.readOnly}
           value={localProfile.labelSelector}
           onChange={(_e, value) => handleInputChange(value, "labelSelector")}
           onBlur={() => debouncedChange(localProfile)}
@@ -120,6 +122,7 @@ export const ProfileEditorForm: React.FC<{
         <Switch
           id="use-default-rules"
           isChecked={localProfile.useDefaultRules}
+          isDisabled={profile.readOnly}
           onChange={(_e, checked) => {
             const updated = { ...localProfile, useDefaultRules: checked };
             setLocalProfile(updated);
@@ -137,6 +140,7 @@ export const ProfileEditorForm: React.FC<{
             setLocalProfile(updated);
             debouncedChange(updated);
           }}
+          isDisabled={profile.readOnly}
         >
           <FormSelectOption value="source-only" label="Source Only" />
           <FormSelectOption value="full-analysis" label="Full Analysis" />
@@ -154,7 +158,7 @@ export const ProfileEditorForm: React.FC<{
           </Button>
         </FlexItem>
         <FlexItem>
-          <Button variant="danger" onClick={onDelete}>
+          <Button variant="danger" onClick={onDelete} isDisabled={profile.readOnly}>
             Delete Profile
           </Button>
         </FlexItem>
