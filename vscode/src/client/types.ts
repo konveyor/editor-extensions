@@ -37,33 +37,3 @@ export interface KaiConfigModels {
   llmRetries?: number;
   llmRetryDelay?: number;
 }
-
-/**
- * `initialize` request content as camel case (camelCase and snake_case are both accepted)
- *
- * {@link https://github.com/konveyor/kai/blob/78f31fa609a5b53bf66f334803afa72f3849a7e2/kai/rpc_server/server.py#L61}
- */
-export interface KaiRpcApplicationConfig {
-  processId?: number;
-
-  rootPath: string;
-  modelProvider: KaiConfigModels;
-
-  logConfig: KaiLogConfig;
-
-  demoMode?: boolean; // defaults to `false`
-  cacheDir?: string; // defaults to `None`
-  enableReflection?: boolean; // defaults to `true`
-  traceEnabled?: boolean; // defaults to `false`
-
-  analyzerLspLspPath: string;
-  analyzerLspRpcPath: string;
-  analyzerLspRulesPaths: string[];
-  analyzerLspJavaBundlePaths: string[];
-  analyzerLspDepLabelsPath?: string; // defaults to `None`
-  analyzerLspExcludedPaths: string[];
-  analyzerLspLabelSelector: string;
-
-  // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
-  // analyzerLspFernFlowerPath?: string;
-}

@@ -152,8 +152,6 @@ export type ServerState =
   | "configurationNeeded"
   | "configurationReady"
   | "starting"
-  | "readyToInitialize"
-  | "initializing"
   | "startFailed"
   | "running"
   | "stopping"
