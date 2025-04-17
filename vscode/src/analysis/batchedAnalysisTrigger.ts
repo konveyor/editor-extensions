@@ -22,11 +22,13 @@ export class BatchedAnalysisTrigger {
 
   async notifyFileChanges(change: FileChange) {
     if (this.enableHotRerun) {
+      // hot re-run if enabled
       this.notifyFileChangesQueue.set(change.path.fsPath, change);
       this.scheduleNotifyFileChanges();
       this.analysisFileChangesQueue.add(change.path);
       this.schedulePartialAnalysis();
     } else if (change.saved) {
+      // when a file is saved, we still want to call analysis
       this.analysisFileChangesQueue.add(change.path);
       this.schedulePartialAnalysis();
     }
