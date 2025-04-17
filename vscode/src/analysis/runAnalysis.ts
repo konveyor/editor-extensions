@@ -1,15 +1,22 @@
 import * as vscode from "vscode";
 import { getConfigAnalyzeOnSave } from "../utilities";
 import { ExtensionState } from "../extensionState";
-import { isUriIgnored } from "../paths";
+import { BatchedAnalysisTrigger } from "./batchedAnalysisTrigger";
 
-export const registerAnalysisTrigger = (disposables: vscode.Disposable[]) => {
-  const changedDocuments = new Set<vscode.Uri>();
+export const registerAnalysisTrigger = (
+  disposables: vscode.Disposable[],
+  state: ExtensionState,
+) => {
+  const batchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
 
   vscode.workspace.onDidChangeTextDocument(
     (e: vscode.TextDocumentChangeEvent) => {
       if (e.contentChanges.length > 0) {
-        changedDocuments.add(e.document.uri);
+        batchedAnalysisTrigger.notifyFileChanges({
+          path: e.document.uri,
+          content: e.document.getText(),
+          saved: !e.document.isDirty,
+        });
       }
     },
     undefined,
@@ -17,24 +24,18 @@ export const registerAnalysisTrigger = (disposables: vscode.Disposable[]) => {
   );
 
   vscode.workspace.onDidCloseTextDocument(
-    ({ uri }: vscode.TextDocument) => {
-      changedDocuments.delete(uri);
-    },
+    ({ uri }: vscode.TextDocument) => {},
     undefined,
     disposables,
   );
 
   vscode.workspace.onDidSaveTextDocument(
-    ({ uri }: vscode.TextDocument) => {
-      if (changedDocuments.has(uri)) {
-        changedDocuments.delete(uri);
-
-        // Any restrictions on if the document at `uri` should be
-        // sent through partial analysis should be done here.
-        if (!isUriIgnored(uri)) {
-          vscode.commands.executeCommand("konveyor.partialAnalysis", [uri]);
-        }
-      }
+    (d: vscode.TextDocument) => {
+      batchedAnalysisTrigger.notifyFileChanges({
+        path: d.uri,
+        content: d.getText(),
+        saved: true,
+      });
     },
     undefined,
     disposables,

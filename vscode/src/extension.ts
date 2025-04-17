@@ -80,7 +80,7 @@ class VsCodeExtension {
       this.registerCommands();
       this.registerLanguageProviders();
 
-      registerAnalysisTrigger(this.listeners);
+      registerAnalysisTrigger(this.listeners, this.state);
 
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
