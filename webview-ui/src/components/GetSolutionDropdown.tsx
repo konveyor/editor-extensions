@@ -42,33 +42,32 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     return undefined;
   }
 
-  const menuToggle = (
-    <MenuToggle
-      variant="plain"
-      isDisabled={isButtonDisabled}
-      splitButtonItems={[
-        <MenuToggleAction
-          id="get-solution-button"
-          key="split-action-primary"
-          onClick={() => onGetSolution(incidents, state.solutionEffort)}
-          aria-label="Get solution"
-        >
-          <WrenchIcon />
-        </MenuToggleAction>,
-      ]}
-      onClick={() => setIsOpen(!isOpen)}
-      isExpanded={isOpen}
-      aria-label="Effort Levels"
-      icon={<EllipsisVIcon />}
-    />
-  );
-
   return (
     <Dropdown
       isOpen={isOpen}
       onSelect={() => setIsOpen(false)}
       onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}
-      toggle={(toggleRef) => React.cloneElement(menuToggle, { ref: toggleRef })}
+      toggle={(toggleRef) => (
+        <MenuToggle
+          ref={toggleRef}
+          variant="plain"
+          isDisabled={isButtonDisabled}
+          splitButtonItems={[
+            <MenuToggleAction
+              id="get-solution-button"
+              key="split-action-primary"
+              onClick={() => onGetSolution(incidents, state.solutionEffort)}
+              aria-label="Get solution"
+            >
+              <WrenchIcon />
+            </MenuToggleAction>,
+          ]}
+          onClick={() => setIsOpen(!isOpen)}
+          isExpanded={isOpen}
+          aria-label="Effort Levels"
+          icon={<EllipsisVIcon />}
+        />
+      )}
       popperProps={{
         appendTo: document.body,
         position: "right",
