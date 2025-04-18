@@ -30,8 +30,12 @@ import {
   ScopeWithKonveyorContext,
 } from "@editor-extensions/shared";
 
-import { getBundledProfiles } from "./utilities/bundledProfiles";
-import { getUserProfiles, saveUserProfiles, setActiveProfileId } from "./utilities/profileStorage";
+import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
+import {
+  getUserProfiles,
+  saveUserProfiles,
+  setActiveProfileId,
+} from "./utilities/profiles/profileService";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
@@ -130,9 +134,10 @@ const actions: {
   [CONFIGURE_LABEL_SELECTOR]() {
     vscode.commands.executeCommand("konveyor.configureLabelSelector");
   },
-  [CONFIGURE_CUSTOM_RULES]() {
-    vscode.commands.executeCommand("konveyor.configureCustomRules");
+  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, state) => {
+    vscode.commands.executeCommand("konveyor.configureCustomRules", profileId, state);
   },
+
   [OVERRIDE_ANALYZER_BINARIES]() {
     vscode.commands.executeCommand("konveyor.overrideAnalyzerBinaries");
   },

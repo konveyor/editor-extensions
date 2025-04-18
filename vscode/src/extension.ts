@@ -13,8 +13,8 @@ import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
-import { getBundledProfiles } from "./utilities/bundledProfiles";
-import { getUserProfiles } from "./utilities/profileStorage";
+import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
+import { getUserProfiles } from "./utilities/profiles/profileService";
 
 class VsCodeExtension {
   private state: ExtensionState;

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { targetOptions, sourceOptions } from "./options";
 import {
   Button,
   Form,
@@ -14,14 +15,21 @@ import {
   HelperTextItem,
   FormAlert,
   Alert,
+  MenuToggle,
+  Select,
+  SelectList,
+  SelectOption,
 } from "@patternfly/react-core";
-import { AnalysisMode, AnalysisProfile } from "../../../../shared/dist/types";
 import { ExclamationCircleIcon } from "@patternfly/react-icons";
+import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { AnalysisProfile, AnalysisMode, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   return (...args: any[]) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     timeoutRef.current = setTimeout(() => callback(...args), delay);
   };
 }
@@ -35,8 +43,15 @@ export const ProfileEditorForm: React.FC<{
   allProfiles: AnalysisProfile[];
 }> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles }) => {
   const [localProfile, setLocalProfile] = useState(profile);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [targetOpen, setTargetOpen] = useState(false);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
+
   const [nameValidation, setNameValidation] = useState<"default" | "error">("default");
   const [nameErrorMsg, setNameErrorMsg] = useState<string | null>(null);
+
+  const { dispatch, state } = useExtensionStateContext();
 
   useEffect(() => {
     setLocalProfile(profile);
@@ -75,6 +90,31 @@ export const ProfileEditorForm: React.FC<{
     debouncedChange({ ...localProfile, name: trimmedName });
   };
 
+  const handleSourceToggle = () => setSourceOpen((prev) => !prev);
+  const handleTargetToggle = () => setTargetOpen((prev) => !prev);
+
+  const handleSourcesChange = (selection: string) => {
+    const updated = toggleSelection(selectedSources, selection);
+    setSelectedSources(updated);
+    updateLabelSelector(updated, selectedTargets);
+  };
+
+  const handleTargetsChange = (selection: string) => {
+    const updated = toggleSelection(selectedTargets, selection);
+    setSelectedTargets(updated);
+    updateLabelSelector(selectedSources, updated);
+  };
+
+  const updateLabelSelector = (sources: string[], targets: string[]) => {
+    const selector = buildLabelSelector(sources, targets);
+    const updatedProfile = { ...localProfile, labelSelector: selector };
+    setLocalProfile(updatedProfile);
+    debouncedChange(updatedProfile);
+  };
+
+  const toggleSelection = (list: string[], value: string) =>
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+
   return (
     <Form isWidthLimited>
       {nameValidation === "error" && (
@@ -108,7 +148,7 @@ export const ProfileEditorForm: React.FC<{
         )}
       </FormGroup>
 
-      <FormGroup label="Label Selector" fieldId="label-selector">
+      {/* <FormGroup label="Label Selector" fieldId="label-selector">
         <TextInput
           id="label-selector"
           isDisabled={profile.readOnly}
@@ -116,6 +156,59 @@ export const ProfileEditorForm: React.FC<{
           onChange={(_e, value) => handleInputChange(value, "labelSelector")}
           onBlur={() => debouncedChange(localProfile)}
         />
+      </FormGroup> */}
+      <FormGroup label="Target Technologies" fieldId="targets">
+        <Select
+          isOpen={targetOpen}
+          onOpenChange={setTargetOpen}
+          onSelect={(_ev, value) => handleTargetsChange(value as string)}
+          toggle={(ref) => (
+            <MenuToggle
+              ref={ref}
+              isDisabled={profile.readOnly}
+              onClick={handleTargetToggle}
+              isExpanded={targetOpen}
+            >
+              {selectedTargets.length ? selectedTargets.join(", ") : "Select targets"}
+            </MenuToggle>
+          )}
+          selected={selectedTargets}
+        >
+          <SelectList>
+            {targetOptions.map((opt) => (
+              <SelectOption key={opt} value={opt}>
+                {opt}
+              </SelectOption>
+            ))}
+          </SelectList>
+        </Select>
+      </FormGroup>
+
+      <FormGroup label="Source Technologies" fieldId="sources">
+        <Select
+          isOpen={sourceOpen}
+          onOpenChange={setSourceOpen}
+          onSelect={(_ev, value) => handleSourcesChange(value as string)}
+          toggle={(ref) => (
+            <MenuToggle
+              ref={ref}
+              isDisabled={profile.readOnly}
+              onClick={handleSourceToggle}
+              isExpanded={sourceOpen}
+            >
+              {selectedSources.length ? selectedSources.join(", ") : "Select sources"}
+            </MenuToggle>
+          )}
+          selected={selectedSources}
+        >
+          <SelectList>
+            {sourceOptions.map((opt) => (
+              <SelectOption key={opt} value={opt}>
+                {opt}
+              </SelectOption>
+            ))}
+          </SelectList>
+        </Select>
       </FormGroup>
 
       <FormGroup label="Use Default Rules" fieldId="use-default-rules">
@@ -146,6 +239,20 @@ export const ProfileEditorForm: React.FC<{
           <FormSelectOption value="full-analysis" label="Full Analysis" />
         </FormSelect>
       </FormGroup>
+      <FormGroup label="Custom Rules" fieldId="custom-rules">
+        <Button
+          variant="secondary"
+          isDisabled={profile.readOnly}
+          onClick={() =>
+            dispatch({
+              type: CONFIGURE_CUSTOM_RULES,
+              payload: { profileId: profile.id },
+            })
+          }
+        >
+          Select Custom Rules…
+        </Button>
+      </FormGroup>
 
       <Flex spaceItems={{ default: "spaceItemsMd" }}>
         <FlexItem>
@@ -166,3 +273,20 @@ export const ProfileEditorForm: React.FC<{
     </Form>
   );
 };
+
+export function buildLabelSelector(sources: string[], targets: string[]): string {
+  const parts: string[] = [];
+
+  if (targets.length) {
+    parts.push(...targets.map((t) => `konveyor.io/target=${t}`));
+  }
+
+  if (sources.length) {
+    parts.push(...sources.map((s) => `konveyor.io/source=${s}`));
+  }
+
+  if (!parts.length) {
+    return "(discovery)";
+  }
+  return `(${parts.join(" || ")}) || (discovery)`;
+}

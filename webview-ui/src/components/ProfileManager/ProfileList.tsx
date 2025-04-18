@@ -1,10 +1,5 @@
 import React, { useState } from "react";
 import {
-  Page,
-  PageSection,
-  Split,
-  SplitItem,
-  Bullseye,
   DataList,
   DataListItem,
   DataListItemRow,
@@ -13,23 +8,14 @@ import {
   Button,
   Flex,
   FlexItem,
-  Form,
-  FormGroup,
-  TextInput,
-  Switch,
   DataListAction,
   Dropdown,
   DropdownList,
   DropdownItem,
   MenuToggle,
   MenuToggleElement,
-  FormSelect,
-  FormSelectOption,
-  Content,
-  ContentVariants,
 } from "@patternfly/react-core";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
-import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 
 export const ProfileList: React.FC<{
   profiles: any[];
