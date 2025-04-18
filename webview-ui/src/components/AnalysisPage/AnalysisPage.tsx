@@ -1,51 +1,52 @@
 import "./styles.css";
 import React, { useState } from "react";
 import {
+  Alert,
+  AlertActionCloseButton,
+  AlertGroup,
+  Backdrop,
   Button,
   ButtonVariant,
   Card,
   CardBody,
   CardHeader,
   CardTitle,
+  Drawer,
+  DrawerContent,
+  DrawerContentBody,
   EmptyState,
   EmptyStateBody,
-  Title,
-  Alert,
-  AlertActionCloseButton,
-  AlertGroup,
-  Spinner,
-  Backdrop,
-  Page,
-  PageSection,
-  Stack,
-  StackItem,
   Flex,
   FlexItem,
-  PageSidebar,
-  PageSidebarBody,
   Masthead,
+  MastheadContent,
   MastheadMain,
   MastheadToggle,
-  MastheadContent,
+  Page,
+  PageSection,
+  PageSidebar,
+  PageSidebarBody,
+  Spinner,
+  Stack,
+  StackItem,
+  Title,
   Toolbar,
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
-  Drawer,
-  DrawerContent,
-  DrawerContentBody,
 } from "@patternfly/react-core";
 
-import ProgressIndicator from "../ProgressIndicator";
-import ViolationIncidentsList from "../ViolationIncidentsList";
-import { AnalysisConfig, Incident } from "@editor-extensions/shared";
 import { openFile, startServer, runAnalysis, stopServer } from "../../hooks/actions";
-import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
-import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
-import { useViolations } from "../..//hooks/useViolations";
+import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
 import { ConfigButton } from "./ConfigButton/ConfigButton";
+import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
+import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
+import ViolationIncidentsList from "../ViolationIncidentsList";
+import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
+import ProgressIndicator from "../ProgressIndicator";
+import { Incident, AnalysisConfig } from "@editor-extensions/shared";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -58,31 +59,39 @@ const AnalysisPage: React.FC = () => {
     ruleSets: analysisResults,
     enhancedIncidents,
     analysisConfig,
+    profiles,
+    activeProfileId,
+    serverState,
   } = state;
-  const serverRunning = state.serverState === "running";
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
+  const violations = useViolations(analysisResults);
+  const hasViolations = violations.length > 0;
+  const hasAnalysisResults = !!analysisResults;
+  const serverRunning = serverState === "running";
+
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
   };
 
-  const runAnalysisRequest = () => dispatch(runAnalysis());
+  const handleRunAnalysis = () => dispatch(runAnalysis());
+  const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
 
-  const handleServerToggle = () => {
-    dispatch(serverRunning ? stopServer() : startServer());
+  const getConfigWarning = (config: AnalysisConfig): string | null => {
+    if (!config.labelSelectorValid) return "Label selector is not configured.";
+    if (config.genAIKeyMissing) return "GenAI API key is missing.";
+    if (config.genAIUsingDefault && !config.genAIConfigured) {
+      return "Using default GenAI settings.";
+    }
+    return null;
   };
-
-  const violations = useViolations(analysisResults);
-
-  const hasViolations = violations.length > 0;
-  const hasAnalysisResults = analysisResults !== undefined;
-
-  const drawerRef = React.useRef<HTMLDivElement>(null);
 
   const panelContent = (
     <WalkthroughDrawer
@@ -92,19 +101,6 @@ const AnalysisPage: React.FC = () => {
       analysisConfig={analysisConfig}
     />
   );
-
-  function getConfigWarning(config: AnalysisConfig): string | null {
-    if (!config.labelSelectorValid) {
-      return "Label selector is not configured. Please configure sources, targets, or a label selector.";
-    }
-    if (config.genAIKeyMissing) {
-      return "GenAI API key is missing. Please set your key in settings.";
-    }
-    if (config.genAIUsingDefault && !config.genAIConfigured) {
-      return "Using default GenAI settings. Consider updating them for best results.";
-    }
-    return null;
-  }
 
   return (
     <Drawer isExpanded={isConfigOpen}>
@@ -122,7 +118,7 @@ const AnalysisPage: React.FC = () => {
                   <MastheadToggle>
                     <Button
                       variant={ButtonVariant.primary}
-                      onClick={runAnalysisRequest}
+                      onClick={handleRunAnalysis}
                       isLoading={isAnalyzing}
                       isDisabled={
                         isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
@@ -132,11 +128,25 @@ const AnalysisPage: React.FC = () => {
                     </Button>
                   </MastheadToggle>
                 </MastheadMain>
-
                 <MastheadContent>
                   <Toolbar>
                     <ToolbarContent>
                       <ToolbarGroup variant="action-group-plain" align={{ default: "alignEnd" }}>
+                        <ToolbarItem>
+                          <ProfileSelector
+                            profiles={profiles}
+                            activeProfile={activeProfileId}
+                            onChange={(id) => dispatch({ type: "SET_ACTIVE_PROFILE", payload: id })}
+                          />
+                        </ToolbarItem>
+                        <ToolbarItem>
+                          <Button
+                            variant="secondary"
+                            onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                          >
+                            Manage Profiles
+                          </Button>
+                        </ToolbarItem>
                         <ToolbarItem>
                           <ServerStatusToggle
                             isRunning={serverRunning}
@@ -166,12 +176,7 @@ const AnalysisPage: React.FC = () => {
                   <Alert
                     variant="danger"
                     title={errorMessage}
-                    actionClose={
-                      <AlertActionCloseButton
-                        title={errorMessage}
-                        onClose={() => setErrorMessage(null)}
-                      />
-                    }
+                    actionClose={<AlertActionCloseButton onClose={() => setErrorMessage(null)} />}
                   />
                 </AlertGroup>
               </PageSection>
@@ -188,25 +193,21 @@ const AnalysisPage: React.FC = () => {
                           <ViolationsCount
                             violationsCount={violations.length}
                             incidentsCount={violations.reduce(
-                              (prev, curr) => curr.incidents.length + prev,
+                              (prev, curr) => prev + curr.incidents.length,
                               0,
                             )}
                           />
                         </FlexItem>
-                        <>
-                          <FlexItem></FlexItem>
-                        </>
                       </Flex>
                     </CardHeader>
                     <CardBody>
                       {isAnalyzing && <ProgressIndicator progress={50} />}
-
                       {!isAnalyzing && !hasViolations && (
                         <EmptyState variant="sm">
                           <Title
-                            className="empty-state-analysis-results"
                             headingLevel="h2"
                             size="md"
+                            className="empty-state-analysis-results"
                           >
                             {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
                           </Title>
@@ -217,7 +218,6 @@ const AnalysisPage: React.FC = () => {
                           </EmptyStateBody>
                         </EmptyState>
                       )}
-
                       {hasViolations && !isAnalyzing && (
                         <ViolationIncidentsList
                           enhancedIncidents={enhancedIncidents}

@@ -13,6 +13,8 @@ import { IssuesModel, registerIssueView } from "./issueView";
 import { ensurePaths, ExtensionPaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
+import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
+import { getUserProfiles } from "./utilities/profiles/profileService";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -49,6 +51,8 @@ class VsCodeExtension {
           genAIUsingDefault: false,
           customRulesConfigured: false,
         },
+        activeProfileId: "",
+        profiles: [],
       },
       () => {},
     );
@@ -78,9 +82,22 @@ class VsCodeExtension {
     };
   }
 
-  public initialize(): void {
+  public async initialize(): Promise<void> {
     try {
       this.checkWorkspace();
+
+      const bundled = getBundledProfiles();
+      const user = getUserProfiles(this.context);
+      const allProfiles = [...bundled, ...user];
+
+      const activeId = this.context.workspaceState.get<string>("activeProfileId") ?? bundled[0].id;
+
+      this.state.mutateData((draft) => {
+        draft.profiles = allProfiles;
+        draft.activeProfileId = allProfiles.find((p) => p.id === activeId)?.id ?? bundled[0].id;
+        updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+      });
+
       this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
@@ -111,13 +128,10 @@ class VsCodeExtension {
             });
           }
 
-          if (event.affectsConfiguration("konveyor.analysis.labelSelector")) {
-            this.state.mutateData((draft) => {
-              updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
-            });
-          }
-
-          if (event.affectsConfiguration("konveyor.analysis.customRules")) {
+          if (
+            event.affectsConfiguration("konveyor.analysis.labelSelector") ||
+            event.affectsConfiguration("konveyor.analysis.customRules")
+          ) {
             this.state.mutateData((draft) => {
               updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
             });
@@ -126,10 +140,6 @@ class VsCodeExtension {
       );
 
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
-
-      this.state.mutateData((draft) => {
-        updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
-      });
     } catch (error) {
       console.error("Error initializing extension:", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
@@ -146,12 +156,14 @@ class VsCodeExtension {
 
   private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
-    this.state.webviewProviders.set("sidebar", sidebarProvider);
-
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
-    this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
 
-    [sidebarProvider, resolutionViewProvider].forEach((provider) =>
+    this.state.webviewProviders.set("sidebar", sidebarProvider);
+    this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    this.state.webviewProviders.set("profiles", profilesViewProvider);
+
+    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
       this.onDidChangeData((data) => {
         provider.sendMessageToWebview(data);
       }),
@@ -168,6 +180,13 @@ class VsCodeExtension {
         resolutionViewProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
       ),
+      vscode.window.registerWebviewViewProvider(
+        KonveyorGUIWebviewViewProvider.PROFILES_VIEW_TYPE,
+        profilesViewProvider,
+        {
+          webviewOptions: { retainContextWhenHidden: true },
+        },
+      ),
     );
   }
 
@@ -177,12 +196,10 @@ class VsCodeExtension {
 
   private registerLanguageProviders(): void {
     const documentSelectors: vscode.DocumentSelector = [
-      // Language IDs
       "java",
       "yaml",
       "properties",
-      "groovy", // for Gradle files
-      // Specific file patterns
+      "groovy",
       { pattern: "**/pom.xml" },
       { pattern: "**/build.gradle" },
       { pattern: "**/build.gradle.kts" },
@@ -221,7 +238,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await copySampleProviderSettings();
 
     extension = new VsCodeExtension(paths, context);
-    extension.initialize();
+    await extension.initialize();
   } catch (error) {
     await extension?.dispose();
     extension = undefined;
