@@ -163,34 +163,52 @@ const AnalysisPage: React.FC = () => {
           >
             {!selectedProfile && (
               <PageSection padding={{ default: "noPadding" }}>
-                <Alert variant="danger" title="No active profile selected">
-                  Please select or create a profile before running an analysis.
-                  <Button
-                    variant="link"
-                    onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
-                    style={{ marginLeft: "0.5rem" }}
-                  >
-                    Manage Profiles
-                  </Button>
-                </Alert>
+                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
+                  <Alert variant="danger" title="No active profile selected">
+                    Please select or create a profile before running an analysis.
+                    <Button
+                      variant="link"
+                      onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                      style={{ marginLeft: "0.5rem" }}
+                    >
+                      Manage Profiles
+                    </Button>
+                  </Alert>
+                </Card>
               </PageSection>
             )}
             {errorMessage && (
               <PageSection padding={{ default: "noPadding" }}>
-                <AlertGroup isToast>
+                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
                   <Alert
                     variant="danger"
-                    title={errorMessage}
-                    // actionClose={<AlertActionCloseButton onClose={() => setErrorMessage(null)} />}
-                  />
-                </AlertGroup>
+                    title="Error"
+                    actionClose={
+                      <Button variant="link" onClick={() => setErrorMessage(null)}>
+                        Close
+                      </Button>
+                    }
+                  >
+                    {errorMessage}
+                  </Alert>
+
+                  <AlertGroup isToast>
+                    <Alert
+                      variant="danger"
+                      title={errorMessage}
+                      // actionClose={<AlertActionCloseButton onClose={() => setErrorMessage(null)} />}
+                    />
+                  </AlertGroup>
+                </Card>
               </PageSection>
             )}
             {hasConfigWarning && (
               <PageSection padding={{ default: "noPadding" }}>
-                <Alert variant={configWarning!.variant} title={configWarning!.message}>
-                  <p>Please review your configuration before running analysis.</p>
-                </Alert>
+                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
+                  <Alert variant={configWarning!.variant} title={configWarning!.message}>
+                    <p>Please review your configuration before running analysis.</p>
+                  </Alert>
+                </Card>
               </PageSection>
             )}
             {selectedProfile && (
