@@ -18,9 +18,8 @@ import {
 } from "@patternfly/react-core";
 import { AnalysisProfile } from "../../../../shared/dist/types";
 import LockIcon from "@patternfly/react-icons/dist/esm/icons/lock-icon";
-import StarIcon from "@patternfly/react-icons/dist/esm/icons/star-icon";
-import OutlinedStarIcon from "@patternfly/react-icons/dist/esm/icons/outlined-star-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 export const ProfileList: React.FC<{
   profiles: AnalysisProfile[];
@@ -32,6 +31,7 @@ export const ProfileList: React.FC<{
   onDelete: (id: string) => void;
 }> = ({ profiles, selected, active, onSelect, onCreate, onDelete, onMakeActive }) => {
   const [openDropdownProfileId, setOpenDropdownProfileId] = React.useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   return (
     <Flex direction={{ default: "column" }} spaceItems={{ default: "spaceItemsMd" }}>
@@ -110,7 +110,7 @@ export const ProfileList: React.FC<{
                         </DropdownItem>
                         <DropdownItem
                           key="delete"
-                          onClick={() => onDelete(profile.id)}
+                          onClick={() => setIsDeleteDialogOpen(true)}
                           isDisabled={profile.readOnly}
                         >
                           Delete
@@ -119,6 +119,17 @@ export const ProfileList: React.FC<{
                     </Dropdown>
                   </DataListAction>
                 </DataListItemRow>
+                <ConfirmDialog
+                  isOpen={isDeleteDialogOpen}
+                  title="Delete profile?"
+                  message={`Are you sure you want to delete the profile "${profile.name}"? This action cannot be undone.`}
+                  confirmButtonText="Delete"
+                  onConfirm={() => {
+                    setIsDeleteDialogOpen(false);
+                    onDelete(profile.id);
+                  }}
+                  onCancel={() => setIsDeleteDialogOpen(false)}
+                />
               </DataListItem>
             );
           })}

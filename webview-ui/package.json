@@ -21,6 +21,7 @@
     "@patternfly/chatbot": "2.2.0-prerelease.30",
     "@patternfly/patternfly": "6.1.0",
     "@patternfly/react-code-editor": "^6.0.0",
+    "@patternfly/react-component-groups": "^6.2.1",
     "@patternfly/react-core": "6.1.0",
     "@patternfly/react-icons": "^6.1.0",
     "@patternfly/react-table": "^5.4.1",

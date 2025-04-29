@@ -26,6 +26,7 @@ import {
 import { ExclamationCircleIcon } from "@patternfly/react-icons";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -135,6 +136,8 @@ export const ProfileEditorForm: React.FC<{
 
   const toggleSelection = (list: string[], value: string) =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   return (
     <Form isWidthLimited>
@@ -305,13 +308,24 @@ export const ProfileEditorForm: React.FC<{
         <FlexItem>
           <Button
             variant="danger"
-            onClick={() => onDelete(profile.id)}
+            onClick={() => setIsDeleteDialogOpen(true)}
             isDisabled={profile.readOnly}
           >
             Delete Profile
           </Button>
         </FlexItem>
       </Flex>
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Delete profile?"
+        message={`Are you sure you want to delete the profile "${profile.name}"? This action cannot be undone.`}
+        confirmButtonText="Delete"
+        onConfirm={() => {
+          setIsDeleteDialogOpen(false);
+          onDelete(profile.id);
+        }}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+      />
     </Form>
   );
 };
