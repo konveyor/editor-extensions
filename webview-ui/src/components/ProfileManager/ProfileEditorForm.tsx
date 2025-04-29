@@ -8,8 +8,6 @@ import {
   Switch,
   Flex,
   FlexItem,
-  FormSelect,
-  FormSelectOption,
   FormHelperText,
   HelperText,
   HelperTextItem,
@@ -27,7 +25,7 @@ import {
 } from "@patternfly/react-core";
 import { ExclamationCircleIcon } from "@patternfly/react-icons";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import { AnalysisProfile, AnalysisMode, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
+import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -251,22 +249,6 @@ export const ProfileEditorForm: React.FC<{
           }}
         />
       </FormGroup>
-      {/* //TODO */}
-      {/* <FormGroup label="Mode" fieldId="mode">
-        <FormSelect
-          id="mode"
-          value={localProfile.mode}
-          onChange={(_e, value) => {
-            const updated = { ...localProfile, mode: value as AnalysisMode };
-            setLocalProfile(updated);
-            debouncedChange(updated);
-          }}
-          isDisabled={profile.readOnly}
-        >
-          <FormSelectOption value="source-only" label="Source Only" />
-          <FormSelectOption value="full-analysis" label="Full Analysis" />
-        </FormSelect>
-      </FormGroup> */}
       <FormGroup label="Custom Rules" fieldId="custom-rules">
         <Stack hasGutter>
           <StackItem isFilled>

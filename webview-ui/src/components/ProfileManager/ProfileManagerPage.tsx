@@ -7,6 +7,8 @@ import {
   Bullseye,
   Content,
   ContentVariants,
+  PageSidebar,
+  PageSidebarBody,
 } from "@patternfly/react-core";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { ProfileList } from "./ProfileList";
@@ -49,7 +51,6 @@ export const ProfileManagerPage: React.FC = () => {
     const newProfile: AnalysisProfile = {
       id: crypto.randomUUID(),
       name: newName,
-      mode: "source-only",
       customRules: [],
       useDefaultRules: true,
       labelSelector: "",
@@ -70,7 +71,13 @@ export const ProfileManagerPage: React.FC = () => {
   };
 
   return (
-    <Page>
+    <Page
+      sidebar={
+        <PageSidebar isSidebarOpen={false}>
+          <PageSidebarBody />
+        </PageSidebar>
+      }
+    >
       <PageSection isFilled>
         <Split hasGutter>
           <SplitItem isFilled style={{ width: "300px", flex: "0 0 300px" }}>

@@ -197,10 +197,8 @@ export interface GenAIConfigStatus {
 export interface AnalysisProfile {
   id: string;
   name: string;
-  mode: AnalysisMode;
   customRules: string[];
   useDefaultRules: boolean;
   labelSelector: string;
   readOnly?: boolean;
 }
-export type AnalysisMode = "source-only" | "source-and-dependencies";

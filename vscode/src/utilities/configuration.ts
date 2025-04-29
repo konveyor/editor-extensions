@@ -186,11 +186,10 @@ export const updateConfigActiveProfileIdfileId = async (id: string) => {
 
 export const updateConfigProfiles = async (profiles: AnalysisProfile[]): Promise<void> => {
   const safeProfiles = profiles.map((p) => {
-    const { id, name, mode, customRules, useDefaultRules, labelSelector } = p;
+    const { id, name, customRules, useDefaultRules, labelSelector } = p;
     return {
       id,
       name,
-      mode,
       customRules: Array.isArray(customRules) ? [...customRules] : [],
       useDefaultRules: !!useDefaultRules,
       labelSelector: labelSelector ?? "",
