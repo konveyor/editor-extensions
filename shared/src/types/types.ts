@@ -139,7 +139,7 @@ export interface ExtensionData {
   solutionEffort: SolutionEffortLevel;
   analysisConfig: AnalysisConfig;
   profiles: AnalysisProfile[];
-  activeProfileId: string;
+  activeProfileId: string | null;
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;

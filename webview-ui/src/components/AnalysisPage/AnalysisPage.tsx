@@ -50,7 +50,6 @@ import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 import ProgressIndicator from "../ProgressIndicator";
 import { Incident, AnalysisConfig } from "@editor-extensions/shared";
-import { PencilAltIcon } from "@patternfly/react-icons";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -103,9 +102,6 @@ const AnalysisPage: React.FC = () => {
     return null;
   };
 
-  const configWarning = getConfigWarning(analysisConfig);
-  const hasConfigWarning = configWarning !== null;
-
   const panelContent = (
     <WalkthroughDrawer
       isOpen={isConfigOpen}
@@ -115,6 +111,9 @@ const AnalysisPage: React.FC = () => {
   );
 
   const selectedProfile = profiles.find((p) => p.id === activeProfileId);
+
+  const configWarning = selectedProfile ? getConfigWarning(analysisConfig) : null;
+  const hasConfigWarning = configWarning !== null;
 
   const configInvalid =
     !selectedProfile?.labelSelector?.trim() ||
@@ -138,7 +137,7 @@ const AnalysisPage: React.FC = () => {
                 <MastheadContent>
                   <Toolbar>
                     <ToolbarContent>
-                      <ToolbarGroup>
+                      <ToolbarGroup align={{ default: "alignEnd" }}>
                         <ToolbarItem>
                           <ServerStatusToggle
                             isRunning={serverRunning}
@@ -148,11 +147,6 @@ const AnalysisPage: React.FC = () => {
                             hasWarning={configInvalid}
                           />
                         </ToolbarItem>
-                      </ToolbarGroup>
-
-                      <ToolbarGroup></ToolbarGroup>
-
-                      <ToolbarGroup align={{ default: "alignEnd" }}>
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
@@ -167,6 +161,20 @@ const AnalysisPage: React.FC = () => {
               </Masthead>
             }
           >
+            {!selectedProfile && (
+              <PageSection padding={{ default: "noPadding" }}>
+                <Alert variant="danger" title="No active profile selected">
+                  Please select or create a profile before running an analysis.
+                  <Button
+                    variant="link"
+                    onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                    style={{ marginLeft: "0.5rem" }}
+                  >
+                    Manage Profiles
+                  </Button>
+                </Alert>
+              </PageSection>
+            )}
             {errorMessage && (
               <PageSection padding={{ default: "noPadding" }}>
                 <AlertGroup isToast>
@@ -185,82 +193,76 @@ const AnalysisPage: React.FC = () => {
                 </Alert>
               </PageSection>
             )}
-
-            <PageSection padding={{ default: "padding" }}>
-              <Card isCompact>
-                <CardHeader>
-                  <Flex
-                    justifyContent={{ default: "justifyContentSpaceBetween" }}
-                    alignItems={{ default: "alignItemsCenter" }}
-                    style={{ width: "100%" }}
-                  >
+            {selectedProfile && (
+              <PageSection padding={{ default: "padding" }}>
+                <Card isCompact>
+                  <CardHeader>
                     <Flex
-                      spaceItems={{ default: "spaceItemsMd" }}
+                      justifyContent={{ default: "justifyContentSpaceBetween" }}
                       alignItems={{ default: "alignItemsCenter" }}
+                      style={{ width: "100%" }}
                     >
-                      <ExpandableSectionToggle
-                        isExpanded={isExpanded}
-                        onToggle={(isExpanded) => setIsExpanded(isExpanded)}
-                        toggleId="profile-details-toggle"
-                      />
-                      <ProfileSelector
-                        profiles={profiles}
-                        activeProfile={activeProfileId}
-                        onChange={(id) => dispatch({ type: "SET_ACTIVE_PROFILE", payload: id })}
-                        onManageProfiles={() =>
-                          dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
+                      <Flex
+                        spaceItems={{ default: "spaceItemsMd" }}
+                        alignItems={{ default: "alignItemsCenter" }}
+                      >
+                        <ExpandableSectionToggle
+                          isExpanded={isExpanded}
+                          onToggle={(isExpanded) => setIsExpanded(isExpanded)}
+                          toggleId="profile-details-toggle"
+                        />
+                        <ProfileSelector
+                          profiles={profiles}
+                          activeProfile={activeProfileId}
+                          onChange={(id) => dispatch({ type: "SET_ACTIVE_PROFILE", payload: id })}
+                          onManageProfiles={() =>
+                            dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
+                          }
+                          isDisabled={isStartingServer || isAnalyzing}
+                        />
+                      </Flex>
+                      <Button
+                        variant="primary"
+                        onClick={handleRunAnalysis}
+                        isLoading={isAnalyzing}
+                        isDisabled={
+                          isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
                         }
-                        isDisabled={isStartingServer || isAnalyzing}
-                      />
+                      >
+                        {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                      </Button>
                     </Flex>
-                    <Button
-                      variant="primary"
-                      onClick={handleRunAnalysis}
-                      isLoading={isAnalyzing}
-                      isDisabled={
-                        isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
-                      }
-                    >
-                      {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-                    </Button>
-                  </Flex>
-                </CardHeader>
-                {isExpanded && (
-                  <CardBody>
-                    <DescriptionList isCompact columnModifier={{ default: "1Col" }}>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Label Selector</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <code>{selectedProfile?.labelSelector ?? "Not set"}</code>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      {(selectedProfile?.customRules?.length ?? 0) > 0 && (
+                  </CardHeader>
+
+                  {isExpanded && (
+                    <CardBody>
+                      <DescriptionList isCompact columnModifier={{ default: "1Col" }}>
                         <DescriptionListGroup>
-                          <DescriptionListTerm>Custom Rules</DescriptionListTerm>
+                          <DescriptionListTerm>Label Selector</DescriptionListTerm>
                           <DescriptionListDescription>
-                            {selectedProfile?.customRules.length} file(s)
+                            <code>{selectedProfile.labelSelector || "Not set"}</code>
                           </DescriptionListDescription>
                         </DescriptionListGroup>
-                      )}
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Use Default Rules</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {selectedProfile?.useDefaultRules ? "Yes" : "No"}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                    <Button
-                      variant="link"
-                      icon={<PencilAltIcon />}
-                      onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
-                      style={{ paddingLeft: 0 }}
-                    >
-                      Edit Profile
-                    </Button>
-                  </CardBody>
-                )}
-              </Card>
-            </PageSection>
+                        {(selectedProfile.customRules?.length ?? 0) > 0 && (
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>Custom Rules</DescriptionListTerm>
+                            <DescriptionListDescription>
+                              {selectedProfile.customRules.length} file(s)
+                            </DescriptionListDescription>
+                          </DescriptionListGroup>
+                        )}
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Use Default Rules</DescriptionListTerm>
+                          <DescriptionListDescription>
+                            {selectedProfile.useDefaultRules ? "Yes" : "No"}
+                          </DescriptionListDescription>
+                        </DescriptionListGroup>
+                      </DescriptionList>
+                    </CardBody>
+                  )}
+                </Card>
+              </PageSection>
+            )}
 
             <PageSection>
               <Stack hasGutter>

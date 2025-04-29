@@ -22,7 +22,7 @@ import { CogIcon } from "@patternfly/react-icons/dist/esm/icons/cog-icon";
 
 interface ProfileSelectorProps {
   profiles: AnalysisProfile[];
-  activeProfile: string;
+  activeProfile: string | null;
   onChange: (newProfileId: string) => void;
   onManageProfiles: () => void;
   isDisabled?: boolean;

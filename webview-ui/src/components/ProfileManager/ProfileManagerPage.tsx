@@ -34,11 +34,16 @@ export const ProfileManagerPage: React.FC = () => {
       },
     });
 
-    // Keep selection in sync if ID changes (shouldn’t happen now, but good practice)
     if (updatedProfile.id !== selectedProfileId) {
       setSelectedProfileId(updatedProfile.id);
     }
   };
+
+  // useEffect(() => {
+  //   if (!selectedProfileId && (activeProfileId || profiles.length > 0)) {
+  //     setSelectedProfileId(activeProfileId ?? profiles[0].id);
+  //   }
+  // }, [activeProfileId, profiles, selectedProfileId]);
 
   const handleCreateProfile = () => {
     const baseName = "New Profile";

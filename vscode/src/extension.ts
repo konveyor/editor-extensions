@@ -90,11 +90,16 @@ class VsCodeExtension {
       const user = getUserProfiles(this.context);
       const allProfiles = [...bundled, ...user];
 
-      const activeId = this.context.workspaceState.get<string>("activeProfileId") ?? bundled[0].id;
+      const storedActiveId = this.context.workspaceState.get<string>("activeProfileId");
+
+      const matchingProfile = allProfiles.find((p) => p.id === storedActiveId);
+
+      const activeProfileId =
+        matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
-        draft.activeProfileId = allProfiles.find((p) => p.id === activeId)?.id ?? bundled[0].id;
+        draft.activeProfileId = activeProfileId;
         updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
       });
 
