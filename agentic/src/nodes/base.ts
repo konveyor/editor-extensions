@@ -1,0 +1,335 @@
+import zodToJsonSchema from "zod-to-json-schema";
+import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import {
+  type BaseChatModel,
+  type BaseChatModelCallOptions,
+} from "@langchain/core/language_models/chat_models";
+import {
+  type AIMessage,
+  AIMessageChunk,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+} from "@langchain/core/messages";
+import { type Runnable } from "@langchain/core/runnables";
+import { type DynamicStructuredTool } from "@langchain/core/tools";
+import { type IterableReadableStream } from "@langchain/core/utils/stream";
+
+import { KaiWorkflowEventEmitter } from "../eventEmitter";
+import { type KaiWorkflowMessage, KaiWorkflowMessageType } from "../types";
+import { type AnalysisIssueFixOutputState } from "../schemas/analysisIssueFix";
+
+export type ModelInfo = {
+  model: BaseChatModel;
+  toolsSupported: boolean;
+  toolsSupportedInStreaming: boolean;
+};
+
+export abstract class BaseNode extends KaiWorkflowEventEmitter {
+  constructor(
+    private readonly name: string,
+    private readonly modelInfo: ModelInfo,
+    private readonly tools: DynamicStructuredTool[],
+  ) {
+    super();
+    this.name = name;
+    this.tools = tools;
+
+    // binding this is needed to work inside langgraph
+    this.streamOrInvoke = this.streamOrInvoke.bind(this);
+    this.runTools = this.runTools.bind(this);
+    this.getRunnableWithTools = this.getRunnableWithTools.bind(this);
+    this.getToolsAsMessage = this.getToolsAsMessage.bind(this);
+    this.stream = this.stream.bind(this);
+  }
+
+  private newMessageId(prefix: string = "res"): string {
+    return `${prefix}-${this.name}-${Date.now()}-${Math.random().toString(36).substring(1, 4)}`;
+  }
+
+  /**
+   * Calls <model>.stream and emits onMessage event with chunks retrieved.
+   * Falls back to invoke() when native tools are supported but not in streaming.
+   * If native tools are not supported, parses response on-the-fly and assembles
+   * into tool_call_chunks making it transparent to callers.
+   */
+  protected async streamOrInvoke(
+    input: BaseLanguageModelInput,
+    enableTools: boolean = true,
+    options?: Partial<BaseChatModelCallOptions> | undefined,
+  ): Promise<AIMessage | AIMessageChunk | undefined> {
+    const messageId = this.newMessageId();
+    try {
+      const { inputWithTools, runnable } = this.getRunnableWithTools(input, enableTools);
+
+      // fallback to invoke when we cannot stream tool calls
+      if (
+        this.tools.length > 0 &&
+        this.modelInfo.toolsSupported &&
+        !this.modelInfo.toolsSupportedInStreaming
+      ) {
+        const fullResponse = await runnable.invoke(inputWithTools, options);
+        this.emitWorkflowMessage({
+          id: messageId,
+          type: KaiWorkflowMessageType.LLMResponse,
+          data: fullResponse,
+        });
+        return fullResponse;
+      }
+
+      const stream = await runnable.stream(inputWithTools, options);
+      if (stream) {
+        return this.stream(messageId, stream);
+      }
+    } catch (err) {
+      this.emitWorkflowMessage({
+        id: messageId,
+        type: KaiWorkflowMessageType.Error,
+        data: `Failed to get llm response - ${String(err)}`,
+      });
+    }
+  }
+
+  private async stream(
+    messageId: string,
+    stream: IterableReadableStream<AIMessageChunk>,
+  ): Promise<AIMessageChunk | undefined> {
+    let response: AIMessageChunk | undefined;
+
+    // re-assembling content
+    let buffer: string = "";
+    let parserState: string = "content";
+
+    for await (const chunk of stream) {
+      if (!response) {
+        response = chunk;
+      } else {
+        response = response.concat(chunk);
+      }
+      // for native tools support, we send the chunk as-is
+      if (this.modelInfo.toolsSupported) {
+        this.emitWorkflowMessage({
+          id: messageId,
+          type: KaiWorkflowMessageType.LLMResponseChunk,
+          data: chunk,
+        });
+        continue;
+      }
+
+      // re-assemble the chunk if this is a non-native tool call
+      buffer += chunk.content;
+      let continueReading = false;
+      while (buffer.length > 0) {
+        switch (parserState) {
+          case "content": {
+            const toolCallMarkerIdx = buffer.indexOf("toolCall");
+            if (toolCallMarkerIdx !== -1) {
+              parserState = "toolCallMarkerRead";
+              this.emitWorkflowMessage({
+                id: messageId,
+                type: KaiWorkflowMessageType.LLMResponseChunk,
+                data: new AIMessageChunk(buffer.substring(0, toolCallMarkerIdx).trim()),
+              });
+              // currentContent = "";
+              buffer = buffer.substring(toolCallMarkerIdx + "toolCall".length);
+            } else {
+              continueReading = true;
+            }
+            break;
+          }
+          case "toolCallMarkerRead": {
+            const toolCallBlockIdx = buffer.indexOf("```");
+            if (toolCallBlockIdx !== -1) {
+              parserState = "toolCallBegin";
+              buffer = buffer.substring(toolCallBlockIdx + 3);
+            } else {
+              continueReading = true;
+            }
+            break;
+          }
+          case "toolCallBegin": {
+            const toolCallBlockEndIdx = buffer.indexOf("```");
+            if (toolCallBlockEndIdx !== -1) {
+              const toolCall = buffer.substring(0, toolCallBlockEndIdx).trim();
+              buffer = buffer.substring(toolCallBlockEndIdx + 3).trim();
+              parserState = "content";
+              if (toolCall) {
+                try {
+                  const parsedToolCall = JSON.parse(toolCall.trim());
+                  let tool_name: string | undefined;
+                  let tool_args: Record<string, any> | undefined;
+                  if ("tool_name" in parsedToolCall) {
+                    tool_name = parsedToolCall["tool_name"];
+                  }
+                  if ("args" in parsedToolCall) {
+                    tool_args = parsedToolCall["args"];
+                  }
+                  if (tool_args && tool_name) {
+                    if (!response.tool_calls) {
+                      response.tool_calls = [];
+                    } else {
+                      response.tool_calls.push({
+                        args: tool_args,
+                        name: tool_name,
+                        id: messageId,
+                      });
+                    }
+                  } else {
+                    console.warn(`Malformed tool call in response - ${toolCall}`);
+                  }
+                } catch (err) {
+                  console.warn(`Failed to parse tool call - ${toolCall} - ${err}`);
+                }
+              }
+            } else {
+              continueReading = true;
+            }
+            break;
+          }
+        }
+        if (continueReading) {
+          break;
+        }
+      }
+    }
+    return response;
+  }
+
+  private getRunnableWithTools(
+    input: BaseLanguageModelInput,
+    enableTools?: boolean,
+  ): {
+    inputWithTools: BaseLanguageModelInput;
+    runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
+  } {
+    const response: {
+      inputWithTools: BaseLanguageModelInput;
+      runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
+    } = {
+      inputWithTools: input,
+      runnable: this.modelInfo.model,
+    };
+    if (!this.tools || this.tools.length < 1 || !enableTools) {
+      return response;
+    }
+    if (
+      this.modelInfo.model.bindTools &&
+      this.modelInfo.model.bindTools !== undefined &&
+      this.modelInfo.toolsSupported
+    ) {
+      response.runnable = this.modelInfo.model.bindTools(this.tools);
+    }
+    // NOTE: This assumes that all messages we will send will either
+    // be a list of BaseMessage or strings. we are not adding tools support
+    // for all possible values of BaseLanguageModelInput. If you are seeing
+    // your requests producing errors or weird output, this is the place to look
+    if (!this.modelInfo.toolsSupported) {
+      if (typeof input === "string") {
+        response.inputWithTools = [
+          new SystemMessage(this.getToolsAsMessage()),
+          new HumanMessage(input),
+        ];
+      } else if (Array.isArray(input)) {
+        let updatedMessages = [...input];
+        if (updatedMessages.length > 0 && updatedMessages[0] instanceof SystemMessage) {
+          updatedMessages[0].content += this.getToolsAsMessage();
+        } else {
+          updatedMessages = [new SystemMessage(this.getToolsAsMessage()), ...input];
+        }
+        response.inputWithTools = updatedMessages;
+      }
+    }
+    return response;
+  }
+
+  private getToolsAsMessage(): string {
+    if (!this.tools || this.tools.length < 1) {
+      return "";
+    }
+    return `You are an intelligent developer. You are designed to use tools to answer user questions.\
+You may not know all of the information to address user's needs. You will use relevant tools to get that information.\
+Here is the schema of tools you are given:
+
+${this.renderTextDescriptionAndArgs()}
+
+If you do need to call a tool, respond with the text 'toolCall' on a new line followed by a JSON object on the next line containing only two keys - tool_name and args.\
+'tool_name' should be the name of the tool to call. 'args' should be nested JSON containing the arguments to pass to the function in key value format.
+Make sure you always use \`\`\` at the start and end of the JSON block to clearly separate it from text. Only call one tool at a time.
+`;
+  }
+
+  private renderTextDescriptionAndArgs(): string {
+    let description = "";
+    this.tools.forEach((tool) => {
+      description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema))}`;
+    });
+    return description;
+  }
+
+  async runTools(state: typeof AnalysisIssueFixOutputState.State) {
+    const toolCallResponses: ToolMessage[] = [];
+    const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
+    const toolCalls = lastMessage.tool_calls!;
+
+    for (const toolCall of toolCalls) {
+      let tool: DynamicStructuredTool | undefined = undefined;
+      for (const availableTool of this.tools) {
+        if (toolCall.name === availableTool.name) {
+          tool = availableTool;
+        }
+      }
+      if (!tool) {
+        return {
+          messages: new HumanMessage(`The tool ${toolCall.name} does not exist`),
+        };
+      }
+      toolCall.id = toolCall.id ? toolCall.id : this.newMessageId("tool-call");
+      const toolCallEvent: KaiWorkflowMessage = {
+        type: KaiWorkflowMessageType.ToolCall,
+        id: toolCall.id,
+        data: {
+          id: toolCall.id,
+          status: "running",
+          args: JSON.stringify(toolCall.args),
+          name: toolCall.name,
+        },
+      };
+      try {
+        this.emitWorkflowMessage(toolCallEvent);
+        const result = await tool.invoke(toolCall.args);
+        toolCallResponses.push(
+          new ToolMessage({
+            content: result,
+            tool_call_id: toolCall.id!,
+            name: toolCall.name,
+          }),
+        );
+        this.emitWorkflowMessage({
+          ...toolCallEvent,
+          type: toolCallEvent.type,
+          data: {
+            ...toolCallEvent.data,
+            status: "succeeded",
+          },
+        });
+      } catch (err) {
+        this.emitWorkflowMessage({
+          ...toolCallEvent,
+          type: toolCallEvent.type,
+          data: {
+            ...toolCallEvent.data,
+            status: "failed",
+          },
+        });
+        toolCallResponses.push(
+          new ToolMessage({
+            content: err instanceof Error ? err.message || String(err) : String(err),
+            tool_call_id: toolCall.id!,
+            name: toolCall.name,
+          }),
+        );
+      }
+    }
+    return { messages: toolCallResponses };
+  }
+}

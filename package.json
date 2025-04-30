@@ -37,11 +37,12 @@
     "extra-types",
     "shared",
     "webview-ui",
+    "agentic",
     "vscode"
   ],
   "scripts": {
     "prepare": "husky",
-    "postinstall": "npm run build -w shared",
+    "postinstall": "npm run build -w shared && npm run build -w agentic",
     "clean": "rimraf ./dist ./downloaded_assets ./downloaded_cache && npm run clean --workspaces --if-present",
     "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/ ./**/tsconfig.tsbuildinfo",
     "lint": "eslint ./scripts && npm run lint --workspaces --if-present",
