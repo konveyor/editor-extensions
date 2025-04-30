@@ -23,6 +23,7 @@ await copy({
         packageJson.dependencies = undefined;
         packageJson.devDependencies = undefined;
         packageJson["lint-staged"] = undefined;
+        packageJson.javaExtensions = "./assets/jdtls-bundles/bundle.jar";
 
         packageJson.includedAssetPaths = {
           kai: "./assets/kai",

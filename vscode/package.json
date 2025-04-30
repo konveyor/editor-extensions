@@ -41,7 +41,7 @@
   ],
   "contributes": {
     "javaExtensions": [
-      "./jdtls-plugin/bundle.jar"
+      "../downloaded_assets/jdtls-bundles/bundle.jar"
     ],
     "commands": [
       {

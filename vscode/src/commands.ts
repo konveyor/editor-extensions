@@ -80,7 +80,6 @@ const commandsMap: (state: ExtensionState) => {
       }
       try {
         await analyzerClient.start();
-        await analyzerClient.initialize();
       } catch (e) {
         console.error("Could not start the server", e);
       }
@@ -104,7 +103,6 @@ const commandsMap: (state: ExtensionState) => {
           return;
         }
         await analyzerClient.start();
-        await analyzerClient.initialize();
       } catch (e) {
         console.error("Could not restart the server", e);
       }
