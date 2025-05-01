@@ -1,3 +1,5 @@
+import * as vscode from "vscode";
+
 export type ServerLogLevels = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "CRITICAL";
 
 export interface ServerCliArguments {
@@ -66,4 +68,10 @@ export interface KaiRpcApplicationConfig {
 
   // TODO: Do we need to include `fernFlowerPath` to support the java decompiler?
   // analyzerLspFernFlowerPath?: string;
+}
+
+export interface FileChange {
+  path: vscode.Uri;
+  content: string;
+  saved: boolean;
 }

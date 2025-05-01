@@ -11,6 +11,7 @@ const defaultState: ExtensionData = {
   isFetchingSolution: false,
   isStartingServer: false,
   isInitializingServer: false,
+  isAnalysisScheduled: false,
   isContinueInstalled: false,
   solutionData: undefined,
   serverState: "initial",

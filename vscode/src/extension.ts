@@ -5,12 +5,12 @@ import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
-import { registerDiffView, KonveyorFileModel } from "./diffView";
+import { KonveyorFileModel, registerDiffView } from "./diffView";
 import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
-import { ensurePaths, ExtensionPaths, paths } from "./paths";
+import { ExtensionPaths, ensurePaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
@@ -37,6 +37,7 @@ class VsCodeExtension {
         isFetchingSolution: false,
         isStartingServer: false,
         isInitializingServer: false,
+        isAnalysisScheduled: false,
         isContinueInstalled: false,
         solutionData: undefined,
         serverState: "initial",
@@ -118,7 +119,7 @@ class VsCodeExtension {
         }),
       );
 
-      registerAnalysisTrigger(this.listeners);
+      registerAnalysisTrigger(this.listeners, this.state);
 
       this.listeners.push(
         vscode.workspace.onDidSaveTextDocument((doc) => {

@@ -11,7 +11,7 @@ import {
   SolutionState,
   Violation,
 } from "@editor-extensions/shared";
-import { paths, fsPaths } from "../paths";
+import { paths, fsPaths, ignoresToExcludedPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
@@ -19,6 +19,7 @@ import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
+import { FileChange } from "./types";
 
 const uid = (() => {
   let counter = 0;
@@ -296,6 +297,23 @@ export class AnalyzerClient {
     return !!this.analyzerRpcServer && !this.analyzerRpcServer.killed;
   }
 
+  public async notifyFileChanges(fileChanges: FileChange[]): Promise<void> {
+    if (this.serverState !== "running" || !this.analyzerRpcConnection) {
+      this.outputChannel.appendLine("kai rpc server is not running, skipping notifyFileChanged.");
+      return;
+    }
+    const changes = fileChanges.map((change) => ({
+      path: change.path.fsPath,
+      content: change.content,
+      saved: change.saved,
+    }));
+    if (changes.length > 0) {
+      await this.analyzerRpcConnection!.sendRequest("analysis_engine.NotifyFileChanges", {
+        changes: changes,
+      });
+    }
+  }
+
   /**
    * Request the server to __Analyze__
    *
@@ -337,6 +355,7 @@ export class AnalyzerClient {
             label_selector: activeProfile.labelSelector,
             included_paths: filePaths?.map((uri) => uri.fsPath),
             reset_cache: !(filePaths && filePaths.length > 0),
+            excluded_paths: ignoresToExcludedPaths(),
           };
           this.outputChannel.appendLine(
             `Sending 'analysis_engine.Analyze' request with params: ${JSON.stringify(
