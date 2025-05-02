@@ -39,11 +39,22 @@ export const ProfileManagerPage: React.FC = () => {
     }
   };
 
-  // useEffect(() => {
-  //   if (!selectedProfileId && (activeProfileId || profiles.length > 0)) {
-  //     setSelectedProfileId(activeProfileId ?? profiles[0].id);
-  //   }
-  // }, [activeProfileId, profiles, selectedProfileId]);
+  const handleDupelicateProfile = (profile: AnalysisProfile) => {
+    const baseName = profile.name;
+    let index = 1;
+    let newName = baseName;
+    while (profiles.some((p) => p.name === newName)) {
+      newName = `${baseName} ${index++}`;
+    }
+    const newProfile: AnalysisProfile = {
+      ...profile,
+      id: crypto.randomUUID(),
+      name: newName,
+    };
+    dispatch({ type: "ADD_PROFILE", payload: newProfile });
+    setSelectedProfileId(newProfile.id); // <- Keep this
+    window.vscode.postMessage({ type: "ADD_PROFILE", payload: newProfile });
+  };
 
   const handleCreateProfile = () => {
     const baseName = "New Profile";
@@ -94,6 +105,7 @@ export const ProfileManagerPage: React.FC = () => {
               onCreate={handleCreateProfile}
               onDelete={handleDeleteProfile}
               onMakeActive={handleMakeActive}
+              onDuplicate={handleDupelicateProfile}
             />
           </SplitItem>
           <SplitItem isFilled style={{ flex: "1 1 auto" }}>

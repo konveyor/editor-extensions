@@ -29,7 +29,8 @@ export const ProfileList: React.FC<{
   onCreate: () => void;
   onMakeActive: (id: string) => void;
   onDelete: (id: string) => void;
-}> = ({ profiles, selected, active, onSelect, onCreate, onDelete, onMakeActive }) => {
+  onDuplicate: (profile: AnalysisProfile) => void;
+}> = ({ profiles, selected, active, onSelect, onCreate, onDelete, onMakeActive, onDuplicate }) => {
   const [openDropdownProfileId, setOpenDropdownProfileId] = React.useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
@@ -107,6 +108,15 @@ export const ProfileList: React.FC<{
                           isDisabled={active === profile.id}
                         >
                           {active === profile.id ? "Active" : "Make Active"}
+                        </DropdownItem>
+                        <DropdownItem
+                          key="duplicate"
+                          onClick={() => {
+                            onDuplicate(profile);
+                            setIsOpen(false);
+                          }}
+                        >
+                          Duplicate
                         </DropdownItem>
                         <DropdownItem
                           key="delete"
