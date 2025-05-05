@@ -26,6 +26,8 @@ import {
   ChatMessageType,
   GetSolutionResult,
 } from "@editor-extensions/shared";
+import { KaiWorkflowMessage, KaiWorkflowMessageType } from "../../agentic/src/types";
+import { AdditionalInfoWorkflow } from "../../agentic/src/workflows";
 import {
   applyAll,
   discardAll,
@@ -206,6 +208,13 @@ const commandsMap: (state: ExtensionState) => {
             throw new Error(`Unsupported model provider: ${providerType}`);
         }
 
+        // start initing the workflow in the background
+        const additionalInfoWorkflow = new AdditionalInfoWorkflow();
+        const agentInit = additionalInfoWorkflow.init({
+          model: model,
+          workspaceDir: state.data.workspaceRoot,
+        });
+
         // need to grab this off the analysis results
         const profile = getActiveProfile(state);
         if (!profile) {
@@ -222,6 +231,7 @@ You are an experienced java developer, who specializes in migrating code from ${
         const allDiffs: { original: string; modified: string; diff: string }[] = [];
         const modifiedFiles = new Set<string>();
 
+        const allResponses: string[] = [];
         for (const [uri, fileIncidents] of Object.entries(incidentsByUri)) {
           const parsedURI = Uri.parse(uri);
           const relativePath = workspace.asRelativePath(parsedURI);
@@ -291,7 +301,7 @@ Write the step by step reasoning in this markdown section. If you are unsure of 
 
 ## Additional Information (optional)
 
-If you have any additional details or steps that need to be performed, put it here.`;
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed.`;
           console.log(humanPrompt);
 
           // Stream the response
@@ -310,7 +320,7 @@ If you have any additional details or steps that need to be performed, put it he
               draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
             });
           }
-
+          allResponses.push(fullResponse);
           // Match any language identifier after the backticks
           const codeMatch = fullResponse.match(/```\w*\n([\s\S]*?)\n```/);
           if (codeMatch) {
@@ -328,6 +338,67 @@ If you have any additional details or steps that need to be performed, put it he
             });
             modifiedFiles.add(parsedURI.fsPath);
           }
+        }
+
+        let lastMessageId: string = "0";
+        // listen on agents events
+        additionalInfoWorkflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+          switch (msg.type) {
+            case KaiWorkflowMessageType.LLMResponseChunk: {
+              const chunk = msg.data;
+              const containsToolCalls =
+                (chunk.tool_calls && chunk.tool_calls.length > 0) ||
+                (chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0)
+                  ? true
+                  : false;
+              const content =
+                typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
+              if (msg.id !== lastMessageId) {
+                state.mutateData((draft) => {
+                  draft.chatMessages.push({
+                    kind: ChatMessageType.String,
+                    messageToken: msg.id,
+                    timestamp: new Date().toISOString(),
+                    value: {
+                      message: content,
+                    },
+                  });
+                });
+                lastMessageId = msg.id;
+              } else {
+                state.mutateData((draft) => {
+                  draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
+                });
+              }
+              break;
+            }
+            case KaiWorkflowMessageType.ModifiedFile: {
+              const { path, content } = msg.data;
+              const uri = Uri.file(path);
+              const relativePath = workspace.asRelativePath(uri);
+              let originalcontent = "";
+              try {
+                const doc = await workspace.openTextDocument(uri);
+                originalcontent = doc.getText();
+              } finally {
+                const diff = createPatch(relativePath, originalcontent, content);
+                allDiffs.push({ original: relativePath, modified: relativePath, diff });
+              }
+              break;
+            }
+          }
+        });
+
+        try {
+          await agentInit;
+          await additionalInfoWorkflow.run({
+            migrationHint: profile.name,
+            previousResponse: allResponses[0],
+            programmingLanguage: "Java",
+          });
+        } catch (err) {
+          console.error("Error in running the agent:", err);
+          window.showInformationMessage(`We encountered an error running the agent.`);
         }
 
         if (allDiffs.length === 0) {
