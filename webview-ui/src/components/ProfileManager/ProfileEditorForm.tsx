@@ -13,10 +13,6 @@ import {
   HelperTextItem,
   FormAlert,
   Alert,
-  MenuToggle,
-  Select,
-  SelectList,
-  SelectOption,
   Label,
   LabelGroup,
   Tooltip,
@@ -27,6 +23,7 @@ import { ExclamationCircleIcon } from "@patternfly/react-icons";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,8 +44,6 @@ export const ProfileEditorForm: React.FC<{
   allProfiles: AnalysisProfile[];
 }> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles }) => {
   const [localProfile, setLocalProfile] = useState(profile);
-  const [sourceOpen, setSourceOpen] = useState(false);
-  const [targetOpen, setTargetOpen] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
 
@@ -112,30 +107,12 @@ export const ProfileEditorForm: React.FC<{
     debouncedChange({ ...localProfile, name: trimmedName });
   };
 
-  const handleSourceToggle = () => setSourceOpen((prev) => !prev);
-  const handleTargetToggle = () => setTargetOpen((prev) => !prev);
-
-  const handleSourcesChange = (selection: string) => {
-    const updated = toggleSelection(selectedSources, selection);
-    setSelectedSources(updated);
-    updateLabelSelector(updated, selectedTargets);
-  };
-
-  const handleTargetsChange = (selection: string) => {
-    const updated = toggleSelection(selectedTargets, selection);
-    setSelectedTargets(updated);
-    updateLabelSelector(selectedSources, updated);
-  };
-
   const updateLabelSelector = (sources: string[], targets: string[]) => {
     const selector = buildLabelSelector(sources, targets);
     const updatedProfile = { ...localProfile, labelSelector: selector };
     setLocalProfile(updatedProfile);
     debouncedChange(updatedProfile);
   };
-
-  const toggleSelection = (list: string[], value: string) =>
-    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -172,72 +149,27 @@ export const ProfileEditorForm: React.FC<{
         )}
       </FormGroup>
 
-      <FormGroup label="Target Technologies" fieldId="targets">
-        <Select
-          isOpen={targetOpen}
-          onOpenChange={setTargetOpen}
-          onSelect={(_ev, value) => handleTargetsChange(value as string)}
-          toggle={(ref) => (
-            <MenuToggle
-              ref={ref}
-              style={{
-                minWidth: "250px",
-                maxWidth: "400px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              isDisabled={profile.readOnly}
-              onClick={handleTargetToggle}
-              isExpanded={targetOpen}
-            >
-              {selectedTargets.length ? selectedTargets.join(", ") : "Select targets"}
-            </MenuToggle>
-          )}
-          selected={selectedTargets}
-        >
-          <SelectList style={{ maxHeight: "200px", overflowY: "auto" }}>
-            {targetOptions.map((opt) => (
-              <SelectOption key={opt} value={opt}>
-                {opt}
-              </SelectOption>
-            ))}
-          </SelectList>
-        </Select>
+      <FormGroup label="Target Technologies" fieldId="targets" isRequired>
+        <CreatableMultiSelectField
+          fieldId="targets"
+          value={selectedTargets}
+          onChange={(updated) => {
+            setSelectedTargets(updated);
+            updateLabelSelector(selectedSources, updated);
+          }}
+          initialOptions={targetOptions}
+        />
       </FormGroup>
-
       <FormGroup label="Source Technologies" fieldId="sources">
-        <Select
-          isOpen={sourceOpen}
-          onOpenChange={setSourceOpen}
-          onSelect={(_ev, value) => handleSourcesChange(value as string)}
-          toggle={(ref) => (
-            <MenuToggle
-              ref={ref}
-              style={{
-                minWidth: "250px",
-                maxWidth: "400px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              isDisabled={profile.readOnly}
-              onClick={handleSourceToggle}
-              isExpanded={sourceOpen}
-            >
-              {selectedSources.length ? selectedSources.join(", ") : "Select sources"}
-            </MenuToggle>
-          )}
-          selected={selectedSources}
-        >
-          <SelectList style={{ maxHeight: "200px", overflowY: "auto" }}>
-            {sourceOptions.map((opt) => (
-              <SelectOption key={opt} value={opt}>
-                {opt}
-              </SelectOption>
-            ))}
-          </SelectList>
-        </Select>
+        <CreatableMultiSelectField
+          fieldId="sources"
+          value={selectedSources}
+          onChange={(updated) => {
+            setSelectedSources(updated);
+            updateLabelSelector(updated, selectedTargets);
+          }}
+          initialOptions={sourceOptions}
+        />
       </FormGroup>
 
       <FormGroup label="Use Default Rules" fieldId="use-default-rules">
