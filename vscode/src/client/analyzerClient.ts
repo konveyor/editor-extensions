@@ -426,6 +426,16 @@ export class AnalyzerClient {
             vscode.window.showInformationMessage("Analysis completed. No incidents were found.");
           }
 
+          // Add active profile name to each RuleSet
+          const currentProfile = this.getExtStateData().profiles.find(
+            (p) => p.id === this.getExtStateData().activeProfileId,
+          );
+          if (currentProfile) {
+            ruleSets.forEach((ruleSet) => {
+              (ruleSet as any).activeProfileName = currentProfile.name;
+            });
+          }
+
           vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets);
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");

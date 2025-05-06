@@ -65,11 +65,19 @@ const doLoadSolution = async (
 
 function enhanceIncidentsFromRuleSets(ruleSets: RuleSet[]): EnhancedIncident[] {
   const seen = new Set<string>();
+  const firstProfileName = ruleSets[0]?.activeProfileName;
 
   return ruleSets.flatMap((ruleSet) =>
     Object.entries(ruleSet.violations || {}).flatMap(([violationId, violation]) =>
       violation.incidents
         .filter((incident: Incident) => {
+          // Validate profile name consistency
+          if (ruleSet.activeProfileName !== firstProfileName) {
+            throw new Error(
+              `Found RuleSet with different activeProfileName. Expected "${firstProfileName}" but found "${ruleSet.activeProfileName}"`,
+            );
+          }
+
           // Create a unique key from the violation ID, URI, and line number
           // This primarily protects us from duplicate incidents in the same
           // file when the line number is undefined, but it also serves as a
@@ -93,6 +101,7 @@ function enhanceIncidentsFromRuleSets(ruleSets: RuleSet[]): EnhancedIncident[] {
           violationId,
           uri: incident.uri,
           message: incident.message,
+          activeProfileName: ruleSet.activeProfileName,
         })),
     ),
   );

@@ -53,10 +53,10 @@ import { ChatOpenAI, AzureChatOpenAI } from "@langchain/openai";
 import { ChatBedrockConverse } from "@langchain/aws";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatDeepSeek } from "@langchain/deepseek";
+import { ChatOllama } from "@langchain/ollama";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { getModelProvider } from "./client/modelProvider";
 import { createPatch } from "diff";
-import { getActiveProfile } from "./utilities/profiles/profileService";
 import path from "node:path";
 
 const isWindows = process.platform === "win32";
@@ -177,7 +177,11 @@ const commandsMap: (state: ExtensionState) => {
           case "ChatBedrock":
             model = new ChatBedrockConverse({
               model: modelProvider.modelProvider.args["model_id"],
-              region: modelProvider.env.AWS_REGION,
+              region: modelProvider.env.AWS_DEFAULT_REGION,
+              credentials: {
+                accessKeyId: modelProvider.env.AWS_ACCESS_KEY_ID,
+                secretAccessKey: modelProvider.env.AWS_SECRET_ACCESS_KEY,
+              },
               streaming: true,
               temperature: modelProvider.modelProvider.args["temperature"],
               maxTokens: modelProvider.modelProvider.args["max_tokens"],
@@ -202,20 +206,30 @@ const commandsMap: (state: ExtensionState) => {
             });
             break;
 
+          case "ChatOllama":
+            model = new ChatOllama({
+              baseUrl: modelProvider.modelProvider.args["base_url"],
+              model: modelProvider.modelProvider.args["model"],
+              streaming: true,
+              temperature: modelProvider.modelProvider.args["temperature"] || 0.1,
+              numPredict: modelProvider.modelProvider.args["max_tokens"],
+            });
+            break;
+
           default:
             throw new Error(`Unsupported model provider: ${providerType}`);
         }
 
-        // need to grab this off the analysis results
-        const profile = getActiveProfile(state);
-        if (!profile) {
-          window.showErrorMessage("Profile undefined");
+        // Get the profile name from the incidents
+        const profileName = incidents[0]?.activeProfileName;
+        if (!profileName) {
+          window.showErrorMessage("No profile name found in incidents");
           return;
         }
 
         // Prepare the system prompt
         const systemPrompt = `
-You are an experienced java developer, who specializes in migrating code from ${profile.name}`;
+You are an experienced java developer, who specializes in migrating code from ${profileName}`;
         console.log(systemPrompt);
 
         // Process each file's incidents
@@ -257,10 +271,10 @@ You are an experienced java developer, who specializes in migrating code from ${
 
           // Prepare the human prompt
           const humanPrompt = `
-I will give you a file for which I want to take one step towards migrating ${profile.name}.
+I will give you a file for which I want to take one step towards migrating ${profileName}.
 I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
 Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
-Before attempting to migrate the code from ${profile.name}, reason through what changes are required and why.
+Before attempting to migrate the code from ${profileName}, reason through what changes are required and why.
 
 Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
 Remember when updating or adding annotations that the class must be imported.

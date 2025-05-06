@@ -36,6 +36,7 @@ export interface EnhancedIncident extends Incident {
   violationId: string;
   uri: string;
   message: string;
+  activeProfileName?: string;
   ruleset_name?: string;
   ruleset_description?: string;
   violation_name?: string;
@@ -48,6 +49,7 @@ export interface RuleSet {
   name?: string;
   description?: string;
   tags?: string[];
+  activeProfileName?: string;
   violations?: { [key: string]: EnhancedViolation };
   insights?: { [key: string]: EnhancedViolation };
   errors?: { [key: string]: string };
