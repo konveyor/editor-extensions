@@ -97,7 +97,9 @@ export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps>
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!filtered.length) return;
+    if (!filtered.length) {
+      return;
+    }
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
