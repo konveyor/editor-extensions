@@ -13,4 +13,4 @@ vscode/.metadata
 
 # Miscellaneous
 .vscode/*.aider*
-
+.vscode/settings.json
