@@ -232,6 +232,7 @@ You are an experienced java developer, who specializes in migrating code from ${
         const modifiedFiles = new Set<string>();
 
         const allResponses: string[] = [];
+        const allRelativePaths: string[] = [];
         for (const [uri, fileIncidents] of Object.entries(incidentsByUri)) {
           const parsedURI = Uri.parse(uri);
           const relativePath = workspace.asRelativePath(parsedURI);
@@ -321,6 +322,7 @@ If you have any additional details or steps that need to be performed, put it he
             });
           }
           allResponses.push(fullResponse);
+          allRelativePaths.push(relativePath);
           // Match any language identifier after the backticks
           const codeMatch = fullResponse.match(/```\w*\n([\s\S]*?)\n```/);
           if (codeMatch) {
@@ -344,6 +346,39 @@ If you have any additional details or steps that need to be performed, put it he
         // listen on agents events
         additionalInfoWorkflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
           switch (msg.type) {
+            case KaiWorkflowMessageType.UserInteraction: {
+              switch (msg.data.type) {
+                case "yesNo":
+                  state.mutateData((draft) => {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.String,
+                      messageToken: msg.id,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        message: `I think I can address some additional changes. Do you want to me to fix them? (Waiting for 5 secs to simulate ux)`,
+                      },
+                    });
+                  });
+                  setTimeout(() => {
+                    msg.data.response = {
+                      yesNo: true,
+                    };
+                    // simulate user interaction
+                    additionalInfoWorkflow.resolveUserInteraction(msg);
+                  }, 5000);
+                  state.mutateData((draft) => {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.String,
+                      messageToken: `res-m${Date.now()}`,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        message: `Ok, proceeding to address the additional changes.`,
+                      },
+                    });
+                  });
+              }
+              break;
+            }
             case KaiWorkflowMessageType.LLMResponseChunk: {
               const chunk = msg.data;
               const containsToolCalls =
@@ -393,7 +428,10 @@ If you have any additional details or steps that need to be performed, put it he
           await agentInit;
           await additionalInfoWorkflow.run({
             migrationHint: profile.name,
-            previousResponse: allResponses[0],
+            previousResponses: {
+              responses: allResponses,
+              files: allRelativePaths,
+            },
             programmingLanguage: "Java",
           });
         } catch (err) {
