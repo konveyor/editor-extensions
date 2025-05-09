@@ -8,6 +8,7 @@ export class AnalysisIssueFix extends BaseNode {
   constructor(modelInfo: ModelInfo, tools: DynamicStructuredTool[]) {
     super("AnalysisIssueFix", modelInfo, tools);
     this.addressAdditionalInformation = this.addressAdditionalInformation.bind(this);
+    this.summarizeAdditionalInformation = this.summarizeAdditionalInformation.bind(this);
   }
 
   async summarizeAdditionalInformation(state: typeof AnalysisIssueFixState.State) {
@@ -16,12 +17,23 @@ export class AnalysisIssueFix extends BaseNode {
     );
     const human_message = new HumanMessage(
       `We have migrated some source code files to ${state.migrationHint}.\
-You are given a list of files we changed as well as notes we captured during the migration.\
+You are given notes we captured during the migration.\
 The notes contain a summary of changes we already made to existing files and additional changes that may be required in other files elsewhere in the project.\
-Carefully analyze the changes and summarize only the additional changes that are needed elsewhere in the project.\
-Do not summarize the changes already made. Only focus on additional changes needed. Here is the summary: \
-${state.additionalInformation}`,
+They also contain a list of files we changed.\
+Carefully analyze the notes and understand what additional changes are mentioned in the notes.\
+Output the additional changes mentioned in the notes. Do not output any of the changes we have already made.\
+Make sure you output all the details about the changes including code snippets and instructions.\
+Ensure you do not omit any additional changes needed.\
+If there are no additional changes mentioned, respond with text "NO-CHANGE".\
+Here is the summary: \
+${state.previousResponse}`,
     );
+
+    const response = await this.streamOrInvoke([sys_message, human_message], false, false);
+
+    return {
+      additionalInformation: response?.content || "",
+    };
   }
 
   async addressAdditionalInformation(state: typeof AnalysisIssueFixState.State) {

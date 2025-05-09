@@ -77,7 +77,7 @@ export interface KaiWorkflowResponse {
 }
 
 export interface PendingUserInteraction {
-  resolve(response: Promise<KaiUserInteractionMessage>): void;
+  resolve(response: KaiUserInteractionMessage | PromiseLike<KaiUserInteractionMessage>): void;
   reject(response: KaiUserInteractionMessage, reason: any): void;
 }
 

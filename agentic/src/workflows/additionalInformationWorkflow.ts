@@ -4,6 +4,8 @@ import { CompiledStateGraph, END, START, StateGraph } from "@langchain/langgraph
 
 import {
   KaiUserInteractionMessage,
+  KaiWorkflowMessageType,
+  type PendingUserInteraction,
   type KaiWorkflow,
   type KaiWorkflowInitOptions,
   type KaiWorkflowInput,
@@ -19,10 +21,12 @@ import { modelHealthCheck } from "../utils";
 import { FileSystemTools } from "../tools/filesystem";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 import { AnalysisIssueFix } from "../nodes/analysisIssueFix";
-import { PendingUserInteraction } from "../types";
 
 export interface AdditionalInfoWorkflowInput extends KaiWorkflowInput {
-  previousResponse: string;
+  previousResponses: {
+    files: string[];
+    responses: string[];
+  };
   programmingLanguage: string;
   migrationHint: string;
 }
@@ -39,6 +43,9 @@ export class AdditionalInfoWorkflow
     super();
     this.workflow = undefined;
     this.userInteractionPromises = new Map<string, PendingUserInteraction>();
+
+    this.runToolsEdge = this.runToolsEdge.bind(this);
+    this.processUserInputEdge = this.processUserInputEdge.bind(this);
   }
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
@@ -71,12 +78,14 @@ export class AdditionalInfoWorkflow
       output: AnalysisIssueFixOutputState,
       stateSchema: AnalysisIssueFixState,
     })
+      .addNode("summarize", analysisIssueFixNodes.summarizeAdditionalInformation)
       .addNode("address_additional_information", analysisIssueFixNodes.addressAdditionalInformation)
       .addNode("run_tools", analysisIssueFixNodes.runTools)
-      .addEdge(START, "address_additional_information")
+      .addEdge(START, "summarize")
       .addEdge("run_tools", "address_additional_information")
-      .addConditionalEdges("address_additional_information", this.run_tools_edge, [
-        "run_tools",
+      .addConditionalEdges("address_additional_information", this.runToolsEdge, ["run_tools", END])
+      .addConditionalEdges("summarize", this.processUserInputEdge, [
+        "address_additional_information",
         END,
       ])
       .compile();
@@ -88,11 +97,9 @@ export class AdditionalInfoWorkflow
       throw new Error(`Workflow must be inited before it can be run`);
     }
 
-    const parsed = this.extractAdditionalInfo(input.previousResponse);
-
     const gInput: typeof AnalysisIssueFixInputState.State = {
-      previousResponse: input.previousResponse,
-      additionalInformation: parsed ? parsed : input.previousResponse,
+      previousResponse: this.processInput(input.previousResponses),
+      additionalInformation: "",
       migrationHint: input.migrationHint,
       programmingLanguage: input.programmingLanguage,
     };
@@ -103,13 +110,51 @@ export class AdditionalInfoWorkflow
 
     return {
       errors: [],
-      modified_files: outputState.modifiedFiles,
+      modified_files: outputState?.modifiedFiles || [],
     };
   }
 
-  async resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void> {}
+  async resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void> {
+    const promise = this.userInteractionPromises.get(response.id);
+    if (!promise) {
+      return;
+    }
+    const { data } = response;
+    if (!data.response || (!data.response.choice && !data.response.yesNo)) {
+      promise.reject(response, Error(`Invalid response from user`));
+    }
+    promise.resolve(response);
+  }
 
-  private run_tools_edge(state: typeof MessagesAnnotation.State) {
+  private async processUserInputEdge(state: typeof AnalysisIssueFixState.State) {
+    if (state.additionalInformation !== "" && !state.additionalInformation.includes("NO-CHANGE")) {
+      const id = `res-${Date.now()}`;
+      this.emitWorkflowMessage({
+        id,
+        type: KaiWorkflowMessageType.UserInteraction,
+        data: {
+          type: "yesNo",
+          systemMessage: {
+            yesNo:
+              "We found more issues that we think we can fix. Do you want me to continue fixing those?",
+          },
+        },
+      });
+      // wait for action
+      const userResponse = await new Promise<KaiUserInteractionMessage>((resolve, reject) => {
+        this.userInteractionPromises.set(id, {
+          resolve,
+          reject,
+        });
+      });
+      if (userResponse.data.response?.yesNo) {
+        return "address_additional_information";
+      }
+    }
+    return END;
+  }
+
+  private runToolsEdge(state: typeof MessagesAnnotation.State) {
     const lastMessage = state.messages[state.messages.length - 1];
     if (lastMessage instanceof AIMessage || lastMessage instanceof AIMessageChunk) {
       return lastMessage.tool_calls && lastMessage.tool_calls.length > 0 ? "run_tools" : END;
@@ -118,18 +163,35 @@ export class AdditionalInfoWorkflow
     }
   }
 
-  private extractAdditionalInfo(content: string): string | null {
-    let parsed = "";
-    let start = false;
-    for (const line of content.split("\n")) {
-      if (line.match(/(?:##|\*\*)\s*[Aa]dditional *[Ii]nformation/)) {
-        start = true;
-        continue;
-      }
-      if (start) {
-        parsed += line;
+  private processInput(responses: { files: string[]; responses: string[] }): string {
+    let reasoning = "";
+    let additionalInfo = "";
+    for (const res of responses.responses) {
+      let parserState = "initial";
+      for (const resLine of res.split("\n")) {
+        const nextState = (line: string) =>
+          line.match(/(##|\*\*) *[R|r]easoning/)
+            ? "reasoning"
+            : line.match(/(##|\*\*) *[U|u]pdated [F|f]ile/)
+              ? "updatedFile"
+              : line.match(/(##|\*\*) *[A|a]dditional *[I|i]nformation/)
+                ? "additionalInfo"
+                : undefined;
+
+        const nxtState = nextState(resLine);
+        parserState = nxtState || parserState;
+        switch (parserState) {
+          case "reasoning":
+            reasoning += `\n${resLine}`;
+            break;
+          case "additionalInfo":
+            additionalInfo += `\n${resLine}`;
+            break;
+        }
       }
     }
-    return parsed;
+    return `## Summary of changes made\n\n${reasoning}\n\n\
+## Additional Information\n\n${additionalInfo}\n\n\
+## List of files changed\n\n${responses.files.join("\n")}`;
   }
 }

@@ -56,6 +56,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
   protected async streamOrInvoke(
     input: BaseLanguageModelInput,
     enableTools: boolean = true,
+    emitEvents: boolean = true,
     options?: Partial<BaseChatModelCallOptions> | undefined,
   ): Promise<AIMessage | AIMessageChunk | undefined> {
     const messageId = this.newMessageId();
@@ -69,29 +70,34 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         !this.modelInfo.toolsSupportedInStreaming
       ) {
         const fullResponse = await runnable.invoke(inputWithTools, options);
-        this.emitWorkflowMessage({
-          id: messageId,
-          type: KaiWorkflowMessageType.LLMResponse,
-          data: fullResponse,
-        });
+        if (emitEvents) {
+          this.emitWorkflowMessage({
+            id: messageId,
+            type: KaiWorkflowMessageType.LLMResponse,
+            data: fullResponse,
+          });
+        }
         return fullResponse;
       }
 
       const stream = await runnable.stream(inputWithTools, options);
       if (stream) {
-        return this.stream(messageId, stream);
+        return this.stream(messageId, emitEvents, stream);
       }
     } catch (err) {
-      this.emitWorkflowMessage({
-        id: messageId,
-        type: KaiWorkflowMessageType.Error,
-        data: `Failed to get llm response - ${String(err)}`,
-      });
+      if (emitEvents) {
+        this.emitWorkflowMessage({
+          id: messageId,
+          type: KaiWorkflowMessageType.Error,
+          data: `Failed to get llm response - ${String(err)}`,
+        });
+      }
     }
   }
 
   private async stream(
     messageId: string,
+    emitEvents: boolean,
     stream: IterableReadableStream<AIMessageChunk>,
   ): Promise<AIMessageChunk | undefined> {
     let response: AIMessageChunk | undefined;
@@ -108,11 +114,13 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       }
       // for native tools support, we send the chunk as-is
       if (this.modelInfo.toolsSupported) {
-        this.emitWorkflowMessage({
-          id: messageId,
-          type: KaiWorkflowMessageType.LLMResponseChunk,
-          data: chunk,
-        });
+        if (emitEvents) {
+          this.emitWorkflowMessage({
+            id: messageId,
+            type: KaiWorkflowMessageType.LLMResponseChunk,
+            data: chunk,
+          });
+        }
         continue;
       }
 
@@ -125,12 +133,13 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
             const toolCallMarkerIdx = buffer.indexOf("toolCall");
             if (toolCallMarkerIdx !== -1) {
               parserState = "toolCallMarkerRead";
-              this.emitWorkflowMessage({
-                id: messageId,
-                type: KaiWorkflowMessageType.LLMResponseChunk,
-                data: new AIMessageChunk(buffer.substring(0, toolCallMarkerIdx).trim()),
-              });
-              // currentContent = "";
+              if (emitEvents) {
+                this.emitWorkflowMessage({
+                  id: messageId,
+                  type: KaiWorkflowMessageType.LLMResponseChunk,
+                  data: new AIMessageChunk(buffer.substring(0, toolCallMarkerIdx).trim()),
+                });
+              }
               buffer = buffer.substring(toolCallMarkerIdx + "toolCall".length);
             } else {
               continueReading = true;
