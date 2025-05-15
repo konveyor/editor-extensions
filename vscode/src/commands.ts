@@ -84,6 +84,23 @@ const commandsMap: (state: ExtensionState) => {
         console.error("Could not start the server", e);
       }
     },
+    "konveyor.getToken": async (): Promise<string | undefined> => {
+      let token = await state.extensionContext.secrets.get("konveyor.token");
+
+      if (!token) {
+        // TODO(djzager): Update this to get the user's password
+        // once that logic is implemented in Hub/SolutionServer
+        token = await window.showInputBox({
+          prompt: "Enter your Konveyor token",
+          placeHolder: "Enter your Konveyor token",
+        });
+
+        if (token) {
+          await state.extensionContext.secrets.store("konveyor.token", token);
+        }
+      }
+      return token;
+    },
     "konveyor.stopServer": async () => {
       const analyzerClient = state.analyzerClient;
       try {
