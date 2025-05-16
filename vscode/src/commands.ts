@@ -29,9 +29,8 @@ import {
 import {
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
-  AdditionalInfoWorkflow,
-  type KaiWorkflow,
   type AdditionalInfoWorkflowInput,
+  KaiUserIteraction,
 } from "@editor-extensions/agentic";
 import {
   applyAll,
@@ -126,6 +125,15 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
       await commands.executeCommand("konveyor.showResolutionPanel");
+
+      let lastMessageId: string = "0";
+      const agentModifiedFiles: Map<
+        Uri,
+        {
+          content: string;
+          isNew: boolean;
+        }
+      > = new Map<Uri, { content: string; isNew: boolean }>();
 
       // Group incidents by URI
       const incidentsByUri = incidents.reduce(
@@ -240,13 +248,133 @@ const commandsMap: (state: ExtensionState) => {
         }
 
         // start initing the workflow in the background
-        let additionalInfoWorkflow: KaiWorkflow | undefined;
-        let agentInit: Promise<void> | undefined;
+        // let additionalInfoWorkflow: KaiWorkflow | undefined;
         if (getConfigAgentMode()) {
-          additionalInfoWorkflow = new AdditionalInfoWorkflow();
-          agentInit = additionalInfoWorkflow.init({
+          await state.workflowManager.init({
             model: model,
             workspaceDir: state.data.workspaceRoot,
+          });
+
+          // Get the workflow instance
+          const workflow = state.workflowManager.getWorkflow();
+
+          // Set up the event listener
+          workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+            switch (msg.type) {
+              case KaiWorkflowMessageType.UserInteraction: {
+                const interaction = msg.data as KaiUserIteraction;
+                switch (interaction.type) {
+                  case "yesNo": {
+                    try {
+                      // Add the question to chat with quick responses
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message:
+                              interaction.systemMessage.yesNo || "Would you like to proceed?",
+                          },
+                          quickResponses: [
+                            { id: "yes", content: "Yes" },
+                            { id: "no", content: "No" },
+                          ],
+                        });
+                      });
+                      // Response will be handled by QUICK_RESPONSE handler
+                      break;
+                    } catch (error) {
+                      console.error("Error handling user interaction:", error);
+                      msg.data.response = { yesNo: false };
+                      await workflow.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                  case "choice": {
+                    try {
+                      const choices = interaction.systemMessage.choice || [];
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message: "Please select an option:",
+                          },
+                          quickResponses: choices.map((choice, index) => ({
+                            id: `choice-${index}`,
+                            content: choice,
+                          })),
+                        });
+                      });
+                      // Response will be handled by QUICK_RESPONSE handler
+                      break;
+                    } catch (error) {
+                      console.error("Error handling choice interaction:", error);
+                      msg.data.response = { choice: -1 };
+                      await workflow.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                }
+                break;
+              }
+              case KaiWorkflowMessageType.LLMResponseChunk: {
+                let lastMessageId: string = "0";
+                const chunk = msg.data;
+                const content =
+                  typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
+
+                if (msg.id !== lastMessageId) {
+                  state.mutateData((draft) => {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.String,
+                      messageToken: msg.id,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        message: content,
+                      },
+                    });
+                  });
+                  lastMessageId = msg.id;
+                } else {
+                  state.mutateData((draft) => {
+                    draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
+                  });
+                }
+                break;
+              }
+              case KaiWorkflowMessageType.ModifiedFile: {
+                const fPath = msg.data.path;
+                const content = msg.data.content;
+                const uri = Uri.file(fPath);
+                let isNew = false;
+                try {
+                  try {
+                    await workspace.fs.stat(uri);
+                  } catch (err) {
+                    if (
+                      (err as any).code === "FileNotFound" ||
+                      (err as any).name === "EntryNotFound"
+                    ) {
+                      isNew = true;
+                    } else {
+                      throw err;
+                    }
+                  }
+                  if (!agentModifiedFiles.has(uri)) {
+                    agentModifiedFiles.set(uri, {
+                      content,
+                      isNew,
+                    });
+                  }
+                } catch (err) {
+                  console.log(`Failed to write file by the agent - ${err}`);
+                }
+                break;
+              }
+            }
           });
         }
 
@@ -372,35 +500,76 @@ If you have any additional details or steps that need to be performed, put it he
           }
         }
 
-        if (additionalInfoWorkflow && agentInit) {
-          let lastMessageId: string = "0";
-          const agentModifiedFiles: Map<
-            Uri,
-            {
-              content: string;
-              isNew: boolean;
-            }
-          > = new Map<Uri, { content: string; isNew: boolean }>();
+        if (state.workflowManager.workflow) {
           // listen on agents events
-          additionalInfoWorkflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+          state.workflowManager.workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
             switch (msg.type) {
               case KaiWorkflowMessageType.UserInteraction: {
-                switch (msg.data.type) {
-                  case "yesNo":
-                    state.mutateData((draft) => {
-                      draft.chatMessages.push({
-                        kind: ChatMessageType.String,
-                        messageToken: msg.id,
-                        timestamp: new Date().toISOString(),
-                        value: {
-                          message: `We found more issues we think we can fix. Proceeding to fix...`,
-                        },
+                const interaction = msg.data as KaiUserIteraction;
+                switch (interaction.type) {
+                  case "yesNo": {
+                    try {
+                      // Add the question to chat with quick responses
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message:
+                              interaction.systemMessage.yesNo || "Would you like to proceed?",
+                          },
+                          quickResponses: [
+                            { id: "yes", content: "Yes" },
+                            { id: "no", content: "No" },
+                          ],
+                        });
                       });
-                    });
-                    msg.data.response = {
-                      yesNo: true,
-                    };
-                    additionalInfoWorkflow.resolveUserInteraction(msg);
+
+                      // The response will be handled by the QUICK_RESPONSE handler in webviewMessageHandler.ts
+                      // which will then call additionalInfoWorkflow.resolveUserInteraction(msg)
+                      break;
+                    } catch (error) {
+                      console.error("Error handling user interaction:", error);
+                      // Ensure we still resolve the interaction even if there's an error
+                      msg.data.response = {
+                        yesNo: false,
+                      };
+                      await state.workflowManager.workflow?.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                  case "choice": {
+                    try {
+                      // Add the choice question to chat with quick responses
+                      const choices = interaction.systemMessage.choice || [];
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message: "Please select an option:",
+                          },
+                          quickResponses: choices.map((choice, index) => ({
+                            id: `choice-${index}`,
+                            content: choice,
+                          })),
+                        });
+                      });
+
+                      // The response will be handled by the QUICK_RESPONSE handler in webviewMessageHandler.ts
+                      // which will then call additionalInfoWorkflow.resolveUserInteraction(msg)
+                      break;
+                    } catch (error) {
+                      console.error("Error handling choice interaction:", error);
+                      msg.data.response = {
+                        choice: -1,
+                      };
+                      await state.workflowManager.workflow?.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
                 }
                 break;
               }
@@ -460,8 +629,7 @@ If you have any additional details or steps that need to be performed, put it he
           });
 
           try {
-            await agentInit;
-            await additionalInfoWorkflow.run({
+            await state.workflowManager.workflow?.run({
               migrationHint: profileName,
               previousResponses: {
                 responses: allResponses,

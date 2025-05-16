@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { Webview } from "vscode";
 import { ExtensionState } from "./extensionState";
 import {
   ADD_PROFILE,
@@ -29,6 +30,10 @@ import {
   WebviewActionType,
   ScopeWithKonveyorContext,
   ExtensionData,
+  ChatMessageType,
+  KaiWorkflowMessageType,
+  KaiUserIteraction,
+  type KaiWorkflowMessage,
 } from "@editor-extensions/shared";
 
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
@@ -38,15 +43,80 @@ import {
   setActiveProfileId,
 } from "./utilities/profiles/profileService";
 
-export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
-  webview.onDidReceiveMessage(async (message) => {
-    await messageHandler(message, state);
-  });
+export function setupWebviewMessageListener(webview: Webview, state: ExtensionState) {
+  webview.onDidReceiveMessage(
+    async (message: WebviewAction<WebviewActionType, unknown>) => {
+      await messageHandler(message, state);
+    },
+    undefined,
+    state.extensionContext.subscriptions,
+  );
 }
 
 const actions: {
   [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
+  QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
+    // Set loading state
+    state.mutateData((draft) => {
+      draft.isProcessingQuickResponse = true;
+    });
+
+    try {
+      const messageIndex = state.data.chatMessages.findIndex(
+        (msg) => msg.messageToken === messageToken,
+      );
+
+      if (messageIndex === -1) {
+        console.error("Message token not found:", messageToken);
+        return;
+      }
+
+      const msg = state.data.chatMessages[messageIndex];
+
+      // Add user's response to chat
+      state.mutateData((draft) => {
+        draft.chatMessages.push({
+          kind: ChatMessageType.String,
+          messageToken: `m${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          value: {
+            message: responseId === "yes" ? "Yes" : responseId === "no" ? "No" : responseId,
+          },
+        });
+      });
+
+      // Create the workflow message with proper typing
+      const workflowMessage: KaiWorkflowMessage = {
+        id: messageToken,
+        type: KaiWorkflowMessageType.UserInteraction,
+        data: {
+          type: responseId.startsWith("choice-") ? "choice" : "yesNo",
+          response: responseId.startsWith("choice-")
+            ? {
+                choice: parseInt(responseId.split("-")[1]),
+              }
+            : {
+                yesNo: responseId === "yes",
+              },
+        } as KaiUserIteraction,
+      };
+
+      if (!state.workflowManager.isInitialized) {
+        console.error("Workflow not initialized");
+        return;
+      }
+
+      const workflow = state.workflowManager.getWorkflow();
+      await workflow.resolveUserInteraction(workflowMessage);
+    } finally {
+      // Clear loading state
+      state.mutateData((draft) => {
+        draft.isProcessingQuickResponse = false;
+      });
+    }
+  },
+
   [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
     const userProfiles = getUserProfiles(state.extensionContext);
 
