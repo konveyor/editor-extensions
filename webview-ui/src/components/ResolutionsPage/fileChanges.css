@@ -1,29 +1,47 @@
 .file-changes-file-icon {
-  font-size: 1.1em;
-  position: relative;
-  top: 1px;
-  margin-right: 4px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.file-changes-arrow-icon {
-  font-size: 0.8em;
-  position: relative;
-  top: 1px;
-  margin: 0 4px;
-}
-
-.file-changes-change-summary {
-  font-size: 0.8em;
+  margin-right: 8px;
+  color: var(--vscode-foreground);
 }
 
 .file-changes-file-name {
-  line-height: 1.5;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+}
+
+.file-changes-arrow-icon {
+  margin: 0 8px;
+  color: var(--vscode-foreground);
+}
+
+.file-changes-change-summary {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
 }
 
 .file-changes-action-icon {
-  display: flex;
-  align-items: center;
-  padding: 6px;
+  color: var(--vscode-foreground);
+}
+
+.file-changes-action-icon:hover {
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+/* New styles for inline diff view */
+.file-changes-inline-diff {
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--vscode-editor-background);
+}
+
+/* Ensure the diff editor takes up the full width */
+.file-changes-inline-diff .inline-diff-container {
+  width: 100%;
+}
+
+.file-changes-inline-diff .inline-diff-content {
+  width: 100%;
+  height: 300px;
 }

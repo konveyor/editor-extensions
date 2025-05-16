@@ -1,0 +1,150 @@
+.inline-diff-container {
+  width: 100%;
+  padding: 0.5rem;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.inline-diff-content {
+  width: 100%;
+  overflow: auto;
+  max-height: 300px;
+  font-family: var(--vscode-editor-font-family, 'Consolas, "Courier New", monospace');
+  font-size: var(--vscode-editor-font-size, 14px);
+  line-height: var(--vscode-editor-line-height, 1.5);
+}
+
+/* Markdown diff styling */
+.markdown-diff {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.markdown-diff pre {
+  margin: 0;
+  padding: 0.5rem;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  border-radius: 3px;
+  overflow: auto;
+}
+
+.markdown-diff code {
+  font-family: var(--vscode-editor-font-family, 'Consolas, "Courier New", monospace');
+  font-size: var(--vscode-editor-font-size, 14px);
+  line-height: var(--vscode-editor-line-height, 1.5);
+  white-space: pre;
+}
+
+/* Diff syntax highlighting */
+.markdown-diff code.language-diff {
+  display: block;
+  width: 100%;
+}
+
+/* Style for diff lines */
+.markdown-diff code.language-diff .hljs-addition,
+.markdown-diff code.language-diff .hljs-deletion,
+.markdown-diff code.language-diff .hljs-meta {
+  display: block;
+  width: 100%;
+}
+
+/* Added lines */
+.markdown-diff code.language-diff .hljs-addition,
+.markdown-diff code.language-diff [class*="language-diff"] .token.inserted {
+  color: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+  background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.2));
+}
+
+/* Removed lines */
+.markdown-diff code.language-diff .hljs-deletion,
+.markdown-diff code.language-diff [class*="language-diff"] .token.deleted {
+  color: var(--vscode-gitDecoration-deletedResourceForeground, #c74e39);
+  background-color: var(--vscode-diffEditor-removedLineBackground, rgba(255, 0, 0, 0.2));
+}
+
+/* Diff headers and metadata */
+.markdown-diff code.language-diff .hljs-meta,
+.markdown-diff code.language-diff [class*="language-diff"] .token.coord {
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+}
+
+/* Diff headers (@@) */
+.markdown-diff code.language-diff .hljs-meta {
+  color: var(--vscode-editorLineNumber-activeForeground, #c6c6c6);
+  background-color: var(--vscode-editor-lineHighlightBackground, rgba(255, 255, 255, 0.1));
+  border-radius: 3px;
+}
+
+/* Markdown headings */
+.markdown-diff h1,
+.markdown-diff h2,
+.markdown-diff h3,
+.markdown-diff h4,
+.markdown-diff h5,
+.markdown-diff h6 {
+  color: var(--vscode-foreground, #cccccc);
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-diff h1 {
+  font-size: 1.2rem;
+}
+
+/* Ensure lines starting with + and - are properly colored */
+.markdown-diff code.language-diff .line-added,
+.markdown-diff code.language-diff .line-added * {
+  color: var(--vscode-gitDecoration-addedResourceForeground, #81b88b) !important;
+}
+
+.markdown-diff code.language-diff .line-deleted,
+.markdown-diff code.language-diff .line-deleted * {
+  color: var(--vscode-gitDecoration-deletedResourceForeground, #c74e39) !important;
+}
+
+/* Custom styling for diff lines that might not be caught by the highlighter */
+.markdown-diff code.language-diff {
+  counter-reset: line;
+}
+
+.markdown-diff code.language-diff > span {
+  display: block;
+}
+
+.markdown-diff code.language-diff > span:before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 1.5em;
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  text-align: right;
+  margin-right: 0.5em;
+  opacity: 0.5;
+}
+
+/* Ensure the diff is readable in both light and dark themes */
+.vscode-light .markdown-diff code.language-diff .hljs-addition {
+  background-color: rgba(155, 185, 85, 0.2);
+  color: #22863a;
+}
+
+.vscode-light .markdown-diff code.language-diff .hljs-deletion {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: #cb2431;
+}
+
+.vscode-dark .markdown-diff code.language-diff .hljs-addition {
+  background-color: rgba(155, 185, 85, 0.2);
+  color: #85c785;
+}
+
+.vscode-dark .markdown-diff code.language-diff .hljs-deletion {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: #f14c4c;
+}

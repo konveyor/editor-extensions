@@ -4,6 +4,7 @@ import { Navigation } from "./navigation";
 import { ExtensionState } from "src/extensionState";
 import { getConfigAnalyzeOnSave, KONVEYOR_READ_ONLY_SCHEME, KONVEYOR_SCHEME } from "../utilities";
 import KonveyorReadOnlyProvider from "../data/readOnlyStorage";
+import { VirtualFileSystem } from "../data/virtualStorage";
 import { Immutable } from "immer";
 import { LocalChange, ExtensionData } from "@editor-extensions/shared";
 
@@ -12,11 +13,23 @@ export function registerDiffView({
   memFs,
   fileModel: model,
 }: ExtensionState): (data: Immutable<ExtensionData>) => void {
-  context.subscriptions.push(
-    vscode.workspace.registerFileSystemProvider(KONVEYOR_SCHEME, memFs, {
-      isCaseSensitive: true,
-    }),
-  );
+  // Register the appropriate provider based on what's available
+  if (memFs) {
+    // If memFs is available, register it as a file system provider for backward compatibility
+    context.subscriptions.push(
+      vscode.workspace.registerFileSystemProvider(KONVEYOR_SCHEME, memFs, {
+        isCaseSensitive: true,
+      }),
+    );
+  } else {
+    // Use our VirtualFileSystem as a TextDocumentContentProvider
+    context.subscriptions.push(
+      vscode.workspace.registerTextDocumentContentProvider(
+        KONVEYOR_SCHEME,
+        VirtualFileSystem.getInstance(),
+      ),
+    );
+  }
 
   const provider = new KonveyorTreeDataProvider(model);
   vscode.window.registerTreeDataProvider("konveyor.diffView", provider);
