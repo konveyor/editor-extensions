@@ -15,6 +15,7 @@ import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
+import { AdditionalInfoWorkflow } from "@editor-extensions/agentic";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -55,6 +56,7 @@ class VsCodeExtension {
         },
         activeProfileId: "",
         profiles: [],
+        isProcessingQuickResponse: false,
       },
       () => {},
     );
@@ -81,6 +83,52 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      workflowManager: {
+        workflow: undefined,
+        isInitialized: false,
+        init: async (config) => {
+          if (this.state.workflowManager.isInitialized) {
+            return; // Already initialized
+          }
+          this.state.workflowManager.workflow = new AdditionalInfoWorkflow();
+          await this.state.workflowManager.workflow.init(config);
+          this.state.workflowManager.isInitialized = true;
+        },
+        getWorkflow: () => {
+          if (!this.state.workflowManager.workflow) {
+            throw new Error("Workflow not initialized");
+          }
+          return this.state.workflowManager.workflow;
+        },
+        dispose: () => {
+          this.state.workflowManager.workflow = undefined;
+          this.state.workflowManager.isInitialized = false;
+        },
+      },
+    };
+
+    // Initialize the workflow manager
+    this.state.workflowManager = {
+      workflow: undefined,
+      isInitialized: false,
+      init: async (config) => {
+        if (this.state.workflowManager.isInitialized) {
+          return; // Already initialized
+        }
+        this.state.workflowManager.workflow = new AdditionalInfoWorkflow();
+        await this.state.workflowManager.workflow.init(config);
+        this.state.workflowManager.isInitialized = true;
+      },
+      getWorkflow: () => {
+        if (!this.state.workflowManager.workflow) {
+          throw new Error("Workflow not initialized");
+        }
+        return this.state.workflowManager.workflow;
+      },
+      dispose: () => {
+        this.state.workflowManager.workflow = undefined;
+        this.state.workflowManager.isInitialized = false;
+      },
     };
   }
 

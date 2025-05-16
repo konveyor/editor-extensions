@@ -117,6 +117,10 @@ const ResolutionPage: React.FC = () => {
                 timestamp={msg.timestamp}
                 key={msg.value.message as string}
                 content={msg.value.message as string}
+                quickResponses={msg.quickResponses?.map(response => ({
+                  ...response,
+                  messageToken: msg.messageToken
+                }))}
               />
             ))}
 
