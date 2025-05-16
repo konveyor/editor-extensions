@@ -3,6 +3,8 @@ import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
+// TODO (pgaikwad) - update this import
+import { SimpleInMemoryCache } from "../../agentic/src";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { KonveyorFileModel, registerDiffView } from "./diffView";
@@ -77,6 +79,7 @@ class VsCodeExtension {
       memFs: new MemFS(),
       fileModel: new KonveyorFileModel(),
       issueModel: new IssuesModel(),
+      kaiFsCache: new SimpleInMemoryCache(),
       get data() {
         return getData();
       },

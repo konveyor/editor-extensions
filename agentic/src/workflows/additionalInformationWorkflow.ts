@@ -50,7 +50,7 @@ export class AdditionalInfoWorkflow
   }
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
-    const fsTools = new FileSystemTools(options.workspaceDir);
+    const fsTools = new FileSystemTools(options.workspaceDir, options.fsCache);
     const { supportsTools, connected, supportsToolsInStreaming } = await modelHealthCheck(
       options.model,
     );
@@ -64,6 +64,7 @@ export class AdditionalInfoWorkflow
         toolsSupportedInStreaming: supportsToolsInStreaming,
       },
       fsTools.all(),
+      options.fsCache,
     );
 
     // relay events from nodes back to callers
