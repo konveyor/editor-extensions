@@ -1,3 +1,4 @@
+//TODO (ibolton) - move to shared
 import { type RunnableConfig } from "@langchain/core/runnables";
 import { type EnhancedIncident } from "@editor-extensions/shared";
 import { type AIMessageChunk, type AIMessage } from "@langchain/core/messages";

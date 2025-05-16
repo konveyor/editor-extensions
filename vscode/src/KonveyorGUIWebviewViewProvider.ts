@@ -37,6 +37,9 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     private readonly _extensionState: ExtensionState,
     private readonly _viewType: WebviewType,
   ) {}
+  isProd() {
+    return process.env.NODE_ENV === "production";
+  }
 
   isAnalysisView() {
     return this._viewType === "sidebar";
@@ -120,11 +123,10 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private initializeWebview(webview: Webview, data: Immutable<ExtensionData>): void {
-    const isProd = process.env.NODE_ENV === "production";
     const extensionUri = this._extensionState.extensionContext.extensionUri;
 
     let assetsUri: Uri;
-    if (isProd) {
+    if (this.isProd()) {
       assetsUri = Uri.joinPath(extensionUri, "out", "webview");
     } else {
       assetsUri = Uri.parse(DEV_SERVER_ROOT);
@@ -132,7 +134,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
     webview.options = {
       enableScripts: true,
-      localResourceRoots: isProd ? [assetsUri] : [extensionUri],
+      localResourceRoots: this.isProd() ? [assetsUri] : [extensionUri],
     };
 
     webview.html = this.getHtmlForWebview(webview, data);
@@ -182,21 +184,23 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     const prodPolicy = [
       `base-uri 'self';`,
       `default-src 'none';`,
-      `script-src ${webview.cspSource} 'nonce-${nonce}';`,
-      `style-src ${webview.cspSource};`,
+      `script-src ${webview.cspSource} 'nonce-${nonce}' 'unsafe-eval';`,
+      `style-src ${webview.cspSource} 'unsafe-inline';`,
       `font-src ${webview.cspSource};`,
       `connect-src ${webview.cspSource};`,
       `img-src data: ${webview.cspSource};`,
+      `worker-src ${webview.cspSource} blob:;`,
     ];
 
     const devPolicy = [
       `base-uri 'self';`,
       `default-src 'none';`,
-      `script-src ${webview.cspSource} 'nonce-${nonce}' http://${localServerUrl};`,
+      `script-src ${webview.cspSource} 'nonce-${nonce}' 'unsafe-eval' http://${localServerUrl};`,
       `style-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
       `font-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
       `connect-src ${webview.cspSource} ws://${localServerUrl} http://${localServerUrl};`,
       `img-src data: ${webview.cspSource} http://${localServerUrl};`,
+      `worker-src ${webview.cspSource} blob: http://${localServerUrl};`,
     ];
 
     return (isProd ? prodPolicy : devPolicy).filter(Boolean).join(" ");

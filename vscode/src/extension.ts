@@ -7,7 +7,7 @@ import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { KonveyorFileModel, registerDiffView } from "./diffView";
-import { MemFS } from "./data";
+import { MemFS } from "./data/fileSystemProvider";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
@@ -17,6 +17,7 @@ import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utiliti
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { KaiInteractiveWorkflow } from "@editor-extensions/agentic";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -57,6 +58,7 @@ class VsCodeExtension {
         },
         activeProfileId: "",
         profiles: [],
+        isProcessingQuickResponse: false,
       },
       () => {},
     );
@@ -78,6 +80,8 @@ class VsCodeExtension {
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
+      // We still create the memFs for backward compatibility, but our virtualStorage implementation
+      // no longer depends on it
       memFs: new MemFS(),
       fileModel: new KonveyorFileModel(),
       issueModel: new IssuesModel(),
@@ -87,6 +91,28 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      workflowManager: {
+        workflow: undefined,
+        isInitialized: false,
+        init: async (config) => {
+          if (this.state.workflowManager.isInitialized) {
+            return;
+          }
+          this.state.workflowManager.workflow = new KaiInteractiveWorkflow();
+          await this.state.workflowManager.workflow.init(config);
+          this.state.workflowManager.isInitialized = true;
+        },
+        getWorkflow: () => {
+          if (!this.state.workflowManager.workflow) {
+            throw new Error("Workflow not initialized");
+          }
+          return this.state.workflowManager.workflow;
+        },
+        dispose: () => {
+          this.state.workflowManager.workflow = undefined;
+          this.state.workflowManager.isInitialized = false;
+        },
+      },
     };
   }
 

@@ -11,13 +11,59 @@ body {
 }
 
 :root {
+  /* Base editor colors */
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+
+  /* Diff highlights */
+  --vscode-diffEditor-insertedTextBackground: #9ccc2c33;
+  --vscode-diffEditor-removedTextBackground: #f4877133;
+  --vscode-diffEditor-insertedLineBackground: #14421244;
+  --vscode-diffEditor-removedLineBackground: #6f131344;
+  --vscode-diffEditor-border: #3794ff;
+  --vscode-diffEditor-diagonalFill: #6fc3ff22;
+
+  /* Gutter markers */
+  --vscode-editorGutter-addedBackground: #587c0c;
+  --vscode-editorGutter-deletedBackground: #94151b;
+
+  /* Line numbers */
+  --vscode-editorLineNumber-foreground: #858585;
+  --vscode-editorLineNumber-activeForeground: #c6c6c6;
+
+  /* Selection & cursor */
+  --vscode-editor-selectionBackground: #264f78;
+  --vscode-editor-inactiveSelectionBackground: #3a3d4166;
+  --vscode-editorCursor-foreground: #aeafad;
+
+  /* Whitespace & indentation */
+  --vscode-editorWhitespace-foreground: #e3e4e229;
+  --vscode-editorIndentGuide-background: #404040;
+  --vscode-editorIndentGuide-activeBackground: #707070;
+
+  /* Highlights */
+  --vscode-editor-lineHighlightBackground: #ffffff0a;
+  --vscode-editor-lineHighlightBorder: #ffffff0f;
+  --vscode-editor-wordHighlightBackground: #575757b8;
+  --vscode-editor-wordHighlightStrongBackground: #004972b8;
+  --vscode-editor-findMatchBackground: #515c6a;
+  --vscode-editor-findMatchHighlightBackground: #ea5c004d;
+  --vscode-editor-hoverHighlightBackground: #575757b8;
+  --vscode-editor-rangeHighlightBackground: #ffffff0b;
+  --vscode-editor-symbolHighlightBackground: #ea5c0055;
+
+  /* Links and status */
+  --vscode-editorLink-activeForeground: #4e94ce;
+  --vscode-errorForeground: #f48771;
+
+  /* PatternFly overrides */
   --pf-v6-c-card--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-t--global--background--color--primary--default: var(--vscode-editor-background) !important;
   --pf-v6-c-content--Color: var(--vscode-editor-foreground) !important;
   --pf-v6-c-page--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-v6-c-page__main-container--BackgroundColor: var(--vscode-editor-background) !important;
-  --pf-t--global--text--color--link--100: #3794ff; /* VS Code textLink.foreground */
-  --pf-t--global--color--status--danger--100: #f48771; /* VS Code errorForeground */
+  --pf-t--global--text--color--link--100: #3794ff;
+  --pf-t--global--color--status--danger--100: #f48771;
 }
 
 #root {

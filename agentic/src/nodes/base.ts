@@ -56,12 +56,6 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     ).join("")}`;
   }
 
-  /**
-   * Calls <model>.stream and emits onMessage event with chunks retrieved.
-   * Falls back to invoke() when native tools are supported but not in streaming.
-   * If native tools are not supported, parses response on-the-fly and assembles
-   * into tool_call_chunks making it transparent to callers.
-   */
   protected async streamOrInvoke(
     input: BaseLanguageModelInput,
     streamOptions?: {

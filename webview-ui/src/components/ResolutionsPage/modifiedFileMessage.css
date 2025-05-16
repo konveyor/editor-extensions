@@ -1,0 +1,95 @@
+.modified-file-message {
+  margin: 0.5rem 0 0.5rem 2.5rem; /* Align with chat messages */
+  width: 90%;
+}
+
+.modified-file-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: var(--pf-global--BackgroundColor--100);
+}
+
+.vscode-dark .modified-file-card {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  border: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.modified-file-timestamp {
+  font-size: 0.8rem;
+  color: var(--pf-global--Color--200);
+}
+
+.modified-file-diff {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 4px;
+  background-color: var(--pf-global--BackgroundColor--200);
+  margin-bottom: 1rem;
+}
+
+.vscode-dark .modified-file-diff {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+}
+
+.modified-file-diff-content {
+  padding: 0.5rem;
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Markdown diff styling */
+.markdown-diff {
+  padding: 0.5rem;
+  overflow: auto;
+}
+
+.markdown-diff pre {
+  margin: 0;
+  padding: 0;
+}
+
+.markdown-diff code {
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Syntax highlighting for diff */
+.markdown-diff .hljs-addition {
+  color: #22863a;
+  background-color: rgba(0, 128, 0, 0.1);
+}
+
+.markdown-diff .hljs-deletion {
+  color: #cb2431;
+  background-color: rgba(255, 0, 0, 0.1);
+}
+
+.markdown-diff .hljs-meta {
+  color: #6a737d;
+}
+
+.modified-file-actions {
+  justify-content: flex-end;
+}
+
+/* Diff syntax highlighting */
+.modified-file-diff-content .addition {
+  background-color: rgba(0, 128, 0, 0.1);
+  color: #22863a;
+}
+
+.modified-file-diff-content .deletion {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #cb2431;
+}
+
+.modified-file-diff-content .line-number {
+  color: var(--pf-global--Color--200);
+  margin-right: 1rem;
+  user-select: none;
+}

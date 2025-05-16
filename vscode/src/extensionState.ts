@@ -4,7 +4,7 @@ import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
 import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
-import { KaiFsCache } from "@editor-extensions/agentic";
+import { KaiFsCache, KaiInteractiveWorkflow } from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
@@ -14,7 +14,7 @@ export interface ExtensionState {
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
   extensionContext: vscode.ExtensionContext;
   diagnosticCollection: vscode.DiagnosticCollection;
-  memFs: MemFS;
+  memFs?: MemFS; // Make memFs optional as we're moving to direct VSCode filesystem API
   fileModel: KonveyorFileModel;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
@@ -23,4 +23,11 @@ export interface ExtensionState {
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
   taskManager: DiagnosticTaskManager;
+  workflowManager: {
+    workflow: KaiInteractiveWorkflow | undefined;
+    isInitialized: boolean;
+    init: (config: { model: any; workspaceDir: string }) => Promise<void>;
+    getWorkflow: () => KaiInteractiveWorkflow;
+    dispose: () => void;
+  };
 }
