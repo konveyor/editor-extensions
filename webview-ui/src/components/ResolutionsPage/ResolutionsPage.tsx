@@ -54,17 +54,6 @@ const ResolutionPage: React.FC = () => {
     scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.chatMessages]);
 
-  const handleQuickResponse = (responseId: string) => {
-    // Send the response back to the extension
-    window.vscode.postMessage({
-      type: 'QUICK_RESPONSE',
-      payload: {
-        responseId,
-        messageToken: state.chatMessages[state.chatMessages.length - 1].messageToken
-      }
-    });
-  };
-
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
       kind: ChatMessageType.String,
@@ -130,9 +119,8 @@ const ResolutionPage: React.FC = () => {
                 content={msg.value.message as string}
                 quickResponses={msg.quickResponses?.map(response => ({
                   ...response,
-                  onClick: () => handleQuickResponse(response.id)
+                  messageToken: msg.messageToken
                 }))}
-                isCompact={msg.isCompact}
               />
             ))}
 

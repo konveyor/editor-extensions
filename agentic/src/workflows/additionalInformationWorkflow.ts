@@ -118,14 +118,19 @@ export class AdditionalInfoWorkflow
   }
 
   async resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void> {
+    console.log("resolveUserInteraction called with:", response);
     const promise = this.userInteractionPromises.get(response.id);
+    console.log("Found promise:", promise ? "yes" : "no");
     if (!promise) {
+      console.log("No promise found for id:", response.id);
       return;
     }
     const { data } = response;
     if (!data.response || (!data.response.choice && data.response.yesNo === undefined)) {
+      console.log("Invalid response data:", data);
       promise.reject(Error(`Invalid response from user`));
     }
+    console.log("Resolving promise with response");
     promise.resolve(response);
   }
 
@@ -133,12 +138,14 @@ export class AdditionalInfoWorkflow
     let nextState = "END";
     if (state.additionalInformation !== "" && !state.additionalInformation.includes("NO-CHANGE")) {
       const id = `res-${Date.now()}`;
+      console.log("Creating user interaction promise with id:", id);
       const userInteractionPromise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
         this.userInteractionPromises.set(id, {
           resolve,
           reject,
         });
       });
+      console.log("Emitting workflow message with id:", id);
       this.emitWorkflowMessage({
         id,
         type: KaiWorkflowMessageType.UserInteraction,
@@ -151,7 +158,9 @@ export class AdditionalInfoWorkflow
         },
       });
       try {
+        console.log("Waiting for user response...");
         const userResponse = await userInteractionPromise;
+        console.log("Got user response:", userResponse);
         if (userResponse.data.response?.yesNo) {
           nextState = "address_additional_information";
         }

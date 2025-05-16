@@ -8,6 +8,7 @@ import botAv from "./bot_avatar.svg?inline";
 interface QuickResponse {
   id: string;
   content: string;
+  messageToken: string;
   onClick?: () => void;
   isDisabled?: boolean;
 }
@@ -40,9 +41,14 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
     });
   };
 
-  const handleQuickResponse = (responseId: string) => {
-    // Implementation of handleQuickResponse function
-    console.log("handleQuickResponse", responseId);
+  const handleQuickResponse = (responseId: string, messageToken: string) => {
+    window.vscode.postMessage({
+      type: "QUICK_RESPONSE",
+      payload: {
+        responseId,
+        messageToken,
+      },
+    });
   };
 
   return (
@@ -53,10 +59,13 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       isLoading={isLoading}
       avatar={botAv}
       content={content}
-      quickResponses={quickResponses?.map(response => ({
+      quickResponses={quickResponses?.map((response) => ({
         ...response,
-        onClick: () => handleQuickResponse(response.id),
-        isDisabled: isProcessing
+        onClick: () => {
+          console.log("handleQuickResponse", response.id, response.messageToken);  
+          handleQuickResponse(response.id, response.messageToken);
+        },
+        isDisabled: isProcessing,
       }))}
       // isCompact={isCompact}
       extraContent={

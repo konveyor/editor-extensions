@@ -78,7 +78,7 @@ const actions: {
       state.mutateData((draft) => {
         draft.chatMessages.push({
           kind: ChatMessageType.String,
-          messageToken: `m${Date.now()}`,
+          messageToken: msg.messageToken,
           timestamp: new Date().toISOString(),
           value: {
             message: responseId === "yes" ? "Yes" : responseId === "no" ? "No" : responseId,
