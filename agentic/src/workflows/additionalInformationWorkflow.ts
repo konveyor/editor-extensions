@@ -36,14 +36,17 @@ export class AdditionalInfoWorkflow
   extends KaiWorkflowEventEmitter
   implements KaiWorkflow<AdditionalInfoWorkflowInput>
 {
-  // TODO (pgaikwad) - ts expert needed to properly typehint this guy
   private workflow: CompiledStateGraph<any, any, any, any, any, any> | undefined;
   private userInteractionPromises: Map<string, PendingUserInteraction>;
+  private pendingIssues: string[] = [];
+  private isProcessingIssues: boolean = false;
 
   constructor() {
     super();
     this.workflow = undefined;
     this.userInteractionPromises = new Map<string, PendingUserInteraction>();
+    this.pendingIssues = [];
+    this.isProcessingIssues = false;
 
     this.runToolsEdge = this.runToolsEdge.bind(this);
     this.processUserInputEdge = this.processUserInputEdge.bind(this);
@@ -118,49 +121,83 @@ export class AdditionalInfoWorkflow
   }
 
   async resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void> {
+    console.log("resolveUserInteraction called with:", response);
     const promise = this.userInteractionPromises.get(response.id);
+    console.log("Found promise:", promise ? "yes" : "no");
     if (!promise) {
+      console.log("No promise found for id:", response.id);
       return;
     }
     const { data } = response;
     if (!data.response || (!data.response.choice && data.response.yesNo === undefined)) {
+      console.log("Invalid response data:", data);
       promise.reject(Error(`Invalid response from user`));
     }
+    console.log("Resolving promise with response");
     promise.resolve(response);
   }
 
   private async processUserInputEdge(state: typeof AdditionalInfoSummarizeOutputState.State) {
     let nextState = "END";
+
     if (state.additionalInformation !== "" && !state.additionalInformation.includes("NO-CHANGE")) {
-      const id = `res-${Date.now()}`;
-      const userInteractionPromise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
-        this.userInteractionPromises.set(id, {
-          resolve,
-          reject,
-        });
-      });
-      this.emitWorkflowMessage({
-        id,
-        type: KaiWorkflowMessageType.UserInteraction,
-        data: {
-          type: "yesNo",
-          systemMessage: {
-            yesNo:
-              "We found more issues that we think we can fix. Do you want me to continue fixing those?",
-          },
-        },
-      });
-      try {
-        const userResponse = await userInteractionPromise;
-        if (userResponse.data.response?.yesNo) {
-          nextState = "address_additional_information";
+      // Add this issue to our pending issues
+      this.pendingIssues.push(state.additionalInformation);
+
+      // If we're not already processing issues, start processing them
+      if (!this.isProcessingIssues) {
+        this.isProcessingIssues = true;
+
+        try {
+          const id = `res-${Date.now()}`;
+          console.log("Creating user interaction promise with id:", id);
+
+          const userInteractionPromise = new Promise<KaiUserInteractionMessage>(
+            (resolve, reject) => {
+              this.userInteractionPromises.set(id, {
+                resolve,
+                reject,
+              });
+            },
+          );
+
+          // Emit a single message for all pending issues
+          console.log("Emitting workflow message with id:", id);
+          this.emitWorkflowMessage({
+            id,
+            type: KaiWorkflowMessageType.UserInteraction,
+            data: {
+              type: "yesNo",
+              systemMessage: {
+                yesNo:
+                  this.pendingIssues.length > 1
+                    ? `We found ${this.pendingIssues.length} issues that we think we can fix. Would you like me to address them?`
+                    : "We found an issue that we think we can fix. Would you like me to address it?",
+              },
+            },
+          });
+
+          console.log("Waiting for user response...");
+          const userResponse = await userInteractionPromise;
+          console.log("Got user response:", userResponse);
+
+          if (userResponse.data.response?.yesNo) {
+            nextState = "address_additional_information";
+          }
+
+          // Clear pending issues after processing
+          this.pendingIssues = [];
+        } catch (e) {
+          console.log(`Failed to wait for user response - ${e}`);
+        } finally {
+          this.isProcessingIssues = false;
         }
-      } catch (e) {
-        console.log(`Failed to wait for user response - ${e}`);
-      } finally {
-        this.userInteractionPromises.delete(id);
+      } else {
+        // If we're already processing issues, just wait for the current batch to complete
+        nextState = "address_additional_information";
       }
     }
+
     return nextState;
   }
 

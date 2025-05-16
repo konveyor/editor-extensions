@@ -18,20 +18,10 @@ import {
   loadStaticResults,
 } from "./data";
 import {
-  EnhancedIncident,
-  RuleSet,
-  Scope,
-  Solution,
-  SolutionEffortLevel,
-  ChatMessageType,
-  GetSolutionResult,
-} from "@editor-extensions/shared";
-import {
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
-  AdditionalInfoWorkflow,
-  type KaiWorkflow,
   type AdditionalInfoWorkflowInput,
+  KaiUserIteraction,
 } from "@editor-extensions/agentic";
 import {
   applyAll,
@@ -52,6 +42,17 @@ import {
   updateGetSolutionMaxPriority,
   getConfigAgentMode,
 } from "./utilities/configuration";
+import {
+  EnhancedIncident,
+  RuleSet,
+  Scope,
+  Solution,
+  SolutionEffortLevel,
+  ChatMessageType,
+  GetSolutionResult,
+} from "@editor-extensions/shared";
+import type { ToolMessageValue } from "@editor-extensions/shared";
+
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -126,6 +127,15 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
       await commands.executeCommand("konveyor.showResolutionPanel");
+
+      let lastMessageId: string = "0";
+      const agentModifiedFiles: Map<
+        Uri,
+        {
+          content: string;
+          isNew: boolean;
+        }
+      > = new Map<Uri, { content: string; isNew: boolean }>();
 
       // Group incidents by URI
       const incidentsByUri = incidents.reduce(
@@ -240,13 +250,238 @@ const commandsMap: (state: ExtensionState) => {
         }
 
         // start initing the workflow in the background
-        let additionalInfoWorkflow: KaiWorkflow | undefined;
-        let agentInit: Promise<void> | undefined;
+        // let additionalInfoWorkflow: KaiWorkflow | undefined;
         if (getConfigAgentMode()) {
-          additionalInfoWorkflow = new AdditionalInfoWorkflow();
-          agentInit = additionalInfoWorkflow.init({
+          await state.workflowManager.init({
             model: model,
             workspaceDir: state.data.workspaceRoot,
+          });
+
+          // Get the workflow instance
+          const workflow = state.workflowManager.getWorkflow();
+
+          // Track processed message tokens to prevent duplicates
+          const processedTokens = new Set<string>();
+
+          // Set up the event listener
+          workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+            console.log("Commands received message:", msg);
+            switch (msg.type) {
+              case KaiWorkflowMessageType.ToolCall: {
+                // Skip if we've already processed this message
+                if (processedTokens.has(msg.id)) {
+                  return;
+                }
+                processedTokens.add(msg.id);
+
+                // Add or update tool call notification in chat
+                state.mutateData((draft) => {
+                  const toolName = msg.data.name || "unnamed tool";
+                  const toolStatus = msg.data.status;
+                  // Use a dedicated kind and value for tool messages
+                  const existingToolIndex = draft.chatMessages.findIndex(
+                    (m) =>
+                      m.kind === ChatMessageType.Tool &&
+                      (m.value as ToolMessageValue).toolName === toolName &&
+                      (m.value as ToolMessageValue).toolStatus === toolStatus,
+                  );
+
+                  if (existingToolIndex === -1) {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.Tool,
+                      messageToken: msg.id,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        toolName,
+                        toolStatus,
+                      },
+                    });
+                  }
+                });
+                break;
+              }
+              case KaiWorkflowMessageType.UserInteraction: {
+                const interaction = msg.data as KaiUserIteraction;
+                switch (interaction.type) {
+                  case "yesNo": {
+                    try {
+                      // Skip if we've already processed this message
+                      if (processedTokens.has(msg.id)) {
+                        return;
+                      }
+                      processedTokens.add(msg.id);
+
+                      // Get the message from the interaction
+                      const message =
+                        interaction.systemMessage.yesNo || "Would you like to proceed?";
+
+                      // Add the question to chat with quick responses
+                      state.mutateData((draft) => {
+                        // Check if we already have a pending interaction message
+                        const hasPendingInteraction = draft.chatMessages.some(
+                          (m) =>
+                            m.kind === ChatMessageType.String &&
+                            m.quickResponses &&
+                            m.quickResponses.length > 0,
+                        );
+
+                        if (!hasPendingInteraction) {
+                          draft.chatMessages.push({
+                            kind: ChatMessageType.String,
+                            messageToken: msg.id,
+                            timestamp: new Date().toISOString(),
+                            value: {
+                              message: message,
+                            },
+                            quickResponses: [
+                              { id: "yes", content: "Yes" },
+                              { id: "no", content: "No" },
+                            ],
+                          });
+                        }
+                      });
+                      // Response will be handled by QUICK_RESPONSE handler
+                      break;
+                    } catch (error) {
+                      console.error("Error handling user interaction:", error);
+                      msg.data.response = { yesNo: false };
+                      await workflow.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                  case "choice": {
+                    try {
+                      const choices = interaction.systemMessage.choice || [];
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message: "Please select an option:",
+                          },
+                          quickResponses: choices.map((choice, index) => ({
+                            id: `choice-${index}`,
+                            content: choice,
+                          })),
+                        });
+                      });
+                      // Response will be handled by QUICK_RESPONSE handler
+                      break;
+                    } catch (error) {
+                      console.error("Error handling choice interaction:", error);
+                      msg.data.response = { choice: -1 };
+                      await workflow.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                }
+                break;
+              }
+              case KaiWorkflowMessageType.LLMResponseChunk: {
+                const chunk = msg.data;
+                const content =
+                  typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
+
+                if (msg.id !== lastMessageId) {
+                  state.mutateData((draft) => {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.String,
+                      messageToken: msg.id,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        message: content,
+                      },
+                    });
+                  });
+                  lastMessageId = msg.id;
+                } else {
+                  state.mutateData((draft) => {
+                    draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
+                  });
+                }
+                break;
+              }
+              case KaiWorkflowMessageType.ModifiedFile: {
+                const fPath = msg.data.path;
+                const content = msg.data.content;
+                const uri = Uri.file(fPath);
+                let isNew = false;
+                try {
+                  try {
+                    await workspace.fs.stat(uri);
+                  } catch (err) {
+                    if (
+                      (err as any).code === "FileNotFound" ||
+                      (err as any).name === "EntryNotFound"
+                    ) {
+                      isNew = true;
+                    } else {
+                      throw err;
+                    }
+                  }
+
+                  // Store the file in the agentModifiedFiles Map
+                  if (!agentModifiedFiles.has(uri)) {
+                    agentModifiedFiles.set(uri, {
+                      content,
+                      isNew,
+                    });
+
+                    // Create a diff for the modified file
+                    let diff: string;
+                    if (isNew) {
+                      // For new files, create a diff showing the entire file as added
+                      diff = createTwoFilesPatch("", fPath, "", content);
+                    } else {
+                      try {
+                        // For existing files, create a diff between the original and modified content
+                        const originalContent = await workspace.fs.readFile(uri);
+                        diff = createPatch(
+                          fPath,
+                          new TextDecoder().decode(originalContent),
+                          content,
+                        );
+                      } catch (diffErr) {
+                        console.error(`Error creating diff for ${fPath}:`, diffErr);
+                        diff = `// Error creating diff for ${fPath}`;
+                      }
+                    }
+
+                    // Skip if we've already processed this message
+                    if (processedTokens.has(msg.id)) {
+                      return;
+                    }
+                    processedTokens.add(msg.id);
+
+                    // Add a chat message of type ModifiedFile with quick responses
+                    state.mutateData((draft) => {
+                      draft.chatMessages.push({
+                        kind: ChatMessageType.ModifiedFile,
+                        messageToken: msg.id,
+                        timestamp: new Date().toISOString(),
+                        value: {
+                          path: fPath,
+                          content: content,
+                          isNew: isNew,
+                          diff: diff,
+                        },
+                        quickResponses: [
+                          { id: "apply", content: "Apply" },
+                          { id: "reject", content: "Reject" },
+                        ],
+                      });
+                    });
+
+                    // Pause the workflow until the user responds
+                    // The response will be handled by FILE_RESPONSE handler
+                  }
+                } catch (err) {
+                  console.log(`Failed to write file by the agent - ${err}`);
+                }
+                break;
+              }
+            }
           });
         }
 
@@ -269,22 +504,14 @@ You are an experienced java developer, who specializes in migrating code from ${
           const basename = path.basename(parsedURI.fsPath);
 
           state.mutateData((draft) => {
-            draft.chatMessages.push(
-              {
-                messageToken: `m${Date.now()}`,
-                kind: ChatMessageType.String,
-                value: {
-                  message: `Analyzing file: ${relativePath} with incidents: ${(fileIncidents as EnhancedIncident[]).map((incident) => incident.violationId).join(", ")}\n\n`,
-                },
-                timestamp: new Date().toISOString(),
+            draft.chatMessages.push({
+              messageToken: `m${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: {
+                message: `Analyzing file: ${relativePath} with incidents: ${(fileIncidents as EnhancedIncident[]).map((incident) => incident.violationId).join(", ")}\n\n`,
               },
-              {
-                messageToken: `m${Date.now()}`,
-                kind: ChatMessageType.String,
-                value: { message: "" },
-                timestamp: new Date().toISOString(),
-              },
-            );
+              timestamp: new Date().toISOString(),
+            });
           });
 
           // Get the entire file content
@@ -353,9 +580,15 @@ If you have any additional details or steps that need to be performed, put it he
           }
           allResponses.push(fullResponse);
           allRelativePaths.push(relativePath);
+
+          // Add logging to help diagnose the issue
+          console.log(`Processing response for ${relativePath}:`);
+          console.log(`Response length: ${fullResponse.length}`);
+
           // Match any language identifier after the backticks
           const codeMatch = fullResponse.match(/```\w*\n([\s\S]*?)\n```/);
           if (codeMatch) {
+            console.log(`Found code block in response for ${relativePath}`);
             const modifiedContent = codeMatch[1];
             const originalContent = fileContent;
             // Use relative path for the diff to match the expected format
@@ -369,99 +602,15 @@ If you have any additional details or steps that need to be performed, put it he
               diff,
             });
             modifiedFiles.add(parsedURI.fsPath);
+          } else {
+            console.log(`No code block found in response for ${relativePath}`);
+            console.log(`Response content: ${fullResponse.substring(0, 500)}...`); // Log first 500 chars
           }
         }
 
-        if (additionalInfoWorkflow && agentInit) {
-          let lastMessageId: string = "0";
-          const agentModifiedFiles: Map<
-            Uri,
-            {
-              content: string;
-              isNew: boolean;
-            }
-          > = new Map<Uri, { content: string; isNew: boolean }>();
-          // listen on agents events
-          additionalInfoWorkflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-            switch (msg.type) {
-              case KaiWorkflowMessageType.UserInteraction: {
-                switch (msg.data.type) {
-                  case "yesNo":
-                    state.mutateData((draft) => {
-                      draft.chatMessages.push({
-                        kind: ChatMessageType.String,
-                        messageToken: msg.id,
-                        timestamp: new Date().toISOString(),
-                        value: {
-                          message: `We found more issues we think we can fix. Proceeding to fix...`,
-                        },
-                      });
-                    });
-                    msg.data.response = {
-                      yesNo: true,
-                    };
-                    additionalInfoWorkflow.resolveUserInteraction(msg);
-                }
-                break;
-              }
-              case KaiWorkflowMessageType.LLMResponseChunk: {
-                const chunk = msg.data;
-                const content =
-                  typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
-                if (msg.id !== lastMessageId) {
-                  state.mutateData((draft) => {
-                    draft.chatMessages.push({
-                      kind: ChatMessageType.String,
-                      messageToken: msg.id,
-                      timestamp: new Date().toISOString(),
-                      value: {
-                        message: content,
-                      },
-                    });
-                  });
-                  lastMessageId = msg.id;
-                } else {
-                  state.mutateData((draft) => {
-                    draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
-                  });
-                }
-                break;
-              }
-              case KaiWorkflowMessageType.ModifiedFile: {
-                const fPath = msg.data.path;
-                const content = msg.data.content;
-                const uri = Uri.file(fPath);
-                let isNew = false;
-                try {
-                  try {
-                    await workspace.fs.stat(uri);
-                  } catch (err) {
-                    if (
-                      (err as any).code === "FileNotFound" ||
-                      (err as any).name === "EntryNotFound"
-                    ) {
-                      isNew = true;
-                    } else {
-                      throw err;
-                    }
-                  }
-                  if (!agentModifiedFiles.has(uri)) {
-                    agentModifiedFiles.set(uri, {
-                      content,
-                      isNew,
-                    });
-                  }
-                } catch (err) {
-                  console.log(`Failed to write file by the agent - ${err}`);
-                }
-                break;
-              }
-            }
-          });
-
+        if (state.workflowManager.workflow) {
           try {
-            await agentInit;
-            await additionalInfoWorkflow.run({
+            await state.workflowManager.workflow?.run({
               migrationHint: profileName,
               previousResponses: {
                 responses: allResponses,
@@ -505,7 +654,11 @@ If you have any additional details or steps that need to be performed, put it he
         }
 
         if (allDiffs.length === 0) {
-          throw new Error("No diffs found in the response");
+          console.error("No diffs found in any of the responses");
+          console.log("All responses:", allResponses);
+          throw new Error(
+            "No diffs found in the response. Please ensure the response contains code blocks marked with triple backticks (```).",
+          );
         }
 
         // Create a solution response with properly structured changes
@@ -521,12 +674,8 @@ If you have any additional details or steps that need to be performed, put it he
           draft.isFetchingSolution = false;
           draft.solutionData = solutionResponse;
 
-          draft.chatMessages.push({
-            messageToken: `m${Date.now()}`,
-            kind: ChatMessageType.String,
-            value: { message: "Solution generated successfully!" },
-            timestamp: new Date().toISOString(),
-          });
+          // No need for "Solution generated successfully!" message
+          // The UI already shows the file changes when a solution is generated
         });
 
         // Load the solution
