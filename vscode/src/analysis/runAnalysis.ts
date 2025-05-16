@@ -10,13 +10,29 @@ export const registerAnalysisTrigger = (
   const batchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
 
   vscode.workspace.onDidChangeTextDocument(
-    (e: vscode.TextDocumentChangeEvent) => {
+    async (e: vscode.TextDocumentChangeEvent) => {
+      const cacheEntry = await state.kaiFsCache.get(e.document.uri.fsPath);
+      // only store cache if there was already an entry, no need to
+      // cache unnecessary files
+      if (cacheEntry) {
+        await state.kaiFsCache.set(e.document.uri.fsPath, e.document.getText());
+      }
       if (e.contentChanges.length > 0) {
         batchedAnalysisTrigger.notifyFileChanges({
           path: e.document.uri,
           content: e.document.getText(),
           saved: !e.document.isDirty,
         });
+      }
+    },
+    undefined,
+    disposables,
+  );
+
+  vscode.workspace.onDidRenameFiles(
+    async (e: vscode.FileRenameEvent) => {
+      for (const { oldUri } of e.files) {
+        await state.kaiFsCache.invalidate(oldUri.fsPath);
       }
     },
     undefined,
@@ -30,7 +46,8 @@ export const registerAnalysisTrigger = (
   );
 
   vscode.workspace.onDidSaveTextDocument(
-    (d: vscode.TextDocument) => {
+    async (d: vscode.TextDocument) => {
+      await state.kaiFsCache.invalidate(d.uri.fsPath);
       batchedAnalysisTrigger.notifyFileChanges({
         path: d.uri,
         content: d.getText(),
