@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
-import { AIMessage, type AIMessageChunk } from "@langchain/core/messages";
+import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
 
 import { KaiWorkflowMessageType } from "../src";
 import { FakeChatModelWithToolCalls } from "./base";
@@ -178,5 +178,43 @@ TOOL_CALL
     expect(response?.tool_calls![0].args).toEqual({ pattern: "pom.xml" });
     expect(response?.tool_calls![1].name).toBe("searchFiles");
     expect(response?.tool_calls![1].args).toEqual({ pattern: "application.properties" });
+  });
+
+  it("should stream chunks correctly when there are no tool calls in the message", async () => {
+    const testResponse = `I will first read contents of the \`pom.xml\` file.\
+Then I will add the required dependencies to the file. I will then read contents
+of the \`application.properties\` file. Then I will add the JMS topic to it.
+`;
+
+    const model = new FakeChatModelWithToolCalls(
+      {
+        responses: [
+          new AIMessage({
+            content: testResponse,
+          }),
+        ],
+      },
+      true,
+    );
+
+    const node = new TestNode(
+      {
+        model,
+        toolsSupported: false,
+        toolsSupportedInStreaming: false,
+      },
+      [],
+    );
+
+    const { chunks, response } = await node.invoke(
+      "Fix that issue that I told you about, will ya?",
+    );
+    expect(response?.content).toBe(testResponse);
+    expect(response?.tool_calls?.length).toBe(0);
+    const appendedChunks: AIMessageChunk = chunks.reduce((acc, val) => {
+      acc = acc.concat(val);
+      return acc;
+    }, new AIMessageChunk(``));
+    expect(appendedChunks?.content).toBe(testResponse);
   });
 });
