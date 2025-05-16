@@ -3,7 +3,7 @@ import * as pathlib from "path";
 import { promises as fs } from "fs";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
-import { KaiWorkflowMessageType } from "../types";
+import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 
 function errorToString(err: unknown): string {
@@ -18,14 +18,15 @@ function errorToString(err: unknown): string {
  * This is to make sure we never let a model write outside our tree
  */
 export class FileSystemTools extends KaiWorkflowEventEmitter {
-  // we never write content to disk because we want the user
-  // to review it. All writes go into this cache
-  private writeCache: Map<string, string>;
-
-  constructor(private readonly workspaceDir: string) {
+  constructor(
+    private readonly workspaceDir: string,
+    private readonly fsCache: KaiFsCache,
+  ) {
     super();
     this.workspaceDir = workspaceDir.replace("file://", "");
-    this.writeCache = new Map<string, string>();
+    // we never write content to disk because we want the user
+    // to review it. All writes go into this cache
+    this.fsCache = fsCache;
   }
 
   public all(): DynamicStructuredTool[] {
@@ -81,8 +82,9 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       func: async ({ path }: { path: string }) => {
         try {
           // check if we recently wrote to this file
-          if (this.writeCache.has(path)) {
-            return this.writeCache.get(path);
+          const cachedContent = await this.fsCache.get(path);
+          if (cachedContent) {
+            return cachedContent;
           }
           const absPath = pathlib.join(workspaceDir, path);
           const stat = await fs.stat(absPath);
@@ -113,7 +115,7 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           const baseDir = pathlib.dirname(absPath);
           await fs.mkdir(baseDir, { recursive: true });
           // only write to cache and send event
-          this.writeCache.set(path, content);
+          await this.fsCache.set(path, content);
           this.emitWorkflowMessage({
             type: KaiWorkflowMessageType.ModifiedFile,
             id: `${absPath}-toolCall`,

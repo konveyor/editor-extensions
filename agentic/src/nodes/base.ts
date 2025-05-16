@@ -72,6 +72,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
 
       // fallback to invoke when we cannot stream tool calls
       if (
+        enableTools &&
         this.tools.length > 0 &&
         this.modelInfo.toolsSupported &&
         !this.modelInfo.toolsSupportedInStreaming
@@ -403,5 +404,16 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
     } else {
       return { messages: new HumanMessage(nonToolCallResponses.join("\n\n")) };
     }
+  }
+
+  protected aiMessageToString(msg: AIMessage | AIMessageChunk | undefined): string {
+    if (!msg) {
+      return "";
+    }
+    return typeof msg?.content === "string"
+      ? msg.content
+      : msg?.content
+        ? JSON.stringify(msg.content)
+        : "";
   }
 }

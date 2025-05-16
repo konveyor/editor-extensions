@@ -63,6 +63,7 @@ export interface KaiWorkflowEvents {
 export interface KaiWorkflowInitOptions {
   model: BaseChatModel;
   workspaceDir: string;
+  fsCache: KaiFsCache;
 }
 
 export interface KaiWorkflowInput {
@@ -86,4 +87,25 @@ export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkfl
   init(options: KaiWorkflowInitOptions): Promise<void>;
   run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
   resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;
+}
+
+/**
+ * Filesystem cache layer for agents. Agents do not write
+ * to disk, they write to cache. Callers are supposed to
+ * invalidate cache when files change on disk. In 99% cases,
+ * only agents call set() to store changes they make. Others
+ * are discouraged to call set() to keep memory footprint low.
+ * They may call set() to notify in-flight file changes but
+ * only if the uri already exists in the cache making sure
+ * agents always get the most recent picture of disk.
+ */
+export interface KaiFsCache {
+  invalidate(uri: string): Promise<void>;
+  set(uri: string, content: string): Promise<void>;
+  get(uri: string): Promise<string | undefined>;
+  reset(): Promise<void>;
+
+  on(event: "cacheInvalidated", listener: (uri: string) => void): this;
+  on(event: "cacheSet", listener: (uri: string, content: string) => void): this;
+  on(event: string, listener: (...args: any[]) => void): this;
 }
