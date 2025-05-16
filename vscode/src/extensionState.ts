@@ -8,13 +8,14 @@ import { KaiFsCache } from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { AdditionalInfoWorkflow } from "@editor-extensions/agentic";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
   extensionContext: vscode.ExtensionContext;
   diagnosticCollection: vscode.DiagnosticCollection;
-  memFs: MemFS;
+  memFs?: MemFS; // Make memFs optional as we're moving to direct VSCode filesystem API
   fileModel: KonveyorFileModel;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
@@ -23,4 +24,11 @@ export interface ExtensionState {
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
   taskManager: DiagnosticTaskManager;
+  workflowManager: {
+    workflow: AdditionalInfoWorkflow | undefined;
+    isInitialized: boolean;
+    init: (config: { model: any; workspaceDir: string }) => Promise<void>;
+    getWorkflow: () => AdditionalInfoWorkflow;
+    dispose: () => void;
+  };
 }

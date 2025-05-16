@@ -112,6 +112,15 @@ export enum ChatMessageType {
   String = "SimpleChatMessage",
   Markdown = "MarkdownChatMessage",
   JSON = "JsonChatMessage",
+  Tool = "ToolChatMessage",
+  ModifiedFile = "ModifiedFileChatMessage",
+}
+
+export interface QuickResponse {
+  id: string;
+  content: string;
+  onClick?: () => void;
+  isDisabled?: boolean;
 }
 
 export interface ChatMessage {
@@ -121,6 +130,8 @@ export interface ChatMessage {
   messageToken: string;
   timestamp: string;
   extraContent?: React.ReactNode;
+  quickResponses?: QuickResponse[];
+  isCompact?: boolean;
 }
 
 export interface ExtensionData {
@@ -144,6 +155,7 @@ export interface ExtensionData {
   analysisConfig: AnalysisConfig;
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
+  isProcessingQuickResponse: boolean;
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;
@@ -206,3 +218,105 @@ export interface AnalysisProfile {
   labelSelector: string;
   readOnly?: boolean;
 }
+
+//AGENTIC
+
+import { type RunnableConfig } from "@langchain/core/runnables";
+import { type AIMessageChunk, type AIMessage } from "@langchain/core/messages";
+import { type BaseChatModel } from "@langchain/core/language_models/chat_models";
+
+export interface BaseWorkflowMessage<KaiWorkflowMessageType, D> {
+  type: KaiWorkflowMessageType;
+  id: string;
+  data: D;
+}
+
+export enum KaiWorkflowMessageType {
+  LLMResponseChunk,
+  LLMResponse,
+  ModifiedFile,
+  ToolCall,
+  UserInteraction,
+  Error,
+}
+
+export interface KaiModifiedFile {
+  path: string;
+  content: string;
+}
+
+export interface KaiToolCall {
+  id: string;
+  name?: string;
+  args?: string;
+  status: "generating" | "running" | "succeeded" | "failed";
+}
+
+export interface KaiUserIteraction {
+  type: "yesNo" | "choice";
+  systemMessage: {
+    yesNo?: string;
+    choice?: string[];
+  };
+  response?: {
+    yesNo?: boolean;
+    choice?: number;
+  };
+}
+
+export type KaiWorkflowMessage =
+  | BaseWorkflowMessage<KaiWorkflowMessageType.LLMResponseChunk, AIMessageChunk>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.LLMResponse, AIMessage>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.ModifiedFile, KaiModifiedFile>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.UserInteraction, KaiUserIteraction>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.ToolCall, KaiToolCall>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.Error, string>;
+
+export type KaiUserInteractionMessage = BaseWorkflowMessage<
+  KaiWorkflowMessageType.UserInteraction,
+  KaiUserIteraction
+>;
+
+export interface KaiWorkflowEvents {
+  on(event: "workflowMessage", listener: (msg: KaiWorkflowMessage) => void): this;
+  on(event: string, listener: (...args: any[]) => void): this;
+}
+
+export interface KaiWorkflowInitOptions {
+  model: BaseChatModel;
+  workspaceDir: string;
+}
+
+export interface KaiWorkflowInput {
+  //TODO (pgaikwad) - think about this input more
+  incidents?: EnhancedIncident[];
+  runnableConfig?: RunnableConfig;
+}
+
+export interface KaiWorkflowResponse {
+  modified_files: KaiModifiedFile[];
+  errors: Error[];
+}
+
+export interface PendingUserInteraction {
+  resolve(response: KaiUserInteractionMessage | PromiseLike<KaiUserInteractionMessage>): void;
+  reject(reason: any): void;
+}
+
+export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkflowInput>
+  extends KaiWorkflowEvents {
+  init(options: KaiWorkflowInitOptions): Promise<void>;
+  run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
+  resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;
+}
+
+export type ToolMessageValue = { toolName: string; toolStatus: string };
+
+export type ModifiedFileMessageValue = {
+  path: string;
+  content: string;
+  isNew: boolean;
+  diff: string;
+  messageToken?: string;
+  quickResponses?: QuickResponse[];
+};

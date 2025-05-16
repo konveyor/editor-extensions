@@ -29,6 +29,7 @@ const defaultState: ExtensionData = {
   },
   profiles: [],
   activeProfileId: "",
+  isProcessingQuickResponse: false,
 };
 
 const windowState =
