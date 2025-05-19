@@ -1,5 +1,5 @@
 import "./resolutionsPage.css";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { ChatMessage, ChatMessageType, Incident, LocalChange } from "@editor-extensions/shared";
@@ -49,10 +49,43 @@ const ResolutionPage: React.FC = () => {
 
   // We keep a ref to the bottom element to scroll chat
   const scrollToBottomRef = useRef<HTMLDivElement>(null);
+  const lastMessageCountRef = useRef<number>(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (scrollToBottomRef.current) {
+        scrollToBottomRef.current.scrollIntoView({
+          behavior: smooth ? "smooth" : "auto",
+          block: "end"
+        });
+      }
+    }, smooth ? 100 : 0); // Small delay for smooth scroll to prevent jarring
+  }, []);
 
   useEffect(() => {
-    scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [state.chatMessages]);
+    // Only scroll if we have new messages
+    if (chatMessages.length > lastMessageCountRef.current) {
+      // Use smooth scroll for new messages during solution generation
+      // Use instant scroll for initial load or when solution is complete
+      const shouldSmoothScroll = isFetchingSolution;
+      scrollToBottom(shouldSmoothScroll);
+      lastMessageCountRef.current = chatMessages.length;
+    }
+  }, [chatMessages, isFetchingSolution, scrollToBottom]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {

@@ -259,9 +259,9 @@ const commandsMap: (state: ExtensionState) => {
           // Get the workflow instance
           const workflow = state.workflowManager.getWorkflow();
 
-          // Track the last interaction message to prevent duplicates
-          let lastInteractionMessage: string | null = null;
-          let issueCounter = 0;
+          // Track processed message tokens to prevent duplicates
+          const processedTokens = new Set<string>();
+          let pendingIssues = 0;
 
           // Set up the event listener
           workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
@@ -272,33 +272,34 @@ const commandsMap: (state: ExtensionState) => {
                 switch (interaction.type) {
                   case "yesNo": {
                     try {
+                      // Skip if we've already processed this message
+                      if (processedTokens.has(msg.id)) {
+                        return;
+                      }
+                      processedTokens.add(msg.id);
+                      pendingIssues++;
+
                       const message =
                         interaction.systemMessage.yesNo || "Would you like to proceed?";
 
-                      // Only add new message if it's different from the last one
-                      if (message !== lastInteractionMessage) {
-                        issueCounter++;
-                        lastInteractionMessage = message;
-
-                        // Add the question to chat with quick responses
-                        state.mutateData((draft) => {
-                          draft.chatMessages.push({
-                            kind: ChatMessageType.String,
-                            messageToken: msg.id,
-                            timestamp: new Date().toISOString(),
-                            value: {
-                              message:
-                                issueCounter > 1
-                                  ? `We found ${issueCounter} more issues that we think we can fix. Do you want me to continue fixing those?`
-                                  : message,
-                            },
-                            quickResponses: [
-                              { id: "yes", content: "Yes" },
-                              { id: "no", content: "No" },
-                            ],
-                          });
+                      // Add the question to chat with quick responses
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message:
+                              pendingIssues > 1
+                                ? `We found ${pendingIssues} more issues that we think we can fix. Do you want me to continue fixing those?`
+                                : message,
+                          },
+                          quickResponses: [
+                            { id: "yes", content: "Yes" },
+                            { id: "no", content: "No" },
+                          ],
                         });
-                      }
+                      });
                       // Response will be handled by QUICK_RESPONSE handler
                       break;
                     } catch (error) {
