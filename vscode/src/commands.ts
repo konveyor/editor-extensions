@@ -268,7 +268,7 @@ const commandsMap: (state: ExtensionState) => {
             console.log("Commands received message:", msg);
             switch (msg.type) {
               case KaiWorkflowMessageType.UserInteraction: {
-                const interaction = mcrg.data as KaiUserIteraction;
+                const interaction = msg.data as KaiUserIteraction;
                 switch (interaction.type) {
                   case "yesNo": {
                     try {

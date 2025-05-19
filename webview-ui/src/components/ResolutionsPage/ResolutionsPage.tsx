@@ -48,42 +48,10 @@ const ResolutionPage: React.FC = () => {
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
-  // We keep a ref to the bottom element to scroll chat
   const scrollToBottomRef = useRef<HTMLDivElement>(null);
-
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const isUserScrollingRef = useRef<boolean>(false);
-
-  const scrollToBottom = useCallback((smooth = true) => {
-    // Don't scroll if user is actively scrolling
-    if (isUserScrollingRef.current) {
-      return;
-    }
-
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-
-    scrollTimeoutRef.current = setTimeout(() => {
-      if (scrollToBottomRef.current) {
-        scrollToBottomRef.current.scrollIntoView({
-          behavior: smooth ? "smooth" : "auto",
-          block: "end"
-        });
-      }
-    }, 300);
-  }, []);
-
-  const lastMessageCountRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (chatMessages.length > lastMessageCountRef.current) {
-      const shouldSmoothScroll = isFetchingSolution;
-      scrollToBottom(shouldSmoothScroll);
-      lastMessageCountRef.current = chatMessages.length;
-    }
-  }, [chatMessages, isFetchingSolution, scrollToBottom]);
+  const prevMessageCountRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -94,27 +62,44 @@ const ResolutionPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const container = scrollToBottomRef.current?.parentElement;
-      if (!container) return;
-
-      const isAtBottom = 
-        Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 10;
-      
-      isUserScrollingRef.current = !isAtBottom;
-    };
-
     const container = scrollToBottomRef.current?.parentElement;
-    container?.addEventListener('scroll', handleScroll);
-    
+    if (!container) {
+      return;
+    }
+
+    let lastScrollTop = container.scrollTop;
+
+    const handleScroll = debounce(() => {
+      const currentScrollTop = container.scrollTop;
+      const isScrollingUp = currentScrollTop < lastScrollTop;
+      lastScrollTop = currentScrollTop;
+
+      const isAtBottom =
+        Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 50;
+
+      isUserScrollingRef.current = isScrollingUp || !isAtBottom;
+    }, 100);
+
+    container.addEventListener("scroll", handleScroll);
+
     return () => {
-      container?.removeEventListener('scroll', handleScroll);
+      container.removeEventListener("scroll", handleScroll);
+      handleScroll.cancel();
     };
   }, []);
 
   useEffect(() => {
-    scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [state.chatMessages]);
+    if (
+      !scrollToBottomRef.current ||
+      isUserScrollingRef.current ||
+      chatMessages.length <= prevMessageCountRef.current
+    ) {
+      return;
+    }
+
+    scrollToBottomRef.current.scrollIntoView({ behavior: "smooth" });
+    prevMessageCountRef.current = chatMessages.length;
+  }, [chatMessages]);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
@@ -179,9 +164,9 @@ const ResolutionPage: React.FC = () => {
                 timestamp={msg.timestamp}
                 key={msg.value.message as string}
                 content={msg.value.message as string}
-                quickResponses={msg.quickResponses?.map(response => ({
+                quickResponses={msg.quickResponses?.map((response) => ({
                   ...response,
-                  messageToken: msg.messageToken
+                  messageToken: msg.messageToken,
                 }))}
               />
             ))}
