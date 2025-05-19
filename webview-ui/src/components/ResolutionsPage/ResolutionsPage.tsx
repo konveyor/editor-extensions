@@ -10,6 +10,7 @@ import { ReceivedMessage } from "./ReceivedMessage";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
+import { debounce } from "lodash";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -49,10 +50,17 @@ const ResolutionPage: React.FC = () => {
 
   // We keep a ref to the bottom element to scroll chat
   const scrollToBottomRef = useRef<HTMLDivElement>(null);
-  const lastMessageCountRef = useRef<number>(0);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isUserScrollingRef = useRef<boolean>(false);
 
   const scrollToBottom = useCallback((smooth = true) => {
+    // Don't scroll if user is actively scrolling
+    if (isUserScrollingRef.current) {
+      return;
+    }
+
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
@@ -64,21 +72,19 @@ const ResolutionPage: React.FC = () => {
           block: "end"
         });
       }
-    }, smooth ? 100 : 0); // Small delay for smooth scroll to prevent jarring
+    }, 300);
   }, []);
 
+  const lastMessageCountRef = useRef<number>(0);
+
   useEffect(() => {
-    // Only scroll if we have new messages
     if (chatMessages.length > lastMessageCountRef.current) {
-      // Use smooth scroll for new messages during solution generation
-      // Use instant scroll for initial load or when solution is complete
       const shouldSmoothScroll = isFetchingSolution;
       scrollToBottom(shouldSmoothScroll);
       lastMessageCountRef.current = chatMessages.length;
     }
   }, [chatMessages, isFetchingSolution, scrollToBottom]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) {
@@ -86,6 +92,29 @@ const ResolutionPage: React.FC = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const container = scrollToBottomRef.current?.parentElement;
+      if (!container) return;
+
+      const isAtBottom = 
+        Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 10;
+      
+      isUserScrollingRef.current = !isAtBottom;
+    };
+
+    const container = scrollToBottomRef.current?.parentElement;
+    container?.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      container?.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [state.chatMessages]);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
