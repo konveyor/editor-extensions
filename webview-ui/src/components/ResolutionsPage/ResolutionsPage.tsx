@@ -8,9 +8,14 @@ import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
+import {
+  Chatbot,
+  ChatbotContent,
+  ChatbotDisplayMode,
+  MessageBox,
+  MessageBoxHandle,
+} from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
-import { useAutoScrollToBottom } from "../../hooks/useAutoScrollToBottom";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -22,6 +27,37 @@ const ResolutionPage: React.FC = () => {
     chatMessages,
     solutionState,
   } = state;
+
+  const messageBoxRef = useRef<MessageBoxHandle>(null);
+  const scrollQueued = useRef(false);
+
+  // Auto-scrolls to the latest message
+  React.useLayoutEffect(() => {
+    console.log("chatMessages", chatMessages);
+    console.log("messageBoxRef", messageBoxRef.current);
+    console.log("scrollQueued", scrollQueued.current);
+    console.log("isSmartScrollActive", messageBoxRef.current?.isSmartScrollActive());
+
+    if (!messageBoxRef.current?.isSmartScrollActive() || scrollQueued.current) {
+      return undefined;
+    }
+
+    let rafId = 0;
+    // don't scroll the first load - in this demo, we know we start with two messages
+    if (chatMessages.length > 0) {
+      scrollQueued.current = true;
+
+      rafId = requestAnimationFrame(() => {
+        messageBoxRef.current?.scrollToBottom();
+        scrollQueued.current = false;
+      });
+    }
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      scrollQueued.current = false;
+    };
+  }, [chatMessages]);
 
   const getRemainingFiles = () =>
     resolution ? localChanges.filter(({ state }) => state === "pending") : [];
@@ -47,85 +83,6 @@ const ResolutionPage: React.FC = () => {
   const handleRejectClick = (change: LocalChange) => dispatch(discardFile(change));
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
-
-  const scrollToBottomRef = useRef<HTMLDivElement>(null);
-  const isUserScrollingRef = useRef<boolean>(false);
-  const prevMessageCountRef = useRef<number>(0);
-
-  // useEffect(() => {
-  //   return () => {
-  //     if (scrollTimeoutRef.current) {
-  //       clearTimeout(scrollTimeoutRef.current);
-  //     }
-  //   };
-  // }, []);
-
-  // useEffect(() => {
-  //   const container = scrollToBottomRef.current?.parentElement;
-  //   if (!container) {
-  //     return;
-  //   }
-
-  //   let lastScrollTop = container.scrollTop;
-
-  //   const handleScroll = debounce(() => {
-  //     const currentScrollTop = container.scrollTop;
-  //     const isScrollingUp = currentScrollTop < lastScrollTop;
-  //     lastScrollTop = currentScrollTop;
-
-  //     const isAtBottom =
-  //       Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 50;
-
-  //     isUserScrollingRef.current = isScrollingUp || !isAtBottom;
-  //   }, 100);
-
-  //   container.addEventListener("scroll", handleScroll);
-
-  //   return () => {
-  //     container.removeEventListener("scroll", handleScroll);
-  //     handleScroll.cancel();
-  //   };
-  // }, []);
-
-  // useEffect(() => {
-  //   if (
-  //     !scrollToBottomRef.current ||
-  //     isUserScrollingRef.current ||
-  //     chatMessages.length <= prevMessageCountRef.current
-  //   ) {
-  //     return;
-  //   }
-
-  //   scrollToBottomRef.current.scrollIntoView({ behavior: "smooth" });
-  //   prevMessageCountRef.current = chatMessages.length;
-  // }, [chatMessages]);
-
-  // useEffect(() => {
-  //   const container = scrollToBottomRef.current?.parentElement;
-  //   if (!container || isUserScrollingRef.current) {
-  //     return;
-  //   }
-
-  //   const prevScrollHeight = container.scrollHeight;
-
-  //   // Use requestAnimationFrame to wait for DOM to finish rendering
-  //   requestAnimationFrame(() => {
-  //     const newScrollHeight = container.scrollHeight;
-
-  //     if (newScrollHeight > prevScrollHeight + 5) {
-  //       container.scrollTo({
-  //         top: newScrollHeight,
-  //         behavior: "smooth",
-  //       });
-  //     }
-  //   });
-  // }, [chatMessages, resolution, solutionState]);
-
-  useAutoScrollToBottom(scrollToBottomRef, isUserScrollingRef, [
-    chatMessages.length,
-    solutionState,
-    resolution, 
-  ]);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
@@ -178,7 +135,7 @@ const ResolutionPage: React.FC = () => {
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
-          <MessageBox>
+          <MessageBox ref={messageBoxRef} enableSmartScroll>
             {isTriggeredByUser && renderedResolutionRequestMessages}
 
             {hasNothingToView && <ReceivedMessage content="No resolutions available." />}
@@ -240,8 +197,6 @@ const ResolutionPage: React.FC = () => {
             {isResolved && !isFetchingSolution && (
               <ReceivedMessage content="All resolutions have been applied" />
             )}
-
-            <div ref={scrollToBottomRef} />
           </MessageBox>
         </ChatbotContent>
       </Chatbot>
