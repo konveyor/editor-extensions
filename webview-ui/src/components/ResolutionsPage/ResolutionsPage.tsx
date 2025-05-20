@@ -1,5 +1,5 @@
 import "./resolutionsPage.css";
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useRef } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { ChatMessage, ChatMessageType, Incident, LocalChange } from "@editor-extensions/shared";
@@ -10,7 +10,7 @@ import { ReceivedMessage } from "./ReceivedMessage";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
-import { debounce } from "lodash";
+import { useAutoScrollToBottom } from "../../hooks/useAutoScrollToBottom";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -49,57 +49,83 @@ const ResolutionPage: React.FC = () => {
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
   const scrollToBottomRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUserScrollingRef = useRef<boolean>(false);
   const prevMessageCountRef = useRef<number>(0);
 
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
+  // useEffect(() => {
+  //   return () => {
+  //     if (scrollTimeoutRef.current) {
+  //       clearTimeout(scrollTimeoutRef.current);
+  //     }
+  //   };
+  // }, []);
 
-  useEffect(() => {
-    const container = scrollToBottomRef.current?.parentElement;
-    if (!container) {
-      return;
-    }
+  // useEffect(() => {
+  //   const container = scrollToBottomRef.current?.parentElement;
+  //   if (!container) {
+  //     return;
+  //   }
 
-    let lastScrollTop = container.scrollTop;
+  //   let lastScrollTop = container.scrollTop;
 
-    const handleScroll = debounce(() => {
-      const currentScrollTop = container.scrollTop;
-      const isScrollingUp = currentScrollTop < lastScrollTop;
-      lastScrollTop = currentScrollTop;
+  //   const handleScroll = debounce(() => {
+  //     const currentScrollTop = container.scrollTop;
+  //     const isScrollingUp = currentScrollTop < lastScrollTop;
+  //     lastScrollTop = currentScrollTop;
 
-      const isAtBottom =
-        Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 50;
+  //     const isAtBottom =
+  //       Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 50;
 
-      isUserScrollingRef.current = isScrollingUp || !isAtBottom;
-    }, 100);
+  //     isUserScrollingRef.current = isScrollingUp || !isAtBottom;
+  //   }, 100);
 
-    container.addEventListener("scroll", handleScroll);
+  //   container.addEventListener("scroll", handleScroll);
 
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      handleScroll.cancel();
-    };
-  }, []);
+  //   return () => {
+  //     container.removeEventListener("scroll", handleScroll);
+  //     handleScroll.cancel();
+  //   };
+  // }, []);
 
-  useEffect(() => {
-    if (
-      !scrollToBottomRef.current ||
-      isUserScrollingRef.current ||
-      chatMessages.length <= prevMessageCountRef.current
-    ) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (
+  //     !scrollToBottomRef.current ||
+  //     isUserScrollingRef.current ||
+  //     chatMessages.length <= prevMessageCountRef.current
+  //   ) {
+  //     return;
+  //   }
 
-    scrollToBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    prevMessageCountRef.current = chatMessages.length;
-  }, [chatMessages]);
+  //   scrollToBottomRef.current.scrollIntoView({ behavior: "smooth" });
+  //   prevMessageCountRef.current = chatMessages.length;
+  // }, [chatMessages]);
+
+  // useEffect(() => {
+  //   const container = scrollToBottomRef.current?.parentElement;
+  //   if (!container || isUserScrollingRef.current) {
+  //     return;
+  //   }
+
+  //   const prevScrollHeight = container.scrollHeight;
+
+  //   // Use requestAnimationFrame to wait for DOM to finish rendering
+  //   requestAnimationFrame(() => {
+  //     const newScrollHeight = container.scrollHeight;
+
+  //     if (newScrollHeight > prevScrollHeight + 5) {
+  //       container.scrollTo({
+  //         top: newScrollHeight,
+  //         behavior: "smooth",
+  //       });
+  //     }
+  //   });
+  // }, [chatMessages, resolution, solutionState]);
+
+  useAutoScrollToBottom(scrollToBottomRef, isUserScrollingRef, [
+    chatMessages.length,
+    solutionState,
+    resolution, 
+  ]);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
