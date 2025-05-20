@@ -9,6 +9,7 @@ import {
   Selection,
   TextEditorRevealType,
   Position,
+  languages,
 } from "vscode";
 import {
   cleanRuleSets,
@@ -30,9 +31,8 @@ import {
 import {
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
-  AnalysisIssueFixWorkflow,
+  KaiInteractiveWorkflow,
   type AnalysisIssueFixWorkflowInput,
-  SimpleInMemoryCache,
 } from "../../agentic/src";
 import {
   applyAll,
@@ -65,6 +65,7 @@ import { ChatDeepSeek } from "@langchain/deepseek";
 import { ChatOllama } from "@langchain/ollama";
 import { getModelProvider } from "./client/modelProvider";
 import { createPatch, createTwoFilesPatch } from "diff";
+import { Task } from "./taskManager/types";
 
 const isWindows = process.platform === "win32";
 
@@ -226,12 +227,50 @@ const commandsMap: (state: ExtensionState) => {
           return;
         }
 
-        const kaiAgent = new AnalysisIssueFixWorkflow();
+        const kaiAgent = new KaiInteractiveWorkflow();
         const agentInit = kaiAgent.init({
           model: model,
           workspaceDir: state.data.workspaceRoot,
-          fsCache: new SimpleInMemoryCache(),
+          fsCache: state.kaiFsCache,
         });
+
+        // const analysisRunner: BatchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
+        // apply the changes made by the agents in-memory so
+        // language servers can refresh diagnostics
+        // state.kaiFsCache.on("cacheSet", async (path, content) => {
+        //   try {
+        //     const uri = Uri.file(path);
+        //     const textDocument = await workspace.openTextDocument();
+        //     const range = new Range(
+        //       textDocument.positionAt(0),
+        //       textDocument.positionAt(textDocument.getText().length),
+        //     );
+        //     const edit = new WorkspaceEdit();
+        //     edit.replace(uri, range, content);
+        //     await workspace.applyEdit(edit);
+        //     analysisRunner.notifyFileChanges({
+        //       content: content,
+        //       path: uri,
+        //       saved: false,
+        //     });
+        //   } catch (err) {
+        //     console.log(`Failed to apply edit made by the agent - ${String(err)}`);
+        //   }
+        // });
+        // revert the changes back to on-disk
+        // state.kaiFsCache.on("cacheInvalidated", async (path) => {
+        //   // TODO (pgaikwad) - revert the changes
+        //   // think about edge cases like if the document is already open by the user etc
+        // });
+
+        let currentTasks: Task[] = [];
+        languages.onDidChangeDiagnostics(() => {
+          currentTasks = state.taskManager.getTasks();
+          state.mutateData((draft) => {
+            draft.tasksProcessed = true;
+          });
+        });
+
         // Process each file's incidents
         const allDiffs: { original: string; modified: string; diff: string }[] = [];
         let lastMessageId: string = "0";
@@ -247,6 +286,7 @@ const commandsMap: (state: ExtensionState) => {
           switch (msg.type) {
             case KaiWorkflowMessageType.UserInteraction: {
               switch (msg.data.type) {
+                // waiting on user for confirmation
                 case "yesNo":
                   state.mutateData((draft) => {
                     draft.chatMessages.push({
@@ -261,6 +301,30 @@ const commandsMap: (state: ExtensionState) => {
                   msg.data.response = {
                     // respond with "yes" when agent mode is enabled
                     yesNo: getConfigAgentMode(),
+                  };
+                  kaiAgent.resolveUserInteraction(msg);
+                  break;
+                // waiting on ide to provide more tasks
+                case "tasks":
+                  await new Promise<void>((resolve) => {
+                    if (state.data.tasksProcessed) {
+                      resolve();
+                      return;
+                    }
+                    setTimeout(() => {
+                      if (state.data.tasksProcessed) {
+                        resolve();
+                        return;
+                      }
+                    }, 1000);
+                  });
+                  msg.data.response = {
+                    tasks: currentTasks.map((t) => {
+                      return {
+                        uri: t.getUri().fsPath,
+                        task: t.toString(),
+                      } as { uri: string; task: string };
+                    }),
                   };
                   kaiAgent.resolveUserInteraction(msg);
               }
