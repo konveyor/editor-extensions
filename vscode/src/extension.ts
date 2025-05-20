@@ -17,6 +17,7 @@ import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
+import { DiagnosticTaskManager } from "./taskManager/taskManager";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -47,6 +48,7 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
+        tasksProcessed: true,
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         analysisConfig: {
           labelSelectorValid: false,
@@ -80,6 +82,7 @@ class VsCodeExtension {
       fileModel: new KonveyorFileModel(),
       issueModel: new IssuesModel(),
       kaiFsCache: new SimpleInMemoryCache(),
+      taskManager: new DiagnosticTaskManager(),
       get data() {
         return getData();
       },

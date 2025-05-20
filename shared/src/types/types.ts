@@ -135,6 +135,7 @@ export interface ExtensionData {
   isInitializingServer: boolean;
   isContinueInstalled: boolean;
   isAnalysisScheduled: boolean;
+  tasksProcessed: boolean;
   serverState: ServerState;
   solutionState: SolutionState;
   solutionData?: Solution;

@@ -64,12 +64,15 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     input: BaseLanguageModelInput,
     streamOptions?: {
       enableTools?: boolean;
-      emitEvents?: boolean;
+      // emitResponseChunks controls whether AImessagechunks are emitted as events
+      emitResponseChunks?: boolean;
+      // toolsSelector matches tool names to enable
+      toolsSelector?: string[];
     },
     options?: Partial<BaseChatModelCallOptions> | undefined,
   ): Promise<AIMessage | AIMessageChunk | undefined> {
     const messageId = this.newMessageId();
-    const { enableTools = true, emitEvents = true } = streamOptions || {};
+    const { enableTools = true, emitResponseChunks: emitEvents = true } = streamOptions || {};
     try {
       const { inputWithTools, runnable } = this.getRunnableWithTools(input, enableTools);
 
@@ -257,6 +260,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
   private getRunnableWithTools(
     input: BaseLanguageModelInput,
     enableTools?: boolean,
+    toolsSelectors?: string[],
   ): {
     inputWithTools: BaseLanguageModelInput;
     runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
@@ -271,12 +275,13 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     if (!this.tools || this.tools.length < 1 || !enableTools) {
       return response;
     }
+    const filteredTools = this.getToolsMatchingSelectors(toolsSelectors);
     if (
       this.modelInfo.model.bindTools &&
       this.modelInfo.model.bindTools !== undefined &&
       this.modelInfo.toolsSupported
     ) {
-      response.runnable = this.modelInfo.model.bindTools(this.tools);
+      response.runnable = this.modelInfo.model.bindTools(filteredTools);
     }
     // NOTE: This assumes that all messages we will send will either
     // be a list of BaseMessage or strings. we are not adding tools support
@@ -285,18 +290,18 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     if (!this.modelInfo.toolsSupported) {
       if (typeof input === "string") {
         response.inputWithTools = [
-          new SystemMessage(this.getToolsAsMessage()),
+          new SystemMessage(this.getToolsAsMessage(filteredTools)),
           new HumanMessage(input),
         ];
       } else if (Array.isArray(input)) {
         let modified = [];
         if (input.length > 0 && input[0] instanceof SystemMessage) {
           modified = [
-            new SystemMessage(input[0].content + this.getToolsAsMessage()),
+            new SystemMessage(input[0].content + this.getToolsAsMessage(filteredTools)),
             ...input.slice(1),
           ];
         } else {
-          modified = [new SystemMessage(this.getToolsAsMessage()), ...input];
+          modified = [new SystemMessage(this.getToolsAsMessage(filteredTools)), ...input];
         }
         // we have to reset previously added tool_calls so as to not confuse the model
         modified.forEach((m) => {
@@ -310,15 +315,15 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     return response;
   }
 
-  private getToolsAsMessage(): string {
-    if (!this.tools || this.tools.length < 1) {
+  private getToolsAsMessage(tools: DynamicStructuredTool[]): string {
+    if (!tools || tools.length < 1) {
       return "";
     }
     return `You are an intelligent developer. You are designed to use tools to answer user questions.\
 You may not know all of the information to address user's needs. You will use relevant tools to get that information.\
 Here is the schema of tools you are given:
 
-${this.renderTextDescriptionAndArgs()}
+${this.renderTextDescriptionAndArgs(tools)}
 
 If you do need to call a tool, respond with text 'TOOL_CALL' on a new line followed by a JSON object on the next line containing only two keys - tool_name and args.\
 'tool_name' should be the name of the tool to call. 'args' should be nested JSON containing the arguments to pass to the function in key value format.
@@ -327,9 +332,9 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
 `;
   }
 
-  private renderTextDescriptionAndArgs(): string {
+  private renderTextDescriptionAndArgs(tools: DynamicStructuredTool[]): string {
     let description = "";
-    this.tools.forEach((tool) => {
+    tools.forEach((tool) => {
       description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema))}`;
     });
     return description;
@@ -428,5 +433,25 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
       : msg?.content
         ? JSON.stringify(msg.content)
         : "";
+  }
+
+  private getToolsMatchingSelectors(selectors?: string[]): DynamicStructuredTool[] {
+    if (!selectors || selectors.length === 0) {
+      return this.tools;
+    }
+    return this.tools.filter((t) => {
+      selectors?.forEach((s) => {
+        if (s === t.name) {
+          return true;
+        }
+        try {
+          const pattern = new RegExp(s);
+          return pattern.test(t.name);
+        } catch {
+          return false;
+        }
+        return false;
+      });
+    });
   }
 }

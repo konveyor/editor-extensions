@@ -13,7 +13,7 @@ import {
   type KaiWorkflowResponse,
 } from "../types";
 import {
-  AdditionalInfoSummarizeInputState,
+  AnalysisFixSummarizeInputState,
   AdditionalInfoSummarizeOutputState,
   AddressAdditionalInfoOutputState,
   AnalysisIssueFixOverallState,
@@ -76,7 +76,7 @@ export class AdditionalInfoWorkflow
     });
 
     const workflow = new StateGraph({
-      input: AdditionalInfoSummarizeInputState,
+      input: AnalysisFixSummarizeInputState,
       output: AddressAdditionalInfoOutputState,
       stateSchema: AnalysisIssueFixOverallState,
     })
@@ -99,8 +99,11 @@ export class AdditionalInfoWorkflow
       throw new Error(`Workflow must be inited before it can be run`);
     }
 
-    const gInput: typeof AdditionalInfoSummarizeInputState.State = {
-      previousResponse: this.processInput(input.previousResponses),
+    const { additionalInfo, reasoning, uris } = this.processInput(input.previousResponses);
+    const gInput: typeof AnalysisFixSummarizeInputState.State = {
+      inputAllAdditionalInfo: additionalInfo,
+      inputAllFileUris: uris,
+      inputAllReasoning: reasoning,
       migrationHint: input.migrationHint,
       programmingLanguage: input.programmingLanguage,
     };
@@ -114,7 +117,7 @@ export class AdditionalInfoWorkflow
 
     return {
       errors: [],
-      modified_files: outputState?.modifiedFiles || [],
+      modified_files: outputState?.outputModifiedFiles || [],
     };
   }
 
@@ -132,7 +135,10 @@ export class AdditionalInfoWorkflow
 
   private async processUserInputEdge(state: typeof AdditionalInfoSummarizeOutputState.State) {
     let nextState = "END";
-    if (state.additionalInformation !== "" && !state.additionalInformation.includes("NO-CHANGE")) {
+    if (
+      state.summarizedAdditionalInfo !== "" &&
+      !state.summarizedAdditionalInfo.includes("NO-CHANGE")
+    ) {
       const id = `res-${Date.now()}`;
       const userInteractionPromise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
         this.userInteractionPromises.set(id, {
@@ -174,7 +180,11 @@ export class AdditionalInfoWorkflow
     }
   }
 
-  private processInput(responses: { files: string[]; responses: string[] }): string {
+  private processInput(responses: { files: string[]; responses: string[] }): {
+    reasoning: string;
+    additionalInfo: string;
+    uris: string[];
+  } {
     let reasoning = "";
     let additionalInfo = "";
     for (const res of responses.responses) {
@@ -203,8 +213,10 @@ export class AdditionalInfoWorkflow
         }
       }
     }
-    return `## Summary of changes made\n\n${reasoning}\n\n\
-## Additional Information\n\n${additionalInfo}\n\n\
-## List of files changed\n\n${responses.files.join("\n")}`;
+    return {
+      reasoning,
+      additionalInfo,
+      uris: responses.files,
+    };
   }
 }

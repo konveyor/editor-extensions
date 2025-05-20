@@ -20,6 +20,7 @@ const defaultState: ExtensionData = {
   chatMessages: [],
   solutionState: "none",
   solutionEffort: "Low",
+  tasksProcessed: true,
   analysisConfig: {
     labelSelectorValid: false,
     genAIConfigured: false,

@@ -24,6 +24,7 @@ export class BatchedAnalysisTrigger {
     if (this.enableHotRerun) {
       this.extensionState.mutateData((draft) => {
         draft.isAnalysisScheduled = true;
+        draft.tasksProcessed = false;
       });
       // hot re-run if enabled
       this.notifyFileChangesQueue.set(change.path.fsPath, change);

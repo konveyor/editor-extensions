@@ -115,7 +115,7 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           const baseDir = pathlib.dirname(absPath);
           await fs.mkdir(baseDir, { recursive: true });
           // only write to cache and send event
-          await this.fsCache.set(path, content);
+          await this.fsCache.set(absPath, content);
           this.emitWorkflowMessage({
             type: KaiWorkflowMessageType.ModifiedFile,
             id: `${absPath}-toolCall`,

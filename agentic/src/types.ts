@@ -31,7 +31,7 @@ export interface KaiToolCall {
 }
 
 export interface KaiUserIteraction {
-  type: "yesNo" | "choice";
+  type: "yesNo" | "choice" | "tasks";
   systemMessage: {
     yesNo?: string;
     choice?: string[];
@@ -39,6 +39,10 @@ export interface KaiUserIteraction {
   response?: {
     yesNo?: boolean;
     choice?: number;
+    tasks?: {
+      uri: string;
+      task: string;
+    }[];
   };
 }
 

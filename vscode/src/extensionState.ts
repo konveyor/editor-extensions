@@ -8,6 +8,7 @@ import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
 import { KaiFsCache } from "../../agentic/src";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
+import { DiagnosticTaskManager } from "./taskManager/taskManager";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -22,4 +23,5 @@ export interface ExtensionState {
   profiles?: AnalysisProfile[];
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
+  taskManager: DiagnosticTaskManager;
 }

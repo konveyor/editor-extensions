@@ -1,4 +1,7 @@
+import { Uri } from "vscode";
+
 export interface Task {
+  getUri(): Uri;
   equals(other: Task): boolean;
   toString(): string;
 }

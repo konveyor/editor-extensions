@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
-import { ExtensionState } from "src/extensionState";
 import { Task, TaskManager, TasksHistory } from "src/taskManager/types";
 
 export class DiagnosticTask implements Task {
@@ -9,9 +8,9 @@ export class DiagnosticTask implements Task {
   diagnostic: vscode.Diagnostic;
 
   constructor(uri: vscode.Uri, diagnostic: vscode.Diagnostic) {
-    this.id = this.unique_id();
-    this.uri = uri;
     this.diagnostic = diagnostic;
+    this.uri = uri;
+    this.id = this.unique_id();
   }
 
   private unique_id(): string {
@@ -26,8 +25,12 @@ export class DiagnosticTask implements Task {
     return this.id === other.id;
   }
 
+  public getUri(): vscode.Uri {
+    return this.uri;
+  }
+
   public toString(): string {
-    return this.diagnostic.message;
+    return `${this.diagnostic.message.split("\n")}`;
   }
 }
 
@@ -63,13 +66,22 @@ export class DiagnosticTaskHistory implements TasksHistory {
 }
 
 export class DiagnosticTaskManager implements TaskManager {
+  private initialized: boolean = false;
   private currentTasks: DiagnosticTask[];
   private history: TasksHistory;
 
-  constructor(private readonly state: ExtensionState) {
-    this.state = state;
+  constructor() {
     this.currentTasks = this.getCurrentDiagnostics();
     this.history = new DiagnosticTaskHistory();
+    vscode.languages.onDidChangeDiagnostics(() => {
+      if (!this.initialized) {
+        const diagnostics = this.getCurrentDiagnostics();
+        if (diagnostics.length > 0) {
+          this.initialized = true;
+          this.currentTasks = diagnostics;
+        }
+      }
+    });
   }
 
   generateTasks(): Generator<Task, void, void> {
@@ -94,10 +106,12 @@ export class DiagnosticTaskManager implements TaskManager {
   }
 
   private getCurrentDiagnostics(): DiagnosticTask[] {
-    return vscode.languages
-      .getDiagnostics()
-      .flatMap(([uri, diagnostics]) =>
-        diagnostics.map((diagnostic) => new DiagnosticTask(uri, diagnostic)),
-      );
+    const diagnostics = vscode.languages.getDiagnostics();
+
+    const filtered = diagnostics.flatMap(([uri, diagnostics]) =>
+      diagnostics.map((diagnostic) => new DiagnosticTask(uri, diagnostic)),
+    );
+
+    return filtered;
   }
 }
