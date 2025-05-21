@@ -31,19 +31,13 @@ const ResolutionPage: React.FC = () => {
   const messageBoxRef = useRef<MessageBoxHandle>(null);
   const scrollQueued = useRef(false);
 
-  // Auto-scrolls to the latest message
   React.useLayoutEffect(() => {
-    console.log("chatMessages", chatMessages);
-    console.log("messageBoxRef", messageBoxRef.current);
-    console.log("scrollQueued", scrollQueued.current);
-    console.log("isSmartScrollActive", messageBoxRef.current?.isSmartScrollActive());
 
     if (!messageBoxRef.current?.isSmartScrollActive() || scrollQueued.current) {
       return undefined;
     }
 
     let rafId = 0;
-    // don't scroll the first load - in this demo, we know we start with two messages
     if (chatMessages.length > 0) {
       scrollQueued.current = true;
 
