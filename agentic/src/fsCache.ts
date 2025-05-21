@@ -1,5 +1,6 @@
 import EventEmitter from "events";
-import { KaiFsCache } from "./types";
+
+import { type KaiFsCache } from "./types";
 
 export class SimpleInMemoryCache implements KaiFsCache {
   private cache: Map<string, string>;

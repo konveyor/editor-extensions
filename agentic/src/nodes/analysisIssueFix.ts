@@ -1,27 +1,24 @@
 import { basename } from "path";
-import { promises as fsPromises } from "fs";
-import { type EnhancedIncident } from "@editor-extensions/shared";
-import { type DynamicStructuredTool } from "@langchain/core/tools";
 import {
-  AIMessage,
-  AIMessageChunk,
-  type BaseMessage,
+  type AIMessage,
+  type AIMessageChunk,
   HumanMessage,
   SystemMessage,
 } from "@langchain/core/messages";
+import { promises as fsPromises } from "fs";
+import { type EnhancedIncident } from "@editor-extensions/shared";
+import { type DynamicStructuredTool } from "@langchain/core/tools";
 
 import {
-  type AnalysisFixSummarizeInputState,
-  type AdditionalInfoSummarizeOutputState,
-  type AddressAdditionalInfoInputState,
-  type AddressAdditionalInfoOutputState,
+  type SummarizeAdditionalInfoInputState,
   type AnalysisIssueFixInputState,
   type AnalysisIssueFixOutputState,
-  type AnalysisIssueFixRouterState,
+  type AnalysisIssueFixOrchestratorState,
+  type SummarizeAdditionalInfoOutputState,
   type SummarizeHistoryOutputState,
 } from "../schemas/analysisIssueFix";
 import { BaseNode, type ModelInfo } from "./base";
-import { type KaiModifiedFile, type KaiFsCache, KaiWorkflowMessageType } from "../types";
+import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
 
 export class AnalysisIssueFix extends BaseNode {
   constructor(
@@ -30,13 +27,13 @@ export class AnalysisIssueFix extends BaseNode {
     private readonly fsCache: KaiFsCache,
   ) {
     super("AnalysisIssueFix", modelInfo, tools);
-
     this.fsCache = fsCache;
+
     this.fixAnalysisIssue = this.fixAnalysisIssue.bind(this);
     this.summarizeHistory = this.summarizeHistory.bind(this);
     this.fixAnalysisIssueRouter = this.fixAnalysisIssueRouter.bind(this);
     this.parseAnalysisFixResponse = this.parseAnalysisFixResponse.bind(this);
-    this.addressAdditionalInformation = this.addressAdditionalInformation.bind(this);
+    // this.addressAdditionalInformation = this.addressAdditionalInformation.bind(this);
     this.summarizeAdditionalInformation = this.summarizeAdditionalInformation.bind(this);
   }
 
@@ -44,9 +41,9 @@ export class AnalysisIssueFix extends BaseNode {
   // processes input / output to / from analysis fix node
   // glorified for loop in a state machine
   async fixAnalysisIssueRouter(
-    state: typeof AnalysisIssueFixRouterState.State,
-  ): Promise<typeof AnalysisIssueFixRouterState.State> {
-    const nextState: typeof AnalysisIssueFixRouterState.State = {
+    state: typeof AnalysisIssueFixOrchestratorState.State,
+  ): Promise<typeof AnalysisIssueFixOrchestratorState.State> {
+    const nextState: typeof AnalysisIssueFixOrchestratorState.State = {
       ...state,
       // since we are using a reducer, allResponses has to be reset
       outputAllResponses: [],
@@ -203,8 +200,8 @@ If you have any additional details or steps that need to be performed, put it he
   // this is needed because when addressing multiple files we may have
   // duplicate changes as well as unnecessary changes mentioned in output
   async summarizeAdditionalInformation(
-    state: typeof AnalysisFixSummarizeInputState.State,
-  ): Promise<typeof AdditionalInfoSummarizeOutputState.State> {
+    state: typeof SummarizeAdditionalInfoInputState.State,
+  ): Promise<typeof SummarizeAdditionalInfoOutputState.State> {
     if (!state.inputAllAdditionalInfo) {
       return {
         summarizedAdditionalInfo: "NO-CHANGE",
@@ -251,7 +248,7 @@ ${state.inputAllFileUris?.join("\n")}
   // node that summarizes changes made so far which can later be used as
   // context by other agents so they are aware of the full picture
   async summarizeHistory(
-    state: typeof AnalysisFixSummarizeInputState.State,
+    state: typeof SummarizeAdditionalInfoInputState.State,
   ): Promise<typeof SummarizeHistoryOutputState.State> {
     if (!state.inputAllReasoning) {
       return {
@@ -287,56 +284,6 @@ ${state.inputAllReasoning}`,
 
     return {
       summarizedHistory: this.aiMessageToString(response),
-    };
-  }
-
-  // node responsible for addressing the additional changes
-  async addressAdditionalInformation(
-    state: typeof AddressAdditionalInfoInputState.State,
-  ): Promise<typeof AddressAdditionalInfoOutputState.State> {
-    const sys_message = new SystemMessage(
-      `You are an experienced ${state.programmingLanguage} programmer, specializing in migrating source code from ${state.migrationHint}.\
-We updated a source code file to migrate the source code. There may be more changes needed elsewhere in the project.\
-You are given notes detailing additional changes that need to happen.\
-Carefully analyze the changes and understand what files in the project need to be changed.\
-The notes may contain details about changes already made. Please do not act on any of the changes already made. Assume they are correct and only focus on any additional changes needed.\
-You have access to a set of tools to search for files, read a file and write to a file.\
-Work on one file at a time. Completely address changes in one file before moving onto to next file.\
-Respond with DONE when you're done addressing all the changes or there are no additional changes.\
-`,
-    );
-
-    const chat: BaseMessage[] = state.messages;
-
-    if (state.messages.length === 0) {
-      chat.push(sys_message);
-      chat.push(
-        new HumanMessage(`
-Here are the notes:\
-${state.summarizedAdditionalInfo}`),
-      );
-    }
-
-    const modifiedFiles: KaiModifiedFile[] = [];
-
-    this.on("workflowMessage", (msg) => {
-      if (msg.type === KaiWorkflowMessageType.ModifiedFile) {
-        modifiedFiles.push(msg.data);
-      }
-    });
-
-    const response = await this.streamOrInvoke(chat);
-
-    if (!response) {
-      return {
-        messages: [new AIMessage(`DONE`)],
-        outputModifiedFiles: modifiedFiles,
-      };
-    }
-
-    return {
-      messages: [response],
-      outputModifiedFiles: modifiedFiles,
     };
   }
 

@@ -10,6 +10,7 @@ import {
   TextEditorRevealType,
   Position,
   languages,
+  WorkspaceEdit,
 } from "vscode";
 import {
   cleanRuleSets,
@@ -32,7 +33,7 @@ import {
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
   KaiInteractiveWorkflow,
-  type AnalysisIssueFixWorkflowInput,
+  type KaiInteractiveWorkflowInput,
 } from "../../agentic/src";
 import {
   applyAll,
@@ -52,6 +53,7 @@ import {
   updateGetSolutionMaxIterations,
   updateGetSolutionMaxPriority,
   getConfigAgentMode,
+  getConfigSuperAgentMode,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
@@ -234,29 +236,25 @@ const commandsMap: (state: ExtensionState) => {
           fsCache: state.kaiFsCache,
         });
 
-        // const analysisRunner: BatchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
         // apply the changes made by the agents in-memory so
         // language servers can refresh diagnostics
-        // state.kaiFsCache.on("cacheSet", async (path, content) => {
-        //   try {
-        //     const uri = Uri.file(path);
-        //     const textDocument = await workspace.openTextDocument();
-        //     const range = new Range(
-        //       textDocument.positionAt(0),
-        //       textDocument.positionAt(textDocument.getText().length),
-        //     );
-        //     const edit = new WorkspaceEdit();
-        //     edit.replace(uri, range, content);
-        //     await workspace.applyEdit(edit);
-        //     analysisRunner.notifyFileChanges({
-        //       content: content,
-        //       path: uri,
-        //       saved: false,
-        //     });
-        //   } catch (err) {
-        //     console.log(`Failed to apply edit made by the agent - ${String(err)}`);
-        //   }
-        // });
+        state.kaiFsCache.on("cacheSet", async (path, content) => {
+          if (getConfigSuperAgentMode()) {
+            try {
+              const uri = Uri.file(path);
+              const textDocument = await workspace.openTextDocument(uri);
+              const range = new Range(
+                textDocument.positionAt(0),
+                textDocument.positionAt(textDocument.getText().length),
+              );
+              const edit = new WorkspaceEdit();
+              edit.replace(uri, range, content);
+              await workspace.applyEdit(edit);
+            } catch (err) {
+              console.log(`Failed to apply edit made by the agent - ${String(err)}`);
+            }
+          }
+        });
         // revert the changes back to on-disk
         // state.kaiFsCache.on("cacheInvalidated", async (path) => {
         //   // TODO (pgaikwad) - revert the changes
@@ -305,7 +303,7 @@ const commandsMap: (state: ExtensionState) => {
                   kaiAgent.resolveUserInteraction(msg);
                   break;
                 // waiting on ide to provide more tasks
-                case "tasks":
+                case "tasks": {
                   await new Promise<void>((resolve) => {
                     if (state.data.tasksProcessed) {
                       resolve();
@@ -318,15 +316,32 @@ const commandsMap: (state: ExtensionState) => {
                       }
                     }, 1000);
                   });
-                  msg.data.response = {
-                    tasks: currentTasks.map((t) => {
-                      return {
-                        uri: t.getUri().fsPath,
-                        task: t.toString(),
-                      } as { uri: string; task: string };
-                    }),
-                  };
-                  kaiAgent.resolveUserInteraction(msg);
+                  const tasks = currentTasks.map((t) => {
+                    return {
+                      uri: t.getUri().fsPath,
+                      task: t.toString(),
+                    } as { uri: string; task: string };
+                  });
+                  if (tasks.length > 0) {
+                    state.mutateData((draft) => {
+                      draft.chatMessages.push({
+                        kind: ChatMessageType.String,
+                        messageToken: msg.id,
+                        timestamp: new Date().toISOString(),
+                        value: {
+                          message: "",
+                        },
+                      });
+                    });
+                    msg.data.response = { tasks, yesNo: true };
+                    kaiAgent.resolveUserInteraction(msg);
+                  } else {
+                    msg.data.response = {
+                      yesNo: false,
+                    };
+                    kaiAgent.resolveUserInteraction(msg);
+                  }
+                }
               }
               break;
             }
@@ -391,9 +406,12 @@ const commandsMap: (state: ExtensionState) => {
             incidents,
             migrationHint: profileName,
             programmingLanguage: "Java",
-          } as AnalysisIssueFixWorkflowInput);
+            enableAdditionalInformation: getConfigAgentMode(),
+            enableDiagnostics: getConfigSuperAgentMode(),
+          } as KaiInteractiveWorkflowInput);
         } catch (err) {
           console.error(`Error in running the agent - ${err}`);
+          console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
           window.showInformationMessage(`We encountered an error running the agent.`);
         }
 

@@ -72,7 +72,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     options?: Partial<BaseChatModelCallOptions> | undefined,
   ): Promise<AIMessage | AIMessageChunk | undefined> {
     const messageId = this.newMessageId();
-    const { enableTools = true, emitResponseChunks: emitEvents = true } = streamOptions || {};
+    const { enableTools = true, emitResponseChunks = true } = streamOptions || {};
     try {
       const { inputWithTools, runnable } = this.getRunnableWithTools(input, enableTools);
 
@@ -84,7 +84,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         !this.modelInfo.toolsSupportedInStreaming
       ) {
         const fullResponse = await runnable.invoke(inputWithTools, options);
-        if (emitEvents) {
+        if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
             type: KaiWorkflowMessageType.LLMResponse,
@@ -96,10 +96,10 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
 
       const stream = await runnable.stream(inputWithTools, options);
       if (stream) {
-        return this.stream(messageId, enableTools, emitEvents, stream);
+        return this.stream(messageId, enableTools, emitResponseChunks, stream);
       }
     } catch (err) {
-      if (emitEvents) {
+      if (emitResponseChunks) {
         this.emitWorkflowMessage({
           id: messageId,
           type: KaiWorkflowMessageType.Error,
@@ -112,7 +112,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
   private async stream(
     messageId: string,
     enableTools: boolean,
-    emitEvents: boolean,
+    emitResponseChunks: boolean,
     stream: IterableReadableStream<AIMessageChunk>,
   ): Promise<AIMessageChunk | undefined> {
     let response: AIMessageChunk | undefined;
@@ -131,7 +131,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       // for native tools support or when we don't expect tool calls
       // we send the chunk as-is
       if (this.modelInfo.toolsSupported || !enableTools) {
-        if (emitEvents) {
+        if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
             type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -156,7 +156,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
               toolCallBlockIdx < toolCallMarkerIdx
             ) {
               parserState = "toolCallBegin";
-              if (emitEvents) {
+              if (emitResponseChunks) {
                 this.emitWorkflowMessage({
                   id: messageId,
                   type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -166,7 +166,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
               buffer = buffer.substring(toolCallBlockIdx + 3);
             } else if (toolCallMarkerIdx !== -1) {
               parserState = "toolCallMarkerRead";
-              if (emitEvents) {
+              if (emitResponseChunks) {
                 this.emitWorkflowMessage({
                   id: messageId,
                   type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -176,7 +176,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
               buffer = buffer.substring(toolCallMarkerIdx + "TOOL_CALL".length);
             } else if (toolCallBlockIdx !== -1) {
               parserState = "toolCallBegin";
-              if (emitEvents) {
+              if (emitResponseChunks) {
                 this.emitWorkflowMessage({
                   id: messageId,
                   type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -244,7 +244,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       }
     }
     // if we haven't seen a tool call, send everything else as content
-    if (parserState === "content") {
+    if (parserState === "content" && buffer.length > 0 && emitResponseChunks) {
       this.emitWorkflowMessage({
         id: messageId,
         type: KaiWorkflowMessageType.LLMResponseChunk,

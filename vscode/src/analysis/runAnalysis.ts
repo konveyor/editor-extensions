@@ -11,12 +11,6 @@ export const registerAnalysisTrigger = (
 
   vscode.workspace.onDidChangeTextDocument(
     async (e: vscode.TextDocumentChangeEvent) => {
-      const cacheEntry = await state.kaiFsCache.get(e.document.uri.fsPath);
-      // only store cache if there was already an entry, no need to
-      // cache unnecessary files
-      if (cacheEntry) {
-        await state.kaiFsCache.set(e.document.uri.fsPath, e.document.getText());
-      }
       if (e.contentChanges.length > 0) {
         batchedAnalysisTrigger.notifyFileChanges({
           path: e.document.uri,

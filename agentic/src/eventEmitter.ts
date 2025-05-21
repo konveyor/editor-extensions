@@ -1,5 +1,6 @@
 import EventEmitter from "events";
-import { KaiWorkflowMessage } from "./types";
+
+import { type KaiWorkflowMessage } from "./types";
 
 export class KaiWorkflowEventEmitter {
   private readonly eventEmitter: EventEmitter;
