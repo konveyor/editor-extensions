@@ -88,7 +88,7 @@ class VsCodeExtension {
         isInitialized: false,
         init: async (config) => {
           if (this.state.workflowManager.isInitialized) {
-            return; // Already initialized
+            return;
           }
           this.state.workflowManager.workflow = new AdditionalInfoWorkflow();
           await this.state.workflowManager.workflow.init(config);
@@ -104,30 +104,6 @@ class VsCodeExtension {
           this.state.workflowManager.workflow = undefined;
           this.state.workflowManager.isInitialized = false;
         },
-      },
-    };
-
-    // Initialize the workflow manager
-    this.state.workflowManager = {
-      workflow: undefined,
-      isInitialized: false,
-      init: async (config) => {
-        if (this.state.workflowManager.isInitialized) {
-          return; // Already initialized
-        }
-        this.state.workflowManager.workflow = new AdditionalInfoWorkflow();
-        await this.state.workflowManager.workflow.init(config);
-        this.state.workflowManager.isInitialized = true;
-      },
-      getWorkflow: () => {
-        if (!this.state.workflowManager.workflow) {
-          throw new Error("Workflow not initialized");
-        }
-        return this.state.workflowManager.workflow;
-      },
-      dispose: () => {
-        this.state.workflowManager.workflow = undefined;
-        this.state.workflowManager.isInitialized = false;
       },
     };
   }

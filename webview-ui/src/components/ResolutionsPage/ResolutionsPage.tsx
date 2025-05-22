@@ -1,5 +1,5 @@
 import "./resolutionsPage.css";
-import React, { useRef } from "react";
+import React, { useRef, useCallback, useEffect } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { FileChanges } from "./FileChanges";
 import { ChatMessage, ChatMessageType, Incident, LocalChange } from "@editor-extensions/shared";
@@ -30,28 +30,89 @@ const ResolutionPage: React.FC = () => {
 
   const messageBoxRef = useRef<MessageBoxHandle>(null);
   const scrollQueued = useRef(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
+  const lastScrollTime = useRef<number>(0);
 
-  React.useLayoutEffect(() => {
-
-    if (!messageBoxRef.current?.isSmartScrollActive() || scrollQueued.current) {
-      return undefined;
+  const isNearBottom = useCallback(() => {
+    const messageBox = document.querySelector(".pf-chatbot__messagebox");
+    if (!messageBox) {
+      return false;
     }
 
-    let rafId = 0;
+    const { scrollTop, scrollHeight, clientHeight } = messageBox;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    return distanceFromBottom < 100; // Consider "near bottom" if within 100px
+  }, []);
+
+  const scrollToBottom = useCallback(
+    (force = false) => {
+      const messageBox = document.querySelector(".pf-chatbot__messagebox");
+      if (!messageBox) {
+        return;
+      }
+
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+
+      // Only scroll if we're near bottom or force is true
+      if (force || isNearBottom()) {
+        const now = Date.now();
+        // Prevent too frequent scrolls (at least 50ms apart)
+        if (now - lastScrollTime.current < 50) {
+          scrollTimeoutRef.current = window.setTimeout(() => {
+            messageBox.scrollTop = messageBox.scrollHeight;
+            lastScrollTime.current = Date.now();
+            scrollQueued.current = false;
+          }, 50);
+        } else {
+          messageBox.scrollTop = messageBox.scrollHeight;
+          lastScrollTime.current = now;
+          scrollQueued.current = false;
+        }
+      }
+    },
+    [isNearBottom],
+  );
+
+  // Handle new messages and content updates
+  useEffect(() => {
     if (chatMessages.length > 0) {
-      scrollQueued.current = true;
+      // Force scroll on new messages
+      scrollToBottom(true);
+    }
+  }, [chatMessages, scrollToBottom]);
 
-      rafId = requestAnimationFrame(() => {
-        messageBoxRef.current?.scrollToBottom();
-        scrollQueued.current = false;
-      });
+  // Set up scroll listener to track when user manually scrolls
+  useEffect(() => {
+    const messageBox = document.querySelector(".pf-chatbot__messagebox");
+    if (!messageBox) {
+      return;
     }
 
-    return () => {
-      cancelAnimationFrame(rafId);
-      scrollQueued.current = false;
+    const handleScroll = () => {
+      if (!isNearBottom()) {
+        scrollQueued.current = false;
+      }
     };
-  }, [chatMessages]);
+
+    messageBox.addEventListener("scroll", handleScroll);
+    return () => {
+      messageBox.removeEventListener("scroll", handleScroll);
+    };
+  }, [isNearBottom]);
+
+  // Force scroll periodically while content is being updated
+  useEffect(() => {
+    if (isFetchingSolution) {
+      const interval = setInterval(() => {
+        scrollToBottom(true);
+      }, 100);
+
+      return () => clearInterval(interval);
+    }
+  }, [isFetchingSolution, scrollToBottom]);
 
   const getRemainingFiles = () =>
     resolution ? localChanges.filter(({ state }) => state === "pending") : [];
@@ -129,7 +190,7 @@ const ResolutionPage: React.FC = () => {
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
-          <MessageBox ref={messageBoxRef} enableSmartScroll>
+          <MessageBox ref={messageBoxRef} enableSmartScroll style={{ paddingBottom: "2rem" }}>
             {isTriggeredByUser && renderedResolutionRequestMessages}
 
             {hasNothingToView && <ReceivedMessage content="No resolutions available." />}
