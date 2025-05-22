@@ -5,11 +5,22 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import botAv from "./bot_avatar.svg?inline";
 
+interface QuickResponse {
+  id: string;
+  content: string;
+  messageToken: string;
+  onClick?: () => void;
+  isDisabled?: boolean;
+}
+
 interface ReceivedMessageProps {
   content?: string;
   extraContent?: React.ReactNode;
   isLoading?: boolean;
   timestamp?: string | Date;
+  quickResponses?: QuickResponse[];
+  isCompact?: boolean;
+  isProcessing?: boolean;
 }
 
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
@@ -17,6 +28,9 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   extraContent,
   isLoading,
   timestamp = new Date(),
+  quickResponses,
+  isCompact = false,
+  isProcessing = false,
 }) => {
   const formatTimestamp = (time: string | Date): string => {
     const date = typeof time === "string" ? new Date(time) : time;
@@ -24,6 +38,16 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
+    });
+  };
+
+  const handleQuickResponse = (responseId: string, messageToken: string) => {
+    window.vscode.postMessage({
+      type: "QUICK_RESPONSE",
+      payload: {
+        responseId,
+        messageToken,
+      },
     });
   };
 
@@ -35,6 +59,15 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       isLoading={isLoading}
       avatar={botAv}
       content={content}
+      quickResponses={quickResponses?.map((response) => ({
+        ...response,
+        onClick: () => {
+          console.log("handleQuickResponse", response.id, response.messageToken);  
+          handleQuickResponse(response.id, response.messageToken);
+        },
+        isDisabled: isProcessing,
+      }))}
+      // isCompact={isCompact}
       extraContent={
         extraContent
           ? {
