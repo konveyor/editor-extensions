@@ -3,8 +3,7 @@ import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
-// TODO (pgaikwad) - update this import
-import { SimpleInMemoryCache } from "../../agentic/src";
+import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { KonveyorFileModel, registerDiffView } from "./diffView";
@@ -48,7 +47,6 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
-        tasksProcessed: true,
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         analysisConfig: {
           labelSelectorValid: false,
@@ -73,8 +71,10 @@ class VsCodeExtension {
       return data;
     };
 
+    const taskManager = new DiagnosticTaskManager();
+
     this.state = {
-      analyzerClient: new AnalyzerClient(context, mutateData, getData),
+      analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
@@ -82,7 +82,7 @@ class VsCodeExtension {
       fileModel: new KonveyorFileModel(),
       issueModel: new IssuesModel(),
       kaiFsCache: new SimpleInMemoryCache(),
-      taskManager: new DiagnosticTaskManager(),
+      taskManager,
       get data() {
         return getData();
       },

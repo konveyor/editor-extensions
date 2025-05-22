@@ -46,7 +46,9 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       }),
       func: async ({ pattern }: { pattern: string }) => {
         const result: string[] = [];
-        const rPattern = new RegExp(pattern);
+        let fixedPattern = pattern.replace(/(?<!\.)(\*)/g, ".*");
+        fixedPattern = fixedPattern.replace(/\?/g, ".");
+        const rPattern = new RegExp(fixedPattern);
         async function recurse(dir: string) {
           const dirEntries = await fs.readdir(dir, { withFileTypes: true });
           for (const entry of dirEntries) {
@@ -64,6 +66,9 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
         }
         try {
           await recurse(workspaceDir);
+          if (result.length === 0) {
+            return "There are no files matching this pattern.";
+          }
           return result.join("\n");
         } catch (err) {
           throw Error(`Failed to search for files - ${errorToString(err)}`);
@@ -81,12 +86,12 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       }),
       func: async ({ path }: { path: string }) => {
         try {
+          const absPath = pathlib.join(workspaceDir, path);
           // check if we recently wrote to this file
-          const cachedContent = await this.fsCache.get(path);
+          const cachedContent = await this.fsCache.get(absPath);
           if (cachedContent) {
             return cachedContent;
           }
-          const absPath = pathlib.join(workspaceDir, path);
           const stat = await fs.stat(absPath);
           if (!stat.isFile()) {
             return `File at path ${path} does not exist - ensure the path is correct.`;

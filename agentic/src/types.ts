@@ -62,6 +62,7 @@ export type KaiUserInteractionMessage = BaseWorkflowMessage<
 export interface KaiWorkflowEvents {
   on(event: "workflowMessage", listener: (msg: KaiWorkflowMessage) => void): this;
   on(event: string, listener: (...args: any[]) => void): this;
+  removeAllListeners(): void;
 }
 
 export interface KaiWorkflowInitOptions {

@@ -20,6 +20,8 @@ import {
 import { BaseNode, type ModelInfo } from "./base";
 import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
 
+type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
+
 export class AnalysisIssueFix extends BaseNode {
   constructor(
     modelInfo: ModelInfo,
@@ -213,13 +215,13 @@ If you have any additional details or steps that need to be performed, put it he
     );
     const human_message = new HumanMessage(
       `During the migration to ${state.migrationHint}, we captured notes detailing changes made to existing files.\
-The notes contain a summary of changes we already and additional changes that may be required in other files elsewhere in the project.\
-They also contain a list of files we changed.\
-Your task is to carefully analyze these notes and provide a concise summary *solely* of the additional changes required elsewhere in the project.
+The notes contain a summary of changes we already made and additional changes that may be required in other files elsewhere in the project.\
+They also contain a list of files we changed.
+Your task is to carefully analyze the notes, compare them with files that are changed, understand any additional changes needed to complete the migration and provide a concise summary *solely* of the additional changes required elsewhere in the project.\
 **It is essential that your summary includes only the additional changes needed. Do not include changes already made.**\
-Make sure you output all the details about the changes including code snippets and instructions.\
-Ensure you do not omit any additional changes needed.\
-If there are no additional changes mentioned, respond with text "NO-CHANGE".\
+Make sure you output all the details about the changes including any relevant code snippets and instructions.
+**Do not omit any additional changes needed.**
+If there are no additional changes needed to complete the migration, respond with text "NO-CHANGE".\
 Here is the summary: \
 ${
   state.inputAllReasoning && state.inputAllReasoning.length > 0
@@ -260,7 +262,7 @@ ${state.inputAllFileUris?.join("\n")}
       `You are an experienced ${state.programmingLanguage} programmer, specializing in migrating source code to ${state.migrationHint}.`,
     );
     const human_message = new HumanMessage(
-      `During the migration to ${state.migrationHint}, we captured the following notes detailing changes made to existing files.\
+      `During the migration to ${state.migrationHint}, we captured the following notes detailing changes we made to the source code.\
 These notes may also mention potential future changes.\
 Your task is to carefully analyze these notes and provide a concise summary *solely* of the changes that have already been implemented.\
 **It is essential that your summary includes only the modifications explicitly described as completed and accurately reflects the list of files already changed.\
@@ -288,50 +290,42 @@ ${state.inputAllReasoning}`,
   }
 
   private parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): {
-    updatedFile: string;
-    reasoning: string;
-    additionalInfo: string;
+    [key in IssueFixResponseParserState]: string;
   } {
     const parsed: {
-      updatedFile: string;
-      reasoning: string;
-      additionalInfo: string;
-    } = {
-      updatedFile: "",
-      reasoning: "",
-      additionalInfo: "",
-    };
+      [key in IssueFixResponseParserState]: string;
+    } = { updatedFile: "", additionalInfo: "", reasoning: "" };
     const content = typeof response.content === "string" ? response.content : "";
-    let parserState: "reasoning" | "updatedFile" | "additionalInfo" | undefined = undefined;
-    for (const resLine of content.split("\n")) {
-      const nextState = (line: string) =>
-        line.match(/(##|\*\*) *[R|r]easoning/)
-          ? "reasoning"
-          : line.match(/(##|\*\*) *[U|u]pdated *[F|f]ile/)
-            ? "updatedFile"
-            : line.match(/(##|\*\*) *[A|a]dditional *[I|i]nformation/)
-              ? "additionalInfo"
-              : undefined;
 
-      const nxtState = nextState(resLine);
-      parserState = nxtState ?? parserState;
-      if (nxtState === undefined) {
-        switch (parserState) {
-          case "reasoning":
-            parsed.reasoning += `\n${resLine}`;
-            break;
-          case "additionalInfo":
-            parsed.additionalInfo += `\n${resLine}`;
-            break;
-          case "updatedFile":
-            if (!resLine.match(/```\w*/)) {
-              parsed.updatedFile += `\n${resLine}`;
-            }
-            break;
+    const matcherFunc = (line: string): IssueFixResponseParserState | undefined =>
+      line.match(/(#|\*)* *[R|r]easoning/)
+        ? "reasoning"
+        : line.match(/(#|\*)* *[U|u]pdated *[F|f]ile/)
+          ? "updatedFile"
+          : line.match(/(#|\*)* *[A|a]dditional *[I|i]nformation/)
+            ? "additionalInfo"
+            : undefined;
+
+    let parserState: IssueFixResponseParserState | undefined = undefined;
+    let buffer: string[] = [];
+
+    for (const line of content.split("\n")) {
+      const nextState = matcherFunc(line);
+      if (nextState) {
+        if (parserState && buffer.length) {
+          parsed[parserState] = buffer.join("\n").trim();
         }
+        buffer = [];
+        parserState = nextState;
+      } else if (parserState !== "updatedFile" || !line.match(/```\w*/)) {
+        buffer.push(line);
       }
     }
-    parsed.updatedFile = parsed.updatedFile.trim();
+
+    if (parserState && buffer.length) {
+      parsed[parserState] = buffer.join("\n").trim();
+    }
+
     return parsed;
   }
 }

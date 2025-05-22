@@ -20,6 +20,7 @@ import { Immutable } from "immer";
 import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
+import { TaskManager } from "src/taskManager/types";
 
 const uid = (() => {
   let counter = 0;
@@ -41,8 +42,10 @@ export class AnalyzerClient {
     private extContext: vscode.ExtensionContext,
     private mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
     private getExtStateData: () => Immutable<ExtensionData>,
+    private readonly taskManager: TaskManager,
   ) {
     this.assetPaths = buildAssetPaths(extContext);
+    this.taskManager = taskManager;
 
     this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
     this.outputChannel.appendLine(
@@ -162,7 +165,7 @@ export class AnalyzerClient {
       this.outputChannel.appendLine("RPC connection closed"),
     );
     this.analyzerRpcConnection.onRequest((method, params) => {
-      this.outputChannel.appendLine(`Received request: ${method} + ${JSON.stringify(params)}`);
+      // this.outputChannel.appendLine(`Received request: ${method} + ${JSON.stringify(params)}`);
     });
 
     this.analyzerRpcConnection.onNotification("started", (_: []) => {
@@ -436,7 +439,8 @@ export class AnalyzerClient {
             });
           }
 
-          vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets);
+          await vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets);
+          this.taskManager.init();
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {

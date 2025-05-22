@@ -4,8 +4,7 @@ import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
 import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
-// TODO (pgaikwad) - update this import
-import { KaiFsCache } from "../../agentic/src";
+import { KaiFsCache } from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
