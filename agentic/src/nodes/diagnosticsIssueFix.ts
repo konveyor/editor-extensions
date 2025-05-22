@@ -1,3 +1,4 @@
+import * as pathlib from "path";
 import {
   type AIMessageChunk,
   AIMessage,
@@ -10,7 +11,6 @@ import { type DynamicStructuredTool } from "@langchain/core/tools";
 
 import {
   type KaiFsCache,
-  type KaiModifiedFile,
   type KaiUserInteractionMessage,
   KaiWorkflowMessageType,
   type PendingUserInteraction,
@@ -26,6 +26,8 @@ import { BaseNode, type ModelInfo } from "./base";
 
 export type AgentName = "generalFix" | "dependency" | "properties";
 
+type PlannerResponseParserState = "name" | "instructions";
+
 export class DiagnosticsIssueFix extends BaseNode {
   private readonly diagnosticsPromises: Map<string, PendingUserInteraction>;
 
@@ -35,6 +37,7 @@ export class DiagnosticsIssueFix extends BaseNode {
 
   constructor(
     modelInfo: ModelInfo,
+    private readonly workspaceDir: string,
     private readonly fsTools: DynamicStructuredTool[],
     private readonly dependencyTools: DynamicStructuredTool[],
     private readonly fsCache: KaiFsCache,
@@ -42,6 +45,7 @@ export class DiagnosticsIssueFix extends BaseNode {
     super("DiagnosticsIssueFix", modelInfo, [...fsTools, ...dependencyTools]);
     this.fsCache = fsCache;
     this.diagnosticsPromises = new Map<string, PendingUserInteraction>();
+    this.workspaceDir = workspaceDir;
 
     this.planFixes = this.planFixes.bind(this);
     this.fixGeneralIssues = this.fixGeneralIssues.bind(this);
@@ -71,9 +75,9 @@ export class DiagnosticsIssueFix extends BaseNode {
     const nextState: typeof DiagnosticsOrchestratorState.State = { ...state, shouldEnd: false };
     // when there is nothing to work on, wait for diagnostics information
     if (
-      !state.inputDiagnosticsTasks &&
+      (!state.inputDiagnosticsTasks || !state.inputDiagnosticsTasks.length) &&
       !state.inputSummarizedAdditionalInfo &&
-      (!state.outputNominatedAgents || state.outputNominatedAgents.length < 1)
+      (!state.outputNominatedAgents || !state.outputNominatedAgents.length)
     ) {
       nextState.shouldEnd = true;
       // if diagnostic fixes is disabled, end here
@@ -139,13 +143,17 @@ export class DiagnosticsIssueFix extends BaseNode {
       nextState.currentTask = undefined;
     }
     // if there are any tasks left that planner already gave us, finish that work first
-    if (state.outputNominatedAgents && state.outputNominatedAgents.length > 0) {
+    if (state.outputNominatedAgents && state.outputNominatedAgents.length) {
       const nextSelection = state.outputNominatedAgents.pop();
       if (nextSelection) {
         const { name, instructions } = nextSelection;
         switch (name as AgentName) {
           case "generalFix":
             nextState.inputInstructionsForGeneralFix = instructions;
+            nextState.inputUrisForGeneralFix =
+              state.currentTask && state.currentTask.uri
+                ? [pathlib.relative(this.workspaceDir, state.currentTask.uri)]
+                : undefined;
             nextState.currentAgent = name;
             break;
           default:
@@ -163,12 +171,12 @@ export class DiagnosticsIssueFix extends BaseNode {
         uri: "",
         tasks: [state.inputSummarizedAdditionalInfo],
       };
-      nextState.plannerInputTasks = [state.inputSummarizedAdditionalInfo];
+      nextState.plannerInputTasks = nextState.currentTask;
       nextState.inputSummarizedAdditionalInfo = undefined;
     } else if (state.inputDiagnosticsTasks) {
       // pick the next task from the list
       nextState.currentTask = state.inputDiagnosticsTasks.pop();
-      nextState.plannerInputTasks = nextState.currentTask?.tasks;
+      nextState.plannerInputTasks = nextState.currentTask;
       nextState.inputDiagnosticsTasks = state.inputDiagnosticsTasks;
     }
     return nextState;
@@ -179,15 +187,18 @@ export class DiagnosticsIssueFix extends BaseNode {
   async planFixes(
     state: typeof DiagnosticsPlannerInputState.State,
   ): Promise<typeof DiagnosticsPlannerOutputState.State> {
-    if (!state.plannerInputTasks || state.plannerInputTasks.length === 0) {
+    if (
+      !state.plannerInputTasks ||
+      !state.plannerInputTasks.tasks ||
+      !state.plannerInputTasks.tasks.length
+    ) {
       return {
         outputNominatedAgents: [],
       };
     }
 
     const sys_message = new SystemMessage(
-      `You are an experienced architect overlooking migration of a ${state.programmingLanguage} application from ${state.migrationHint}.\
-You are given `,
+      `You are an experienced architect overlooking migration of a ${state.programmingLanguage} application from ${state.migrationHint}.`,
     );
 
     let agentDescriptions = "";
@@ -204,12 +215,23 @@ For context, you are also given background information on changes we made so far
 **Here is the list of available agents, along with their descriptions:**
 ${agentDescriptions}
 
+${
+  state.plannerInputTasks.uri
+    ? `** File in which issues were found: ${state.plannerInputTasks.uri}.
+Make sure your instructions are specific to fixing issues in this file.`
+    : ""
+}
+
 **Here is the list of issues that need to be solved:**
-${state.plannerInputTasks.join("\n")}
+- ${state.plannerInputTasks.tasks.join("\n - ")}
+
+**Previous context about migration**
+${state.plannerInputBackground}
 
 Your task is to carefully analyze each issue in the list and determine the most suitable agent to address it.\
 You will output the **name of the selected agent** on a new line followed by **specific, clear instructions** tailored to that agent's expertise on the next line, each with a section header explained in the format below.\
-The instructions should detail how each agent should approach and solve the problem. **Make sure** your instructions take into account the overall migration effort.\
+The instructions should detail how each agent should approach and solve the problem.\
+**Make sure** your instructions take into account previous changes we made for migrating the project. They should align with the overall migration effort.\
 Consider the nuances of each issue and match it precisely with the described capabilities of the agents.\
 If no specialized agent is a perfect fit, direct the issue to the generalist agent with comprehensive instructions.\
 Your response **must** be in following format:
@@ -258,71 +280,78 @@ Respond with DONE when you're done addressing all the changes or there are no ad
       chat.push(
         new HumanMessage(`
 Here are the notes:\
-${state.inputInstructionsForGeneralFix}`),
+${state.inputInstructionsForGeneralFix}
+${
+  state.inputUrisForGeneralFix && state.inputUrisForGeneralFix.length > 0
+    ? `The above issues were found in following files:\n${state.inputUrisForGeneralFix.join("\n")}`
+    : ``
+}`),
       );
     }
-
-    const modifiedFiles: KaiModifiedFile[] = [];
-
-    this.on("workflowMessage", (msg) => {
-      if (msg.type === KaiWorkflowMessageType.ModifiedFile) {
-        modifiedFiles.push(msg.data);
-      }
-    });
 
     const response = await this.streamOrInvoke(chat);
 
     if (!response) {
       return {
         messages: [new AIMessage(`DONE`)],
-        outputModifiedFilesFromGeneralFix: modifiedFiles,
+        outputModifiedFilesFromGeneralFix: [],
       };
     }
 
     return {
       messages: [response],
-      outputModifiedFilesFromGeneralFix: modifiedFiles,
+      outputModifiedFilesFromGeneralFix: [],
     };
   }
 
-  private parsePlannerResponse(response: AIMessageChunk | AIMessage): {
-    name: string;
-    instructions: string;
-  }[] {
-    const allAgents: { name: string; instructions: string }[] = [];
+  private parsePlannerResponse(
+    response: AIMessageChunk | AIMessage,
+  ): Array<{ [key in PlannerResponseParserState]: string }> {
+    const allAgents: Array<{ [key in PlannerResponseParserState]: string }> = [];
     const content: string = typeof response.content === "string" ? response.content : "";
 
     if (content) {
-      let parserState: "name" | "inst" | undefined = undefined;
+      let parserState: PlannerResponseParserState | undefined = undefined;
 
-      const matcherFunc = (line: string): "name" | "inst" | undefined => {
+      const matcherFunc = (line: string): PlannerResponseParserState | undefined => {
         return line.match(/^(\*|#)* *(?:N|n)ame/)
           ? "name"
           : line.match(/^(\*|#)* *(?:I|i)nstructions/)
-            ? "inst"
+            ? "instructions"
             : undefined;
       };
 
-      for (const line of content.split("\n")) {
+      let buffer: string[] = [];
+      for (const rawLine of content.split("\n")) {
+        const line = rawLine.trim();
         const nextState = matcherFunc(line);
-        parserState = nextState ?? parserState;
-
-        if (nextState === undefined) {
-          switch (parserState) {
-            case "name": {
-              allAgents.push({
-                name: line,
-                instructions: "",
-              });
-              break;
-            }
-            case "inst": {
-              if (allAgents.length > 0) {
-                allAgents[allAgents.length - 1].instructions += line;
+        if (nextState) {
+          if (parserState && buffer.length > 0) {
+            switch (parserState) {
+              case "name": {
+                allAgents.push({
+                  name: buffer.join("\n").trim(),
+                  instructions: "",
+                });
+                break;
               }
-              break;
+              case "instructions": {
+                if (allAgents.length > 0) {
+                  allAgents[allAgents.length - 1].instructions = buffer.join("\n").trim();
+                }
+                break;
+              }
             }
           }
+          buffer = [];
+          parserState = nextState;
+        } else {
+          buffer.push(line);
+        }
+      }
+      if (parserState === "instructions" && buffer.length) {
+        if (allAgents.length > 0) {
+          allAgents[allAgents.length - 1].instructions = buffer.join("\n").trim();
         }
       }
     }

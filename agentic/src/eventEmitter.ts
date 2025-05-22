@@ -18,4 +18,8 @@ export class KaiWorkflowEventEmitter {
   protected emitWorkflowMessage(msg: KaiWorkflowMessage): boolean {
     return this.eventEmitter.emit("workflowMessage", msg);
   }
+
+  public removeAllListeners() {
+    this.eventEmitter.removeAllListeners();
+  }
 }

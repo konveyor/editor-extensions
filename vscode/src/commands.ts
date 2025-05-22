@@ -9,7 +9,6 @@ import {
   Selection,
   TextEditorRevealType,
   Position,
-  languages,
   WorkspaceEdit,
 } from "vscode";
 import {
@@ -28,13 +27,12 @@ import {
   ChatMessageType,
   GetSolutionResult,
 } from "@editor-extensions/shared";
-// TODO (pgaikwad) - update this import
 import {
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
   KaiInteractiveWorkflow,
   type KaiInteractiveWorkflowInput,
-} from "../../agentic/src";
+} from "@editor-extensions/agentic";
 import {
   applyAll,
   discardAll,
@@ -67,7 +65,6 @@ import { ChatDeepSeek } from "@langchain/deepseek";
 import { ChatOllama } from "@langchain/ollama";
 import { getModelProvider } from "./client/modelProvider";
 import { createPatch, createTwoFilesPatch } from "diff";
-import { Task } from "./taskManager/types";
 
 const isWindows = process.platform === "win32";
 
@@ -238,7 +235,7 @@ const commandsMap: (state: ExtensionState) => {
 
         // apply the changes made by the agents in-memory so
         // language servers can refresh diagnostics
-        state.kaiFsCache.on("cacheSet", async (path, content) => {
+        state.kaiFsCache.on("cacheSet", async (path: string, content: string) => {
           if (getConfigSuperAgentMode()) {
             try {
               const uri = Uri.file(path);
@@ -261,24 +258,23 @@ const commandsMap: (state: ExtensionState) => {
         //   // think about edge cases like if the document is already open by the user etc
         // });
 
-        let currentTasks: Task[] = [];
-        languages.onDidChangeDiagnostics(() => {
-          currentTasks = state.taskManager.getTasks();
-          state.mutateData((draft) => {
-            draft.tasksProcessed = true;
-          });
-        });
+        // TODO (pgaikwad) - revisit this
+        // this is a number I am setting for demo purposes
+        // until we have a full UI support. we will only
+        // process child issues until the depth of 2
+        const maxTaskManagerIterations = 2;
+        let currentTaskManagerIterations = 0;
 
         // Process each file's incidents
         const allDiffs: { original: string; modified: string; diff: string }[] = [];
         let lastMessageId: string = "0";
         const modifiedFiles: Map<
-          Uri,
+          string,
           {
             content: string;
             isNew: boolean;
           }
-        > = new Map<Uri, { content: string; isNew: boolean }>();
+        > = new Map<string, { content: string; isNew: boolean }>();
         // listen on agents events
         kaiAgent.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
           switch (msg.type) {
@@ -304,37 +300,42 @@ const commandsMap: (state: ExtensionState) => {
                   break;
                 // waiting on ide to provide more tasks
                 case "tasks": {
-                  await new Promise<void>((resolve) => {
-                    if (state.data.tasksProcessed) {
-                      resolve();
-                      return;
-                    }
-                    setTimeout(() => {
-                      if (state.data.tasksProcessed) {
-                        resolve();
-                        return;
-                      }
-                    }, 1000);
-                  });
-                  const tasks = currentTasks.map((t) => {
-                    return {
-                      uri: t.getUri().fsPath,
-                      task: t.toString(),
-                    } as { uri: string; task: string };
-                  });
-                  if (tasks.length > 0) {
-                    state.mutateData((draft) => {
-                      draft.chatMessages.push({
-                        kind: ChatMessageType.String,
-                        messageToken: msg.id,
-                        timestamp: new Date().toISOString(),
-                        value: {
-                          message: "",
-                        },
-                      });
+                  if (currentTaskManagerIterations < maxTaskManagerIterations) {
+                    currentTaskManagerIterations += 1;
+                    await new Promise<void>((resolve) => {
+                      const interval = setInterval(() => {
+                        if (!state.data.isAnalysisScheduled && !state.data.isAnalyzing) {
+                          clearInterval(interval);
+                          resolve();
+                          return;
+                        }
+                      }, 1000);
                     });
-                    msg.data.response = { tasks, yesNo: true };
-                    kaiAgent.resolveUserInteraction(msg);
+                    const tasks = state.taskManager.getTasks().map((t) => {
+                      return {
+                        uri: t.getUri().fsPath,
+                        task: t.toString(),
+                      } as { uri: string; task: string };
+                    });
+                    if (tasks.length > 0) {
+                      state.mutateData((draft) => {
+                        draft.chatMessages.push({
+                          kind: ChatMessageType.String,
+                          messageToken: msg.id,
+                          timestamp: new Date().toISOString(),
+                          value: {
+                            message: `It appears that my fixes caused following issues:\n\n - ${tasks.map((t) => t.task).join("\n * ")}\n\nDo you want me to continue fixing them?`,
+                          },
+                        });
+                      });
+                      msg.data.response = { tasks, yesNo: true };
+                      kaiAgent.resolveUserInteraction(msg);
+                    } else {
+                      msg.data.response = {
+                        yesNo: false,
+                      };
+                      kaiAgent.resolveUserInteraction(msg);
+                    }
                   } else {
                     msg.data.response = {
                       yesNo: false,
@@ -372,22 +373,28 @@ const commandsMap: (state: ExtensionState) => {
               const fPath = msg.data.path;
               const content = msg.data.content;
               const uri = Uri.file(fPath);
-              let isNew = false;
               try {
-                try {
-                  await workspace.fs.stat(uri);
-                } catch (err) {
-                  if (
-                    (err as any).code === "FileNotFound" ||
-                    (err as any).name === "EntryNotFound"
-                  ) {
-                    isNew = true;
-                  } else {
-                    throw err;
+                let isNew = false;
+                if (!modifiedFiles.has(uri.fsPath)) {
+                  try {
+                    await workspace.fs.stat(uri);
+                  } catch (err) {
+                    if (
+                      (err as any).code === "FileNotFound" ||
+                      (err as any).name === "EntryNotFound"
+                    ) {
+                      isNew = true;
+                    } else {
+                      throw err;
+                    }
                   }
-                }
-                if (!modifiedFiles.has(uri)) {
-                  modifiedFiles.set(uri, {
+                  modifiedFiles.set(uri.fsPath, {
+                    content,
+                    isNew,
+                  });
+                } else {
+                  const { isNew } = modifiedFiles.get(uri.fsPath) ?? { isNew: false };
+                  modifiedFiles.set(uri.fsPath, {
                     content,
                     isNew,
                   });
@@ -417,7 +424,8 @@ const commandsMap: (state: ExtensionState) => {
 
         // process diffs from agent workflow
         await Promise.all(
-          Array.from(modifiedFiles.entries()).map(async ([uri, { content, isNew }]) => {
+          Array.from(modifiedFiles.entries()).map(async ([path, { content, isNew }]) => {
+            const uri = Uri.file(path);
             const relativePath = workspace.asRelativePath(uri);
             try {
               if (isNew) {
@@ -446,6 +454,7 @@ const commandsMap: (state: ExtensionState) => {
 
         // now that all agents have returned, we can reset the cache
         state.kaiFsCache.reset();
+        kaiAgent.removeAllListeners();
 
         if (allDiffs.length === 0) {
           throw new Error("No diffs found in the response");

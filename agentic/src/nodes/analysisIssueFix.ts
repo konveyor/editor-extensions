@@ -20,6 +20,8 @@ import {
 import { BaseNode, type ModelInfo } from "./base";
 import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
 
+type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
+
 export class AnalysisIssueFix extends BaseNode {
   constructor(
     modelInfo: ModelInfo,
@@ -288,50 +290,42 @@ ${state.inputAllReasoning}`,
   }
 
   private parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): {
-    updatedFile: string;
-    reasoning: string;
-    additionalInfo: string;
+    [key in IssueFixResponseParserState]: string;
   } {
     const parsed: {
-      updatedFile: string;
-      reasoning: string;
-      additionalInfo: string;
-    } = {
-      updatedFile: "",
-      reasoning: "",
-      additionalInfo: "",
-    };
+      [key in IssueFixResponseParserState]: string;
+    } = { updatedFile: "", additionalInfo: "", reasoning: "" };
     const content = typeof response.content === "string" ? response.content : "";
-    let parserState: "reasoning" | "updatedFile" | "additionalInfo" | undefined = undefined;
-    for (const resLine of content.split("\n")) {
-      const nextState = (line: string) =>
-        line.match(/(##|\*\*) *[R|r]easoning/)
-          ? "reasoning"
-          : line.match(/(##|\*\*) *[U|u]pdated *[F|f]ile/)
-            ? "updatedFile"
-            : line.match(/(##|\*\*) *[A|a]dditional *[I|i]nformation/)
-              ? "additionalInfo"
-              : undefined;
 
-      const nxtState = nextState(resLine);
-      parserState = nxtState ?? parserState;
-      if (nxtState === undefined) {
-        switch (parserState) {
-          case "reasoning":
-            parsed.reasoning += `\n${resLine}`;
-            break;
-          case "additionalInfo":
-            parsed.additionalInfo += `\n${resLine}`;
-            break;
-          case "updatedFile":
-            if (!resLine.match(/```\w*/)) {
-              parsed.updatedFile += `\n${resLine}`;
-            }
-            break;
+    const matcherFunc = (line: string): IssueFixResponseParserState | undefined =>
+      line.match(/(#|\*)* *[R|r]easoning/)
+        ? "reasoning"
+        : line.match(/(#|\*)* *[U|u]pdated *[F|f]ile/)
+          ? "updatedFile"
+          : line.match(/(#|\*)* *[A|a]dditional *[I|i]nformation/)
+            ? "additionalInfo"
+            : undefined;
+
+    let parserState: IssueFixResponseParserState | undefined = undefined;
+    let buffer: string[] = [];
+
+    for (const line of content.split("\n")) {
+      const nextState = matcherFunc(line);
+      if (nextState) {
+        if (parserState && buffer.length) {
+          parsed[parserState] = buffer.join("\n").trim();
         }
+        buffer = [];
+        parserState = nextState;
+      } else if (parserState !== "updatedFile" || !line.match(/```\w*/)) {
+        buffer.push(line);
       }
     }
-    parsed.updatedFile = parsed.updatedFile.trim();
+
+    if (parserState && buffer.length) {
+      parsed[parserState] = buffer.join("\n").trim();
+    }
+
     return parsed;
   }
 }

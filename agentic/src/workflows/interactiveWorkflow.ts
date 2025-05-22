@@ -1,3 +1,4 @@
+import { EnhancedIncident } from "@editor-extensions/shared";
 import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
 import { Annotation, type MessagesAnnotation } from "@langchain/langgraph";
 import { CompiledStateGraph, END, START, StateGraph } from "@langchain/langgraph";
@@ -21,7 +22,6 @@ import { modelHealthCheck } from "../utils";
 import { FileSystemTools } from "../tools/filesystem";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 import { AnalysisIssueFix } from "../nodes/analysisIssueFix";
-import { EnhancedIncident } from "../../../shared/dist/types";
 import { DiagnosticsIssueFix, AgentName } from "../nodes/diagnosticsIssueFix";
 import { DiagnosticsOrchestratorState } from "../schemas/diagnosticsIssueFix";
 
@@ -86,12 +86,13 @@ export class KaiInteractiveWorkflow
     this.userInteractionPromises = new Map<string, PendingUserInteraction>();
 
     this.runToolsGeneralFixIssues = this.runToolsGeneralFixIssues.bind(this);
-    this.diagnosisOrchestratorEdge = this.diagnosisOrchestratorEdge.bind(this);
+    this.diagnosticsOrchestratorEdge = this.diagnosticsOrchestratorEdge.bind(this);
     this.analysisIssueFixRouterEdge = this.analysisIssueFixRouterEdge.bind(this);
   }
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
-    const fsTools = new FileSystemTools(options.workspaceDir, options.fsCache);
+    const workspaceDir = options.workspaceDir.replace("file://", "");
+    const fsTools = new FileSystemTools(workspaceDir, options.fsCache);
     const { supportsTools, connected, supportsToolsInStreaming } = await modelHealthCheck(
       options.model,
     );
@@ -108,10 +109,10 @@ export class KaiInteractiveWorkflow
       options.fsCache,
     );
     // relay events from nodes back to callers
-    analysisIssueFixNodes.on("workflowMessage", (msg: KaiWorkflowMessage) => {
+    analysisIssueFixNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);
     });
-    fsTools.on("workflowMessage", (msg: KaiWorkflowMessage) => {
+    fsTools.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);
     });
 
@@ -121,11 +122,12 @@ export class KaiInteractiveWorkflow
         toolsSupported: supportsTools,
         toolsSupportedInStreaming: supportsToolsInStreaming,
       },
+      workspaceDir,
       fsTools.all(),
       [],
       options.fsCache,
     );
-    this.diagnosticsNodes.on("workflowMessage", (msg: KaiWorkflowMessage) => {
+    this.diagnosticsNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);
     });
 
@@ -178,7 +180,7 @@ export class KaiInteractiveWorkflow
         "tools_fix_general_issues",
         "orchestrate_plan_and_execution",
       ])
-      .addConditionalEdges("orchestrate_plan_and_execution", this.diagnosisOrchestratorEdge, [
+      .addConditionalEdges("orchestrate_plan_and_execution", this.diagnosticsOrchestratorEdge, [
         "plan_fixes",
         "fix_general_issues",
         "orchestrate_plan_and_execution",
@@ -196,7 +198,8 @@ export class KaiInteractiveWorkflow
       input.incidents?.reduce(
         (acc, incident) => {
           const existingEntry = acc.find(
-            (entry) => entry.uri === incident.uri.replace("file://", ""),
+            (entry: { uri: string; incidents: EnhancedIncident[] }) =>
+              entry.uri === incident.uri.replace("file://", ""),
           );
           if (existingEntry) {
             existingEntry.incidents.push(incident);
@@ -296,6 +299,7 @@ export class KaiInteractiveWorkflow
       currentAgent: undefined,
       currentTask: undefined,
       inputInstructionsForGeneralFix: undefined,
+      inputUrisForGeneralFix: undefined,
       messages: [],
       outputModifiedFilesFromGeneralFix: undefined,
       outputNominatedAgents: undefined,
@@ -304,7 +308,9 @@ export class KaiInteractiveWorkflow
     };
 
     await this.followUpInteractiveWorkflow?.invoke(interactiveWorkflowInput, {
-      recursionLimit: 100,
+      // each state change is one iteration, keeping this really high
+      // users can ask to stop at any point
+      recursionLimit: 2000,
     });
 
     return runResponse;
@@ -361,7 +367,7 @@ export class KaiInteractiveWorkflow
   }
 
   // edge for the orchestrator to delegate work to planner and sub-agents
-  async diagnosisOrchestratorEdge(
+  async diagnosticsOrchestratorEdge(
     state: typeof DiagnosticsOrchestratorState.State,
   ): Promise<string> {
     if (state.shouldEnd) {

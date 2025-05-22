@@ -1,9 +1,10 @@
 import { Uri } from "vscode";
 
 export interface Task {
+  getId(): string;
   getUri(): Uri;
-  equals(other: Task): boolean;
   toString(): string;
+  equals(other: Task): boolean;
 }
 
 export interface TasksHistory {
@@ -14,6 +15,6 @@ export interface TasksHistory {
 }
 
 export interface TaskManager {
-  generateTasks(): Generator<Task, void, void>;
+  init(): void;
   getTasks(): Task[];
 }

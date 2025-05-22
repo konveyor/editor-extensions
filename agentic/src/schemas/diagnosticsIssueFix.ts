@@ -9,7 +9,7 @@ export const DiagnosticsPlannerInputState = Annotation.Root({
   // summarized history of analysis fixes other agent made
   plannerInputBackground: Annotation<string>,
   // list of diagnostics issues to fix
-  plannerInputTasks: Annotation<Array<string> | undefined>,
+  plannerInputTasks: Annotation<{ uri: string; tasks: string[] } | undefined>,
   // list of known agents the planner can delegate tasks to
   plannerInputAgents: Annotation<
     Array<{
@@ -36,6 +36,7 @@ export const GeneralIssueFixInputState = Annotation.Root({
   ...BaseInputMetaState.spec,
   ...MessagesAnnotation.spec,
   inputInstructionsForGeneralFix: Annotation<string | undefined>,
+  inputUrisForGeneralFix: Annotation<Array<string> | undefined>,
 });
 
 // output state for the node that fixes general issues

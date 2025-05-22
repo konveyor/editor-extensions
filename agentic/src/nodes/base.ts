@@ -29,7 +29,7 @@ export type ModelInfo = {
 export abstract class BaseNode extends KaiWorkflowEventEmitter {
   constructor(
     private readonly name: string,
-    private readonly modelInfo: ModelInfo,
+    protected readonly modelInfo: ModelInfo,
     private readonly tools: DynamicStructuredTool[],
   ) {
     super();
