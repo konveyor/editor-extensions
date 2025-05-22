@@ -28,7 +28,7 @@ models:
   ChatOllama:
     provider: "ChatOllama"
     args:
-      model": "your-model-here"
+      model: "your-model-here"
 
   JustAnExample:
     environment:
