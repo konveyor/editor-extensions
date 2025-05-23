@@ -1,6 +1,7 @@
-import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation } from "@langchain/langgraph";
+import { EnhancedIncident } from "@editor-extensions/shared";
 
-import { KaiModifiedFile } from "../types";
+import { BaseInputMetaState } from "./base";
 
 const arrayReducer = <T>(left: T[], right: T | T[]): T[] => {
   if (Array.isArray(right)) {
@@ -9,37 +10,59 @@ const arrayReducer = <T>(left: T[], right: T | T[]): T[] => {
   return left.concat([right]);
 };
 
-export const AnalysisIssueFixInputMetaState = Annotation.Root({
-  migrationHint: Annotation<string>,
-  programmingLanguage: Annotation<string>,
+// input state for node that fixes an analysis issue
+// it only ever knows about one file and issues in it
+export const AnalysisIssueFixInputState = Annotation.Root({
+  ...BaseInputMetaState.spec,
+  inputFileUri: Annotation<string | undefined>,
+  inputFileContent: Annotation<string | undefined>,
+  inputIncidentsDescription: Annotation<string | undefined>,
 });
 
-export const AdditionalInfoSummarizeInputState = Annotation.Root({
-  ...AnalysisIssueFixInputMetaState.spec,
-  previousResponse: Annotation<string>,
+// output state for node that fixes an analysis issue
+export const AnalysisIssueFixOutputState = Annotation.Root({
+  outputUpdatedFileUri: Annotation<string | undefined>,
+  outputUpdatedFile: Annotation<string | undefined>,
+  outputAdditionalInfo: Annotation<string | undefined>,
+  outputReasoning: Annotation<string | undefined>,
 });
 
-export const AdditionalInfoSummarizeOutputState = Annotation.Root({
-  additionalInformation: Annotation<string>,
+// input state for nodes that summarize changes made so far and also outline additional info to address
+export const SummarizeAdditionalInfoInputState = Annotation.Root({
+  ...BaseInputMetaState.spec,
+  // accumulated response from analysis fix that contains only
+  // the additional info
+  inputAllAdditionalInfo: Annotation<string | undefined>,
+  inputAllReasoning: Annotation<string | undefined>,
+  inputAllFileUris: Annotation<Array<string> | undefined>,
 });
 
-export const AddressAdditionalInfoInputState = Annotation.Root({
-  ...MessagesAnnotation.spec,
-  ...AnalysisIssueFixInputMetaState.spec,
-  ...AdditionalInfoSummarizeOutputState.spec,
-});
-
-export const AddressAdditionalInfoOutputState = Annotation.Root({
-  ...MessagesAnnotation.spec,
-  modifiedFiles: Annotation<KaiModifiedFile[]>({
+// orchestrator state for the analysis issue fix sub-flow.
+// this is what's responsible for accumulating analysis state
+// over multiple file fixes and determining when to move onto
+// the next agent
+export const AnalysisIssueFixOrchestratorState = Annotation.Root({
+  ...AnalysisIssueFixInputState.spec,
+  ...AnalysisIssueFixOutputState.spec,
+  ...SummarizeAdditionalInfoInputState.spec,
+  // this is the accumulated responses from analysis fix
+  // later used for history / background and additional information
+  outputAllResponses: Annotation<Array<typeof AnalysisIssueFixOutputState.State>>({
     reducer: arrayReducer,
     default: () => [],
   }),
+  // this is the input incidents
+  inputIncidentsByUris: Annotation<Array<{ uri: string; incidents: Array<EnhancedIncident> }>>,
+  // keeps track of which file we are working on for analysis fixes
+  currentIdx: Annotation<number>,
 });
 
-export const AnalysisIssueFixOverallState = Annotation.Root({
-  ...AdditionalInfoSummarizeInputState.spec,
-  ...AdditionalInfoSummarizeOutputState.spec,
-  ...AddressAdditionalInfoInputState.spec,
-  ...AddressAdditionalInfoOutputState.spec,
+// output state for node that summarizes additional information
+export const SummarizeAdditionalInfoOutputState = Annotation.Root({
+  summarizedAdditionalInfo: Annotation<string>,
+});
+
+// output state for node that summarizes changes done so far into history
+export const SummarizeHistoryOutputState = Annotation.Root({
+  summarizedHistory: Annotation<string>,
 });

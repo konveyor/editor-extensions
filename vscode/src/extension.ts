@@ -3,6 +3,7 @@ import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
+import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { KonveyorFileModel, registerDiffView } from "./diffView";
@@ -15,6 +16,7 @@ import { copySampleProviderSettings } from "./utilities/fileUtils";
 import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
+import { DiagnosticTaskManager } from "./taskManager/taskManager";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -69,14 +71,18 @@ class VsCodeExtension {
       return data;
     };
 
+    const taskManager = new DiagnosticTaskManager();
+
     this.state = {
-      analyzerClient: new AnalyzerClient(context, mutateData, getData),
+      analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
       memFs: new MemFS(),
       fileModel: new KonveyorFileModel(),
       issueModel: new IssuesModel(),
+      kaiFsCache: new SimpleInMemoryCache(),
+      taskManager,
       get data() {
         return getData();
       },

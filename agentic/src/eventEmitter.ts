@@ -1,13 +1,25 @@
 import EventEmitter from "events";
-import { KaiWorkflowMessage } from "./types";
 
-export class KaiWorkflowEventEmitter extends EventEmitter {
+import { type KaiWorkflowMessage } from "./types";
+
+export class KaiWorkflowEventEmitter {
+  private readonly eventEmitter: EventEmitter;
+
+  constructor() {
+    this.eventEmitter = new EventEmitter();
+  }
+
   on(event: "workflowMessage", listener: (chunk: KaiWorkflowMessage) => void): this;
   on(event: string, listener: (...args: any[]) => void): this {
-    return super.on(event, listener);
+    this.eventEmitter.on(event, listener);
+    return this;
   }
 
   protected emitWorkflowMessage(msg: KaiWorkflowMessage): boolean {
-    return this.emit("workflowMessage", msg);
+    return this.eventEmitter.emit("workflowMessage", msg);
+  }
+
+  public removeAllListeners() {
+    this.eventEmitter.removeAllListeners();
   }
 }
