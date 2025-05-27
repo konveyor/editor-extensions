@@ -27,6 +27,8 @@ async function updateConfigValue<T>(
   await vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY).update(key, value, scope);
 }
 
+export const getConfigKonveyorServerURL = (): string => getConfigValue<string>("serverURL") || "";
+export const getConfigKonveyorUsername = (): string => getConfigValue<string>("username") || "";
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
 export const getConfigKaiRpcServerPath = (): string =>
   getConfigValue<string>("kaiRpcServerPath") || "";
