@@ -3,8 +3,8 @@ import * as pathlib from "path";
 import { promises as fs } from "fs";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
-import { KaiWorkflowMessageType } from "../types";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
+import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
 
 function errorToString(err: unknown): string {
   if (err instanceof Error) {
@@ -18,14 +18,15 @@ function errorToString(err: unknown): string {
  * This is to make sure we never let a model write outside our tree
  */
 export class FileSystemTools extends KaiWorkflowEventEmitter {
-  // we never write content to disk because we want the user
-  // to review it. All writes go into this cache
-  private writeCache: Map<string, string>;
-
-  constructor(private readonly workspaceDir: string) {
+  constructor(
+    private readonly workspaceDir: string,
+    private readonly fsCache: KaiFsCache,
+  ) {
     super();
     this.workspaceDir = workspaceDir.replace("file://", "");
-    this.writeCache = new Map<string, string>();
+    // we never write content to disk because we want the user
+    // to review it. All writes go into this cache
+    this.fsCache = fsCache;
   }
 
   public all(): DynamicStructuredTool[] {
@@ -45,7 +46,9 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       }),
       func: async ({ pattern }: { pattern: string }) => {
         const result: string[] = [];
-        const rPattern = new RegExp(pattern);
+        let fixedPattern = pattern.replace(/(?<!\.)(\*)/g, ".*");
+        fixedPattern = fixedPattern.replace(/\?/g, ".");
+        const rPattern = new RegExp(fixedPattern);
         async function recurse(dir: string) {
           const dirEntries = await fs.readdir(dir, { withFileTypes: true });
           for (const entry of dirEntries) {
@@ -63,6 +66,9 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
         }
         try {
           await recurse(workspaceDir);
+          if (result.length === 0) {
+            return "There are no files matching this pattern.";
+          }
           return result.join("\n");
         } catch (err) {
           throw Error(`Failed to search for files - ${errorToString(err)}`);
@@ -80,11 +86,12 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       }),
       func: async ({ path }: { path: string }) => {
         try {
-          // check if we recently wrote to this file
-          if (this.writeCache.has(path)) {
-            return this.writeCache.get(path);
-          }
           const absPath = pathlib.join(workspaceDir, path);
+          // check if we recently wrote to this file
+          const cachedContent = await this.fsCache.get(absPath);
+          if (cachedContent) {
+            return cachedContent;
+          }
           const stat = await fs.stat(absPath);
           if (!stat.isFile()) {
             return `File at path ${path} does not exist - ensure the path is correct.`;
@@ -113,7 +120,7 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           const baseDir = pathlib.dirname(absPath);
           await fs.mkdir(baseDir, { recursive: true });
           // only write to cache and send event
-          this.writeCache.set(path, content);
+          await this.fsCache.set(absPath, content);
           this.emitWorkflowMessage({
             type: KaiWorkflowMessageType.ModifiedFile,
             id: `${absPath}-toolCall`,

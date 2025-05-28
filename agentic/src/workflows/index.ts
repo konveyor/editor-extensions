@@ -1,1 +1,1 @@
-export * from "./additionalInformationWorkflow";
+export * from "./interactiveWorkflow";

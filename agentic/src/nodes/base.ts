@@ -29,7 +29,7 @@ export type ModelInfo = {
 export abstract class BaseNode extends KaiWorkflowEventEmitter {
   constructor(
     private readonly name: string,
-    private readonly modelInfo: ModelInfo,
+    protected readonly modelInfo: ModelInfo,
     private readonly tools: DynamicStructuredTool[],
   ) {
     super();
@@ -62,22 +62,29 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
    */
   protected async streamOrInvoke(
     input: BaseLanguageModelInput,
-    enableTools: boolean = true,
-    emitEvents: boolean = true,
+    streamOptions?: {
+      enableTools?: boolean;
+      // emitResponseChunks controls whether AImessagechunks are emitted as events
+      emitResponseChunks?: boolean;
+      // toolsSelector matches tool names to enable
+      toolsSelector?: string[];
+    },
     options?: Partial<BaseChatModelCallOptions> | undefined,
   ): Promise<AIMessage | AIMessageChunk | undefined> {
     const messageId = this.newMessageId();
+    const { enableTools = true, emitResponseChunks = true } = streamOptions || {};
     try {
       const { inputWithTools, runnable } = this.getRunnableWithTools(input, enableTools);
 
       // fallback to invoke when we cannot stream tool calls
       if (
+        enableTools &&
         this.tools.length > 0 &&
         this.modelInfo.toolsSupported &&
         !this.modelInfo.toolsSupportedInStreaming
       ) {
         const fullResponse = await runnable.invoke(inputWithTools, options);
-        if (emitEvents) {
+        if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
             type: KaiWorkflowMessageType.LLMResponse,
@@ -89,10 +96,10 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
 
       const stream = await runnable.stream(inputWithTools, options);
       if (stream) {
-        return this.stream(messageId, emitEvents, stream);
+        return this.stream(messageId, enableTools, emitResponseChunks, stream);
       }
     } catch (err) {
-      if (emitEvents) {
+      if (emitResponseChunks) {
         this.emitWorkflowMessage({
           id: messageId,
           type: KaiWorkflowMessageType.Error,
@@ -104,7 +111,8 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
 
   private async stream(
     messageId: string,
-    emitEvents: boolean,
+    enableTools: boolean,
+    emitResponseChunks: boolean,
     stream: IterableReadableStream<AIMessageChunk>,
   ): Promise<AIMessageChunk | undefined> {
     let response: AIMessageChunk | undefined;
@@ -120,9 +128,10 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       } else {
         response = response.concat(chunk);
       }
-      // for native tools support, we send the chunk as-is
-      if (this.modelInfo.toolsSupported) {
-        if (emitEvents) {
+      // for native tools support or when we don't expect tool calls
+      // we send the chunk as-is
+      if (this.modelInfo.toolsSupported || !enableTools) {
+        if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
             type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -147,7 +156,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
               toolCallBlockIdx < toolCallMarkerIdx
             ) {
               parserState = "toolCallBegin";
-              if (emitEvents) {
+              if (emitResponseChunks) {
                 this.emitWorkflowMessage({
                   id: messageId,
                   type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -157,7 +166,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
               buffer = buffer.substring(toolCallBlockIdx + 3);
             } else if (toolCallMarkerIdx !== -1) {
               parserState = "toolCallMarkerRead";
-              if (emitEvents) {
+              if (emitResponseChunks) {
                 this.emitWorkflowMessage({
                   id: messageId,
                   type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -167,7 +176,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
               buffer = buffer.substring(toolCallMarkerIdx + "TOOL_CALL".length);
             } else if (toolCallBlockIdx !== -1) {
               parserState = "toolCallBegin";
-              if (emitEvents) {
+              if (emitResponseChunks) {
                 this.emitWorkflowMessage({
                   id: messageId,
                   type: KaiWorkflowMessageType.LLMResponseChunk,
@@ -234,6 +243,14 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         }
       }
     }
+    // if we haven't seen a tool call, send everything else as content
+    if (parserState === "content" && buffer.length > 0 && emitResponseChunks) {
+      this.emitWorkflowMessage({
+        id: messageId,
+        type: KaiWorkflowMessageType.LLMResponseChunk,
+        data: new AIMessageChunk(buffer),
+      });
+    }
     if (response && !this.modelInfo.toolsSupported) {
       response.tool_calls = toolCalls;
     }
@@ -243,6 +260,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
   private getRunnableWithTools(
     input: BaseLanguageModelInput,
     enableTools?: boolean,
+    toolsSelectors?: string[],
   ): {
     inputWithTools: BaseLanguageModelInput;
     runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
@@ -257,12 +275,13 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     if (!this.tools || this.tools.length < 1 || !enableTools) {
       return response;
     }
+    const filteredTools = this.getToolsMatchingSelectors(toolsSelectors);
     if (
       this.modelInfo.model.bindTools &&
       this.modelInfo.model.bindTools !== undefined &&
       this.modelInfo.toolsSupported
     ) {
-      response.runnable = this.modelInfo.model.bindTools(this.tools);
+      response.runnable = this.modelInfo.model.bindTools(filteredTools);
     }
     // NOTE: This assumes that all messages we will send will either
     // be a list of BaseMessage or strings. we are not adding tools support
@@ -271,18 +290,18 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     if (!this.modelInfo.toolsSupported) {
       if (typeof input === "string") {
         response.inputWithTools = [
-          new SystemMessage(this.getToolsAsMessage()),
+          new SystemMessage(this.getToolsAsMessage(filteredTools)),
           new HumanMessage(input),
         ];
       } else if (Array.isArray(input)) {
         let modified = [];
         if (input.length > 0 && input[0] instanceof SystemMessage) {
           modified = [
-            new SystemMessage(input[0].content + this.getToolsAsMessage()),
+            new SystemMessage(input[0].content + this.getToolsAsMessage(filteredTools)),
             ...input.slice(1),
           ];
         } else {
-          modified = [new SystemMessage(this.getToolsAsMessage()), ...input];
+          modified = [new SystemMessage(this.getToolsAsMessage(filteredTools)), ...input];
         }
         // we have to reset previously added tool_calls so as to not confuse the model
         modified.forEach((m) => {
@@ -296,15 +315,15 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     return response;
   }
 
-  private getToolsAsMessage(): string {
-    if (!this.tools || this.tools.length < 1) {
+  private getToolsAsMessage(tools: DynamicStructuredTool[]): string {
+    if (!tools || tools.length < 1) {
       return "";
     }
     return `You are an intelligent developer. You are designed to use tools to answer user questions.\
 You may not know all of the information to address user's needs. You will use relevant tools to get that information.\
 Here is the schema of tools you are given:
 
-${this.renderTextDescriptionAndArgs()}
+${this.renderTextDescriptionAndArgs(tools)}
 
 If you do need to call a tool, respond with text 'TOOL_CALL' on a new line followed by a JSON object on the next line containing only two keys - tool_name and args.\
 'tool_name' should be the name of the tool to call. 'args' should be nested JSON containing the arguments to pass to the function in key value format.
@@ -313,9 +332,9 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
 `;
   }
 
-  private renderTextDescriptionAndArgs(): string {
+  private renderTextDescriptionAndArgs(tools: DynamicStructuredTool[]): string {
     let description = "";
-    this.tools.forEach((tool) => {
+    tools.forEach((tool) => {
       description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema))}`;
     });
     return description;
@@ -403,5 +422,36 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
     } else {
       return { messages: new HumanMessage(nonToolCallResponses.join("\n\n")) };
     }
+  }
+
+  protected aiMessageToString(msg: AIMessage | AIMessageChunk | undefined): string {
+    if (!msg) {
+      return "";
+    }
+    return typeof msg?.content === "string"
+      ? msg.content
+      : msg?.content
+        ? JSON.stringify(msg.content)
+        : "";
+  }
+
+  private getToolsMatchingSelectors(selectors?: string[]): DynamicStructuredTool[] {
+    if (!selectors || selectors.length === 0) {
+      return this.tools;
+    }
+    return this.tools.filter((t) => {
+      selectors?.forEach((s) => {
+        if (s === t.name) {
+          return true;
+        }
+        try {
+          const pattern = new RegExp(s);
+          return pattern.test(t.name);
+        } catch {
+          return false;
+        }
+        return false;
+      });
+    });
   }
 }

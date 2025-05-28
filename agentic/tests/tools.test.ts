@@ -1,10 +1,14 @@
 import * as pathlib from "path";
 
 import { FileSystemTools } from "../src/tools/filesystem";
+import { SimpleInMemoryCache } from "../src/";
 
 describe("searchFilesTool", () => {
   it("should handle nested directories correctly", async () => {
-    const fsToolsFactory = new FileSystemTools(pathlib.resolve(".", "tests", "test_data", "tools"));
+    const fsToolsFactory = new FileSystemTools(
+      pathlib.resolve(".", "tests", "test_data", "tools"),
+      new SimpleInMemoryCache(),
+    );
 
     //TODO (pgaikwad) - do this better
     const tool = fsToolsFactory.all()[0];
