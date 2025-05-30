@@ -4,17 +4,20 @@ import {
   Solution,
   SolutionResponse,
 } from "@editor-extensions/shared";
-import { Uri, window, workspace } from "vscode";
+import {
+  CancellationToken,
+  Event,
+  ProviderResult,
+  TextDocumentContentProvider,
+  Uri,
+  window,
+  workspace,
+} from "vscode";
 import { ExtensionState } from "src/extensionState";
 import * as Diff from "diff";
 import path from "path";
 
-import {
-  fromRelativeToKonveyor,
-  isGetSolutionResult,
-  isSolutionResponse,
-  KONVEYOR_SCHEME,
-} from "../utilities";
+import { fromRelativeToKonveyor, isGetSolutionResult, isSolutionResponse } from "../utilities";
 import { Immutable } from "immer";
 import { paths } from "../paths";
 
@@ -64,26 +67,78 @@ const toLocalFromSolutionResponse = (solution: SolutionResponse): LocalChange[] 
       state: "pending",
     }));
 
+// Class to manage the virtual file content
+export class VirtualFileSystem implements TextDocumentContentProvider {
+  private static instance: VirtualFileSystem;
+  private contentMap: Map<string, string> = new Map();
+
+  // Event to signal when content has changed
+  onDidChange?: Event<Uri> | undefined;
+
+  private constructor() {
+    // No need to register here, we'll register in register.ts
+  }
+
+  // Implement the TextDocumentContentProvider interface
+  provideTextDocumentContent(uri: Uri, _token: CancellationToken): ProviderResult<string> {
+    return this.contentMap.get(uri.toString()) || "";
+  }
+
+  public static getInstance(): VirtualFileSystem {
+    if (!VirtualFileSystem.instance) {
+      VirtualFileSystem.instance = new VirtualFileSystem();
+    }
+    return VirtualFileSystem.instance;
+  }
+
+  public setContent(uri: Uri, content: string): void {
+    this.contentMap.set(uri.toString(), content);
+  }
+
+  public getContent(uri: Uri): string | undefined {
+    return this.contentMap.get(uri.toString());
+  }
+
+  public dispose(): void {
+    this.contentMap.clear();
+  }
+
+  public removeAll(scheme: string): void {
+    // Remove all entries with the specified scheme
+    for (const uriString of this.contentMap.keys()) {
+      try {
+        const uri = Uri.parse(uriString);
+        if (uri.scheme === scheme) {
+          this.contentMap.delete(uriString);
+        }
+      } catch (error) {
+        console.error(`Error parsing URI: ${uriString}`, error);
+      }
+    }
+  }
+}
+
 export const writeSolutionsToMemFs = async (
   localChanges: Immutable<LocalChange[]>,
-  { memFs }: ExtensionState,
+  _state: ExtensionState, // We don't need to destructure memFs anymore
 ) => {
-  // TODO: implement logic for deleted/added files
+  // Get the virtual file system instance
+  const virtualFs = VirtualFileSystem.getInstance();
 
-  // create all the dirs synchronously
-  localChanges.forEach(({ modifiedUri }) =>
-    memFs.createDirectoriesIfNeeded(modifiedUri, KONVEYOR_SCHEME),
-  );
+  // Process each local change
+  for (const change of localChanges) {
+    try {
+      // Apply the diff to get the modified content
+      const content = await applyDiff(change.originalUri, change.diff);
 
-  const writeDiff = async ({ diff, originalUri, modifiedUri }: LocalChange) => {
-    const content = await applyDiff(originalUri, diff);
-    memFs.writeFile(modifiedUri, Buffer.from(content), {
-      create: true,
-      overwrite: true,
-    });
-  };
-  // write the content asynchronously (reading original file via VS Code is async)
-  await Promise.all(localChanges.map((change) => writeDiff(change)));
+      // Store the modified content in the virtual file system
+      virtualFs.setContent(change.modifiedUri, content);
+    } catch (error) {
+      console.error(`Error processing change for ${change.originalUri.path}:`, error);
+      window.showErrorMessage(`Failed to process change for ${change.originalUri.path}`);
+    }
+  }
+
   return localChanges;
 };
 
