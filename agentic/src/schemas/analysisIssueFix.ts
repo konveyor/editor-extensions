@@ -16,7 +16,7 @@ export const AnalysisIssueFixInputState = Annotation.Root({
   ...BaseInputMetaState.spec,
   inputFileUri: Annotation<string | undefined>,
   inputFileContent: Annotation<string | undefined>,
-  inputIncidentsDescription: Annotation<string | undefined>,
+  inputIncidents: Annotation<Array<EnhancedIncident>>,
 });
 
 // output state for node that fixes an analysis issue
@@ -25,6 +25,7 @@ export const AnalysisIssueFixOutputState = Annotation.Root({
   outputUpdatedFile: Annotation<string | undefined>,
   outputAdditionalInfo: Annotation<string | undefined>,
   outputReasoning: Annotation<string | undefined>,
+  outputHints: Annotation<Array<number>>,
 });
 
 // input state for nodes that summarize changes made so far and also outline additional info to address

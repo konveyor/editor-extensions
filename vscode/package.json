@@ -477,6 +477,20 @@
           "scope": "resource",
           "order": 1
         },
+        "konveyor.solutionServer.url": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "URL for the MCP solution server endpoint.",
+          "scope": "window",
+          "order": 3
+        },
+        "konveyor.solutionServer.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the MCP solution server client.",
+          "scope": "window",
+          "order": 4
+        },
         "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
@@ -660,6 +674,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
     "@types/mustache": "^4.2.5",
     "diff": "^7.0.0",
     "jsesc": "^3.1.0",

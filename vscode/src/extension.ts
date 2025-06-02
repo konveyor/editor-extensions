@@ -6,6 +6,7 @@ import { ExtensionData } from "@editor-extensions/shared";
 import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
+import { SolutionServerClient } from "@editor-extensions/agentic";
 import { KonveyorFileModel, registerDiffView } from "./diffView";
 import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
@@ -13,7 +14,12 @@ import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ExtensionPaths, ensurePaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
-import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utilities";
+import {
+  getConfigSolutionMaxEffortLevel,
+  getConfigSolutionServerEnabled,
+  getConfigSolutionServerUrl,
+  updateAnalysisConfig,
+} from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
@@ -75,6 +81,10 @@ class VsCodeExtension {
 
     this.state = {
       analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager),
+      solutionServerClient: new SolutionServerClient(
+        getConfigSolutionServerUrl(),
+        getConfigSolutionServerEnabled(),
+      ),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
@@ -117,6 +127,7 @@ class VsCodeExtension {
       this.registerCommands();
       this.registerLanguageProviders();
       this.checkContinueInstalled();
+      this.state.solutionServerClient.connect();
 
       // Listen for extension changes to update Continue installation status
       this.listeners.push(
@@ -147,6 +158,22 @@ class VsCodeExtension {
             this.state.mutateData((draft) => {
               draft.solutionEffort = effort;
             });
+          }
+          if (
+            event.affectsConfiguration("konveyor.solutionServer.url") ||
+            event.affectsConfiguration("konveyor.solutionServer.enabled")
+          ) {
+            console.log("Solution server configuration modified!");
+            vscode.window
+              .showInformationMessage(
+                "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",
+                "Restart Now",
+              )
+              .then((selection) => {
+                if (selection === "Restart Now") {
+                  vscode.commands.executeCommand("workbench.action.reloadWindow");
+                }
+              });
           }
         }),
       );
@@ -239,6 +266,7 @@ class VsCodeExtension {
 
   public async dispose() {
     await this.state.analyzerClient?.stop();
+    await this.state.solutionServerClient?.disconnect();
     const disposables = this.listeners.splice(0, this.listeners.length);
     for (const disposable of disposables) {
       disposable.dispose();

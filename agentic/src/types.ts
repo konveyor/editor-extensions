@@ -2,6 +2,7 @@ import { type RunnableConfig } from "@langchain/core/runnables";
 import { type EnhancedIncident } from "@editor-extensions/shared";
 import { type AIMessageChunk, type AIMessage } from "@langchain/core/messages";
 import { type BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { SolutionServerClient } from "./clients/solutionServerClient";
 
 export interface BaseWorkflowMessage<KaiWorkflowMessageType, D> {
   type: KaiWorkflowMessageType;
@@ -69,6 +70,7 @@ export interface KaiWorkflowInitOptions {
   model: BaseChatModel;
   workspaceDir: string;
   fsCache: KaiFsCache;
+  solutionServerClient: SolutionServerClient;
 }
 
 export interface KaiWorkflowInput {

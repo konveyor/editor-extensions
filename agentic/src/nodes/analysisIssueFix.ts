@@ -6,8 +6,8 @@ import {
   SystemMessage,
 } from "@langchain/core/messages";
 import { promises as fsPromises } from "fs";
-import { type EnhancedIncident } from "@editor-extensions/shared";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
+import { createPatch } from "diff";
 
 import {
   type SummarizeAdditionalInfoInputState,
@@ -19,6 +19,7 @@ import {
 } from "../schemas/analysisIssueFix";
 import { BaseNode, type ModelInfo } from "./base";
 import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
+import { type GetBestHintResult, SolutionServerClient } from "src/clients/solutionServerClient";
 
 type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
 
@@ -28,10 +29,12 @@ export class AnalysisIssueFix extends BaseNode {
     tools: DynamicStructuredTool[],
     private readonly fsCache: KaiFsCache,
     private readonly workspaceDir: string,
+    private readonly solutionServerClient: SolutionServerClient,
   ) {
     super("AnalysisIssueFix", modelInfo, tools);
     this.fsCache = fsCache;
     this.workspaceDir = workspaceDir;
+    this.solutionServerClient = solutionServerClient;
 
     this.fixAnalysisIssue = this.fixAnalysisIssue.bind(this);
     this.summarizeHistory = this.summarizeHistory.bind(this);
@@ -51,17 +54,15 @@ export class AnalysisIssueFix extends BaseNode {
       ...state,
       // since we are using a reducer, allResponses has to be reset
       outputAllResponses: [],
+      outputHints: [],
       inputFileUri: undefined,
       inputFileContent: undefined,
-      inputIncidentsDescription: undefined,
+      inputIncidents: [],
     };
     // we have to fix the incidents if there's at least one present in state
     if (state.currentIdx < state.inputIncidentsByUris.length) {
       const nextEntry = state.inputIncidentsByUris[state.currentIdx];
       if (nextEntry) {
-        const incidentsDescription = (nextEntry.incidents as EnhancedIncident[])
-          .map((incident) => `* ${incident.lineNumber}: ${incident.message}`)
-          .join();
         try {
           const cachedContent = await this.fsCache.get(nextEntry.uri);
           if (cachedContent) {
@@ -70,7 +71,7 @@ export class AnalysisIssueFix extends BaseNode {
           const fileContent = await fsPromises.readFile(nextEntry.uri, "utf8");
           nextState.inputFileContent = fileContent;
           nextState.inputFileUri = nextEntry.uri;
-          nextState.inputIncidentsDescription = incidentsDescription;
+          nextState.inputIncidents = nextEntry.incidents;
         } catch (err) {
           this.emitWorkflowMessage({
             type: KaiWorkflowMessageType.Error,
@@ -92,6 +93,44 @@ export class AnalysisIssueFix extends BaseNode {
           content: state.outputUpdatedFile,
         },
       });
+      if (this.solutionServerClient) {
+        if (!state.inputFileUri || !state.inputFileContent || !state.outputReasoning) {
+          console.warn("Missing required fields for solution creation");
+        }
+        const incidentIds = await Promise.all(
+          state.inputIncidents.map((incident) =>
+            this.solutionServerClient.createIncident(incident),
+          ),
+        );
+        try {
+          await this.solutionServerClient.createSolution(
+            incidentIds,
+            {
+              diff: createPatch(
+                state.inputFileUri!,
+                state.inputFileContent!,
+                state.outputUpdatedFile,
+              ),
+              before: [
+                {
+                  uri: state.inputFileUri!,
+                  content: state.inputFileContent!,
+                },
+              ],
+              after: [
+                {
+                  uri: state.inputFileUri!,
+                  content: state.outputUpdatedFile!,
+                },
+              ],
+            },
+            state.outputReasoning!,
+            state.outputHints || [],
+          );
+        } catch (error) {
+          console.warn(`Failed to create solution: ${error}`);
+        }
+      }
       nextState.outputAllResponses = [
         {
           ...state,
@@ -99,6 +138,7 @@ export class AnalysisIssueFix extends BaseNode {
       ];
       nextState.outputUpdatedFile = undefined;
       nextState.outputAdditionalInfo = undefined;
+      nextState.outputHints = [];
     }
     // if this was the last file we worked on, accumulate additional infromation
     if (state.currentIdx === state.inputIncidentsByUris.length) {
@@ -127,13 +167,40 @@ export class AnalysisIssueFix extends BaseNode {
   async fixAnalysisIssue(
     state: typeof AnalysisIssueFixInputState.State,
   ): Promise<typeof AnalysisIssueFixOutputState.State> {
-    if (!state.inputFileUri || !state.inputFileContent || !state.inputIncidentsDescription) {
+    if (!state.inputFileUri || !state.inputFileContent || state.inputIncidents.length === 0) {
       return {
         outputUpdatedFile: undefined,
         outputAdditionalInfo: undefined,
         outputReasoning: undefined,
         outputUpdatedFileUri: state.inputFileUri,
+        outputHints: [],
       };
+    }
+
+    // Process incidents in a single loop, collecting hints and creating incidents
+    const seenViolationTypes = new Set<string>();
+    const hints: GetBestHintResult[] = [];
+
+    for (const incident of state.inputIncidents) {
+      // Check if we need to get a hint for this violation type
+      if (incident.ruleset_name && incident.violation_name) {
+        const violationKey = `${incident.ruleset_name}::${incident.violation_name}`;
+
+        if (!seenViolationTypes.has(violationKey)) {
+          seenViolationTypes.add(violationKey);
+          try {
+            const hint = await this.solutionServerClient.getBestHint(
+              incident.ruleset_name,
+              incident.violation_name,
+            );
+            if (hint) {
+              hints.push(hint);
+            }
+          } catch (error) {
+            console.warn(`Failed to get hint for ${violationKey}: ${error}`);
+          }
+        }
+      }
     }
 
     const fileName = basename(state.inputFileUri);
@@ -164,7 +231,12 @@ ${state.inputFileContent}
 \`\`\`
 
 ## Issues
-${state.inputIncidentsDescription}
+${state.inputIncidents
+  .map((incident) => {
+    return `* ${incident.lineNumber}: ${incident.message}`;
+  })
+  .join("\n")}
+${hints.length > 0 ? `\n## Hints\n${hints.map((hint) => `* ${hint.hint}`).join("\n")}` : ""}
 
 # Output Instructions
 Structure your output in Markdown format such as:
@@ -190,6 +262,7 @@ If you have any additional details or steps that need to be performed, put it he
         outputUpdatedFile: undefined,
         outputReasoning: undefined,
         outputUpdatedFileUri: state.inputFileUri,
+        outputHints: [],
       };
     }
 
@@ -200,6 +273,7 @@ If you have any additional details or steps that need to be performed, put it he
       outputUpdatedFile: updatedFile,
       outputAdditionalInfo: additionalInfo,
       outputUpdatedFileUri: state.inputFileUri,
+      outputHints: hints.map((hint) => hint.hint_id),
     };
   }
 

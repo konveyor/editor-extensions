@@ -30,6 +30,10 @@ async function updateConfigValue<T>(
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
 export const getConfigKaiRpcServerPath = (): string =>
   getConfigValue<string>("kaiRpcServerPath") || "";
+export const getConfigSolutionServerUrl = (): string =>
+  getConfigValue<string>("solutionServer.url") || "http://localhost:8000";
+export const getConfigSolutionServerEnabled = (): boolean =>
+  getConfigValue<boolean>("solutionServer.enabled") ?? false;
 export const getConfigLogLevel = (): ServerLogLevels =>
   getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
 export const getConfigLoggingTraceMessageConnection = (): boolean =>
@@ -122,6 +126,12 @@ export const updateGetSolutionMaxDepth = async (value: number | null): Promise<v
 };
 export const updateKaiRpcServerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("kaiRpcServerPath", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateSolutionServerUrl = async (value: string | undefined): Promise<void> => {
+  await updateConfigValue("solutionServer.url", value, vscode.ConfigurationTarget.Workspace);
+};
+export const updateSolutionServerEnabled = async (value: boolean): Promise<void> => {
+  await updateConfigValue("solutionServer.enabled", value, vscode.ConfigurationTarget.Workspace);
 };
 export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);

@@ -112,6 +112,7 @@ export class KaiInteractiveWorkflow
       fsTools.all(),
       options.fsCache,
       workspaceDir,
+      options.solutionServerClient,
     );
     // relay events from nodes back to callers
     analysisIssueFixNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
@@ -243,7 +244,7 @@ export class KaiInteractiveWorkflow
       // internal fields
       inputFileContent: undefined,
       inputFileUri: undefined,
-      inputIncidentsDescription: undefined,
+      inputIncidents: [],
       inputAllAdditionalInfo: undefined,
       inputAllReasoning: undefined,
       inputAllModifiedFiles: [],
@@ -251,6 +252,7 @@ export class KaiInteractiveWorkflow
       outputReasoning: undefined,
       outputUpdatedFile: undefined,
       outputUpdatedFileUri: undefined,
+      outputHints: [],
       outputAllResponses: [],
     };
 
@@ -363,28 +365,55 @@ export class KaiInteractiveWorkflow
   async analysisIssueFixRouterEdge(
     state: typeof AnalysisIssueFixOrchestratorState.State,
   ): Promise<string | string[]> {
+    console.log(`[DEBUG] Edge function called with state:`, {
+      hasInputFileContent: !!state.inputFileContent,
+      hasInputFileUri: !!state.inputFileUri,
+      hasInputIncidents: !!state.inputIncidents && state.inputIncidents.length > 0,
+      hasOutputUpdatedFile: !!state.outputUpdatedFile,
+      hasOutputUpdatedFileUri: !!state.outputUpdatedFileUri,
+      currentIdx: state.currentIdx,
+      totalIncidents: state.inputIncidentsByUris.length,
+      enableAdditionalInformation: state.enableAdditionalInformation,
+      hasInputAllAdditionalInfo: !!state.inputAllAdditionalInfo,
+      hasInputAllReasoning: !!state.inputAllReasoning,
+    });
+
     // if these attributes are available, router meant to solve the analysis issue
-    if (state.inputFileContent && state.inputFileUri && state.inputIncidentsDescription) {
+    if (state.inputFileContent && state.inputFileUri && state.inputIncidents.length > 0) {
       return "fix_analysis_issue";
     }
+
     // if there was a response, router needs to accumulate it
     if (state.outputUpdatedFile && state.outputUpdatedFileUri) {
+      console.log(`[DEBUG] Going to fix_analysis_issue_router to accumulate response`);
       return "fix_analysis_issue_router";
     }
+
     // if there were any errors earlier in the router, go back to router
     // this will make router pick up the next incident in list
     if (
       state.currentIdx < state.inputIncidentsByUris.length &&
-      (!state.inputFileContent || !state.inputFileUri || !state.inputIncidentsDescription)
+      (!state.inputFileContent || !state.inputFileUri || state.inputIncidents.length === 0)
     ) {
+      console.log(`[DEBUG] Going back to fix_analysis_issue_router for next incident`);
       return "fix_analysis_issue_router";
     }
+
     // if the router accumulated all responses, we need to go to additional information
     if (state.enableAdditionalInformation) {
       if (state.inputAllAdditionalInfo && state.inputAllReasoning) {
+        console.log(`[DEBUG] Going to summarize both additional info and history`);
         return ["summarize_additional_information", "summarize_history"];
       } else if (state.inputAllAdditionalInfo) {
+        console.log(`[DEBUG] Going to summarize additional information only`);
         return "summarize_additional_information";
+      } else {
+        // Additional information is enabled but not accumulated yet
+        // This means we need to go back to router to continue processing
+        console.log(
+          `[DEBUG] Additional info enabled but not accumulated, going to fix_analysis_issue_router`,
+        );
+        return "fix_analysis_issue_router";
       }
     }
     return END;

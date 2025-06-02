@@ -10,12 +10,13 @@ export function isGetSolutionResult(object: unknown): object is GetSolutionResul
     return false;
   }
 
-  const { encountered_errors, changes, scope, ...rest } = object as GetSolutionResult;
+  const { encountered_errors, changes, scope, clientId, ...rest } = object as GetSolutionResult;
 
   return (
     Array.isArray(encountered_errors) &&
     Array.isArray(changes) &&
     isObject(scope) &&
+    isString(clientId) &&
     isEmpty(rest) &&
     encountered_errors.every(isString) &&
     changes.every(isObject) &&
@@ -63,7 +64,9 @@ export function isUri(obj: unknown): obj is Uri {
 
 export function isSolutionResponse(obj: unknown): obj is SolutionResponse {
   const response = obj as SolutionResponse;
-  return isString(response.diff) && Array.isArray(response.modified_files);
+  return (
+    isString(response.diff) && Array.isArray(response.modified_files) && isString(response.clientId)
+  );
 }
 
 export function isSolution(obj: unknown): obj is Solution {

@@ -40,6 +40,7 @@ const toLocalFromGetSolutionResult = (solution: GetSolutionResult): LocalChange[
       originalUri: Uri.file(toAbsolutePathInsideWorkspace(original)),
       diff,
       state: "pending",
+      clientId: solution.clientId,
     }));
 
 const toLocalFromSolutionResponse = (solution: SolutionResponse): LocalChange[] =>
@@ -62,6 +63,7 @@ const toLocalFromSolutionResponse = (solution: SolutionResponse): LocalChange[] 
       ),
       diff: Diff.formatPatch(structuredPatch),
       state: "pending",
+      clientId: solution.clientId,
     }));
 
 export const writeSolutionsToMemFs = async (

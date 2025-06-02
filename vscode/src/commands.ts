@@ -65,6 +65,7 @@ import {
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
 import { getModelConfig, ModelProvider } from "./client/modelProvider";
 import { createPatch, createTwoFilesPatch } from "diff";
+import { v4 as uuidv4 } from "uuid";
 
 const isWindows = process.platform === "win32";
 
@@ -125,9 +126,10 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
       await commands.executeCommand("konveyor.showResolutionPanel");
-
       // Create a scope for the solution
       const scope: Scope = { incidents, effort };
+      const clientId = uuidv4();
+      state.solutionServerClient.setClientId(clientId);
 
       // Update the state to indicate we're starting to fetch a solution
       state.mutateData((draft) => {
@@ -158,6 +160,7 @@ const commandsMap: (state: ExtensionState) => {
           model: model,
           workspaceDir: state.data.workspaceRoot,
           fsCache: state.kaiFsCache,
+          solutionServerClient: state.solutionServerClient,
         });
 
         // revert the changes back to on-disk
@@ -258,6 +261,7 @@ const commandsMap: (state: ExtensionState) => {
               const chunk = msg.data;
               const content =
                 typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
+
               if (msg.id !== lastMessageId) {
                 state.mutateData((draft) => {
                   draft.chatMessages.push({
@@ -350,6 +354,7 @@ const commandsMap: (state: ExtensionState) => {
           changes: allDiffs,
           encountered_errors: [],
           scope: { incidents, effort },
+          clientId: clientId,
         };
 
         // Update the state with the solution and reasoning

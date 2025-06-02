@@ -17,6 +17,11 @@ export interface Link {
 
 export type Category = "potential" | "optional" | "mandatory";
 
+export interface SuccessRateMetric {
+  counted_solutions: number;
+  accepted_solutions: number;
+}
+
 export interface Violation {
   description: string;
   category?: Category;
@@ -37,12 +42,14 @@ export interface EnhancedIncident extends Incident {
   uri: string;
   message: string;
   activeProfileName?: string;
+  solutionServerIncidentId?: number;
   ruleset_name?: string;
   ruleset_description?: string;
   violation_name?: string;
   violation_description?: string;
   violation_category?: Category;
   violation_labels?: string[];
+  successRateMetric?: SuccessRateMetric;
 }
 
 export interface RuleSet {
@@ -68,12 +75,15 @@ export interface Change {
   modified: string;
   // diff in unified format - tested with git diffs
   diff: string;
+  // solution server id
+  solutionId?: number;
 }
 
 export interface GetSolutionResult {
   encountered_errors: string[];
   changes: Change[];
   scope: Scope;
+  clientId: string;
 }
 
 export interface LocalChange {
@@ -81,6 +91,8 @@ export interface LocalChange {
   originalUri: Uri;
   diff: string;
   state: "pending" | "applied" | "discarded";
+  solutionId?: number;
+  clientId: string;
 }
 
 export interface ResolutionMessage {
@@ -95,6 +107,7 @@ export interface SolutionResponse {
   diff: string;
   encountered_errors: string[];
   modified_files: string[];
+  clientId: string;
 }
 
 export interface Scope {
