@@ -26,6 +26,53 @@ export type ModelInfo = {
   toolsSupportedInStreaming: boolean;
 };
 
+// // Add decorator for streamin content
+// function StreamContentDecorator() {
+//   return function (
+//     target: BaseNode,
+//     propertyKey: string,
+//     descriptor: PropertyDescriptor
+//   ) {
+//     const originalMethod = descriptor.value;
+//     descriptor.value = async function (
+//       this: BaseNode,
+//       ...args: any[]
+//     ): Promise<AIMessage | AIMessageChunk | undefined> {
+//       const messageId = this.newMessageId();
+//       try {
+//         // Emit initial empty message for streaming
+//         this.emitWorkflowMessage({
+//           id: messageId,
+//           type: KaiWorkflowMessageType.LLMResponseChunk,
+//           data: new AIMessageChunk({ content: "" }),
+//         });
+
+//         // Call original method
+//         const result = await originalMethod.apply(this, args);
+
+//         // Emit final message with complete content
+//         if (result) {
+//           this.emitWorkflowMessage({
+//             id: messageId,
+//             type: KaiWorkflowMessageType.LLMResponse,
+//             data: result,
+//           });
+//         }
+
+//         return result;
+//       } catch (err) {
+//         this.emitWorkflowMessage({
+//           id: messageId,
+//           type: KaiWorkflowMessageType.Error,
+//           data: `Failed to process stream - ${String(err)}`,
+//         });
+//         throw err;
+//       }
+//     };
+//     return descriptor;
+//   };
+// }
+
 export abstract class BaseNode extends KaiWorkflowEventEmitter {
   constructor(
     private readonly name: string,
@@ -46,7 +93,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     this.runTools = this.runTools.bind(this);
   }
 
-  private newMessageId(prefix: string = "res"): string {
+  protected newMessageId(prefix: string = "res"): string {
     return `${prefix}-${this.name}-${Date.now()}-${Array.from({ length: 5 }, () =>
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".charAt(
         Math.floor(Math.random() * 62),
@@ -54,12 +101,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     ).join("")}`;
   }
 
-  /**
-   * Calls <model>.stream and emits onMessage event with chunks retrieved.
-   * Falls back to invoke() when native tools are supported but not in streaming.
-   * If native tools are not supported, parses response on-the-fly and assembles
-   * into tool_call_chunks making it transparent to callers.
-   */
+  // @StreamContentDecorator()
   protected async streamOrInvoke(
     input: BaseLanguageModelInput,
     streamOptions?: {
