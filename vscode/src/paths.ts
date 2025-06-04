@@ -185,5 +185,6 @@ export const ignoresToExcludedPaths = () => {
     absolute: true,
     unique: true,
   });
-  return exclude;
+
+  return exclude.map((path) => slash(String(path)));
 };
