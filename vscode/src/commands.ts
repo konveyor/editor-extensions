@@ -28,6 +28,7 @@ import {
   GetSolutionResult,
 } from "@editor-extensions/shared";
 import {
+  type KaiModifiedFile,
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
   KaiInteractiveWorkflow,
@@ -56,7 +57,11 @@ import {
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
-import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
+import {
+  checkIfExecutable,
+  copySampleProviderSettings,
+  getBuildFilesForLanguage,
+} from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
 import { ChatOpenAI, AzureChatOpenAI } from "@langchain/openai";
 import { ChatBedrockConverse, type ChatBedrockConverseInput } from "@langchain/aws";
@@ -242,20 +247,15 @@ const commandsMap: (state: ExtensionState) => {
         // TODO (pgaikwad) - revisit this
         // this is a number I am setting for demo purposes
         // until we have a full UI support. we will only
-        // process child issues until the depth of 2
+        // process child issues until the depth of 1
         const maxTaskManagerIterations = 1;
         let currentTaskManagerIterations = 0;
 
         // Process each file's incidents
         const allDiffs: { original: string; modified: string; diff: string }[] = [];
+        const modifiedFiles: Map<string, modifiedFileState> = new Map<string, modifiedFileState>();
+        const modifiedFilesPromises: Array<Promise<void>> = [];
         let lastMessageId: string = "0";
-        const modifiedFiles: Map<
-          string,
-          {
-            content: string;
-            isNew: boolean;
-          }
-        > = new Map<string, { content: string; isNew: boolean }>();
         // listen on agents events
         kaiAgent.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
           switch (msg.type) {
@@ -295,7 +295,11 @@ const commandsMap: (state: ExtensionState) => {
                     const tasks = state.taskManager.getTasks().map((t) => {
                       return {
                         uri: t.getUri().fsPath,
-                        task: t.toString(),
+                        task:
+                          t.toString().length > 100
+                            ? t.toString().slice(0, 100).replaceAll("`", "'").replaceAll(">", "") +
+                              "..."
+                            : t.toString(),
                       } as { uri: string; task: string };
                     });
                     if (tasks.length > 0) {
@@ -305,7 +309,8 @@ const commandsMap: (state: ExtensionState) => {
                           messageToken: msg.id,
                           timestamp: new Date().toISOString(),
                           value: {
-                            message: `It appears that my fixes caused following issues:\n\n - ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
+                            message: `It appears that my fixes caused following issues:\n\n - \
+                              ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
                           },
                         });
                       });
@@ -351,56 +356,7 @@ const commandsMap: (state: ExtensionState) => {
               break;
             }
             case KaiWorkflowMessageType.ModifiedFile: {
-              const fPath = msg.data.path;
-              const content = msg.data.content;
-              const uri = Uri.file(fPath);
-              try {
-                let isNew = false;
-                const alreadyModified = modifiedFiles.has(uri.fsPath);
-                if (!alreadyModified) {
-                  try {
-                    await workspace.fs.stat(uri);
-                  } catch (err) {
-                    if (
-                      (err as any).code === "FileNotFound" ||
-                      (err as any).name === "EntryNotFound"
-                    ) {
-                      isNew = true;
-                    } else {
-                      throw err;
-                    }
-                  }
-                  modifiedFiles.set(uri.fsPath, {
-                    content,
-                    isNew,
-                  });
-                } else {
-                  const { isNew } = modifiedFiles.get(uri.fsPath) ?? { isNew: false };
-                  modifiedFiles.set(uri.fsPath, {
-                    content,
-                    isNew,
-                  });
-                }
-                if (getConfigSuperAgentMode()) {
-                  if (isNew && !alreadyModified) {
-                    await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from("")));
-                  }
-                  try {
-                    const textDocument = await workspace.openTextDocument(uri);
-                    const range = new Range(
-                      textDocument.positionAt(0),
-                      textDocument.positionAt(textDocument.getText().length),
-                    );
-                    const edit = new WorkspaceEdit();
-                    edit.replace(uri, range, content);
-                    await workspace.applyEdit(edit);
-                  } catch (err) {
-                    console.log(`Failed to apply edit made by the agent - ${String(err)}`);
-                  }
-                }
-              } catch (err) {
-                console.log(`Failed to write file by the agent - ${err}`);
-              }
+              modifiedFilesPromises.push(processModifiedFile(modifiedFiles, msg.data));
               break;
             }
           }
@@ -421,26 +377,32 @@ const commandsMap: (state: ExtensionState) => {
           window.showInformationMessage(`We encountered an error running the agent.`);
         }
 
-        // process diffs from agent workflow
+        // wait for modified files to process
+        await Promise.all(modifiedFilesPromises);
+
+        // process diffs from agent workflow & undo any edits we made
         await Promise.all(
-          Array.from(modifiedFiles.entries()).map(async ([path, { content, isNew }]) => {
+          Array.from(modifiedFiles.entries()).map(async ([path, state]) => {
+            const { originalContent, modifiedContent } = state;
             const uri = Uri.file(path);
             const relativePath = workspace.asRelativePath(uri);
             try {
-              if (isNew) {
+              // revert the edit
+              // TODO(pgaikwad) - use ws edit api
+              await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(originalContent ?? "")));
+            } catch (err) {
+              console.error(`Error reverting edits - ${err}`);
+            }
+            try {
+              if (!originalContent) {
                 allDiffs.push({
-                  diff: createTwoFilesPatch("", relativePath, "", content),
+                  diff: createTwoFilesPatch("", relativePath, "", modifiedContent),
                   modified: relativePath,
                   original: "",
                 });
               } else {
-                const originalContent = await workspace.fs.readFile(uri);
                 allDiffs.push({
-                  diff: createPatch(
-                    relativePath,
-                    new TextDecoder().decode(originalContent),
-                    content,
-                  ),
+                  diff: createPatch(relativePath, originalContent, modifiedContent),
                   modified: relativePath,
                   original: relativePath,
                 });
@@ -715,5 +677,80 @@ const commandsMap: (state: ExtensionState) => {
 export function registerAllCommands(state: ExtensionState) {
   for (const [command, callback] of Object.entries(commandsMap(state))) {
     state.extensionContext.subscriptions.push(commands.registerCommand(command, callback));
+  }
+}
+
+interface modifiedFileState {
+  // if a file is newly created, original content can be undefined
+  originalContent: string | undefined;
+  modifiedContent: string;
+  editType: "inMemory" | "toDisk";
+}
+
+// processes a ModifiedFile message from agents
+// 1. stores the state of the edit in a map to be reverted later
+// 2. dependending on type of the file being modified:
+//    a. For a build file, applies the edit directly to disk
+//    b. For a non-build file, applies the edit to the file in-memory
+async function processModifiedFile(
+  modifiedFilesState: Map<string, modifiedFileState>,
+  modifiedFile: KaiModifiedFile,
+): Promise<void> {
+  const { path, content } = modifiedFile;
+  const uri = Uri.file(path);
+  const editType = getBuildFilesForLanguage("java").some((f) => uri.fsPath.endsWith(f))
+    ? "toDisk"
+    : "inMemory";
+  const alreadyModified = modifiedFilesState.has(uri.fsPath);
+  // check if this is a newly created file
+  let isNew = false;
+  let originalContent: undefined | string = undefined;
+  if (!alreadyModified) {
+    try {
+      await workspace.fs.stat(uri);
+    } catch (err) {
+      if ((err as any).code === "FileNotFound" || (err as any).name === "EntryNotFound") {
+        isNew = true;
+      } else {
+        throw err;
+      }
+    }
+    originalContent = isNew
+      ? undefined
+      : new TextDecoder().decode(await workspace.fs.readFile(uri));
+    modifiedFilesState.set(uri.fsPath, {
+      modifiedContent: content,
+      originalContent,
+      editType,
+    });
+  } else {
+    modifiedFilesState.set(uri.fsPath, {
+      ...(modifiedFilesState.get(uri.fsPath) as modifiedFileState),
+      modifiedContent: content,
+    });
+  }
+  // if we are not running full agentic flow, we don't have to persist changes
+  if (!getConfigSuperAgentMode()) {
+    return;
+  }
+  if (editType === "toDisk") {
+    await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+  } else {
+    try {
+      if (isNew && !alreadyModified) {
+        await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from("")));
+      }
+      // an in-memory edit is applied via the editor window
+      const textDocument = await workspace.openTextDocument(uri);
+      const range = new Range(
+        textDocument.positionAt(0),
+        textDocument.positionAt(textDocument.getText().length),
+      );
+      const edit = new WorkspaceEdit();
+      edit.replace(uri, range, content);
+      await workspace.applyEdit(edit);
+    } catch (err) {
+      console.log(`Failed to apply edit made by the agent - ${String(err)}`);
+    }
   }
 }
