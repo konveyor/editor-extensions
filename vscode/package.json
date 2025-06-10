@@ -463,6 +463,20 @@
           "scope": "window",
           "order": 0
         },
+        "konveyor.serverURL": {
+          "type": "string",
+          "default": "",
+          "description": "URL for Konveyor.",
+          "scope": "window",
+          "order": 1
+        },
+        "konveyor.username": {
+          "type": "string",
+          "default": "",
+          "description": "Username for Konveyor.",
+          "scope": "window",
+          "order": 1
+        },
         "konveyor.analyzerPath": {
           "type": "string",
           "default": "",
