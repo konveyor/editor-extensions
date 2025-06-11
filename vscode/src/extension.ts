@@ -117,11 +117,13 @@ class VsCodeExtension {
       this.registerCommands();
       this.registerLanguageProviders();
       this.checkContinueInstalled();
+      this.checkJavaExtensionInstalled();
 
-      // Listen for extension changes to update Continue installation status
+      // Listen for extension changes to update Continue installation status and Java extension status
       this.listeners.push(
         vscode.extensions.onDidChange(() => {
           this.checkContinueInstalled();
+          this.checkJavaExtensionInstalled();
         }),
       );
 
@@ -235,6 +237,31 @@ class VsCodeExtension {
     this.state.mutateData((draft) => {
       draft.isContinueInstalled = !!continueExt;
     });
+  }
+
+  private checkJavaExtensionInstalled(): void {
+    const javaExt = vscode.extensions.getExtension("redhat.java");
+    if (!javaExt) {
+      vscode.window
+        .showWarningMessage(
+          "The Red Hat Java Language Support extension is required for proper Java analysis. " +
+            "Please install it from the VS Code marketplace.",
+          "Install Java Extension",
+        )
+        .then((selection) => {
+          if (selection === "Install Java Extension") {
+            vscode.commands.executeCommand("workbench.extensions.search", "redhat.java");
+          }
+        });
+      return;
+    }
+
+    if (!javaExt.isActive) {
+      vscode.window.showInformationMessage(
+        "The Java Language Support extension is installed but not yet active. " +
+          "Java analysis features may be limited until it's fully loaded.",
+      );
+    }
   }
 
   public async dispose() {

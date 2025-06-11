@@ -35,6 +35,9 @@
   "enabledApiProposals": [
     "contribDiffEditorGutterToolBarMenus"
   ],
+  "extensionDependencies": [
+    "redhat.java"
+  ],
   "activationEvents": [
     "onFileSystem:konveyorMemFs",
     "onFileSystem:konveyorReadOnly"
