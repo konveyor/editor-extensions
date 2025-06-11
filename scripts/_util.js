@@ -105,6 +105,11 @@ export function parseCli(
         short: "b",
         default: branch,
       },
+      pr: {
+        type: "string",
+        short: "p",
+        default: undefined,
+      },
       "ruleset-org": {
         type: "string",
         default: rulesetOrg,
@@ -127,6 +132,17 @@ export function parseCli(
     rulesetReleaseTag: values["ruleset-release-tag"],
   };
 
+  if (values["use-workflow-artifacts"] && values.workflow && values.pr) {
+    return {
+      useWorkflow: true,
+      usePr: true,
+      org: values.org,
+      repo: values.repo,
+      workflow: values.workflow,
+      pr: values.pr,
+      ...ruleset,
+    };
+  }
   if (values["use-workflow-artifacts"] && values.workflow && values.branch) {
     return {
       useWorkflow: true,

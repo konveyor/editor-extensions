@@ -11,6 +11,7 @@ import {
   fetchGitHubReleaseMetadata,
   fetchGitHubTagSha,
   fetchFirstSuccessfulRun,
+  fetchFirstSuccessfulRunForPr,
   fetchArtifactsForRun,
 } from "./_github.js";
 import { unpackAsset, unpackTarGz } from "./_unpack.js";
@@ -297,6 +298,7 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
   org,
   repo,
   branch,
+  pr,
   workflow,
   bearerToken,
   artifacts,
@@ -313,22 +315,29 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
   const metadata = {
     org,
     repo,
-    branch,
     workflow,
   };
 
-  console.group(
-    `Download workflow artifacts, GitHub repo: ${yellow(`${org}/${repo}`)}, branch: ${yellow(branch)}, workflow: ${yellow(workflow)}`,
-  );
+  if (pr) {
+    metadata.pr = pr;
+    console.group(
+      `Download workflow artifacts, GitHub repo: ${yellow(`${org}/${repo}`)}, PR: ${yellow(`#${pr}`)}, workflow: ${yellow(workflow)}`,
+    );
+  } else {
+    metadata.branch = branch;
+    console.group(
+      `Download workflow artifacts, GitHub repo: ${yellow(`${org}/${repo}`)}, branch: ${yellow(branch)}, workflow: ${yellow(workflow)}`,
+    );
+  }
+
   try {
     await fs.ensureDir(targetDirectory);
 
     // Figure out the source workflow artifacts
-    const { workflowRunId, workflowRunUrl, headSha } = await fetchFirstSuccessfulRun(
-      octokit,
-      branch,
-      workflow,
-    );
+    const { workflowRunId, workflowRunUrl, headSha } = pr
+      ? await fetchFirstSuccessfulRunForPr(octokit, pr, workflow)
+      : await fetchFirstSuccessfulRun(octokit, branch, workflow);
+
     if (!workflowRunId) {
       throw new Error("No successful workflow runs found.");
     }
@@ -339,7 +348,7 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
     }
 
     console.log(`Using workflow run: ${yellow(workflowRunId)}, url: ${workflowRunUrl}`);
-    console.log(`Branch head commit sha: ${yellow(headSha)}`);
+    console.log(`${pr ? "PR" : "Branch"} head commit sha: ${yellow(headSha)}`);
     console.log("Found workflow artifacts:", artifactUrls);
 
     metadata.workflowRunId = workflowRunId;

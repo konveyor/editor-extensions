@@ -30,7 +30,7 @@ const cwd = cwdToProjectRoot();
 
 // Setup download target
 const [DOWNLOAD_CACHE, DOWNLOAD_DIR] = await ensureDirs(["downloaded_cache", "downloaded_assets"]);
-const { useWorkflow, useRelease, org, repo, releaseTag, branch, workflow } = cli;
+const { useWorkflow, useRelease, org, repo, releaseTag, branch, pr, workflow } = cli;
 const bearerToken = process.env.GITHUB_TOKEN ?? undefined;
 
 const actions = [
@@ -65,6 +65,7 @@ const actions = [
         org,
         repo,
         branch,
+        pr,
         workflow,
         bearerToken,
 

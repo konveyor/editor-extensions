@@ -155,6 +155,12 @@ To download from the latest successful build workflow on the head of the main br
 GITHUB_TOKEN=$(gh auth token) npm run collect-assets -- --use-workflow-artifacts
 ```
 
+To download from the latest successful build workflow for a specific PR:
+
+```bash
+GITHUB_TOKEN=$(gh auth token) npm run collect-assets -- --use-workflow-artifacts --pr=123
+```
+
 ### GITHUB_TOKEN for collect-assets
 
 Using a `GITHUB_TOKEN` is good to avoid rate limiting when downloading from the releases,
