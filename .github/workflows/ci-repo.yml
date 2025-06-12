@@ -17,9 +17,6 @@ on:
 
   workflow_call:
 
-  schedule:
-    - cron: '0 2 * * *'
-
 concurrency:
   group: ci-repo-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -183,6 +180,10 @@ jobs:
           name: vscode-extension
           path: "dist/*.vsix"
 
+      - name: Set vsix suffix
+        if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
+        id: set_time
+        run: echo "vsix_suffix=$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Move vsix
         if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
@@ -198,7 +199,19 @@ jobs:
           upload_url: https://uploads.github.com/repos/konveyor/editor-extensions/releases/223723085/assets{?name,label}
           release_id: 223723085
           asset_path: ./dist/konveyor-ai.vsix
-          asset_name: konveyor-ai-$$.vsix
+          asset_name: konveyor-ai-${{ steps.set_time.outputs.vsix_suffix }}.vsix
           asset_content_type: application/octet-stream
-          max_releases: 14
           ignore_hash: true
+
+      - name: Cleanup old assets
+        if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
+        run: |
+             c=1
+             for i in $(gh release view -R konveyor/editor-extensions development-builds --json assets | jq -r .assets[].name | sort -r); do
+               if [ "$c" -gt 7 ]; then
+                 gh release delete-asset -y -R konveyor/editor-extensions development-builds $i
+               fi
+               c=$((c+1))
+             done
+        env:
+          GH_TOKEN: ${{ github.token }}
