@@ -98,6 +98,7 @@ export class AnalyzerClient {
    */
   public async start(): Promise<void> {
     // TODO: Ensure serverState is stopped || configurationReady
+    trackJavaExtension(this.outputChannel);
 
     if (!this.canAnalyze()) {
       vscode.window.showErrorMessage(
@@ -165,7 +166,7 @@ export class AnalyzerClient {
       this.outputChannel.appendLine("RPC connection closed"),
     );
     this.analyzerRpcConnection.onRequest((method, params) => {
-      // this.outputChannel.appendLine(`Received request: ${method} + ${JSON.stringify(params)}`);
+      this.outputChannel.appendLine(`Received request: ${method} + ${JSON.stringify(params)}`);
     });
 
     this.analyzerRpcConnection.onNotification("started", (_: []) => {
@@ -543,4 +544,49 @@ export class AnalyzerClient {
       isValid: !!profile.labelSelector && rulesets.length > 0,
     };
   }
+}
+
+async function trackJavaExtension(outputChannel: vscode.OutputChannel) {
+  const javaExt = vscode.extensions.getExtension("redhat.java");
+  if (!javaExt) {
+    outputChannel.appendLine("Java extension (redhat.java) is not installed.");
+    return;
+  }
+  await javaExt.activate();
+  const api = javaExt.exports;
+
+  // Log initial server mode
+  outputChannel.appendLine(`[Java] Initial server mode: ${api.serverMode}`);
+
+  // Track server mode changes
+  api.onDidServerModeChange((mode: string) => {
+    outputChannel.appendLine(`[Java] Server mode changed: ${mode}`);
+  });
+
+  // Track server errors
+  api.onDidServerError?.((err: any) => {
+    outputChannel.appendLine(`[Java] Server error: ${JSON.stringify(err)}`);
+  });
+
+  // Track classpath updates
+  api.onDidClasspathUpdate?.((info: any) => {
+    outputChannel.appendLine(`[Java] Classpath updated: ${JSON.stringify(info)}`);
+  });
+
+  // Track project imports
+  api.onDidProjectsImport?.((info: any) => {
+    outputChannel.appendLine(`[Java] Projects imported: ${JSON.stringify(info)}`);
+  });
+
+  // Track build status changes
+  api.onDidBuildStatusChange?.((status: any) => {
+    outputChannel.appendLine(`[Java] Build status changed: ${JSON.stringify(status)}`);
+  });
+
+  // Track Java runtime changes
+  api.onDidChangeJavaRuntime?.((runtime: any) => {
+    outputChannel.appendLine(`[Java] Java runtime changed: ${JSON.stringify(runtime)}`);
+  });
+
+  // Add more event listeners as needed for your debugging
 }
