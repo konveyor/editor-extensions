@@ -180,14 +180,23 @@ export class AnalyzerClient {
     });
     this.analyzerRpcConnection.onRequest(
       "workspace/executeCommand",
-      (params: WorksapceCommandParams) => {
+      async (params: WorksapceCommandParams) => {
         this.outputChannel.appendLine(`Executing workspace command: ${params.command}`);
-        return vscode.commands
-          .executeCommand("java.execute.workspaceCommand", params.command, params.arguments![0])
-          .then((res) => {
-            this.outputChannel.appendLine(`Command execution result: ${JSON.stringify(res)}`);
-            return res;
-          });
+        this.outputChannel.appendLine(`Command arguments: ${JSON.stringify(params.arguments)}`);
+
+        try {
+          const result = await vscode.commands.executeCommand(
+            "java.execute.workspaceCommand",
+            params.command,
+            params.arguments![0],
+          );
+
+          this.outputChannel.appendLine(`Command execution result: ${JSON.stringify(result)}`);
+          return result;
+        } catch (error) {
+          this.outputChannel.appendLine(`[Java] Command execution error: ${error}`);
+          throw error;
+        }
       },
     );
     this.analyzerRpcConnection.onError((e) => {
@@ -196,28 +205,103 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.listen();
     this.analyzerRpcConnection.sendNotification("start", { type: "start" });
     this.fireServerStateChange("running");
+
+    // Test Java Language Server communication
+    try {
+      this.outputChannel.appendLine("[Java] Testing Language Server communication...");
+      const testResult = await vscode.commands.executeCommand(
+        "java.execute.workspaceCommand",
+        "java.project.getAll",
+      );
+      this.outputChannel.appendLine(`[Java] Test command result: ${JSON.stringify(testResult)}`);
+      if (testResult === undefined) {
+        this.outputChannel.appendLine(
+          "[Java] Warning: Language Server returned undefined for test command",
+        );
+      }
+    } catch (error) {
+      this.outputChannel.appendLine(`[Java] Error testing Language Server communication: ${error}`);
+    }
   }
 
   protected async getSocket(pipeName: string): Promise<Socket> {
     const s = createConnection(pipeName);
     let ready = false;
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY = 2000; // 2 seconds
+    let retryCount = 0;
+
     s.on("ready", () => {
       this.outputChannel.appendLine("got ready message");
       ready = true;
     });
-    while ((s.connecting || !s.readable) && !ready) {
-      await setTimeout(200);
+
+    while ((s.connecting || !s.readable) && !ready && retryCount < MAX_RETRIES) {
+      await setTimeout(RETRY_DELAY);
+      retryCount++;
+
       if (!s.connecting && s.readable) {
         break;
       }
       if (!s.connecting) {
         s.connect(pipeName);
       }
+
+      // Add diagnostic messages at specific retry points
+      if (retryCount === 2) {
+        this.outputChannel.appendLine("Waiting for ready message... Checking Java environment...");
+        await this.checkJavaEnvironment();
+      }
+      if (retryCount === 4) {
+        this.outputChannel.appendLine(
+          "Still waiting for ready message. Please verify Maven/Gradle configuration.",
+        );
+        await this.checkJavaEnvironment();
+      }
     }
+
     if (s.readable) {
       return s;
     } else {
-      throw Error("unable to connect");
+      throw Error(
+        "Unable to connect after multiple retries. Please check Java environment configuration.",
+      );
+    }
+  }
+
+  private async checkJavaEnvironment(): Promise<void> {
+    try {
+      // Check Java projects with more detail
+      const projects = await vscode.commands.executeCommand("java.project.getAll");
+      this.outputChannel.appendLine(
+        `[Java] Found ${Array.isArray(projects) ? projects.length : 0} Java projects`,
+      );
+
+      if (Array.isArray(projects)) {
+        for (const project of projects) {
+          this.outputChannel.appendLine(`[Java] Project: ${project.name} (${project.uri})`);
+        }
+      }
+
+      // Check Java Language Server status
+      const javaExt = vscode.extensions.getExtension("redhat.java");
+      if (javaExt) {
+        await javaExt.activate();
+        const api = javaExt.exports;
+        this.outputChannel.appendLine(`[Java] Extension server mode: ${api.serverMode}`);
+      }
+
+      // Check workspace trust
+      const isTrusted = vscode.workspace.isTrusted;
+      this.outputChannel.appendLine(`[Java] Workspace trusted: ${isTrusted}`);
+
+      if (!isTrusted) {
+        this.outputChannel.appendLine(
+          "[Java] Warning: Workspace is not trusted, this may affect Java Language Server functionality",
+        );
+      }
+    } catch (e) {
+      this.outputChannel.appendLine(`[Java] Error checking environment: ${e}`);
     }
   }
 
