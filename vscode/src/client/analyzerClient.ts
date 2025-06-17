@@ -206,6 +206,13 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.sendNotification("start", { type: "start" });
     this.fireServerStateChange("running");
 
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 1) {
+      this.outputChannel.appendLine("[Konveyor] Multi-root workspace detected.");
+    }
+    if (!vscode.workspace.isTrusted) {
+      this.outputChannel.appendLine("[Konveyor] Workspace is not trusted.");
+    }
+
     // Test Java Language Server communication
     try {
       this.outputChannel.appendLine("[Java] Testing Language Server communication...");
