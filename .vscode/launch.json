@@ -18,7 +18,7 @@
         "!**/node_modules/**"
       ],
 
-      "preLaunchTask": "npm run dev"
+      "preLaunchTask": "dev-without-shared"
     },
     {
       "name": "__ Extension Tests (broken)",

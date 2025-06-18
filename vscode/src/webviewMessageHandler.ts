@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
-import { Webview, Uri, workspace, window, commands } from "vscode";
+import { Webview, Uri, workspace, window } from "vscode";
 import { ExtensionState } from "./extensionState";
+// Remove the memfs import since we're not using it anymore
 import {
   ADD_PROFILE,
   AnalysisProfile,
@@ -24,7 +25,6 @@ import {
   START_SERVER,
   STOP_SERVER,
   UPDATE_PROFILE,
-  VIEW_FIX,
   WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
@@ -56,31 +56,130 @@ export function setupWebviewMessageListener(webview: Webview, state: ExtensionSt
 const actions: {
   [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
-  VIEW_FILE: async ({ path }, state) => {
+  FILE_ACTION_FROM_CODE: async ({ path, messageToken, action }, state) => {
+    try {
+      // Find the message in the chat messages
+      const messageIndex = state.data.chatMessages.findIndex(
+        (msg) =>
+          msg.kind === ChatMessageType.ModifiedFile &&
+          (msg.value as any).path === path &&
+          (messageToken ? msg.messageToken === messageToken : true),
+      );
+
+      if (messageIndex === -1) {
+        console.log(`No message found for path: ${path} and token: ${messageToken}`);
+        return;
+      }
+
+      // Update the UI state to reflect the action
+      state.mutateData((draft) => {
+        // Add a message indicating the action taken
+        draft.chatMessages.push({
+          kind: ChatMessageType.String,
+          messageToken: `action-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          value: {
+            message:
+              action === "applied"
+                ? `Changes to ${path} were applied from the editor.`
+                : `Changes to ${path} were rejected from the editor.`,
+          },
+        });
+      });
+
+      // If the action was 'applied', we need to update the file
+      if (action === "applied") {
+        const msg = state.data.chatMessages[messageIndex];
+        const content = (msg.value as any).content;
+
+        if (content) {
+          const uri = vscode.Uri.file(path);
+          await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+          vscode.window.showInformationMessage(
+            `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error handling FILE_ACTION_FROM_CODE:", error);
+      vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
+    }
+  },
+  VIEW_FILE: async ({ path, change }, state) => {
     try {
       const uri = Uri.file(path);
       const doc = await workspace.openTextDocument(uri);
-      await window.showTextDocument(doc, { preview: true });
+      const editor = await window.showTextDocument(doc, { preview: true });
+
+      // If a change object was provided, apply decorations
+      if (change) {
+        // Import the decorator dynamically to avoid circular dependencies
+        const { InlineSuggestionDecorator } = await import(
+          "./decorations/inlineSuggestionDecorator"
+        );
+        await InlineSuggestionDecorator.applyDecorations(editor, change);
+      }
     } catch (error) {
       console.error("Error handling VIEW_FILE:", error);
       window.showErrorMessage(`Failed to open file: ${error}`);
     }
   },
 
-  APPLY_MODIFIED_FILE: async ({ path }, state) => {
+  APPLY_MODIFIED_FILE: async ({ path, content }, state) => {
     try {
       const uri = Uri.file(path);
-      // Find the corresponding change in agentModifiedFiles
-      const change = state.data.localChanges.find(
-        (c) => c.originalUri.fsPath === uri.fsPath || c.modifiedUri.fsPath === uri.fsPath,
+
+      // Find the modified file message in chat messages
+      const fileMessage = state.data.chatMessages.find(
+        (msg) => msg.kind === ChatMessageType.ModifiedFile && (msg.value as any).path === path,
       );
 
-      if (change) {
-        await commands.executeCommand("konveyor.applyFile", uri);
-      } else {
-        console.error(`No change found for file: ${path}`);
-        window.showErrorMessage(`No change found for file: ${path}`);
+      // If we have the content directly from the payload, use it
+      if (content) {
+        // Directly write to the real file
+        await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+        window.showInformationMessage(`Changes applied to ${workspace.asRelativePath(uri)}`);
+        return;
       }
+
+      // If we found the file message, use its content
+      if (fileMessage) {
+        const fileContent = (fileMessage.value as any).content;
+        if (fileContent) {
+          // Write the content to the file
+          await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(fileContent)));
+          window.showInformationMessage(`Changes applied to ${workspace.asRelativePath(uri)}`);
+          return;
+        }
+      }
+
+      // If we still don't have content, try to use the diff
+      const fileMessageWithDiff = state.data.chatMessages.find(
+        (msg) =>
+          msg.kind === ChatMessageType.ModifiedFile &&
+          (msg.value as any).path === path &&
+          (msg.value as any).diff,
+      );
+
+      if (fileMessageWithDiff) {
+        const diff = (fileMessageWithDiff.value as any).diff;
+        // Read the original file content
+        const originalContent = await workspace.fs.readFile(uri);
+        // Apply the diff to get the modified content
+        const { applyPatch } = await import("diff");
+        const modifiedContent = applyPatch(originalContent.toString(), diff);
+
+        if (modifiedContent === false) {
+          throw new Error("Failed to apply patch");
+        }
+
+        // Write the modified content to the file
+        await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(modifiedContent)));
+        window.showInformationMessage(`Changes applied to ${workspace.asRelativePath(uri)}`);
+        return;
+      }
+
+      throw new Error(`No content or diff found for file: ${path}`);
     } catch (error) {
       console.error("Error handling APPLY_FILE:", error);
       window.showErrorMessage(`Failed to apply changes: ${error}`);
@@ -89,18 +188,11 @@ const actions: {
 
   REJECT_FILE: async ({ path }, state) => {
     try {
-      const uri = Uri.file(path);
-      // Find the corresponding change in agentModifiedFiles
-      const change = state.data.localChanges.find(
-        (c) => c.originalUri.fsPath === uri.fsPath || c.modifiedUri.fsPath === uri.fsPath,
+      // For rejecting changes, we don't need to do anything since we're not
+      // directly modifying the real file until the user applies changes
+      window.showInformationMessage(
+        `Changes rejected for ${workspace.asRelativePath(Uri.file(path))}`,
       );
-
-      if (change) {
-        await commands.executeCommand("konveyor.discardFile", uri);
-      } else {
-        console.error(`No change found for file: ${path}`);
-        window.showErrorMessage(`No change found for file: ${path}`);
-      }
     } catch (error) {
       console.error("Error handling REJECT_FILE:", error);
       window.showErrorMessage(`Failed to reject changes: ${error}`);
@@ -263,9 +355,24 @@ const actions: {
         return;
       }
 
+      // Handle custom quick responses for analysis actions
+      if (responseId === "run-analysis") {
+        if (state.data.isAnalyzing) {
+          vscode.window.showInformationMessage("Analysis is already running.");
+          return;
+        }
+        await vscode.commands.executeCommand("konveyor.runAnalysis");
+        await vscode.commands.executeCommand("konveyor.showAnalysisPanel");
+        return;
+      }
+      if (responseId === "return-analysis") {
+        await vscode.commands.executeCommand("konveyor.showAnalysisPanel");
+        return;
+      }
+
       const msg = state.data.chatMessages[messageIndex];
 
-      // Add user's response to chat
+      // Add user's response to chat (only for actionable quick responses)
       state.mutateData((draft) => {
         draft.chatMessages.push({
           kind: ChatMessageType.String,
@@ -300,6 +407,29 @@ const actions: {
 
       const workflow = state.workflowManager.getWorkflow();
       await workflow.resolveUserInteraction(workflowMessage);
+
+      // Only add the status message if there are more actionable quick responses
+      const hasPendingInteractions = state.data.chatMessages.some(
+        (msg) =>
+          msg.quickResponses &&
+          msg.quickResponses.length > 0 &&
+          msg.messageToken !== messageToken &&
+          msg.quickResponses.some((qr) => qr.id !== "run-analysis" && qr.id !== "return-analysis"),
+      );
+
+      if (hasPendingInteractions) {
+        state.mutateData((draft) => {
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `queue-status-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            value: {
+              message: "There are more pending responses needed.",
+            },
+          });
+        });
+      }
+      // Do NOT add a status message if there are no more actionable quick responses
     } finally {
       // Clear loading state
       state.mutateData((draft) => {
@@ -308,7 +438,7 @@ const actions: {
     }
   },
 
-  FILE_RESPONSE: async ({ responseId, messageToken, path }, state) => {
+  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state) => {
     // Set loading state
     state.mutateData((draft) => {
       draft.isProcessingQuickResponse = true;
@@ -340,34 +470,78 @@ const actions: {
 
       // Handle the file response
       if (responseId === "apply") {
-        // Apply the file changes
+        // Apply the file changes directly
         const uri = Uri.file(path);
-        await commands.executeCommand("konveyor.applyFile", uri);
-      } else if (responseId === "reject") {
-        // Reject the file changes
-        const uri = Uri.file(path);
-        await commands.executeCommand("konveyor.discardFile", uri);
+
+        try {
+          // If content is provided directly, use it
+          if (content) {
+            // Directly write to the real file
+            await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+            window.showInformationMessage(`Changes applied to ${workspace.asRelativePath(uri)}`);
+          } else {
+            // Try to find the modified file message in chat messages
+            const fileMessage = state.data.chatMessages.find(
+              (msg) =>
+                msg.kind === ChatMessageType.ModifiedFile && (msg.value as any).path === path,
+            );
+
+            if (fileMessage) {
+              const content = (fileMessage.value as any).content;
+              if (content) {
+                // Write the content to the file
+                await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+                window.showInformationMessage(
+                  `Changes applied to ${workspace.asRelativePath(uri)}`,
+                );
+              } else {
+                throw new Error(`No content found for file: ${path}`);
+              }
+            } else {
+              throw new Error(`No changes found for file: ${path}`);
+            }
+          }
+        } catch (error) {
+          console.error("Error applying file changes:", error);
+          window.showErrorMessage(`Failed to apply changes: ${error}`);
+          // If there was an error applying changes, treat it as a rejection
+          responseId = "reject";
+        }
+      } else {
+        // For rejecting changes, we don't need to do anything since we're not
+        // directly modifying the real file until the user applies changes
+        window.showInformationMessage(
+          `Changes rejected for ${workspace.asRelativePath(Uri.file(path))}`,
+        );
       }
 
-      // Create a workflow message to continue the workflow
-      const workflowMessage: KaiWorkflowMessage = {
-        id: messageToken,
-        type: KaiWorkflowMessageType.UserInteraction,
-        data: {
-          type: "yesNo",
-          response: {
-            yesNo: responseId === "apply",
+      // Resolve the pending interaction if one exists
+      if (state.resolvePendingInteraction) {
+        state.resolvePendingInteraction(messageToken, {
+          action: responseId,
+          path: path,
+        });
+      }
+
+      // Check if there are any more pending interactions
+      const hasPendingInteractions = state.data.chatMessages.some(
+        (msg) =>
+          msg.quickResponses && msg.quickResponses.length > 0 && msg.messageToken !== messageToken,
+      );
+
+      // Add a message indicating the queue status
+      state.mutateData((draft) => {
+        draft.chatMessages.push({
+          kind: ChatMessageType.String,
+          messageToken: `queue-status-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          value: {
+            message: hasPendingInteractions
+              ? "There are more pending changes to review."
+              : "All changes have been processed. You're up to date!",
           },
-        } as KaiUserIteraction,
-      };
-
-      if (!state.workflowManager.isInitialized) {
-        console.error("Workflow not initialized");
-        return;
-      }
-
-      const workflow = state.workflowManager.getWorkflow();
-      await workflow.resolveUserInteraction(workflowMessage);
+        });
+      });
     } finally {
       // Clear loading state
       state.mutateData((draft) => {
@@ -485,28 +659,119 @@ const actions: {
   },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.effort);
-    vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     vscode.commands.executeCommand("konveyor.askContinue", incident);
   },
-  [VIEW_FIX](change: LocalChange) {
-    vscode.commands.executeCommand(
-      "konveyor.diffView.viewFix",
-      vscode.Uri.from(change.originalUri),
-      true,
-    );
+  [APPLY_FILE]: async (
+    payload: { path: string; messageToken?: string; content?: string } | LocalChange,
+    state: ExtensionState,
+  ) => {
+    // Handle both old LocalChange objects and new payload format
+    let path: string;
+    let messageToken: string | undefined;
+    let content: string | undefined;
+
+    if ("originalUri" in payload) {
+      // Old format (LocalChange)
+      path =
+        typeof payload.originalUri === "string"
+          ? payload.originalUri
+          : payload.originalUri.fsPath || "";
+      messageToken = payload.messageToken;
+      content = payload.content;
+    } else {
+      // New format
+      path = payload.path;
+      messageToken = payload.messageToken;
+      content = payload.content;
+    }
+
+    // Resolve the pending interaction if messageToken is provided
+    if (messageToken && state.resolvePendingInteraction) {
+      state.resolvePendingInteraction(messageToken, { action: "apply", path });
+    }
+
+    try {
+      const uri = vscode.Uri.file(path);
+
+      // If content is provided directly in the payload, use it
+      if (content) {
+        await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+        vscode.window.showInformationMessage(
+          `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
+        );
+        return;
+      }
+
+      // If no content in payload, look for the ModifiedFile message in chat messages
+      const fileMessage = state.data.chatMessages.find(
+        (msg) =>
+          msg.kind === ChatMessageType.ModifiedFile &&
+          (msg.value as any).path === path &&
+          (msg.messageToken === messageToken || !messageToken),
+      );
+
+      if (fileMessage) {
+        const fileContent = (fileMessage.value as any).content;
+        if (fileContent) {
+          await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(fileContent)));
+          vscode.window.showInformationMessage(
+            `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
+          );
+          return;
+        }
+      }
+
+      // If we still don't have content, try to use the diff
+      const fileMessageWithDiff = state.data.chatMessages.find(
+        (msg) =>
+          msg.kind === ChatMessageType.ModifiedFile &&
+          (msg.value as any).path === path &&
+          (msg.value as any).diff &&
+          (msg.messageToken === messageToken || !messageToken),
+      );
+
+      if (fileMessageWithDiff) {
+        const diff = (fileMessageWithDiff.value as any).diff;
+        // Read the original file content
+        const originalContent = await vscode.workspace.fs.readFile(uri);
+        // Apply the diff to get the modified content
+        const { applyPatch } = await import("diff");
+        const modifiedContent = applyPatch(originalContent.toString(), diff);
+
+        if (modifiedContent === false) {
+          throw new Error("Failed to apply patch");
+        }
+
+        // Write the modified content to the file
+        await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(modifiedContent)));
+        vscode.window.showInformationMessage(
+          `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
+        );
+        return;
+      }
+
+      throw new Error(`No content or diff found for file: ${path}`);
+    } catch (error) {
+      console.error("Error applying file changes:", error);
+      vscode.window.showErrorMessage(`Failed to apply changes: ${error}`);
+    }
   },
-  [APPLY_FILE](change: LocalChange) {
-    vscode.commands.executeCommand("konveyor.applyFile", vscode.Uri.from(change.originalUri), true);
-  },
-  [DISCARD_FILE](change: LocalChange) {
-    vscode.commands.executeCommand(
-      "konveyor.discardFile",
-      vscode.Uri.from(change.originalUri),
-      true,
-    );
+  [DISCARD_FILE](payload: { path: string; messageToken?: string } | LocalChange) {
+    // Handle both old LocalChange objects and new payload format
+    if ("originalUri" in payload) {
+      // Old format
+      vscode.commands.executeCommand(
+        "konveyor.discardFile",
+        vscode.Uri.from(payload.originalUri),
+        true,
+      );
+    } else {
+      // New format
+      vscode.commands.executeCommand("konveyor.discardFile", vscode.Uri.file(payload.path), true);
+    }
   },
   [RUN_ANALYSIS]() {
     vscode.commands.executeCommand("konveyor.runAnalysis");

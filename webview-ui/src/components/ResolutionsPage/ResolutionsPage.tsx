@@ -10,7 +10,7 @@ import {
   type ToolMessageValue,
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
-import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
+import { applyFile, ApplyFilePayload, discardFile, DiscardFilePayload, openFile, viewFix } from "../../hooks/actions";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
@@ -35,7 +35,9 @@ const ResolutionPage: React.FC = () => {
     solutionScope,
     chatMessages = [],
     solutionState = "none",
+    isAnalyzing,
   } = state;
+  console.log(state, 'isAnalyzing', isAnalyzing);
 
   const messageBoxRef = useRef<MessageBoxHandle>(null);
   const scrollQueued = useRef(false);
@@ -134,11 +136,28 @@ const ResolutionPage: React.FC = () => {
   const isHistorySolution =
     !isTriggeredByUser && Array.isArray(localChanges) && localChanges?.length > 0;
 
-  const isResolved =
+  // Check if all resolutions have been processed (either applied or rejected)
+  const isAllResolutionsProcessed =
     solutionState === "received" &&
     Array.isArray(localChanges) &&
     localChanges.length > 0 &&
     getRemainingFiles()?.length === 0;
+
+  // Check if all resolutions have been applied (not rejected)
+  const isAllResolutionsApplied =
+    isAllResolutionsProcessed &&
+    Array.isArray(localChanges) &&
+    localChanges.every((change) => change.state === "applied");
+
+  // Check if all resolutions have been rejected (discarded)
+  const isAllResolutionsRejected =
+    isAllResolutionsProcessed &&
+    Array.isArray(localChanges) &&
+    localChanges.every((change) => change.state === "discarded");
+
+  // Check if resolutions have been mixed (some applied, some rejected)
+  const isMixedResolutions =
+    isAllResolutionsProcessed && !isAllResolutionsApplied && !isAllResolutionsRejected;
 
   const hasResponseWithErrors =
     solutionState === "received" &&
@@ -152,16 +171,33 @@ const ResolutionPage: React.FC = () => {
     Array.isArray(localChanges) &&
     localChanges?.length > 0;
 
-  const hasEmptyResponse =
-    solutionState === "received" && (!Array.isArray(localChanges) || localChanges?.length === 0);
+  // const hasEmptyResponse =
+  //   solutionState === "received" && (!Array.isArray(localChanges) || localChanges?.length === 0);
 
   const hasNothingToView =
     solutionState === "none" && (!Array.isArray(localChanges) || localChanges?.length === 0);
 
   // Use viewFix to open VSCode's diff editor
   const handleFileClick = (change: LocalChange) => dispatch(viewFix(change));
-  const handleAcceptClick = (change: LocalChange) => dispatch(applyFile(change));
-  const handleRejectClick = (change: LocalChange) => dispatch(discardFile(change));
+  const handleAcceptClick = (change: LocalChange) => {
+    const applyFilePayload: ApplyFilePayload = {
+      path: typeof change.originalUri === 'string' 
+        ? change.originalUri 
+        : change.originalUri.fsPath || '',
+      messageToken: change.messageToken,
+      content: change.content,
+    };
+    dispatch(applyFile(applyFilePayload));
+  };
+  const handleRejectClick = (change: LocalChange) => {
+    const discardFilePayload: DiscardFilePayload = {
+      path: typeof change.originalUri === 'string' 
+        ? change.originalUri 
+        : change.originalUri.fsPath || '',
+      messageToken: change.messageToken,
+    };
+    dispatch(discardFile(discardFilePayload));
+  };
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
@@ -221,9 +257,9 @@ const ResolutionPage: React.FC = () => {
           <MessageBox ref={messageBoxRef} enableSmartScroll style={{ paddingBottom: "2rem" }}>
             {isTriggeredByUser && renderedResolutionRequestMessages}
 
-            {hasNothingToView && <ReceivedMessage content="No resolutions available." />}
+            {hasNothingToView && <ReceivedMessage content="No resolutions available." isProcessing={state.isProcessingQuickResponse} />}
 
-            {isHistorySolution && <ReceivedMessage content="Loaded last known resolution." />}
+            {isHistorySolution && <ReceivedMessage content="Loaded last known resolution." isProcessing={state.isProcessingQuickResponse} />}
 
             {Array.isArray(chatMessages) &&
               chatMessages?.length > 0 &&
@@ -265,11 +301,16 @@ const ResolutionPage: React.FC = () => {
                       key={msg.messageToken}
                       content={message}
                       isLoading={isFetchingSolution && !message}
+                      isProcessing={state.isProcessingQuickResponse}
                       quickResponses={
-                        Array.isArray(msg.quickResponses) && msg.quickResponses?.length > 0
+                        Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                           ? msg.quickResponses.map((response) => ({
                               ...response,
                               messageToken: msg.messageToken,
+                              isDisabled:
+                                response.id === "run-analysis" && isAnalyzing
+                                  ? true
+                                  : false,
                             }))
                           : undefined
                       }
@@ -280,22 +321,39 @@ const ResolutionPage: React.FC = () => {
                 return null;
               })}
 
-            {hasResponse && (
-              <ReceivedMessage
-                extraContent={
-                  <FileChanges
-                    changes={getRemainingFiles()}
-                    onFileClick={handleFileClick}
-                    onApplyFix={handleAcceptClick}
-                    onRejectChanges={handleRejectClick}
-                  />
-                }
-              />
-            )}
+            {hasResponse &&
+              // Only show the FileChanges component if there are pending changes
+              // and no ModifiedFile messages in the chat (to avoid duplication)
+              (() => {
+                const hasModifiedFileMessages =
+                  Array.isArray(chatMessages) &&
+                  chatMessages.some((msg) => msg?.kind === ChatMessageType.ModifiedFile);
 
-            {hasEmptyResponse && !hasResponseWithErrors && (
+                const remainingFiles = getRemainingFiles();
+
+                // Only show if we have pending files and no ModifiedFile messages
+                // This prevents duplicate file change displays
+                if (remainingFiles.length > 0 && !hasModifiedFileMessages) {
+                  return (
+                    <ReceivedMessage
+                      extraContent={
+                        <FileChanges
+                          changes={remainingFiles}
+                          onFileClick={handleFileClick}
+                          onApplyFix={handleAcceptClick}
+                          onRejectChanges={handleRejectClick}
+                        />
+                      }
+                      isProcessing={state.isProcessingQuickResponse}
+                    />
+                  );
+                }
+                return null;
+              })()}
+
+            {/* {hasEmptyResponse && !hasResponseWithErrors && (
               <ReceivedMessage content="Received response contains no resolutions" />
-            )}
+            )} */}
 
             {hasResponseWithErrors &&
               resolution &&
@@ -322,11 +380,22 @@ const ResolutionPage: React.FC = () => {
                         ))}
                     </ul>
                   }
+                  isProcessing={state.isProcessingQuickResponse}
                 />
               )}
 
-            {isResolved && !isFetchingSolution && (
-              <ReceivedMessage content="All resolutions have been applied" />
+            {isAllResolutionsProcessed && !isFetchingSolution && (
+              <>
+                {isAllResolutionsApplied && (
+                  <ReceivedMessage content="All resolutions have been applied" isProcessing={state.isProcessingQuickResponse} />
+                )}
+                {isAllResolutionsRejected && (
+                  <ReceivedMessage content="All resolutions have been rejected" isProcessing={state.isProcessingQuickResponse} />
+                )}
+                {isMixedResolutions && (
+                  <ReceivedMessage content="All resolutions have been processed (some applied, some rejected)" isProcessing={state.isProcessingQuickResponse} />
+                )}
+              </>
             )}
           </MessageBox>
         </ChatbotContent>

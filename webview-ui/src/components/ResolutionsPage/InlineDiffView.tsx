@@ -88,7 +88,9 @@ export default function InlineDiffView({ change, onClose }: InlineDiffViewProps)
 
     // If no content was extracted, try to get file name for better error message
     if (!formattedDiff) {
-      const fileName = change.originalUri.fsPath.split("/").pop() || "file";
+      const fileName = (typeof change.originalUri === 'string' 
+        ? change.originalUri 
+        : change.originalUri.fsPath || '').split("/").pop() || "file";
       formattedDiff = `// No diff content available for ${fileName}`;
     }
 
@@ -96,13 +98,16 @@ export default function InlineDiffView({ change, onClose }: InlineDiffViewProps)
     return "```diff\n" + formattedDiff + "\n```";
   };
 
-  const language = getLanguage(change.originalUri.fsPath);
+  const filePath = typeof change.originalUri === 'string' 
+    ? change.originalUri 
+    : change.originalUri.fsPath || '';
+  const language = getLanguage(filePath);
   const markdownContent = formatDiffForMarkdown(change.diff, language);
   console.log("markdownContent", markdownContent);
   console.log("language", language);
   console.log("change", change);
   console.log("change.diff", change.diff);
-  console.log("change.originalUri", change.originalUri);
+  console.log("change.originalUri", filePath);
 
   return (
     <div className="inline-diff-container">

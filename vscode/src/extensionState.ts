@@ -1,6 +1,4 @@
 import { AnalyzerClient } from "./client/analyzerClient";
-import { KonveyorFileModel } from "./diffView";
-import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
 import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
@@ -14,8 +12,6 @@ export interface ExtensionState {
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
   extensionContext: vscode.ExtensionContext;
   diagnosticCollection: vscode.DiagnosticCollection;
-  memFs?: MemFS; // Make memFs optional as we're moving to direct VSCode filesystem API
-  fileModel: KonveyorFileModel;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
   mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
@@ -30,4 +26,5 @@ export interface ExtensionState {
     getWorkflow: () => KaiInteractiveWorkflow;
     dispose: () => void;
   };
+  resolvePendingInteraction?: (messageId: string, response: any) => boolean;
 }

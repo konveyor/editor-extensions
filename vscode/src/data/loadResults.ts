@@ -57,11 +57,6 @@ const doLoadSolution = async (
   solution?: Immutable<Solution>,
   scope?: Immutable<Scope>,
 ) => {
-  // If memFs is available, clear it for backward compatibility
-  if (state.memFs) {
-    state.memFs.removeAll(KONVEYOR_SCHEME);
-  }
-
   // Clear any existing virtual file content
   VirtualFileSystem.getInstance().removeAll(KONVEYOR_SCHEME);
 

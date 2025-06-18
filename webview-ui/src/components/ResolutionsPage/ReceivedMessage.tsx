@@ -61,7 +61,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       timestamp={formatTimestamp(timestamp)}
       name="Konveyor"
       role="bot"
-      isLoading={isLoading}
+      isLoading={isLoading || isProcessing}
       avatar={botAv}
       content={content}
       quickResponses={quickResponses?.map((response) => ({
@@ -70,7 +70,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
           console.log("handleQuickResponse", response.id, response.messageToken);  
           handleQuickResponse(response.id, response.messageToken);
         },
-        isDisabled: isProcessing,
+        isDisabled: response.isDisabled || isProcessing,
       }))}
       // isCompact={isCompact}
       extraContent={

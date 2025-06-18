@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   List,
   ListItem,
@@ -36,6 +36,47 @@ export function FileChanges({
 }: FileChangesProps) {
   // Use the index as part of the selected change state to ensure uniqueness
   const [selectedChangeIndex, setSelectedChangeIndex] = useState<number | null>(null);
+  
+  // Listen for messages from the extension
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      
+      // Handle FILE_ACTION_FROM_CODE messages
+      if (message.type === 'FILE_ACTION_FROM_CODE') {
+        const { path, messageToken, action } = message.payload;
+        
+        // Find the change that matches this path and token
+        const matchingChangeIndex = changes.findIndex(change => {
+          const changePath = typeof change.originalUri === 'string' 
+            ? change.originalUri 
+            : change.originalUri.fsPath || '';
+          
+          return changePath === path && 
+                 (!messageToken || change.messageToken === messageToken);
+        });
+        
+        if (matchingChangeIndex !== -1) {
+          const matchingChange = changes[matchingChangeIndex];
+          
+          // Call the appropriate handler based on the action
+          if (action === 'applied') {
+            onApplyFix(matchingChange);
+          } else if (action === 'rejected') {
+            onRejectChanges(matchingChange);
+          }
+        }
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('message', handleMessage);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [changes, onApplyFix, onRejectChanges]);
 
   // Toggle the inline diff view when clicking the view button
   const handleViewClick = (change: LocalChange, index: number) => {
@@ -53,6 +94,10 @@ export function FileChanges({
   };
 
   const getFileChangeSummary = ({ diff }: LocalChange): string => {
+    if (!diff) {
+      return "No diff available";
+    }
+    
     const lines = diff.split("\n");
     const additions = lines.filter(
       (line) => line.startsWith("+") && !line.startsWith("+++"),
@@ -78,7 +123,9 @@ export function FileChanges({
                   <FlexItem>
                     <FileIcon className="file-changes-file-icon" />
                     <span className="file-changes-file-name">
-                      {path.basename(change.originalUri.fsPath)}
+                      {path.basename(typeof change.originalUri === 'string' 
+                        ? change.originalUri 
+                        : change.originalUri.fsPath || '')}
                     </span>
                   </FlexItem>
                   <FlexItem>
@@ -98,7 +145,19 @@ export function FileChanges({
                     <Tooltip content="View changes">
                       <Button
                         variant={ButtonVariant.plain}
-                        onClick={() => handleViewClick(change, index)}
+                        onClick={() => {
+                          handleViewClick(change, index);
+                          // Also send a message to open the file with decorations
+                          window.vscode.postMessage({
+                            type: "VIEW_FILE",
+                            payload: { 
+                              path: typeof change.originalUri === 'string' 
+                                ? change.originalUri 
+                                : change.originalUri.fsPath || '',
+                              change: change
+                            }
+                          });
+                        }}
                         className="file-changes-action-icon"
                         icon={<EyeIcon />}
                         aria-label="View changes"

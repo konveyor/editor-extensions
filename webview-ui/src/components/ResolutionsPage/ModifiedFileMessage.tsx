@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardBody, CardTitle, Button, Flex, FlexItem } from "@patternfly/react-core";
 import { CheckCircleIcon, TimesCircleIcon, EyeIcon } from "@patternfly/react-icons";
 import { ModifiedFileMessageValue } from "@editor-extensions/shared";
@@ -16,6 +16,7 @@ interface ModifiedFileMessageProps {
 export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, timestamp }) => {
   const { path, isNew, diff } = data;
   const fileName = path.split('/').pop() || path;
+  const [actionTaken, setActionTaken] = useState<'applied' | 'rejected' | null>(null);
   
   // Format the timestamp if provided
   const formattedTime = timestamp 
@@ -146,8 +147,40 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
               </ReactMarkdown>
             </div>
           </div>
-          {/* If quickResponses are provided, show them instead of the standard buttons */}
-          {data.quickResponses && data.messageToken ? (
+          {actionTaken ? (
+            <Flex className="modified-file-actions">
+              <FlexItem>
+                <span>
+                  {actionTaken === 'applied' ? 
+                    <><CheckCircleIcon color="green" /> Changes applied</> : 
+                    <><TimesCircleIcon color="red" /> Changes rejected</>}
+                </span>
+              </FlexItem>
+              <FlexItem>
+                <Button 
+                  variant="link" 
+                  icon={<EyeIcon />}
+                  onClick={() => {
+                    // View the file in VSCode with decorations
+                    window.vscode.postMessage({
+                      type: "VIEW_FILE",
+                      payload: { 
+                        path,
+                        change: {
+                          originalUri: path,
+                          modifiedUri: path,
+                          diff: diff,
+                          state: "pending"
+                        }
+                      }
+                    });
+                  }}
+                >
+                  View
+                </Button>
+              </FlexItem>
+            </Flex>
+          ) : data.quickResponses && data.messageToken ? (
             <Flex className="modified-file-actions">
               {data.quickResponses.map((response) => (
                 <FlexItem key={response.id}>
@@ -155,12 +188,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                     variant="link" 
                     icon={response.id === "apply" ? <CheckCircleIcon color="green" /> : <TimesCircleIcon color="red" />}
                     onClick={() => {
+                      setActionTaken(response.id === "apply" ? 'applied' : 'rejected');
                       window.vscode.postMessage({
                         type: "FILE_RESPONSE",
                         payload: { 
                           responseId: response.id,
                           messageToken: data.messageToken,
-                          path
+                          path,
+                          content: data.content // Pass the content directly
                         }
                       });
                     }}
@@ -174,10 +209,18 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   variant="link" 
                   icon={<EyeIcon />}
                   onClick={() => {
-                    // View the file in VSCode
+                    // View the file in VSCode with decorations
                     window.vscode.postMessage({
                       type: "VIEW_FILE",
-                      payload: { path }
+                      payload: { 
+                        path,
+                        change: {
+                          originalUri: path,
+                          modifiedUri: path,
+                          diff: diff,
+                          state: "pending"
+                        }
+                      }
                     });
                   }}
                 >
@@ -192,10 +235,18 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   variant="link" 
                   icon={<EyeIcon />}
                   onClick={() => {
-                    // View the file in VSCode
+                    // View the file in VSCode with decorations
                     window.vscode.postMessage({
                       type: "VIEW_FILE",
-                      payload: { path }
+                      payload: { 
+                        path,
+                        change: {
+                          originalUri: path,
+                          modifiedUri: path,
+                          diff: diff,
+                          state: "pending"
+                        }
+                      }
                     });
                   }}
                 >
@@ -207,10 +258,15 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   variant="link" 
                   icon={<CheckCircleIcon color="green" />}
                   onClick={() => {
+                    setActionTaken('applied');
                     // Apply the changes
                     window.vscode.postMessage({
-                      type: "APPLY_MODIFIED_FILE",
-                      payload: { path }
+                      type: "APPLY_FILE",
+                      payload: { 
+                        path,
+                        content: data.content, // Pass the content directly
+                        messageToken: data.messageToken
+                      }
                     });
                   }}
                 >
@@ -222,10 +278,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   variant="link" 
                   icon={<TimesCircleIcon color="red" />}
                   onClick={() => {
+                    setActionTaken('rejected');
                     // Reject the changes
                     window.vscode.postMessage({
-                      type: "REJECT_FILE",
-                      payload: { path }
+                      type: "DISCARD_FILE",
+                      payload: { 
+                        path,
+                        messageToken: data.messageToken
+                      }
                     });
                   }}
                 >

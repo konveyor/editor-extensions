@@ -218,49 +218,22 @@
         "title": "Copy Path"
       },
       {
-        "command": "konveyor.diffView.next",
-        "category": "Konveyor",
-        "title": "Go to Next File"
-      },
-      {
-        "command": "konveyor.diffView.prev",
-        "category": "Konveyor",
-        "title": "Go to Previous File"
-      },
-      {
-        "command": "konveyor.diffView.viewFix",
-        "category": "Konveyor",
-        "title": "View suggested fix"
-      },
-      {
-        "command": "konveyor.diffView.applyBlockInline",
-        "icon": "$(check)",
-        "category": "diffEditor",
-        "title": "Apply Block"
-      },
-      {
-        "command": "konveyor.diffView.applySelectionInline",
-        "icon": "$(check)",
-        "category": "diffEditor",
-        "title": "Apply Selection"
-      },
-      {
-        "command": "konveyor.diffView.applyBlock",
-        "icon": "$(arrow-left)",
-        "category": "diffEditor",
-        "title": "Apply Block"
-      },
-      {
-        "command": "konveyor.diffView.applySelection",
-        "icon": "$(arrow-left)",
-        "category": "diffEditor",
-        "title": "Apply Selection"
-      },
-      {
         "command": "konveyor.configureGetSolutionParams",
         "title": "Configure getSolution Parameters",
         "category": "Konveyor",
         "icon": "$(gear)"
+      },
+      {
+        "command": "inlineSuggestion.acceptChanges",
+        "title": "Accept Inline Suggestion Changes",
+        "category": "Konveyor",
+        "icon": "$(check)"
+      },
+      {
+        "command": "inlineSuggestion.rejectChanges",
+        "title": "Reject Inline Suggestion Changes",
+        "category": "Konveyor",
+        "icon": "$(discard)"
       }
     ],
     "submenus": [
@@ -283,10 +256,6 @@
         {
           "id": "konveyor.issueView",
           "name": "Konveyor Issues"
-        },
-        {
-          "id": "konveyor.diffView",
-          "name": "Konveyor Resolutions"
         }
       ]
     },
@@ -306,29 +275,9 @@
           "command": "konveyor.expandAllIssues",
           "group": "navigation@3",
           "when": "view == konveyor.issueView"
-        },
-        {
-          "command": "konveyor.applyAll",
-          "group": "navigation@1",
-          "when": "view == konveyor.diffView"
-        },
-        {
-          "command": "konveyor.discardAll",
-          "group": "navigation@2",
-          "when": "view == konveyor.diffView"
         }
       ],
       "view/item/context": [
-        {
-          "command": "konveyor.fixGroupOfIncidents",
-          "group": "inline@3",
-          "when": "view == konveyor.issueView && viewItem == incident-type-item"
-        },
-        {
-          "command": "konveyor.fixIncident",
-          "group": "inline@1",
-          "when": "view == konveyor.issueView && viewItem == reference-item"
-        },
         {
           "command": "konveyor.expandSingleIssue",
           "group": "inline@2",
@@ -338,60 +287,6 @@
           "command": "konveyor.openAnalysisDetails",
           "group": "inline@1",
           "when": "view == konveyor.issueView && viewItem == incident-type-item"
-        },
-        {
-          "command": "konveyor.applyFile",
-          "group": "inline",
-          "when": "view == konveyor.diffView && viewItem == file-item"
-        },
-        {
-          "command": "konveyor.discardFile",
-          "group": "inline",
-          "when": "view == konveyor.diffView && viewItem == file-item"
-        },
-        {
-          "command": "konveyor.applyFile",
-          "group": "1@1",
-          "when": "view == konveyor.diffView && viewItem == file-item"
-        },
-        {
-          "command": "konveyor.discardFile",
-          "group": "1@2",
-          "when": "view == konveyor.diffView && viewItem == file-item"
-        },
-        {
-          "command": "konveyor.copyDiff",
-          "group": "2@1",
-          "when": "view == konveyor.diffView && viewItem == file-item"
-        },
-        {
-          "command": "konveyor.copyPath",
-          "group": "2@2",
-          "when": "view == konveyor.diffView && viewItem == file-item"
-        }
-      ],
-      "diffEditor/gutter/selection": [
-        {
-          "command": "konveyor.diffView.applySelectionInline",
-          "group": "primary",
-          "when": "diffEditorInlineMode && ((diffEditorModifiedUri =~ /^konveyorMemFs\\:.*$/ && diffEditorOriginalWritable) || (diffEditorOriginalUri =~ /^konveyorMemFs\\:.*$/ && diffEditorModifiedWritable))"
-        },
-        {
-          "command": "konveyor.diffView.applySelection",
-          "group": "primary",
-          "when": "!diffEditorInlineMode && ((diffEditorModifiedUri =~ /^konveyorMemFs\\:.*$/ && diffEditorOriginalWritable) || (diffEditorOriginalUri =~ /^konveyorMemFs\\:.*$/ && diffEditorModifiedWritable))"
-        }
-      ],
-      "diffEditor/gutter/hunk": [
-        {
-          "command": "konveyor.diffView.applyBlockInline",
-          "group": "primary",
-          "when": "diffEditorInlineMode && ((diffEditorModifiedUri =~ /^konveyorMemFs\\:.*$/ && diffEditorOriginalWritable) || (diffEditorOriginalUri =~ /^konveyorMemFs\\:.*$/ && diffEditorModifiedWritable))"
-        },
-        {
-          "command": "konveyor.diffView.applyBlock",
-          "group": "primary",
-          "when": "!diffEditorInlineMode && ((diffEditorModifiedUri =~ /^konveyorMemFs\\:.*$/ && diffEditorOriginalWritable) || (diffEditorOriginalUri =~ /^konveyorMemFs\\:.*$/ && diffEditorModifiedWritable))"
         }
       ],
       "explorer/context": [
@@ -401,6 +296,18 @@
         }
       ],
       "konveyor.submenu": [],
+      "editor/context": [
+        {
+          "command": "inlineSuggestion.acceptChanges",
+          "group": "inline@1",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "inlineSuggestion.rejectChanges",
+          "group": "inline@2",
+          "when": "editorTextFocus"
+        }
+      ],
       "commandPalette": [
         {
           "command": "konveyor.expandSingleIssue",
@@ -428,18 +335,6 @@
         },
         {
           "command": "konveyor.copyPath",
-          "when": "never"
-        },
-        {
-          "command": "konveyor.diffView.next",
-          "when": "never"
-        },
-        {
-          "command": "konveyor.diffView.prev",
-          "when": "never"
-        },
-        {
-          "command": "konveyor.diffView.viewFix",
           "when": "never"
         }
       ]
@@ -612,12 +507,16 @@
     },
     "keybindings": [
       {
-        "command": "konveyor.diffView.next",
-        "key": "f4"
+        "command": "inlineSuggestion.acceptChanges",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a",
+        "when": "editorTextFocus"
       },
       {
-        "command": "konveyor.diffView.prev",
-        "key": "shift+f4"
+        "command": "inlineSuggestion.rejectChanges",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorTextFocus"
       }
     ]
   },
