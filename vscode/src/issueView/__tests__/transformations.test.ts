@@ -1,6 +1,6 @@
 import { Incident, RuleSet } from "@editor-extensions/shared";
 import { produce } from "immer";
-import { FOO } from "../../analysis/__tests__/data";
+import { FOO } from "./data";
 import { allIncidents } from "../transformation";
 import expect from "expect";
 

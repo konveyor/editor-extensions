@@ -1,12 +1,12 @@
 import * as assert from "assert";
 import { DiagnosticSeverity } from "vscode";
 import * as path from "path";
-import { processIncidents, readYamlFile } from "../data/analyzerResults";
+import { processIncidents, readYamlFile } from "../analyzerResults";
 import { RuleSet } from "@editor-extensions/shared";
 import { EnhancedIncident } from "@editor-extensions/shared";
 
-suite("Extension Test Suite", () => {
-  test("processIncidents should populate diagnostics correctly", () => {
+describe("analyzer results tests", () => {
+  it("processIncidents should populate diagnostics correctly", () => {
     const filePath = path.resolve(__dirname, "./testData/output-data.yaml");
     const ruleSets: RuleSet[] | undefined = readYamlFile(filePath);
     assert.ok(ruleSets, "RuleSets should be loaded from YAML file");
