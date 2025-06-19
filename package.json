@@ -36,8 +36,8 @@
   "workspaces": [
     "extra-types",
     "shared",
-    "webview-ui",
     "agentic",
+    "webview-ui",
     "vscode"
   ],
   "scripts": {
@@ -47,15 +47,17 @@
     "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/ ./**/tsconfig.tsbuildinfo",
     "lint": "eslint ./scripts && npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
-    "dev": "concurrently -c auto 'npm:dev:shared' 'npm:dev:webview-ui' 'npm:dev:vscode'",
+    "dev": "concurrently -c auto 'npm:dev:*'",
     "dev:shared": "npm run dev -w shared",
+    "dev:agentic": "wait-on -d 500 shared/dist/index.mjs && npm run dev -w agentic",
     "dev:webview-ui": "wait-on -d 500 shared/dist/index.mjs && npm run start -w webview-ui",
-    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && npm run dev -w vscode",
+    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs agentic/dist/index.js && npm run dev -w vscode",
     "build": "npm run build --workspaces --if-present",
     "collect-assets": "rimraf ./downloaded_assets && node ./scripts/collect-assets.js",
     "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
     "package": "cd dist && vsce package",
-    "test": "npm run build && npm run test --workspaces --if-present"
+    "pretest": "npm run build",
+    "test": "npm run test --workspaces --if-present"
   },
   "lint-staged": {
     "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",
