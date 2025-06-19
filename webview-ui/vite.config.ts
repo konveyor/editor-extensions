@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     outDir: "build",
     sourcemap: true,
-    chunkSizeWarningLimit: 1024,
+    chunkSizeWarningLimit: 4096,
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name].js`,

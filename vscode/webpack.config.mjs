@@ -1,11 +1,13 @@
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-const path = require("path");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
-const { globbySync } = require("globby");
+import path from "node:path";
+import url from "node:url";
+import CopyWebpackPlugin from "copy-webpack-plugin";
+import { globbySync } from "globby";
 
-module.exports = (env, argv) => {
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+
+export default (env, argv) => {
   const mode = argv.mode || "none";
   const isDev = mode === "development";
 
