@@ -3,10 +3,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const path = require("path");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const { globbySync } = require("globby");
 
 module.exports = (env, argv) => {
   const mode = argv.mode || "none";
   const isDev = mode === "development";
+
+  const testFiles = isDev ? globbySync("./test/**/*.test.ts", { cwd: __dirname }) : [];
 
   /** @type WebpackConfig */
   const extensionConfig = {
@@ -15,6 +18,7 @@ module.exports = (env, argv) => {
 
     entry: {
       extension: "./src/extension.ts",
+      ...(isDev ? { "integration.test": testFiles } : {}),
     },
     output: {
       path: path.resolve(__dirname, "out"),
