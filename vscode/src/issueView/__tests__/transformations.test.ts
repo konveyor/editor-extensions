@@ -36,6 +36,7 @@ describe("analysis data transformations", () => {
     expect(result).toHaveLength(4);
     result.forEach((res) => expect(res.lineNumber).toBe(1));
   });
+
   it("filters out incidents without message", () => {
     const response = [
       produce(FOO, (draft: RuleSet) => {
@@ -54,6 +55,7 @@ describe("analysis data transformations", () => {
 
     expect(allIncidents(response)).toHaveLength(1);
   });
+
   it("filters out incidents with incorrect URI", () => {
     const response = [
       produce(FOO, (draft: RuleSet) => {

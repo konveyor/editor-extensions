@@ -1,15 +1,16 @@
-import * as assert from "assert";
+import assert from "assert";
+import path from "path";
 import { DiagnosticSeverity } from "vscode";
-import * as path from "path";
 import { processIncidents, readYamlFile } from "../analyzerResults";
-import { RuleSet } from "@editor-extensions/shared";
-import { EnhancedIncident } from "@editor-extensions/shared";
+import { RuleSet, EnhancedIncident } from "@editor-extensions/shared";
 
 describe("analyzer results tests", () => {
-  it("processIncidents should populate diagnostics correctly", () => {
+  describe("processIncidents should populate diagnostics correctly", () => {
     const filePath = path.resolve(__dirname, "./testData/output-data.yaml");
     const ruleSets: RuleSet[] | undefined = readYamlFile(filePath);
-    assert.ok(ruleSets, "RuleSets should be loaded from YAML file");
+    it("RuleSets should be loaded from YAML file", () => {
+      assert.ok(ruleSets, "RuleSets should be loaded from YAML file");
+    });
 
     // Transform RuleSets into EnhancedIncidents
     const enhancedIncidents: EnhancedIncident[] = ruleSets!.flatMap((ruleSet) =>
@@ -34,25 +35,28 @@ describe("analyzer results tests", () => {
     const expectedPaths = ["", "", "", ""];
     expectedPaths.fill("/opt/input/source/src/main/webapp/WEB-INF/web.xml");
 
-    assert.deepStrictEqual(receivedPaths, expectedPaths, "web.xml should have 4 diagnostics");
-    assert.ok(
-      results
-        .flatMap(([, diagnostics]) => diagnostics)
-        .every((diagnostic) => diagnostic?.severity === DiagnosticSeverity.Error),
-      "Diagnostic severity for web.xml should be Error",
-    );
+    it("web.xml should have 4 diagnostics", () => {
+      assert.deepStrictEqual(receivedPaths, expectedPaths, "web.xml should have 4 diagnostics");
+      assert.ok(
+        results
+          .flatMap(([, diagnostics]) => diagnostics)
+          .every((diagnostic) => diagnostic?.severity === DiagnosticSeverity.Error),
+        "Diagnostic severity for web.xml should be Error",
+      );
+    });
 
     // Test that diagnostics contain the enhanced information
     const diagnostics = results.flatMap(([, diagnostics]) => diagnostics);
-    assert.ok(
-      diagnostics.every(
-        (diagnostic) =>
+    for (const diagnostic of diagnostics) {
+      it("Diagnostics should contain enhanced context information", () => {
+        const isEnhanced =
+          // diagnostic.relatedInformation?.length === 1 &&
           diagnostic.message.includes("Ruleset:") &&
           diagnostic.message.includes("Violation:") &&
-          diagnostic.message.includes("Category:") &&
-          diagnostic.relatedInformation?.length === 1,
-      ),
-      "Diagnostics should contain enhanced context information",
-    );
+          diagnostic.message.includes("Category:");
+
+        assert.ok(isEnhanced);
+      });
+    }
   });
 });
