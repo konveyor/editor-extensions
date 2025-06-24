@@ -1,12 +1,17 @@
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-const path = require("path");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
+import path from "node:path";
+import url from "node:url";
+import CopyWebpackPlugin from "copy-webpack-plugin";
+import { globbySync } from "globby";
 
-module.exports = (env, argv) => {
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+
+export default (env, argv) => {
   const mode = argv.mode || "none";
   const isDev = mode === "development";
+
+  const testFiles = isDev ? globbySync("./test/**/*.test.ts", { cwd: __dirname }) : [];
 
   /** @type WebpackConfig */
   const extensionConfig = {
@@ -15,6 +20,7 @@ module.exports = (env, argv) => {
 
     entry: {
       extension: "./src/extension.ts",
+      ...(isDev ? { "integration.test": testFiles } : {}),
     },
     output: {
       path: path.resolve(__dirname, "out"),
@@ -53,10 +59,6 @@ module.exports = (env, argv) => {
       level: "log",
     },
 
-    // optimization: {
-    //   splitChunks: false,
-    // },
-
     plugins: [
       !isDev &&
         new CopyWebpackPlugin({
@@ -64,10 +66,6 @@ module.exports = (env, argv) => {
             {
               from: path.resolve(__dirname, "../webview-ui/build"),
               to: path.resolve(__dirname, "out/webview"),
-            },
-            {
-              from: "src/test/testData",
-              to: "test/testData",
             },
           ],
         }),
