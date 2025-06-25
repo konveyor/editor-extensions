@@ -9,19 +9,20 @@ export const registerAnalysisTrigger = (
 ) => {
   const batchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
 
-  vscode.workspace.onDidChangeTextDocument(
-    async (e: vscode.TextDocumentChangeEvent) => {
-      if (e.contentChanges.length > 0) {
-        batchedAnalysisTrigger.notifyFileChanges({
-          path: e.document.uri,
-          content: e.document.getText(),
-          saved: !e.document.isDirty,
-        });
-      }
-    },
-    undefined,
-    disposables,
-  );
+  //Modifying  the buffer is triggering analysis - TODO fix this
+  // vscode.workspace.onDidChangeTextDocument(
+  //   async (e: vscode.TextDocumentChangeEvent) => {
+  //     if (e.contentChanges.length > 0) {
+  //       batchedAnalysisTrigger.notifyFileChanges({
+  //         path: e.document.uri,
+  //         content: e.document.getText(),
+  //         saved: !e.document.isDirty,
+  //       });
+  //     }
+  //   },
+  //   undefined,
+  //   disposables,
+  // );
 
   vscode.workspace.onDidRenameFiles(
     async (e: vscode.FileRenameEvent) => {

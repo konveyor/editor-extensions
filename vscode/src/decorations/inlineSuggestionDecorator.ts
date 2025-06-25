@@ -48,6 +48,15 @@ export class InlineSuggestionDecorator {
       },
     });
 
+  // Static status bar items to prevent duplicates
+  private static statusBarItem: vscode.StatusBarItem | undefined;
+  private static acceptButton: vscode.StatusBarItem | undefined;
+  private static rejectButton: vscode.StatusBarItem | undefined;
+
+  // Flag to indicate that changes are being made by our extension
+  // This can be used to prevent analysis from being triggered
+  public static isApplyingChanges = false;
+
   /**
    * Apply decorations to the editor based on the diff
    * This method applies the changes directly to the buffer and decorates deletions
@@ -97,31 +106,45 @@ export class InlineSuggestionDecorator {
         }
       }
 
-      // Create a status bar item with a summary of changes
-      const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+      // Use static status bar items to prevent duplicates
+      if (!this.statusBarItem) {
+        this.statusBarItem = vscode.window.createStatusBarItem(
+          vscode.StatusBarAlignment.Right,
+          100,
+        );
+      }
+      this.statusBarItem.text = `$(diff) Changes: ${additionCount} additions, ${deletionCount} deletions`;
+      this.statusBarItem.tooltip = "Summary of applied changes";
+      this.statusBarItem.show();
 
-      statusBarItem.text = `$(diff) Changes: ${additionCount} additions, ${deletionCount} deletions`;
-      statusBarItem.tooltip = "Summary of applied changes";
-      statusBarItem.show();
+      // Create accept/reject buttons if they don't exist
+      if (!this.acceptButton) {
+        this.acceptButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+        this.acceptButton.text = "$(check) Accept";
+        this.acceptButton.tooltip = "Accept the suggested changes";
+        this.acceptButton.command = "inlineSuggestion.acceptChanges";
+      }
+      this.acceptButton.show();
 
-      // Create accept/reject buttons
-      const acceptButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-      acceptButton.text = "$(check) Accept";
-      acceptButton.tooltip = "Accept the suggested changes";
-      acceptButton.command = "inlineSuggestion.acceptChanges";
-      acceptButton.show();
-
-      const rejectButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-      rejectButton.text = "$(x) Reject";
-      rejectButton.tooltip = "Reject the suggested changes and revert buffer";
-      rejectButton.command = "inlineSuggestion.rejectChanges";
-      rejectButton.show();
+      if (!this.rejectButton) {
+        this.rejectButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+        this.rejectButton.text = "$(x) Reject";
+        this.rejectButton.tooltip = "Reject the suggested changes and revert buffer";
+        this.rejectButton.command = "inlineSuggestion.rejectChanges";
+      }
+      this.rejectButton.show();
 
       // Hide the status bar items after 30 seconds
       setTimeout(() => {
-        statusBarItem.dispose();
-        acceptButton.dispose();
-        rejectButton.dispose();
+        if (this.statusBarItem) {
+          this.statusBarItem.hide();
+        }
+        if (this.acceptButton) {
+          this.acceptButton.hide();
+        }
+        if (this.rejectButton) {
+          this.rejectButton.hide();
+        }
       }, 30000);
 
       // Also show a message in the status bar
@@ -151,23 +174,32 @@ export class InlineSuggestionDecorator {
     editor: vscode.TextEditor,
     fileDiff: ParsedDiff,
   ): Promise<void> {
-    // First: apply additions directly into buffer
-    await editor.edit((editBuilder) => {
-      for (const hunk of fileDiff.hunks) {
-        let newLine = hunk.newStart - 1; // newStart is 1-based
-        for (const line of hunk.lines) {
-          if (line.startsWith("+")) {
-            // Add the new line content (without the '+' prefix)
-            editBuilder.insert(new vscode.Position(newLine, 0), line.slice(1) + "\n");
-            newLine++;
-          } else if (line.startsWith(" ")) {
-            // Context line - just increment the line counter
-            newLine++;
+    // Set flag to indicate we're making changes
+    // This can be used to prevent analysis from being triggered
+    this.isApplyingChanges = true;
+
+    try {
+      // First: apply additions directly into buffer
+      await editor.edit((editBuilder) => {
+        for (const hunk of fileDiff.hunks) {
+          let newLine = hunk.newStart - 1; // newStart is 1-based
+          for (const line of hunk.lines) {
+            if (line.startsWith("+")) {
+              // Add the new line content (without the '+' prefix)
+              editBuilder.insert(new vscode.Position(newLine, 0), line.slice(1) + "\n");
+              newLine++;
+            } else if (line.startsWith(" ")) {
+              // Context line - just increment the line counter
+              newLine++;
+            }
+            // Deletions are handled separately with decorations
           }
-          // Deletions are handled separately with decorations
         }
-      }
-    });
+      });
+    } finally {
+      // Reset flag when done
+      this.isApplyingChanges = false;
+    }
 
     // Now process the hunks for decorations (primarily for deletions)
     const additionDecorations: vscode.DecorationOptions[] = [];
@@ -387,41 +419,80 @@ export class InlineSuggestionDecorator {
   }
 
   /**
-   * Dispose of all decoration types
+   * Dispose of all decoration types and status bar items
    */
   public static dispose(): void {
     this.additionDecorationType.dispose();
     this.deletionDecorationType.dispose();
     this.inlineSuggestionDecorationType.dispose();
+
+    // Dispose of status bar items
+    if (this.statusBarItem) {
+      this.statusBarItem.dispose();
+      this.statusBarItem = undefined;
+    }
+    if (this.acceptButton) {
+      this.acceptButton.dispose();
+      this.acceptButton = undefined;
+    }
+    if (this.rejectButton) {
+      this.rejectButton.dispose();
+      this.rejectButton = undefined;
+    }
   }
 
   /**
-   * Accept the changes and clear decorations
+   * Accept the changes, clear decorations, and save the file
    * This method is called when the user accepts the changes
    * @param editor The text editor
    */
-  public static acceptChanges(editor: vscode.TextEditor): void {
-    // Clear decorations but keep the buffer changes
-    this.clearDecorations(editor);
+  public static async acceptChanges(editor: vscode.TextEditor): Promise<void> {
+    // Set flag to indicate we're making changes
+    this.isApplyingChanges = true;
 
-    // Show a message to the user
-    vscode.window.setStatusBarMessage("Changes accepted and applied to the buffer.", 3000);
+    try {
+      // Clear decorations but keep the buffer changes
+      this.clearDecorations(editor);
+
+      // Save the file
+      await editor.document.save();
+
+      // Show a message to the user
+      vscode.window.setStatusBarMessage(
+        "Changes accepted, applied to the buffer, and file saved.",
+        3000,
+      );
+    } finally {
+      // Reset flag when done
+      this.isApplyingChanges = false;
+    }
   }
 
   /**
-   * Reject the changes and revert the buffer
+   * Reject the changes, revert the buffer, and save the file
    * This method is called when the user rejects the changes
    * @param editor The text editor
    */
-  public static rejectChanges(editor: vscode.TextEditor): void {
-    // First undo the buffer changes
-    vscode.commands.executeCommand("editor.action.undo");
+  public static async rejectChanges(editor: vscode.TextEditor): Promise<void> {
+    // Set flag to indicate we're making changes
+    this.isApplyingChanges = true;
 
-    // Then clear decorations
-    this.clearDecorations(editor);
+    try {
+      // First undo the buffer changes
+      await vscode.commands.executeCommand("editor.action.undo");
 
-    // Show a message to the user
-    vscode.window.setStatusBarMessage("Changes rejected and reverted.", 3000);
+      // Then clear decorations
+      this.clearDecorations(editor);
+
+      // Save the file
+      await editor.document.save();
+
+      // Show a message to the user
+      vscode.window.setStatusBarMessage("Changes rejected, reverted, and file saved.", 3000);
+    } finally {
+      // Reset flag when done
+      this.isApplyingChanges = false;
+    }
   }
 
   /**
@@ -431,56 +502,58 @@ export class InlineSuggestionDecorator {
   public static registerCommands(context: vscode.ExtensionContext): void {
     // Register command to accept changes
     context.subscriptions.push(
-      vscode.commands.registerCommand("inlineSuggestion.acceptChanges", () => {
+      vscode.commands.registerCommand("inlineSuggestion.acceptChanges", async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
-          this.acceptChanges(editor);
+          await this.acceptChanges(editor);
         }
       }),
     );
 
     // Register command to reject changes
     context.subscriptions.push(
-      vscode.commands.registerCommand("inlineSuggestion.rejectChanges", () => {
+      vscode.commands.registerCommand("inlineSuggestion.rejectChanges", async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
-          this.rejectChanges(editor);
+          await this.rejectChanges(editor);
         }
       }),
     );
 
-    // Add status bar items for accept/reject
-    const acceptStatusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      99,
-    );
-    acceptStatusBarItem.text = "$(check) Accept Changes";
-    acceptStatusBarItem.tooltip = "Accept the suggested changes";
-    acceptStatusBarItem.command = "inlineSuggestion.acceptChanges";
+    // Use static status bar items to prevent duplicates
+    if (!this.acceptButton) {
+      this.acceptButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+      this.acceptButton.text = "$(check) Accept Changes";
+      this.acceptButton.tooltip = "Accept the suggested changes";
+      this.acceptButton.command = "inlineSuggestion.acceptChanges";
+    }
 
-    const rejectStatusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      98,
-    );
-    rejectStatusBarItem.text = "$(x) Reject Changes";
-    rejectStatusBarItem.tooltip = "Reject the suggested changes";
-    rejectStatusBarItem.command = "inlineSuggestion.rejectChanges";
+    if (!this.rejectButton) {
+      this.rejectButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+      this.rejectButton.text = "$(x) Reject Changes";
+      this.rejectButton.tooltip = "Reject the suggested changes";
+      this.rejectButton.command = "inlineSuggestion.rejectChanges";
+    }
 
     // Show status bar items when there are active decorations
     context.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor && activeDecorations.has(editor.document.uri.toString())) {
-          acceptStatusBarItem.show();
-          rejectStatusBarItem.show();
+          if (this.acceptButton) {
+            this.acceptButton.show();
+          }
+          if (this.rejectButton) {
+            this.rejectButton.show();
+          }
         } else {
-          acceptStatusBarItem.hide();
-          rejectStatusBarItem.hide();
+          if (this.acceptButton) {
+            this.acceptButton.hide();
+          }
+          if (this.rejectButton) {
+            this.rejectButton.hide();
+          }
         }
       }),
     );
-
-    // Add to context for disposal
-    context.subscriptions.push(acceptStatusBarItem);
-    context.subscriptions.push(rejectStatusBarItem);
   }
 }

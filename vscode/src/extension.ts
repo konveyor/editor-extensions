@@ -286,10 +286,6 @@ class VsCodeExtension {
 
     // Register commands for accepting/rejecting suggested changes
     registerSuggestionCommands(this.context);
-
-    // Register the InlineSuggestionDecorator commands
-    const { InlineSuggestionDecorator } = require("./decorations/inlineSuggestionDecorator");
-    InlineSuggestionDecorator.registerCommands(this.context);
   }
 
   private checkContinueInstalled(): void {
