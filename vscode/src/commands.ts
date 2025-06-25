@@ -1,4 +1,5 @@
 import { ExtensionState } from "./extensionState";
+import * as vscode from "vscode";
 import {
   window,
   commands,
@@ -142,21 +143,90 @@ const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   return {
+    "konveyor.notifyFileAction": async (payload: { path: string; action: string }) => {
+      try {
+        // Update the UI state to reflect the action
+        state.mutateData((draft) => {
+          // Add a message indicating the action taken
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `action-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            value: {
+              message:
+                payload.action === "applied"
+                  ? `Changes to ${payload.path} were applied from the editor.`
+                  : `Changes to ${payload.path} were rejected from the editor.`,
+            },
+          });
+        });
+
+        //   // Notify the webview about the action
+        //   const resolutionProvider = state.webviewProviders.get("resolution");
+        //   if (resolutionProvider) {
+        //     resolutionProvider.sendMessageToWebview({
+        //       type: "FILE_ACTION_FROM_EDITOR",
+        //       payload: payload,
+        //     });
+        //   }
+      } catch (error) {
+        console.error("Error handling FILE_ACTION_FROM_EDITOR:", error);
+        vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
+      }
+    },
     "konveyor.notifyWebviewOfFileAction": async (payload: {
       path: string;
       messageToken: string;
       action: "applied" | "rejected";
     }) => {
-      // Get all webview providers
-      const providers = Array.from(state.webviewProviders.values());
+      try {
+        // Find the message in the chat messages
+        const messageIndex = state.data.chatMessages.findIndex(
+          (msg) =>
+            msg.kind === ChatMessageType.ModifiedFile &&
+            (msg.value as any).path === payload.path &&
+            (payload.messageToken ? msg.messageToken === payload.messageToken : true),
+        );
 
-      // Send the message to each provider
-      providers.forEach((provider) => {
-        // provider.postMessage({
-        //   type: "FILE_ACTION_FROM_CODE",
-        //   payload,
-        // });
-      });
+        if (messageIndex === -1) {
+          console.log(
+            `No message found for path: ${payload.path} and token: ${payload.messageToken}`,
+          );
+          return;
+        }
+
+        // Update the UI state to reflect the action
+        state.mutateData((draft) => {
+          // Add a message indicating the action taken
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `action-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            value: {
+              message:
+                payload.action === "applied"
+                  ? `Changes to ${payload.path} were applied from the editor.`
+                  : `Changes to ${payload.path} were rejected from the editor.`,
+            },
+          });
+        });
+
+        // If the action was 'applied', we need to update the file
+        if (payload.action === "applied") {
+          // const msg = state.data.chatMessages[messageIndex];
+          // const content = (msg.value as any).content;
+          // if (content) {
+          //   const uri = vscode.Uri.file(payload.path);
+          //   await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+          //   vscode.window.showInformationMessage(
+          //     `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
+          //   );
+          // }
+        }
+      } catch (error) {
+        console.error("Error handling FILE_ACTION_FROM_CODE:", error);
+        vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
+      }
     },
     "konveyor.openProfilesPanel": async () => {
       const provider = state.webviewProviders.get("profiles");

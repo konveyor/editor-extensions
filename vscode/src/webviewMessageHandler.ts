@@ -56,55 +56,7 @@ export function setupWebviewMessageListener(webview: Webview, state: ExtensionSt
 const actions: {
   [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
-  FILE_ACTION_FROM_CODE: async ({ path, messageToken, action }, state) => {
-    try {
-      // Find the message in the chat messages
-      const messageIndex = state.data.chatMessages.findIndex(
-        (msg) =>
-          msg.kind === ChatMessageType.ModifiedFile &&
-          (msg.value as any).path === path &&
-          (messageToken ? msg.messageToken === messageToken : true),
-      );
-
-      if (messageIndex === -1) {
-        console.log(`No message found for path: ${path} and token: ${messageToken}`);
-        return;
-      }
-
-      // Update the UI state to reflect the action
-      state.mutateData((draft) => {
-        // Add a message indicating the action taken
-        draft.chatMessages.push({
-          kind: ChatMessageType.String,
-          messageToken: `action-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          value: {
-            message:
-              action === "applied"
-                ? `Changes to ${path} were applied from the editor.`
-                : `Changes to ${path} were rejected from the editor.`,
-          },
-        });
-      });
-
-      // If the action was 'applied', we need to update the file
-      if (action === "applied") {
-        const msg = state.data.chatMessages[messageIndex];
-        const content = (msg.value as any).content;
-
-        if (content) {
-          const uri = vscode.Uri.file(path);
-          await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
-          vscode.window.showInformationMessage(
-            `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error handling FILE_ACTION_FROM_CODE:", error);
-      vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
-    }
-  },
+  FILE_ACTION_FROM_CODE: async ({ path, messageToken, action }, state) => {},
   VIEW_FILE: async ({ path, change }, state) => {
     try {
       const uri = Uri.file(path);

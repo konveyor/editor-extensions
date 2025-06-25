@@ -442,7 +442,7 @@ export class InlineSuggestionDecorator {
   }
 
   /**
-   * Accept the changes, clear decorations, and save the file
+   * Accept the changes, clear decorations, save the file, and notify resolution page
    * This method is called when the user accepts the changes
    * @param editor The text editor
    */
@@ -457,11 +457,29 @@ export class InlineSuggestionDecorator {
       // Save the file
       await editor.document.save();
 
+      // Hide status bar buttons
+      if (this.acceptButton) {
+        this.acceptButton.hide();
+      }
+      if (this.rejectButton) {
+        this.rejectButton.hide();
+      }
+      if (this.statusBarItem) {
+        this.statusBarItem.hide();
+      }
+
       // Show a message to the user
       vscode.window.setStatusBarMessage(
         "Changes accepted, applied to the buffer, and file saved.",
         3000,
       );
+
+      // Notify resolution page about the action
+      const filePath = editor.document.uri.fsPath;
+      vscode.commands.executeCommand("konveyor.notifyFileAction", {
+        path: filePath,
+        action: "applied",
+      });
     } finally {
       // Reset flag when done
       this.isApplyingChanges = false;
@@ -469,7 +487,7 @@ export class InlineSuggestionDecorator {
   }
 
   /**
-   * Reject the changes, revert the buffer, and save the file
+   * Reject the changes, revert the buffer, save the file, and notify resolution page
    * This method is called when the user rejects the changes
    * @param editor The text editor
    */
@@ -487,8 +505,26 @@ export class InlineSuggestionDecorator {
       // Save the file
       await editor.document.save();
 
+      // Hide status bar buttons
+      if (this.acceptButton) {
+        this.acceptButton.hide();
+      }
+      if (this.rejectButton) {
+        this.rejectButton.hide();
+      }
+      if (this.statusBarItem) {
+        this.statusBarItem.hide();
+      }
+
       // Show a message to the user
       vscode.window.setStatusBarMessage("Changes rejected, reverted, and file saved.", 3000);
+
+      // Notify resolution page about the action
+      const filePath = editor.document.uri.fsPath;
+      vscode.commands.executeCommand("konveyor.notifyFileAction", {
+        path: filePath,
+        action: "rejected",
+      });
     } finally {
       // Reset flag when done
       this.isApplyingChanges = false;
