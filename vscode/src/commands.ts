@@ -212,30 +212,30 @@ const commandsMap: (state: ExtensionState) => {
           }
 
           // Check for pending file modifications and queued messages to update UI status
-          const modifiedFiles = new Map<string, any>(); // Placeholder, actual map should be accessible or passed if needed
-          const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
-            (file) => file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
-          );
-          const hasMoreQueuedMessages = false; // Placeholder, actual queue status should be checked if accessible
+          // const modifiedFiles = new Map<string, any>(); // Placeholder, actual map should be accessible or passed if needed
+          // const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
+          //   (file) => file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
+          // );
+          // const hasMoreQueuedMessages = false; // Placeholder, actual queue status should be checked if accessible
 
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: `queue-status-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            value: {
-              message:
-                !hasPendingFileModifications && !hasMoreQueuedMessages
-                  ? "✅ All changes have been processed. You're up to date!"
-                  : "There are more changes to review.",
-            },
-            quickResponses:
-              !hasPendingFileModifications && !hasMoreQueuedMessages
-                ? [
-                    { id: "run-analysis", content: "Run Analysis" },
-                    { id: "return-analysis", content: "Return to Analysis Page" },
-                  ]
-                : undefined,
-          });
+          //   draft.chatMessages.push({
+          //     kind: ChatMessageType.String,
+          //     messageToken: `queue-status-${Date.now()}`,
+          //     timestamp: new Date().toISOString(),
+          //     value: {
+          //       message:
+          //         !hasPendingFileModifications && !hasMoreQueuedMessages
+          //           ? "✅ All changes have been processed. You're up to date!"
+          //           : "There are more changes to review.",
+          //     },
+          //     quickResponses:
+          //       !hasPendingFileModifications && !hasMoreQueuedMessages
+          //         ? [
+          //             { id: "run-analysis", content: "Run Analysis" },
+          //             { id: "return-analysis", content: "Return to Analysis Page" },
+          //           ]
+          //         : undefined,
+          //   });
         });
 
         // Resolve any pending interaction if messageToken is provided or found by path
