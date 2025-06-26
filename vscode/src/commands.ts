@@ -243,6 +243,8 @@ const commandsMap: (state: ExtensionState) => {
           //   );
           // }
         }
+        // Ensure the resolution view is in focus after processing the action
+        await commands.executeCommand("konveyor.showResolutionPanel");
       } catch (error) {
         console.error("Error handling FILE_ACTION:", error);
         vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
