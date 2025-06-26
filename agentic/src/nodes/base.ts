@@ -346,7 +346,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
   private renderTextDescriptionAndArgs(tools: DynamicStructuredTool[]): string {
     let description = "";
     tools.forEach((tool) => {
-      description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema as z.ZodSchema))}`;
+      description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema as z.ZodSchema))}\n`;
     });
     return description;
   }
