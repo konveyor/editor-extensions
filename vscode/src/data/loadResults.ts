@@ -48,14 +48,21 @@ export const loadSolution = async (state: ExtensionState, solution: Solution, sc
   );
 };
 
+// Import the VirtualFileSystem class
+import { VirtualFileSystem } from "./virtualStorage";
+
 const doLoadSolution = async (
   state: ExtensionState,
   localChanges: LocalChange[],
   solution?: Immutable<Solution>,
   scope?: Immutable<Scope>,
 ) => {
-  state.memFs.removeAll(KONVEYOR_SCHEME);
+  // Clear any existing virtual file content
+  VirtualFileSystem.getInstance().removeAll(KONVEYOR_SCHEME);
+
+  // Use our new virtual storage implementation that doesn't depend on memFs
   await writeSolutionsToMemFs(localChanges, state);
+
   state.mutateData((draft) => {
     draft.localChanges = localChanges;
     draft.solutionData = castDraft(solution);

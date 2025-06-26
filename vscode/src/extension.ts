@@ -5,9 +5,9 @@ import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
 import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
+import { InlineSuggestionCodeActionProvider } from "./decorations/inlineSuggestionCodeActionProvider";
+import { registerSuggestionCommands } from "./decorations/suggestionCommands";
 import { AnalyzerClient } from "./client/analyzerClient";
-import { KonveyorFileModel, registerDiffView } from "./diffView";
-import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
@@ -17,6 +17,7 @@ import { getConfigSolutionMaxEffortLevel, updateAnalysisConfig } from "./utiliti
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { KaiInteractiveWorkflow } from "@editor-extensions/agentic";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -57,6 +58,7 @@ class VsCodeExtension {
         },
         activeProfileId: "",
         profiles: [],
+        isProcessingQuickResponse: false,
       },
       () => {},
     );
@@ -78,8 +80,8 @@ class VsCodeExtension {
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
-      memFs: new MemFS(),
-      fileModel: new KonveyorFileModel(),
+      // We still create the memFs for backward compatibility, but our virtualStorage implementation
+      // no longer depends on it
       issueModel: new IssuesModel(),
       kaiFsCache: new SimpleInMemoryCache(),
       taskManager,
@@ -87,6 +89,32 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      workflowManager: {
+        workflow: undefined,
+        isInitialized: false,
+        init: async (config) => {
+          if (this.state.workflowManager.isInitialized) {
+            return;
+          }
+          this.state.workflowManager.workflow = new KaiInteractiveWorkflow();
+          // Make sure fsCache is passed to the workflow init
+          await this.state.workflowManager.workflow.init({
+            ...config,
+            fsCache: this.state.kaiFsCache,
+          });
+          this.state.workflowManager.isInitialized = true;
+        },
+        getWorkflow: () => {
+          if (!this.state.workflowManager.workflow) {
+            throw new Error("Workflow not initialized");
+          }
+          return this.state.workflowManager.workflow;
+        },
+        dispose: () => {
+          this.state.workflowManager.workflow = undefined;
+          this.state.workflowManager.isInitialized = false;
+        },
+      },
     };
   }
 
@@ -112,7 +140,6 @@ class VsCodeExtension {
       });
 
       this.registerWebviewProvider();
-      this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();
@@ -133,6 +160,23 @@ class VsCodeExtension {
             this.state.mutateData((draft) => {
               updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
             });
+          }
+        }),
+      );
+
+      this.listeners.push(
+        vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+          if (editor) {
+            const { activeDecorations } = await import(
+              "./decorations/inlineSuggestionCodeActionProvider"
+            );
+            const { InlineSuggestionDecorator } = await import(
+              "./decorations/inlineSuggestionDecorator"
+            );
+            const change = activeDecorations.get(editor.document.uri.toString());
+            if (change) {
+              await InlineSuggestionDecorator.applyDecorations(editor, change);
+            }
           }
         }),
       );
@@ -228,6 +272,20 @@ class VsCodeExtension {
         },
       ),
     );
+
+    // Register the inline suggestion code action provider for all languages
+    this.context.subscriptions.push(
+      vscode.languages.registerCodeActionsProvider(
+        { pattern: "**/*" }, // All files
+        new InlineSuggestionCodeActionProvider(),
+        {
+          providedCodeActionKinds: InlineSuggestionCodeActionProvider.providedCodeActionKinds,
+        },
+      ),
+    );
+
+    // Register commands for accepting/rejecting suggested changes
+    registerSuggestionCommands(this.context);
   }
 
   private checkContinueInstalled(): void {
@@ -269,5 +327,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function deactivate(): Promise<void> {
+  // Dispose of the InlineSuggestionDecorator
+  try {
+    const { InlineSuggestionDecorator } = await import("./decorations/inlineSuggestionDecorator");
+    InlineSuggestionDecorator.dispose();
+  } catch (error) {
+    console.error("Error disposing InlineSuggestionDecorator:", error);
+  }
+
   await extension?.dispose();
 }

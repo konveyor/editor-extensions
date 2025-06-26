@@ -1,4 +1,5 @@
 import { ExtensionState } from "./extensionState";
+import * as vscode from "vscode";
 import {
   window,
   commands,
@@ -27,24 +28,14 @@ import {
   ChatMessageType,
   GetSolutionResult,
 } from "@editor-extensions/shared";
+import type { ToolMessageValue } from "@editor-extensions/shared";
 import {
   type KaiModifiedFile,
   type KaiWorkflowMessage,
   KaiWorkflowMessageType,
-  KaiInteractiveWorkflow,
   type KaiInteractiveWorkflowInput,
+  type KaiUserIteraction,
 } from "@editor-extensions/agentic";
-import {
-  applyAll,
-  discardAll,
-  copyDiff,
-  copyPath,
-  FileItem,
-  viewFix,
-  applyFile,
-  discardFile,
-  applyBlock,
-} from "./diffView";
 import {
   updateAnalyzerPath,
   updateKaiRpcServerPath,
@@ -68,10 +59,222 @@ import { createPatch, createTwoFilesPatch } from "diff";
 
 const isWindows = process.platform === "win32";
 
+interface modifiedFileState {
+  // if a file is newly created, original content can be undefined
+  originalContent: string | undefined;
+  modifiedContent: string;
+  editType: "inMemory" | "toDisk";
+}
+
+// processes a ModifiedFile message from agents
+// 1. stores the state of the edit in a map to be reverted later
+// 2. dependending on type of the file being modified:
+//    a. For a build file, applies the edit directly to disk
+//    b. For a non-build file, applies the edit to the file in-memory
+async function processModifiedFile(
+  modifiedFilesState: Map<string, modifiedFileState>,
+  modifiedFile: KaiModifiedFile,
+): Promise<void> {
+  const { path, content } = modifiedFile;
+  const uri = Uri.file(path);
+  const editType = getBuildFilesForLanguage("java").some((f) => uri.fsPath.endsWith(f))
+    ? "toDisk"
+    : "inMemory";
+  const alreadyModified = modifiedFilesState.has(uri.fsPath);
+  // check if this is a newly created file
+  let isNew = false;
+  let originalContent: undefined | string = undefined;
+  if (!alreadyModified) {
+    try {
+      await workspace.fs.stat(uri);
+    } catch (err) {
+      if ((err as any).code === "FileNotFound" || (err as any).name === "EntryNotFound") {
+        isNew = true;
+      } else {
+        throw err;
+      }
+    }
+    originalContent = isNew
+      ? undefined
+      : new TextDecoder().decode(await workspace.fs.readFile(uri));
+    modifiedFilesState.set(uri.fsPath, {
+      modifiedContent: content,
+      originalContent,
+      editType,
+    });
+  } else {
+    modifiedFilesState.set(uri.fsPath, {
+      ...(modifiedFilesState.get(uri.fsPath) as modifiedFileState),
+      modifiedContent: content,
+    });
+  }
+  // if we are not running full agentic flow, we don't have to persist changes
+  if (!getConfigSuperAgentMode()) {
+    return;
+  }
+  if (editType === "toDisk") {
+    await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+  } else {
+    try {
+      if (isNew && !alreadyModified) {
+        await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from("")));
+      }
+      // an in-memory edit is applied via the editor window
+      const textDocument = await workspace.openTextDocument(uri);
+      const range = new Range(
+        textDocument.positionAt(0),
+        textDocument.positionAt(textDocument.getText().length),
+      );
+      const edit = new WorkspaceEdit();
+      edit.replace(uri, range, content);
+      await workspace.applyEdit(edit);
+    } catch (err) {
+      console.log(`Failed to apply edit made by the agent - ${String(err)}`);
+    }
+  }
+}
+
 const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   return {
+    "konveyor.notifyFileAction": async (payload: {
+      path: string;
+      action: string;
+      messageToken?: string;
+    }) => {
+      try {
+        // Find the message in the chat messages, first by messageToken if provided
+        let messageIndex = -1;
+        if (payload.messageToken) {
+          messageIndex = state.data.chatMessages.findIndex(
+            (msg) =>
+              msg.kind === ChatMessageType.ModifiedFile &&
+              (msg.value as any).path === payload.path &&
+              msg.messageToken === payload.messageToken,
+          );
+
+          if (messageIndex === -1) {
+            console.log(
+              `No message found for path: ${payload.path} and token: ${payload.messageToken}`,
+            );
+          } else {
+            console.log(
+              `Found message for path: ${payload.path} with token: ${payload.messageToken} at index: ${messageIndex}`,
+            );
+          }
+        }
+
+        // If no message found by token, try to find by path
+        if (messageIndex === -1) {
+          messageIndex = state.data.chatMessages.findIndex(
+            (msg) =>
+              msg.kind === ChatMessageType.ModifiedFile &&
+              (msg.value as any).path === payload.path &&
+              !(msg.value as any).status, // Only match messages without a status (pending)
+          );
+
+          if (messageIndex !== -1) {
+            console.log(
+              `Found pending message for path: ${payload.path} at index: ${messageIndex} by path matching`,
+            );
+          } else {
+            console.log(`No pending message found for path: ${payload.path} by path matching`);
+          }
+        }
+
+        // Update the UI state to reflect the action
+        state.mutateData((draft) => {
+          // Add a message indicating the action taken
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `action-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            value: {
+              message:
+                payload.action === "applied"
+                  ? `Changes to ${payload.path} were applied from the editor.`
+                  : `Changes to ${payload.path} were rejected from the editor.`,
+            },
+          });
+
+          // Update the status of the modified file message if found
+          if (messageIndex !== -1) {
+            const msg = draft.chatMessages[messageIndex];
+            if (msg.kind === ChatMessageType.ModifiedFile) {
+              (msg.value as any).status = payload.action;
+            }
+          }
+
+          // Check for pending file modifications and queued messages to update UI status
+          // const modifiedFiles = new Map<string, any>(); // Placeholder, actual map should be accessible or passed if needed
+          // const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
+          //   (file) => file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
+          // );
+          // const hasMoreQueuedMessages = false; // Placeholder, actual queue status should be checked if accessible
+
+          //   draft.chatMessages.push({
+          //     kind: ChatMessageType.String,
+          //     messageToken: `queue-status-${Date.now()}`,
+          //     timestamp: new Date().toISOString(),
+          //     value: {
+          //       message:
+          //         !hasPendingFileModifications && !hasMoreQueuedMessages
+          //           ? "✅ All changes have been processed. You're up to date!"
+          //           : "There are more changes to review.",
+          //     },
+          //     quickResponses:
+          //       !hasPendingFileModifications && !hasMoreQueuedMessages
+          //         ? [
+          //             { id: "run-analysis", content: "Run Analysis" },
+          //             { id: "return-analysis", content: "Return to Analysis Page" },
+          //           ]
+          //         : undefined,
+          //   });
+        });
+
+        // Resolve any pending interaction if messageToken is provided or found by path
+        if (messageIndex !== -1 && state.resolvePendingInteraction) {
+          const msg = state.data.chatMessages[messageIndex];
+          if (msg && msg.messageToken) {
+            const resolved = state.resolvePendingInteraction(msg.messageToken, {
+              action: payload.action,
+            });
+            if (resolved) {
+              console.log(
+                `Resolved pending interaction for message token: ${msg.messageToken} with action: ${payload.action}`,
+              );
+            } else {
+              console.log(`No pending interaction found for message token: ${msg.messageToken}`);
+            }
+          }
+        }
+
+        // If the action was 'applied', we need to update the file
+        if (payload.action === "applied" && messageIndex !== -1) {
+          // const msg = state.data.chatMessages[messageIndex];
+          // const content = (msg.value as any).content;
+          // if (content) {
+          //   const uri = vscode.Uri.file(payload.path);
+          //   await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
+          //   vscode.window.showInformationMessage(
+          //     `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
+          //   );
+          // }
+        }
+      } catch (error) {
+        console.error("Error handling FILE_ACTION:", error);
+        vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
+      }
+    },
+    "konveyor.notifyWebviewOfFileAction": async (payload: {
+      path: string;
+      messageToken: string;
+      action: "applied" | "rejected";
+    }) => {
+      // Redirect to the consolidated notifyFileAction command
+      await commands.executeCommand("konveyor.notifyFileAction", payload);
+    },
     "konveyor.openProfilesPanel": async () => {
       const provider = state.webviewProviders.get("profiles");
       if (provider) {
@@ -130,10 +333,12 @@ const commandsMap: (state: ExtensionState) => {
       const scope: Scope = { incidents, effort };
 
       // Update the state to indicate we're starting to fetch a solution
+      // Clear previous chat messages to prevent duplicate diff viewers
       state.mutateData((draft) => {
         draft.isFetchingSolution = true;
         draft.solutionState = "started";
         draft.solutionScope = scope;
+        draft.chatMessages = []; // Clear previous chat messages
       });
 
       try {
@@ -153,191 +358,627 @@ const commandsMap: (state: ExtensionState) => {
           return;
         }
 
-        const kaiAgent = new KaiInteractiveWorkflow();
-        const agentInit = kaiAgent.init({
-          model: model,
-          workspaceDir: state.data.workspaceRoot,
-          fsCache: state.kaiFsCache,
-        });
-
-        // revert the changes back to on-disk
-        // state.kaiFsCache.on("cacheInvalidated", async (path) => {
-        //   // TODO (pgaikwad) - revert the changes
-        //   // think about edge cases like if the document is already open by the user etc
-        // });
-
-        // TODO (pgaikwad) - revisit this
-        // this is a number I am setting for demo purposes
-        // until we have a full UI support. we will only
-        // process child issues until the depth of 1
-        const maxTaskManagerIterations = 1;
-        let currentTaskManagerIterations = 0;
-
-        // Process each file's incidents
+        // Initialize workflow if agent mode is enabled
+        // Create array to store all diffs
         const allDiffs: { original: string; modified: string; diff: string }[] = [];
-        const modifiedFiles: Map<string, modifiedFileState> = new Map<string, modifiedFileState>();
-        const modifiedFilesPromises: Array<Promise<void>> = [];
-        let lastMessageId: string = "0";
-        // listen on agents events
-        kaiAgent.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-          switch (msg.type) {
-            case KaiWorkflowMessageType.UserInteraction: {
-              switch (msg.data.type) {
-                // waiting on user for confirmation
-                case "yesNo":
-                  state.mutateData((draft) => {
+
+        if (getConfigAgentMode()) {
+          await state.workflowManager.init({
+            model: model,
+            workspaceDir: state.data.workspaceRoot,
+          });
+
+          // Get the workflow instance
+          const workflow = state.workflowManager.getWorkflow();
+          // Track processed message tokens to prevent duplicates
+          const processedTokens = new Set<string>();
+
+          // TODO (pgaikwad) - revisit this
+          // this is a number I am setting for demo purposes
+          // until we have a full UI support. we will only
+          // process child issues until the depth of 1
+          const maxTaskManagerIterations = 1;
+          let currentTaskManagerIterations = 0;
+          const modifiedFiles: Map<string, modifiedFileState> = new Map<
+            string,
+            modifiedFileState
+          >();
+          const modifiedFilesPromises: Array<Promise<void>> = [];
+          let lastMessageId: string = "0";
+
+          // Track if we're waiting for user interaction
+          let isWaitingForUserInteraction = false;
+          // Queue to store messages that arrive while waiting for user interaction
+          const messageQueue: KaiWorkflowMessage[] = [];
+          // Map to store promise resolvers for user interactions
+          const pendingInteractions = new Map<string, (response: any) => void>();
+
+          // Store the resolver function in the state so webview handler can access it
+          state.resolvePendingInteraction = (messageId: string, response: any) => {
+            const resolver = pendingInteractions.get(messageId);
+            if (resolver) {
+              pendingInteractions.delete(messageId);
+              resolver(response);
+              return true;
+            }
+            return false;
+          };
+
+          /**
+           * Handles a modified file message from the agent
+           * 1. Processes the file modification
+           * 2. Creates a diff for UI display
+           * 3. Adds a chat message with accept/reject buttons
+           * 4. Waits for user response before continuing
+           */
+          const handleModifiedFileMessage = async (
+            msg: KaiWorkflowMessage,
+            modifiedFiles: Map<string, modifiedFileState>,
+            modifiedFilesPromises: Array<Promise<void>>,
+            processedTokens: Set<string>,
+            pendingInteractions: Map<string, (response: any) => void>,
+            messageQueue: KaiWorkflowMessage[],
+            state: ExtensionState,
+          ) => {
+            // Ensure we're dealing with a ModifiedFile message
+            if (msg.type !== KaiWorkflowMessageType.ModifiedFile) {
+              console.error("handleModifiedFileMessage called with non-ModifiedFile message type");
+              return;
+            }
+
+            // Get file info for UI display
+            const { path: filePath } = msg.data as KaiModifiedFile;
+
+            // Process the modified file and store it in the modifiedFiles map
+            modifiedFilesPromises.push(
+              processModifiedFile(modifiedFiles, msg.data as KaiModifiedFile),
+            );
+
+            const uri = Uri.file(filePath);
+
+            try {
+              // Wait for the file to be processed
+              await Promise.all(modifiedFilesPromises);
+
+              // Get file state from modifiedFiles map
+              const fileState = modifiedFiles.get(uri.fsPath);
+              if (fileState) {
+                // Create a diff for UI display
+                const isNew = fileState.originalContent === undefined;
+                let diff: string;
+
+                if (isNew) {
+                  diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent);
+                } else {
+                  try {
+                    diff = createPatch(
+                      filePath,
+                      fileState.originalContent as string,
+                      fileState.modifiedContent,
+                    );
+                  } catch (diffErr) {
+                    console.error(`Error creating diff for ${filePath}:`, diffErr);
+                    diff = `// Error creating diff for ${filePath}`;
+                  }
+                }
+
+                // Add a chat message with quick responses for user interaction
+                state.mutateData((draft) => {
+                  draft.chatMessages.push({
+                    kind: ChatMessageType.ModifiedFile,
+                    messageToken: msg.id,
+                    timestamp: new Date().toISOString(),
+                    value: {
+                      path: filePath,
+                      content: fileState.modifiedContent,
+                      isNew: isNew,
+                      diff: diff,
+                      messageToken: msg.id, // Add message token to value for reference
+                    },
+                    quickResponses: [
+                      { id: "apply", content: "Apply" },
+                      { id: "reject", content: "Reject" },
+                    ],
+                  });
+                });
+
+                // Set the flag to indicate we're waiting for user interaction
+                isWaitingForUserInteraction = true;
+                console.log(`Waiting for user response for file: ${filePath}`);
+
+                // Wait for user response - this blocks workflow execution until user responds
+                await new Promise<void>((resolve) => {
+                  // Store the resolver for this specific message
+                  pendingInteractions.set(msg.id, (response: any) => {
+                    // Handle the user response (apply/reject the file change)
+                    console.log(`User ${response.action} file modification for ${filePath}`);
+
+                    // Reset the waiting flag
+                    isWaitingForUserInteraction = false;
+
+                    // Process any messages that were queued while waiting
+                    const queuedMessages = [...messageQueue];
+                    messageQueue.length = 0;
+
+                    // Process all queued messages before resolving the promise
+                    // This ensures all messages are processed before continuing the workflow
+                    (async () => {
+                      try {
+                        console.log(`Processing ${queuedMessages.length} queued messages...`);
+
+                        // Add a processing indicator
+                        // if (queuedMessages.length > 0) {
+                        //   state.mutateData((draft) => {
+                        //     draft.chatMessages.push({
+                        //       kind: ChatMessageType.String,
+                        //       messageToken: `queue-start-${Date.now()}`,
+                        //       timestamp: new Date().toISOString(),
+                        //       value: {
+                        //         message: `Processing ${queuedMessages.length} queued messages...`,
+                        //       },
+                        //     });
+                        //   });
+                        // }
+
+                        // Filter out any duplicate messages before processing
+                        // For ModifiedFile messages, consider them duplicates if they modify the same file path
+                        const uniqueQueuedMessages = queuedMessages.filter((msg, index, self) => {
+                          if (msg.type === KaiWorkflowMessageType.ModifiedFile) {
+                            // For file modifications, check if we already have a message for this file path
+                            const filePath = (msg.data as KaiModifiedFile).path;
+                            return (
+                              self.findIndex(
+                                (m) =>
+                                  m.type === KaiWorkflowMessageType.ModifiedFile &&
+                                  (m.data as KaiModifiedFile).path === filePath,
+                              ) === index
+                            );
+                          }
+                          // For other message types, just check the ID
+                          return self.findIndex((m) => m.id === msg.id) === index;
+                        });
+
+                        console.log(
+                          `Processing ${uniqueQueuedMessages.length} unique messages out of ${queuedMessages.length} queued messages`,
+                        );
+
+                        // Process each unique message sequentially
+                        for (const queuedMsg of uniqueQueuedMessages) {
+                          await processMessage(queuedMsg);
+                        }
+
+                        // Add a completion indicator
+                        // if (queuedMessages.length > 0) {
+                        //   state.mutateData((draft) => {
+                        //     draft.chatMessages.push({
+                        //       kind: ChatMessageType.String,
+                        //       messageToken: `queue-complete-${Date.now()}`,
+                        //       timestamp: new Date().toISOString(),
+                        //       value: {
+                        //         message: "✅ All queued messages have been processed.",
+                        //       },
+                        //     });
+                        //   });
+                        // }
+
+                        // After processing queued messages
+                        const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
+                          (file) =>
+                            file.editType === "inMemory" &&
+                            file.modifiedContent !== file.originalContent,
+                        );
+                        const hasMoreQueuedMessages = messageQueue.length > 0;
+                        console.log({
+                          hasPendingFileModifications,
+                          hasMoreQueuedMessages,
+                          modifiedFiles,
+                        });
+                        state.mutateData((draft) => {
+                          draft.chatMessages.push({
+                            kind: ChatMessageType.String,
+                            messageToken: `queue-status-${Date.now()}`,
+                            timestamp: new Date().toISOString(),
+                            value: {
+                              message:
+                                !hasPendingFileModifications && !hasMoreQueuedMessages
+                                  ? "✅ All changes have been processed. You're up to date!"
+                                  : "There are more changes to review.",
+                            },
+                            quickResponses:
+                              !hasPendingFileModifications && !hasMoreQueuedMessages
+                                ? [
+                                    { id: "run-analysis", content: "Run Analysis" },
+                                    { id: "return-analysis", content: "Return to Analysis Page" },
+                                  ]
+                                : undefined,
+                          });
+                        });
+
+                        // Resolve our promise to continue the workflow
+                        resolve();
+                      } catch (error) {
+                        console.error("Error processing queued messages:", error);
+
+                        // Add an error indicator
+                        state.mutateData((draft) => {
+                          draft.chatMessages.push({
+                            kind: ChatMessageType.String,
+                            messageToken: `queue-error-${Date.now()}`,
+                            timestamp: new Date().toISOString(),
+                            value: {
+                              message: `Error processing queued messages: ${error}`,
+                            },
+                          });
+                        });
+
+                        resolve(); // Resolve anyway to prevent hanging
+                      }
+                    })();
+                  });
+                });
+              }
+            } catch (err) {
+              console.log(`Failed to process modified file from the agent - ${err}`);
+              isWaitingForUserInteraction = false; // Reset flag in case of error
+            }
+          };
+
+          /**
+           * Determines if a message should be processed or skipped as a duplicate
+           * This provides a centralized way to handle duplicate detection across all message types
+           */
+          const shouldProcessMessage = (msg: KaiWorkflowMessage): boolean => {
+            // Special handling for different message types - NO generic duplicate check first
+            switch (msg.type) {
+              case KaiWorkflowMessageType.LLMResponseChunk: {
+                // For LLM chunks, we only check for duplicates if it's a new message
+                if (msg.id !== lastMessageId) {
+                  // Check if we've already started a message with this ID
+                  if (processedTokens.has(`llm-start:${msg.id}`)) {
+                    console.log(`Skipping duplicate LLM start message: ${msg.id}`);
+                    return false;
+                  }
+                  // Mark this message as started
+                  processedTokens.add(`llm-start:${msg.id}`);
+                }
+                // Don't add message ID to processedTokens for LLM chunks
+                // as we want to allow multiple chunks with the same ID
+                return true;
+              }
+              case KaiWorkflowMessageType.ModifiedFile: {
+                const { path: filePath } = msg.data as KaiModifiedFile;
+                // Create a unique key for this file modification
+                const fileKey = `file:${filePath}:${msg.id}`;
+
+                // Check if we've already processed a message for this file path and ID
+                if (processedTokens.has(fileKey)) {
+                  console.log(`Skipping duplicate file modification for: ${filePath}`);
+                  return false;
+                }
+
+                // Also check if we've already processed ANY message for this file path
+                // This prevents multiple different messages modifying the same file
+                const filePathKey = `file:${filePath}`;
+                if (processedTokens.has(filePathKey)) {
+                  console.log(
+                    `Skipping duplicate file modification for path: ${filePath} (different message ID)`,
+                  );
+                  return false;
+                }
+
+                // Mark this specific file modification as processed
+                processedTokens.add(fileKey);
+                // Also mark the file path as processed to prevent other messages from modifying it
+                processedTokens.add(filePathKey);
+                return true;
+              }
+              case KaiWorkflowMessageType.ToolCall: {
+                // For tool calls, create a unique key based on tool name and status
+                const toolName = msg.data.name || "unnamed tool";
+                const toolStatus = msg.data.status;
+                const toolKey = `tool:${toolName}:${toolStatus}:${msg.id}`;
+
+                if (processedTokens.has(toolKey)) {
+                  console.log(`Skipping duplicate tool call: ${toolName} (${toolStatus})`);
+                  return false;
+                }
+
+                processedTokens.add(toolKey);
+                return true;
+              }
+              case KaiWorkflowMessageType.UserInteraction: {
+                // For user interactions, create a unique key based on the interaction type
+                const interaction = msg.data as KaiUserIteraction;
+                const interactionKey = `interaction:${interaction.type}:${msg.id}`;
+
+                if (processedTokens.has(interactionKey)) {
+                  console.log(`Skipping duplicate user interaction: ${interaction.type}`);
+                  return false;
+                }
+
+                processedTokens.add(interactionKey);
+                return true;
+              }
+              default: {
+                // For all other message types, use basic duplicate check by message ID
+                if (processedTokens.has(msg.id)) {
+                  console.log(`Skipping duplicate message with ID: ${msg.id}`);
+                  return false;
+                }
+                processedTokens.add(msg.id);
+                return true;
+              }
+            }
+          };
+
+          // Function to process a message
+          const processMessage = async (msg: KaiWorkflowMessage) => {
+            console.log("Commands processing message:", msg);
+
+            // If we're waiting for user interaction and this is not a response to that interaction,
+            // queue the message for later processing
+            if (isWaitingForUserInteraction) {
+              messageQueue.push(msg);
+              return;
+            }
+
+            // Check if we should process this message or skip it as a duplicate
+            if (!shouldProcessMessage(msg)) {
+              return;
+            }
+
+            switch (msg.type) {
+              case KaiWorkflowMessageType.ToolCall: {
+                // Add or update tool call notification in chat
+                state.mutateData((draft) => {
+                  const toolName = msg.data.name || "unnamed tool";
+                  const toolStatus = msg.data.status;
+                  // Use a dedicated kind and value for tool messages
+                  const existingToolIndex = draft.chatMessages.findIndex(
+                    (m: any) =>
+                      m.kind === ChatMessageType.Tool &&
+                      (m.value as ToolMessageValue).toolName === toolName &&
+                      (m.value as ToolMessageValue).toolStatus === toolStatus,
+                  );
+
+                  if (existingToolIndex === -1) {
                     draft.chatMessages.push({
-                      kind: ChatMessageType.String,
+                      kind: ChatMessageType.Tool,
                       messageToken: msg.id,
                       timestamp: new Date().toISOString(),
                       value: {
-                        message: msg.data.systemMessage.yesNo,
+                        toolName,
+                        toolStatus,
                       },
                     });
-                  });
-                  msg.data.response = {
-                    // respond with "yes" when agent mode is enabled
-                    yesNo: getConfigAgentMode(),
-                  };
-                  kaiAgent.resolveUserInteraction(msg);
-                  break;
-                // waiting on ide to provide more tasks
-                case "tasks": {
-                  if (currentTaskManagerIterations < maxTaskManagerIterations) {
-                    currentTaskManagerIterations += 1;
-                    await new Promise<void>((resolve) => {
-                      const interval = setInterval(() => {
-                        if (!state.data.isAnalysisScheduled && !state.data.isAnalyzing) {
-                          clearInterval(interval);
-                          resolve();
-                          return;
+                  }
+                });
+                break;
+              }
+              case KaiWorkflowMessageType.UserInteraction: {
+                const interaction = msg.data as KaiUserIteraction;
+                switch (interaction.type) {
+                  case "yesNo": {
+                    try {
+                      // Get the message from the interaction
+                      const message =
+                        interaction.systemMessage.yesNo || "Would you like to proceed?";
+
+                      // Add the question to chat with quick responses
+                      state.mutateData((draft) => {
+                        // Check if we already have a pending interaction message
+                        const hasPendingInteraction = draft.chatMessages.some(
+                          (m: any) =>
+                            m.kind === ChatMessageType.String &&
+                            m.quickResponses &&
+                            m.quickResponses.length > 0,
+                        );
+
+                        if (!hasPendingInteraction) {
+                          draft.chatMessages.push({
+                            kind: ChatMessageType.String,
+                            messageToken: msg.id,
+                            timestamp: new Date().toISOString(),
+                            value: {
+                              message: message,
+                            },
+                            quickResponses: [
+                              { id: "yes", content: "Yes" },
+                              { id: "no", content: "No" },
+                            ],
+                          });
                         }
-                      }, 1000);
-                    });
-                    const tasks = state.taskManager.getTasks().map((t) => {
-                      return {
-                        uri: t.getUri().fsPath,
-                        task:
-                          t.toString().length > 100
-                            ? t.toString().slice(0, 100).replaceAll("`", "'").replaceAll(">", "") +
-                              "..."
-                            : t.toString(),
-                      } as { uri: string; task: string };
-                    });
-                    if (tasks.length > 0) {
+                      });
+                      // Response will be handled by QUICK_RESPONSE handler
+                      break;
+                    } catch (error) {
+                      console.error("Error handling user interaction:", error);
+                      msg.data.response = { yesNo: false };
+                      await workflow.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                  case "choice": {
+                    try {
+                      const choices = interaction.systemMessage.choice || [];
                       state.mutateData((draft) => {
                         draft.chatMessages.push({
                           kind: ChatMessageType.String,
                           messageToken: msg.id,
                           timestamp: new Date().toISOString(),
                           value: {
-                            message: `It appears that my fixes caused following issues:\n\n - \
-                              ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
+                            message: "Please select an option:",
                           },
+                          quickResponses: choices.map((choice: string, index: number) => ({
+                            id: `choice-${index}`,
+                            content: choice,
+                          })),
                         });
                       });
-                      msg.data.response = { tasks, yesNo: true };
-                      kaiAgent.resolveUserInteraction(msg);
+                      // Response will be handled by QUICK_RESPONSE handler
+                      break;
+                    } catch (error) {
+                      console.error("Error handling choice interaction:", error);
+                      msg.data.response = { choice: -1 };
+                      await workflow.resolveUserInteraction(msg);
+                    }
+                    break;
+                  }
+                  case "tasks": {
+                    if (currentTaskManagerIterations < maxTaskManagerIterations) {
+                      currentTaskManagerIterations += 1;
+                      await new Promise<void>((resolve) => {
+                        const interval = setInterval(() => {
+                          if (!state.data.isAnalysisScheduled && !state.data.isAnalyzing) {
+                            clearInterval(interval);
+                            resolve();
+                            return;
+                          }
+                        }, 1000);
+                      });
+                      const tasks = state.taskManager.getTasks().map((t) => {
+                        return {
+                          uri: t.getUri().fsPath,
+                          task:
+                            t.toString().length > 100
+                              ? t
+                                  .toString()
+                                  .slice(0, 100)
+                                  .replaceAll("`", "'")
+                                  .replaceAll(">", "") + "..."
+                              : t.toString(),
+                        } as { uri: string; task: string };
+                      });
+                      if (tasks.length > 0) {
+                        state.mutateData((draft) => {
+                          draft.chatMessages.push({
+                            kind: ChatMessageType.String,
+                            messageToken: msg.id,
+                            timestamp: new Date().toISOString(),
+                            value: {
+                              message: `It appears that my fixes caused following issues:\n\n - \
+                              ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
+                            },
+                          });
+                        });
+                        msg.data.response = { tasks, yesNo: true };
+                        workflow.resolveUserInteraction(msg);
+                      } else {
+                        msg.data.response = {
+                          yesNo: false,
+                        };
+                        workflow.resolveUserInteraction(msg);
+                      }
                     } else {
                       msg.data.response = {
                         yesNo: false,
                       };
-                      kaiAgent.resolveUserInteraction(msg);
+                      workflow.resolveUserInteraction(msg);
                     }
-                  } else {
-                    msg.data.response = {
-                      yesNo: false,
-                    };
-                    kaiAgent.resolveUserInteraction(msg);
                   }
                 }
+                break;
               }
-              break;
-            }
-            case KaiWorkflowMessageType.LLMResponseChunk: {
-              const chunk = msg.data;
-              const content =
-                typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
-              if (msg.id !== lastMessageId) {
-                state.mutateData((draft) => {
-                  draft.chatMessages.push({
-                    kind: ChatMessageType.String,
-                    messageToken: msg.id,
-                    timestamp: new Date().toISOString(),
-                    value: {
-                      message: content,
-                    },
+              case KaiWorkflowMessageType.LLMResponseChunk: {
+                console.log("LLMResponseChunk", msg);
+                const chunk = msg.data;
+                const content =
+                  typeof chunk.content === "string" ? chunk.content : JSON.stringify(chunk.content);
+
+                if (msg.id !== lastMessageId) {
+                  // This is a new message - create a new chat message
+                  state.mutateData((draft) => {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.String,
+                      messageToken: msg.id,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        message: content,
+                      },
+                    });
                   });
-                });
-                lastMessageId = msg.id;
-              } else {
-                state.mutateData((draft) => {
-                  draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
-                });
+                  lastMessageId = msg.id;
+                } else {
+                  // This is a continuation of the current message - append to it
+                  state.mutateData((draft) => {
+                    draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
+                  });
+                }
+                break;
               }
-              break;
+              case KaiWorkflowMessageType.ModifiedFile: {
+                await handleModifiedFileMessage(
+                  msg,
+                  modifiedFiles,
+                  modifiedFilesPromises,
+                  processedTokens,
+                  pendingInteractions,
+                  messageQueue,
+                  state,
+                );
+                break;
+              }
             }
-            case KaiWorkflowMessageType.ModifiedFile: {
-              modifiedFilesPromises.push(processModifiedFile(modifiedFiles, msg.data));
-              break;
-            }
+          };
+
+          // Set up the event listener to use our message processing function
+
+          workflow.removeAllListeners();
+          workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+            await processMessage(msg);
+          });
+
+          try {
+            await workflow.run({
+              incidents,
+              migrationHint: profileName,
+              programmingLanguage: "Java",
+              enableAdditionalInformation: getConfigAgentMode(),
+              enableDiagnostics: getConfigSuperAgentMode(),
+            } as KaiInteractiveWorkflowInput);
+          } catch (err) {
+            console.error(`Error in running the agent - ${err}`);
+            console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
+            window.showInformationMessage(`We encountered an error running the agent.`);
           }
-        });
 
-        try {
-          await agentInit;
-          await kaiAgent.run({
-            incidents,
-            migrationHint: profileName,
-            programmingLanguage: "Java",
-            enableAdditionalInformation: getConfigAgentMode(),
-            enableDiagnostics: getConfigSuperAgentMode(),
-          } as KaiInteractiveWorkflowInput);
-        } catch (err) {
-          console.error(`Error in running the agent - ${err}`);
-          console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
-          window.showInformationMessage(`We encountered an error running the agent.`);
-        }
-
-        // wait for modified files to process
-        await Promise.all(modifiedFilesPromises);
-
-        // process diffs from agent workflow & undo any edits we made
-        await Promise.all(
-          Array.from(modifiedFiles.entries()).map(async ([path, state]) => {
-            const { originalContent, modifiedContent } = state;
-            const uri = Uri.file(path);
-            const relativePath = workspace.asRelativePath(uri);
-            try {
-              // revert the edit
-              // TODO(pgaikwad) - use ws edit api
-              await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(originalContent ?? "")));
-            } catch (err) {
-              console.error(`Error reverting edits - ${err}`);
-            }
-            try {
-              if (!originalContent) {
-                allDiffs.push({
-                  diff: createTwoFilesPatch("", relativePath, "", modifiedContent),
-                  modified: relativePath,
-                  original: "",
-                });
-              } else {
-                allDiffs.push({
-                  diff: createPatch(relativePath, originalContent, modifiedContent),
-                  modified: relativePath,
-                  original: relativePath,
-                });
+          // Process diffs from modified files
+          await Promise.all(
+            Array.from(modifiedFiles.entries()).map(async ([path, state]) => {
+              const { originalContent, modifiedContent } = state;
+              const uri = Uri.file(path);
+              const relativePath = workspace.asRelativePath(uri);
+              try {
+                // revert the edit if needed
+                if (originalContent !== undefined) {
+                  await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(originalContent)));
+                }
+              } catch (err) {
+                console.error(`Error reverting edits - ${err}`);
               }
-            } catch (err) {
-              console.error(`Error in processing diff - ${err}`);
-            }
-          }),
-        );
+              try {
+                if (!originalContent) {
+                  allDiffs.push({
+                    diff: createTwoFilesPatch("", relativePath, "", modifiedContent),
+                    modified: relativePath,
+                    original: "",
+                  });
+                } else {
+                  allDiffs.push({
+                    diff: createPatch(relativePath, originalContent, modifiedContent),
+                    modified: relativePath,
+                    original: relativePath,
+                  });
+                }
+              } catch (err) {
+                console.error(`Error in processing diff - ${err}`);
+              }
+            }),
+          );
 
-        // now that all agents have returned, we can reset the cache
-        state.kaiFsCache.reset();
-        kaiAgent.removeAllListeners();
+          // Reset the cache after all processing is complete
+          state.kaiFsCache.reset();
+        }
 
         if (allDiffs.length === 0) {
           throw new Error("No diffs found in the response");
@@ -350,22 +991,26 @@ const commandsMap: (state: ExtensionState) => {
           scope: { incidents, effort },
         };
 
-        // Update the state with the solution and reasoning
+        // Update the state with the solution
         state.mutateData((draft) => {
           draft.solutionState = "received";
           draft.isFetchingSolution = false;
           draft.solutionData = solutionResponse;
 
-          draft.chatMessages.push({
-            messageToken: `m${Date.now()}`,
-            kind: ChatMessageType.String,
-            value: { message: "Solution generated successfully!" },
-            timestamp: new Date().toISOString(),
-          });
+          // Only add the success message if we're not in agent mode
+          // In agent mode, we'll add this message after all file modifications have been processed
+          if (!getConfigAgentMode()) {
+            draft.chatMessages.push({
+              messageToken: `m${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: { message: "Solution generated successfully!" },
+              timestamp: new Date().toISOString(),
+            });
+          }
         });
 
         // Load the solution
-        commands.executeCommand("konveyor.loadSolution", solutionResponse, { incidents });
+        // commands.executeCommand("konveyor.loadSolution", solutionResponse, { incidents });
       } catch (error: any) {
         console.error("Error in getSolution:", error);
 
@@ -514,13 +1159,6 @@ const commandsMap: (state: ExtensionState) => {
     "konveyor.loadResultsFromDataFolder": loadResultsFromDataFolder,
     "konveyor.loadSolution": async (solution: Solution, scope?: Scope) =>
       loadSolution(state, solution, scope),
-    "konveyor.applyAll": async () => applyAll(state),
-    "konveyor.applyFile": async (item: FileItem | Uri) => applyFile(item, state),
-    "konveyor.copyDiff": async (item: FileItem | Uri) => copyDiff(item, state),
-    "konveyor.copyPath": copyPath,
-    "konveyor.diffView.viewFix": viewFix,
-    "konveyor.discardAll": async () => discardAll(state),
-    "konveyor.discardFile": async (item: FileItem | Uri) => discardFile(item, state),
     "konveyor.showResolutionPanel": () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
@@ -537,10 +1175,6 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.fixGroupOfIncidents": fixGroupOfIncidents,
     "konveyor.fixIncident": fixGroupOfIncidents,
-    "konveyor.diffView.applyBlock": applyBlock,
-    "konveyor.diffView.applyBlockInline": applyBlock,
-    "konveyor.diffView.applySelection": applyBlock,
-    "konveyor.diffView.applySelectionInline": applyBlock,
     "konveyor.partialAnalysis": async (filePaths: Uri[]) => runPartialAnalysis(state, filePaths),
     "konveyor.configureGetSolutionParams": async () => {
       const maxPriorityInput = await window.showInputBox({
@@ -599,80 +1233,5 @@ const commandsMap: (state: ExtensionState) => {
 export function registerAllCommands(state: ExtensionState) {
   for (const [command, callback] of Object.entries(commandsMap(state))) {
     state.extensionContext.subscriptions.push(commands.registerCommand(command, callback));
-  }
-}
-
-interface modifiedFileState {
-  // if a file is newly created, original content can be undefined
-  originalContent: string | undefined;
-  modifiedContent: string;
-  editType: "inMemory" | "toDisk";
-}
-
-// processes a ModifiedFile message from agents
-// 1. stores the state of the edit in a map to be reverted later
-// 2. dependending on type of the file being modified:
-//    a. For a build file, applies the edit directly to disk
-//    b. For a non-build file, applies the edit to the file in-memory
-async function processModifiedFile(
-  modifiedFilesState: Map<string, modifiedFileState>,
-  modifiedFile: KaiModifiedFile,
-): Promise<void> {
-  const { path, content } = modifiedFile;
-  const uri = Uri.file(path);
-  const editType = getBuildFilesForLanguage("java").some((f) => uri.fsPath.endsWith(f))
-    ? "toDisk"
-    : "inMemory";
-  const alreadyModified = modifiedFilesState.has(uri.fsPath);
-  // check if this is a newly created file
-  let isNew = false;
-  let originalContent: undefined | string = undefined;
-  if (!alreadyModified) {
-    try {
-      await workspace.fs.stat(uri);
-    } catch (err) {
-      if ((err as any).code === "FileNotFound" || (err as any).name === "EntryNotFound") {
-        isNew = true;
-      } else {
-        throw err;
-      }
-    }
-    originalContent = isNew
-      ? undefined
-      : new TextDecoder().decode(await workspace.fs.readFile(uri));
-    modifiedFilesState.set(uri.fsPath, {
-      modifiedContent: content,
-      originalContent,
-      editType,
-    });
-  } else {
-    modifiedFilesState.set(uri.fsPath, {
-      ...(modifiedFilesState.get(uri.fsPath) as modifiedFileState),
-      modifiedContent: content,
-    });
-  }
-  // if we are not running full agentic flow, we don't have to persist changes
-  if (!getConfigSuperAgentMode()) {
-    return;
-  }
-  if (editType === "toDisk") {
-    await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
-  } else {
-    try {
-      if (isNew && !alreadyModified) {
-        await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from("")));
-      }
-      // an in-memory edit is applied via the editor window
-      const textDocument = await workspace.openTextDocument(uri);
-      const range = new Range(
-        textDocument.positionAt(0),
-        textDocument.positionAt(textDocument.getText().length),
-      );
-      const edit = new WorkspaceEdit();
-      edit.replace(uri, range, content);
-      await workspace.applyEdit(edit);
-    } catch (err) {
-      console.log(`Failed to apply edit made by the agent - ${String(err)}`);
-    }
   }
 }

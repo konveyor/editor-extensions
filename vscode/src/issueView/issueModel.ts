@@ -169,7 +169,6 @@ export class IssuesModel {
     const firstViolation: Immutable<Violation> | undefined = this.findViolation(incidentMessage);
     vscode.commands.executeCommand("konveyor.getSolution", incidents, firstViolation);
 
-    vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");
   }
 }
