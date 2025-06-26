@@ -585,18 +585,18 @@ const commandsMap: (state: ExtensionState) => {
                         console.log(`Processing ${queuedMessages.length} queued messages...`);
 
                         // Add a processing indicator
-                        if (queuedMessages.length > 0) {
-                          state.mutateData((draft) => {
-                            draft.chatMessages.push({
-                              kind: ChatMessageType.String,
-                              messageToken: `queue-start-${Date.now()}`,
-                              timestamp: new Date().toISOString(),
-                              value: {
-                                message: `Processing ${queuedMessages.length} queued messages...`,
-                              },
-                            });
-                          });
-                        }
+                        // if (queuedMessages.length > 0) {
+                        //   state.mutateData((draft) => {
+                        //     draft.chatMessages.push({
+                        //       kind: ChatMessageType.String,
+                        //       messageToken: `queue-start-${Date.now()}`,
+                        //       timestamp: new Date().toISOString(),
+                        //       value: {
+                        //         message: `Processing ${queuedMessages.length} queued messages...`,
+                        //       },
+                        //     });
+                        //   });
+                        // }
 
                         // Filter out any duplicate messages before processing
                         // For ModifiedFile messages, consider them duplicates if they modify the same file path
@@ -626,18 +626,18 @@ const commandsMap: (state: ExtensionState) => {
                         }
 
                         // Add a completion indicator
-                        if (queuedMessages.length > 0) {
-                          state.mutateData((draft) => {
-                            draft.chatMessages.push({
-                              kind: ChatMessageType.String,
-                              messageToken: `queue-complete-${Date.now()}`,
-                              timestamp: new Date().toISOString(),
-                              value: {
-                                message: "✅ All queued messages have been processed.",
-                              },
-                            });
-                          });
-                        }
+                        // if (queuedMessages.length > 0) {
+                        //   state.mutateData((draft) => {
+                        //     draft.chatMessages.push({
+                        //       kind: ChatMessageType.String,
+                        //       messageToken: `queue-complete-${Date.now()}`,
+                        //       timestamp: new Date().toISOString(),
+                        //       value: {
+                        //         message: "✅ All queued messages have been processed.",
+                        //       },
+                        //     });
+                        //   });
+                        // }
 
                         // After processing queued messages
                         const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
