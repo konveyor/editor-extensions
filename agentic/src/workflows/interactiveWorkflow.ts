@@ -17,6 +17,7 @@ import {
   SummarizeAdditionalInfoOutputState,
   AnalysisIssueFixOrchestratorState,
   SummarizeHistoryOutputState,
+  AnalysisIssueFixOutputState,
 } from "../schemas/analysisIssueFix";
 import { modelHealthCheck } from "../utils";
 import { FileSystemTools } from "../tools/filesystem";
@@ -37,6 +38,7 @@ export interface KaiInteractiveWorkflowInput extends KaiWorkflowInput {
 
 // output state of the initial analysis workflow
 const AnalysisWorkflowOutputState = Annotation.Root({
+  ...AnalysisIssueFixOutputState.spec,
   ...SummarizeAdditionalInfoOutputState.spec,
   ...SummarizeHistoryOutputState.spec,
 });

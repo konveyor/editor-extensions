@@ -1,3 +1,4 @@
+import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import {
@@ -345,7 +346,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
   private renderTextDescriptionAndArgs(tools: DynamicStructuredTool[]): string {
     let description = "";
     tools.forEach((tool) => {
-      description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema))}`;
+      description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema as z.ZodSchema))}`;
     });
     return description;
   }
