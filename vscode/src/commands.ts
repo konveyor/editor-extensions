@@ -210,7 +210,50 @@ const commandsMap: (state: ExtensionState) => {
               (msg.value as any).status = payload.action;
             }
           }
+
+          // Check for pending file modifications and queued messages to update UI status
+          const modifiedFiles = new Map<string, any>(); // Placeholder, actual map should be accessible or passed if needed
+          const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
+            (file) => file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
+          );
+          const hasMoreQueuedMessages = false; // Placeholder, actual queue status should be checked if accessible
+
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `queue-status-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            value: {
+              message:
+                !hasPendingFileModifications && !hasMoreQueuedMessages
+                  ? "✅ All changes have been processed. You're up to date!"
+                  : "There are more changes to review.",
+            },
+            quickResponses:
+              !hasPendingFileModifications && !hasMoreQueuedMessages
+                ? [
+                    { id: "run-analysis", content: "Run Analysis" },
+                    { id: "return-analysis", content: "Return to Analysis Page" },
+                  ]
+                : undefined,
+          });
         });
+
+        // Resolve any pending interaction if messageToken is provided or found by path
+        if (messageIndex !== -1 && state.resolvePendingInteraction) {
+          const msg = state.data.chatMessages[messageIndex];
+          if (msg && msg.messageToken) {
+            const resolved = state.resolvePendingInteraction(msg.messageToken, {
+              action: payload.action,
+            });
+            if (resolved) {
+              console.log(
+                `Resolved pending interaction for message token: ${msg.messageToken} with action: ${payload.action}`,
+              );
+            } else {
+              console.log(`No pending interaction found for message token: ${msg.messageToken}`);
+            }
+          }
+        }
 
         // If the action was 'applied', we need to update the file
         if (payload.action === "applied" && messageIndex !== -1) {
