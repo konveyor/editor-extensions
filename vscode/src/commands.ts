@@ -149,7 +149,7 @@ const commandsMap: (state: ExtensionState) => {
       messageToken?: string;
     }) => {
       try {
-        // Find the message in the chat messages if messageToken is provided
+        // Find the message in the chat messages, first by messageToken if provided
         let messageIndex = -1;
         if (payload.messageToken) {
           messageIndex = state.data.chatMessages.findIndex(
@@ -163,6 +163,28 @@ const commandsMap: (state: ExtensionState) => {
             console.log(
               `No message found for path: ${payload.path} and token: ${payload.messageToken}`,
             );
+          } else {
+            console.log(
+              `Found message for path: ${payload.path} with token: ${payload.messageToken} at index: ${messageIndex}`,
+            );
+          }
+        }
+
+        // If no message found by token, try to find by path
+        if (messageIndex === -1) {
+          messageIndex = state.data.chatMessages.findIndex(
+            (msg) =>
+              msg.kind === ChatMessageType.ModifiedFile &&
+              (msg.value as any).path === payload.path &&
+              !(msg.value as any).status, // Only match messages without a status (pending)
+          );
+
+          if (messageIndex !== -1) {
+            console.log(
+              `Found pending message for path: ${payload.path} at index: ${messageIndex} by path matching`,
+            );
+          } else {
+            console.log(`No pending message found for path: ${payload.path} by path matching`);
           }
         }
 
