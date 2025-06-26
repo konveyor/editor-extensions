@@ -181,6 +181,15 @@ const commandsMap: (state: ExtensionState) => {
           }
         }
 
+        // Update the modifiedFiles state based on the action
+        if (payload.action === "applied") {
+          // When changes are applied, remove the file from modifiedFiles or mark it as applied
+          state.modifiedFiles.delete(payload.path);
+        } else if (payload.action === "rejected") {
+          // When changes are rejected, we can also remove it from modifiedFiles
+          state.modifiedFiles.delete(payload.path);
+        }
+
         // Update the UI state to reflect the action
         state.mutateData((draft) => {
           // Add a message indicating the action taken
@@ -203,32 +212,6 @@ const commandsMap: (state: ExtensionState) => {
               (msg.value as any).status = payload.action;
             }
           }
-
-          // Check for pending file modifications and queued messages to update UI status
-          // const hasPendingFileModifications = Array.from(state.modifiedFiles.values()).some(
-          //   (file) => file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
-          // );
-          // const hasMoreQueuedMessages = false; // Placeholder, actual queue status should be checked if accessible
-
-          // Adjust the message based on the action taken; assume applying a change might clear pending status if it was the last one.
-          // draft.chatMessages.push({
-          //   kind: ChatMessageType.String,
-          //   messageToken: `queue-status-${Date.now()}`,
-          //   timestamp: new Date().toISOString(),
-          //   value: {
-          //     message:
-          //       payload.action === "applied" && !hasPendingFileModifications && !hasMoreQueuedMessages
-          //         ? "✅ All changes have been processed. You're up to date!"
-          //         : "There are more changes to review.",
-          //   },
-          //   quickResponses:
-          //     payload.action === "applied" && !hasPendingFileModifications && !hasMoreQueuedMessages
-          //       ? [
-          //           { id: "run-analysis", content: "Run Analysis" },
-          //           { id: "return-analysis", content: "Return to Analysis Page" },
-          //         ]
-          //       : undefined,
-          // });
         });
 
         // Resolve any pending interaction if messageToken is provided or found by path
@@ -648,10 +631,9 @@ const commandsMap: (state: ExtensionState) => {
                             messageToken: `queue-status-${Date.now()}`,
                             timestamp: new Date().toISOString(),
                             value: {
-                              message:
-                                !hasPendingFileModifications && !hasMoreQueuedMessages
-                                  ? "✅ All changes have been processed. You're up to date!"
-                                  : "There are more changes to review.",
+                              message: !hasMoreQueuedMessages
+                                ? "✅ All changes have been processed. You're up to date!"
+                                : "There are more changes to review.",
                             },
                             quickResponses:
                               !hasPendingFileModifications && !hasMoreQueuedMessages
