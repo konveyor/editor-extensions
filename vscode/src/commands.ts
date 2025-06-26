@@ -1,4 +1,4 @@
-import { ExtensionState } from "./extensionState";
+import { ExtensionState, ModifiedFileState } from "./extensionState";
 import * as vscode from "vscode";
 import {
   window,
@@ -64,20 +64,13 @@ import { createPatch, createTwoFilesPatch } from "diff";
 
 const isWindows = process.platform === "win32";
 
-interface modifiedFileState {
-  // if a file is newly created, original content can be undefined
-  originalContent: string | undefined;
-  modifiedContent: string;
-  editType: "inMemory" | "toDisk";
-}
-
 // processes a ModifiedFile message from agents
 // 1. stores the state of the edit in a map to be reverted later
 // 2. dependending on type of the file being modified:
 //    a. For a build file, applies the edit directly to disk
 //    b. For a non-build file, applies the edit to the file in-memory
 async function processModifiedFile(
-  modifiedFilesState: Map<string, modifiedFileState>,
+  modifiedFilesState: Map<string, ModifiedFileState>,
   modifiedFile: KaiModifiedFile,
 ): Promise<void> {
   const { path, content } = modifiedFile;
@@ -109,7 +102,7 @@ async function processModifiedFile(
     });
   } else {
     modifiedFilesState.set(uri.fsPath, {
-      ...(modifiedFilesState.get(uri.fsPath) as modifiedFileState),
+      ...(modifiedFilesState.get(uri.fsPath) as ModifiedFileState),
       modifiedContent: content,
     });
   }
@@ -212,30 +205,30 @@ const commandsMap: (state: ExtensionState) => {
           }
 
           // Check for pending file modifications and queued messages to update UI status
-          // const modifiedFiles = new Map<string, any>(); // Placeholder, actual map should be accessible or passed if needed
-          // const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
+          // const hasPendingFileModifications = Array.from(state.modifiedFiles.values()).some(
           //   (file) => file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
           // );
           // const hasMoreQueuedMessages = false; // Placeholder, actual queue status should be checked if accessible
 
-          //   draft.chatMessages.push({
-          //     kind: ChatMessageType.String,
-          //     messageToken: `queue-status-${Date.now()}`,
-          //     timestamp: new Date().toISOString(),
-          //     value: {
-          //       message:
-          //         !hasPendingFileModifications && !hasMoreQueuedMessages
-          //           ? "✅ All changes have been processed. You're up to date!"
-          //           : "There are more changes to review.",
-          //     },
-          //     quickResponses:
-          //       !hasPendingFileModifications && !hasMoreQueuedMessages
-          //         ? [
-          //             { id: "run-analysis", content: "Run Analysis" },
-          //             { id: "return-analysis", content: "Return to Analysis Page" },
-          //           ]
-          //         : undefined,
-          //   });
+          // Adjust the message based on the action taken; assume applying a change might clear pending status if it was the last one.
+          // draft.chatMessages.push({
+          //   kind: ChatMessageType.String,
+          //   messageToken: `queue-status-${Date.now()}`,
+          //   timestamp: new Date().toISOString(),
+          //   value: {
+          //     message:
+          //       payload.action === "applied" && !hasPendingFileModifications && !hasMoreQueuedMessages
+          //         ? "✅ All changes have been processed. You're up to date!"
+          //         : "There are more changes to review.",
+          //   },
+          //   quickResponses:
+          //     payload.action === "applied" && !hasPendingFileModifications && !hasMoreQueuedMessages
+          //       ? [
+          //           { id: "run-analysis", content: "Run Analysis" },
+          //           { id: "return-analysis", content: "Return to Analysis Page" },
+          //         ]
+          //       : undefined,
+          // });
         });
 
         // Resolve any pending interaction if messageToken is provided or found by path
@@ -457,10 +450,8 @@ const commandsMap: (state: ExtensionState) => {
           // process child issues until the depth of 1
           const maxTaskManagerIterations = 1;
           let currentTaskManagerIterations = 0;
-          const modifiedFiles: Map<string, modifiedFileState> = new Map<
-            string,
-            modifiedFileState
-          >();
+          // Clear any existing modified files state at the start of a new solution
+          state.modifiedFiles.clear();
           const modifiedFilesPromises: Array<Promise<void>> = [];
           let lastMessageId: string = "0";
 
@@ -491,7 +482,7 @@ const commandsMap: (state: ExtensionState) => {
            */
           const handleModifiedFileMessage = async (
             msg: KaiWorkflowMessage,
-            modifiedFiles: Map<string, modifiedFileState>,
+            modifiedFiles: Map<string, ModifiedFileState>,
             modifiedFilesPromises: Array<Promise<void>>,
             processedTokens: Set<string>,
             pendingInteractions: Map<string, (response: any) => void>,
@@ -987,7 +978,7 @@ const commandsMap: (state: ExtensionState) => {
               case KaiWorkflowMessageType.ModifiedFile: {
                 await handleModifiedFileMessage(
                   msg,
-                  modifiedFiles,
+                  state.modifiedFiles,
                   modifiedFilesPromises,
                   processedTokens,
                   pendingInteractions,
@@ -1022,8 +1013,8 @@ const commandsMap: (state: ExtensionState) => {
 
           // Process diffs from modified files
           await Promise.all(
-            Array.from(modifiedFiles.entries()).map(async ([path, state]) => {
-              const { originalContent, modifiedContent } = state;
+            Array.from(state.modifiedFiles.entries()).map(async ([path, fileState]) => {
+              const { originalContent, modifiedContent } = fileState;
               const uri = Uri.file(path);
               const relativePath = workspace.asRelativePath(uri);
               try {

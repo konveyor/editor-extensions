@@ -7,6 +7,13 @@ import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 
+export interface ModifiedFileState {
+  // if a file is newly created, original content can be undefined
+  originalContent: string | undefined;
+  modifiedContent: string;
+  editType: "inMemory" | "toDisk";
+}
+
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
@@ -27,4 +34,5 @@ export interface ExtensionState {
     dispose: () => void;
   };
   resolvePendingInteraction?: (messageId: string, response: any) => boolean;
+  modifiedFiles: Map<string, ModifiedFileState>;
 }

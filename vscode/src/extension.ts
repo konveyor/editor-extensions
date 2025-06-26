@@ -85,6 +85,7 @@ class VsCodeExtension {
       issueModel: new IssuesModel(),
       kaiFsCache: new SimpleInMemoryCache(),
       taskManager,
+      modifiedFiles: new Map(),
       get data() {
         return getData();
       },
