@@ -646,7 +646,11 @@ const commandsMap: (state: ExtensionState) => {
                             file.modifiedContent !== file.originalContent,
                         );
                         const hasMoreQueuedMessages = messageQueue.length > 0;
-
+                        console.log({
+                          hasPendingFileModifications,
+                          hasMoreQueuedMessages,
+                          modifiedFiles,
+                        });
                         state.mutateData((draft) => {
                           draft.chatMessages.push({
                             kind: ChatMessageType.String,

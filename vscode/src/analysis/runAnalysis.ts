@@ -40,18 +40,18 @@ export const registerAnalysisTrigger = (
     disposables,
   );
 
-  vscode.workspace.onDidSaveTextDocument(
-    async (d: vscode.TextDocument) => {
-      await state.kaiFsCache.invalidate(d.uri.fsPath);
-      batchedAnalysisTrigger.notifyFileChanges({
-        path: d.uri,
-        content: d.getText(),
-        saved: true,
-      });
-    },
-    undefined,
-    disposables,
-  );
+  // vscode.workspace.onDidSaveTextDocument(
+  //   async (d: vscode.TextDocument) => {
+  //     await state.kaiFsCache.invalidate(d.uri.fsPath);
+  //     batchedAnalysisTrigger.notifyFileChanges({
+  //       path: d.uri,
+  //       content: d.getText(),
+  //       saved: true,
+  //     });
+  //   },
+  //   undefined,
+  //   disposables,
+  // );
 };
 
 export const runPartialAnalysis = async (state: ExtensionState, filePaths: vscode.Uri[]) => {
