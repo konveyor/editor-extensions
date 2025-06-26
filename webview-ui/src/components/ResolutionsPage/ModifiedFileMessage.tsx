@@ -14,9 +14,9 @@ interface ModifiedFileMessageProps {
 }
 
 export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, timestamp }) => {
-  const { path, isNew, diff } = data;
+  const { path, isNew, diff, status } = data;
   const fileName = path.split('/').pop() || path;
-  const [actionTaken, setActionTaken] = useState<'applied' | 'rejected' | null>(null);
+  const [actionTaken, setActionTaken] = useState<'applied' | 'rejected' | null>(status || null);
   
   // Format the timestamp if provided
   const formattedTime = timestamp 
@@ -147,11 +147,11 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
               </ReactMarkdown>
             </div>
           </div>
-          {actionTaken ? (
+          {(actionTaken || status) ? (
             <Flex className="modified-file-actions">
               <FlexItem>
                 <span>
-                  {actionTaken === 'applied' ? 
+                  {(actionTaken || status) === 'applied' ? 
                     <><CheckCircleIcon color="green" /> Changes applied</> : 
                     <><TimesCircleIcon color="red" /> Changes rejected</>}
                 </span>
@@ -188,14 +188,16 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                     variant="link" 
                     icon={response.id === "apply" ? <CheckCircleIcon color="green" /> : <TimesCircleIcon color="red" />}
                     onClick={() => {
-                      setActionTaken(response.id === "apply" ? 'applied' : 'rejected');
+                      const action = response.id === "apply" ? 'applied' : 'rejected';
+                      setActionTaken(action);
                       window.vscode.postMessage({
                         type: "FILE_RESPONSE",
                         payload: { 
                           responseId: response.id,
                           messageToken: data.messageToken,
                           path,
-                          content: data.content // Pass the content directly
+                          content: data.content, // Pass the content directly
+                          action
                         }
                       });
                     }}
@@ -265,7 +267,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                       payload: { 
                         path,
                         content: data.content, // Pass the content directly
-                        messageToken: data.messageToken
+                        messageToken: data.messageToken,
+                        action: 'applied'
                       }
                     });
                   }}
@@ -284,7 +287,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                       type: "DISCARD_FILE",
                       payload: { 
                         path,
-                        messageToken: data.messageToken
+                        messageToken: data.messageToken,
+                        action: 'rejected'
                       }
                     });
                   }}

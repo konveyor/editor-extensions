@@ -143,56 +143,27 @@ const commandsMap: (state: ExtensionState) => {
   [command: string]: (...args: any) => any;
 } = (state) => {
   return {
-    "konveyor.notifyFileAction": async (payload: { path: string; action: string }) => {
-      try {
-        // Update the UI state to reflect the action
-        state.mutateData((draft) => {
-          // Add a message indicating the action taken
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: `action-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            value: {
-              message:
-                payload.action === "applied"
-                  ? `Changes to ${payload.path} were applied from the editor.`
-                  : `Changes to ${payload.path} were rejected from the editor.`,
-            },
-          });
-        });
-
-        //   // Notify the webview about the action
-        //   const resolutionProvider = state.webviewProviders.get("resolution");
-        //   if (resolutionProvider) {
-        //     resolutionProvider.sendMessageToWebview({
-        //       type: "FILE_ACTION_FROM_EDITOR",
-        //       payload: payload,
-        //     });
-        //   }
-      } catch (error) {
-        console.error("Error handling FILE_ACTION_FROM_EDITOR:", error);
-        vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
-      }
-    },
-    "konveyor.notifyWebviewOfFileAction": async (payload: {
+    "konveyor.notifyFileAction": async (payload: {
       path: string;
-      messageToken: string;
-      action: "applied" | "rejected";
+      action: string;
+      messageToken?: string;
     }) => {
       try {
-        // Find the message in the chat messages
-        const messageIndex = state.data.chatMessages.findIndex(
-          (msg) =>
-            msg.kind === ChatMessageType.ModifiedFile &&
-            (msg.value as any).path === payload.path &&
-            (payload.messageToken ? msg.messageToken === payload.messageToken : true),
-        );
-
-        if (messageIndex === -1) {
-          console.log(
-            `No message found for path: ${payload.path} and token: ${payload.messageToken}`,
+        // Find the message in the chat messages if messageToken is provided
+        let messageIndex = -1;
+        if (payload.messageToken) {
+          messageIndex = state.data.chatMessages.findIndex(
+            (msg) =>
+              msg.kind === ChatMessageType.ModifiedFile &&
+              (msg.value as any).path === payload.path &&
+              msg.messageToken === payload.messageToken,
           );
-          return;
+
+          if (messageIndex === -1) {
+            console.log(
+              `No message found for path: ${payload.path} and token: ${payload.messageToken}`,
+            );
+          }
         }
 
         // Update the UI state to reflect the action
@@ -209,10 +180,18 @@ const commandsMap: (state: ExtensionState) => {
                   : `Changes to ${payload.path} were rejected from the editor.`,
             },
           });
+
+          // Update the status of the modified file message if found
+          if (messageIndex !== -1) {
+            const msg = draft.chatMessages[messageIndex];
+            if (msg.kind === ChatMessageType.ModifiedFile) {
+              (msg.value as any).status = payload.action;
+            }
+          }
         });
 
         // If the action was 'applied', we need to update the file
-        if (payload.action === "applied") {
+        if (payload.action === "applied" && messageIndex !== -1) {
           // const msg = state.data.chatMessages[messageIndex];
           // const content = (msg.value as any).content;
           // if (content) {
@@ -224,9 +203,17 @@ const commandsMap: (state: ExtensionState) => {
           // }
         }
       } catch (error) {
-        console.error("Error handling FILE_ACTION_FROM_CODE:", error);
+        console.error("Error handling FILE_ACTION:", error);
         vscode.window.showErrorMessage(`Failed to process file action: ${error}`);
       }
+    },
+    "konveyor.notifyWebviewOfFileAction": async (payload: {
+      path: string;
+      messageToken: string;
+      action: "applied" | "rejected";
+    }) => {
+      // Redirect to the consolidated notifyFileAction command
+      await commands.executeCommand("konveyor.notifyFileAction", payload);
     },
     "konveyor.openProfilesPanel": async () => {
       const provider = state.webviewProviders.get("profiles");

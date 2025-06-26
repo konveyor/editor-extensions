@@ -282,6 +282,7 @@ const ResolutionPage: React.FC = () => {
 
                 if (msg.kind === ChatMessageType.ModifiedFile) {
                   const fileData = msg.value as ModifiedFileMessageValue;
+                  console.log('fileData', fileData)
                   return (
                     <ModifiedFileMessage
                       key={msg.messageToken}

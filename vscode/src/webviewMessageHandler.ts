@@ -56,7 +56,6 @@ export function setupWebviewMessageListener(webview: Webview, state: ExtensionSt
 const actions: {
   [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
 } = {
-  FILE_ACTION_FROM_CODE: async ({ path, messageToken, action }, state) => {},
   VIEW_FILE: async ({ path, change }, state) => {
     try {
       const uri = Uri.file(path);

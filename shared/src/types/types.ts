@@ -340,6 +340,7 @@ export type ToolMessageValue = { toolName: string; toolStatus: string };
 
 export type ModifiedFileMessageValue = {
   path: string;
+  status?: "applied" | "rejected";
   content: string;
   isNew: boolean;
   diff: string;
