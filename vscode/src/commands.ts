@@ -622,29 +622,36 @@ const commandsMap: (state: ExtensionState) => {
                             file.modifiedContent !== file.originalContent,
                         );
                         const hasMoreQueuedMessages = messageQueue.length > 0;
-                        console.log({
-                          hasPendingFileModifications,
-                          hasMoreQueuedMessages,
-                          modifiedFiles,
-                        });
                         state.mutateData((draft) => {
-                          draft.chatMessages.push({
-                            kind: ChatMessageType.String,
-                            messageToken: `queue-status-${Date.now()}`,
-                            timestamp: new Date().toISOString(),
-                            value: {
-                              message: !hasMoreQueuedMessages
-                                ? "✅ All changes have been processed. You're up to date!"
-                                : "There are more changes to review.",
-                            },
-                            quickResponses:
-                              !hasPendingFileModifications && !hasMoreQueuedMessages
-                                ? [
-                                    { id: "run-analysis", content: "Run Analysis" },
-                                    { id: "return-analysis", content: "Return to Analysis Page" },
-                                  ]
-                                : undefined,
+                          const hasUserInteractionMessages = draft.chatMessages.some(
+                            (msg) =>
+                              msg.kind === ChatMessageType.String &&
+                              msg.quickResponses &&
+                              msg.quickResponses.length > 0,
+                          );
+                          console.log({
+                            hasPendingFileModifications,
+                            hasMoreQueuedMessages,
+                            hasUserInteractionMessages,
+                            modifiedFiles,
                           });
+                          // draft.chatMessages.push({
+                          //   kind: ChatMessageType.String,
+                          //   messageToken: `queue-status-${Date.now()}`,
+                          //   timestamp: new Date().toISOString(),
+                          //   value: {
+                          //     message: !hasMoreQueuedMessages && !hasUserInteractionMessages
+                          //       ? "✅ All changes have been processed. You're up to date!"
+                          //       : "There are more changes to review.",
+                          //   },
+                          //   quickResponses:
+                          //     !hasPendingFileModifications && !hasMoreQueuedMessages && !hasUserInteractionMessages
+                          //       ? [
+                          //           { id: "run-analysis", content: "Run Analysis" },
+                          //           { id: "return-analysis", content: "Return to Analysis Page" },
+                          //         ]
+                          //       : undefined,
+                          // });
                         });
 
                         // Resolve our promise to continue the workflow
@@ -993,6 +1000,14 @@ const commandsMap: (state: ExtensionState) => {
             console.error(`Error in running the agent - ${err}`);
             console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
             window.showInformationMessage(`We encountered an error running the agent.`);
+          } finally {
+            // Ensure isFetchingSolution is reset even if workflow fails unexpectedly
+            state.mutateData((draft) => {
+              draft.isFetchingSolution = false;
+              if (draft.solutionState === "started") {
+                draft.solutionState = "failedOnSending";
+              }
+            });
           }
 
           // Process diffs from modified files

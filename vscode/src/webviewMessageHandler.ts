@@ -481,18 +481,18 @@ const actions: {
       );
 
       // Add a message indicating the queue status
-      state.mutateData((draft) => {
-        draft.chatMessages.push({
-          kind: ChatMessageType.String,
-          messageToken: `queue-status-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          value: {
-            message: hasPendingInteractions
-              ? "There are more pending changes to review."
-              : "All changes have been processed. You're up to date!",
-          },
-        });
-      });
+      // state.mutateData((draft) => {
+      //   draft.chatMessages.push({
+      //     kind: ChatMessageType.String,
+      //     messageToken: `queue-status-${Date.now()}`,
+      //     timestamp: new Date().toISOString(),
+      //     value: {
+      //       message: hasPendingInteractions
+      //         ? "There are more pending changes to review."
+      //         : "All changes have been processed. You're up to date!",
+      //     },
+      //   });
+      // });
     } finally {
       // Clear loading state
       state.mutateData((draft) => {
