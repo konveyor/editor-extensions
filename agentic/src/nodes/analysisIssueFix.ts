@@ -19,7 +19,7 @@ import {
 } from "../schemas/analysisIssueFix";
 import { BaseNode, type ModelInfo } from "./base";
 import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
-import { type GetBestHintResult, SolutionServerClient } from "src/clients/solutionServerClient";
+import { type GetBestHintResult, SolutionServerClient } from "../clients/solutionServerClient";
 
 type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
 
@@ -134,10 +134,10 @@ export class AnalysisIssueFix extends BaseNode {
             state.outputHints || [],
           );
         } catch (error) {
-          console.warn(`Failed to create solution: ${error}`);
+          console.error(`Failed to create solution: ${error}`);
         }
       } else {
-        console.warn("Missing required fields for solution creation");
+        console.error("Missing required fields for solution creation");
       }
 
       nextState.outputAllResponses = [

@@ -365,7 +365,7 @@ export class KaiInteractiveWorkflow
   async analysisIssueFixRouterEdge(
     state: typeof AnalysisIssueFixOrchestratorState.State,
   ): Promise<string | string[]> {
-    console.log(`[DEBUG] Edge function called with state:`, {
+    console.debug(`Edge function called with state:`, {
       hasInputFileContent: !!state.inputFileContent,
       hasInputFileUri: !!state.inputFileUri,
       hasInputIncidents: !!state.inputIncidents && state.inputIncidents.length > 0,
@@ -385,7 +385,7 @@ export class KaiInteractiveWorkflow
 
     // if there was a response, router needs to accumulate it
     if (state.outputUpdatedFile && state.outputUpdatedFileUri) {
-      console.log(`[DEBUG] Going to fix_analysis_issue_router to accumulate response`);
+      console.debug(`Going to fix_analysis_issue_router to accumulate response`);
       return "fix_analysis_issue_router";
     }
 
@@ -395,23 +395,23 @@ export class KaiInteractiveWorkflow
       state.currentIdx < state.inputIncidentsByUris.length &&
       (!state.inputFileContent || !state.inputFileUri || state.inputIncidents.length === 0)
     ) {
-      console.log(`[DEBUG] Going back to fix_analysis_issue_router for next incident`);
+      console.debug(`Going back to fix_analysis_issue_router for next incident`);
       return "fix_analysis_issue_router";
     }
 
     // if the router accumulated all responses, we need to go to additional information
     if (state.enableAdditionalInformation) {
       if (state.inputAllAdditionalInfo && state.inputAllReasoning) {
-        console.log(`[DEBUG] Going to summarize both additional info and history`);
+        console.debug(`Going to summarize both additional info and history`);
         return ["summarize_additional_information", "summarize_history"];
       } else if (state.inputAllAdditionalInfo) {
-        console.log(`[DEBUG] Going to summarize additional information only`);
+        console.debug(`Going to summarize additional information only`);
         return "summarize_additional_information";
       } else {
         // Additional information is enabled but not accumulated yet
         // This means we need to go back to router to continue processing
-        console.log(
-          `[DEBUG] Additional info enabled but not accumulated, going to fix_analysis_issue_router`,
+        console.debug(
+          `Additional info enabled but not accumulated, going to fix_analysis_issue_router`,
         );
         return "fix_analysis_issue_router";
       }
