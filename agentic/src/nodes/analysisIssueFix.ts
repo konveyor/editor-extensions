@@ -93,44 +93,53 @@ export class AnalysisIssueFix extends BaseNode {
           content: state.outputUpdatedFile,
         },
       });
-      if (this.solutionServerClient) {
-        if (!state.inputFileUri || !state.inputFileContent || !state.outputReasoning) {
-          console.warn("Missing required fields for solution creation");
-        }
+
+      // Only create solution if all required fields are available
+      if (
+        this.solutionServerClient &&
+        state.inputFileUri &&
+        state.inputFileContent &&
+        state.outputReasoning &&
+        state.inputIncidents.length > 0
+      ) {
         const incidentIds = await Promise.all(
           state.inputIncidents.map((incident) =>
             this.solutionServerClient.createIncident(incident),
           ),
         );
+
         try {
           await this.solutionServerClient.createSolution(
             incidentIds,
             {
               diff: createPatch(
-                state.inputFileUri!,
-                state.inputFileContent!,
+                state.inputFileUri,
+                state.inputFileContent,
                 state.outputUpdatedFile,
               ),
               before: [
                 {
-                  uri: state.inputFileUri!,
-                  content: state.inputFileContent!,
+                  uri: state.inputFileUri,
+                  content: state.inputFileContent,
                 },
               ],
               after: [
                 {
-                  uri: state.inputFileUri!,
-                  content: state.outputUpdatedFile!,
+                  uri: state.inputFileUri,
+                  content: state.outputUpdatedFile,
                 },
               ],
             },
-            state.outputReasoning!,
+            state.outputReasoning,
             state.outputHints || [],
           );
         } catch (error) {
           console.warn(`Failed to create solution: ${error}`);
         }
+      } else {
+        console.warn("Missing required fields for solution creation");
       }
+
       nextState.outputAllResponses = [
         {
           ...state,
@@ -147,7 +156,9 @@ export class AnalysisIssueFix extends BaseNode {
           return {
             reasoning: `${acc.reasoning}\n${val.outputReasoning}`,
             additionalInfo: `${acc.additionalInfo}\n${val.outputAdditionalInfo}`,
-            uris: acc.uris.concat([relative(this.workspaceDir, val.outputUpdatedFileUri!)]),
+            uris: val.outputUpdatedFileUri
+              ? acc.uris.concat([relative(this.workspaceDir, val.outputUpdatedFileUri)])
+              : acc.uris,
           };
         },
         {

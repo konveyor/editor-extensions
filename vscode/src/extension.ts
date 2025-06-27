@@ -127,7 +127,9 @@ class VsCodeExtension {
       this.registerCommands();
       this.registerLanguageProviders();
       this.checkContinueInstalled();
-      this.state.solutionServerClient.connect();
+      this.state.solutionServerClient.connect().catch((error) => {
+        console.error("Error connecting to solution server:", error);
+      });
 
       // Listen for extension changes to update Continue installation status
       this.listeners.push(
@@ -266,7 +268,9 @@ class VsCodeExtension {
 
   public async dispose() {
     await this.state.analyzerClient?.stop();
-    await this.state.solutionServerClient?.disconnect();
+    await this.state.solutionServerClient?.disconnect().catch((error) => {
+      console.error("Error disconnecting from solution server:", error);
+    });
     const disposables = this.listeners.splice(0, this.listeners.length);
     for (const disposable of disposables) {
       disposable.dispose();
