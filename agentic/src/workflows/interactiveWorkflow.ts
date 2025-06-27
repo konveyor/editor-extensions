@@ -19,9 +19,9 @@ import {
   SummarizeHistoryOutputState,
   AnalysisIssueFixOutputState,
 } from "../schemas/analysisIssueFix";
-import { modelHealthCheck } from "../utils";
 import { FileSystemTools } from "../tools/filesystem";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
+import { fileUriToPath, modelHealthCheck } from "../utils";
 import { AnalysisIssueFix } from "../nodes/analysisIssueFix";
 import { JavaDependencyTools } from "../tools/javaDependency";
 import { DiagnosticsIssueFix } from "../nodes/diagnosticsIssueFix";
@@ -94,7 +94,7 @@ export class KaiInteractiveWorkflow
   }
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
-    const workspaceDir = options.workspaceDir.replace("file://", "");
+    const workspaceDir = fileUriToPath(options.workspaceDir);
     const fsTools = new FileSystemTools(workspaceDir, options.fsCache);
     const depTools = new JavaDependencyTools();
     const { supportsTools, connected, supportsToolsInStreaming } = await modelHealthCheck(
@@ -220,13 +220,13 @@ export class KaiInteractiveWorkflow
         (acc, incident) => {
           const existingEntry = acc.find(
             (entry: { uri: string; incidents: EnhancedIncident[] }) =>
-              entry.uri === incident.uri.replace("file://", ""),
+              entry.uri === fileUriToPath(incident.uri),
           );
           if (existingEntry) {
             existingEntry.incidents.push(incident);
           } else {
             acc.push({
-              uri: incident.uri.replace("file://", ""),
+              uri: fileUriToPath(incident.uri),
               incidents: [incident],
             });
           }

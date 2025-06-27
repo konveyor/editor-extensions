@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fileURLToPath } from "url";
 import {
   type BaseChatModel,
   type BaseChatModelCallOptions,
@@ -75,6 +76,18 @@ export async function modelHealthCheck(
         );
       }
     }
+    console.log("Health check response", response);
     return response;
   }
+}
+
+/**
+ * Removes file:// prefix in URLs passed by vscode extension
+ * @param path input path to clean
+ */
+export function fileUriToPath(path: string): string {
+  const cleanPath = path.startsWith("file://") ? fileURLToPath(path) : path;
+  return process.platform === "win32" && cleanPath.startsWith("/")
+    ? cleanPath.replace("/", "")
+    : cleanPath;
 }

@@ -73,6 +73,7 @@ export class AnalysisIssueFix extends BaseNode {
           nextState.inputFileUri = nextEntry.uri;
           nextState.inputIncidents = nextEntry.incidents;
         } catch (err) {
+          console.error("Failed to read input file", nextEntry.uri);
           this.emitWorkflowMessage({
             type: KaiWorkflowMessageType.Error,
             data: String(err),

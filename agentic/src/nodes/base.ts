@@ -110,6 +110,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         return this.stream(messageId, enableTools, emitResponseChunks, stream);
       }
     } catch (err) {
+      console.error("Error callling stream()", err);
       if (emitResponseChunks) {
         this.emitWorkflowMessage({
           id: messageId,

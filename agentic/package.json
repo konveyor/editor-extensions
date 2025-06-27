@@ -16,6 +16,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "ci": "npx jest",
+    "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
