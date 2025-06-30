@@ -24,6 +24,8 @@ const defaultState: ExtensionData = {
   configErrors: [],
   profiles: [],
   activeProfileId: "",
+  isProcessingQuickResponse: false,
+  isAgentMode: false,
 };
 
 const windowState =

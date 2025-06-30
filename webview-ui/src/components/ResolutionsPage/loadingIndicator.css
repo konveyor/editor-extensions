@@ -1,0 +1,29 @@
+.loading-indicator .dot {
+  display: inline-block;
+  animation: dotPulse 1.5s infinite;
+}
+
+.loading-indicator .dot1 {
+  animation-delay: 0.2s;
+}
+
+.loading-indicator .dot2 {
+  animation-delay: 0.4s;
+}
+
+.loading-indicator .dot3 {
+  animation-delay: 0.6s;
+}
+
+@keyframes dotPulse {
+  0%,
+  80%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}

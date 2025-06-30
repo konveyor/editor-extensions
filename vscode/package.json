@@ -49,7 +49,7 @@
     "commands": [
       {
         "command": "konveyor.openProfilesPanel",
-        "title": "Manage Analysis Profiles",
+        "title": "Manage Analysis Profile",
         "category": "Konveyor",
         "icon": "$(settings-gear)"
       },
@@ -591,6 +591,13 @@
           "description": "Whether to create traces of the communication with the model",
           "scope": "window",
           "order": 50
+        },
+        "konveyor.debug.webview": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging for webview message handling",
+          "scope": "window",
+          "order": 51
         },
         "konveyor.kai.demoMode": {
           "type": "boolean",

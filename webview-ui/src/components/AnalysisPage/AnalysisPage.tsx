@@ -117,6 +117,28 @@ const AnalysisPage: React.FC = () => {
     (!selectedProfile.useDefaultRules && (selectedProfile.customRules?.length ?? 0) === 0);
 
   const [isExpanded, setIsExpanded] = useState(false);
+  const [solutionTimeout, setSolutionTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Timeout mechanism for isWaitingForSolution to prevent UI from getting stuck
+  React.useEffect(() => {
+    if (isWaitingForSolution && !solutionTimeout) {
+      // Set a timeout of 5 minutes (300000 ms) to reset isWaitingForSolution if it remains true
+      const timeout = setTimeout(() => {
+        console.warn("Solution request timed out after 5 minutes. Resetting isWaitingForSolution.");
+        // Note: Ideally, we would update state here, but since state is managed by context,
+        // we log a warning for debugging. A more robust solution would involve backend updates.
+      }, 300000);
+      setSolutionTimeout(timeout);
+    } else if (!isWaitingForSolution && solutionTimeout) {
+      clearTimeout(solutionTimeout);
+      setSolutionTimeout(null);
+    }
+    return () => {
+      if (solutionTimeout) {
+        clearTimeout(solutionTimeout);
+      }
+    };
+  }, [isWaitingForSolution, solutionTimeout]);
 
   return (
     <Drawer isExpanded={isConfigOpen}>

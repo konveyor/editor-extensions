@@ -31,7 +31,7 @@ export interface KaiToolCall {
   status: "generating" | "running" | "succeeded" | "failed";
 }
 
-export interface KaiUserIteraction {
+export interface KaiUserInteraction {
   type: "yesNo" | "choice" | "tasks";
   systemMessage: {
     yesNo?: string;
@@ -51,13 +51,13 @@ export type KaiWorkflowMessage =
   | BaseWorkflowMessage<KaiWorkflowMessageType.LLMResponseChunk, AIMessageChunk>
   | BaseWorkflowMessage<KaiWorkflowMessageType.LLMResponse, AIMessage>
   | BaseWorkflowMessage<KaiWorkflowMessageType.ModifiedFile, KaiModifiedFile>
-  | BaseWorkflowMessage<KaiWorkflowMessageType.UserInteraction, KaiUserIteraction>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.UserInteraction, KaiUserInteraction>
   | BaseWorkflowMessage<KaiWorkflowMessageType.ToolCall, KaiToolCall>
   | BaseWorkflowMessage<KaiWorkflowMessageType.Error, string>;
 
 export type KaiUserInteractionMessage = BaseWorkflowMessage<
   KaiWorkflowMessageType.UserInteraction,
-  KaiUserIteraction
+  KaiUserInteraction
 >;
 
 export interface KaiWorkflowEvents {
