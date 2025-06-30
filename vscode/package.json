@@ -49,7 +49,7 @@
     "commands": [
       {
         "command": "konveyor.openProfilesPanel",
-        "title": "Manage Analysis Profiles",
+        "title": "Manage Analysis Profile",
         "category": "Konveyor",
         "icon": "$(settings-gear)"
       },

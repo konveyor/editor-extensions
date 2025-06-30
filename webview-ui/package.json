@@ -18,15 +18,17 @@
     "*.{css,json,md,yaml,yml}": "prettier --write"
   },
   "dependencies": {
-    "@patternfly/chatbot": "2.2.0-prerelease.30",
-    "@patternfly/patternfly": "6.1.0",
+    "@patternfly/chatbot": "6.3.0-prerelease.25",
+    "@patternfly/patternfly": "6.3.0-prerelease.17",
     "@patternfly/react-code-editor": "^6.0.0",
     "@patternfly/react-component-groups": "^6.2.1",
-    "@patternfly/react-core": "6.1.0",
+    "@patternfly/react-core": "6.3.0-prerelease.11",
     "@patternfly/react-icons": "^6.1.0",
     "@patternfly/react-table": "^5.4.1",
-    "framer-motion": "^11.18.2",
+    "@types/diff": "^7.0.2",
+    "diff": "^8.0.2",
     "github-markdown-css": "^5.8.1",
+    "highlight.js": "^11.11.1",
     "path-browserify": "^1.0.1",
     "react-markdown": "^9.0.3",
     "rehype-highlight": "^7.0.2",
@@ -38,6 +40,7 @@
     "@testing-library/react": "^16.2.0",
     "@types/vscode-webview": "^1.57.5",
     "global-jsdom": "^26.0.0",
-    "jsdom": "^26.0.0"
+    "jsdom": "^26.0.0",
+    "vite-plugin-static-copy": "^3.0.0"
   }
 }

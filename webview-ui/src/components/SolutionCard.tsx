@@ -35,8 +35,7 @@ export const SolutionCard: React.FC<SolutionCardProps> = ({ changes, onViewFix }
                 View Changes
               </Button>
             </FlexItem>
-            {index < changes.length - 1 && <Divider />}{" "}
-            {/* Add a divider between changes */}
+            {index < changes.length - 1 && <Divider />} {/* Add a divider between changes */}
           </React.Fragment>
         ))}
       </Flex>
