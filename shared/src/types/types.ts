@@ -93,6 +93,8 @@ export interface LocalChange {
   state: "pending" | "applied" | "discarded";
   solutionId?: number;
   clientId: string;
+  content?: string;
+  messageToken?: string;
 }
 
 export interface ResolutionMessage {
@@ -125,6 +127,15 @@ export enum ChatMessageType {
   String = "SimpleChatMessage",
   Markdown = "MarkdownChatMessage",
   JSON = "JsonChatMessage",
+  Tool = "ToolChatMessage",
+  ModifiedFile = "ModifiedFileChatMessage",
+}
+
+export interface QuickResponse {
+  id: string;
+  content: string;
+  onClick?: () => void;
+  isDisabled?: boolean;
 }
 
 export interface ChatMessage {
@@ -134,6 +145,8 @@ export interface ChatMessage {
   messageToken: string;
   timestamp: string;
   extraContent?: React.ReactNode;
+  quickResponses?: QuickResponse[];
+  isCompact?: boolean;
 }
 
 export interface ExtensionData {
@@ -157,6 +170,7 @@ export interface ExtensionData {
   analysisConfig: AnalysisConfig;
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
+  isProcessingQuickResponse: boolean;
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;
@@ -217,4 +231,23 @@ export interface AnalysisProfile {
   useDefaultRules: boolean;
   labelSelector: string;
   readOnly?: boolean;
+}
+
+export type ToolMessageValue = { toolName: string; toolStatus: string };
+
+export type ModifiedFileMessageValue = {
+  path: string;
+  status?: "applied" | "rejected";
+  content: string;
+  isNew: boolean;
+  diff: string;
+  messageToken?: string;
+  quickResponses?: QuickResponse[];
+};
+
+export interface ModifiedFileState {
+  // if a file is newly created, original content can be undefined
+  originalContent: string | undefined;
+  modifiedContent: string;
+  editType: "inMemory" | "toDisk";
 }

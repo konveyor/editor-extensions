@@ -46,7 +46,7 @@
     "commands": [
       {
         "command": "konveyor.openProfilesPanel",
-        "title": "Manage Analysis Profiles",
+        "title": "Manage Analysis Profile",
         "category": "Konveyor",
         "icon": "$(settings-gear)"
       },
@@ -261,6 +261,18 @@
         "title": "Configure getSolution Parameters",
         "category": "Konveyor",
         "icon": "$(gear)"
+      },
+      {
+        "command": "inlineSuggestion.acceptChanges",
+        "title": "Accept Inline Suggestion Changes",
+        "category": "Konveyor",
+        "icon": "$(check)"
+      },
+      {
+        "command": "inlineSuggestion.rejectChanges",
+        "title": "Reject Inline Suggestion Changes",
+        "category": "Konveyor",
+        "icon": "$(discard)"
       }
     ],
     "submenus": [
@@ -401,6 +413,18 @@
         }
       ],
       "konveyor.submenu": [],
+      "editor/context": [
+        {
+          "command": "inlineSuggestion.acceptChanges",
+          "group": "inline@1",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "inlineSuggestion.rejectChanges",
+          "group": "inline@2",
+          "when": "editorTextFocus"
+        }
+      ],
       "commandPalette": [
         {
           "command": "konveyor.expandSingleIssue",
@@ -641,6 +665,18 @@
       {
         "command": "konveyor.diffView.prev",
         "key": "shift+f4"
+      },
+      {
+        "command": "inlineSuggestion.acceptChanges",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "inlineSuggestion.rejectChanges",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorTextFocus"
       }
     ]
   },

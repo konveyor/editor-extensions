@@ -37,6 +37,8 @@ import {
   saveUserProfiles,
   setActiveProfileId,
 } from "./utilities/profiles/profileService";
+import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
+import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
@@ -178,6 +180,44 @@ const actions: {
       vscode.Uri.from(change.originalUri),
       true,
     );
+  },
+  // New actions with unique names to avoid overwriting existing diff view commands
+  REJECT_FILE: async ({ path }, state) => {
+    try {
+      // For rejecting changes, we don't need to do anything since we're not
+      // directly modifying the real file until the user applies changes
+      vscode.window.showInformationMessage(
+        `Changes rejected for ${vscode.workspace.asRelativePath(vscode.Uri.file(path))}`,
+      );
+    } catch (error) {
+      console.error("Error handling NEW_REJECT_FILE:", error);
+      vscode.window.showErrorMessage(`Failed to reject changes: ${error}`);
+    }
+  },
+  VIEW_FILE: async ({ path, change }, state) => {
+    try {
+      const uri = vscode.Uri.file(path);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, { preview: true });
+
+      // If a change object was provided, apply decorations
+      if (change) {
+        // Import the decorator dynamically to avoid circular dependencies
+        const { InlineSuggestionDecorator } = await import(
+          "./decorations/inlineSuggestionDecorator"
+        );
+        await InlineSuggestionDecorator.applyDecorations(editor, change);
+      }
+    } catch (error) {
+      console.error("Error handling NEW_VIEW_FILE:", error);
+      vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+    }
+  },
+  QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
+    handleQuickResponse(messageToken, responseId, state);
+  },
+  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state) => {
+    handleFileResponse(messageToken, responseId, path, content, state);
   },
   [RUN_ANALYSIS]() {
     vscode.commands.executeCommand("konveyor.runAnalysis");
