@@ -106,6 +106,11 @@ export const ProfileList: React.FC<{
                           key="make-active"
                           onClick={() => onMakeActive(profile.id)}
                           isDisabled={active === profile.id}
+                          description={
+                            active === profile.id
+                              ? "This profile is already active. No action needed."
+                              : ""
+                          }
                         >
                           {active === profile.id ? "Active" : "Make Active"}
                         </DropdownItem>

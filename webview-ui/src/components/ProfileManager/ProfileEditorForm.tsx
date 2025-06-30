@@ -18,8 +18,15 @@ import {
   Tooltip,
   StackItem,
   Stack,
+  Title,
+  Icon,
 } from "@patternfly/react-core";
-import { ExclamationCircleIcon } from "@patternfly/react-icons";
+import {
+  ExclamationCircleIcon,
+  CheckCircleIcon,
+  StarIcon,
+  InfoCircleIcon,
+} from "@patternfly/react-icons";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
@@ -27,11 +34,20 @@ import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  return (...args: any[]) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => callback(...args), delay);
+  const [isPending, setIsPending] = useState(false);
+
+  return {
+    callback: (...args: any[]) => {
+      setIsPending(true);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+        setIsPending(false);
+      }, delay);
+    },
+    isPending,
   };
 }
 
@@ -51,6 +67,8 @@ export const ProfileEditorForm: React.FC<{
   const [nameErrorMsg, setNameErrorMsg] = useState<string | null>(null);
 
   const { dispatch } = useExtensionStateContext();
+
+  const { callback: debouncedChange, isPending: isSaving } = useDebouncedCallback(onChange, 300);
 
   useEffect(() => {
     setLocalProfile(profile);
@@ -75,8 +93,6 @@ export const ProfileEditorForm: React.FC<{
     setSelectedSources(parsedSources);
     setSelectedTargets(parsedTargets);
   }, [profile]);
-
-  const debouncedChange = useDebouncedCallback(onChange, 300);
 
   const handleInputChange = (value: string, field: keyof AnalysisProfile) => {
     const updated = { ...localProfile, [field]: value };
@@ -118,6 +134,55 @@ export const ProfileEditorForm: React.FC<{
 
   return (
     <Form isWidthLimited>
+      {/* Active Profile Header */}
+      {isActive && (
+        <Alert
+          variant="info"
+          title={
+            <Flex alignItems={{ default: "alignItemsCenter" }}>
+              <FlexItem>
+                <Icon>
+                  <StarIcon color="var(--pf-v5-global--info-color--100)" />
+                </Icon>
+              </FlexItem>
+              <FlexItem>Active Profile</FlexItem>
+            </Flex>
+          }
+          isInline
+          style={{ marginBottom: "1rem" }}
+        >
+          This is your active analysis profile. It will be used for all new analyses. Changes are
+          saved automatically, no action needed.
+        </Alert>
+      )}
+
+      {/* Auto-save Status */}
+      <Flex
+        justifyContent={{ default: "justifyContentSpaceBetween" }}
+        alignItems={{ default: "alignItemsCenter" }}
+        style={{ marginBottom: "1rem" }}
+      >
+        <FlexItem>
+          <Title headingLevel="h3" size="lg">
+            Profile Settings
+          </Title>
+        </FlexItem>
+        <FlexItem>
+          <Flex alignItems={{ default: "alignItemsCenter" }}>
+            <FlexItem>
+              <Icon>
+                <CheckCircleIcon color="var(--pf-v5-global--success-color--100)" />
+              </Icon>
+            </FlexItem>
+            <FlexItem>
+              <span style={{ fontSize: "0.875rem", color: "var(--pf-v5-global--Color--200)" }}>
+                {isSaving ? "Saving..." : "Changes saved automatically"}
+              </span>
+            </FlexItem>
+          </Flex>
+        </FlexItem>
+      </Flex>
+
       {nameValidation === "error" && (
         <FormAlert>
           <Alert
@@ -159,7 +224,15 @@ export const ProfileEditorForm: React.FC<{
           }}
           initialOptions={targetOptions}
         />
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem icon={<InfoCircleIcon />}>
+              Technologies you want to migrate to (e.g., Spring Boot, Quarkus)
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
       </FormGroup>
+
       <FormGroup label="Source Technologies" fieldId="sources">
         <CreatableMultiSelectField
           fieldId="sources"
@@ -170,6 +243,13 @@ export const ProfileEditorForm: React.FC<{
           }}
           initialOptions={sourceOptions}
         />
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem icon={<InfoCircleIcon />}>
+              Technologies you&apos;re migrating from (e.g., Java EE, WebLogic)
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
       </FormGroup>
 
       <FormGroup label="Use Default Rules" fieldId="use-default-rules">
@@ -183,7 +263,15 @@ export const ProfileEditorForm: React.FC<{
             debouncedChange(updated);
           }}
         />
+        <FormHelperText>
+          <HelperText>
+            <HelperTextItem icon={<InfoCircleIcon />}>
+              Include Konveyor&apos;s built-in migration rules
+            </HelperTextItem>
+          </HelperText>
+        </FormHelperText>
       </FormGroup>
+
       <FormGroup label="Custom Rules" fieldId="custom-rules">
         <Stack hasGutter>
           <StackItem isFilled>
@@ -199,6 +287,13 @@ export const ProfileEditorForm: React.FC<{
             >
               Select Custom Rules…
             </Button>
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<InfoCircleIcon />}>
+                  Add your own custom migration rules
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           </StackItem>
           <StackItem>
             <LabelGroup aria-label="Custom Rules">
@@ -229,13 +324,19 @@ export const ProfileEditorForm: React.FC<{
 
       <Flex spaceItems={{ default: "spaceItemsMd" }}>
         <FlexItem>
-          <Button
-            variant="secondary"
-            onClick={() => onMakeActive(profile.id)}
-            isDisabled={isActive}
-          >
-            Make Active
-          </Button>
+          {isActive ? (
+            <Tooltip content="This profile is already active and will be used for analyses">
+              <Button variant="secondary" isDisabled={true} icon={<StarIcon />}>
+                Active Profile
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip content="Set this profile as active to use it for new analyses">
+              <Button variant="secondary" onClick={() => onMakeActive(profile.id)}>
+                Make Active
+              </Button>
+            </Tooltip>
+          )}
         </FlexItem>
         <FlexItem>
           <Button
@@ -247,6 +348,7 @@ export const ProfileEditorForm: React.FC<{
           </Button>
         </FlexItem>
       </Flex>
+
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}
         title="Delete profile?"
