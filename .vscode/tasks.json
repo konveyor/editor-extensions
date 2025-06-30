@@ -24,12 +24,44 @@
           {
             "regexp": ".*webpack.*compiled successfully.*",
             "message": 0,
-            "file": 0,
+            "file": 0
           }
         ],
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".*Executing task: npm run dev.*",
+          "endsPattern": ".*(VITE|webpack).*compiled successfully.*"
+        }
+      }
+    },
+    {
+      "label": "dev-without-shared",
+      "type": "shell",
+      "command": "npm run build -w shared && (npm run dev:webview-ui & npm run dev:vscode)",
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": {
+        "owner": "custom",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": [
+          {
+            "regexp": ".*VITE v\\d+\\.\\d+\\.\\d+.*ready in.*",
+            "message": 0,
+            "file": 0,
+            "location": 0
+          },
+          {
+            "regexp": ".*webpack.*compiled successfully.*",
+            "message": 0,
+            "file": 0
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*npm run.*",
           "endsPattern": ".*(VITE|webpack).*compiled successfully.*"
         }
       }
