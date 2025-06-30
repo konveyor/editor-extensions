@@ -604,8 +604,37 @@ const commandsMap: (state: ExtensionState) => {
 };
 
 export function registerAllCommands(state: ExtensionState) {
-  for (const [command, callback] of Object.entries(commandsMap(state))) {
-    state.extensionContext.subscriptions.push(commands.registerCommand(command, callback));
+  let commandMap: { [command: string]: (...args: any) => any };
+
+  // Try to create the command map
+  try {
+    commandMap = commandsMap(state);
+  } catch (error) {
+    const errorMessage = `Failed to create command map: ${error instanceof Error ? error.message : String(error)}`;
+    console.error(errorMessage, error);
+    window.showErrorMessage(
+      `Konveyor extension failed to initialize commands. The extension cannot function properly.`,
+    );
+    throw new Error(errorMessage);
+  }
+
+  // Check if command map is empty (unexpected)
+  const commandEntries = Object.entries(commandMap);
+  if (commandEntries.length === 0) {
+    const errorMessage = `Command map is empty - no commands available to register`;
+    console.error(errorMessage);
+    window.showErrorMessage(
+      `Konveyor extension has no commands to register. The extension cannot function properly.`,
+    );
+    throw new Error(errorMessage);
+  }
+
+  for (const [command, callback] of commandEntries) {
+    try {
+      state.extensionContext.subscriptions.push(commands.registerCommand(command, callback));
+    } catch (error) {
+      throw new Error(`Failed to register command '${command}': ${error}`);
+    }
   }
 }
 

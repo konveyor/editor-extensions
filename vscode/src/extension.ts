@@ -232,7 +232,16 @@ class VsCodeExtension {
   }
 
   private registerCommands(): void {
-    registerAllCommands(this.state);
+    try {
+      registerAllCommands(this.state);
+    } catch (error) {
+      console.error("Critical error during command registration:", error);
+      vscode.window.showErrorMessage(
+        `Konveyor extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Re-throw to indicate the extension is not in a good state
+      throw error;
+    }
   }
 
   private registerLanguageProviders(): void {
