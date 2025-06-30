@@ -56,9 +56,8 @@ class VsCodeExtension {
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         analysisConfig: {
           labelSelectorValid: false,
-          genAIConfigured: false,
-          genAIKeyMissing: false,
-          genAIUsingDefault: false,
+          providerConfigured: false,
+          providerKeyMissing: false,
           customRulesConfigured: false,
         },
         activeProfileId: "",

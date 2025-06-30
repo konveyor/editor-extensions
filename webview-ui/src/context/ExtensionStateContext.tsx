@@ -22,9 +22,8 @@ const defaultState: ExtensionData = {
   solutionEffort: "Low",
   analysisConfig: {
     labelSelectorValid: false,
-    genAIConfigured: false,
-    genAIKeyMissing: false,
-    genAIUsingDefault: false,
+    providerConfigured: false,
+    providerKeyMissing: false,
     customRulesConfigured: false,
   },
   profiles: [],

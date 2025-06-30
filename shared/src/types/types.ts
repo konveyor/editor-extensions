@@ -160,9 +160,8 @@ export interface ExtensionData {
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;
-  genAIConfigured: boolean;
-  genAIKeyMissing: boolean;
-  genAIUsingDefault: boolean;
+  providerConfigured: boolean;
+  providerKeyMissing: boolean;
   customRulesConfigured: boolean;
 };
 
@@ -200,12 +199,12 @@ export interface GenAIModelConfig {
   [key: string]: any;
 }
 
-export interface GenAIConfigFile {
+export interface ProviderConfigFile {
   models?: Record<string, GenAIModelConfig>;
   active?: GenAIModelConfig;
 }
 
-export interface GenAIConfigStatus {
+export interface ProviderConfigStatus {
   configured: boolean;
   keyMissing: boolean;
   usingDefault: boolean;

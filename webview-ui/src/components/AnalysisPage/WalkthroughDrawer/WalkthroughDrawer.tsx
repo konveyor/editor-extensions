@@ -43,9 +43,8 @@ export function WalkthroughDrawer({
 
   const rulesConfigured = !!profile?.useDefaultRules || (profile?.customRules?.length ?? 0) > 0;
 
-  const genAIConfigured = state.analysisConfig.genAIConfigured;
-  const genAIDefault = state.analysisConfig.genAIUsingDefault;
-  const genAIKeyMissing = state.analysisConfig.genAIKeyMissing;
+  const providerConfigured = state.analysisConfig.providerConfigured;
+  const providerKeyMissing = state.analysisConfig.providerKeyMissing;
 
   const steps = [
     {
@@ -69,13 +68,11 @@ export function WalkthroughDrawer({
     {
       id: "genai",
       title: "Configure GenAI",
-      status: genAIConfigured
+      status: providerConfigured
         ? "Completed"
-        : genAIKeyMissing
+        : providerKeyMissing
           ? "API key is missing"
-          : genAIDefault
-            ? "Default config in use"
-            : "Not configured",
+          : "Not configured",
       description: "Enable GenAI assistance using your API key.",
     },
   ];

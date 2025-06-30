@@ -224,10 +224,8 @@ function updateAnalysisConfigFromActiveProfile(draft: ExtensionData) {
 
   if (!activeProfile) {
     draft.analysisConfig = {
+      ...draft.analysisConfig,
       labelSelectorValid: false,
-      genAIConfigured: false,
-      genAIKeyMissing: false,
-      genAIUsingDefault: false,
       customRulesConfigured: false,
     };
     return;

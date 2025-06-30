@@ -93,11 +93,8 @@ const AnalysisPage: React.FC = () => {
     if (!config.labelSelectorValid) {
       return { message: "Label selector is not configured.", variant: "warning" };
     }
-    if (config.genAIKeyMissing) {
-      return { message: "GenAI API key is missing.", variant: "danger" };
-    }
-    if (config.genAIUsingDefault && !config.genAIConfigured) {
-      return { message: "Using default GenAI settings.", variant: "warning" };
+    if (config.providerKeyMissing && !config.providerConfigured) {
+      return { message: "Provider credentials are missing or invalid.", variant: "danger" };
     }
     return null;
   };

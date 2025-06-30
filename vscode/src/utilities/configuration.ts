@@ -8,8 +8,8 @@ import { ExtensionState } from "../extensionState";
 import {
   AnalysisProfile,
   ExtensionData,
-  GenAIConfigFile,
-  GenAIConfigStatus,
+  ProviderConfigFile,
+  ProviderConfigStatus,
   effortLevels,
   getEffortValue,
   SolutionEffortLevel,
@@ -74,10 +74,10 @@ export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("kai.ag
 export const getConfigSuperAgentMode = (): boolean =>
   getConfigValue<boolean>("kai.superAgentMode") ?? false;
 
-export const getGenAIConfigStatus = (filepath: string): GenAIConfigStatus => {
+export const getProviderConfigStatus = (filepath: string): ProviderConfigStatus => {
   try {
     const fileContents = fs.readFileSync(filepath, "utf8");
-    const config = yaml.load(fileContents) as GenAIConfigFile;
+    const config = yaml.load(fileContents) as ProviderConfigFile;
     const models = config?.models ?? {};
     const activeConfig = config?.active;
 
@@ -94,15 +94,76 @@ export const getGenAIConfigStatus = (filepath: string): GenAIConfigStatus => {
     }
 
     const env = activeConfig.environment ?? {};
-    const apiKey = env.OPENAI_API_KEY?.trim?.();
+    const provider = activeConfig.provider;
+
+    // Helper function to check if environment variable has a valid value
+    const hasValidEnvVar = (key: string): boolean => {
+      const value = env[key];
+      return Boolean(value && typeof value === "string" && value.trim() !== "");
+    };
+
+    let hasValidCredentials: boolean = false;
+    let providerSpecificValidation: boolean = false;
+
+    // Check credentials based on provider type
+    switch (provider) {
+      case "ChatOpenAI":
+        hasValidCredentials = hasValidEnvVar("OPENAI_API_KEY");
+        providerSpecificValidation = true;
+        break;
+
+      case "AzureChatOpenAI":
+        hasValidCredentials = hasValidEnvVar("AZURE_OPENAI_API_KEY");
+        providerSpecificValidation = true;
+        break;
+
+      case "ChatBedrock": {
+        const hasAwsRegion: boolean = hasValidEnvVar("AWS_DEFAULT_REGION");
+
+        const hasExplicitCredentials: boolean =
+          hasValidEnvVar("AWS_ACCESS_KEY_ID") && hasValidEnvVar("AWS_SECRET_ACCESS_KEY");
+        hasValidCredentials = hasAwsRegion && hasExplicitCredentials;
+        providerSpecificValidation = true;
+
+        break;
+      }
+
+      case "ChatDeepSeek":
+        hasValidCredentials = hasValidEnvVar("DEEPSEEK_API_KEY");
+        providerSpecificValidation = true;
+        break;
+
+      case "ChatGoogleGenerativeAI":
+        hasValidCredentials = hasValidEnvVar("GOOGLE_API_KEY");
+        providerSpecificValidation = true;
+        break;
+
+      case "ChatOllama": {
+        // Ollama doesn't require API keys, but needs model and baseUrl in args
+        const args = activeConfig.args ?? {};
+        hasValidCredentials = Boolean(args.model && args.baseUrl);
+        providerSpecificValidation = true;
+        break;
+      }
+
+      default:
+        // Unknown provider - we can't validate but assume it might be configured
+        hasValidCredentials = false;
+        providerSpecificValidation = false;
+        break;
+    }
+
+    // Check if using default OpenAI configuration
+    const isUsingDefault =
+      resolvedActiveKey === "OpenAI" &&
+      provider === "ChatOpenAI" &&
+      activeConfig?.args?.model === "gpt-4o" &&
+      Object.values(env).every((v) => !v || (typeof v === "string" && v.trim() === ""));
 
     return {
-      configured: Boolean(apiKey),
-      keyMissing: !apiKey,
-      usingDefault:
-        resolvedActiveKey === "OpenAI" &&
-        activeConfig?.args?.model === "gpt-4o" &&
-        Object.values(env).every((v) => !v || v.trim() === ""),
+      configured: hasValidCredentials,
+      keyMissing: providerSpecificValidation && !hasValidCredentials,
+      usingDefault: isUsingDefault,
       activeKey: resolvedActiveKey,
     };
   } catch (err) {
@@ -156,7 +217,7 @@ export const updateLabelSelector = async (value: string): Promise<void> => {
 };
 
 export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string): void {
-  const status = getGenAIConfigStatus(settingsPath);
+  const genAIStatus = getProviderConfigStatus(settingsPath);
 
   const { activeProfileId, profiles } = draft;
   const profile = profiles.find((p) => p.id === activeProfileId);
@@ -166,12 +227,13 @@ export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string)
   draft.analysisConfig = {
     labelSelectorValid,
     customRulesConfigured: !!profile?.customRules?.length,
-    genAIConfigured: status.configured,
-    genAIKeyMissing: status.keyMissing,
-    genAIUsingDefault: status.usingDefault,
+    providerConfigured: genAIStatus.configured,
+    providerKeyMissing: genAIStatus.keyMissing,
+    // Additional fields can be added here for expanded configuration validation
   };
 
   // If either check fails, show the incomplete config prompt in the sidebar
+  // Note: ProviderConfigured is set to true if any provider (e.g., OpenAI, Bedrock, etc.) has valid credentials
 }
 
 export const getConfigProfiles = (): AnalysisProfile[] =>
