@@ -291,8 +291,7 @@ let extension: VsCodeExtension | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   try {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-      vscode.window.showErrorMessage("Please open a workspace folder before using this extension.");
-      return;
+      throw new Error("Please open a workspace folder before using this extension.");
     }
 
     const paths = await ensurePaths(context);
@@ -305,6 +304,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     extension = undefined;
     console.error("Failed to activate Konveyor extension:", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
+    throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
   }
 }
 
