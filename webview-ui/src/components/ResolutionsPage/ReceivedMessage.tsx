@@ -1,5 +1,5 @@
 import "./receivedMessage.css";
-import React from "react";
+import React, { useState } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
@@ -37,6 +37,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   if (!content && !extraContent && !quickResponses?.length) {
     return null;
   }
+  const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
   const formatTimestamp = (time: string | Date): string => {
     const date = typeof time === "string" ? new Date(time) : time;
     return date.toLocaleTimeString("en-US", {
@@ -47,6 +48,9 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   };
 
   const handleQuickResponse = (responseId: string, messageToken: string) => {
+    // Update state to reflect selected response
+    // Note: Consider using React.memo or other optimization techniques if flickering persists
+    setSelectedResponse(responseId);
     window.vscode.postMessage({
       type: "QUICK_RESPONSE",
       payload: {
@@ -70,7 +74,8 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
           console.log("handleQuickResponse", response.id, response.messageToken);  
           handleQuickResponse(response.id, response.messageToken);
         },
-        isDisabled: response.isDisabled || isProcessing,
+        isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
+        content: selectedResponse === response.id ? `✓ ${response.content}` : response.content,
       }))}
       // isCompact={isCompact}
       extraContent={

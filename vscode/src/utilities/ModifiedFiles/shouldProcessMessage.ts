@@ -22,7 +22,6 @@ export const shouldProcessMessage = (
       if (msg.id !== lastMessageId) {
         // Check if we've already started a message with this ID
         if (processedTokens.has(`llm-start:${msg.id}`)) {
-          console.log(`Skipping duplicate LLM start message: ${msg.id}`);
           return false;
         }
         // Mark this message as started
@@ -39,7 +38,6 @@ export const shouldProcessMessage = (
 
       // Check if we've already processed a message for this file path and ID
       if (processedTokens.has(fileKey)) {
-        console.log(`Skipping duplicate file modification for: ${filePath}`);
         return false;
       }
 
@@ -47,9 +45,6 @@ export const shouldProcessMessage = (
       // This prevents multiple different messages modifying the same file
       const filePathKey = `file:${filePath}`;
       if (processedTokens.has(filePathKey)) {
-        console.log(
-          `Skipping duplicate file modification for path: ${filePath} (different message ID)`,
-        );
         return false;
       }
 
@@ -66,7 +61,6 @@ export const shouldProcessMessage = (
       const toolKey = `tool:${toolName}:${toolStatus}:${msg.id}`;
 
       if (processedTokens.has(toolKey)) {
-        console.log(`Skipping duplicate tool call: ${toolName} (${toolStatus})`);
         return false;
       }
 
@@ -79,7 +73,6 @@ export const shouldProcessMessage = (
       const interactionKey = `interaction:${interaction.type}:${msg.id}`;
 
       if (processedTokens.has(interactionKey)) {
-        console.log(`Skipping duplicate user interaction: ${interaction.type}`);
         return false;
       }
 
@@ -89,7 +82,6 @@ export const shouldProcessMessage = (
     default: {
       // For all other message types, use basic duplicate check by message ID
       if (processedTokens.has(msg.id)) {
-        console.log(`Skipping duplicate message with ID: ${msg.id}`);
         return false;
       }
       processedTokens.add(msg.id);

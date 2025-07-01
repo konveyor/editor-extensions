@@ -9,6 +9,7 @@ import { Uri } from "vscode";
 import { ModifiedFileState, ChatMessageType } from "@editor-extensions/shared";
 import { processModifiedFile } from "./processModifiedFile";
 import { processMessage } from "./processMessage";
+import * as vscode from "vscode";
 
 /**
  * Handles a modified file message from the agent
@@ -28,7 +29,6 @@ export const handleModifiedFileMessage = async (
 ) => {
   // Ensure we're dealing with a ModifiedFile message
   if (msg.type !== KaiWorkflowMessageType.ModifiedFile) {
-    console.error("handleModifiedFileMessage called with non-ModifiedFile message type");
     return;
   }
 
@@ -49,10 +49,13 @@ export const handleModifiedFileMessage = async (
     if (fileState) {
       // Create a diff for UI display
       const isNew = fileState.originalContent === undefined;
+      const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
       let diff: string;
 
       if (isNew) {
         diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent);
+      } else if (isDeleted) {
+        diff = createTwoFilesPatch(filePath, "", fileState.originalContent as string, "");
       } else {
         try {
           diff = createPatch(
@@ -61,7 +64,6 @@ export const handleModifiedFileMessage = async (
             fileState.modifiedContent,
           );
         } catch (diffErr) {
-          console.error(`Error creating diff for ${filePath}:`, diffErr);
           diff = `// Error creating diff for ${filePath}`;
         }
       }
@@ -76,6 +78,7 @@ export const handleModifiedFileMessage = async (
             path: filePath,
             content: fileState.modifiedContent,
             isNew: isNew,
+            isDeleted: isDeleted,
             diff: diff,
             messageToken: msg.id, // Add message token to value for reference
           },
@@ -86,67 +89,82 @@ export const handleModifiedFileMessage = async (
         });
       });
 
-      // Set the flag to indicate we're waiting for user interaction
       state.isWaitingForUserInteraction = true;
-      console.log(`Waiting for user response for file: ${filePath}`);
 
-      // Wait for user response - this blocks workflow execution until user responds
       await new Promise<void>((resolve) => {
-        // Store the resolver for this specific message
         pendingInteractions.set(msg.id, (response: any) => {
-          // Handle the user response (apply/reject the file change)
-          console.log(`User ${response.action} file modification for ${filePath}`);
-
-          // Reset the waiting flag
           state.isWaitingForUserInteraction = false;
 
-          // Process any messages that were queued while waiting
+          // If the user accepts the changes, handle file creation or deletion
+          if (response === "apply") {
+            if (isNew) {
+              try {
+                console.log(
+                  `Creating new file at ${filePath} with content: ${fileState.modifiedContent}`,
+                );
+                vscode.workspace.fs.writeFile(uri, Buffer.from(fileState.modifiedContent));
+              } catch (fileCreationError) {
+                console.error(`Failed to create file at ${filePath}:`, fileCreationError);
+                // Optionally notify user of failure in chat
+                const errorMessage =
+                  fileCreationError instanceof Error
+                    ? fileCreationError.message
+                    : String(fileCreationError);
+                state.mutateData((draft) => {
+                  draft.chatMessages.push({
+                    kind: ChatMessageType.String,
+                    messageToken: `file-creation-error-${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    value: {
+                      message: `Failed to create file at ${filePath}: ${errorMessage}`,
+                    },
+                  });
+                });
+              }
+            } else if (isDeleted) {
+              try {
+                console.log(`Deleting file at ${filePath}`);
+                vscode.workspace.fs.delete(uri);
+              } catch (fileDeletionError) {
+                console.error(`Failed to delete file at ${filePath}:`, fileDeletionError);
+                // Optionally notify user of failure in chat
+                const errorMessage =
+                  fileDeletionError instanceof Error
+                    ? fileDeletionError.message
+                    : String(fileDeletionError);
+                state.mutateData((draft) => {
+                  draft.chatMessages.push({
+                    kind: ChatMessageType.String,
+                    messageToken: `file-deletion-error-${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    value: {
+                      message: `Failed to delete file at ${filePath}: ${errorMessage}`,
+                    },
+                  });
+                });
+              }
+            }
+          }
+
           const queuedMessages = [...messageQueue];
           messageQueue.length = 0;
 
-          // Process all queued messages before resolving the promise
-          // This ensures all messages are processed before continuing the workflow
           (async () => {
             try {
-              console.log(`Processing ${queuedMessages.length} queued messages...`);
-
-              // Add a processing indicator
-              // if (queuedMessages.length > 0) {
-              //   state.mutateData((draft) => {
-              //     draft.chatMessages.push({
-              //       kind: ChatMessageType.String,
-              //       messageToken: `queue-start-${Date.now()}`,
-              //       timestamp: new Date().toISOString(),
-              //       value: {
-              //         message: `Processing ${queuedMessages.length} queued messages...`,
-              //       },
-              //     });
-              //   });
-              // }
-
-              // Filter out any duplicate messages before processing
-              // For ModifiedFile messages, consider them duplicates if they modify the same file path
               const uniqueQueuedMessages = queuedMessages.filter((msg, index, self) => {
                 if (msg.type === KaiWorkflowMessageType.ModifiedFile) {
-                  // For file modifications, check if we already have a message for this file path
                   const filePath = (msg.data as KaiModifiedFile).path;
                   return (
-                    self.findIndex(
+                    self.findLastIndex(
                       (m) =>
                         m.type === KaiWorkflowMessageType.ModifiedFile &&
                         (m.data as KaiModifiedFile).path === filePath,
                     ) === index
                   );
                 }
-                // For other message types, just check the ID
                 return self.findIndex((m) => m.id === msg.id) === index;
               });
 
-              console.log(
-                `Processing ${uniqueQueuedMessages.length} unique messages out of ${queuedMessages.length} queued messages`,
-              );
-
-              // Process each unique message sequentially
               for (const queuedMsg of uniqueQueuedMessages) {
                 await processMessage(
                   queuedMsg,
@@ -161,59 +179,6 @@ export const handleModifiedFileMessage = async (
                 );
               }
 
-              // Add a completion indicator
-              // if (queuedMessages.length > 0) {
-              //   state.mutateData((draft) => {
-              //     draft.chatMessages.push({
-              //       kind: ChatMessageType.String,
-              //       messageToken: `queue-complete-${Date.now()}`,
-              //       timestamp: new Date().toISOString(),
-              //       value: {
-              //         message: "✅ All queued messages have been processed.",
-              //       },
-              //     });
-              //   });
-              // }
-
-              // After processing queued messages
-              const hasPendingFileModifications = Array.from(modifiedFiles.values()).some(
-                (file) =>
-                  file.editType === "inMemory" && file.modifiedContent !== file.originalContent,
-              );
-              const hasMoreQueuedMessages = messageQueue.length > 0;
-              state.mutateData((draft) => {
-                const hasUserInteractionMessages = draft.chatMessages.some(
-                  (msg) =>
-                    msg.kind === ChatMessageType.String &&
-                    msg.quickResponses &&
-                    msg.quickResponses.length > 0,
-                );
-                console.log({
-                  hasPendingFileModifications,
-                  hasMoreQueuedMessages,
-                  hasUserInteractionMessages,
-                  modifiedFiles,
-                });
-                // draft.chatMessages.push({
-                //   kind: ChatMessageType.String,
-                //   messageToken: `queue-status-${Date.now()}`,
-                //   timestamp: new Date().toISOString(),
-                //   value: {
-                //     message: !hasMoreQueuedMessages && !hasUserInteractionMessages
-                //       ? "✅ All changes have been processed. You're up to date!"
-                //       : "There are more changes to review.",
-                //   },
-                //   quickResponses:
-                //     !hasPendingFileModifications && !hasMoreQueuedMessages && !hasUserInteractionMessages
-                //       ? [
-                //           { id: "run-analysis", content: "Run Analysis" },
-                //           { id: "return-analysis", content: "Return to Analysis Page" },
-                //         ]
-                //       : undefined,
-                // });
-              });
-
-              // Resolve our promise to continue the workflow
               resolve();
             } catch (error) {
               console.error("Error processing queued messages:", error);
@@ -237,7 +202,6 @@ export const handleModifiedFileMessage = async (
       });
     }
   } catch (err) {
-    console.log(`Failed to process modified file from the agent - ${err}`);
     state.isWaitingForUserInteraction = false; // Reset flag in case of error
   }
 };

@@ -1,6 +1,7 @@
 import "./resolutionsPage.css";
 import React, { useRef, useCallback, useEffect } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
+import { CheckCircleIcon } from "@patternfly/react-icons";
 import { FileChanges } from "./FileChanges";
 import {
   ChatMessage,
@@ -10,7 +11,14 @@ import {
   type ToolMessageValue,
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
-import { applyFile, ApplyFilePayload, discardFile, DiscardFilePayload, openFile, viewFix } from "../../hooks/actions";
+import {
+  applyFile,
+  ApplyFilePayload,
+  discardFile,
+  DiscardFilePayload,
+  openFile,
+  viewFix,
+} from "../../hooks/actions";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
@@ -25,6 +33,7 @@ import {
   MessageBoxHandle,
 } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
+import LoadingIndicator from "./LoadingIndicator";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -37,27 +46,51 @@ const ResolutionPage: React.FC = () => {
     solutionState = "none",
     isAnalyzing,
   } = state;
-  console.log(state, 'isAnalyzing', isAnalyzing);
+  console.log(state, "isAnalyzing", isAnalyzing);
 
   const messageBoxRef = useRef<MessageBoxHandle>(null);
   const scrollQueued = useRef(false);
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
+  const userHasScrolledUp = useRef(false);
+
+  const getMessageBoxElement = useCallback(() => {
+    // Try multiple selectors to find the scrollable container
+    const selectors = [
+      ".pf-chatbot__messagebox",
+      ".pf-chatbot__content",
+      ".pf-chatbot-container",
+      ".pf-chatbot",
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        const { scrollHeight, clientHeight } = element;
+        if (scrollHeight > clientHeight) {
+          return element;
+        }
+      }
+    }
+
+    // Fallback to the first available element if none are scrollable
+    return selectors.map((s) => document.querySelector(s)).find((e) => e);
+  }, []);
 
   const isNearBottom = useCallback(() => {
-    const messageBox = document.querySelector(".pf-chatbot__messagebox");
+    const messageBox = getMessageBoxElement();
     if (!messageBox) {
       return false;
     }
 
     const { scrollTop, scrollHeight, clientHeight } = messageBox;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    return distanceFromBottom < 100; // Consider "near bottom" if within 100px
-  }, []);
+    return distanceFromBottom < 50; // Consider "near bottom" if within 50px
+  }, [getMessageBoxElement]);
 
   const scrollToBottom = useCallback(
     (force = false) => {
-      const messageBox = document.querySelector(".pf-chatbot__messagebox");
+      const messageBox = getMessageBoxElement();
       if (!messageBox) {
         return;
       }
@@ -67,8 +100,8 @@ const ResolutionPage: React.FC = () => {
         window.clearTimeout(scrollTimeoutRef.current);
       }
 
-      // Only scroll if we're near bottom or force is true
-      if (force || isNearBottom()) {
+      // Auto-scroll if force is true, or if user hasn't manually scrolled up
+      if (force || !userHasScrolledUp.current) {
         const now = Date.now();
         // Prevent too frequent scrolls (at least 50ms apart)
         if (now - lastScrollTime.current < 50) {
@@ -76,36 +109,42 @@ const ResolutionPage: React.FC = () => {
             messageBox.scrollTop = messageBox.scrollHeight;
             lastScrollTime.current = Date.now();
             scrollQueued.current = false;
+            userHasScrolledUp.current = false; // Reset after auto-scroll
           }, 50);
         } else {
           messageBox.scrollTop = messageBox.scrollHeight;
           lastScrollTime.current = now;
           scrollQueued.current = false;
+          userHasScrolledUp.current = false; // Reset after auto-scroll
         }
       }
     },
-    [isNearBottom],
+    [getMessageBoxElement],
   );
 
   // Handle new messages and content updates
   useEffect(() => {
     if (Array.isArray(chatMessages) && chatMessages?.length > 0) {
-      // Force scroll on new messages
-
-      scrollToBottom(true);
+      // Auto-scroll to bottom on new messages unless user has manually scrolled up
+      setTimeout(() => scrollToBottom(false), 100); // Small delay to ensure content is rendered
     }
   }, [chatMessages, scrollToBottom]);
 
   // Set up scroll listener to track when user manually scrolls
   useEffect(() => {
-    const messageBox = document.querySelector(".pf-chatbot__messagebox");
+    const messageBox = getMessageBoxElement();
     if (!messageBox) {
       return;
     }
 
     const handleScroll = () => {
+      // Check if user has scrolled up from the bottom
       if (!isNearBottom()) {
+        userHasScrolledUp.current = true;
         scrollQueued.current = false;
+      } else {
+        // User is back near bottom, allow auto-scroll again
+        userHasScrolledUp.current = false;
       }
     };
 
@@ -113,14 +152,14 @@ const ResolutionPage: React.FC = () => {
     return () => {
       messageBox.removeEventListener("scroll", handleScroll);
     };
-  }, [isNearBottom]);
+  }, [getMessageBoxElement, isNearBottom]);
 
-  // Force scroll periodically while content is being updated
+  // Scroll periodically while content is being updated, but don't force if user has scrolled up
   useEffect(() => {
     if (isFetchingSolution) {
       const interval = setInterval(() => {
-        scrollToBottom(true);
-      }, 100);
+        scrollToBottom(false); // Scroll periodically, but allow user to scroll up
+      }, 500); // Further increased interval to reduce frequency
 
       return () => clearInterval(interval);
     }
@@ -181,9 +220,10 @@ const ResolutionPage: React.FC = () => {
   const handleFileClick = (change: LocalChange) => dispatch(viewFix(change));
   const handleAcceptClick = (change: LocalChange) => {
     const applyFilePayload: ApplyFilePayload = {
-      path: typeof change.originalUri === 'string' 
-        ? change.originalUri 
-        : change.originalUri.fsPath || '',
+      path:
+        typeof change.originalUri === "string"
+          ? change.originalUri
+          : change.originalUri.fsPath || "",
       messageToken: change.messageToken,
       content: change.content,
     };
@@ -191,9 +231,10 @@ const ResolutionPage: React.FC = () => {
   };
   const handleRejectClick = (change: LocalChange) => {
     const discardFilePayload: DiscardFilePayload = {
-      path: typeof change.originalUri === 'string' 
-        ? change.originalUri 
-        : change.originalUri.fsPath || '',
+      path:
+        typeof change.originalUri === "string"
+          ? change.originalUri
+          : change.originalUri.fsPath || "",
       messageToken: change.messageToken,
     };
     dispatch(discardFile(discardFilePayload));
@@ -248,8 +289,12 @@ const ResolutionPage: React.FC = () => {
       }
     >
       <PageSection>
-        <Title headingLevel="h1" size="2xl">
+        <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
           Kai Results
+          {isFetchingSolution && <LoadingIndicator />}
+          {!isFetchingSolution && (
+            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+          )}
         </Title>
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
@@ -257,9 +302,19 @@ const ResolutionPage: React.FC = () => {
           <MessageBox ref={messageBoxRef} enableSmartScroll style={{ paddingBottom: "2rem" }}>
             {isTriggeredByUser && renderedResolutionRequestMessages}
 
-            {hasNothingToView && <ReceivedMessage content="No resolutions available." isProcessing={state.isProcessingQuickResponse} />}
+            {hasNothingToView && (
+              <ReceivedMessage
+                content="No resolutions available."
+                isProcessing={state.isProcessingQuickResponse}
+              />
+            )}
 
-            {isHistorySolution && <ReceivedMessage content="Loaded last known resolution." isProcessing={state.isProcessingQuickResponse} />}
+            {isHistorySolution && (
+              <ReceivedMessage
+                content="Loaded last known resolution."
+                isProcessing={state.isProcessingQuickResponse}
+              />
+            )}
 
             {Array.isArray(chatMessages) &&
               chatMessages?.length > 0 &&
@@ -282,7 +337,7 @@ const ResolutionPage: React.FC = () => {
 
                 if (msg.kind === ChatMessageType.ModifiedFile) {
                   const fileData = msg.value as ModifiedFileMessageValue;
-                  console.log('fileData', fileData)
+                  console.log("fileData", fileData);
                   return (
                     <ModifiedFileMessage
                       key={msg.messageToken}
@@ -309,9 +364,7 @@ const ResolutionPage: React.FC = () => {
                               ...response,
                               messageToken: msg.messageToken,
                               isDisabled:
-                                response.id === "run-analysis" && isAnalyzing
-                                  ? true
-                                  : false,
+                                response.id === "run-analysis" && isAnalyzing ? true : false,
                             }))
                           : undefined
                       }
@@ -388,13 +441,22 @@ const ResolutionPage: React.FC = () => {
             {isAllResolutionsProcessed && !isFetchingSolution && (
               <>
                 {isAllResolutionsApplied && (
-                  <ReceivedMessage content="All resolutions have been applied" isProcessing={state.isProcessingQuickResponse} />
+                  <ReceivedMessage
+                    content="All resolutions have been applied"
+                    isProcessing={state.isProcessingQuickResponse}
+                  />
                 )}
                 {isAllResolutionsRejected && (
-                  <ReceivedMessage content="All resolutions have been rejected" isProcessing={state.isProcessingQuickResponse} />
+                  <ReceivedMessage
+                    content="All resolutions have been rejected"
+                    isProcessing={state.isProcessingQuickResponse}
+                  />
                 )}
                 {isMixedResolutions && (
-                  <ReceivedMessage content="All resolutions have been processed (some applied, some rejected)" isProcessing={state.isProcessingQuickResponse} />
+                  <ReceivedMessage
+                    content="All resolutions have been processed (some applied, some rejected)"
+                    isProcessing={state.isProcessingQuickResponse}
+                  />
                 )}
               </>
             )}

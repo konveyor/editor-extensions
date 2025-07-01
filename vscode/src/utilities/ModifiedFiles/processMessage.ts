@@ -26,8 +26,6 @@ export const processMessage = async (
   currentTaskManagerIterations: number,
   maxTaskManagerIterations: number,
 ) => {
-  console.log("Commands processing message:", msg);
-
   // If we're waiting for user interaction and this is not a response to that interaction,
   // queue the message for later processing
   if (state.isWaitingForUserInteraction) {

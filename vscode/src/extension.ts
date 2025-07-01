@@ -202,10 +202,7 @@ class VsCodeExtension {
 
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
-          console.log("Configuration modified!");
-
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
-            console.log("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
             this.state.mutateData((draft) => {
               draft.solutionEffort = effort;
@@ -215,7 +212,6 @@ class VsCodeExtension {
             event.affectsConfiguration("konveyor.solutionServer.url") ||
             event.affectsConfiguration("konveyor.solutionServer.enabled")
           ) {
-            console.log("Solution server configuration modified!");
             vscode.window
               .showInformationMessage(
                 "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",

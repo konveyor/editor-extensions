@@ -273,14 +273,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   icon={<CheckCircleIcon color="green" />}
                   onClick={() => {
                     setActionTaken("applied");
-                    // Apply the changes
+                    // Apply the changes using the new FILE_RESPONSE flow
                     window.vscode.postMessage({
-                      type: "APPLY_FILE",
+                      type: "FILE_RESPONSE",
                       payload: {
+                        responseId: "apply",
+                        messageToken: data.messageToken,
                         path,
                         content: data.content, // Pass the content directly
-                        messageToken: data.messageToken,
-                        action: "applied",
                       },
                     });
                   }}
@@ -294,13 +294,13 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   icon={<TimesCircleIcon color="red" />}
                   onClick={() => {
                     setActionTaken("rejected");
-                    // Reject the changes
+                    // Reject the changes using the new FILE_RESPONSE flow
                     window.vscode.postMessage({
-                      type: "DISCARD_FILE",
+                      type: "FILE_RESPONSE",
                       payload: {
-                        path,
+                        responseId: "reject",
                         messageToken: data.messageToken,
-                        action: "rejected",
+                        path,
                       },
                     });
                   }}

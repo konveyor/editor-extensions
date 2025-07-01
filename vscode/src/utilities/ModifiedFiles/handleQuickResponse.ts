@@ -3,7 +3,6 @@ import {
   KaiWorkflowMessageType,
   KaiUserIteraction,
 } from "@editor-extensions/agentic";
-import { ChatMessageType } from "@editor-extensions/shared";
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
 export async function handleQuickResponse(
@@ -27,34 +26,34 @@ export async function handleQuickResponse(
         return;
       }
 
-      // Handle custom quick responses for analysis actions
-      if (responseId === "run-analysis") {
-        if (state.data.isAnalyzing) {
-          vscode.window.showInformationMessage("Analysis is already running.");
-          return;
-        }
-        await vscode.commands.executeCommand("konveyor.runAnalysis");
-        await vscode.commands.executeCommand("konveyor.showAnalysisPanel");
-        return;
-      }
-      if (responseId === "return-analysis") {
-        await vscode.commands.executeCommand("konveyor.showAnalysisPanel");
-        return;
-      }
+      // // Handle custom quick responses for analysis actions
+      // if (responseId === "run-analysis") {
+      //   if (state.data.isAnalyzing) {
+      //     vscode.window.showInformationMessage("Analysis is already running.");
+      //     return;
+      //   }
+      //   await vscode.commands.executeCommand("konveyor.runAnalysis");
+      //   await vscode.commands.executeCommand("konveyor.showAnalysisPanel");
+      //   return;
+      // }
+      // if (responseId === "return-analysis") {
+      //   await vscode.commands.executeCommand("konveyor.showAnalysisPanel");
+      //   return;
+      // }
 
       const msg = state.data.chatMessages[messageIndex];
 
-      // Add user's response to chat (only for actionable quick responses)
-      state.mutateData((draft) => {
-        draft.chatMessages.push({
-          kind: ChatMessageType.String,
-          messageToken: msg.messageToken,
-          timestamp: new Date().toISOString(),
-          value: {
-            message: responseId === "yes" ? "Yes" : responseId === "no" ? "No" : responseId,
-          },
-        });
-      });
+      // // Add user's response to chat (only for actionable quick responses)
+      // state.mutateData((draft) => {
+      //   draft.chatMessages.push({
+      //     kind: ChatMessageType.String,
+      //     messageToken: msg.messageToken,
+      //     timestamp: new Date().toISOString(),
+      //     value: {
+      //       message: responseId === "yes" ? "Yes" : responseId === "no" ? "No" : responseId,
+      //     },
+      //   });
+      // });
 
       // Create the workflow message with proper typing
       const workflowMessage: KaiWorkflowMessage = {
@@ -81,26 +80,26 @@ export async function handleQuickResponse(
       await workflow.resolveUserInteraction(workflowMessage);
 
       // Only add the status message if there are more actionable quick responses
-      const hasPendingInteractions = state.data.chatMessages.some(
-        (msg) =>
-          msg.quickResponses &&
-          msg.quickResponses.length > 0 &&
-          msg.messageToken !== messageToken &&
-          msg.quickResponses.some((qr) => qr.id !== "run-analysis" && qr.id !== "return-analysis"),
-      );
+      // const hasPendingInteractions = state.data.chatMessages.some(
+      //   (msg) =>
+      //     msg.quickResponses &&
+      //     msg.quickResponses.length > 0 &&
+      //     msg.messageToken !== messageToken &&
+      //     msg.quickResponses.some((qr) => qr.id !== "run-analysis" && qr.id !== "return-analysis"),
+      // );
 
-      if (hasPendingInteractions) {
-        state.mutateData((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: `queue-status-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            value: {
-              message: "There are more pending responses needed.",
-            },
-          });
-        });
-      }
+      // if (hasPendingInteractions) {
+      //   state.mutateData((draft) => {
+      //     draft.chatMessages.push({
+      //       kind: ChatMessageType.String,
+      //       messageToken: `queue-status-${Date.now()}`,
+      //       timestamp: new Date().toISOString(),
+      //       value: {
+      //         message: "There are more pending responses needed.",
+      //       },
+      //     });
+      //   });
+      // }
       // Do NOT add a status message if there are no more actionable quick responses
     } finally {
       // Clear loading state

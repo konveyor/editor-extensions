@@ -117,7 +117,6 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.runAnalysis": async () => {
-      console.log("run analysis command called");
       const analyzerClient = state.analyzerClient;
       if (!analyzerClient || !analyzerClient.canAnalyze()) {
         window.showErrorMessage("Analyzer must be started and configured before run!");
@@ -187,10 +186,6 @@ const commandsMap: (state: ExtensionState) => {
           // Clear any existing modified files state at the start of a new solution
           state.modifiedFiles.clear();
           const modifiedFilesPromises: Array<Promise<void>> = [];
-          const lastMessageId: string = "0";
-
-          // Track if we're waiting for user interaction
-          const isWaitingForUserInteraction = false;
           // Queue to store messages that arrive while waiting for user interaction
           const messageQueue: KaiWorkflowMessage[] = [];
           // Map to store promise resolvers for user interactions
@@ -252,18 +247,6 @@ const commandsMap: (state: ExtensionState) => {
               const { originalContent, modifiedContent } = fileState;
               const uri = Uri.file(path);
               const relativePath = workspace.asRelativePath(uri);
-              try {
-                // revert the edit if needed
-                // TODO ( pgaikwad) - use ws edit api
-                if (originalContent !== undefined) {
-                  await workspace.fs.writeFile(
-                    uri,
-                    new Uint8Array(Buffer.from(originalContent ?? "")),
-                  );
-                }
-              } catch (err) {
-                console.error(`Error reverting edits - ${err}`);
-              }
               try {
                 if (!originalContent) {
                   allDiffs.push({

@@ -371,28 +371,12 @@ export class InlineSuggestionDecorator {
           range,
           hoverMessage: "Added line",
           renderOptions: {
-            light: {
-              after: {
-                contentText: " // Added",
-                color: "#3c3",
-                fontStyle: "italic",
-              },
-            },
-            dark: {
-              after: {
-                contentText: " // Added",
-                color: "#3c3",
-                fontStyle: "italic",
-              },
-            },
+            light: {},
+            dark: {},
           },
         });
 
         // Add checkmark at the beginning of the line
-        inlineSuggestionDecorations.push({
-          range: new vscode.Range(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0)),
-          hoverMessage: "Added line",
-        });
 
         newLine++;
       } else if (line.startsWith(" ")) {
