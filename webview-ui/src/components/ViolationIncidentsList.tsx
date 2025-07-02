@@ -61,6 +61,7 @@ const ViolationIncidentsList = ({
   const [filters, setFilters] = React.useState({
     category: [] as Category[],
     groupBy: "violation" as GroupByOption,
+    hasSuccessRate: false,
   });
 
   const onCategorySelect = (
@@ -82,11 +83,17 @@ const ViolationIncidentsList = ({
     setFilters((prev) => ({ ...prev, groupBy }));
   };
 
+  // Helper function to get success rate from any incident in the group
+  const getSuccessRate = (incidents: EnhancedIncident[]) => {
+    // Find the first incident with success rate data
+    return incidents.find((incident) => incident.successRateMetric)?.successRateMetric;
+  };
+
   const onDelete = (type: string, id: string) => {
     if (type === "Category") {
       setFilters({ ...filters, category: filters.category.filter((s) => s !== id) });
     } else {
-      setFilters({ category: [], groupBy: "violation" });
+      setFilters({ category: [], groupBy: "violation", hasSuccessRate: false });
     }
   };
 
@@ -151,6 +158,13 @@ const ViolationIncidentsList = ({
     if (filters.category.length > 0) {
       filtered = filtered.filter((incident) =>
         filters.category.includes(incident.violation_category || "potential"),
+      );
+    }
+
+    if (filters.hasSuccessRate) {
+      filtered = filtered.filter(
+        (incident) =>
+          incident.successRateMetric && incident.successRateMetric.accepted_solutions > 0,
       );
     }
 
@@ -255,6 +269,18 @@ const ViolationIncidentsList = ({
         </Select>
       </ToolbarItem>
       <ToolbarItem>
+        <ToggleGroup aria-label="Success rate filter">
+          <ToggleGroupItem
+            text="Has Success Rate"
+            buttonId="has-success-rate"
+            isSelected={filters.hasSuccessRate}
+            onChange={() =>
+              setFilters((prev) => ({ ...prev, hasSuccessRate: !prev.hasSuccessRate }))
+            }
+          />
+        </ToggleGroup>
+      </ToolbarItem>
+      <ToolbarItem>
         <ToggleGroup aria-label="Sort toggle group">
           <ToggleGroupItem
             icon={<SortAmountUpIcon />}
@@ -317,10 +343,27 @@ const ViolationIncidentsList = ({
                     <SplitItem isFilled>
                       <Content>
                         <h3>{group.label}</h3>
-                        <Flex>
+                        <Flex spaceItems={{ default: "spaceItemsXs" }}>
                           <Label color="blue" isCompact>
                             {group.incidents.length} incidents
                           </Label>
+                          {(() => {
+                            const successRate = getSuccessRate(group.incidents);
+                            return (
+                              <>
+                                {successRate && successRate.accepted_solutions > 0 && (
+                                  <Label color="green" isCompact>
+                                    {successRate.accepted_solutions} accepted
+                                  </Label>
+                                )}
+                                {successRate && successRate.rejected_solutions > 0 && (
+                                  <Label color="red" isCompact>
+                                    {successRate.rejected_solutions} rejected
+                                  </Label>
+                                )}
+                              </>
+                            );
+                          })()}
                         </Flex>
                       </Content>
                     </SplitItem>

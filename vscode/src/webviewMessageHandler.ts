@@ -11,6 +11,7 @@ import {
   DISCARD_FILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
+  GET_SUCCESS_RATE,
   LocalChange,
   OPEN_FILE,
   OPEN_GENAI_SETTINGS,
@@ -200,6 +201,9 @@ const actions: {
   },
   [STOP_SERVER]() {
     vscode.commands.executeCommand("konveyor.stopServer");
+  },
+  [GET_SUCCESS_RATE]() {
+    vscode.commands.executeCommand("konveyor.getSuccessRate");
   },
 };
 

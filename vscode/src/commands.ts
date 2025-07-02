@@ -391,6 +391,47 @@ const commandsMap: (state: ExtensionState) => {
         window.showErrorMessage(`Failed to generate solution: ${error.message}`);
       }
     },
+    "konveyor.getSuccessRate": async () => {
+      console.log("Getting success rate for incidents");
+
+      try {
+        if (!state.data.enhancedIncidents || state.data.enhancedIncidents.length === 0) {
+          console.log("No incidents to update");
+          return;
+        }
+
+        const currentIncidents = state.data.enhancedIncidents.map((incident) => ({
+          ...incident,
+          violation_labels: incident.violation_labels ? [...incident.violation_labels] : undefined,
+        }));
+        const updatedIncidents = await state.solutionServerClient.getSuccessRate(currentIncidents);
+
+        // Update the state with the enhanced incidents
+        state.mutateData((draft) => {
+          draft.enhancedIncidents = updatedIncidents;
+        });
+      } catch (error: any) {
+        console.error("Error getting success rate:", error);
+      }
+    },
+    "konveyor.changeApplied": async (clientId: string, path: string, finalContent: string) => {
+      console.log("File change applied:", path);
+
+      try {
+        await state.solutionServerClient.acceptFile(clientId, path, finalContent);
+      } catch (error: any) {
+        console.error("Error notifying solution server of file acceptance:", error);
+      }
+    },
+    "konveyor.changeDiscarded": async (clientId: string, path: string) => {
+      console.log("File change discarded:", path);
+
+      try {
+        await state.solutionServerClient.rejectFile(clientId, path);
+      } catch (error: any) {
+        console.error("Error notifying solution server of file rejection:", error);
+      }
+    },
     "konveyor.askContinue": async (incident: EnhancedIncident) => {
       // This should be a redundant check as we shouldn't render buttons that
       // map to this command when continue is not installed.

@@ -4,6 +4,7 @@ export const START_SERVER = "START_SERVER";
 export const STOP_SERVER = "STOP_SERVER";
 export const CANCEL_SOLUTION = "CANCEL_SOLUTION";
 export const GET_SOLUTION = "GET_SOLUTION";
+export const GET_SUCCESS_RATE = "GET_SUCCESS_RATE";
 export const OPEN_FILE = "OPEN_FILE";
 export const VIEW_FIX = "VIEW_FIX";
 export const APPLY_FILE = "APPLY_FILE";
@@ -29,6 +30,7 @@ export type WebviewActionType =
   | typeof STOP_SERVER
   | typeof CANCEL_SOLUTION
   | typeof GET_SOLUTION
+  | typeof GET_SUCCESS_RATE
   | typeof OPEN_FILE
   | typeof VIEW_FIX
   | typeof APPLY_FILE

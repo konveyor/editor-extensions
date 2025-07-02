@@ -90,6 +90,7 @@ export const overrideAnalyzerBinaries = (): WebviewAction<WebviewActionType, unk
   type: "OVERRIDE_ANALYZER_BINARIES",
   payload: {},
 });
+
 export const overrideKaiRpcServerBinaries = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "OVERRIDE_RPC_SERVER_BINARIES",
   payload: {},
@@ -97,5 +98,10 @@ export const overrideKaiRpcServerBinaries = (): WebviewAction<WebviewActionType,
 
 export const configureModelProviderSettings = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "OPEN_GENAI_SETTINGS",
+  payload: {},
+});
+
+export const getSuccessRate = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "GET_SUCCESS_RATE",
   payload: {},
 });

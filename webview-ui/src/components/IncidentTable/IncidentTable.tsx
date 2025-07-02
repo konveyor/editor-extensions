@@ -1,6 +1,6 @@
 import "./incidentTable.css";
 import React, { FC } from "react";
-import { Button, Card, CardBody, CardHeader } from "@patternfly/react-core";
+import { Button, Card, CardBody, CardHeader, Flex, Label } from "@patternfly/react-core";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import Markdown from "react-markdown";
@@ -24,6 +24,12 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   const { state } = useExtensionStateContext();
   const uniqueId = (incident: EnhancedIncident) => `${incident.uri}-${incident.lineNumber}`;
 
+  // Helper function to get success rate from any incident in the group
+  const getSuccessRate = (incidents: EnhancedIncident[]) => {
+    // Find the first incident with success rate data
+    return incidents.find((incident) => incident.successRateMetric)?.successRateMetric;
+  };
+
   const tooltipProps = {
     className: "incident-table-tooltip",
     distance: 15,
@@ -43,7 +49,28 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                 }
           }
         >
-          <Markdown>{message}</Markdown>
+          <Flex direction={{ default: "column" }} spaceItems={{ default: "spaceItemsSm" }}>
+            <Markdown>{message}</Markdown>
+            {(() => {
+              const successRate = getSuccessRate(incidents);
+              return (
+                successRate && (
+                  <Flex spaceItems={{ default: "spaceItemsXs" }}>
+                    {successRate.accepted_solutions > 0 && (
+                      <Label color="green" isCompact>
+                        {successRate.accepted_solutions} accepted
+                      </Label>
+                    )}
+                    {successRate.rejected_solutions > 0 && (
+                      <Label color="red" isCompact>
+                        {successRate.rejected_solutions} rejected
+                      </Label>
+                    )}
+                  </Flex>
+                )
+              );
+            })()}
+          </Flex>
         </CardHeader>
 
         <Card isPlain>
