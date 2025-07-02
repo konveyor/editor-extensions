@@ -113,7 +113,6 @@ class ChatBedrockCreator implements ModelCreator {
 
   validate(args: Record<string, any>, env: Record<string, string>): void {
     validateMissingConfigKeys(args, ["model"], "model arg(s)");
-    validateMissingConfigKeys(env, ["AWS_DEFAULT_REGION"], "environment variable(s)");
   }
 }
 
