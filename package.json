@@ -54,6 +54,7 @@
     "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && npm run dev -w vscode",
     "build": "npm run build --workspaces --if-present",
     "collect-assets": "rimraf ./downloaded_assets && node ./scripts/collect-assets.js",
+    "collect-assets:dev": "GITHUB_TOKEN=$(gh auth token 2>/dev/null || echo '') node ./scripts/collect-assets.js --use-workflow-artifacts --branch=main",
     "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
     "package": "cd dist && vsce package",
     "test": "npm run build && npm run test --workspaces --if-present"

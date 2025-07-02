@@ -40,9 +40,23 @@ Ensure that you have the following installed:
    ```
 
 3. Download the necessary assets to run the Kai server:
+
+   For development (recommended):
+
    ```bash
+   # This will fetch the latest assets from main branch
+   # Requires GitHub CLI (gh) to be installed and authenticated
+   npm run collect-assets:dev
+   ```
+
+   For release version:
+
+   ```bash
+   # This will fetch assets from the latest release
    npm run collect-assets
    ```
+
+   Note: For development, we recommend using `collect-assets:dev` as it ensures your runtime assets match the latest code from the main branch. The regular `collect-assets` command uses release versions which may be outdated for development purposes.
 
 ### Running the Extension in Development Mode
 
