@@ -52,11 +52,13 @@ Ensure that you have the following installed:
    For release version:
 
    ```bash
-   # This will fetch assets from the latest release
+   # This will fetch assets from release v0.1.0 (default)
+   # To use a different release version:
+   # npm run collect-assets -- --release-tag=v0.1.1
    npm run collect-assets
    ```
 
-   Note: For development, we recommend using `collect-assets:dev` as it ensures your runtime assets match the latest code from the main branch. The regular `collect-assets` command uses release versions which may be outdated for development purposes.
+   Note: For development, we recommend using `collect-assets:dev` as it ensures your runtime assets match the latest code from the main branch. The regular `collect-assets` command uses a specific release version which may be outdated for development purposes.
 
 ### Running the Extension in Development Mode
 
