@@ -5,8 +5,7 @@
 
 import { KaiModifiedFile } from "@editor-extensions/agentic";
 import { ModifiedFileState } from "@editor-extensions/shared";
-import { Range, Uri, workspace, WorkspaceEdit } from "vscode";
-import { getBuildFilesForLanguage } from "../fileUtils";
+import { Uri, workspace } from "vscode";
 import { getConfigSuperAgentMode } from "../configuration";
 
 //    b. For a non-build file, applies the edit to the file in-memory
@@ -16,9 +15,6 @@ export async function processModifiedFile(
 ): Promise<void> {
   const { path, content } = modifiedFile;
   const uri = Uri.file(path);
-  const editType = getBuildFilesForLanguage("java").some((f) => uri.fsPath.endsWith(f))
-    ? "toDisk"
-    : "inMemory";
   const alreadyModified = modifiedFilesState.has(uri.fsPath);
   // check if this is a newly created file
   let isNew = false;
@@ -39,7 +35,7 @@ export async function processModifiedFile(
     modifiedFilesState.set(uri.fsPath, {
       modifiedContent: content,
       originalContent,
-      editType,
+      editType: "inMemory", // Default value to satisfy type requirement
     });
   } else {
     modifiedFilesState.set(uri.fsPath, {
@@ -51,24 +47,6 @@ export async function processModifiedFile(
   if (!getConfigSuperAgentMode()) {
     return;
   }
-  if (editType === "toDisk") {
-    await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
-  } else {
-    try {
-      if (isNew && !alreadyModified) {
-        await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from("")));
-      }
-      // an in-memory edit is applied via the editor window
-      const textDocument = await workspace.openTextDocument(uri);
-      const range = new Range(
-        textDocument.positionAt(0),
-        textDocument.positionAt(textDocument.getText().length),
-      );
-      const edit = new WorkspaceEdit();
-      edit.replace(uri, range, content);
-      await workspace.applyEdit(edit);
-    } catch (err) {
-      console.log(`Failed to apply edit made by the agent - ${String(err)}`);
-    }
-  }
+  // Skip applying any edits to prevent modifying files or opening in editor
+  console.log(`Skipping edit for ${uri.fsPath} to avoid modifying file or opening in editor`);
 }
