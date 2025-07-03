@@ -20,6 +20,10 @@ export type Category = "potential" | "optional" | "mandatory";
 export interface SuccessRateMetric {
   counted_solutions: number;
   accepted_solutions: number;
+  rejected_solutions: number;
+  modified_solutions: number;
+  pending_solutions: number;
+  unknown_solutions: number;
 }
 
 export interface Violation {

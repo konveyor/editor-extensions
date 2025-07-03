@@ -7,15 +7,21 @@ export interface SolutionFile {
   content: string;
 }
 
-export interface SolutionChangeSet {
-  diff: string;
-  before: SolutionFile[];
-  after: SolutionFile[];
-}
-
 export interface GetBestHintResult {
   hint: string;
   hint_id: number;
+}
+
+export interface CreateMultipleIncidentsResult {
+  incident_ids: number[];
+  created_count: number;
+  failed_count: number;
+  errors?: string[];
+}
+
+export interface FileOperationResult {
+  success: boolean;
+  message?: string;
 }
 
 export class SolutionServerClientError extends Error {
@@ -69,6 +75,11 @@ export class SolutionServerClient {
       throw new SolutionServerClientError("MCP client not initialized");
     }
 
+    if (this.isConnected) {
+      console.log("Solution server is already connected, skipping connection");
+      return;
+    }
+
     try {
       await this.mcpClient?.connect(new StreamableHTTPClientTransport(new URL(this.serverUrl)));
       console.log("Connected to MCP solution server");
@@ -80,7 +91,6 @@ export class SolutionServerClient {
     }
 
     try {
-      // List available tools/resources
       const { tools, resources } = await this.getServerCapabilities();
       console.log(`Available tools: ${tools.map((t: any) => t.name).join(", ")}`);
       console.log(`Available resources: ${resources.map((r: any) => r.name).join(", ")}`);
@@ -145,91 +155,83 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, returning incidents without success rate");
       return incidents;
     }
-
-    if (!this.mcpClient || !this.isConnected) {
-      throw new SolutionServerClientError("Solution server is not connected");
-    }
+    await this.connect();
 
     try {
-      // Extract unique violation IDs from incidents
-      const violationMap = new Map<string, { ruleset_name: string; violation_name: string }>();
-      const incidentsByViolation = new Map<string, EnhancedIncident[]>();
-
-      for (const incident of incidents) {
-        if (incident.ruleset_name && incident.violation_name) {
-          const key = `${incident.ruleset_name}::${incident.violation_name}`;
-          violationMap.set(key, {
-            ruleset_name: incident.ruleset_name,
-            violation_name: incident.violation_name,
-          });
-
-          if (!incidentsByViolation.has(key)) {
-            incidentsByViolation.set(key, []);
-          }
-          incidentsByViolation.get(key)!.push(incident);
-        }
-      }
-
-      const violationIds = Array.from(violationMap.values());
-
-      if (violationIds.length === 0) {
-        console.error("No valid violations found for success rate calculation");
-        return incidents;
-      }
-
-      console.log(`Requesting success rate for ${violationIds.length} unique violations`);
-
-      const result = await this.mcpClient.callTool({
-        name: "get_success_rate",
-        arguments: {
-          violation_ids: violationIds,
-        },
-      });
-
-      let successRateMetrics: SuccessRateMetric[] = [];
-
-      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
-        for (const chunk of result.content) {
-          if ("text" in chunk) {
-            const content = chunk.text as string;
-            try {
-              // Parse the JSON response
-              const parsed = JSON.parse(content);
-              if (Array.isArray(parsed)) {
-                successRateMetrics = parsed as SuccessRateMetric[];
-              } else if (parsed === null || parsed === undefined) {
-                successRateMetrics = [];
-              }
-            } catch (parseError) {
-              console.error(`Failed to parse success rate response: ${parseError}`);
-              successRateMetrics = [];
-            }
-            break;
-          }
-        }
-      }
-
-      console.log(`Received success rate metrics for ${successRateMetrics.length} violations`);
-
-      // Create a copy of incidents with success rate metrics attached
+      // Cache to store success rate results for each violation combination
+      const successRateCache = new Map<string, SuccessRateMetric | null>();
       const enhancedIncidents: EnhancedIncident[] = [];
-      const violationKeys = Array.from(violationMap.keys());
+      let violationsWithData = 0;
+      let totalUniqueViolations = 0;
 
       for (const incident of incidents) {
         const enhancedIncident = { ...incident };
 
         if (incident.ruleset_name && incident.violation_name) {
           const key = `${incident.ruleset_name}::${incident.violation_name}`;
-          const violationIndex = violationKeys.indexOf(key);
 
-          if (violationIndex >= 0 && violationIndex < successRateMetrics.length) {
-            enhancedIncident.successRateMetric = successRateMetrics[violationIndex];
+          // Check if we've already fetched success rate for this violation combination
+          if (!successRateCache.has(key)) {
+            totalUniqueViolations++;
+            console.log(`Fetching success rate for: ${key}`);
+
+            try {
+              const result = await this.mcpClient!.callTool({
+                name: "get_success_rate",
+                arguments: {
+                  violation_ids: [
+                    {
+                      ruleset_name: incident.ruleset_name,
+                      violation_name: incident.violation_name,
+                    },
+                  ],
+                },
+              });
+
+              let successRateMetric: SuccessRateMetric | null = null;
+
+              console.debug(JSON.stringify(result));
+              if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+                for (const chunk of result.content) {
+                  if ("text" in chunk) {
+                    const content = chunk.text as string;
+                    try {
+                      const parsed = JSON.parse(content);
+                      if (parsed && typeof parsed === "object") {
+                        successRateMetric = parsed as SuccessRateMetric;
+                        violationsWithData++;
+                      }
+                    } catch (parseError) {
+                      console.error(
+                        `Failed to parse success rate response for ${key}: ${parseError}`,
+                      );
+                    }
+                    break;
+                  }
+                }
+              }
+
+              // Cache the result (even if null)
+              successRateCache.set(key, successRateMetric);
+            } catch (error) {
+              console.error(`Error fetching success rate for ${key}: ${error}`);
+              successRateCache.set(key, null);
+            }
+          }
+
+          // Apply the cached result to the incident
+          const cachedResult = successRateCache.get(key);
+          if (cachedResult) {
+            enhancedIncident.successRateMetric = cachedResult;
           }
         }
 
         enhancedIncidents.push(enhancedIncident);
       }
 
+      console.log(
+        `Success rate summary: ${violationsWithData}/${totalUniqueViolations} unique violations had data`,
+      );
       return enhancedIncidents;
     } catch (error) {
       console.error(`Error getting success rate for violations: ${error}`);
@@ -242,17 +244,14 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, returning dummy incident ID");
       return -1; // Return a dummy ID when disabled
     }
-
-    if (!this.mcpClient || !this.isConnected) {
-      throw new Error("Solution server is not connected");
-    }
+    await this.connect();
 
     try {
       console.log(
         `Creating incident for violation: ${enhancedIncident.ruleset_name} - ${enhancedIncident.violation_name}`,
       );
 
-      const result = await this.mcpClient.callTool({
+      const result = await this.mcpClient!.callTool({
         name: "create_incident",
         arguments: {
           client_id: this.currentClientId,
@@ -290,9 +289,74 @@ export class SolutionServerClient {
     }
   }
 
+  public async createMultipleIncidents(
+    enhancedIncidents: EnhancedIncident[],
+  ): Promise<CreateMultipleIncidentsResult> {
+    if (!this.enabled) {
+      console.log("Solution server is disabled, returning dummy incident IDs");
+      return {
+        incident_ids: enhancedIncidents.map(() => -1),
+        created_count: enhancedIncidents.length,
+        failed_count: 0,
+      };
+    }
+    await this.connect();
+
+    try {
+      console.log(`Creating ${enhancedIncidents.length} incidents in bulk`);
+
+      const result = await this.mcpClient!.callTool({
+        name: "create_multiple_incidents",
+        arguments: {
+          client_id: this.currentClientId,
+          extended_incidents: enhancedIncidents,
+        },
+      });
+
+      let bulkResult: CreateMultipleIncidentsResult | undefined;
+
+      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+        for (const chunk of result.content) {
+          if ("text" in chunk) {
+            const content = chunk.text as string;
+            try {
+              const parsed = JSON.parse(content);
+              if (
+                parsed &&
+                typeof parsed === "object" &&
+                "incident_ids" in parsed &&
+                Array.isArray(parsed.incident_ids)
+              ) {
+                bulkResult = parsed as CreateMultipleIncidentsResult;
+              }
+            } catch {
+              console.error(`Failed to parse bulk incident creation response: ${content}`);
+              throw new Error(`Invalid bulk incident creation response: ${content}`);
+            }
+            break;
+          }
+        }
+      }
+
+      if (!bulkResult) {
+        throw new Error("No bulk incident creation result returned from server");
+      }
+
+      console.log(
+        `Successfully created ${bulkResult.created_count} incidents, ${bulkResult.failed_count} failed`,
+      );
+
+      return bulkResult;
+    } catch (error) {
+      console.error(`Error creating multiple incidents: ${error}`);
+      throw error;
+    }
+  }
+
   public async createSolution(
     incidentIds: number[],
-    changeSet: SolutionChangeSet,
+    before: SolutionFile[],
+    after: SolutionFile[],
     reasoning: string,
     usedHintIds: number[],
   ): Promise<number> {
@@ -300,23 +364,22 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, returning dummy solution ID");
       return -1; // Return a dummy ID when disabled
     }
-
-    if (!this.mcpClient || !this.isConnected) {
-      throw new Error("Solution server is not connected");
-    }
+    await this.connect();
 
     console.log(`Creating solution for incident IDs: ${incidentIds.join(", ")}`);
-    console.log(`Change set: ${JSON.stringify(changeSet)}`);
-    console.log(`Reasoning: ${reasoning}`);
-    console.log(`Used hint IDs: ${usedHintIds.join(", ")}`);
+    console.debug(`Before: ${JSON.stringify(before)}`);
+    console.debug(`After: ${JSON.stringify(after)}`);
+    console.debug(`Reasoning: ${reasoning}`);
+    console.debug(`Used hint IDs: ${usedHintIds.join(", ")}`);
 
     try {
-      const result = await this.mcpClient.callTool({
+      const result = await this.mcpClient!.callTool({
         name: "create_solution",
         arguments: {
           client_id: this.currentClientId,
           incident_ids: incidentIds,
-          change_set: changeSet,
+          before: before,
+          after: after,
           reasoning: reasoning,
           used_hint_ids: usedHintIds,
         },
@@ -358,15 +421,12 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, no hint available");
       return undefined;
     }
-
-    if (!this.mcpClient || !this.isConnected) {
-      throw new Error("Solution server is not connected");
-    }
+    await this.connect();
 
     try {
       console.log(`Getting best hint for violation: ${rulesetName} - ${violationName}`);
 
-      const result = await this.mcpClient.callTool({
+      const result = await this.mcpClient!.callTool({
         name: "get_best_hint",
         arguments: {
           ruleset_name: rulesetName,
@@ -411,6 +471,59 @@ export class SolutionServerClient {
       console.error(
         `Error getting best hint for violation ${rulesetName} - ${violationName}: ${error}`,
       );
+      throw error;
+    }
+  }
+
+  public async acceptFile(clientId: string, uri: string, content: string): Promise<void> {
+    if (!this.enabled) {
+      console.log("Solution server is disabled, skipping accept_file");
+      return;
+    }
+    await this.connect();
+
+    try {
+      console.log(`Accepting file: ${uri}`);
+
+      await this.mcpClient!.callTool({
+        name: "accept_file",
+        arguments: {
+          client_id: clientId,
+          solution_file: {
+            uri: uri,
+            content: content,
+          },
+        },
+      });
+
+      console.log(`File accepted successfully: ${uri}`);
+    } catch (error) {
+      console.error(`Error accepting file ${uri}: ${error}`);
+      throw error;
+    }
+  }
+
+  public async rejectFile(clientId: string, uri: string): Promise<void> {
+    if (!this.enabled) {
+      console.log("Solution server is disabled, skipping reject_file");
+      return;
+    }
+    await this.connect();
+
+    try {
+      console.log(`Rejecting file: ${uri}`);
+
+      await this.mcpClient!.callTool({
+        name: "reject_file",
+        arguments: {
+          client_id: clientId,
+          file_uri: uri,
+        },
+      });
+
+      console.log(`File rejected successfully: ${uri}`);
+    } catch (error) {
+      console.error(`Error rejecting file ${uri}: ${error}`);
       throw error;
     }
   }

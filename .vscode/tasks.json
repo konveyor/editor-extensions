@@ -37,7 +37,7 @@
     {
       "label": "dev-without-shared",
       "type": "shell",
-      "command": "npm run build -w shared && (npm run dev:webview-ui & npm run dev:vscode)",
+      "command": "npm run build -w shared && npm run build -w agentic && (npm run dev:webview-ui & npm run dev:vscode)",
       "isBackground": true,
       "group": "build",
       "problemMatcher": {
