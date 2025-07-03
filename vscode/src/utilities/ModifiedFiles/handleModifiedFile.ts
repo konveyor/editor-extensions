@@ -174,7 +174,7 @@ const handleUserResponse = async (
   isNew: boolean,
   isDeleted: boolean,
 ): Promise<void> => {
-  if (response === "apply") {
+  if (response.action === "apply") {
     if (isNew) {
       await createNewFile(uri, filePath, fileState.modifiedContent, state);
     } else if (isDeleted) {
@@ -327,6 +327,9 @@ export const handleModifiedFileMessage = async (
             processedTokens,
             pendingInteractions,
           );
+
+          // Remove the entry from pendingInteractions to prevent memory leaks
+          pendingInteractions.delete(msg.id);
 
           resolve();
         });
