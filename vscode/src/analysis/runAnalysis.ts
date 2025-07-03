@@ -11,6 +11,10 @@ export const registerAnalysisTrigger = (
 
   vscode.workspace.onDidChangeTextDocument(
     async (e: vscode.TextDocumentChangeEvent) => {
+      if (!getConfigAnalyzeOnSave()) {
+        return;
+      }
+
       if (e.contentChanges.length > 0) {
         batchedAnalysisTrigger.notifyFileChanges({
           path: e.document.uri,
