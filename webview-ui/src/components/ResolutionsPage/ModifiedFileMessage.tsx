@@ -113,6 +113,21 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
   const language = getLanguage(path);
   const markdownContent = formatDiffForMarkdown(diff, language);
 
+  const viewFileInVSCode = (filePath: string, fileDiff: string) => {
+    window.vscode.postMessage({
+      type: "VIEW_FILE",
+      payload: {
+        path: filePath,
+        change: {
+          originalUri: filePath,
+          modifiedUri: filePath,
+          diff: fileDiff,
+          state: "pending",
+        },
+      },
+    });
+  };
+
   return (
     <div className="modified-file-message">
       <Card className="modified-file-card">
@@ -199,21 +214,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                 <Button
                   variant="link"
                   icon={<EyeIcon />}
-                  onClick={() => {
-                    // View the file in VSCode with decorations
-                    window.vscode.postMessage({
-                      type: "VIEW_FILE",
-                      payload: {
-                        path,
-                        change: {
-                          originalUri: path,
-                          modifiedUri: path,
-                          diff: diff,
-                          state: "pending",
-                        },
-                      },
-                    });
-                  }}
+                  onClick={() => viewFileInVSCode(path, diff)}
                 >
                   View
                 </Button>
@@ -225,21 +226,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                 <Button
                   variant="link"
                   icon={<EyeIcon />}
-                  onClick={() => {
-                    // View the file in VSCode with decorations
-                    window.vscode.postMessage({
-                      type: "VIEW_FILE",
-                      payload: {
-                        path,
-                        change: {
-                          originalUri: path,
-                          modifiedUri: path,
-                          diff: diff,
-                          state: "pending",
-                        },
-                      },
-                    });
-                  }}
+                  onClick={() => viewFileInVSCode(path, diff)}
                 >
                   View
                 </Button>
