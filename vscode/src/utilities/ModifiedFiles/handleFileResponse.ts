@@ -91,7 +91,7 @@ export async function handleFileResponse(
       // Resolve the pending interaction if one exists
       if (state.resolvePendingInteraction) {
         state.resolvePendingInteraction(messageToken, {
-          action: responseId,
+          responseId: responseId,
           path: path,
         });
       }

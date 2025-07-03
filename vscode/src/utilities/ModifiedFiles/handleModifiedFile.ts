@@ -69,10 +69,16 @@ const deleteFileIfExists = async (
 ): Promise<void> => {
   try {
     // Check if the file exists before attempting to delete
-    const fileExists = await vscode.workspace.fs.stat(uri).then(
-      () => true,
-      () => false,
-    );
+    let fileExists = false;
+    try {
+      await vscode.workspace.fs.stat(uri);
+      fileExists = true;
+    } catch (statError) {
+      console.log(
+        `File at ${filePath} does not exist or cannot be accessed, skipping deletion check.`,
+      );
+      fileExists = false;
+    }
     if (fileExists) {
       console.log(`Deleting file at ${filePath}`);
       await vscode.workspace.fs.delete(uri);
@@ -185,7 +191,8 @@ const handleUserResponse = async (
   isNew: boolean,
   isDeleted: boolean,
 ): Promise<void> => {
-  if (response.action === "apply") {
+  if (response.responseId === "apply") {
+    console.log(`Processing apply action for file ${filePath}`);
     if (isNew) {
       await createNewFile(uri, filePath, fileState.modifiedContent, state);
     } else if (isDeleted) {
