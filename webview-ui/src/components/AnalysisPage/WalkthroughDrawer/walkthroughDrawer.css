@@ -14,6 +14,7 @@
 .walkthrough-drawer-body {
   flex: 1;
   overflow-y: auto;
+  max-height: calc(100vh - 120px); /* Adjust for header or other fixed elements */
   padding: var(--pf-t--global--spacer--md);
 }
 .step-description {
