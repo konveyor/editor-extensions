@@ -2,6 +2,87 @@ import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
 import { ChatMessageType } from "@editor-extensions/shared";
 
+/**
+ * Creates a new file with the specified content
+ */
+const createNewFile = async (
+  uri: vscode.Uri,
+  filePath: string,
+  content: string,
+  state: ExtensionState,
+): Promise<void> => {
+  try {
+    console.log(`Creating new file at ${filePath}`);
+    // Ensure the directory structure exists
+    const directoryPath = filePath.substring(0, filePath.lastIndexOf("/"));
+    if (directoryPath) {
+      const directoryUri = vscode.Uri.file(directoryPath);
+      try {
+        await vscode.workspace.fs.createDirectory(directoryUri);
+      } catch (dirError) {
+        console.error(`Failed to create directory at ${directoryPath}:`, dirError);
+      }
+    }
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(content));
+    vscode.window.showInformationMessage(
+      `Created new file ${vscode.workspace.asRelativePath(uri)}`,
+    );
+  } catch (error) {
+    console.error(`Failed to create file at ${filePath}:`, error);
+    throw new Error(`Failed to create file: ${error}`);
+  }
+};
+
+/**
+ * Updates an existing file with new content
+ */
+const updateExistingFile = async (
+  uri: vscode.Uri,
+  filePath: string,
+  content: string,
+  state: ExtensionState,
+): Promise<void> => {
+  try {
+    console.log(`Updating file at ${filePath}`);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(content));
+    vscode.window.showInformationMessage(`Updated file ${vscode.workspace.asRelativePath(uri)}`);
+  } catch (error) {
+    console.error(`Failed to update file at ${filePath}:`, error);
+    throw new Error(`Failed to update file: ${error}`);
+  }
+};
+
+/**
+ * Deletes a file if it exists
+ */
+const deleteFile = async (
+  uri: vscode.Uri,
+  filePath: string,
+  state: ExtensionState,
+): Promise<void> => {
+  try {
+    let fileExists = false;
+    try {
+      await vscode.workspace.fs.stat(uri);
+      fileExists = true;
+    } catch (statError) {
+      console.log(`File at ${filePath} does not exist or cannot be accessed`);
+      fileExists = false;
+    }
+
+    if (fileExists) {
+      console.log(`Deleting file at ${filePath}`);
+      await vscode.workspace.fs.delete(uri);
+      vscode.window.showInformationMessage(`Deleted file ${vscode.workspace.asRelativePath(uri)}`);
+    } else {
+      console.log(`File at ${filePath} does not exist, skipping deletion`);
+    }
+  } catch (error) {
+    console.error(`Failed to delete file at ${filePath}:`, error);
+    throw new Error(`Failed to delete file: ${error}`);
+  }
+};
+
 export async function handleFileResponse(
   messageToken: string,
   responseId: string,
@@ -10,7 +91,6 @@ export async function handleFileResponse(
   state: ExtensionState,
 ): Promise<void> {
   try {
-    // Set loading state
     state.mutateData((draft) => {
       draft.isProcessingQuickResponse = true;
     });
@@ -39,84 +119,47 @@ export async function handleFileResponse(
         });
       });
 
-      // Handle the file response
       if (responseId === "apply") {
-        // Apply the file changes directly
         const uri = vscode.Uri.file(path);
+        const fileMessage = state.data.chatMessages.find(
+          (msg) =>
+            msg.kind === ChatMessageType.ModifiedFile &&
+            msg.messageToken === messageToken &&
+            (msg.value as any).path === path,
+        );
+
+        if (!fileMessage) {
+          throw new Error(`No changes found for file: ${path}`);
+        }
+
+        const fileValue = fileMessage.value as any;
+        const isNew = fileValue.isNew;
+        const isDeleted = fileValue.isDeleted;
+        const fileContent = fileValue.content;
 
         try {
-          // If content is provided directly, use it
-          if (content) {
-            // Directly write to the real file
-            await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
-            vscode.window.showInformationMessage(
-              `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
-            );
+          if (isDeleted) {
+            await deleteFile(uri, path, state);
+          } else if (isNew) {
+            await createNewFile(uri, path, fileContent, state);
           } else {
-            // Try to find the modified file message in chat messages
-            const fileMessage = state.data.chatMessages.find(
-              (msg) =>
-                msg.kind === ChatMessageType.ModifiedFile && (msg.value as any).path === path,
-            );
-
-            if (fileMessage) {
-              const content = (fileMessage.value as any).content;
-              if (content) {
-                // Write the content to the file
-                await vscode.workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(content)));
-                vscode.window.showInformationMessage(
-                  `Changes applied to ${vscode.workspace.asRelativePath(uri)}`,
-                );
-              } else {
-                throw new Error(`No content found for file: ${path}`);
-              }
-            } else {
-              throw new Error(`No changes found for file: ${path}`);
-            }
+            await updateExistingFile(uri, path, fileContent, state);
           }
         } catch (error) {
           console.error("Error applying file changes:", error);
           vscode.window.showErrorMessage(`Failed to apply changes: ${error}`);
-          // If there was an error applying changes, treat it as a rejection
-          responseId = "reject";
+          throw error;
         }
-      } else {
-        // For rejecting changes, we don't need to do anything since we're not
-        // directly modifying the real file until the user applies changes
-        vscode.window.showInformationMessage(
-          `Changes rejected for ${vscode.workspace.asRelativePath(vscode.Uri.file(path))}`,
-        );
       }
 
-      // Resolve the pending interaction if one exists
+      // Resolve the pending interaction
       if (state.resolvePendingInteraction) {
         state.resolvePendingInteraction(messageToken, {
           responseId: responseId,
           path: path,
         });
       }
-
-      // Check if there are any more pending interactions
-      const hasPendingInteractions = state.data.chatMessages.some(
-        (msg) =>
-          msg.quickResponses && msg.quickResponses.length > 0 && msg.messageToken !== messageToken,
-      );
-
-      // Add a message indicating the queue status
-      // state.mutateData((draft) => {
-      //   draft.chatMessages.push({
-      //     kind: ChatMessageType.String,
-      //     messageToken: `queue-status-${Date.now()}`,
-      //     timestamp: new Date().toISOString(),
-      //     value: {
-      //       message: hasPendingInteractions
-      //         ? "There are more pending changes to review."
-      //         : "All changes have been processed. You're up to date!",
-      //     },
-      //   });
-      // });
     } finally {
-      // Clear loading state
       state.mutateData((draft) => {
         draft.isProcessingQuickResponse = false;
       });
@@ -124,5 +167,6 @@ export async function handleFileResponse(
   } catch (error) {
     console.error("Error handling file response:", error);
     vscode.window.showErrorMessage("An error occurred while processing the file response.");
+    throw error;
   }
 }

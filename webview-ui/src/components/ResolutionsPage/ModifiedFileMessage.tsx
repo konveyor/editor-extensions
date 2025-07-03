@@ -193,6 +193,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                     }
                     onClick={() => {
                       const action = response.id === "apply" ? "applied" : "rejected";
+                      console.log("what is happening here", response.id, action);
                       setActionTaken(action);
                       window.vscode.postMessage({
                         type: "FILE_RESPONSE",
@@ -200,8 +201,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                           responseId: response.id,
                           messageToken: data.messageToken,
                           path,
-                          content: data.content, // Pass the content directly
-                          action,
+                          content: data.content,
                         },
                       });
                     }}
@@ -244,7 +244,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                         responseId: "apply",
                         messageToken: data.messageToken,
                         path,
-                        content: data.content, // Pass the content directly
+                        content: data.content,
                       },
                     });
                   }}
