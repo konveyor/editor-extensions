@@ -3,7 +3,7 @@ import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
-import { SimpleInMemoryCache } from "@editor-extensions/agentic";
+import { KaiInteractiveWorkflow, SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { SolutionServerClient } from "@editor-extensions/agentic";
@@ -24,6 +24,8 @@ import {
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { registerSuggestionCommands } from "./decorations/suggestionCommands";
+import { InlineSuggestionCodeActionProvider } from "./decorations/inlineSuggestionCodeActionProvider";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -54,6 +56,7 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
+        isProcessingQuickResponse: false,
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         analysisConfig: {
           labelSelectorValid: false,
@@ -97,6 +100,36 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      modifiedFiles: new Map(),
+      isWaitingForUserInteraction: false,
+
+      workflowManager: {
+        workflow: undefined,
+        isInitialized: false,
+        init: async (config) => {
+          if (this.state.workflowManager.isInitialized) {
+            return;
+          }
+          this.state.workflowManager.workflow = new KaiInteractiveWorkflow();
+          // Make sure fsCache and solutionServerClient are passed to the workflow init
+          await this.state.workflowManager.workflow.init({
+            ...config,
+            fsCache: this.state.kaiFsCache,
+            solutionServerClient: this.state.solutionServerClient,
+          });
+          this.state.workflowManager.isInitialized = true;
+        },
+        getWorkflow: () => {
+          if (!this.state.workflowManager.workflow) {
+            throw new Error("Workflow not initialized");
+          }
+          return this.state.workflowManager.workflow;
+        },
+        dispose: () => {
+          this.state.workflowManager.workflow = undefined;
+          this.state.workflowManager.isInitialized = false;
+        },
+      },
     };
   }
 
@@ -141,6 +174,23 @@ class VsCodeExtension {
       registerAnalysisTrigger(this.listeners, this.state);
 
       this.listeners.push(
+        vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+          if (editor) {
+            const { activeDecorations } = await import(
+              "./decorations/inlineSuggestionCodeActionProvider"
+            );
+            const { InlineSuggestionDecorator } = await import(
+              "./decorations/inlineSuggestionDecorator"
+            );
+            const change = activeDecorations.get(editor.document.uri.toString());
+            if (change) {
+              await InlineSuggestionDecorator.applyDecorations(editor, change);
+            }
+          }
+        }),
+      );
+
+      this.listeners.push(
         vscode.workspace.onDidSaveTextDocument((doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
             this.state.mutateData((draft) => {
@@ -152,10 +202,7 @@ class VsCodeExtension {
 
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
-          console.log("Configuration modified!");
-
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
-            console.log("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
             this.state.mutateData((draft) => {
               draft.solutionEffort = effort;
@@ -165,7 +212,6 @@ class VsCodeExtension {
             event.affectsConfiguration("konveyor.solutionServer.url") ||
             event.affectsConfiguration("konveyor.solutionServer.enabled")
           ) {
-            console.log("Solution server configuration modified!");
             vscode.window
               .showInformationMessage(
                 "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",
@@ -228,12 +274,20 @@ class VsCodeExtension {
           webviewOptions: { retainContextWhenHidden: true },
         },
       ),
+      vscode.languages.registerCodeActionsProvider(
+        { pattern: "**/*" }, // All files
+        new InlineSuggestionCodeActionProvider(),
+        {
+          providedCodeActionKinds: InlineSuggestionCodeActionProvider.providedCodeActionKinds,
+        },
+      ),
     );
   }
 
   private registerCommands(): void {
     try {
       registerAllCommands(this.state);
+      registerSuggestionCommands(this.context);
     } catch (error) {
       console.error("Critical error during command registration:", error);
       vscode.window.showErrorMessage(
@@ -310,5 +364,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function deactivate(): Promise<void> {
+  try {
+    const { InlineSuggestionDecorator } = await import("./decorations/inlineSuggestionDecorator");
+    InlineSuggestionDecorator.dispose();
+  } catch (error) {
+    console.error("Error disposing InlineSuggestionDecorator:", error);
+  }
   await extension?.dispose();
 }

@@ -1,58 +1,246 @@
 import "./resolutionsPage.css";
-import React, { useEffect, useRef } from "react";
+import React, { useRef, useCallback, useEffect } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
+import { CheckCircleIcon } from "@patternfly/react-icons";
 import { FileChanges } from "./FileChanges";
-import { ChatMessage, ChatMessageType, Incident, LocalChange } from "@editor-extensions/shared";
-import { applyFile, discardFile, openFile, viewFix } from "../../hooks/actions";
+import {
+  ChatMessage,
+  ChatMessageType,
+  Incident,
+  LocalChange,
+  type ToolMessageValue,
+  type ModifiedFileMessageValue,
+} from "@editor-extensions/shared";
+import {
+  applyFile,
+  ApplyFilePayload,
+  discardFile,
+  DiscardFilePayload,
+  openFile,
+  viewFix,
+} from "../../hooks/actions";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
+import { ToolMessage } from "./ToolMessage";
+import { ModifiedFileMessage } from "./ModifiedFileMessage";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
+import {
+  Chatbot,
+  ChatbotContent,
+  ChatbotDisplayMode,
+  MessageBox,
+  MessageBoxHandle,
+} from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
+import LoadingIndicator from "./LoadingIndicator";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
   const {
-    localChanges,
-    isFetchingSolution,
+    localChanges = [],
+    isFetchingSolution = false,
     solutionData: resolution,
     solutionScope,
-    chatMessages,
-    solutionState,
+    chatMessages = [],
+    solutionState = "none",
+    isAnalyzing,
   } = state;
+  console.log(state, "isAnalyzing", isAnalyzing);
+
+  const messageBoxRef = useRef<MessageBoxHandle>(null);
+  const scrollQueued = useRef(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
+  const lastScrollTime = useRef<number>(0);
+  const userHasScrolledUp = useRef(false);
+
+  const getMessageBoxElement = useCallback(() => {
+    // Try multiple selectors to find the scrollable container
+    const selectors = [
+      ".pf-chatbot__messagebox",
+      ".pf-chatbot__content",
+      ".pf-chatbot-container",
+      ".pf-chatbot",
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        const { scrollHeight, clientHeight } = element;
+        if (scrollHeight > clientHeight) {
+          return element;
+        }
+      }
+    }
+
+    // Fallback to the first available element if none are scrollable
+    return selectors.map((s) => document.querySelector(s)).find((e) => e);
+  }, []);
+
+  const isNearBottom = useCallback(() => {
+    const messageBox = getMessageBoxElement();
+    if (!messageBox) {
+      return false;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = messageBox;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    return distanceFromBottom < 50; // Consider "near bottom" if within 50px
+  }, [getMessageBoxElement]);
+
+  const scrollToBottom = useCallback(
+    (force = false) => {
+      const messageBox = getMessageBoxElement();
+      if (!messageBox) {
+        return;
+      }
+
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+
+      // Auto-scroll if force is true, or if user hasn't manually scrolled up
+      if (force || !userHasScrolledUp.current) {
+        const now = Date.now();
+        // Prevent too frequent scrolls (at least 50ms apart)
+        if (now - lastScrollTime.current < 50) {
+          scrollTimeoutRef.current = window.setTimeout(() => {
+            messageBox.scrollTop = messageBox.scrollHeight;
+            lastScrollTime.current = Date.now();
+            scrollQueued.current = false;
+            userHasScrolledUp.current = false; // Reset after auto-scroll
+          }, 50);
+        } else {
+          messageBox.scrollTop = messageBox.scrollHeight;
+          lastScrollTime.current = now;
+          scrollQueued.current = false;
+          userHasScrolledUp.current = false; // Reset after auto-scroll
+        }
+      }
+    },
+    [getMessageBoxElement],
+  );
+
+  // Handle new messages and content updates
+  useEffect(() => {
+    if (Array.isArray(chatMessages) && chatMessages?.length > 0) {
+      // Auto-scroll to bottom on new messages unless user has manually scrolled up
+      setTimeout(() => scrollToBottom(false), 100); // Small delay to ensure content is rendered
+    }
+  }, [chatMessages, scrollToBottom]);
+
+  // Set up scroll listener to track when user manually scrolls
+  useEffect(() => {
+    const messageBox = getMessageBoxElement();
+    if (!messageBox) {
+      return;
+    }
+
+    const handleScroll = () => {
+      // Check if user has scrolled up from the bottom
+      if (!isNearBottom()) {
+        userHasScrolledUp.current = true;
+        scrollQueued.current = false;
+      } else {
+        // User is back near bottom, allow auto-scroll again
+        userHasScrolledUp.current = false;
+      }
+    };
+
+    messageBox.addEventListener("scroll", handleScroll);
+    return () => {
+      messageBox.removeEventListener("scroll", handleScroll);
+    };
+  }, [getMessageBoxElement, isNearBottom]);
+
+  // Scroll periodically while content is being updated, but don't force if user has scrolled up
+  useEffect(() => {
+    if (isFetchingSolution) {
+      const interval = setInterval(() => {
+        scrollToBottom(false); // Scroll periodically, but allow user to scroll up
+      }, 500); // Further increased interval to reduce frequency
+
+      return () => clearInterval(interval);
+    }
+  }, [isFetchingSolution, scrollToBottom]);
 
   const getRemainingFiles = () =>
-    resolution ? localChanges.filter(({ state }) => state === "pending") : [];
+    resolution && Array.isArray(localChanges)
+      ? localChanges.filter(({ state }) => state === "pending")
+      : [];
 
-  const isTriggeredByUser = !!solutionScope?.incidents?.length;
-  const isHistorySolution = !isTriggeredByUser && !!localChanges.length;
+  const isTriggeredByUser =
+    Array.isArray(solutionScope?.incidents) && solutionScope?.incidents?.length > 0;
+  const isHistorySolution =
+    !isTriggeredByUser && Array.isArray(localChanges) && localChanges?.length > 0;
 
-  const isResolved =
-    solutionState === "received" && localChanges.length !== 0 && getRemainingFiles().length === 0;
+  // Check if all resolutions have been processed (either applied or rejected)
+  const isAllResolutionsProcessed =
+    solutionState === "received" &&
+    Array.isArray(localChanges) &&
+    localChanges.length > 0 &&
+    getRemainingFiles()?.length === 0;
+
+  // Check if all resolutions have been applied (not rejected)
+  const isAllResolutionsApplied =
+    isAllResolutionsProcessed &&
+    Array.isArray(localChanges) &&
+    localChanges.every((change) => change.state === "applied");
+
+  // Check if all resolutions have been rejected (discarded)
+  const isAllResolutionsRejected =
+    isAllResolutionsProcessed &&
+    Array.isArray(localChanges) &&
+    localChanges.every((change) => change.state === "discarded");
+
+  // Check if resolutions have been mixed (some applied, some rejected)
+  const isMixedResolutions =
+    isAllResolutionsProcessed && !isAllResolutionsApplied && !isAllResolutionsRejected;
 
   const hasResponseWithErrors =
-    solutionState === "received" && !!resolution?.encountered_errors?.length;
+    solutionState === "received" &&
+    resolution !== undefined &&
+    resolution !== null &&
+    Array.isArray(resolution.encountered_errors) &&
+    resolution.encountered_errors?.length > 0;
 
   const hasResponse =
-    (solutionState === "received" || isHistorySolution) && localChanges.length > 0;
+    (solutionState === "received" || isHistorySolution) &&
+    Array.isArray(localChanges) &&
+    localChanges?.length > 0;
 
-  const hasEmptyResponse = solutionState === "received" && localChanges.length === 0;
+  // const hasEmptyResponse =
+  //   solutionState === "received" && (!Array.isArray(localChanges) || localChanges?.length === 0);
 
-  const hasNothingToView = solutionState === "none" && localChanges.length === 0;
+  const hasNothingToView =
+    solutionState === "none" && (!Array.isArray(localChanges) || localChanges?.length === 0);
 
+  // Use viewFix to open VSCode's diff editor
   const handleFileClick = (change: LocalChange) => dispatch(viewFix(change));
-  const handleAcceptClick = (change: LocalChange) => dispatch(applyFile(change));
-  const handleRejectClick = (change: LocalChange) => dispatch(discardFile(change));
+  const handleAcceptClick = (change: LocalChange) => {
+    const applyFilePayload: ApplyFilePayload = {
+      path:
+        typeof change.originalUri === "string"
+          ? change.originalUri
+          : change.originalUri.fsPath || "",
+      messageToken: change.messageToken,
+      content: change.content,
+    };
+    dispatch(applyFile(applyFilePayload));
+  };
+  const handleRejectClick = (change: LocalChange) => {
+    const discardFilePayload: DiscardFilePayload = {
+      path:
+        typeof change.originalUri === "string"
+          ? change.originalUri
+          : change.originalUri.fsPath || "",
+      messageToken: change.messageToken,
+    };
+    dispatch(discardFile(discardFilePayload));
+  };
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
-
-  // We keep a ref to the bottom element to scroll chat
-  const scrollToBottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollToBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [state.chatMessages]);
 
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
@@ -64,7 +252,7 @@ const ResolutionPage: React.FC = () => {
         <ChatCard color="yellow">
           <IncidentTableGroup
             onIncidentSelect={handleIncidentClick}
-            incidents={solutionScope?.incidents}
+            incidents={solutionScope?.incidents || []}
           />
         </ChatCard>
       ),
@@ -79,14 +267,16 @@ const ResolutionPage: React.FC = () => {
 
   const renderedResolutionRequestMessages = (
     <>
-      {USER_REQUEST_MESSAGES.map((msg) => (
-        <SentMessage
-          key={msg.messageToken}
-          timestamp={msg.timestamp}
-          content={msg.value.message as string}
-          extraContent={msg.extraContent}
-        />
-      ))}
+      {Array.isArray(USER_REQUEST_MESSAGES) && USER_REQUEST_MESSAGES.length > 0
+        ? USER_REQUEST_MESSAGES.map((msg) => (
+            <SentMessage
+              key={msg.messageToken}
+              timestamp={msg.timestamp}
+              content={msg.value.message as string}
+              extraContent={msg.extraContent}
+            />
+          ))
+        : null}
     </>
   );
 
@@ -99,72 +289,177 @@ const ResolutionPage: React.FC = () => {
       }
     >
       <PageSection>
-        <Title headingLevel="h1" size="2xl">
+        <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
           Kai Results
+          {isFetchingSolution && <LoadingIndicator />}
+          {!isFetchingSolution && (
+            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+          )}
         </Title>
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
-          <MessageBox>
+          <MessageBox ref={messageBoxRef} enableSmartScroll style={{ paddingBottom: "2rem" }}>
             {isTriggeredByUser && renderedResolutionRequestMessages}
 
-            {hasNothingToView && <ReceivedMessage content="No resolutions available." />}
-
-            {isHistorySolution && <ReceivedMessage content="Loaded last known resolution." />}
-
-            {chatMessages.map((msg) => (
+            {hasNothingToView && (
               <ReceivedMessage
-                timestamp={msg.timestamp}
-                key={msg.value.message as string}
-                content={msg.value.message as string}
-              />
-            ))}
-
-            {hasResponse && (
-              <ReceivedMessage
-                extraContent={
-                  <FileChanges
-                    changes={getRemainingFiles()}
-                    onFileClick={handleFileClick}
-                    onApplyFix={handleAcceptClick}
-                    onRejectChanges={handleRejectClick}
-                  />
-                }
+                content="No resolutions available."
+                isProcessing={state.isProcessingQuickResponse}
               />
             )}
 
-            {hasEmptyResponse && !hasResponseWithErrors && (
+            {isHistorySolution && (
+              <ReceivedMessage
+                content="Loaded last known resolution."
+                isProcessing={state.isProcessingQuickResponse}
+              />
+            )}
+
+            {Array.isArray(chatMessages) &&
+              chatMessages?.length > 0 &&
+              chatMessages.map((msg) => {
+                if (!msg) {
+                  return null;
+                }
+
+                if (msg.kind === ChatMessageType.Tool) {
+                  const { toolName, toolStatus } = msg.value as ToolMessageValue;
+                  return (
+                    <ToolMessage
+                      key={msg.messageToken}
+                      toolName={toolName}
+                      status={toolStatus as "succeeded" | "failed" | "running"}
+                      timestamp={msg.timestamp}
+                    />
+                  );
+                }
+
+                if (msg.kind === ChatMessageType.ModifiedFile) {
+                  const fileData = msg.value as ModifiedFileMessageValue;
+                  console.log("fileData", fileData);
+                  return (
+                    <ModifiedFileMessage
+                      key={msg.messageToken}
+                      data={fileData}
+                      timestamp={msg.timestamp}
+                    />
+                  );
+                }
+
+                // Render string messages
+                if (msg.kind === ChatMessageType.String) {
+                  const message = msg.value?.message as string;
+                  // ReceivedMessage component will handle empty content check
+                  return (
+                    <ReceivedMessage
+                      timestamp={msg.timestamp}
+                      key={msg.messageToken}
+                      content={message}
+                      isLoading={isFetchingSolution && !message}
+                      isProcessing={state.isProcessingQuickResponse}
+                      quickResponses={
+                        Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                          ? msg.quickResponses.map((response) => ({
+                              ...response,
+                              messageToken: msg.messageToken,
+                              isDisabled:
+                                response.id === "run-analysis" && isAnalyzing ? true : false,
+                            }))
+                          : undefined
+                      }
+                    />
+                  );
+                }
+
+                return null;
+              })}
+
+            {hasResponse &&
+              // Only show the FileChanges component if there are pending changes
+              // and no ModifiedFile messages in the chat (to avoid duplication)
+              (() => {
+                const hasModifiedFileMessages =
+                  Array.isArray(chatMessages) &&
+                  chatMessages.some((msg) => msg?.kind === ChatMessageType.ModifiedFile);
+
+                const remainingFiles = getRemainingFiles();
+
+                // Only show if we have pending files and no ModifiedFile messages
+                // This prevents duplicate file change displays
+                if (remainingFiles.length > 0 && !hasModifiedFileMessages) {
+                  return (
+                    <ReceivedMessage
+                      extraContent={
+                        <FileChanges
+                          changes={remainingFiles}
+                          onFileClick={handleFileClick}
+                          onApplyFix={handleAcceptClick}
+                          onRejectChanges={handleRejectClick}
+                        />
+                      }
+                      isProcessing={state.isProcessingQuickResponse}
+                    />
+                  );
+                }
+                return null;
+              })()}
+
+            {/* {hasEmptyResponse && !hasResponseWithErrors && (
               <ReceivedMessage content="Received response contains no resolutions" />
-            )}
+            )} */}
 
-            {hasResponseWithErrors && (
-              <ReceivedMessage
-                content="Response contains errors"
-                extraContent={
-                  <ul>
-                    {Object.entries(
-                      resolution!.encountered_errors.reduce<Record<string, number>>(
-                        (acc, error) => {
-                          acc[error] = (acc[error] || 0) + 1;
-                          return acc;
-                        },
-                        {},
-                      ),
-                    ).map(([errorText, count], index) => (
-                      <li key={index}>
-                        {errorText} {count > 1 && `(x${count})`}
-                      </li>
-                    ))}
-                  </ul>
-                }
-              />
-            )}
+            {hasResponseWithErrors &&
+              resolution &&
+              Array.isArray(resolution.encountered_errors) && (
+                <ReceivedMessage
+                  content="Response contains errors"
+                  extraContent={
+                    <ul>
+                      {resolution.encountered_errors?.length > 0 &&
+                        Object.entries(
+                          resolution.encountered_errors.reduce<Record<string, number>>(
+                            (acc, error) => {
+                              if (error) {
+                                acc[error] = (acc[error] || 0) + 1;
+                              }
+                              return acc;
+                            },
+                            {},
+                          ),
+                        ).map(([errorText, count], index) => (
+                          <li key={index}>
+                            {errorText} {(count as number) > 1 && `(x${count})`}
+                          </li>
+                        ))}
+                    </ul>
+                  }
+                  isProcessing={state.isProcessingQuickResponse}
+                />
+              )}
 
-            {isResolved && !isFetchingSolution && (
-              <ReceivedMessage content="All resolutions have been applied" />
+            {isAllResolutionsProcessed && !isFetchingSolution && (
+              <>
+                {isAllResolutionsApplied && (
+                  <ReceivedMessage
+                    content="All resolutions have been applied"
+                    isProcessing={state.isProcessingQuickResponse}
+                  />
+                )}
+                {isAllResolutionsRejected && (
+                  <ReceivedMessage
+                    content="All resolutions have been rejected"
+                    isProcessing={state.isProcessingQuickResponse}
+                  />
+                )}
+                {isMixedResolutions && (
+                  <ReceivedMessage
+                    content="All resolutions have been processed (some applied, some rejected)"
+                    isProcessing={state.isProcessingQuickResponse}
+                  />
+                )}
+              </>
             )}
-
-            <div ref={scrollToBottomRef} />
           </MessageBox>
         </ChatbotContent>
       </Chatbot>
