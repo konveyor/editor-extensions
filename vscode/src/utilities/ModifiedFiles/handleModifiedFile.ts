@@ -122,27 +122,48 @@ export const handleModifiedFileMessage = async (
                 });
               }
             } else if (isDeleted) {
-              try {
-                console.log(`Deleting file at ${filePath}`);
-                vscode.workspace.fs.delete(uri);
-              } catch (fileDeletionError) {
-                console.error(`Failed to delete file at ${filePath}:`, fileDeletionError);
-                // Optionally notify user of failure in chat
-                const errorMessage =
-                  fileDeletionError instanceof Error
-                    ? fileDeletionError.message
-                    : String(fileDeletionError);
-                state.mutateData((draft) => {
-                  draft.chatMessages.push({
-                    kind: ChatMessageType.String,
-                    messageToken: `file-deletion-error-${Date.now()}`,
-                    timestamp: new Date().toISOString(),
-                    value: {
-                      message: `Failed to delete file at ${filePath}: ${errorMessage}`,
-                    },
+              (async () => {
+                try {
+                  // Check if the file exists before attempting to delete
+                  const fileExists = await vscode.workspace.fs.stat(uri).then(
+                    () => true,
+                    () => false,
+                  );
+                  if (fileExists) {
+                    console.log(`Deleting file at ${filePath}`);
+                    await vscode.workspace.fs.delete(uri);
+                  } else {
+                    console.log(`File at ${filePath} does not exist, skipping deletion.`);
+                    state.mutateData((draft) => {
+                      draft.chatMessages.push({
+                        kind: ChatMessageType.String,
+                        messageToken: `file-not-found-${Date.now()}`,
+                        timestamp: new Date().toISOString(),
+                        value: {
+                          message: `File at ${filePath} does not exist, skipping deletion.`,
+                        },
+                      });
+                    });
+                  }
+                } catch (fileDeletionError) {
+                  console.error(`Failed to delete file at ${filePath}:`, fileDeletionError);
+                  // Optionally notify user of failure in chat
+                  const errorMessage =
+                    fileDeletionError instanceof Error
+                      ? fileDeletionError.message
+                      : String(fileDeletionError);
+                  state.mutateData((draft) => {
+                    draft.chatMessages.push({
+                      kind: ChatMessageType.String,
+                      messageToken: `file-deletion-error-${Date.now()}`,
+                      timestamp: new Date().toISOString(),
+                      value: {
+                        message: `Failed to delete file at ${filePath}: ${errorMessage}`,
+                      },
+                    });
                   });
-                });
-              }
+                }
+              })();
             }
           }
 
