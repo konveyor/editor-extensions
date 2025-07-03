@@ -162,29 +162,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({ data, 
                   )}
                 </span>
               </FlexItem>
-              <FlexItem>
-                <Button
-                  variant="link"
-                  icon={<EyeIcon />}
-                  onClick={() => {
-                    // View the file in VSCode with decorations
-                    window.vscode.postMessage({
-                      type: "VIEW_FILE",
-                      payload: {
-                        path,
-                        change: {
-                          originalUri: path,
-                          modifiedUri: path,
-                          diff: diff,
-                          state: "pending",
-                        },
-                      },
-                    });
-                  }}
-                >
-                  View
-                </Button>
-              </FlexItem>
             </Flex>
           ) : data.quickResponses && data.messageToken ? (
             <Flex className="modified-file-actions">
