@@ -56,18 +56,27 @@ export async function handleQuickResponse(
       // });
 
       // Create the workflow message with proper typing
+      let interactionType = responseId.startsWith("choice-") ? "choice" : "yesNo";
+      let responseData: any = responseId.startsWith("choice-")
+        ? { choice: parseInt(responseId.split("-")[1]) }
+        : { yesNo: responseId === "yes" };
+
+      // Check if this message is related to "tasks" interaction by looking for tasksData in the message value
+      const message = state.data.chatMessages.find((msg) => msg.messageToken === messageToken);
+      if (message && message.value && "tasksData" in message.value) {
+        interactionType = "tasks";
+        responseData = {
+          tasks: message.value.tasksData,
+          yesNo: responseId === "yes",
+        };
+      }
+
       const workflowMessage: KaiWorkflowMessage = {
         id: messageToken,
         type: KaiWorkflowMessageType.UserInteraction,
         data: {
-          type: responseId.startsWith("choice-") ? "choice" : "yesNo",
-          response: responseId.startsWith("choice-")
-            ? {
-                choice: parseInt(responseId.split("-")[1]),
-              }
-            : {
-                yesNo: responseId === "yes",
-              },
+          type: interactionType,
+          response: responseData,
         } as KaiUserIteraction,
       };
 

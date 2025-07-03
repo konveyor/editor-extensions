@@ -164,11 +164,15 @@ export const processMessage = async (
                   value: {
                     message: `It appears that my fixes caused following issues:\n\n - \
                               ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
+                    tasksData: tasks, // Store tasks data for retrieval in quick response handler
                   },
+                  quickResponses: [
+                    { id: "yes", content: "Yes" },
+                    { id: "no", content: "No" },
+                  ],
                 });
               });
-              msg.data.response = { tasks, yesNo: true };
-              workflow.resolveUserInteraction(msg);
+              // Do not set a hardcoded response, wait for user interaction via quick responses
             } else {
               msg.data.response = {
                 yesNo: false,

@@ -26,7 +26,18 @@ const createNewFile = async (
 ): Promise<void> => {
   try {
     console.log(`Creating new file at ${filePath} with content: ${content}`);
-    vscode.workspace.fs.writeFile(uri, Buffer.from(content));
+    // Ensure the directory structure exists
+    const directoryPath = filePath.substring(0, filePath.lastIndexOf("/"));
+    if (directoryPath) {
+      const directoryUri = Uri.file(directoryPath);
+      try {
+        await vscode.workspace.fs.createDirectory(directoryUri);
+        console.log(`Created directory structure at ${directoryPath}`);
+      } catch (dirError) {
+        console.error(`Failed to create directory at ${directoryPath}:`, dirError);
+      }
+    }
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(content));
   } catch (fileCreationError) {
     console.error(`Failed to create file at ${filePath}:`, fileCreationError);
     // Optionally notify user of failure in chat
