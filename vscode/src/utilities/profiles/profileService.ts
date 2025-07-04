@@ -85,11 +85,3 @@ export function updateActiveProfile(
     }
   });
 }
-
-export function buildLabelSelector(sources: string[], targets: string[]): string {
-  const sourcesPart = sources.map((s) => `konveyor.io/source=${s}`).join(" || ");
-  const targetsPart = targets.map((t) => `konveyor.io/target=${t}`).join(" || ");
-  return sourcesPart || targetsPart
-    ? `(${[sourcesPart, targetsPart].filter(Boolean).join(" && ")}) || (discovery)`
-    : "(discovery)";
-}

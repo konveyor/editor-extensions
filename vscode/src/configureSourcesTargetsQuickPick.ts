@@ -1,30 +1,13 @@
 import { window, QuickPickItem, Disposable } from "vscode";
 import { getConfigLabelSelector, updateLabelSelector } from "./utilities/configuration";
 import { sourceOptions, targetOptions } from "./config/labels";
+import { buildLabelSelector } from "./utilities/labelSelector";
 
 function extractValuesFromSelector(selector: string, key: string): string[] {
   const regex = new RegExp(`konveyor.io/${key}=([\\w.-]+)`, "g");
   const matches = selector.matchAll(regex);
   const values = Array.from(matches, (match) => match[1]);
   return values.flatMap((value) => value.split("|"));
-}
-
-function buildLabelSelector(sources: string[], targets: string[]): string {
-  const sourcesPart = sources.map((source) => `konveyor.io/source=${source}`).join(" || ");
-  const targetsPart = targets.map((target) => `konveyor.io/target=${target}`).join(" || ");
-
-  // If neither is selected, fall back to "discovery"
-  if (!sourcesPart && !targetsPart) {
-    return "(discovery)";
-  }
-  const parts = [];
-  if (sourcesPart) {
-    parts.push(sourcesPart);
-  }
-  if (targetsPart) {
-    parts.push(targetsPart);
-  }
-  return `(${parts.join(" && ")}) || (discovery)`;
 }
 
 export async function configureSourcesTargetsQuickPick() {

@@ -31,6 +31,7 @@ import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
+import { buildLabelSelector } from "../../utils/labelSelector";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -363,23 +364,6 @@ export const ProfileEditorForm: React.FC<{
     </Form>
   );
 };
-
-export function buildLabelSelector(sources: string[], targets: string[]): string {
-  const parts: string[] = [];
-
-  if (targets.length) {
-    parts.push(...targets.map((t) => `konveyor.io/target=${t}`));
-  }
-
-  if (sources.length) {
-    parts.push(...sources.map((s) => `konveyor.io/source=${s}`));
-  }
-
-  if (!parts.length) {
-    return "(discovery)";
-  }
-  return `(${parts.join(" || ")}) || (discovery)`;
-}
 
 function truncateMiddle(text: string, maxLength: number) {
   if (text.length <= maxLength) {
