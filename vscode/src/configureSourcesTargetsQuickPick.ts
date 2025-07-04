@@ -17,14 +17,19 @@ function buildLabelSelector(sources: string[], targets: string[]): string {
   if (!sourcesPart && !targetsPart) {
     return "(discovery)";
   }
-  const parts = [];
-  if (sourcesPart) {
-    parts.push(sourcesPart);
+
+  // If only targets are selected, return targets OR discovery
+  if (targetsPart && !sourcesPart) {
+    return `(${targetsPart}) || (discovery)`;
   }
-  if (targetsPart) {
-    parts.push(targetsPart);
+
+  // If only sources are selected, return sources OR discovery
+  if (sourcesPart && !targetsPart) {
+    return `(${sourcesPart}) || (discovery)`;
   }
-  return `(${parts.join(" && ")}) || (discovery)`;
+
+  // If both are selected, AND sources with targets, then OR with discovery
+  return `(${targetsPart}) && (${sourcesPart}) || (discovery)`;
 }
 
 export async function configureSourcesTargetsQuickPick() {

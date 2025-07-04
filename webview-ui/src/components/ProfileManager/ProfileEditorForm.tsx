@@ -365,20 +365,26 @@ export const ProfileEditorForm: React.FC<{
 };
 
 export function buildLabelSelector(sources: string[], targets: string[]): string {
-  const parts: string[] = [];
+  const sourcesPart = sources.map((s) => `konveyor.io/source=${s}`).join(" || ");
+  const targetsPart = targets.map((t) => `konveyor.io/target=${t}`).join(" || ");
 
-  if (targets.length) {
-    parts.push(...targets.map((t) => `konveyor.io/target=${t}`));
-  }
-
-  if (sources.length) {
-    parts.push(...sources.map((s) => `konveyor.io/source=${s}`));
-  }
-
-  if (!parts.length) {
+  // If neither is selected, fall back to "discovery"
+  if (!sourcesPart && !targetsPart) {
     return "(discovery)";
   }
-  return `(${parts.join(" || ")}) || (discovery)`;
+
+  // If only targets are selected, return targets OR discovery
+  if (targetsPart && !sourcesPart) {
+    return `(${targetsPart}) || (discovery)`;
+  }
+
+  // If only sources are selected, return sources OR discovery
+  if (sourcesPart && !targetsPart) {
+    return `(${sourcesPart}) || (discovery)`;
+  }
+
+  // If both are selected, AND sources with targets, then OR with discovery
+  return `(${targetsPart}) && (${sourcesPart}) || (discovery)`;
 }
 
 function truncateMiddle(text: string, maxLength: number) {
