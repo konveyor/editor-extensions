@@ -1,35 +1,13 @@
 import { window, QuickPickItem, Disposable } from "vscode";
 import { getConfigLabelSelector, updateLabelSelector } from "./utilities/configuration";
 import { sourceOptions, targetOptions } from "./config/labels";
+import { buildLabelSelector } from "./utilities/labelSelector";
 
 function extractValuesFromSelector(selector: string, key: string): string[] {
   const regex = new RegExp(`konveyor.io/${key}=([\\w.-]+)`, "g");
   const matches = selector.matchAll(regex);
   const values = Array.from(matches, (match) => match[1]);
   return values.flatMap((value) => value.split("|"));
-}
-
-function buildLabelSelector(sources: string[], targets: string[]): string {
-  const sourcesPart = sources.map((source) => `konveyor.io/source=${source}`).join(" || ");
-  const targetsPart = targets.map((target) => `konveyor.io/target=${target}`).join(" || ");
-
-  // If neither is selected, fall back to "discovery"
-  if (!sourcesPart && !targetsPart) {
-    return "(discovery)";
-  }
-
-  // If only targets are selected, return targets OR discovery
-  if (targetsPart && !sourcesPart) {
-    return `(${targetsPart}) || (discovery)`;
-  }
-
-  // If only sources are selected, return sources OR discovery
-  if (sourcesPart && !targetsPart) {
-    return `(${sourcesPart}) || (discovery)`;
-  }
-
-  // If both are selected, AND sources with targets, then OR with discovery
-  return `(${targetsPart}) && (${sourcesPart}) || (discovery)`;
 }
 
 export async function configureSourcesTargetsQuickPick() {

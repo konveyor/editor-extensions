@@ -31,6 +31,7 @@ import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
+import { buildLabelSelector } from "../../utils/labelSelector";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -363,29 +364,6 @@ export const ProfileEditorForm: React.FC<{
     </Form>
   );
 };
-
-export function buildLabelSelector(sources: string[], targets: string[]): string {
-  const sourcesPart = sources.map((s) => `konveyor.io/source=${s}`).join(" || ");
-  const targetsPart = targets.map((t) => `konveyor.io/target=${t}`).join(" || ");
-
-  // If neither is selected, fall back to "discovery"
-  if (!sourcesPart && !targetsPart) {
-    return "(discovery)";
-  }
-
-  // If only targets are selected, return targets OR discovery
-  if (targetsPart && !sourcesPart) {
-    return `(${targetsPart}) || (discovery)`;
-  }
-
-  // If only sources are selected, return sources OR discovery
-  if (sourcesPart && !targetsPart) {
-    return `(${sourcesPart}) || (discovery)`;
-  }
-
-  // If both are selected, AND sources with targets, then OR with discovery
-  return `(${targetsPart}) && (${sourcesPart}) || (discovery)`;
-}
 
 function truncateMiddle(text: string, maxLength: number) {
   if (text.length <= maxLength) {
