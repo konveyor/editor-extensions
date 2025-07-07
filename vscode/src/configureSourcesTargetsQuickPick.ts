@@ -1,7 +1,7 @@
 import { window, QuickPickItem, Disposable } from "vscode";
 import { getConfigLabelSelector, updateLabelSelector } from "./utilities/configuration";
 import { sourceOptions, targetOptions } from "./config/labels";
-import { buildLabelSelector } from "./utilities/labelSelector";
+import { buildLabelSelector } from "@editor-extensions/shared";
 
 function extractValuesFromSelector(selector: string, key: string): string[] {
   const regex = new RegExp(`konveyor.io/${key}=([\\w.-]+)`, "g");

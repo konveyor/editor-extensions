@@ -86,4 +86,29 @@ describe("buildLabelSelector", () => {
 
     expect(result).toBe(expected);
   });
+
+  it("should handle edge case with single element arrays", () => {
+    const result = buildLabelSelector(["single-source"], ["single-target"]);
+    expect(result).toBe(
+      "(konveyor.io/target=single-target) && (konveyor.io/source=single-source) || (discovery)",
+    );
+  });
+
+  it("should handle real-world migration scenarios", () => {
+    // EAP 6 to EAP 7 migration
+    const eapResult = buildLabelSelector(["eap6"], ["eap7"]);
+    expect(eapResult).toBe("(konveyor.io/target=eap7) && (konveyor.io/source=eap6) || (discovery)");
+
+    // WebLogic to Spring Boot migration
+    const weblogicResult = buildLabelSelector(["weblogic"], ["spring-boot"]);
+    expect(weblogicResult).toBe(
+      "(konveyor.io/target=spring-boot) && (konveyor.io/source=weblogic) || (discovery)",
+    );
+
+    // Multiple source platforms to cloud native
+    const cloudResult = buildLabelSelector(["weblogic", "websphere"], ["kubernetes", "openshift"]);
+    expect(cloudResult).toBe(
+      "(konveyor.io/target=kubernetes || konveyor.io/target=openshift) && (konveyor.io/source=weblogic || konveyor.io/source=websphere) || (discovery)",
+    );
+  });
 });
