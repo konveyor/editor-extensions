@@ -41,13 +41,14 @@ export class SolutionServerClient {
   constructor(serverUrl: string, enabled: boolean = true) {
     this.serverUrl = serverUrl;
     this.enabled = enabled;
+  }
 
+  public async connect(): Promise<void> {
     if (!this.enabled) {
-      console.log("MCP Solution Server Client initialized (disabled)");
+      console.log("Solution server is disabled, skipping connection");
       return;
     }
 
-    // Create MCP client
     this.mcpClient = new Client(
       {
         name: "konveyor-vscode-extension",
@@ -62,23 +63,6 @@ export class SolutionServerClient {
         },
       },
     );
-    console.log("MCP Solution Server Client initialized");
-  }
-
-  public async connect(): Promise<void> {
-    if (!this.enabled) {
-      console.log("Solution server is disabled, skipping connection");
-      return;
-    }
-
-    if (!this.mcpClient) {
-      throw new SolutionServerClientError("MCP client not initialized");
-    }
-
-    if (this.isConnected) {
-      console.log("Solution server is already connected, skipping connection");
-      return;
-    }
 
     try {
       await this.mcpClient?.connect(new StreamableHTTPClientTransport(new URL(this.serverUrl)));
@@ -155,7 +139,6 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, returning incidents without success rate");
       return incidents;
     }
-    await this.connect();
 
     try {
       // Cache to store success rate results for each violation combination
@@ -244,7 +227,6 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, returning dummy incident ID");
       return -1; // Return a dummy ID when disabled
     }
-    await this.connect();
 
     try {
       console.log(
@@ -300,7 +282,6 @@ export class SolutionServerClient {
         failed_count: 0,
       };
     }
-    await this.connect();
 
     try {
       console.log(`Creating ${enhancedIncidents.length} incidents in bulk`);
@@ -364,7 +345,6 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, returning dummy solution ID");
       return -1; // Return a dummy ID when disabled
     }
-    await this.connect();
 
     console.log(`Creating solution for incident IDs: ${incidentIds.join(", ")}`);
     console.debug(`Before: ${JSON.stringify(before)}`);
@@ -421,7 +401,6 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, no hint available");
       return undefined;
     }
-    await this.connect();
 
     try {
       console.log(`Getting best hint for violation: ${rulesetName} - ${violationName}`);
@@ -480,7 +459,6 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, skipping accept_file");
       return;
     }
-    await this.connect();
 
     try {
       console.log(`Accepting file: ${uri}`);
@@ -508,7 +486,6 @@ export class SolutionServerClient {
       console.log("Solution server is disabled, skipping reject_file");
       return;
     }
-    await this.connect();
 
     try {
       console.log(`Rejecting file: ${uri}`);

@@ -115,6 +115,18 @@ const commandsMap: (state: ExtensionState) => {
         console.error("Could not restart the server", e);
       }
     },
+    "konveyor.restartSolutionServer": async () => {
+      const solutionServerClient = state.solutionServerClient;
+      try {
+        window.showInformationMessage("Restarting solution server...");
+        await solutionServerClient.disconnect();
+        await solutionServerClient.connect();
+        window.showInformationMessage("Solution server restarted successfully");
+      } catch (e) {
+        console.error("Could not restart the solution server", e);
+        window.showErrorMessage(`Failed to restart solution server: ${e}`);
+      }
+    },
     "konveyor.runAnalysis": async () => {
       console.log("run analysis command called");
       const analyzerClient = state.analyzerClient;

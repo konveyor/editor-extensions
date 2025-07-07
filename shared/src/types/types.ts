@@ -161,6 +161,7 @@ export interface ExtensionData {
   analysisConfig: AnalysisConfig;
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
+  solutionServerEnabled: boolean;
 }
 export type AnalysisConfig = {
   labelSelectorValid: boolean;

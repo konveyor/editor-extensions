@@ -71,6 +71,7 @@ const AnalysisPage: React.FC = () => {
     profiles,
     activeProfileId,
     serverState,
+    solutionServerEnabled,
   } = state;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -334,6 +335,7 @@ const AnalysisPage: React.FC = () => {
                           onIncidentSelect={handleIncidentSelect}
                           expandedViolations={expandedViolations}
                           setExpandedViolations={setExpandedViolations}
+                          solutionServerEnabled={solutionServerEnabled}
                         />
                       )}
                     </CardBody>

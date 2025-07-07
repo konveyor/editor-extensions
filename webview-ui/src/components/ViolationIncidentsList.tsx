@@ -47,6 +47,7 @@ interface ViolationIncidentsListProps {
   setExpandedViolations: (value: Set<string>) => void;
   focusedIncident: Incident | null;
   enhancedIncidents: EnhancedIncident[];
+  solutionServerEnabled: boolean;
 }
 
 const ViolationIncidentsList = ({
@@ -54,6 +55,7 @@ const ViolationIncidentsList = ({
   expandedViolations,
   setExpandedViolations,
   enhancedIncidents,
+  solutionServerEnabled,
 }: ViolationIncidentsListProps) => {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSortAscending, setIsSortAscending] = React.useState(true);
@@ -268,18 +270,20 @@ const ViolationIncidentsList = ({
           {categoryMenuItems}
         </Select>
       </ToolbarItem>
-      <ToolbarItem>
-        <ToggleGroup aria-label="Success rate filter">
-          <ToggleGroupItem
-            text="Has Success Rate"
-            buttonId="has-success-rate"
-            isSelected={filters.hasSuccessRate}
-            onChange={() =>
-              setFilters((prev) => ({ ...prev, hasSuccessRate: !prev.hasSuccessRate }))
-            }
-          />
-        </ToggleGroup>
-      </ToolbarItem>
+      {solutionServerEnabled && (
+        <ToolbarItem>
+          <ToggleGroup aria-label="Success rate filter">
+            <ToggleGroupItem
+              text="Has Success Rate"
+              buttonId="has-success-rate"
+              isSelected={filters.hasSuccessRate}
+              onChange={() =>
+                setFilters((prev) => ({ ...prev, hasSuccessRate: !prev.hasSuccessRate }))
+              }
+            />
+          </ToggleGroup>
+        </ToolbarItem>
+      )}
       <ToolbarItem>
         <ToggleGroup aria-label="Sort toggle group">
           <ToggleGroupItem

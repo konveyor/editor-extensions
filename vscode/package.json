@@ -153,6 +153,12 @@
         "icon": "$(restart)"
       },
       {
+        "command": "konveyor.restartSolutionServer",
+        "title": "Restart Solution Server",
+        "category": "Konveyor",
+        "icon": "$(restart)"
+      },
+      {
         "command": "konveyor.runAnalysis",
         "title": "Run Analysis",
         "category": "Konveyor",
