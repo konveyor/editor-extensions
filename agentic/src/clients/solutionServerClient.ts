@@ -198,7 +198,6 @@ export class SolutionServerClient {
               successRateCache.set(key, successRateMetric);
             } catch (error) {
               console.error(`Error fetching success rate for ${key}: ${error}`);
-              successRateCache.set(key, null);
             }
           }
 
@@ -320,7 +319,12 @@ export class SolutionServerClient {
       }
 
       if (!bulkResult) {
-        throw new Error("No bulk incident creation result returned from server");
+        console.log("No bulk incident creation result returned from server");
+        return {
+          incident_ids: enhancedIncidents.map(() => -1),
+          created_count: 0,
+          failed_count: enhancedIncidents.length,
+        };
       }
 
       console.log(
