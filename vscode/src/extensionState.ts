@@ -3,7 +3,12 @@ import { KonveyorFileModel } from "./diffView";
 import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
-import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
+import {
+  AnalysisProfile,
+  type ChatModelCapabilities,
+  type ChatModelPair,
+  ExtensionData,
+} from "@editor-extensions/shared";
 import { KaiFsCache, SolutionServerClient } from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
@@ -24,4 +29,5 @@ export interface ExtensionState {
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
   taskManager: DiagnosticTaskManager;
+  chatModelData: (ChatModelPair & ChatModelCapabilities) | undefined;
 }

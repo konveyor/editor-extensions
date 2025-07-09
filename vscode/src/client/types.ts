@@ -31,23 +31,6 @@ export interface KaiLogConfig {
   logFileName?: string; // defaults to "./kai_server.log"
 }
 
-export type SupportedModelProviders =
-  | "AzureChatOpenAI"
-  | "ChatBedrock"
-  | "ChatDeepSeek"
-  | "ChatGoogleGenerativeAI"
-  | "ChatOllama"
-  | "ChatOpenAI";
-
-export interface KaiModelConfig {
-  provider: SupportedModelProviders;
-  args: Record<string, any>;
-  template?: string;
-  llamaHeader?: boolean;
-  llmRetries?: number;
-  llmRetryDelay?: number;
-}
-
 /**
  * `initialize` request content as camel case (camelCase and snake_case are both accepted)
  *
@@ -57,7 +40,7 @@ export interface KaiRpcApplicationConfig {
   processId?: number;
 
   rootPath: string;
-  modelProvider: KaiModelConfig;
+  // modelProvider: KaiModelConfig;
 
   logConfig: KaiLogConfig;
 

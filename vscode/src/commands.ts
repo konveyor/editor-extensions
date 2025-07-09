@@ -63,7 +63,6 @@ import {
   getBuildFilesForLanguage,
 } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
-import { getModelConfig, ModelProvider } from "./client/modelProvider";
 import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 
@@ -152,13 +151,11 @@ const commandsMap: (state: ExtensionState) => {
 
       try {
         // Get the model provider configuration from settings YAML
-        const modelConfig = await getModelConfig(paths().settingsYaml);
-        if (!modelConfig) {
-          throw new Error("Model provider configuration not found in settings YAML.");
+        if (!state.chatModelData) {
+          throw new Error(
+            "Chat model is not initialized. Please check your model provider settings.",
+          );
         }
-
-        // Initialize the appropriate model based on the config
-        const model = ModelProvider.fromConfig(modelConfig);
 
         // Get the profile name from the incidents
         const profileName = incidents[0]?.activeProfileName;
@@ -169,7 +166,8 @@ const commandsMap: (state: ExtensionState) => {
 
         const kaiAgent = new KaiInteractiveWorkflow();
         const agentInit = kaiAgent.init({
-          model: model,
+          modelPair: state.chatModelData,
+          modelCapabilities: state.chatModelData,
           workspaceDir: state.data.workspaceRoot,
           fsCache: state.kaiFsCache,
           solutionServerClient: state.solutionServerClient,

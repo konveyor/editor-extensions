@@ -19,9 +19,9 @@ import {
   SummarizeHistoryOutputState,
   AnalysisIssueFixOutputState,
 } from "../schemas/analysisIssueFix";
+import { fileUriToPath } from "../utils";
 import { FileSystemTools } from "../tools/filesystem";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
-import { fileUriToPath, modelHealthCheck } from "../utils";
 import { AnalysisIssueFix } from "../nodes/analysisIssueFix";
 import { JavaDependencyTools } from "../tools/javaDependency";
 import { DiagnosticsIssueFix } from "../nodes/diagnosticsIssueFix";
@@ -97,18 +97,10 @@ export class KaiInteractiveWorkflow
     const workspaceDir = fileUriToPath(options.workspaceDir);
     const fsTools = new FileSystemTools(workspaceDir, options.fsCache);
     const depTools = new JavaDependencyTools();
-    const { supportsTools, connected, supportsToolsInStreaming } = await modelHealthCheck(
-      options.model,
-    );
-    if (!connected) {
-      throw Error(`Provided model doesn't seem to have connection`);
-    }
+
     const analysisIssueFixNodes = new AnalysisIssueFix(
-      {
-        model: options.model,
-        toolsSupported: supportsTools,
-        toolsSupportedInStreaming: supportsToolsInStreaming,
-      },
+      options.modelPair,
+      options.modelCapabilities,
       fsTools.all(),
       options.fsCache,
       workspaceDir,
@@ -123,11 +115,8 @@ export class KaiInteractiveWorkflow
     });
 
     this.diagnosticsNodes = new DiagnosticsIssueFix(
-      {
-        model: options.model,
-        toolsSupported: supportsTools,
-        toolsSupportedInStreaming: supportsToolsInStreaming,
-      },
+      options.modelPair,
+      options.modelCapabilities,
       workspaceDir,
       fsTools.all(),
       depTools.all(),

@@ -2,14 +2,19 @@ import { z } from "zod";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
+import { type ChatModelCapabilities, type ChatModelPair } from "@editor-extensions/shared";
 
 import { KaiWorkflowMessageType } from "../src";
 import { FakeChatModelWithToolCalls } from "./base";
-import { BaseNode, type ModelInfo } from "../src/nodes/base";
+import { BaseNode } from "../src/nodes/base";
 
 class TestNode extends BaseNode {
-  constructor(modelInfo: ModelInfo, tools: DynamicStructuredTool[]) {
-    super("test", modelInfo, tools);
+  constructor(
+    modelPair: ChatModelPair,
+    modelCapabilities: ChatModelCapabilities,
+    tools: DynamicStructuredTool[],
+  ) {
+    super("test", modelPair, modelCapabilities, tools);
 
     this.invoke = this.invoke.bind(this);
   }
@@ -63,9 +68,12 @@ describe("testBaseNode", () => {
 
     const node = new TestNode(
       {
-        model,
-        toolsSupported: false,
-        toolsSupportedInStreaming: false,
+        streamingModel: model,
+        nonStreamingModel: model,
+      },
+      {
+        supportsTools: false,
+        supportsToolsInStreaming: false,
       },
       [adderTool],
     );
@@ -113,9 +121,12 @@ TOOL_CALL
 
     const node = new TestNode(
       {
-        model,
-        toolsSupported: false,
-        toolsSupportedInStreaming: false,
+        streamingModel: model,
+        nonStreamingModel: model,
+      },
+      {
+        supportsTools: false,
+        supportsToolsInStreaming: false,
       },
       [],
     );
@@ -164,9 +175,12 @@ TOOL_CALL
 
     const node = new TestNode(
       {
-        model,
-        toolsSupported: false,
-        toolsSupportedInStreaming: false,
+        streamingModel: model,
+        nonStreamingModel: model,
+      },
+      {
+        supportsTools: false,
+        supportsToolsInStreaming: false,
       },
       [],
     );
@@ -199,9 +213,12 @@ of the \`application.properties\` file. Then I will add the JMS topic to it.
 
     const node = new TestNode(
       {
-        model,
-        toolsSupported: false,
-        toolsSupportedInStreaming: false,
+        streamingModel: model,
+        nonStreamingModel: model,
+      },
+      {
+        supportsTools: false,
+        supportsToolsInStreaming: false,
       },
       [],
     );

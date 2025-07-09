@@ -93,6 +93,7 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      chatModelData: undefined,
     };
   }
 

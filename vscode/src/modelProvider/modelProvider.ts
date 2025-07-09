@@ -1,30 +1,26 @@
-import { parse } from "yaml";
-import { workspace, Uri } from "vscode";
+import { z } from "zod";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { AzureChatOpenAI, ChatOpenAI } from "@langchain/openai";
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { ChatBedrockConverseInput, ChatBedrockConverse } from "@langchain/aws";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIChatInput } from "@langchain/google-genai";
+import { ChatBedrockConverse, type ChatBedrockConverseInput } from "@langchain/aws";
+import { ChatGoogleGenerativeAI, type GoogleGenerativeAIChatInput } from "@langchain/google-genai";
+import {
+  type BaseChatModel,
+  type BaseChatModelCallOptions,
+} from "@langchain/core/language_models/chat_models";
+import { type Runnable } from "@langchain/core/runnables";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import { SystemMessage, HumanMessage, type AIMessageChunk } from "@langchain/core/messages";
+import { type ChatModelCapabilities, type ChatModelPair } from "@editor-extensions/shared";
 
-import { KaiModelConfig } from "./types";
+import { ModelCreator, ModelClientConfig } from "./types";
 
-interface ModelCreator {
-  defaultArgs(): Record<string, any>;
-  validate(args: Record<string, any>, env: Record<string, string>): void;
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel;
-}
-
-export interface ModelConfig {
-  env: Record<string, string>;
-  config: KaiModelConfig;
-}
-
-// TODO (pgaikwad) - right now, we are returning BaseChatModel as-is, however
+// TODO (pgaikwad) - right now, we are returning ChatModelPair as-is, however
 // there needs to be another type that exposes invoke, stream methods and internally
 // takes care of edge cases that we have already solved in python e.g. bedrock token limit
 export class ModelProvider {
-  static fromConfig(modelConf: ModelConfig): BaseChatModel {
+  static fromConfig(modelConf: ModelClientConfig): ChatModelPair {
     let modelCreator: ModelCreator;
     switch (modelConf.config.provider) {
       case "AzureChatOpenAI":
@@ -53,7 +49,22 @@ export class ModelProvider {
     //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
     const args = { ...defaultArgs, ...configArgs };
     modelCreator.validate(args, modelConf.env);
-    return modelCreator.create(args, modelConf.env);
+    return {
+      streamingModel: modelCreator.create(
+        {
+          ...args,
+          streaming: true,
+        },
+        modelConf.env,
+      ),
+      nonStreamingModel: modelCreator.create(
+        {
+          ...args,
+          streaming: false,
+        },
+        modelConf.env,
+      ),
+    };
   }
 }
 
@@ -111,7 +122,7 @@ class ChatBedrockCreator implements ModelCreator {
     };
   }
 
-  validate(args: Record<string, any>, env: Record<string, string>): void {
+  validate(args: Record<string, any>, _env: Record<string, string>): void {
     validateMissingConfigKeys(args, ["model"], "model arg(s)");
   }
 }
@@ -202,31 +213,6 @@ class ChatOpenAICreator implements ModelCreator {
   }
 }
 
-export async function getModelConfig(yamlUri: Uri): Promise<ModelConfig> {
-  const yamlFile = await workspace.fs.readFile(yamlUri);
-  const yamlString = new TextDecoder("utf8").decode(yamlFile);
-  const yamlDoc = parse(yamlString);
-
-  const baseEnv = yamlDoc.environment;
-  const { environment, provider, args, template, llamaHeader, llmRetries, llmRetryDelay } =
-    yamlDoc.active;
-
-  // TODO: Base sanity checking to make sure a core set of expected fields are
-  // TODO: actually defined/referenced in the yaml could go here.
-
-  return {
-    env: { ...baseEnv, ...environment },
-    config: {
-      provider,
-      args,
-      template,
-      llamaHeader,
-      llmRetries,
-      llmRetryDelay,
-    },
-  };
-}
-
 function validateMissingConfigKeys(
   record: Record<string, any>,
   keys: string[],
@@ -236,4 +222,85 @@ function validateMissingConfigKeys(
   if (missingKeys && missingKeys.length) {
     throw Error(`Required ${name} missing in model config - ${missingKeys.join(", ")}`);
   }
+}
+/**
+ * Check if the model is connected and supports tools
+ * @param modelPair a streaming and non-streaming model pair
+ * @returns ChatModelCapabilities
+ * @throws Error if the model is not connected
+ */
+export async function runModelHealthCheck(
+  modelPair: ChatModelPair,
+): Promise<ChatModelCapabilities> {
+  const { streamingModel, nonStreamingModel } = modelPair;
+  const response: ChatModelCapabilities = {
+    supportsTools: false,
+    supportsToolsInStreaming: false,
+  };
+
+  const tool: DynamicStructuredTool = new DynamicStructuredTool({
+    name: "gamma",
+    description: "Custom operator that works with two numbers",
+    schema: z.object({
+      a: z.string(),
+      b: z.string(),
+    }),
+    func: async ({ a, b }: { a: string; b: string }) => {
+      return a + b;
+    },
+  });
+
+  let runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions> =
+    streamingModel;
+
+  const sys_message = new SystemMessage(
+    `Use the tool you are given to get the answer for custom math operation.`,
+  );
+  const human_message = new HumanMessage(`What is 2 gamma 2?`);
+
+  if (streamingModel.bindTools) {
+    runnable = streamingModel.bindTools([tool]);
+  }
+
+  try {
+    let containsToolCall = false;
+    const stream = await runnable.stream([sys_message, human_message]);
+    if (stream) {
+      for await (const chunk of stream) {
+        if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+          containsToolCall = true;
+          break;
+        }
+      }
+      if (containsToolCall) {
+        response.supportsToolsInStreaming = true;
+        response.supportsTools = true;
+        return response;
+      }
+    }
+  } catch (err) {
+    console.error(
+      "Error when using a streaming client for tool calls, trying a non-streaming client",
+      err,
+    );
+  }
+
+  try {
+    // if we're here, model does not support tool calls in streaming
+    if (nonStreamingModel.bindTools) {
+      runnable = nonStreamingModel.bindTools([tool]);
+    }
+    const res = await runnable.invoke([sys_message, human_message]);
+    if (res.tool_calls && res.tool_calls.length > 0) {
+      response.supportsTools = true;
+    }
+    return response;
+  } catch (err) {
+    console.error("Error when using a non streaming client for tool calls", err);
+  }
+
+  // check if we are connected to the model, this will throw an error if not
+  await nonStreamingModel.invoke("a");
+
+  return response;
 }

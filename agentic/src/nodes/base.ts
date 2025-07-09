@@ -1,10 +1,7 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
-import {
-  type BaseChatModel,
-  type BaseChatModelCallOptions,
-} from "@langchain/core/language_models/chat_models";
+import { type BaseChatModelCallOptions } from "@langchain/core/language_models/chat_models";
 import {
   AIMessage,
   AIMessageChunk,
@@ -17,20 +14,16 @@ import { type ToolCall } from "@langchain/core/messages/tool";
 import { type MessagesAnnotation } from "@langchain/langgraph";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
 import { type IterableReadableStream } from "@langchain/core/utils/stream";
+import { type ChatModelPair, type ChatModelCapabilities } from "@editor-extensions/shared";
 
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 import { type KaiWorkflowMessage, KaiWorkflowMessageType } from "../types";
 
-export type ModelInfo = {
-  model: BaseChatModel;
-  toolsSupported: boolean;
-  toolsSupportedInStreaming: boolean;
-};
-
 export abstract class BaseNode extends KaiWorkflowEventEmitter {
   constructor(
     private readonly name: string,
-    protected readonly modelInfo: ModelInfo,
+    protected readonly modelPair: ChatModelPair,
+    protected readonly modelCapabilities: ChatModelCapabilities,
     private readonly tools: DynamicStructuredTool[],
   ) {
     super();
@@ -91,8 +84,8 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       if (
         enableTools &&
         this.tools.length > 0 &&
-        this.modelInfo.toolsSupported &&
-        !this.modelInfo.toolsSupportedInStreaming
+        this.modelCapabilities.supportsTools &&
+        !this.modelCapabilities.supportsToolsInStreaming
       ) {
         const fullResponse = await runnable.invoke(inputWithTools, options);
         if (emitResponseChunks) {
@@ -142,7 +135,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       }
       // for native tools support or when we don't expect tool calls
       // we send the chunk as-is
-      if (this.modelInfo.toolsSupported || !enableTools) {
+      if (this.modelCapabilities.supportsTools || !enableTools) {
         if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
@@ -263,7 +256,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         data: new AIMessageChunk(buffer),
       });
     }
-    if (response && !this.modelInfo.toolsSupported) {
+    if (response && !this.modelCapabilities.supportsTools) {
       response.tool_calls = toolCalls;
     }
     return response;
@@ -282,47 +275,51 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
     } = {
       inputWithTools: input,
-      runnable: this.modelInfo.model,
+      runnable: this.modelCapabilities.supportsToolsInStreaming
+        ? this.modelPair.streamingModel
+        : this.modelPair.nonStreamingModel,
     };
     if (!this.tools || this.tools.length < 1 || !enableTools) {
       return response;
     }
     const filteredTools = this.getToolsMatchingSelectors(toolsSelectors);
     if (
-      this.modelInfo.model.bindTools &&
-      this.modelInfo.model.bindTools !== undefined &&
-      this.modelInfo.toolsSupported
+      this.modelCapabilities.supportsToolsInStreaming &&
+      this.modelPair.streamingModel.bindTools
     ) {
-      response.runnable = this.modelInfo.model.bindTools(filteredTools);
+      response.runnable = this.modelPair.streamingModel.bindTools(filteredTools);
+      return response;
+    }
+    if (this.modelCapabilities.supportsTools && this.modelPair.nonStreamingModel.bindTools) {
+      response.runnable = this.modelPair.nonStreamingModel.bindTools(filteredTools);
+      return response;
     }
     // NOTE: This assumes that all messages we will send will either
     // be a list of BaseMessage or strings. we are not adding tools support
     // for all possible values of BaseLanguageModelInput. If you are seeing
     // your requests producing errors or weird output, this is the place to look
-    if (!this.modelInfo.toolsSupported) {
-      if (typeof input === "string") {
-        response.inputWithTools = [
-          new SystemMessage(this.getToolsAsMessage(filteredTools)),
-          new HumanMessage(input),
+    if (typeof input === "string") {
+      response.inputWithTools = [
+        new SystemMessage(this.getToolsAsMessage(filteredTools)),
+        new HumanMessage(input),
+      ];
+    } else if (Array.isArray(input)) {
+      let modified = [];
+      if (input.length > 0 && input[0] instanceof SystemMessage) {
+        modified = [
+          new SystemMessage(input[0].content + this.getToolsAsMessage(filteredTools)),
+          ...input.slice(1),
         ];
-      } else if (Array.isArray(input)) {
-        let modified = [];
-        if (input.length > 0 && input[0] instanceof SystemMessage) {
-          modified = [
-            new SystemMessage(input[0].content + this.getToolsAsMessage(filteredTools)),
-            ...input.slice(1),
-          ];
-        } else {
-          modified = [new SystemMessage(this.getToolsAsMessage(filteredTools)), ...input];
-        }
-        // we have to reset previously added tool_calls so as to not confuse the model
-        modified.forEach((m) => {
-          if (m instanceof AIMessage || m instanceof AIMessageChunk) {
-            m.tool_calls = [];
-          }
-        });
-        response.inputWithTools = modified;
+      } else {
+        modified = [new SystemMessage(this.getToolsAsMessage(filteredTools)), ...input];
       }
+      // we have to reset previously added tool_calls so as to not confuse the model
+      modified.forEach((m) => {
+        if (m instanceof AIMessage || m instanceof AIMessageChunk) {
+          m.tool_calls = [];
+        }
+      });
+      response.inputWithTools = modified;
     }
     return response;
   }
@@ -384,7 +381,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
       try {
         this.emitWorkflowMessage(toolCallEvent);
         const result = await tool.invoke(toolCall.args);
-        if (this.modelInfo.toolsSupported) {
+        if (this.modelCapabilities.supportsTools) {
           toolCallResponses.push(
             new ToolMessage({
               content: result,
@@ -414,7 +411,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
             status: "failed",
           },
         });
-        if (this.modelInfo.toolsSupported) {
+        if (this.modelCapabilities.supportsTools) {
           toolCallResponses.push(
             new ToolMessage({
               content: err instanceof Error ? err.message || String(err) : String(err),
@@ -429,7 +426,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
         }
       }
     }
-    if (this.modelInfo.toolsSupported) {
+    if (this.modelCapabilities.supportsTools) {
       return { messages: toolCallResponses };
     } else {
       return { messages: new HumanMessage(nonToolCallResponses.join("\n\n")) };

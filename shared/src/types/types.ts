@@ -1,4 +1,6 @@
 import { Uri } from "vscode";
+import { type BaseChatModel } from "@langchain/core/language_models/chat_models";
+
 import { SolutionEffortLevel } from "../effort";
 
 export type WebviewType = "sidebar" | "resolution" | "profiles";
@@ -249,12 +251,6 @@ export interface ProviderConfigFile {
   active?: GenAIModelConfig;
 }
 
-export interface ProviderConfigStatus {
-  configured: boolean;
-  keyMissing: boolean;
-  usingDefault: boolean;
-  activeKey?: string;
-}
 export interface AnalysisProfile {
   id: string;
   name: string;
@@ -262,4 +258,14 @@ export interface AnalysisProfile {
   useDefaultRules: boolean;
   labelSelector: string;
   readOnly?: boolean;
+}
+
+export interface ChatModelPair {
+  streamingModel: BaseChatModel;
+  nonStreamingModel: BaseChatModel;
+}
+
+export interface ChatModelCapabilities {
+  supportsTools: boolean;
+  supportsToolsInStreaming: boolean;
 }
