@@ -21,12 +21,7 @@ const defaultState: ExtensionData = {
   solutionState: "none",
   solutionEffort: "Low",
   solutionServerEnabled: false,
-  analysisConfig: {
-    labelSelectorValid: false,
-    providerConfigured: false,
-    providerKeyMissing: false,
-    customRulesConfigured: false,
-  },
+  configErrors: [],
   profiles: [],
   activeProfileId: "",
 };

@@ -7,6 +7,7 @@ import { KONVEYOR_CONFIG_KEY } from "./constants";
 import { ExtensionState } from "../extensionState";
 import {
   AnalysisProfile,
+  createConfigError,
   ExtensionData,
   ProviderConfigFile,
   ProviderConfigStatus,
@@ -218,24 +219,36 @@ export const updateLabelSelector = async (value: string): Promise<void> => {
   await updateConfigValue("analysis.labelSelector", value, vscode.ConfigurationTarget.Workspace);
 };
 
-export function updateAnalysisConfig(draft: ExtensionData, settingsPath: string): void {
+export function updateConfigErrors(draft: ExtensionData, settingsPath: string): void {
   const genAIStatus = getProviderConfigStatus(settingsPath);
-
   const { activeProfileId, profiles } = draft;
   const profile = profiles.find((p) => p.id === activeProfileId);
 
-  const labelSelectorValid = !!profile?.labelSelector;
+  // Clear existing errors
+  draft.configErrors = [];
 
-  draft.analysisConfig = {
-    labelSelectorValid,
-    customRulesConfigured: !!profile?.customRules?.length,
-    providerConfigured: genAIStatus.configured,
-    providerKeyMissing: genAIStatus.keyMissing,
-    // Additional fields can be added here for expanded configuration validation
-  };
+  // Check for no active profile
+  if (!profile) {
+    draft.configErrors.push(createConfigError.noActiveProfile());
+    return;
+  }
 
-  // If either check fails, show the incomplete config prompt in the sidebar
-  // Note: ProviderConfigured is set to true if any provider (e.g., OpenAI, Bedrock, etc.) has valid credentials
+  // Check label selector
+  if (!profile.labelSelector?.trim()) {
+    draft.configErrors.push(createConfigError.invalidLabelSelector());
+  }
+
+  // Check custom rules when default rules are disabled
+  if (!profile.useDefaultRules && (!profile.customRules || profile.customRules.length === 0)) {
+    draft.configErrors.push(createConfigError.noCustomRules());
+  }
+
+  // Check provider configuration
+  if (!genAIStatus.configured && genAIStatus.keyMissing) {
+    draft.configErrors.push(createConfigError.providerKeyMissing());
+  } else if (!genAIStatus.configured) {
+    draft.configErrors.push(createConfigError.providerNotConfigured());
+  }
 }
 
 export const getConfigProfiles = (): AnalysisProfile[] =>
@@ -288,7 +301,7 @@ export const registerConfigChangeListener = (
     ) {
       state.mutateData((draft) => {
         draft.solutionEffort = getConfigSolutionMaxEffortLevel();
-        updateAnalysisConfig(draft, settingsPath);
+        updateConfigErrors(draft, settingsPath);
       });
     }
   });
@@ -305,6 +318,17 @@ export function updateActiveProfileValidity(draft: ExtensionData, assetRulesetPa
     ...(active.customRules ?? []),
   ].filter(Boolean);
 
-  draft.analysisConfig.labelSelectorValid = !!active.labelSelector;
-  draft.analysisConfig.customRulesConfigured = rulesets.length > 0;
+  // Remove existing profile-related errors
+  draft.configErrors = draft.configErrors.filter(
+    (error) => error.type !== "invalid-label-selector" && error.type !== "no-custom-rules",
+  );
+
+  // Add errors if needed
+  if (!active.labelSelector?.trim()) {
+    draft.configErrors.push(createConfigError.invalidLabelSelector());
+  }
+
+  if (rulesets.length === 0) {
+    draft.configErrors.push(createConfigError.noCustomRules());
+  }
 }

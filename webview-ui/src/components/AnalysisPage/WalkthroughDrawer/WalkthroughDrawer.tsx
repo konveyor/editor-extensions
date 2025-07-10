@@ -43,8 +43,13 @@ export function WalkthroughDrawer({
 
   const rulesConfigured = !!profile?.useDefaultRules || (profile?.customRules?.length ?? 0) > 0;
 
-  const providerConfigured = state.analysisConfig.providerConfigured;
-  const providerKeyMissing = state.analysisConfig.providerKeyMissing;
+  const providerKeyMissing = state.configErrors.some(
+    (error) => error.type === "provider-key-missing",
+  );
+  const providerNotConfigured = state.configErrors.some(
+    (error) => error.type === "provider-not-configured",
+  );
+  const providerConfigured = !providerKeyMissing && !providerNotConfigured;
 
   const steps = [
     {

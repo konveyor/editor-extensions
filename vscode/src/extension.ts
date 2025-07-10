@@ -19,7 +19,7 @@ import {
   getConfigSolutionMaxEffortLevel,
   getConfigSolutionServerEnabled,
   getConfigSolutionServerUrl,
-  updateAnalysisConfig,
+  updateConfigErrors,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
@@ -56,12 +56,7 @@ class VsCodeExtension {
         solutionState: "none",
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         solutionServerEnabled: getConfigSolutionServerEnabled(),
-        analysisConfig: {
-          labelSelectorValid: false,
-          providerConfigured: false,
-          providerKeyMissing: false,
-          customRulesConfigured: false,
-        },
+        configErrors: [],
         activeProfileId: "",
         profiles: [],
       },
@@ -119,7 +114,7 @@ class VsCodeExtension {
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = activeProfileId;
-        updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+        updateConfigErrors(draft, paths().settingsYaml.fsPath);
       });
 
       this.registerWebviewProvider();
@@ -145,7 +140,7 @@ class VsCodeExtension {
         vscode.workspace.onDidSaveTextDocument((doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
             this.state.mutateData((draft) => {
-              updateAnalysisConfig(draft, paths().settingsYaml.fsPath);
+              updateConfigErrors(draft, paths().settingsYaml.fsPath);
             });
           }
         }),
@@ -293,6 +288,15 @@ let extension: VsCodeExtension | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   try {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+      // Now we could theoretically create an extension with a no-workspace error instead of throwing
+      // This demonstrates the flexibility of the new configErrors approach:
+      //
+      // const extension = new VsCodeExtension({ workspaceRepo: "" }, context);
+      // extension.state.mutateData((draft) => {
+      //   draft.configErrors.push(createConfigError.noWorkspace());
+      // });
+      // return;
+
       throw new Error("Please open a workspace folder before using this extension.");
     }
 

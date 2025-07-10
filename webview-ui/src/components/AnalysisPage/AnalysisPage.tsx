@@ -55,7 +55,8 @@ import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 import ProgressIndicator from "../ProgressIndicator";
-import { Incident, AnalysisConfig } from "@editor-extensions/shared";
+import { Incident } from "@editor-extensions/shared";
+import { PageHeader } from "@patternfly/react-component-groups";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -67,7 +68,7 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
-    analysisConfig,
+    configErrors,
     profiles,
     activeProfileId,
     serverState,
@@ -100,18 +101,6 @@ const AnalysisPage: React.FC = () => {
   const handleRunAnalysis = () => dispatch(runAnalysis());
   const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
 
-  const getConfigWarning = (
-    config: AnalysisConfig,
-  ): { message: string; variant: "warning" | "danger" } | null => {
-    if (!config.labelSelectorValid) {
-      return { message: "Label selector is not configured.", variant: "warning" };
-    }
-    if (config.providerKeyMissing && !config.providerConfigured) {
-      return { message: "Provider credentials are missing or invalid.", variant: "danger" };
-    }
-    return null;
-  };
-
   const panelContent = (
     <WalkthroughDrawer
       isOpen={isConfigOpen}
@@ -121,9 +110,6 @@ const AnalysisPage: React.FC = () => {
   );
 
   const selectedProfile = profiles.find((p) => p.id === activeProfileId);
-
-  const configWarning = selectedProfile ? getConfigWarning(analysisConfig) : null;
-  const hasConfigWarning = configWarning !== null;
 
   const configInvalid =
     !selectedProfile?.labelSelector?.trim() ||
@@ -160,8 +146,8 @@ const AnalysisPage: React.FC = () => {
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
-                            hasWarning={hasConfigWarning}
-                            warningMessage={configWarning?.message}
+                            hasWarning={configErrors.length > 0}
+                            warningMessage={configErrors.map((error) => error.message).join("\n")}
                           />
                         </ToolbarItem>
                       </ToolbarGroup>
@@ -212,13 +198,11 @@ const AnalysisPage: React.FC = () => {
                 </Card>
               </PageSection>
             )}
-            {hasConfigWarning && (
+            {configErrors.length > 0 && (
               <PageSection padding={{ default: "noPadding" }}>
-                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
-                  <Alert variant={configWarning!.variant} title={configWarning!.message}>
-                    <p>Please review your configuration before running analysis.</p>
-                  </Alert>
-                </Card>
+                <Alert variant="warning" title="Configuration Errors">
+                  <p>Please review your configuration before running analysis.</p>
+                </Alert>
               </PageSection>
             )}
             {selectedProfile && (

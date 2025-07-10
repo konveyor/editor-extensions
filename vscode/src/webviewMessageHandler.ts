@@ -30,6 +30,7 @@ import {
   WebviewActionType,
   ScopeWithKonveyorContext,
   ExtensionData,
+  createConfigError,
 } from "@editor-extensions/shared";
 
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
@@ -65,7 +66,7 @@ const actions: {
     state.mutateData((draft) => {
       draft.profiles = allProfiles;
       draft.activeProfileId = profile.id;
-      updateAnalysisConfigFromActiveProfile(draft);
+      updateConfigErrorsFromActiveProfile(draft);
     });
   },
 
@@ -83,7 +84,7 @@ const actions: {
         draft.activeProfileId = fullProfiles[0]?.id ?? "";
         state.extensionContext.workspaceState.update("activeProfileId", draft.activeProfileId);
       }
-      updateAnalysisConfigFromActiveProfile(draft);
+      updateConfigErrorsFromActiveProfile(draft);
     });
   },
 
@@ -112,7 +113,7 @@ const actions: {
       if (draft.activeProfileId === originalId) {
         draft.activeProfileId = updatedProfile.id;
       }
-      updateAnalysisConfigFromActiveProfile(draft);
+      updateConfigErrorsFromActiveProfile(draft);
     });
   },
 
@@ -126,7 +127,7 @@ const actions: {
     setActiveProfileId(profileId, state);
     state.mutateData((draft) => {
       draft.activeProfileId = profileId;
-      updateAnalysisConfigFromActiveProfile(draft);
+      updateConfigErrorsFromActiveProfile(draft);
     });
   },
 
@@ -223,19 +224,32 @@ const defaultHandler = (message: WebviewAction<WebviewActionType, unknown>) => {
   console.error("Unknown message from webview:", message);
 };
 
-function updateAnalysisConfigFromActiveProfile(draft: ExtensionData) {
+function updateConfigErrorsFromActiveProfile(draft: ExtensionData) {
   const activeProfile = draft.profiles.find((p) => p.id === draft.activeProfileId);
 
+  // Clear profile-related errors
+  draft.configErrors = draft.configErrors.filter(
+    (error) =>
+      error.type !== "no-active-profile" &&
+      error.type !== "invalid-label-selector" &&
+      error.type !== "no-custom-rules",
+  );
+
   if (!activeProfile) {
-    draft.analysisConfig = {
-      ...draft.analysisConfig,
-      labelSelectorValid: false,
-      customRulesConfigured: false,
-    };
+    draft.configErrors.push(createConfigError.noActiveProfile());
     return;
   }
 
-  draft.analysisConfig.labelSelectorValid = !!activeProfile.labelSelector?.trim();
-  draft.analysisConfig.customRulesConfigured =
-    activeProfile.useDefaultRules || (activeProfile.customRules?.length ?? 0) > 0;
+  // Check label selector
+  if (!activeProfile.labelSelector?.trim()) {
+    draft.configErrors.push(createConfigError.invalidLabelSelector());
+  }
+
+  // Check custom rules when default rules are disabled
+  if (
+    !activeProfile.useDefaultRules &&
+    (!activeProfile.customRules || activeProfile.customRules.length === 0)
+  ) {
+    draft.configErrors.push(createConfigError.noCustomRules());
+  }
 }

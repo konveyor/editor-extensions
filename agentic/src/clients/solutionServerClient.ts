@@ -140,6 +140,13 @@ export class SolutionServerClient {
       return incidents;
     }
 
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Get success rate called but solution server is not connected. Maybe the server is not running?",
+      );
+      return incidents;
+    }
+
     try {
       // Cache to store success rate results for each violation combination
       const successRateCache = new Map<string, SuccessRateMetric | null>();
@@ -227,6 +234,18 @@ export class SolutionServerClient {
       return -1; // Return a dummy ID when disabled
     }
 
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Create incident called but solution server is not connected. Maybe the server is not running?",
+      );
+      return -1;
+    }
+
+    if (!this.currentClientId) {
+      console.error("Create incident called but client ID is not set");
+      return -1;
+    }
+
     try {
       console.log(
         `Creating incident for violation: ${enhancedIncident.ruleset_name} - ${enhancedIncident.violation_name}`,
@@ -279,6 +298,26 @@ export class SolutionServerClient {
         incident_ids: enhancedIncidents.map(() => -1),
         created_count: enhancedIncidents.length,
         failed_count: 0,
+      };
+    }
+
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Create multiple incidents called but solution server is not connected. Maybe the server is not running?",
+      );
+      return {
+        incident_ids: enhancedIncidents.map(() => -1),
+        created_count: 0,
+        failed_count: enhancedIncidents.length,
+      };
+    }
+
+    if (!this.currentClientId) {
+      console.error("Create multiple incidents called but client ID is not set");
+      return {
+        incident_ids: enhancedIncidents.map(() => -1),
+        created_count: 0,
+        failed_count: enhancedIncidents.length,
       };
     }
 
@@ -350,6 +389,18 @@ export class SolutionServerClient {
       return -1; // Return a dummy ID when disabled
     }
 
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Create solution called but solution server is not connected. Maybe the server is not running?",
+      );
+      return -1;
+    }
+
+    if (!this.currentClientId) {
+      console.error("Create solution called but client ID is not set");
+      return -1;
+    }
+
     console.log(`Creating solution for incident IDs: ${incidentIds.join(", ")}`);
     console.debug(`Before: ${JSON.stringify(before)}`);
     console.debug(`After: ${JSON.stringify(after)}`);
@@ -403,6 +454,13 @@ export class SolutionServerClient {
   ): Promise<GetBestHintResult | undefined> {
     if (!this.enabled) {
       console.log("Solution server is disabled, no hint available");
+      return undefined;
+    }
+
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Get best hint called but solution server is not connected. Maybe the server is not running?",
+      );
       return undefined;
     }
 
@@ -464,6 +522,13 @@ export class SolutionServerClient {
       return;
     }
 
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Accept file called but solution server is not connected. Maybe the server is not running?",
+      );
+      return;
+    }
+
     try {
       console.log(`Accepting file: ${uri}`);
 
@@ -488,6 +553,13 @@ export class SolutionServerClient {
   public async rejectFile(clientId: string, uri: string): Promise<void> {
     if (!this.enabled) {
       console.log("Solution server is disabled, skipping reject_file");
+      return;
+    }
+
+    if (!this.mcpClient || !this.isConnected) {
+      console.error(
+        "Reject file called but solution server is not connected. Maybe the server is not running?",
+      );
       return;
     }
 

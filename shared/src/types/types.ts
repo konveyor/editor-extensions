@@ -158,16 +158,55 @@ export interface ExtensionData {
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   solutionEffort: SolutionEffortLevel;
-  analysisConfig: AnalysisConfig;
+  configErrors: ConfigError[];
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
   solutionServerEnabled: boolean;
 }
-export type AnalysisConfig = {
-  labelSelectorValid: boolean;
-  providerConfigured: boolean;
-  providerKeyMissing: boolean;
-  customRulesConfigured: boolean;
+
+export type ConfigErrorType =
+  | "no-workspace"
+  | "no-active-profile"
+  | "invalid-label-selector"
+  | "provider-not-configured"
+  | "provider-key-missing"
+  | "no-custom-rules";
+
+export interface ConfigError {
+  type: ConfigErrorType;
+  message: string;
+}
+
+export const createConfigError = {
+  noWorkspace: (): ConfigError => ({
+    type: "no-workspace",
+    message: "Please open a workspace folder before using this extension.",
+  }),
+
+  noActiveProfile: (): ConfigError => ({
+    type: "no-active-profile",
+    message: "No active profile selected",
+  }),
+
+  invalidLabelSelector: (): ConfigError => ({
+    type: "invalid-label-selector",
+    message: "Label selector is not configured.",
+  }),
+
+  providerNotConfigured: (): ConfigError => ({
+    type: "provider-not-configured",
+    message: "Provider is not properly configured.",
+  }),
+
+  providerKeyMissing: (): ConfigError => ({
+    type: "provider-key-missing",
+    message: "Provider credentials are missing or invalid.",
+  }),
+
+  noCustomRules: (): ConfigError => ({
+    type: "no-custom-rules",
+    message: "No custom rules configured and default rules are disabled.",
+  }),
 };
 
 export type ServerState =
