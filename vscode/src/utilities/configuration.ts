@@ -1,7 +1,4 @@
 import * as vscode from "vscode";
-import * as yaml from "js-yaml";
-import * as fs from "fs";
-import deepEqual from "fast-deep-equal";
 import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
 import { ExtensionState } from "../extensionState";
@@ -9,8 +6,6 @@ import {
   AnalysisProfile,
   createConfigError,
   ExtensionData,
-  ProviderConfigFile,
-  ProviderConfigStatus,
   effortLevels,
   getEffortValue,
   SolutionEffortLevel,
@@ -76,104 +71,6 @@ export const getConfigSuperAgentMode = (): boolean =>
   getConfigValue<boolean>("kai.superAgentMode") ?? false;
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("kai.excludedDiagnosticSources") ?? [];
-
-export const getProviderConfigStatus = (filepath: string): ProviderConfigStatus => {
-  try {
-    const fileContents = fs.readFileSync(filepath, "utf8");
-    const config = yaml.load(fileContents) as ProviderConfigFile;
-    const models = config?.models ?? {};
-    const activeConfig = config?.active;
-
-    if (!activeConfig || typeof activeConfig !== "object") {
-      return { configured: false, keyMissing: false, usingDefault: true };
-    }
-
-    let resolvedActiveKey: string | undefined = undefined;
-    for (const [key, model] of Object.entries(models)) {
-      if (deepEqual(model, activeConfig)) {
-        resolvedActiveKey = key;
-        break;
-      }
-    }
-
-    const env = activeConfig.environment ?? {};
-    const provider = activeConfig.provider;
-
-    // Helper function to check if environment variable has a valid value
-    const hasValidEnvVar = (key: string): boolean => {
-      const value = env[key];
-      return Boolean(value && typeof value === "string" && value.trim() !== "");
-    };
-
-    let hasValidCredentials: boolean = false;
-    let providerSpecificValidation: boolean = false;
-
-    // Check credentials based on provider type
-    switch (provider) {
-      case "ChatOpenAI":
-        hasValidCredentials = hasValidEnvVar("OPENAI_API_KEY");
-        providerSpecificValidation = true;
-        break;
-
-      case "AzureChatOpenAI":
-        hasValidCredentials = hasValidEnvVar("AZURE_OPENAI_API_KEY");
-        providerSpecificValidation = true;
-        break;
-
-      case "ChatBedrock": {
-        const hasAwsRegion: boolean = hasValidEnvVar("AWS_DEFAULT_REGION");
-
-        const hasExplicitCredentials: boolean =
-          hasValidEnvVar("AWS_ACCESS_KEY_ID") && hasValidEnvVar("AWS_SECRET_ACCESS_KEY");
-        hasValidCredentials = hasAwsRegion && hasExplicitCredentials;
-        providerSpecificValidation = true;
-
-        break;
-      }
-
-      case "ChatDeepSeek":
-        hasValidCredentials = hasValidEnvVar("DEEPSEEK_API_KEY");
-        providerSpecificValidation = true;
-        break;
-
-      case "ChatGoogleGenerativeAI":
-        hasValidCredentials = hasValidEnvVar("GOOGLE_API_KEY");
-        providerSpecificValidation = true;
-        break;
-
-      case "ChatOllama": {
-        // Ollama doesn't require API keys, but needs model and baseUrl in args
-        const args = activeConfig.args ?? {};
-        hasValidCredentials = Boolean(args.model && args.baseUrl);
-        providerSpecificValidation = true;
-        break;
-      }
-
-      default:
-        // Unknown provider - we can't validate but assume it might be configured
-        hasValidCredentials = false;
-        providerSpecificValidation = false;
-        break;
-    }
-
-    // Check if using default OpenAI configuration
-    const isUsingDefault =
-      resolvedActiveKey === "OpenAI" &&
-      provider === "ChatOpenAI" &&
-      activeConfig?.args?.model === "gpt-4o" &&
-      Object.values(env).every((v) => !v || (typeof v === "string" && v.trim() === ""));
-
-    return {
-      configured: hasValidCredentials,
-      keyMissing: providerSpecificValidation && !hasValidCredentials,
-      usingDefault: isUsingDefault,
-      activeKey: resolvedActiveKey,
-    };
-  } catch (err) {
-    console.error("Error parsing GenAI config:", err);
-    return { configured: false, keyMissing: false, usingDefault: true };
-  }
-};
 
 export const updateSolutionMaxEffortLevel = async (value: SolutionEffortLevel): Promise<void> => {
   await updateConfigValue("kai.getSolutionMaxEffort", value, vscode.ConfigurationTarget.Workspace);

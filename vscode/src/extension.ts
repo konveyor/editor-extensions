@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import { ExtensionData } from "@editor-extensions/shared";
+import { ExtensionData, ModelProviderConfig } from "@editor-extensions/shared";
 import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
@@ -24,6 +24,7 @@ import {
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { ModelProvider, getModelConfig, runModelHealthCheck } from "./modelProvider";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -118,6 +119,22 @@ class VsCodeExtension {
         updateConfigErrors(draft, paths().settingsYaml.fsPath);
       });
 
+      this.setupModelProvider(paths().settingsYaml)
+        .then((modelProviderConfig) => {
+          this.state.mutateData((draft) => {
+            draft.modelProviderConfig = modelProviderConfig;
+          });
+        })
+        .catch((error) => {
+          console.error("Error setting up model provider:", error);
+          this.state.mutateData((draft) => {
+            draft.modelProviderConfig = {
+              configured: false,
+              connectionError: error instanceof Error ? error.message : String(error),
+            };
+          });
+        });
+
       this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
@@ -140,8 +157,9 @@ class VsCodeExtension {
       registerAnalysisTrigger(this.listeners, this.state);
 
       this.listeners.push(
-        vscode.workspace.onDidSaveTextDocument((doc) => {
+        vscode.workspace.onDidSaveTextDocument(async (doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
+            const modelProviderConfig = await this.setupModelProvider(paths().settingsYaml);
             this.state.mutateData((draft) => {
               updateConfigErrors(draft, paths().settingsYaml.fsPath);
             });
@@ -299,6 +317,26 @@ class VsCodeExtension {
     }
   }
 
+  private async setupModelProvider(settingsPath: vscode.Uri): Promise<ModelProviderConfig> {
+    const modelProviderConfig: ModelProviderConfig = {
+      configured: false,
+      connectionError: undefined,
+    };
+    try {
+      const modelConfig = await getModelConfig(settingsPath);
+      const modelPair = ModelProvider.fromConfig(modelConfig);
+      const capabilities = await runModelHealthCheck(modelPair);
+      this.state.chatModelData = {
+        ...modelPair,
+        ...capabilities,
+      };
+      modelProviderConfig.configured = true;
+    } catch (err) {
+      console.error("Error running model health check:", err);
+      modelProviderConfig.connectionError = err instanceof Error ? err.message : String(err);
+    }
+    return modelProviderConfig;
+  }
   public async dispose() {
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {
