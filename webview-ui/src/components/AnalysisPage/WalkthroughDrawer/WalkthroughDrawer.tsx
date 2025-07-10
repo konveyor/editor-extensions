@@ -75,8 +75,8 @@ export function WalkthroughDrawer({
       title: "Configure GenAI",
       status: providerConfigured
         ? "Completed"
-        : providerKeyMissing
-          ? "API key is missing"
+        : providerConnectionError
+          ? "Error connecting to the model"
           : "Not configured",
       description: "Enable GenAI assistance using your API key.",
     },
