@@ -275,9 +275,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
     } = {
       inputWithTools: input,
-      runnable: this.modelCapabilities.supportsToolsInStreaming
-        ? this.modelPair.streamingModel
-        : this.modelPair.nonStreamingModel,
+      runnable: this.modelPair.streamingModel,
     };
     if (!this.tools || this.tools.length < 1 || !enableTools) {
       return response;

@@ -25,6 +25,7 @@ import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 import { ModelProvider, getModelConfig, runModelHealthCheck } from "./modelProvider";
+import { type ModelClientConfig } from "./modelProvider/types";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -322,8 +323,15 @@ class VsCodeExtension {
       configured: false,
       connectionError: undefined,
     };
+    let modelConfig: ModelClientConfig;
     try {
-      const modelConfig = await getModelConfig(settingsPath);
+      modelConfig = await getModelConfig(settingsPath);
+    } catch (err) {
+      console.error("Error getting model config:", err);
+      modelProviderConfig.connectionError = `Misconfigured model provider settings file - ${err instanceof Error ? err.message : String(err)}`;
+      return modelProviderConfig;
+    }
+    try {
       const modelPair = ModelProvider.fromConfig(modelConfig);
       const capabilities = await runModelHealthCheck(modelPair);
       this.state.chatModelData = {
