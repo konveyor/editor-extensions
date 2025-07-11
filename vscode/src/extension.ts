@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import { ExtensionData } from "@editor-extensions/shared";
+import { ConfigError, ExtensionData, createConfigError } from "@editor-extensions/shared";
 import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
@@ -24,6 +24,8 @@ import {
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { ModelProvider, getModelConfig, runModelHealthCheck } from "./modelProvider";
+import { type ModelClientConfig } from "./modelProvider/types";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -93,6 +95,7 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      chatModelData: undefined,
     };
   }
 
@@ -117,6 +120,25 @@ class VsCodeExtension {
         updateConfigErrors(draft, paths().settingsYaml.fsPath);
       });
 
+      this.setupModelProvider(paths().settingsYaml)
+        .then((configError) => {
+          this.state.mutateData((draft) => {
+            if (configError) {
+              draft.configErrors.push(configError);
+            }
+          });
+        })
+        .catch((error) => {
+          console.error("Error setting up model provider:", error);
+          this.state.mutateData((draft) => {
+            if (error) {
+              const configError = createConfigError.providerConnnectionFailed();
+              configError.error = error instanceof Error ? error.message : String(error);
+              draft.configErrors.push(configError);
+            }
+          });
+        });
+
       this.registerWebviewProvider();
       this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
@@ -139,9 +161,14 @@ class VsCodeExtension {
       registerAnalysisTrigger(this.listeners, this.state);
 
       this.listeners.push(
-        vscode.workspace.onDidSaveTextDocument((doc) => {
+        vscode.workspace.onDidSaveTextDocument(async (doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
+            const configError = await this.setupModelProvider(paths().settingsYaml);
             this.state.mutateData((draft) => {
+              draft.configErrors = [];
+              if (configError) {
+                draft.configErrors.push(configError);
+              }
               updateConfigErrors(draft, paths().settingsYaml.fsPath);
             });
           }
@@ -296,6 +323,37 @@ class VsCodeExtension {
           "Java analysis features may be limited until it's fully loaded.",
       );
     }
+  }
+
+  private async setupModelProvider(settingsPath: vscode.Uri): Promise<ConfigError | undefined> {
+    let modelConfig: ModelClientConfig;
+    try {
+      modelConfig = await getModelConfig(settingsPath);
+    } catch (err) {
+      console.error("Error getting model config:", err);
+      const configError = createConfigError.providerNotConfigured();
+      configError.error = err instanceof Error ? err.message : String(err);
+      return configError;
+    }
+    try {
+      const modelPair = ModelProvider.fromConfig(modelConfig);
+      const capabilities = await runModelHealthCheck(modelPair);
+      this.state.chatModelData = {
+        ...modelPair,
+        ...capabilities,
+      };
+    } catch (err) {
+      console.error("Error running model health check:", err);
+      const configError = createConfigError.providerConnnectionFailed();
+      configError.error =
+        err instanceof Error
+          ? err.message.length > 150
+            ? err.message.slice(0, 150) + "..."
+            : String(err)
+          : String(err);
+      return configError;
+    }
+    return undefined;
   }
 
   public async dispose() {

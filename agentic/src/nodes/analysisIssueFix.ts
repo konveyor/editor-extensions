@@ -7,6 +7,7 @@ import {
 } from "@langchain/core/messages";
 import { promises as fsPromises } from "fs";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
+import { type ChatModelCapabilities, type ChatModelPair } from "@editor-extensions/shared";
 
 import {
   type SummarizeAdditionalInfoInputState,
@@ -16,7 +17,7 @@ import {
   type SummarizeAdditionalInfoOutputState,
   type SummarizeHistoryOutputState,
 } from "../schemas/analysisIssueFix";
-import { BaseNode, type ModelInfo } from "./base";
+import { BaseNode } from "./base";
 import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
 import { type GetBestHintResult, SolutionServerClient } from "../clients/solutionServerClient";
 
@@ -24,13 +25,14 @@ type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo
 
 export class AnalysisIssueFix extends BaseNode {
   constructor(
-    modelInfo: ModelInfo,
+    modelPair: ChatModelPair,
+    modelCapabilities: ChatModelCapabilities,
     tools: DynamicStructuredTool[],
     private readonly fsCache: KaiFsCache,
     private readonly workspaceDir: string,
     private readonly solutionServerClient: SolutionServerClient,
   ) {
-    super("AnalysisIssueFix", modelInfo, tools);
+    super("AnalysisIssueFix", modelPair, modelCapabilities, tools);
     this.fsCache = fsCache;
     this.workspaceDir = workspaceDir;
     this.solutionServerClient = solutionServerClient;

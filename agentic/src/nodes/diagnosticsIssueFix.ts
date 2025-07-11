@@ -8,6 +8,7 @@ import {
   RemoveMessage,
 } from "@langchain/core/messages";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
+import { type ChatModelCapabilities, type ChatModelPair } from "@editor-extensions/shared";
 
 import {
   type KaiFsCache,
@@ -23,7 +24,7 @@ import {
   type GeneralIssueFixInputState,
   type GeneralIssueFixOutputState,
 } from "../schemas/diagnosticsIssueFix";
-import { BaseNode, type ModelInfo } from "./base";
+import { BaseNode } from "./base";
 
 type PlannerResponseParserState = "name" | "instructions";
 
@@ -36,13 +37,14 @@ export class DiagnosticsIssueFix extends BaseNode {
   } as const;
 
   constructor(
-    modelInfo: ModelInfo,
+    modelPair: ChatModelPair,
+    modelCapabilities: ChatModelCapabilities,
     private readonly workspaceDir: string,
     private readonly fsTools: DynamicStructuredTool[],
     private readonly dependencyTools: DynamicStructuredTool[],
     private readonly fsCache: KaiFsCache,
   ) {
-    super("DiagnosticsIssueFix", modelInfo, [...fsTools, ...dependencyTools]);
+    super("DiagnosticsIssueFix", modelPair, modelCapabilities, [...fsTools, ...dependencyTools]);
     this.fsCache = fsCache;
     this.diagnosticsPromises = new Map<string, PendingUserInteraction>();
     this.workspaceDir = workspaceDir;
