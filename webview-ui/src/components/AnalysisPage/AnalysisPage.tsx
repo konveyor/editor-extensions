@@ -73,6 +73,7 @@ const AnalysisPage: React.FC = () => {
     activeProfileId,
     serverState,
     solutionServerEnabled,
+    localChanges,
   } = state;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -88,10 +89,10 @@ const AnalysisPage: React.FC = () => {
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (enhancedIncidents.length > 0 && serverRunning) {
+    if (enhancedIncidents.length > 0 && solutionServerEnabled) {
       dispatch(getSuccessRate());
     }
-  }, [enhancedIncidents.length, serverRunning, dispatch]);
+  }, [enhancedIncidents.length, localChanges.length, solutionServerEnabled, dispatch]);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
