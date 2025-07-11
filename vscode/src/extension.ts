@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import { ExtensionData, ModelProviderConfig } from "@editor-extensions/shared";
+import { ConfigError, ExtensionData, createConfigError } from "@editor-extensions/shared";
 import { SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
@@ -121,18 +121,21 @@ class VsCodeExtension {
       });
 
       this.setupModelProvider(paths().settingsYaml)
-        .then((modelProviderConfig) => {
+        .then((configError) => {
           this.state.mutateData((draft) => {
-            draft.modelProviderConfig = modelProviderConfig;
+            if (configError) {
+              draft.configErrors.push(configError);
+            }
           });
         })
         .catch((error) => {
           console.error("Error setting up model provider:", error);
           this.state.mutateData((draft) => {
-            draft.modelProviderConfig = {
-              configured: false,
-              connectionError: error instanceof Error ? error.message : String(error),
-            };
+            if (error) {
+              const configError = createConfigError.providerConnnectionFailed();
+              configError.error = error instanceof Error ? error.message : String(error);
+              draft.configErrors.push(configError);
+            }
           });
         });
 
@@ -160,8 +163,12 @@ class VsCodeExtension {
       this.listeners.push(
         vscode.workspace.onDidSaveTextDocument(async (doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
-            const modelProviderConfig = await this.setupModelProvider(paths().settingsYaml);
+            const configError = await this.setupModelProvider(paths().settingsYaml);
             this.state.mutateData((draft) => {
+              draft.configErrors = [];
+              if (configError) {
+                draft.configErrors.push(configError);
+              }
               updateConfigErrors(draft, paths().settingsYaml.fsPath);
             });
           }
@@ -318,18 +325,15 @@ class VsCodeExtension {
     }
   }
 
-  private async setupModelProvider(settingsPath: vscode.Uri): Promise<ModelProviderConfig> {
-    const modelProviderConfig: ModelProviderConfig = {
-      configured: false,
-      connectionError: undefined,
-    };
+  private async setupModelProvider(settingsPath: vscode.Uri): Promise<ConfigError | undefined> {
     let modelConfig: ModelClientConfig;
     try {
       modelConfig = await getModelConfig(settingsPath);
     } catch (err) {
       console.error("Error getting model config:", err);
-      modelProviderConfig.connectionError = `Misconfigured model provider settings file - ${err instanceof Error ? err.message : String(err)}`;
-      return modelProviderConfig;
+      const configError = createConfigError.providerNotConfigured();
+      configError.error = err instanceof Error ? err.message : String(err);
+      return configError;
     }
     try {
       const modelPair = ModelProvider.fromConfig(modelConfig);
@@ -338,13 +342,20 @@ class VsCodeExtension {
         ...modelPair,
         ...capabilities,
       };
-      modelProviderConfig.configured = true;
     } catch (err) {
       console.error("Error running model health check:", err);
-      modelProviderConfig.connectionError = err instanceof Error ? err.message : String(err);
+      const configError = createConfigError.providerConnnectionFailed();
+      configError.error =
+        err instanceof Error
+          ? err.message.length > 150
+            ? err.message.slice(0, 150) + "..."
+            : String(err)
+          : String(err);
+      return configError;
     }
-    return modelProviderConfig;
+    return undefined;
   }
+
   public async dispose() {
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {

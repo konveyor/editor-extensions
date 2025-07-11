@@ -117,12 +117,8 @@ export const updateLabelSelector = async (value: string): Promise<void> => {
 };
 
 export function updateConfigErrors(draft: ExtensionData, settingsPath: string): void {
-  const genAIStatus = getProviderConfigStatus(settingsPath);
   const { activeProfileId, profiles } = draft;
   const profile = profiles.find((p) => p.id === activeProfileId);
-
-  // Clear existing errors
-  draft.configErrors = [];
 
   // Check for no active profile
   if (!profile) {
@@ -138,13 +134,6 @@ export function updateConfigErrors(draft: ExtensionData, settingsPath: string): 
   // Check custom rules when default rules are disabled
   if (!profile.useDefaultRules && (!profile.customRules || profile.customRules.length === 0)) {
     draft.configErrors.push(createConfigError.noCustomRules());
-  }
-
-  // Check provider configuration
-  if (!genAIStatus.configured && genAIStatus.keyMissing) {
-    draft.configErrors.push(createConfigError.providerKeyMissing());
-  } else if (!genAIStatus.configured) {
-    draft.configErrors.push(createConfigError.providerNotConfigured());
   }
 }
 
