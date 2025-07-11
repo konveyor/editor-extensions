@@ -147,7 +147,7 @@ const AnalysisPage: React.FC = () => {
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
                             hasWarning={configErrors.length > 0}
-                            warningMessage={configErrors.map((error) => error.message).join("\n")}
+                            warningMessage="Please review your configuration before running analysis."
                           />
                         </ToolbarItem>
                       </ToolbarGroup>
@@ -200,9 +200,17 @@ const AnalysisPage: React.FC = () => {
             )}
             {configErrors.length > 0 && (
               <PageSection padding={{ default: "noPadding" }}>
-                <Alert variant="warning" title="Configuration Errors">
-                  <p>Please review your configuration before running analysis.</p>
-                </Alert>
+                {configErrors.map((error, index) => (
+                  <Card
+                    isCompact
+                    style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}
+                    key={index}
+                  >
+                    <Alert variant="warning" title={error.message}>
+                      {error.error?.message && error.error.message}
+                    </Alert>
+                  </Card>
+                ))}
               </PageSection>
             )}
             {selectedProfile && (

@@ -175,6 +175,7 @@ export type ConfigErrorType =
 export interface ConfigError {
   type: ConfigErrorType;
   message: string;
+  error?: Error;
 }
 
 export const createConfigError = {
