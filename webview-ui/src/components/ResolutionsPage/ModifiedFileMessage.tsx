@@ -352,21 +352,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const renderExpandedDiff = () => {
     return (
       <div className="expanded-diff-content">
-        <div className="diff-summary">
-          <Flex justifyContent={{ default: "justifyContentSpaceBetween" }}>
-            <FlexItem>
-              <span className="diff-info">
-                Review changes for <strong>{fileName}</strong>
-              </span>
-            </FlexItem>
-            <FlexItem>
-              <Button variant="secondary" onClick={handleExpandToggle} icon={<CompressIcon />}>
-                Close
-              </Button>
-            </FlexItem>
-          </Flex>
-        </div>
-
         {/* Show different views based on number of hunks */}
         {parsedHunks.length <= 1 ? (
           /* Single hunk or no hunks - show full diff */
@@ -457,40 +442,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               </div>
             ))}
             
-            <div className="diff-summary-actions">
-              <Flex>
-                <FlexItem>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      const newStates: Record<string, boolean> = {};
-                      parsedHunks.forEach(hunk => {
-                        newStates[hunk.id] = true;
-                      });
-                      setHunkStates(newStates);
-                    }}
-                    isDisabled={actionTaken !== null}
-                  >
-                    Accept All Changes
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      const newStates: Record<string, boolean> = {};
-                      parsedHunks.forEach(hunk => {
-                        newStates[hunk.id] = false;
-                      });
-                      setHunkStates(newStates);
-                    }}
-                    isDisabled={actionTaken !== null}
-                  >
-                    Reject All Changes
-                  </Button>
-                </FlexItem>
-              </Flex>
-            </div>
+
           </div>
         )}
       </div>
@@ -671,37 +623,103 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
       {/* Expanded Modal View */}
       <Modal
         variant={ModalVariant.large}
-        title={`${isNew ? "Created file:" : "Modified file:"} ${fileName}`}
         isOpen={isExpanded}
-        onClose={handleExpandToggle}
+        // onClose={handleExpandToggle}
         className="modified-file-modal"
       >
         <div className="expanded-modal-content">
+          <div className="modal-custom-header">
+            <div className="modal-title-section">
+              <h2 className="modal-title">
+                {isNew ? "Created file: " : "Modified file: "}
+                <span className="modal-filename">{fileName}</span>
+              </h2>
+            </div>
+            <Button
+              variant="plain"
+              onClick={handleExpandToggle}
+              icon={<CompressIcon />}
+              className="modal-close-button"
+              aria-label="Close modal"
+            />
+          </div>
           {renderExpandedDiff()}
           <div className="modal-actions">
-            <div className="file-actions">
-              <Button 
-                variant="secondary" 
-                onClick={applyFile}
-                icon={<CheckCircleIcon />}
-                isDisabled={actionTaken !== null}
-                className="accept-file-button"
-              >
-                Accept File
-              </Button>
-              <Button 
-                variant="secondary" 
-                onClick={rejectFile}
-                icon={<TimesCircleIcon />}
-                isDisabled={actionTaken !== null}
-                className="reject-file-button"
-              >
-                Reject File
-              </Button>
-            </div>
-            <Button variant="secondary" onClick={handleExpandToggle} icon={<CompressIcon />}>
-              Close
-            </Button>
+            <Flex justifyContent={{ default: "justifyContentSpaceBetween" }}>
+              <FlexItem>
+                {parsedHunks.length > 1 && (
+                  <Flex>
+                    <FlexItem>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          const newStates: Record<string, boolean> = {};
+                          parsedHunks.forEach(hunk => {
+                            newStates[hunk.id] = true;
+                          });
+                          setHunkStates(newStates);
+                        }}
+                        icon={<CheckCircleIcon />}
+                        isDisabled={actionTaken !== null}
+                        className="accept-all-button"
+                      >
+                        Accept All Changes
+                      </Button>
+                    </FlexItem>
+                    <FlexItem>
+                      <Button
+                        variant="danger"
+                        onClick={() => {
+                          const newStates: Record<string, boolean> = {};
+                          parsedHunks.forEach(hunk => {
+                            newStates[hunk.id] = false;
+                          });
+                          setHunkStates(newStates);
+                        }}
+                        icon={<TimesCircleIcon />}
+                        isDisabled={actionTaken !== null}
+                        className="reject-all-button"
+                      >
+                        Reject All Changes
+                      </Button>
+                    </FlexItem>
+                  </Flex>
+                )}
+              </FlexItem>
+              <FlexItem>
+                <Flex>
+                  <FlexItem>
+                    <Button 
+                      variant="secondary" 
+                      onClick={applyFile}
+                      icon={<CheckCircleIcon />}
+                      isDisabled={actionTaken !== null}
+                      className="accept-file-button"
+                    >
+                      {(() => {
+                        if (parsedHunks.length <= 1) return "Accept File";
+                        const acceptedCount = parsedHunks.filter(hunk => hunkStates[hunk.id]).length;
+                        const totalCount = parsedHunks.length;
+                        if (acceptedCount === totalCount) return "Accept File";
+                        if (acceptedCount === 0) return "Keep Original";
+                        return `Accept ${acceptedCount} of ${totalCount} Changes`;
+                      })()}
+                    </Button>
+                  </FlexItem>
+                  <FlexItem>
+                    <Button 
+                      variant="secondary" 
+                      onClick={rejectFile}
+                      icon={<TimesCircleIcon />}
+                      isDisabled={actionTaken !== null}
+                      className="reject-file-button"
+                    >
+                      Reject File
+                    </Button>
+                  </FlexItem>
+                </Flex>
+              </FlexItem>
+            </Flex>
           </div>
         </div>
       </Modal>
