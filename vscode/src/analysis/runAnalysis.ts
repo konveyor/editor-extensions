@@ -45,6 +45,9 @@ export const registerAnalysisTrigger = (
 
   vscode.workspace.onDidSaveTextDocument(
     async (d: vscode.TextDocument) => {
+      if (!getConfigAnalyzeOnSave()) {
+        return;
+      }
       await state.kaiFsCache.invalidate(d.uri.fsPath);
       batchedAnalysisTrigger.notifyFileChanges({
         path: d.uri,

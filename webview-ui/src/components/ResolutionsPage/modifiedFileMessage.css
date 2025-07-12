@@ -1,0 +1,665 @@
+.modified-file-message {
+  margin: 0.5rem 0 0.5rem 2.5rem; /* Align with chat messages */
+  width: 90%;
+}
+
+.modified-file-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: var(--pf-global--BackgroundColor--100);
+}
+
+.vscode-dark .modified-file-card {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  border: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.modified-file-timestamp {
+  font-size: 0.8rem;
+  color: var(--pf-global--Color--200);
+}
+
+.modified-file-diff {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 4px;
+  background-color: var(--pf-global--BackgroundColor--200);
+  margin-bottom: 1rem;
+}
+
+.vscode-dark .modified-file-diff {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+}
+
+.modified-file-diff-content {
+  padding: 0.5rem;
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Markdown diff styling */
+.markdown-diff {
+  padding: 0.5rem;
+  overflow: auto;
+}
+
+.markdown-diff pre {
+  margin: 0;
+  padding: 0;
+}
+
+.markdown-diff code {
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Syntax highlighting for diff */
+.markdown-diff .hljs-addition {
+  color: #22863a;
+  background-color: rgba(0, 128, 0, 0.1);
+}
+
+.markdown-diff .hljs-deletion {
+  color: #cb2431;
+  background-color: rgba(255, 0, 0, 0.1);
+}
+
+.markdown-diff .hljs-meta {
+  color: #6a737d;
+}
+
+.modified-file-actions {
+  justify-content: flex-end;
+}
+
+/* Diff syntax highlighting */
+.modified-file-diff-content .addition {
+  background-color: rgba(0, 128, 0, 0.1);
+  color: #22863a;
+}
+
+.modified-file-diff-content .deletion {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #cb2431;
+}
+
+.modified-file-diff-content .line-number {
+  color: var(--pf-global--Color--200);
+  margin-right: 1rem;
+  user-select: none;
+}
+
+/* Diff hunk styles - simplified */
+.diff-hunk {
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  background-color: var(--pf-global--BackgroundColor--100);
+}
+
+.vscode-dark .diff-hunk {
+  border-color: var(--pf-global--BorderColor--dark-100);
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+}
+
+.diff-hunk-header {
+  padding: 0.5rem;
+  background-color: var(--pf-global--BackgroundColor--200);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+  font-weight: 600;
+}
+
+.vscode-dark .diff-hunk-header {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  border-bottom-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.hunk-header-text {
+  margin-left: 0.5rem;
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--pf-global--Color--200);
+}
+
+.diff-hunk-content {
+  padding: 0.5rem;
+}
+
+.diff-hunk-content pre {
+  margin: 0;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.diff-hunks-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 1rem 0;
+}
+
+.diff-actions-summary {
+  padding: 1rem 0;
+  border-top: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.vscode-dark .diff-actions-summary {
+  border-top-color: var(--pf-global--BorderColor--dark-100);
+}
+
+/* Expanded diff display */
+.expanded-diff-display {
+  max-height: 50vh;
+  overflow: auto;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 4px;
+  background-color: var(--pf-global--BackgroundColor--200);
+  margin: 1rem 0;
+}
+
+.vscode-dark .expanded-diff-display {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  border-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.expanded-diff-display .markdown-diff {
+  padding: 1rem;
+}
+
+/* Multiple hunks view */
+.diff-explanation {
+  margin: 0 0 1rem 0;
+  padding: 0.75rem;
+  background-color: var(--pf-global--BackgroundColor--150);
+  border-radius: 4px;
+  color: var(--pf-global--Color--100);
+}
+
+.vscode-dark .diff-explanation {
+  background-color: var(--pf-global--BackgroundColor--dark-150);
+}
+
+.diff-summary-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.vscode-dark .diff-summary-actions {
+  border-top-color: var(--pf-global--BorderColor--dark-100);
+}
+
+/* Modal styles for expanded view */
+.modified-file-modal {
+  --pf-c-modal-box--MaxWidth: 95vw;
+  --pf-c-modal-box--MaxHeight: 90vh;
+}
+
+/* Custom Modal Header */
+.modal-custom-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: var(--pf-global--BackgroundColor--100);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 8px 8px 0 0;
+  margin: -1rem -1rem 1rem -1rem;
+}
+
+.vscode-dark .modal-custom-header {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  border-bottom-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.modal-title-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--pf-global--Color--100);
+  line-height: 1.3;
+}
+
+.modal-filename {
+  color: var(--pf-global--primary-color--100);
+  font-weight: 700;
+  font-family: monospace;
+  background-color: var(--pf-global--BackgroundColor--200);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  font-size: 1rem;
+}
+
+.vscode-dark .modal-filename {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  color: var(--pf-global--primary-color--200);
+}
+
+.modal-close-button {
+  padding: 0.5rem;
+  margin-left: 1rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  border: none;
+  color: var(--pf-global--Color--200);
+}
+
+.modal-close-button:hover {
+  background-color: var(--pf-global--BackgroundColor--200);
+  color: var(--pf-global--Color--100);
+  transform: scale(1.05);
+}
+
+.vscode-dark .modal-close-button:hover {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+}
+
+.modal-close-button:focus {
+  outline: 2px solid var(--pf-global--primary-color--100);
+  outline-offset: 2px;
+}
+
+.modal-close-button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.expanded-modal-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.expanded-diff-content {
+  flex: 1;
+  overflow: auto;
+  max-height: 75vh;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 4px;
+  background-color: var(--pf-global--BackgroundColor--200);
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.vscode-dark .expanded-diff-content {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+}
+
+.expanded-diff-content .markdown-diff {
+  padding: 1rem;
+  overflow: auto;
+  height: 100%;
+}
+
+.expanded-diff-content .markdown-diff pre {
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.expanded-diff-content .markdown-diff code {
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pf-global--BorderColor--100);
+  margin-bottom: 1rem;
+  margin-right: 1rem;
+}
+
+.modal-timestamp {
+  font-size: 0.8rem;
+  color: var(--pf-global--Color--200);
+  margin-left: 1rem;
+}
+
+/* Enhanced syntax highlighting for expanded view */
+.expanded-diff-content .hljs-addition {
+  color: #22863a;
+  background-color: rgba(0, 128, 0, 0.15);
+  display: block;
+  width: 100%;
+  padding-left: 0.5rem;
+  border-left: 3px solid #22863a;
+}
+
+.expanded-diff-content .hljs-deletion {
+  color: #cb2431;
+  background-color: rgba(255, 0, 0, 0.15);
+  display: block;
+  width: 100%;
+  padding-left: 0.5rem;
+  border-left: 3px solid #cb2431;
+}
+
+.expanded-diff-content .hljs-meta {
+  color: #6a737d;
+  background-color: rgba(106, 115, 125, 0.1);
+  display: block;
+  width: 100%;
+  padding-left: 0.5rem;
+  border-left: 3px solid #6a737d;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .modified-file-modal {
+    --pf-c-modal-box--MaxWidth: 98vw;
+    --pf-c-modal-box--MaxHeight: 95vh;
+  }
+
+  .expanded-diff-content {
+    max-height: 70vh;
+  }
+
+  .expanded-diff-content .markdown-diff {
+    padding: 0.5rem;
+  }
+
+  .expanded-diff-content .markdown-diff code {
+    font-size: 0.8rem;
+  }
+}
+
+/* Hunk-by-hunk styles */
+.hunk-summary {
+  padding: 1rem;
+  background-color: var(--pf-global--BackgroundColor--100);
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.vscode-dark .hunk-summary {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+}
+
+.summary-badge {
+  margin-right: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.summary-badge.accepted {
+  background-color: rgba(0, 128, 0, 0.1);
+  color: #22863a;
+  border: 1px solid #22863a;
+}
+
+.summary-badge.rejected {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #cb2431;
+  border: 1px solid #cb2431;
+}
+
+.summary-badge.pending {
+  background-color: rgba(106, 115, 125, 0.1);
+  color: #6a737d;
+  border: 1px solid #6a737d;
+}
+
+.hunks-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 4px;
+}
+
+.diff-hunk {
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+  transition: all 0.2s ease;
+}
+
+.diff-hunk:last-child {
+  border-bottom: none;
+}
+
+.diff-hunk.hunk-accepted {
+  background-color: rgba(0, 128, 0, 0.05);
+  border-left: 4px solid #22863a;
+}
+
+.diff-hunk.hunk-rejected {
+  background-color: rgba(255, 0, 0, 0.05);
+  border-left: 4px solid #cb2431;
+}
+
+.diff-hunk.hunk-pending {
+  background-color: var(--pf-global--BackgroundColor--100);
+  border-left: 4px solid var(--pf-global--BorderColor--100);
+}
+
+.hunk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: var(--pf-global--BackgroundColor--200);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.vscode-dark .hunk-header {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+}
+
+.hunk-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.change-icon {
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--pf-global--Color--100);
+}
+
+.change-add .change-icon {
+  color: #22863a;
+}
+
+.change-remove .change-icon {
+  color: #cb2431;
+}
+
+.change-modify .change-icon {
+  color: #0366d6;
+}
+
+.change-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.line-info {
+  font-size: 0.8rem;
+  color: var(--pf-global--Color--200);
+  font-family: monospace;
+}
+
+.hunk-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Enhanced change type styles */
+.diff-hunk.change-add {
+  border-left: 4px solid #22863a;
+}
+
+.diff-hunk.change-remove {
+  border-left: 4px solid #cb2431;
+}
+
+.diff-hunk.change-modify {
+  border-left: 4px solid #0366d6;
+}
+
+.diff-hunk.change-add.hunk-accepted {
+  background-color: rgba(34, 134, 58, 0.08);
+}
+
+.diff-hunk.change-remove.hunk-accepted {
+  background-color: rgba(203, 36, 49, 0.08);
+}
+
+.diff-hunk.change-modify.hunk-accepted {
+  background-color: rgba(3, 102, 214, 0.08);
+}
+
+.diff-hunk.change-add.hunk-rejected {
+  background-color: rgba(34, 134, 58, 0.05);
+  opacity: 0.7;
+}
+
+.diff-hunk.change-remove.hunk-rejected {
+  background-color: rgba(203, 36, 49, 0.05);
+  opacity: 0.7;
+}
+
+.diff-hunk.change-modify.hunk-rejected {
+  background-color: rgba(3, 102, 214, 0.05);
+  opacity: 0.7;
+}
+
+.hunk-accept,
+.hunk-reject {
+  padding: 0.25rem 0.5rem;
+  min-width: 2rem;
+  transition: all 0.2s ease;
+}
+
+.hunk-accept:hover {
+  background-color: rgba(0, 128, 0, 0.1);
+  color: #22863a;
+}
+
+.hunk-reject:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #cb2431;
+}
+
+.hunk-accept.active {
+  background-color: rgba(0, 128, 0, 0.2);
+  color: #22863a;
+  font-weight: bold;
+}
+
+.hunk-reject.active {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: #cb2431;
+  font-weight: bold;
+}
+
+.hunk-status-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.hunk-status-badge.hunk-status-accepted {
+  background-color: rgba(0, 128, 0, 0.1);
+  color: #22863a;
+  border: 1px solid #22863a;
+}
+
+.hunk-status-badge.hunk-status-rejected {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #cb2431;
+  border: 1px solid #cb2431;
+}
+
+.hunk-status-badge.hunk-status-pending {
+  background-color: rgba(106, 115, 125, 0.1);
+  color: #6a737d;
+  border: 1px solid #6a737d;
+}
+
+.hunk-content {
+  padding: 0;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+}
+
+.hunk-content pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.diff-line {
+  padding: 0.2rem 1rem;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.diff-line.addition {
+  background-color: rgba(0, 128, 0, 0.1);
+  color: #22863a;
+}
+
+.diff-line.deletion {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #cb2431;
+}
+
+.diff-line.context {
+  background-color: var(--pf-global--BackgroundColor--100);
+  color: var(--pf-global--Color--100);
+}
+
+.vscode-dark .diff-line.context {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  color: var(--pf-global--Color--dark-100);
+}
+
+.no-hunks {
+  padding: 1rem;
+}
+
+/* Animation for state changes */
+.diff-hunk {
+  animation: hunkStateChange 0.3s ease-in-out;
+}
+
+@keyframes hunkStateChange {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}

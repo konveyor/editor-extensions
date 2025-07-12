@@ -64,16 +64,29 @@ export const viewFix = (change: LocalChange): WebviewAction<WebviewActionType, L
   payload: change,
 });
 
-export const applyFile = (change: LocalChange): WebviewAction<WebviewActionType, LocalChange> => ({
+export interface ApplyFilePayload {
+  path: string;
+  messageToken?: string;
+  content?: string;
+}
+
+export const applyFile = (
+  payload: ApplyFilePayload,
+): WebviewAction<WebviewActionType, ApplyFilePayload> => ({
   type: "APPLY_FILE",
-  payload: change,
+  payload,
 });
 
+export interface DiscardFilePayload {
+  path: string;
+  messageToken?: string;
+}
+
 export const discardFile = (
-  change: LocalChange,
-): WebviewAction<WebviewActionType, LocalChange> => ({
+  payload: LocalChange | DiscardFilePayload,
+): WebviewAction<WebviewActionType, LocalChange | DiscardFilePayload> => ({
   type: "DISCARD_FILE",
-  payload: change,
+  payload,
 });
 
 export const configureLabelSelector = (): WebviewAction<WebviewActionType, unknown> => ({
