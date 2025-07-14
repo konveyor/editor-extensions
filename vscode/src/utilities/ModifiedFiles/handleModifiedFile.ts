@@ -13,6 +13,54 @@ import { MessageQueueManager, handleUserInteractionComplete } from "./queueManag
 import { getConfigAgentMode } from "../configuration";
 
 /**
+ * Performs comprehensive cleanup of resources and state variables when an error occurs
+ * during file processing. This ensures the system returns to a consistent state.
+ */
+export const cleanupOnError = (
+  filePath: string,
+  msgId: string,
+  state: ExtensionState,
+  modifiedFiles: Map<string, ModifiedFileState>,
+  pendingInteractions: Map<string, (response: any) => void>,
+  processedTokens: Set<string>,
+  modifiedFilesPromises: Array<Promise<void>>,
+  eventEmitter?: { emit: (event: string, ...args: any[]) => void },
+  error?: any,
+) => {
+  // Reset the waiting flag
+  state.isWaitingForUserInteraction = false;
+
+  // Clean up pending interactions to prevent memory leaks
+  if (pendingInteractions.has(msgId)) {
+    pendingInteractions.delete(msgId);
+  }
+
+  // Remove any partially processed file state from modifiedFiles map
+  const uri = Uri.file(filePath);
+  if (modifiedFiles.has(uri.fsPath)) {
+    modifiedFiles.delete(uri.fsPath);
+  }
+
+  // Remove the processed token if it was added
+  if (processedTokens.has(msgId)) {
+    processedTokens.delete(msgId);
+  }
+
+  // Clear any promises that might be stuck in the array
+  // Since we can't easily identify which promises are related to this specific file,
+  // we'll clear all promises that haven't been resolved yet
+  // This is a conservative approach to prevent stuck promises
+  modifiedFilesPromises.length = 0;
+
+  // Emit cleanup event if eventEmitter is available
+  if (eventEmitter) {
+    eventEmitter.emit("modifiedFileError", { filePath, error });
+  }
+
+  console.log(`Cleanup completed for ${filePath} after error`);
+};
+
+/**
  * Creates a diff for UI display based on the file state and path.
  * @param fileState The state of the modified file.
  * @param filePath The path of the file for diff creation.
@@ -153,6 +201,25 @@ export const handleModifiedFileMessage = async (
     }
   } catch (err) {
     console.error(`Error in handleModifiedFileMessage for ${filePath}:`, err);
-    state.isWaitingForUserInteraction = false; // Reset flag in case of error
+
+    // Comprehensive cleanup of all resources and state variables
+    // This ensures the system returns to a consistent state after an error
+    try {
+      cleanupOnError(
+        filePath,
+        msg.id,
+        state,
+        modifiedFiles,
+        pendingInteractions,
+        processedTokens,
+        modifiedFilesPromises,
+        eventEmitter,
+        err,
+      );
+    } catch (cleanupError) {
+      console.error(`Error during cleanup for ${filePath}:`, cleanupError);
+      // Even if cleanup fails, ensure the waiting flag is reset
+      state.isWaitingForUserInteraction = false;
+    }
   }
 };

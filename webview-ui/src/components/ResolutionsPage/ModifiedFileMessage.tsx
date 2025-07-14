@@ -160,7 +160,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         hunks: hunks
       };
     } catch (error) {
-      console.error("Error parsing diff:", error);
+      // Silently handle diff parsing errors and return null
       return null;
     }
   }, [diff]);
@@ -194,7 +194,13 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     content?: string
   ) => {
     if (mode === "agent") {
-      const payload: any = {
+      interface FileResponsePayload {
+        responseId: string;
+        messageToken: string;
+        path: string;
+        content?: string;
+      }
+      const payload: FileResponsePayload = {
         responseId,
         messageToken,
         path,
@@ -215,62 +221,139 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   // Generate content based on hunk selections using proper diff library
   const generateSelectedContent = (): string => {
-    // Get the original content from the backend message
-    const originalContent = isModifiedFileMessageValue(data) && data.originalContent 
-      ? data.originalContent 
-      : ""; // fallback for new files or missing data
-    
-    // The data.content is actually the modified content from the agent
-    const modifiedContent = content;
-    
-    if (!parsedDiff || parsedHunks.length === 0) {
-      // No hunks or parsing failed, return the modified content as-is
-      return modifiedContent;
-    }
-    
     try {
+      // Get the original content from the backend message
+      const originalContent = isModifiedFileMessageValue(data) && data.originalContent 
+        ? data.originalContent 
+        : ""; // fallback for new files or missing data
+      
+      // The data.content is actually the modified content from the agent
+      const modifiedContent = content;
+      
+      if (!parsedDiff || parsedHunks.length === 0) {
+        console.warn("No parsed diff or hunks available, returning modified content as-is", {
+          hasParsedDiff: !!parsedDiff,
+          hunksLength: parsedHunks.length,
+          path
+        });
+        return modifiedContent;
+      }
+      
       // Hunk-level selection logic
       const noHunksAccepted = parsedHunks.every(hunk => !hunkStates[hunk.id]);
       if (noHunksAccepted) {
+        console.log("No hunks accepted, returning original content unchanged", {
+          totalHunks: parsedHunks.length,
+          path
+        });
         return originalContent; // Return original content unchanged
       }
       
       const allHunksAccepted = parsedHunks.every(hunk => hunkStates[hunk.id]);
       if (allHunksAccepted) {
-        // All hunks accepted - return the agent's modified content
-        return modifiedContent;
+        console.log("All hunks accepted, returning agent's modified content", {
+          totalHunks: parsedHunks.length,
+          path
+        });
+        return modifiedContent; // All hunks accepted - return the agent's modified content
       }
       
       // Partial selection - create a new patch with only selected hunks
       const selectedHunks = parsedHunks.filter(hunk => hunkStates[hunk.id]);
       
       if (selectedHunks.length === 0) {
+        console.warn("No hunks selected despite having hunks available, returning original content", {
+          totalHunks: parsedHunks.length,
+          selectedHunks: selectedHunks.length,
+          path
+        });
         return originalContent; // No hunks selected, return original
       }
+      
+      console.log("Applying partial patch with selected hunks", {
+        totalHunks: parsedHunks.length,
+        selectedHunks: selectedHunks.length,
+        path
+      });
       
       // For partial selection, we'll reconstruct a patch with only selected hunks
       // and apply it to the original content
       const filename = parsedDiff.filename || path;
       let patchString = `--- a/${filename}\n+++ b/${filename}\n`;
       
-      for (const hunk of selectedHunks) {
-        patchString += hunk.header + '\n';
-        patchString += hunk.changes.join('\n') + '\n';
+      try {
+        // Build patch string with selected hunks
+        for (const hunk of selectedHunks) {
+          if (!hunk.header) {
+            throw new Error(`Missing header for hunk ${hunk.id}`);
+          }
+          if (!hunk.changes || !Array.isArray(hunk.changes)) {
+            throw new Error(`Invalid changes array for hunk ${hunk.id}`);
+          }
+          
+          patchString += hunk.header + '\n';
+          patchString += hunk.changes.join('\n') + '\n';
+        }
+        
+        console.log("Successfully constructed patch string", {
+          patchLength: patchString.length,
+          selectedHunks: selectedHunks.length,
+          path
+        });
+        
+      } catch (patchConstructionError) {
+        const errorMessage = patchConstructionError instanceof Error 
+          ? patchConstructionError.message 
+          : String(patchConstructionError);
+        // Silently handle patch construction errors and re-throw with generic message
+        throw new Error(`Failed to construct patch string: ${errorMessage}`);
       }
       
       // Apply the partial patch to the original content
-      const partiallyModified = applyPatch(originalContent, patchString);
-      
-      if (partiallyModified === false) {
-        console.error("Failed to apply partial patch, falling back to original content");
-        return originalContent;
+      let partiallyModified: string | false;
+      try {
+        partiallyModified = applyPatch(originalContent, patchString);
+        
+        if (partiallyModified === false) {
+          // Silently handle patch application failure and throw generic error
+          throw new Error("applyPatch returned false - patch application failed");
+        }
+        
+        console.log("Successfully applied partial patch", {
+          originalLength: originalContent.length,
+          modifiedLength: partiallyModified.length,
+          selectedHunks: selectedHunks.length,
+          path
+        });
+        
+        return partiallyModified;
+        
+      } catch (patchApplicationError) {
+        const errorMessage = patchApplicationError instanceof Error 
+          ? patchApplicationError.message 
+          : String(patchApplicationError);
+        // Silently handle patch application errors and re-throw with generic message
+        throw new Error(`Failed to apply patch: ${errorMessage}`);
       }
       
-      return partiallyModified;
-      
     } catch (error) {
-      console.error("Error generating selected content:", error);
-      return originalContent || modifiedContent; // Fallback to original, then modified content
+      // Silently handle generateSelectedContent errors and continue with fallback strategy
+      
+      // Fallback strategy: try to return original content, then modified content
+      const originalContent = isModifiedFileMessageValue(data) && data.originalContent 
+        ? data.originalContent 
+        : "";
+      
+      if (originalContent) {
+        console.log("Falling back to original content due to error");
+        return originalContent;
+      } else if (content) {
+        console.log("Falling back to modified content due to error");
+        return content;
+      } else {
+        // Silently handle case where no fallback content is available
+        return "";
+      }
     }
   };
 
@@ -347,8 +430,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
       return "```diff\n" + formattedDiff + "\n```";
     } catch (error) {
-      console.error("Error parsing diff content:", error);
-      return `// Error parsing diff content for ${fileName}`;
+      // Silently handle diff content parsing errors and return error message
+      return `\`\`\`\n// Error parsing diff content for ${fileName}\n\`\`\``;
     }
   };
 
@@ -357,14 +440,21 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   const viewFileInVSCode = (filePath: string, fileDiff: string) => {
     if (mode === "agent") {
+      interface ShowMaximizedDiffPayload {
+        path: string;
+        content: string;
+        diff: string;
+        messageToken: string;
+      }
+      const payload: ShowMaximizedDiffPayload = {
+        path: filePath,
+        content: content,
+        diff: fileDiff,
+        messageToken: messageToken,
+      };
       window.vscode.postMessage({
         type: "SHOW_MAXIMIZED_DIFF",
-        payload: {
-          path: filePath,
-          content: content,
-          diff: fileDiff,
-          messageToken: messageToken,
-        },
+        payload,
       });
     } else {
       if (onView && isLocalChange(data)) {
