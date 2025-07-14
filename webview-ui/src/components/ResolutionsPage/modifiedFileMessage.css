@@ -142,6 +142,16 @@
   max-height: 60vh;
   overflow-y: auto;
   margin: 1rem 0;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 8px;
+  background-color: var(--pf-global--BackgroundColor--100);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.vscode-dark .diff-hunks-container {
+  border-color: var(--pf-global--BorderColor--dark-100);
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .diff-actions-summary {
@@ -174,15 +184,21 @@
 
 /* Multiple hunks view */
 .diff-explanation {
-  margin: 0 0 1rem 0;
-  padding: 0.75rem;
+  margin: 0 0 1.5rem 0;
+  padding: 1rem 1.25rem;
   background-color: var(--pf-global--BackgroundColor--150);
-  border-radius: 4px;
+  border-radius: 8px;
   color: var(--pf-global--Color--100);
+  border: 1px solid var(--pf-global--BorderColor--100);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .vscode-dark .diff-explanation {
   background-color: var(--pf-global--BackgroundColor--dark-150);
+  border-color: var(--pf-global--BorderColor--dark-100);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .diff-summary-actions {
@@ -195,22 +211,21 @@
   border-top-color: var(--pf-global--BorderColor--dark-100);
 }
 
-/* Modal styles for expanded view */
+/* Redesigned Modal Styles */
 .modified-file-modal {
-  --pf-c-modal-box--MaxWidth: 95vw;
-  --pf-c-modal-box--MaxHeight: 90vh;
+  --pf-c-modal-box--MaxWidth: 90vw;
+  --pf-c-modal-box--MaxHeight: 85vh;
 }
 
-/* Custom Modal Header */
+/* Clean Modal Header */
 .modal-custom-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 1.5rem 2rem;
   background-color: var(--pf-global--BackgroundColor--100);
   border-bottom: 1px solid var(--pf-global--BorderColor--100);
-  border-radius: 8px 8px 0 0;
-  margin: -1rem -1rem 1rem -1rem;
+  margin: -1rem -1rem 0 -1rem;
 }
 
 .vscode-dark .modal-custom-header {
@@ -219,9 +234,9 @@
 }
 
 .modal-title-section {
-  flex: 1;
   display: flex;
   align-items: center;
+  gap: 1rem;
 }
 
 .modal-title {
@@ -229,18 +244,17 @@
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--pf-global--Color--100);
-  line-height: 1.3;
 }
 
 .modal-filename {
   color: var(--pf-global--primary-color--100);
-  font-weight: 700;
-  font-family: monospace;
+  font-weight: 600;
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
   background-color: var(--pf-global--BackgroundColor--200);
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  margin-left: 0.5rem;
-  font-size: 1rem;
+  font-size: 0.875rem;
 }
 
 .vscode-dark .modal-filename {
@@ -250,7 +264,6 @@
 
 .modal-close-button {
   padding: 0.5rem;
-  margin-left: 1rem;
   border-radius: 4px;
   transition: all 0.2s ease;
   background-color: transparent;
@@ -261,73 +274,471 @@
 .modal-close-button:hover {
   background-color: var(--pf-global--BackgroundColor--200);
   color: var(--pf-global--Color--100);
-  transform: scale(1.05);
 }
 
 .vscode-dark .modal-close-button:hover {
   background-color: var(--pf-global--BackgroundColor--dark-200);
 }
 
-.modal-close-button:focus {
-  outline: 2px solid var(--pf-global--primary-color--100);
-  outline-offset: 2px;
-}
-
 .modal-close-button svg {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1rem;
+  height: 1rem;
 }
 
+/* Clean Modal Content */
 .expanded-modal-content {
-  height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
+/* Simplified Diff Content */
 .expanded-diff-content {
   flex: 1;
   overflow: auto;
-  max-height: 75vh;
-  border: 1px solid var(--pf-global--BorderColor--100);
-  border-radius: 4px;
-  background-color: var(--pf-global--BackgroundColor--200);
-  margin-bottom: 1rem;
-  padding: 1rem;
+  padding: 1.5rem;
+  background-color: var(--pf-global--BackgroundColor--100);
 }
 
 .vscode-dark .expanded-diff-content {
-  background-color: var(--pf-global--BackgroundColor--dark-200);
+  background-color: var(--pf-global--BackgroundColor--dark-100);
 }
 
-.expanded-diff-content .markdown-diff {
-  padding: 1rem;
-  overflow: auto;
-  height: 100%;
-}
-
-.expanded-diff-content .markdown-diff pre {
-  margin: 0;
+/* Enhanced Diff Display with Syntax Highlighting */
+.expanded-diff-display {
+  background-color: var(--pf-global--BackgroundColor--200);
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 6px;
   padding: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.expanded-diff-content .markdown-diff code {
   font-family:
     "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   line-height: 1.5;
+  overflow-x: auto;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+.vscode-dark .expanded-diff-display {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  border-color: var(--pf-global--BorderColor--dark-100);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Diff legend */
+.diff-legend {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--pf-global--BackgroundColor--150);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+  font-size: 0.75rem;
+  color: var(--pf-global--Color--200);
+}
+
+.vscode-dark .diff-legend {
+  background-color: var(--pf-global--BackgroundColor--dark-150);
+  border-bottom-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.legend-color {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+}
+
+.legend-color.addition {
+  background-color: #22863a;
+}
+
+.legend-color.deletion {
+  background-color: #cb2431;
+}
+
+.legend-color.context {
+  background-color: var(--pf-global--Color--200);
+}
+
+/* Diff line styling */
+.diff-line {
+  padding: 0.125rem 1rem;
+  margin: 0;
+  white-space: pre;
+  border-left: 3px solid transparent;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.diff-line:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.vscode-dark .diff-line:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.diff-line.addition {
+  background-color: rgba(34, 134, 58, 0.1);
+  color: #22863a;
+  border-left-color: #22863a;
+}
+
+.diff-line.deletion {
+  background-color: rgba(203, 36, 49, 0.1);
+  color: #cb2431;
+  border-left-color: #cb2431;
+}
+
+.diff-line.context {
+  background-color: var(--pf-global--BackgroundColor--200);
+  color: var(--pf-global--Color--100);
+}
+
+.vscode-dark .diff-line.context {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  color: var(--pf-global--Color--dark-100);
+}
+
+.diff-line.meta {
+  background-color: rgba(106, 115, 125, 0.1);
+  color: #6a737d;
+  border-left-color: #6a737d;
+  font-weight: 600;
+}
+
+/* Line numbers */
+.diff-line-number {
+  display: inline-block;
+  width: 3rem;
+  color: var(--pf-global--Color--200);
+  user-select: none;
+  margin-right: 1rem;
+  text-align: right;
+}
+
+.diff-line.addition .diff-line-number {
+  color: rgba(34, 134, 58, 0.6);
+}
+
+.diff-line.deletion .diff-line-number {
+  color: rgba(203, 36, 49, 0.6);
+}
+
+.diff-line.meta .diff-line-number {
+  color: rgba(106, 115, 125, 0.6);
+}
+
+/* Diff content */
+.diff-content {
+  display: inline-block;
+  flex: 1;
+}
+
+/* Syntax highlighting for diff content */
+.diff-line .hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.diff-line .hljs-addition {
+  color: #22863a;
+  background-color: rgba(34, 134, 58, 0.1);
+}
+
+.diff-line .hljs-deletion {
+  color: #cb2431;
+  background-color: rgba(203, 36, 49, 0.1);
+}
+
+.diff-line .hljs-meta {
+  color: #6a737d;
+  background-color: rgba(106, 115, 125, 0.1);
+}
+
+/* Preserve diff colors while allowing syntax highlighting */
+.diff-line.addition .hljs {
+  color: #22863a !important;
+}
+
+.diff-line.deletion .hljs {
+  color: #cb2431 !important;
+}
+
+.diff-line.context .hljs {
+  color: var(--pf-global--Color--100) !important;
+}
+
+.vscode-dark .diff-line.context .hljs {
+  color: var(--pf-global--Color--dark-100) !important;
+}
+
+/* Syntax highlighting tokens */
+.diff-line .hljs-keyword {
+  font-weight: 600;
+}
+
+.diff-line .hljs-string {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.diff-line .hljs-comment {
+  color: inherit;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.diff-line .hljs-number {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.diff-line .hljs-function {
+  font-weight: 600;
+}
+
+.diff-line .hljs-variable {
+  color: inherit;
+}
+
+.diff-line .hljs-operator {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.diff-line .hljs-punctuation {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* Dark mode syntax highlighting adjustments */
+.vscode-dark .diff-line .hljs {
+  background: transparent !important;
+}
+
+.vscode-dark .diff-line.addition .hljs {
+  color: #22863a !important;
+}
+
+.vscode-dark .diff-line.deletion .hljs {
+  color: #cb2431 !important;
+}
+
+.vscode-dark .diff-line.context .hljs {
+  color: var(--pf-global--Color--dark-100) !important;
+}
+
+/* Ensure proper contrast in dark mode */
+.vscode-dark .diff-line .hljs-keyword {
+  color: inherit !important;
+}
+
+.vscode-dark .diff-line .hljs-string {
+  color: inherit !important;
+  opacity: 0.9;
+}
+
+.vscode-dark .diff-line .hljs-comment {
+  color: inherit !important;
+  opacity: 0.7;
+}
+
+.vscode-dark .diff-line .hljs-number {
+  color: inherit !important;
+  opacity: 0.8;
+}
+
+/* Hunk Selection Interface */
+.hunk-selection-interface {
+  margin-bottom: 1.5rem;
+}
+
+.hunk-selection-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: var(--pf-global--BackgroundColor--200);
+  border-radius: 6px;
+  border: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.vscode-dark .hunk-selection-header {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  border-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.hunk-selection-title {
+  font-weight: 600;
+  color: var(--pf-global--Color--100);
+  margin: 0;
+}
+
+.hunk-count {
+  color: var(--pf-global--Color--200);
+  font-size: 0.875rem;
+}
+
+/* Individual Hunk Items */
+.hunk-item {
+  margin-bottom: 1rem;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.vscode-dark .hunk-item {
+  border-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.hunk-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--pf-global--BackgroundColor--200);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+}
+
+.vscode-dark .hunk-item-header {
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+  border-bottom-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.hunk-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hunk-number {
+  font-weight: 600;
+  color: var(--pf-global--Color--100);
+}
+
+.hunk-description {
+  color: var(--pf-global--Color--200);
+  font-size: 0.875rem;
+  font-family: monospace;
+}
+
+.hunk-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.hunk-controls .pf-c-button {
+  transition: all 0.2s ease;
+}
+
+.hunk-controls .pf-c-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.hunk-content {
+  padding: 0;
+  background-color: var(--pf-global--BackgroundColor--100);
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  border-radius: 0 0 6px 6px;
+}
+
+.vscode-dark .hunk-content {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+}
+
+/* Hunk content inherits diff line styling */
+.hunk-content .diff-line {
+  padding: 0.125rem 1rem;
+  margin: 0;
+  white-space: pre;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+
+.hunk-content .diff-line.addition {
+  background-color: rgba(34, 134, 58, 0.1);
+  color: #22863a;
+  border-left-color: #22863a;
+}
+
+.hunk-content .diff-line.deletion {
+  background-color: rgba(203, 36, 49, 0.1);
+  color: #cb2431;
+  border-left-color: #cb2431;
+}
+
+.hunk-content .diff-line.context {
+  background-color: var(--pf-global--BackgroundColor--100);
+  color: var(--pf-global--Color--100);
+}
+
+.vscode-dark .hunk-content .diff-line.context {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  color: var(--pf-global--Color--dark-100);
+}
+
+.hunk-content .diff-line.meta {
+  background-color: rgba(106, 115, 125, 0.1);
+  color: #6a737d;
+  border-left-color: #6a737d;
+  font-weight: 600;
+}
+
+/* Clean Modal Actions */
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
-  padding-top: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
   border-top: 1px solid var(--pf-global--BorderColor--100);
-  margin-bottom: 1rem;
-  margin-right: 1rem;
+  margin: 0 -1rem -1rem -1rem;
+  background-color: var(--pf-global--BackgroundColor--150);
+}
+
+.vscode-dark .modal-actions {
+  background-color: var(--pf-global--BackgroundColor--dark-150);
+  border-top-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.modal-actions .pf-c-flex {
+  gap: 0.75rem;
+}
+
+/* PatternFly-compliant button styling */
+.modal-actions .pf-c-button {
+  min-height: 2.5rem;
+  min-width: 8.5rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+}
+
+/* Button icon styling */
+.modal-actions .pf-c-button .pf-c-button__icon {
+  margin-right: 0.5rem;
+}
+
+/* Hunk control buttons */
+.hunk-controls .pf-c-button {
+  min-width: 5rem;
+  height: 2rem;
+  font-size: 0.875rem;
+}
+
+.hunk-controls .pf-c-button .pf-c-button__icon {
+  margin-right: 0.25rem;
 }
 
 .modal-timestamp {
@@ -367,20 +778,105 @@
 /* Responsive design for smaller screens */
 @media (max-width: 768px) {
   .modified-file-modal {
-    --pf-c-modal-box--MaxWidth: 98vw;
-    --pf-c-modal-box--MaxHeight: 95vh;
+    --pf-c-modal-box--MaxWidth: 95vw;
+    --pf-c-modal-box--MaxHeight: 90vh;
+  }
+
+  .modal-custom-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .modal-title {
+    font-size: 1.125rem;
+  }
+
+  .modal-filename {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
   }
 
   .expanded-diff-content {
-    max-height: 70vh;
+    padding: 1rem;
   }
 
-  .expanded-diff-content .markdown-diff {
-    padding: 0.5rem;
+  .diff-legend {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
-  .expanded-diff-content .markdown-diff code {
+  .diff-line {
+    padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
+  }
+
+  .diff-line-number {
+    width: 2.5rem;
+    margin-right: 0.5rem;
+  }
+
+  .hunk-selection-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .hunk-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .hunk-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .modal-actions {
+    padding: 1rem 1.5rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .modal-actions .pf-c-flex {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .modal-actions .pf-c-button {
+    min-width: 7rem;
+    height: 2.25rem;
+    font-size: 0.875rem;
+  }
+
+  .hunk-controls .pf-c-button {
+    min-width: 4rem;
+    height: 1.75rem;
+    font-size: 0.8rem;
+  }
+
+  /* Stack buttons vertically on very small screens */
+  @media (max-width: 480px) {
+    .modal-actions .pf-c-flex {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .accept-all-button,
+    .reject-all-button,
+    .accept-file-button,
+    .reject-file-button {
+      min-width: auto;
+      width: 100%;
+    }
+
+    .hunk-controls {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .hunk-controls .pf-c-button {
+      width: 100%;
+    }
   }
 }
 

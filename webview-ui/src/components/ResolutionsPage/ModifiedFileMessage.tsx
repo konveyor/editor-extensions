@@ -17,6 +17,8 @@ import {
   EyeIcon,
   ExpandIcon,
   CompressIcon,
+  PlusCircleIcon,
+  MinusCircleIcon,
 } from "@patternfly/react-icons";
 import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
@@ -26,6 +28,9 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import { parsePatch, applyPatch } from "diff";
 import { getLanguageFromExtension } from "../../../../shared/src/utils/languageMapping";
+import hljs from "highlight.js";
+import "highlight.js/styles/github.css";
+import "highlight.js/styles/github-dark.css";
 
 
 
@@ -161,6 +166,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const parsedHunks = parsedDiff?.hunks || [];
 
   const [hunkStates, setHunkStates] = useState<Record<string, boolean>>({});
+
+  // Configure highlight.js
+  useEffect(() => {
+    hljs.configure({
+      ignoreUnescapedHTML: true,
+      languages: ['javascript', 'typescript', 'java', 'python', 'css', 'html', 'xml', 'json', 'yaml', 'properties', 'groovy', 'xml']
+    });
+  }, []);
 
   // Update hunkStates when parsedHunks changes
   useEffect(() => {
@@ -369,100 +382,181 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }));
   };
 
+  // Helper function to parse and render diff lines with syntax highlighting
+  const renderDiffLines = (diffContent: string) => {
+    if (!diffContent) return <div className="diff-line context">No diff content available</div>;
+    
+    const lines = diffContent.split('\n');
+    return lines.map((line, index) => {
+      let lineClass = 'context';
+      let lineNumber = '';
+      let content = line;
+      let shouldHighlight = false;
+      
+      if (line.startsWith('+')) {
+        lineClass = 'addition';
+        lineNumber = '  +';
+        content = line.substring(1);
+        shouldHighlight = true;
+      } else if (line.startsWith('-')) {
+        lineClass = 'deletion';
+        lineNumber = '  -';
+        content = line.substring(1);
+        shouldHighlight = true;
+      } else if (line.startsWith('@@')) {
+        lineClass = 'meta';
+        lineNumber = '  ';
+        content = line;
+        shouldHighlight = false;
+      } else if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) {
+        lineClass = 'meta';
+        lineNumber = '  ';
+        content = line;
+        shouldHighlight = false;
+      } else if (line.match(/^\d+$/)) {
+        // Line numbers
+        lineClass = 'meta';
+        lineNumber = line.padStart(3);
+        content = '';
+        shouldHighlight = false;
+      } else if (line.startsWith(' ')) {
+        lineClass = 'context';
+        lineNumber = '   ';
+        content = line.substring(1);
+        shouldHighlight = true;
+      }
+      
+      // Apply syntax highlighting to code content
+      let highlightedContent = content;
+      if (shouldHighlight && content.trim()) {
+        try {
+          const fileExtension = path.split('.').pop()?.toLowerCase() || '';
+          let language = getLanguageFromExtension(fileExtension);
+          
+          // Map common file extensions to highlight.js languages
+          const languageMap: Record<string, string> = {
+            'js': 'javascript',
+            'ts': 'typescript',
+            'jsx': 'javascript',
+            'tsx': 'typescript',
+            'java': 'java',
+            'py': 'python',
+            'css': 'css',
+            'html': 'html',
+            'xml': 'xml',
+            'json': 'json',
+            'yaml': 'yaml',
+            'yml': 'yaml',
+            'properties': 'properties',
+            'gradle': 'groovy',
+            'groovy': 'groovy',
+            'pom': 'xml',
+            'md': 'markdown'
+          };
+          
+          language = languageMap[fileExtension] || language;
+          
+          if (language && language !== 'text' && hljs.getLanguage(language)) {
+            const highlighted = hljs.highlight(content, { language });
+            highlightedContent = highlighted.value;
+          }
+        } catch (error) {
+          // Fallback to plain text if highlighting fails
+          highlightedContent = content;
+        }
+      }
+      
+      return (
+        <div key={index} className={`diff-line ${lineClass}`}>
+          <span className="diff-line-number">{lineNumber}</span>
+          <span 
+            className="diff-content"
+            dangerouslySetInnerHTML={{ __html: highlightedContent }}
+          />
+        </div>
+      );
+    });
+  };
+
   const renderExpandedDiff = () => {
     return (
       <div className="expanded-diff-content">
-        {/* Show different views based on number of hunks */}
         {parsedHunks.length <= 1 ? (
-          /* Single hunk or no hunks - show full diff */
+          /* Single hunk or no hunks - show enhanced diff */
           <div className="expanded-diff-display">
-            <div className="markdown-diff">
-              <ReactMarkdown
-                rehypePlugins={[
-                  rehypeRaw,
-                  rehypeSanitize,
-                  [
-                    rehypeHighlight,
-                    {
-                      ignoreMissing: true,
-                      detect: true,
-                      language: language,
-                    },
-                  ],
-                ]}
-              >
-                {markdownContent}
-              </ReactMarkdown>
+            <div className="diff-legend">
+              <div className="legend-item">
+                <div className="legend-color addition"></div>
+                <span>Added</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color deletion"></div>
+                <span>Removed</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color context"></div>
+                <span>Context</span>
+              </div>
             </div>
+            {renderDiffLines(diff)}
           </div>
         ) : (
-          /* Multiple hunks - show individual hunks with controls */
-          <div className="diff-hunks-container">
-            <p className="diff-explanation">
-              This file has <strong>{parsedHunks.length} separate changes</strong>. 
-              Review and accept/reject each change individually:
-            </p>
+          /* Multiple hunks - show clean hunk selection interface */
+          <div className="hunk-selection-interface">
+            <div className="hunk-selection-header">
+              <h3 className="hunk-selection-title">Review Changes</h3>
+              <span className="hunk-count">
+                {parsedHunks.length} change{parsedHunks.length !== 1 ? 's' : ''} found
+              </span>
+            </div>
+            
             {parsedHunks.map((hunk, index) => (
-              <div key={hunk.id} className="diff-hunk">
-                <div className="diff-hunk-header">
-                  <Flex justifyContent={{ default: "justifyContentSpaceBetween" }}>
-                    <FlexItem>
-                      <Badge color={hunkStates[hunk.id] ? 'green' : 'red'}>
-                        {hunkStates[hunk.id] ? <CheckCircleIcon /> : <TimesCircleIcon />}
-                        Change {index + 1} - {hunkStates[hunk.id] ? 'Accepted' : 'Rejected'}
-                      </Badge>
-                      <span className="hunk-header-text">{hunk.header}</span>
-                    </FlexItem>
-                    <FlexItem>
-                      <Flex>
-                        <FlexItem>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={<CheckCircleIcon />}
-                            onClick={() => setHunkStates(prev => ({ ...prev, [hunk.id]: true }))}
-                            isDisabled={hunkStates[hunk.id] || actionTaken !== null}
-                          >
-                            Accept
-                          </Button>
-                        </FlexItem>
-                        <FlexItem>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={<TimesCircleIcon />}
-                            onClick={() => setHunkStates(prev => ({ ...prev, [hunk.id]: false }))}
-                            isDisabled={!hunkStates[hunk.id] || actionTaken !== null}
-                          >
-                            Reject
-                          </Button>
-                        </FlexItem>
-                      </Flex>
-                    </FlexItem>
-                  </Flex>
+              <div key={hunk.id} className="hunk-item">
+                <div className="hunk-item-header">
+                  <div className="hunk-info">
+                    <span className="hunk-number">Change {index + 1}</span>
+                    <span className="hunk-description">{hunk.header}</span>
+                  </div>
+                  <div className="hunk-controls">
+                    <Button
+                      variant={hunkStates[hunk.id] ? "primary" : "secondary"}
+                      size="sm"
+                      icon={<CheckCircleIcon />}
+                      onClick={() => setHunkStates(prev => ({ ...prev, [hunk.id]: true }))}
+                      isDisabled={actionTaken !== null}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      variant={!hunkStates[hunk.id] ? "danger" : "secondary"}
+                      size="sm"
+                      icon={<TimesCircleIcon />}
+                      onClick={() => setHunkStates(prev => ({ ...prev, [hunk.id]: false }))}
+                      isDisabled={actionTaken !== null}
+                    >
+                      Reject
+                    </Button>
+                  </div>
                 </div>
-                <div className="diff-hunk-content">
-                  <ReactMarkdown
-                    rehypePlugins={[
-                      rehypeRaw,
-                      rehypeSanitize,
-                      [
-                        rehypeHighlight,
-                        {
-                          ignoreMissing: true,
-                          detect: true,
-                          language: language,
-                        },
-                      ],
-                    ]}
-                  >
-                    {`\`\`\`diff\n${hunk.header}\n${hunk.changes.join('\n')}\n\`\`\``}
-                  </ReactMarkdown>
+                <div className="hunk-content">
+                  <div className="diff-legend">
+                    <div className="legend-item">
+                      <div className="legend-color addition"></div>
+                      <span>Added</span>
+                    </div>
+                    <div className="legend-item">
+                      <div className="legend-color deletion"></div>
+                      <span>Removed</span>
+                    </div>
+                    <div className="legend-item">
+                      <div className="legend-color context"></div>
+                      <span>Context</span>
+                    </div>
+                  </div>
+                  {renderDiffLines(hunk.changes.join('\n'))}
                 </div>
               </div>
             ))}
-            
-
           </div>
         )}
       </div>
@@ -665,13 +759,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
           </div>
           {renderExpandedDiff()}
           <div className="modal-actions">
-            <Flex justifyContent={{ default: "justifyContentSpaceBetween" }}>
+            <Flex justifyContent={{ default: "justifyContentSpaceBetween" }} alignItems={{ default: "alignItemsCenter" }}>
               <FlexItem>
                 {parsedHunks.length > 1 && (
-                  <Flex>
+                  <Flex gap={{ default: "gapMd" }}>
                     <FlexItem>
                       <Button
                         variant="primary"
+                        icon={<PlusCircleIcon />}
                         onClick={() => {
                           const newStates: Record<string, boolean> = {};
                           parsedHunks.forEach(hunk => {
@@ -679,7 +774,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                           });
                           setHunkStates(newStates);
                         }}
-                        icon={<CheckCircleIcon />}
                         isDisabled={actionTaken !== null}
                         className="accept-all-button"
                       >
@@ -689,6 +783,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                     <FlexItem>
                       <Button
                         variant="danger"
+                        icon={<MinusCircleIcon />}
                         onClick={() => {
                           const newStates: Record<string, boolean> = {};
                           parsedHunks.forEach(hunk => {
@@ -696,7 +791,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                           });
                           setHunkStates(newStates);
                         }}
-                        icon={<TimesCircleIcon />}
                         isDisabled={actionTaken !== null}
                         className="reject-all-button"
                       >
@@ -707,12 +801,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                 )}
               </FlexItem>
               <FlexItem>
-                <Flex>
+                <Flex gap={{ default: "gapMd" }}>
                   <FlexItem>
                     <Button 
-                      variant="secondary" 
-                      onClick={applyFile}
+                      variant="primary" 
                       icon={<CheckCircleIcon />}
+                      onClick={applyFile}
                       isDisabled={actionTaken !== null}
                       className="accept-file-button"
                     >
@@ -729,8 +823,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                   <FlexItem>
                     <Button 
                       variant="secondary" 
-                      onClick={rejectFile}
                       icon={<TimesCircleIcon />}
+                      onClick={rejectFile}
                       isDisabled={actionTaken !== null}
                       className="reject-file-button"
                     >
