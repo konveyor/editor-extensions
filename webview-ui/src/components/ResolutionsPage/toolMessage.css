@@ -1,5 +1,5 @@
 .tool-message-container {
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 4rem 0;
   padding: 0;
   background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
   border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
