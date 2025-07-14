@@ -19,6 +19,8 @@ import {
   CompressIcon,
   PlusCircleIcon,
   MinusCircleIcon,
+  CheckIcon,
+  CloseIcon,
 } from "@patternfly/react-icons";
 import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
@@ -586,109 +588,128 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
     if (quickResponses && messageToken) {
       return (
-        <Flex className="modified-file-actions">
-          {quickResponses.map((response) => (
-            <FlexItem key={response.id}>
-              <Button
-                variant="link"
-                icon={response.id === "apply" ? <CheckCircleIcon /> : <TimesCircleIcon />}
-                className={response.id === "apply" ? "quick-accept-button" : "quick-reject-button"}
-                onClick={() => {
-                  const action = response.id === "apply" ? "applied" : "rejected";
-                  setActionTaken(action);
-
-                  const contentToSend = response.id === "apply" ? generateSelectedContent() : content;
-                  postFileResponse(response.id, messageToken, path, contentToSend);
-                  
-                  if (mode === "non-agent") {
-                    if (isLocalChange(data)) {
-                      if (response.id === "apply" && onApply) {
-                        onApply(data);
-                      } else if (response.id === "reject" && onReject) {
-                        onReject(data);
-                      }
-                    }
-                  }
-                }}
-                aria-label={response.id === "apply" ? "Apply changes" : "Reject changes"}
-              >
-                {response.content}
-              </Button>
-            </FlexItem>
-          ))}
-          {!isNew && mode !== "agent" && (
-            <FlexItem>
-              <Button
-                variant="link"
-                icon={<EyeIcon />}
-                onClick={() => viewFileInVSCode(path, diff)}
-                aria-label="View file in VSCode"
-              >
-                View
-              </Button>
-            </FlexItem>
-          )}
+        <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentSpaceBetween" }}>
           <FlexItem>
-            <Button
-              variant="link"
-              icon={<ExpandIcon />}
-              onClick={handleExpandToggle}
-              aria-label="Review changes in detail"
-              isDisabled={actionTaken !== null}
-            >
-              Review Changes
-            </Button>
+            <Flex gap={{ default: "gapMd" }}>
+              {!isNew && mode !== "agent" && (
+                <FlexItem>
+                  <Button
+                    variant="link"
+                    icon={<EyeIcon />}
+                    onClick={() => viewFileInVSCode(path, diff)}
+                    aria-label="View file in VSCode"
+                  >
+                    View
+                  </Button>
+                </FlexItem>
+              )}
+              <FlexItem>
+                <Button
+                  variant="link"
+                  icon={<ExpandIcon />}
+                  onClick={handleExpandToggle}
+                  aria-label="Review changes in detail"
+                  isDisabled={actionTaken !== null}
+                >
+                  Review Changes
+                </Button>
+              </FlexItem>
+            </Flex>
+          </FlexItem>
+          <FlexItem>
+            <Flex gap={{ default: "gapMd" }}>
+              {quickResponses.map((response) => (
+                <FlexItem key={response.id}>
+                  <Button
+                    variant={response.id === "apply" ? "primary" : "danger"}
+                    icon={response.id === "apply" ? <CheckCircleIcon /> : <TimesCircleIcon />}
+                    className={response.id === "apply" ? "quick-accept-button" : "quick-reject-button"}
+                    onClick={() => {
+                      const action = response.id === "apply" ? "applied" : "rejected";
+                      setActionTaken(action);
+
+                      const contentToSend = response.id === "apply" ? generateSelectedContent() : content;
+                      postFileResponse(response.id, messageToken, path, contentToSend);
+                      
+                      if (mode === "non-agent") {
+                        if (isLocalChange(data)) {
+                          if (response.id === "apply" && onApply) {
+                            onApply(data);
+                          } else if (response.id === "reject" && onReject) {
+                            onReject(data);
+                          }
+                        }
+                      }
+                    }}
+                    aria-label={response.id === "apply" ? "Apply changes" : "Reject changes"}
+                    isDisabled={actionTaken !== null}
+                  >
+                    {response.content}
+                  </Button>
+                </FlexItem>
+              ))}
+            </Flex>
           </FlexItem>
         </Flex>
       );
     }
 
     return (
-      <Flex className="modified-file-actions">
-        {!isNew && mode !== "agent" && (
-          <FlexItem>
-            <Button
-              variant="link"
-              icon={<EyeIcon />}
-              onClick={() => viewFileInVSCode(path, diff)}
-              aria-label="View file in VSCode"
-            >
-              View
-            </Button>
-          </FlexItem>
-        )}
+      <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentSpaceBetween" }}>
         <FlexItem>
-          <Button
-            variant="link"
-            icon={<ExpandIcon />}
-            onClick={handleExpandToggle}
-            aria-label="Review changes in detail"
-            isDisabled={actionTaken !== null}
-          >
-            Review Changes
-          </Button>
+          <Flex gap={{ default: "gapMd" }}>
+            {!isNew && mode !== "agent" && (
+              <FlexItem>
+                <Button
+                  variant="link"
+                  icon={<EyeIcon />}
+                  onClick={() => viewFileInVSCode(path, diff)}
+                  aria-label="View file in VSCode"
+                >
+                  View
+                </Button>
+              </FlexItem>
+            )}
+            <FlexItem>
+              <Button
+                variant="link"
+                icon={<ExpandIcon />}
+                onClick={handleExpandToggle}
+                aria-label="Review changes in detail"
+                isDisabled={actionTaken !== null}
+              >
+                Review Changes
+              </Button>
+            </FlexItem>
+          </Flex>
         </FlexItem>
         <FlexItem>
-          <Button
-            variant="link"
-            icon={<CheckCircleIcon />}
-            onClick={applyFile}
-            aria-label="Accept all changes"
-            className="main-accept-button"
-          >
-            Accept All
-          </Button>
-        </FlexItem>
-        <FlexItem>
-          <Button
-            variant="link"
-            icon={<TimesCircleIcon />}
-            onClick={rejectFile}
-            aria-label="Reject all changes"
-            className="main-reject-button"
-          >
-            Reject All
-          </Button>
+          <Flex gap={{ default: "gapMd" }}>
+            <FlexItem>
+              <Button
+                variant="link"
+                icon={<CheckCircleIcon />}
+                onClick={applyFile}
+                aria-label="Accept all changes"
+                className="main-accept-button"
+                isDisabled={actionTaken !== null}
+              >
+                Accept All Changes
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant="link"
+                icon={<TimesCircleIcon />}
+                onClick={rejectFile}
+                aria-label="Reject all changes"
+                className="main-reject-button"
+                isDisabled={actionTaken !== null}
+              >
+                Reject All Changes
+              </Button>
+            </FlexItem>
+          </Flex>
         </FlexItem>
       </Flex>
     );
@@ -742,7 +763,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         className="modified-file-modal"
       >
         <div className="expanded-modal-content">
-          <div className="modal-custom-header">
+          <div className="modal-custom-header sticky-header">
             <div className="modal-title-section">
               <h2 className="modal-title">
                 {isNew ? "Created file: " : "Modified file: "}
@@ -757,80 +778,80 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               aria-label="Close modal"
             />
           </div>
-          {renderExpandedDiff()}
+          <div className="modal-content-scrollable">
+            {renderExpandedDiff()}
+          </div>
           <div className="modal-actions">
             <Flex justifyContent={{ default: "justifyContentSpaceBetween" }} alignItems={{ default: "alignItemsCenter" }}>
               <FlexItem>
-                {parsedHunks.length > 1 && (
-                  <Flex gap={{ default: "gapMd" }}>
-                    <FlexItem>
-                      <Button
-                        variant="primary"
-                        icon={<PlusCircleIcon />}
-                        onClick={() => {
-                          const newStates: Record<string, boolean> = {};
-                          parsedHunks.forEach(hunk => {
-                            newStates[hunk.id] = true;
-                          });
-                          setHunkStates(newStates);
-                        }}
-                        isDisabled={actionTaken !== null}
-                        className="accept-all-button"
-                      >
-                        Accept All Changes
-                      </Button>
-                    </FlexItem>
-                    <FlexItem>
-                      <Button
-                        variant="danger"
-                        icon={<MinusCircleIcon />}
-                        onClick={() => {
-                          const newStates: Record<string, boolean> = {};
-                          parsedHunks.forEach(hunk => {
-                            newStates[hunk.id] = false;
-                          });
-                          setHunkStates(newStates);
-                        }}
-                        isDisabled={actionTaken !== null}
-                        className="reject-all-button"
-                      >
-                        Reject All Changes
-                      </Button>
-                    </FlexItem>
-                  </Flex>
-                )}
+                <Flex gap={{ default: "gapMd" }}>
+                  {parsedHunks.length > 1 && (
+                    <>
+                      <FlexItem>
+                        <Button
+                          variant="secondary"
+                          icon={<PlusCircleIcon />}
+                          onClick={() => {
+                            const newStates: Record<string, boolean> = {};
+                            parsedHunks.forEach(hunk => {
+                              newStates[hunk.id] = true;
+                            });
+                            setHunkStates(newStates);
+                          }}
+                          isDisabled={actionTaken !== null}
+                          className="select-all-button"
+                        >
+                          Select All
+                        </Button>
+                      </FlexItem>
+                      <FlexItem>
+                        <Button
+                          variant="secondary"
+                          icon={<MinusCircleIcon />}
+                          onClick={() => {
+                            const newStates: Record<string, boolean> = {};
+                            parsedHunks.forEach(hunk => {
+                              newStates[hunk.id] = false;
+                            });
+                            setHunkStates(newStates);
+                          }}
+                          isDisabled={actionTaken !== null}
+                          className="deselect-all-button"
+                        >
+                          Deselect All
+                        </Button>
+                      </FlexItem>
+                    </>
+                  )}
+                </Flex>
               </FlexItem>
               <FlexItem>
-                <Flex gap={{ default: "gapMd" }}>
+                <Flex gap={{ default: "gapLg" }} justifyContent={{ default: "justifyContentFlexEnd" }}>
                   <FlexItem>
                     <Button 
-                      variant="primary" 
-                      icon={<CheckCircleIcon />}
+                      variant="plain" 
+                      icon={<CheckIcon />}
                       onClick={applyFile}
                       isDisabled={actionTaken !== null}
-                      className="accept-file-button"
+                      className="submit-button"
+                      aria-label="Accept changes"
                     >
-                      {(() => {
-                        if (parsedHunks.length <= 1) return "Accept File";
-                        const acceptedCount = parsedHunks.filter(hunk => hunkStates[hunk.id]).length;
-                        const totalCount = parsedHunks.length;
-                        if (acceptedCount === totalCount) return "Accept File";
-                        if (acceptedCount === 0) return "Keep Original";
-                        return `Accept ${acceptedCount} of ${totalCount} Changes`;
-                      })()}
+                      Accept Changes
                     </Button>
                   </FlexItem>
                   <FlexItem>
                     <Button 
-                      variant="secondary" 
-                      icon={<TimesCircleIcon />}
+                      variant="plain" 
+                      icon={<CloseIcon />}
                       onClick={rejectFile}
                       isDisabled={actionTaken !== null}
-                      className="reject-file-button"
+                      className="cancel-button"
+                      aria-label="reject changes"
                     >
-                      Reject File
+                     Reject changes 
                     </Button>
                   </FlexItem>
+
                 </Flex>
               </FlexItem>
             </Flex>
