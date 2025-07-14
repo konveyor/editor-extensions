@@ -292,13 +292,15 @@ const AnalysisPage: React.FC = () => {
                       <Flex className="header-layout">
                         <FlexItem>
                           <CardTitle>Analysis Results</CardTitle>
-                          <ViolationsCount
-                            violationsCount={violations.length}
-                            incidentsCount={violations.reduce(
-                              (prev, curr) => prev + curr.incidents.length,
-                              0,
-                            )}
-                          />
+                          {!isAnalyzing && (
+                            <ViolationsCount
+                              violationsCount={violations.length}
+                              incidentsCount={violations.reduce(
+                                (prev, curr) => prev + curr.incidents.length,
+                                0,
+                              )}
+                            />
+                          )}
                         </FlexItem>
                       </Flex>
                     </CardHeader>
