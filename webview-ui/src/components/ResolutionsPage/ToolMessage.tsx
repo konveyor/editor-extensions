@@ -53,6 +53,9 @@ const getHumanReadableToolName = (toolName: string): string => {
     updateDependencies: "Updating dependencies",
     checkDependencies: "Checking dependencies",
 
+    // Network operations
+    searchFqdn: "Searching domain information",
+
     // Database operations
     queryDatabase: "Querying database",
     migrateDatabase: "Migrating database",
