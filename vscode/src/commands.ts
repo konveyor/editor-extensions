@@ -170,7 +170,6 @@ const commandsMap: (state: ExtensionState) => {
           return;
         }
 
-        // Initialize workflow if agent mode is enabled
         // Create array to store all diffs
         const allDiffs: { original: string; modified: string; diff: string }[] = [];
 
@@ -212,25 +211,17 @@ const commandsMap: (state: ExtensionState) => {
 
         // Store the resolver function in the state so webview handler can access it
         state.resolvePendingInteraction = (messageId: string, response: any) => {
-          console.log(`resolvePendingInteraction called with messageId: ${messageId}`);
-          console.log(
-            `Available pending interactions: ${Array.from(pendingInteractions.keys()).join(", ")}`,
-          );
           const resolver = pendingInteractions.get(messageId);
-          console.log(`Resolver found: ${!!resolver}`);
           if (resolver) {
-            console.log(`Found resolver for messageId: ${messageId}, calling it`);
             try {
               pendingInteractions.delete(messageId);
               resolver(response);
-              console.log(`Resolver executed successfully for messageId: ${messageId}`);
               return true;
             } catch (error) {
               console.error(`Error executing resolver for messageId: ${messageId}:`, error);
               return false;
             }
           }
-          console.log(`No resolver found for messageId: ${messageId}`);
           return false;
         };
 
@@ -253,8 +244,6 @@ const commandsMap: (state: ExtensionState) => {
 
         try {
           const agentModeEnabled = getConfigAgentMode();
-          console.log("Agent mode enabled:", agentModeEnabled);
-          console.log("Modified files before workflow:", state.modifiedFiles.size);
 
           await workflow.run({
             incidents,
@@ -264,23 +253,15 @@ const commandsMap: (state: ExtensionState) => {
             enableDiagnostics: getConfigSuperAgentMode(),
           } as KaiInteractiveWorkflowInput);
 
-          console.log("Modified files after workflow:", state.modifiedFiles.size);
-
           // Wait for all message processing to complete before proceeding
           // This is critical for non-agentic mode where ModifiedFile messages
           // are processed asynchronously during the workflow
           if (!agentModeEnabled) {
-            console.log("Waiting for all message processing to complete...");
             // Give a short delay to ensure all async message processing completes
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Wait for any remaining promises in the modifiedFilesPromises array
             await Promise.all(modifiedFilesPromises);
-
-            console.log(
-              "All message processing completed, modifiedFiles size:",
-              state.modifiedFiles.size,
-            );
           }
         } catch (err) {
           console.error(`Error in running the agent - ${err}`);
@@ -298,13 +279,8 @@ const commandsMap: (state: ExtensionState) => {
           // Only clean up if we're not waiting for user interaction
           // This prevents clearing pending interactions while users are still deciding on file changes
           if (!state.isWaitingForUserInteraction) {
-            console.log("Workflow completed, cleaning up pending interactions");
             pendingInteractions.clear();
             state.resolvePendingInteraction = undefined;
-          } else {
-            console.log(
-              "Workflow completed but waiting for user interaction, preserving pending interactions",
-            );
           }
 
           // Clean up workflow resources
@@ -321,26 +297,18 @@ const commandsMap: (state: ExtensionState) => {
         // In agentic mode, file changes are handled through ModifiedFile messages
         // In non-agentic mode, we need to process diffs from modified files
         if (!getConfigAgentMode()) {
-          console.log("Non-agentic mode: Processing diffs from modifiedFiles");
-          console.log("ModifiedFiles entries:", Array.from(state.modifiedFiles.keys()));
-
           // Wait for all file processing to complete
           await Promise.all(modifiedFilesPromises);
-
-          console.log("After waiting for promises, modifiedFiles size:", state.modifiedFiles.size);
 
           // Event-driven approach - wait for modifiedFiles to be populated
           // This handles cases where message processing might still be ongoing
           if (state.modifiedFiles.size === 0) {
-            console.log("Waiting for modifiedFiles to be populated via event...");
             await new Promise<void>((resolve) => {
               const timeout = setTimeout(() => {
-                console.log("Timeout waiting for modifiedFiles to be populated");
                 resolve();
               }, 5000); // 5 seconds max timeout
 
               const onFileAdded = () => {
-                console.log("ModifiedFile added event received");
                 clearTimeout(timeout);
                 state.modifiedFilesEventEmitter.removeListener("modifiedFileAdded", onFileAdded);
                 resolve();
@@ -350,15 +318,12 @@ const commandsMap: (state: ExtensionState) => {
             });
           }
 
-          console.log("Final modifiedFiles size:", state.modifiedFiles.size);
-
           // Process diffs from modified files
           await Promise.all(
             Array.from(state.modifiedFiles.entries()).map(async ([path, fileState]) => {
               const { originalContent, modifiedContent } = fileState;
               const uri = Uri.file(path);
               const relativePath = workspace.asRelativePath(uri);
-              console.log(`Processing diff for: ${relativePath}`);
               try {
                 if (!originalContent) {
                   const diff = createTwoFilesPatch("", relativePath, "", modifiedContent);
@@ -367,7 +332,6 @@ const commandsMap: (state: ExtensionState) => {
                     modified: relativePath,
                     original: "",
                   });
-                  console.log(`Created new file diff for: ${relativePath}`);
                 } else {
                   const diff = createPatch(relativePath, originalContent, modifiedContent);
                   allDiffs.push({
@@ -375,7 +339,6 @@ const commandsMap: (state: ExtensionState) => {
                     modified: relativePath,
                     original: relativePath,
                   });
-                  console.log(`Created modified file diff for: ${relativePath}`);
                 }
               } catch (err) {
                 console.error(`Error in processing diff for ${relativePath} - ${err}`);
@@ -383,7 +346,6 @@ const commandsMap: (state: ExtensionState) => {
             }),
           );
 
-          console.log("Total diffs created:", allDiffs.length);
           if (allDiffs.length === 0) {
             throw new Error("No diffs found in the response");
           }
@@ -426,13 +388,8 @@ const commandsMap: (state: ExtensionState) => {
         // Clean up pending interactions and resolver function after successful completion
         // Only clean up if we're not waiting for user interaction
         if (!state.isWaitingForUserInteraction) {
-          console.log("Solution completed, cleaning up pending interactions");
           pendingInteractions.clear();
           state.resolvePendingInteraction = undefined;
-        } else {
-          console.log(
-            "Solution completed but waiting for user interaction, preserving pending interactions",
-          );
         }
       } catch (error: any) {
         console.error("Error in getSolution:", error);
@@ -440,13 +397,8 @@ const commandsMap: (state: ExtensionState) => {
         // Clean up pending interactions and resolver function on error
         // Only clean up if we're not waiting for user interaction
         if (!state.isWaitingForUserInteraction) {
-          console.log("Solution failed, cleaning up pending interactions");
           pendingInteractions.clear();
           state.resolvePendingInteraction = undefined;
-        } else {
-          console.log(
-            "Solution failed but waiting for user interaction, preserving pending interactions",
-          );
         }
 
         // Update the state to indicate an error
@@ -465,11 +417,8 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.getSuccessRate": async () => {
-      console.log("Getting success rate for incidents");
-
       try {
         if (!state.data.enhancedIncidents || state.data.enhancedIncidents.length === 0) {
-          console.log("No incidents to update");
           return;
         }
 
@@ -488,8 +437,6 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.changeApplied": async (clientId: string, path: string, finalContent: string) => {
-      console.log("File change applied:", path);
-
       try {
         await state.solutionServerClient.acceptFile(clientId, path, finalContent);
       } catch (error: any) {
@@ -497,8 +444,6 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.changeDiscarded": async (clientId: string, path: string) => {
-      console.log("File change discarded:", path);
-
       try {
         await state.solutionServerClient.rejectFile(clientId, path);
       } catch (error: any) {
@@ -652,7 +597,6 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.openAnalysisDetails": async (item: IncidentTypeItem) => {
       //TODO: pass the item to webview and move the focus
-      console.log("Open details for ", item);
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
     },

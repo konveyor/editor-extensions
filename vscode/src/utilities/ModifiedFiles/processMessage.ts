@@ -11,7 +11,6 @@ import { ExtensionState } from "../../extensionState";
 import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
-import { getConfigAgentMode } from "../configuration";
 
 import { shouldProcessMessage } from "./shouldProcessMessage";
 
@@ -56,12 +55,10 @@ export const processMessage = async (
 ) => {
   // If we're waiting for user interaction, queue the message for later processing
   if (queueManager && queueManager.shouldQueueMessage()) {
-    console.log(`Queueing message ${msg.id} (${msg.type}) because waiting for user interaction`);
     queueManager.enqueueMessage(msg);
     return;
   } else if (state.isWaitingForUserInteraction) {
     // Fallback to old behavior for backward compatibility
-    console.log(`Queueing message ${msg.id} (${msg.type}) using fallback mechanism`);
     messageQueue.push(msg);
     return;
   }
@@ -83,11 +80,9 @@ export const processMessage = async (
 
   // Check if we should process this message or skip it as a duplicate
   if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
-    console.log("Skipping duplicate message:", msg);
     return;
   }
 
-  console.log(`Processing message ${msg.id} (${msg.type}) immediately`);
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat
@@ -306,10 +301,6 @@ export const processMessage = async (
       break;
     }
     case KaiWorkflowMessageType.ModifiedFile: {
-      console.log(
-        "Processing ModifiedFile message in mode:",
-        getConfigAgentMode() ? "agentic" : "non-agentic",
-      );
       await handleModifiedFileMessage(
         msg,
         state.modifiedFiles,
@@ -321,7 +312,6 @@ export const processMessage = async (
         queueManager,
         state.modifiedFilesEventEmitter,
       );
-      console.log("ModifiedFiles map size after processing:", state.modifiedFiles.size);
       break;
     }
   }

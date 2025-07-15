@@ -23,7 +23,6 @@ export const shouldProcessMessage = (
       const chunkKey = `llm-chunk:${msg.id}:${JSON.stringify(msg.data)}`;
 
       if (processedTokens.has(chunkKey)) {
-        console.log(`Skipping duplicate LLM chunk with key: ${chunkKey}`);
         return false;
       }
 
@@ -35,11 +34,9 @@ export const shouldProcessMessage = (
       const { path: filePath } = msg.data as KaiModifiedFile;
       // Create a unique key for this file modification
       const fileKey = `file:${filePath}:${msg.id}`;
-      console.log(`Processing file modification with key: ${fileKey}`);
 
       // Check if this specific file modification has already been processed
       if (processedTokens.has(fileKey)) {
-        console.log(`Skipping duplicate file modification with key: ${fileKey}`);
         return false;
       }
 
@@ -55,7 +52,6 @@ export const shouldProcessMessage = (
       const toolKey = `tool:${toolName}:${toolStatus}:${toolData}`;
 
       if (processedTokens.has(toolKey)) {
-        console.log(`Skipping duplicate tool call message with key: ${toolKey}`);
         return false;
       }
 
@@ -69,7 +65,6 @@ export const shouldProcessMessage = (
       const interactionKey = `interaction:${interaction.type}:${interactionData}`;
 
       if (processedTokens.has(interactionKey)) {
-        console.log(`Skipping duplicate user interaction message with key: ${interactionKey}`);
         return false;
       }
 
@@ -79,7 +74,6 @@ export const shouldProcessMessage = (
     default: {
       // For all other message types, use basic duplicate check by message ID
       if (processedTokens.has(msg.id)) {
-        console.log(`Skipping duplicate message with ID: ${msg.id}`);
         return false;
       }
       processedTokens.add(msg.id);
