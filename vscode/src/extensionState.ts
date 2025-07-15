@@ -13,6 +13,7 @@ import { DiagnosticTaskManager } from "./taskManager/taskManager";
 import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorFileModel } from "./diffView/fileModel";
 import { EventEmitter } from "events";
+import winston from "winston";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -46,4 +47,5 @@ export interface ExtensionState {
   isWaitingForUserInteraction: boolean;
   lastMessageId: string;
   currentTaskManagerIterations: number;
+  logger: winston.Logger;
 }

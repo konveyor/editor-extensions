@@ -297,3 +297,5 @@ export interface ModifiedFileState {
   modifiedContent: string;
   editType: "inMemory" | "toDisk";
 }
+
+export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor Editor Extension";

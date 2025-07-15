@@ -60,19 +60,23 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
+import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
 
-const commandsMap: (state: ExtensionState) => {
+const commandsMap: (
+  state: ExtensionState,
+  logger: Logger,
+) => {
   [command: string]: (...args: any) => any;
-} = (state) => {
+} = (state, logger) => {
   return {
     "konveyor.openProfilesPanel": async () => {
       const provider = state.webviewProviders.get("profiles");
       if (provider) {
         provider.showWebviewPanel();
       } else {
-        console.error("Profiles provider not found");
+        logger.error("Profiles provider not found");
       }
     },
     "konveyor.startServer": async () => {
@@ -83,7 +87,7 @@ const commandsMap: (state: ExtensionState) => {
       try {
         await analyzerClient.start();
       } catch (e) {
-        console.error("Could not start the server", e);
+        logger.error("Could not start the server", { error: e });
       }
     },
     "konveyor.stopServer": async () => {
@@ -91,7 +95,7 @@ const commandsMap: (state: ExtensionState) => {
       try {
         await analyzerClient.stop();
       } catch (e) {
-        console.error("Could not shutdown and stop the server", e);
+        logger.error("Could not shutdown and stop the server", { error: e });
       }
     },
     "konveyor.restartServer": async () => {
@@ -106,7 +110,7 @@ const commandsMap: (state: ExtensionState) => {
         }
         await analyzerClient.start();
       } catch (e) {
-        console.error("Could not restart the server", e);
+        logger.error("Could not restart the server", { error: e });
       }
     },
     "konveyor.restartSolutionServer": async () => {
@@ -117,11 +121,12 @@ const commandsMap: (state: ExtensionState) => {
         await solutionServerClient.connect();
         window.showInformationMessage("Solution server restarted successfully");
       } catch (e) {
-        console.error("Could not restart the solution server", e);
+        logger.error("Could not restart the solution server", { error: e });
         window.showErrorMessage(`Failed to restart solution server: ${e}`);
       }
     },
     "konveyor.runAnalysis": async () => {
+      logger.info("Run analysis command called");
       const analyzerClient = state.analyzerClient;
       if (!analyzerClient || !analyzerClient.canAnalyze()) {
         window.showErrorMessage("Analyzer must be started and configured before run!");
@@ -130,6 +135,7 @@ const commandsMap: (state: ExtensionState) => {
       analyzerClient.runAnalysis();
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
+      logger.info("Get solution command called", { incidents, effort });
       await commands.executeCommand("konveyor.showResolutionPanel");
 
       // Create a scope for the solution
@@ -137,6 +143,7 @@ const commandsMap: (state: ExtensionState) => {
 
       const clientId = uuidv4();
       state.solutionServerClient.setClientId(clientId);
+      logger.debug("Client ID set", { clientId });
 
       // Update the state to indicate we're starting to fetch a solution
       // Clear previous data to prevent stale content from showing
@@ -180,6 +187,7 @@ const commandsMap: (state: ExtensionState) => {
           workspaceDir: state.data.workspaceRoot,
           solutionServerClient: state.solutionServerClient,
         });
+        logger.debug("Agent initialized");
 
         // Get the workflow instance
         workflow = state.workflowManager.getWorkflow();
@@ -218,7 +226,7 @@ const commandsMap: (state: ExtensionState) => {
               resolver(response);
               return true;
             } catch (error) {
-              console.error(`Error executing resolver for messageId: ${messageId}:`, error);
+              logger.error(`Error executing resolver for messageId: ${messageId}:`, error);
               return false;
             }
           } else {
@@ -230,7 +238,7 @@ const commandsMap: (state: ExtensionState) => {
 
         workflow.removeAllListeners();
         workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-          console.log(`Workflow message received: ${msg.type} (${msg.id})`);
+          logger.info(`Workflow message received: ${msg.type} (${msg.id})`);
           await processMessage(
             msg,
             state,
@@ -246,7 +254,7 @@ const commandsMap: (state: ExtensionState) => {
 
         // Add error event listener to catch workflow errors
         workflow.on("error", (error: any) => {
-          console.error("Workflow error:", error);
+          logger.error("Workflow error:", error);
           state.mutateData((draft) => {
             draft.isFetchingSolution = false;
             if (draft.solutionState === "started") {
@@ -258,8 +266,8 @@ const commandsMap: (state: ExtensionState) => {
         // Set up periodic monitoring for stuck interactions
         const stuckInteractionCheck = setInterval(() => {
           if (state.isWaitingForUserInteraction && pendingInteractions.size > 0) {
-            console.log(`Monitoring pending interactions: ${pendingInteractions.size} active`);
-            console.log("Pending interaction IDs:", Array.from(pendingInteractions.keys()));
+            logger.info(`Monitoring pending interactions: ${pendingInteractions.size} active`);
+            logger.info("Pending interaction IDs:", Array.from(pendingInteractions.keys()));
           }
         }, 60000); // Check every minute
 
@@ -285,8 +293,8 @@ const commandsMap: (state: ExtensionState) => {
             await Promise.all(modifiedFilesPromises);
           }
         } catch (err) {
-          console.error(`Error in running the agent - ${err}`);
-          console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
+          logger.error(`Error in running the agent - ${err}`);
+          logger.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
 
           // Ensure isFetchingSolution is reset on any error
           state.mutateData((draft) => {
@@ -375,7 +383,7 @@ const commandsMap: (state: ExtensionState) => {
                   });
                 }
               } catch (err) {
-                console.error(`Error in processing diff for ${relativePath} - ${err}`);
+                logger.error(`Error in processing diff for ${relativePath} - ${err}`);
               }
             }),
           );
@@ -423,7 +431,7 @@ const commandsMap: (state: ExtensionState) => {
           state.resolvePendingInteraction = undefined;
         }
       } catch (error: any) {
-        console.error("Error in getSolution:", error);
+        logger.error("Error in getSolution", { error });
 
         // Clean up pending interactions and resolver function on error
         // Only clean up if we're not waiting for user interaction
@@ -448,8 +456,11 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.getSuccessRate": async () => {
+      logger.info("Getting success rate for incidents");
+
       try {
         if (!state.data.enhancedIncidents || state.data.enhancedIncidents.length === 0) {
+          logger.info("No incidents to update");
           return;
         }
 
@@ -464,18 +475,20 @@ const commandsMap: (state: ExtensionState) => {
           draft.enhancedIncidents = updatedIncidents;
         });
       } catch (error: any) {
-        console.error("Error getting success rate:", error);
+        logger.error("Error getting success rate", { error });
       }
     },
     "konveyor.changeApplied": async (clientId: string, path: string, finalContent: string) => {
+      logger.info("File change applied", { path });
+
       try {
         await state.solutionServerClient.acceptFile(clientId, path, finalContent);
       } catch (error: any) {
-        console.error("Error notifying solution server of file acceptance:", error);
+        logger.error("Error notifying solution server of file acceptance", { error, path });
       }
     },
     "konveyor.resetFetchingState": async () => {
-      console.warn("Manually resetting isFetchingSolution state");
+      logger.warn("Manually resetting isFetchingSolution state");
       state.mutateData((draft) => {
         draft.isFetchingSolution = false;
         if (draft.solutionState === "started") {
@@ -486,10 +499,12 @@ const commandsMap: (state: ExtensionState) => {
       window.showInformationMessage("Fetching state has been reset.");
     },
     "konveyor.changeDiscarded": async (clientId: string, path: string) => {
+      logger.info("File change discarded", { path });
+
       try {
         await state.solutionServerClient.rejectFile(clientId, path);
       } catch (error: any) {
-        console.error("Error notifying solution server of file rejection:", error);
+        logger.error("Error notifying solution server of file rejection", { error, path });
       }
     },
     "konveyor.askContinue": async (incident: EnhancedIncident) => {
@@ -526,7 +541,7 @@ const commandsMap: (state: ExtensionState) => {
           ),
         );
       } catch (error) {
-        console.error("Failed to open document:", error);
+        logger.error("Failed to open document", { error, uri: incident.uri });
         window.showErrorMessage(
           `Failed to open document: ${error instanceof Error ? error.message : String(error)}`,
         );
@@ -639,6 +654,7 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.openAnalysisDetails": async (item: IncidentTypeItem) => {
       //TODO: pass the item to webview and move the focus
+      logger.info("Open details for item", { item });
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
     },
@@ -704,14 +720,17 @@ const commandsMap: (state: ExtensionState) => {
 };
 
 export function registerAllCommands(state: ExtensionState) {
+  // Create a child logger for commands
+  const logger = state.logger.child({ component: "vscode.commands" });
+
   let commandMap: { [command: string]: (...args: any) => any };
 
   // Try to create the command map
   try {
-    commandMap = commandsMap(state);
+    commandMap = commandsMap(state, logger);
   } catch (error) {
     const errorMessage = `Failed to create command map: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage, error);
+    logger.error(errorMessage, { error });
     window.showErrorMessage(
       `Konveyor extension failed to initialize commands. The extension cannot function properly.`,
     );
@@ -722,7 +741,7 @@ export function registerAllCommands(state: ExtensionState) {
   const commandEntries = Object.entries(commandMap);
   if (commandEntries.length === 0) {
     const errorMessage = `Command map is empty - no commands available to register`;
-    console.error(errorMessage);
+    logger.error(errorMessage);
     window.showErrorMessage(
       `Konveyor extension has no commands to register. The extension cannot function properly.`,
     );

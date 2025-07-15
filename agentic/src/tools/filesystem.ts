@@ -5,6 +5,7 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 import { type KaiFsCache, KaiWorkflowMessageType } from "../types";
+import { Logger } from "winston";
 
 function errorToString(err: unknown): string {
   if (err instanceof Error) {
@@ -18,15 +19,21 @@ function errorToString(err: unknown): string {
  * This is to make sure we never let a model write outside our tree
  */
 export class FileSystemTools extends KaiWorkflowEventEmitter {
+  private logger: Logger;
+
   constructor(
     private readonly workspaceDir: string,
     private readonly fsCache: KaiFsCache,
+    logger: Logger,
   ) {
     super();
     this.workspaceDir = workspaceDir.replace("file://", "");
     // we never write content to disk because we want the user
     // to review it. All writes go into this cache
     this.fsCache = fsCache;
+    this.logger = logger.child({
+      component: "FileSystemTools",
+    });
   }
 
   public all(): DynamicStructuredTool[] {
@@ -99,7 +106,7 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           const content = await fs.readFile(pathlib.join(workspaceDir, path), "utf-8");
           return content;
         } catch (err) {
-          console.error(`Failed to read file ${path}`, err);
+          this.logger.error(`Failed to read file ${path}`, err);
           throw Error(`Failed to read file due to error - ${errorToString(err)}`);
         }
       },
@@ -131,7 +138,7 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           });
           return "File wrote successfully!";
         } catch (err) {
-          console.error(`Failed to write to file ${path}`, err);
+          this.logger.error(`Failed to write to file ${path}`, err);
           throw Error(`Failed to write content to file due to error - ${errorToString(err)}`);
         }
       },

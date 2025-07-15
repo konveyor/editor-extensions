@@ -26,6 +26,7 @@ import { AnalysisIssueFix } from "../nodes/analysisIssueFix";
 import { JavaDependencyTools } from "../tools/javaDependency";
 import { DiagnosticsIssueFix } from "../nodes/diagnosticsIssueFix";
 import { AgentName, DiagnosticsOrchestratorState } from "../schemas/diagnosticsIssueFix";
+import { Logger } from "winston";
 
 export interface KaiInteractiveWorkflowInput extends KaiWorkflowInput {
   programmingLanguage: string;
@@ -80,13 +81,17 @@ export class KaiInteractiveWorkflow
   private diagnosticsNodes: DiagnosticsIssueFix | undefined;
 
   private userInteractionPromises: Map<string, PendingUserInteraction>;
+  private readonly logger: Logger;
 
-  constructor() {
+  constructor(logger: Logger) {
     super();
     this.diagnosticsNodes = undefined;
     this.analysisFixWorkflow = undefined;
     this.followUpInteractiveWorkflow = undefined;
     this.userInteractionPromises = new Map<string, PendingUserInteraction>();
+    this.logger = logger.child({
+      component: "KaiInteractiveWorkflow",
+    });
 
     this.runToolsEdgeFunction = this.runToolsEdgeFunction.bind(this);
     this.analysisIssueFixRouterEdge = this.analysisIssueFixRouterEdge.bind(this);
@@ -95,7 +100,7 @@ export class KaiInteractiveWorkflow
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
     const workspaceDir = fileUriToPath(options.workspaceDir);
-    const fsTools = new FileSystemTools(workspaceDir, options.fsCache);
+    const fsTools = new FileSystemTools(workspaceDir, options.fsCache, this.logger);
     const depTools = new JavaDependencyTools();
     const { supportsTools, connected, supportsToolsInStreaming } = await modelHealthCheck(
       options.model,
@@ -300,7 +305,7 @@ export class KaiInteractiveWorkflow
           return runResponse;
         }
       } catch (e) {
-        console.log(`Failed to wait for user response - ${e}`);
+        this.logger.error(`Failed to wait for user response`, e);
         return runResponse;
       } finally {
         this.userInteractionPromises.delete(id);
@@ -365,7 +370,7 @@ export class KaiInteractiveWorkflow
   async analysisIssueFixRouterEdge(
     state: typeof AnalysisIssueFixOrchestratorState.State,
   ): Promise<string | string[]> {
-    console.debug(`Edge function called with state:`, {
+    this.logger.debug(`Edge function called with state:`, {
       hasInputFileContent: !!state.inputFileContent,
       hasInputFileUri: !!state.inputFileUri,
       hasInputIncidents: !!state.inputIncidents && state.inputIncidents.length > 0,
@@ -385,7 +390,7 @@ export class KaiInteractiveWorkflow
 
     // if there was a response, router needs to accumulate it
     if (state.outputUpdatedFile && state.outputUpdatedFileUri) {
-      console.debug(`Going to fix_analysis_issue_router to accumulate response`);
+      this.logger.debug(`Going to fix_analysis_issue_router to accumulate response`);
       return "fix_analysis_issue_router";
     }
 
@@ -395,22 +400,22 @@ export class KaiInteractiveWorkflow
       state.currentIdx < state.inputIncidentsByUris.length &&
       (!state.inputFileContent || !state.inputFileUri || state.inputIncidents.length === 0)
     ) {
-      console.debug(`Going back to fix_analysis_issue_router for next incident`);
+      this.logger.debug(`Going back to fix_analysis_issue_router for next incident`);
       return "fix_analysis_issue_router";
     }
 
     // if the router accumulated all responses, we need to go to additional information
     if (state.enableAdditionalInformation) {
       if (state.inputAllAdditionalInfo && state.inputAllReasoning) {
-        console.debug(`Going to summarize both additional info and history`);
+        this.logger.debug(`Going to summarize both additional info and history`);
         return ["summarize_additional_information", "summarize_history"];
       } else if (state.inputAllAdditionalInfo) {
-        console.debug(`Going to summarize additional information only`);
+        this.logger.debug(`Going to summarize additional information only`);
         return "summarize_additional_information";
       } else {
         // Additional information is enabled but not accumulated yet
         // This means we need to go back to router to continue processing
-        console.debug(
+        this.logger.debug(
           `Additional info enabled but not accumulated, going to fix_analysis_issue_router`,
         );
         return "fix_analysis_issue_router";

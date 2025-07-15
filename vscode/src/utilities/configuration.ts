@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import deepEqual from "fast-deep-equal";
-import { ServerLogLevels } from "../client/types";
 import { KONVEYOR_CONFIG_KEY } from "./constants";
 import { ExtensionState } from "../extensionState";
 import {
@@ -35,10 +34,7 @@ export const getConfigSolutionServerUrl = (): string =>
   getConfigValue<string>("solutionServer.url") || "http://localhost:8000";
 export const getConfigSolutionServerEnabled = (): boolean =>
   getConfigValue<boolean>("solutionServer.enabled") ?? false;
-export const getConfigLogLevel = (): ServerLogLevels =>
-  getConfigValue<ServerLogLevels>("logLevel") || "DEBUG";
-export const getConfigLoggingTraceMessageConnection = (): boolean =>
-  getConfigValue<boolean>("logging.traceMessageConnection") ?? false;
+export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigIncidentLimit = (): number =>
   getConfigValue<number>("analysis.incidentLimit") || 10000;
 export const getConfigContextLines = (): number =>
