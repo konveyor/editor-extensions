@@ -8,6 +8,7 @@ import { KaiFsCache, SolutionServerClient } from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import winston from "winston";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -24,4 +25,5 @@ export interface ExtensionState {
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
   taskManager: DiagnosticTaskManager;
+  logger: winston.Logger;
 }
