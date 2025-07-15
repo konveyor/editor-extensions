@@ -138,7 +138,10 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
   // Handle new messages and content updates
   useEffect(() => {
     if (Array.isArray(chatMessages) && chatMessages?.length > 0) {
-      setTimeout(() => scrollToBottom(false), 100);
+      // Only auto-scroll if user hasn't manually scrolled up
+      if (!userHasScrolledUp.current) {
+        setTimeout(() => scrollToBottom(false), 100);
+      }
     }
   }, [chatMessages, scrollToBottom]);
 
@@ -151,10 +154,15 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
 
     const handleScroll = () => {
       try {
-        if (!isNearBottom()) {
-          userHasScrolledUp.current = true;
-        } else {
+        // If user scrolls to near bottom, reset the "scrolled up" flag
+        if (isNearBottom()) {
           userHasScrolledUp.current = false;
+        } else {
+          // Only set "scrolled up" flag if the scroll wasn't triggered by our auto-scroll
+          const now = Date.now();
+          if (now - lastScrollTime.current > 100) {
+            userHasScrolledUp.current = true;
+          }
         }
       } catch (error) {
         console.warn("Error handling scroll event:", error);
@@ -175,16 +183,19 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     }
   }, [getMessageBoxElement, isNearBottom]);
 
-  // Scroll periodically while content is being updated
+  // Reduced frequency and more conditional scrolling while content is being updated
   useEffect(() => {
     if (isFetchingSolution) {
       const interval = setInterval(() => {
-        scrollToBottom(false);
-      }, 500);
+        // Only auto-scroll if user hasn't manually scrolled up and we're still near bottom
+        if (!userHasScrolledUp.current && isNearBottom()) {
+          scrollToBottom(false);
+        }
+      }, 1000); // Reduced frequency from 500ms to 1000ms
 
       return () => clearInterval(interval);
     }
-  }, [isFetchingSolution, scrollToBottom]);
+  }, [isFetchingSolution, scrollToBottom, isNearBottom]);
 
   // Cleanup timeout on component unmount to prevent memory leaks
   useEffect(() => {

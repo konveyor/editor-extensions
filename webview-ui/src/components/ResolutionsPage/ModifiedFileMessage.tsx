@@ -8,8 +8,6 @@ import {
   FlexItem,
   Modal,
   ModalVariant,
-  Badge,
-  Tooltip,
 } from "@patternfly/react-core";
 import {
   CheckCircleIcon,
@@ -128,7 +126,9 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   // Parse single-file, multi-hunk diff using proper diff library
   const parsedDiff = useMemo(() => {
-    if (!diff) return null;
+    if (!diff) {
+      return null;
+    }
 
     try {
       // Use the proper diff library to parse the patch
@@ -485,7 +485,9 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   // Helper function to parse and render diff lines with syntax highlighting
   const renderDiffLines = (diffContent: string) => {
-    if (!diffContent) return <div className="diff-line context">No diff content available</div>;
+    if (!diffContent) {
+      return <div className="diff-line context">No diff content available</div>;
+    }
 
     const lines = diffContent.split("\n");
     return lines.map((line, index) => {
