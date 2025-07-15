@@ -7,6 +7,7 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
   const userHasScrolledUp = useRef(false);
+  const lastUserScrollTime = useRef<number>(0); // Track when user last scrolled manually
 
   const getMessageBoxElement = useCallback(() => {
     const selectors = [
@@ -138,12 +139,18 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
   // Handle new messages and content updates
   useEffect(() => {
     if (Array.isArray(chatMessages) && chatMessages?.length > 0) {
-      // Only auto-scroll if user hasn't manually scrolled up
-      if (!userHasScrolledUp.current) {
+      // Only auto-scroll if ALL conditions are met:
+      // 1. User hasn't manually scrolled up
+      // 2. We're currently near the bottom
+      // 3. User hasn't scrolled manually in the last 3 seconds
+      const now = Date.now();
+      const noRecentUserScroll = now - lastUserScrollTime.current > 3000; // 3 seconds since last user scroll
+
+      if (!userHasScrolledUp.current && isNearBottom() && noRecentUserScroll) {
         setTimeout(() => scrollToBottom(false), 100);
       }
     }
-  }, [chatMessages, scrollToBottom]);
+  }, [chatMessages, scrollToBottom, isNearBottom]);
 
   // Set up scroll listener to track when user manually scrolls
   useEffect(() => {
@@ -158,10 +165,13 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
         if (isNearBottom()) {
           userHasScrolledUp.current = false;
         } else {
-          // Only set "scrolled up" flag if the scroll wasn't triggered by our auto-scroll
+          // Set "scrolled up" flag more aggressively - any scroll away from bottom counts
+          // Also track when the user last scrolled manually
           const now = Date.now();
-          if (now - lastScrollTime.current > 100) {
+          if (now - lastScrollTime.current > 50) {
+            // Reduced from 100ms to 50ms
             userHasScrolledUp.current = true;
+            lastUserScrollTime.current = now; // Record the time of user scroll
           }
         }
       } catch (error) {
@@ -183,15 +193,28 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     }
   }, [getMessageBoxElement, isNearBottom]);
 
-  // Reduced frequency and more conditional scrolling while content is being updated
+  // Much more conservative periodic scrolling while content is being updated
   useEffect(() => {
     if (isFetchingSolution) {
       const interval = setInterval(() => {
-        // Only auto-scroll if user hasn't manually scrolled up and we're still near bottom
-        if (!userHasScrolledUp.current && isNearBottom()) {
+        // Only auto-scroll if ALL conditions are met:
+        // 1. User hasn't scrolled up manually
+        // 2. We're currently near the bottom
+        // 3. No scroll events happened recently (indicating active user interaction)
+        // 4. No recent user scroll activity
+        const now = Date.now();
+        const noRecentScrollActivity = now - lastScrollTime.current > 2000; // 2 seconds of no scroll activity
+        const noRecentUserScroll = now - lastUserScrollTime.current > 5000; // 5 seconds since last user scroll
+
+        if (
+          !userHasScrolledUp.current &&
+          isNearBottom() &&
+          noRecentScrollActivity &&
+          noRecentUserScroll
+        ) {
           scrollToBottom(false);
         }
-      }, 1000); // Reduced frequency from 500ms to 1000ms
+      }, 3000); // Increased frequency from 2000ms to 3000ms to be even less aggressive
 
       return () => clearInterval(interval);
     }
