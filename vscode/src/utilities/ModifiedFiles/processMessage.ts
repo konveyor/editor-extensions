@@ -56,17 +56,24 @@ export const processMessage = async (
 ) => {
   // If we're waiting for user interaction, queue the message for later processing
   if (queueManager && queueManager.shouldQueueMessage()) {
+    console.log(`Queueing message ${msg.id} (${msg.type}) because waiting for user interaction`);
     queueManager.enqueueMessage(msg);
     return;
   } else if (state.isWaitingForUserInteraction) {
     // Fallback to old behavior for backward compatibility
+    console.log(`Queueing message ${msg.id} (${msg.type}) using fallback mechanism`);
     messageQueue.push(msg);
     return;
   }
 
   // CRITICAL: Before processing this message, ensure any queued messages are processed first
   // This prevents race conditions where new messages bypass queued ones
-  if (queueManager && queueManager.getQueueLength() > 0) {
+  // BUT only if we're not already in the middle of processing the queue (to prevent infinite recursion)
+  if (
+    queueManager &&
+    queueManager.getQueueLength() > 0 &&
+    !queueManager.isProcessingQueueActive()
+  ) {
     // First, queue the current message to maintain order
     queueManager.enqueueMessage(msg);
     // Then process all queued messages (including the one we just added)
@@ -80,7 +87,7 @@ export const processMessage = async (
     return;
   }
 
-  console.log("Processing message type:", msg.type);
+  console.log(`Processing message ${msg.id} (${msg.type}) immediately`);
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat

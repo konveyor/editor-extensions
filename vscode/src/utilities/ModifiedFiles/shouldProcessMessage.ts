@@ -15,21 +15,20 @@ export const shouldProcessMessage = (
   lastMessageId: string | null,
   processedTokens: Set<string>,
 ): boolean => {
-  // Special handling for different message types - NO generic duplicate check first
+  // Special handling for different message types
   switch (msg.type) {
     case KaiWorkflowMessageType.LLMResponseChunk: {
-      // For LLM chunks, we only check for duplicates if it's a new message
-      if (msg.id !== lastMessageId) {
-        // Check if we've already started a message with this ID
-        if (processedTokens.has(`llm-start:${msg.id}`)) {
-          console.log(`Skipping duplicate LLM chunk message with ID: ${msg.id}`);
-          return false;
-        }
-        // Mark this message as started
-        processedTokens.add(`llm-start:${msg.id}`);
+      // For LLM chunks, we need to track individual chunks to prevent exact duplicates
+      // but allow multiple chunks with the same message ID (which is normal)
+      const chunkKey = `llm-chunk:${msg.id}:${JSON.stringify(msg.data)}`;
+
+      if (processedTokens.has(chunkKey)) {
+        console.log(`Skipping duplicate LLM chunk with key: ${chunkKey}`);
+        return false;
       }
-      // Don't add message ID to processedTokens for LLM chunks
-      // as we want to allow multiple chunks with the same ID
+
+      // Mark this specific chunk as processed
+      processedTokens.add(chunkKey);
       return true;
     }
     case KaiWorkflowMessageType.ModifiedFile: {
@@ -40,8 +39,8 @@ export const shouldProcessMessage = (
 
       // Check if this specific file modification has already been processed
       if (processedTokens.has(fileKey)) {
-        console.log(`HAS DUPE ${fileKey}`);
-        // return false;
+        console.log(`Skipping duplicate file modification with key: ${fileKey}`);
+        return false;
       }
 
       // Mark this file modification as processed
@@ -49,10 +48,11 @@ export const shouldProcessMessage = (
       return true;
     }
     case KaiWorkflowMessageType.ToolCall: {
-      // For tool calls, create a unique key based on tool name and status
+      // For tool calls, create a unique key based on tool name, status, and the specific data
       const toolName = msg.data.name || "unnamed tool";
       const toolStatus = msg.data.status;
-      const toolKey = `tool:${toolName}:${toolStatus}:${msg.id}`;
+      const toolData = JSON.stringify(msg.data);
+      const toolKey = `tool:${toolName}:${toolStatus}:${toolData}`;
 
       if (processedTokens.has(toolKey)) {
         console.log(`Skipping duplicate tool call message with key: ${toolKey}`);
@@ -63,9 +63,10 @@ export const shouldProcessMessage = (
       return true;
     }
     case KaiWorkflowMessageType.UserInteraction: {
-      // For user interactions, create a unique key based on the interaction type
+      // For user interactions, create a unique key based on the interaction type and data
       const interaction = msg.data as KaiUserInteraction;
-      const interactionKey = `interaction:${interaction.type}:${msg.id}`;
+      const interactionData = JSON.stringify(msg.data);
+      const interactionKey = `interaction:${interaction.type}:${interactionData}`;
 
       if (processedTokens.has(interactionKey)) {
         console.log(`Skipping duplicate user interaction message with key: ${interactionKey}`);

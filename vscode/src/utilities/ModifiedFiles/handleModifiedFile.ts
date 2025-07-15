@@ -173,23 +173,37 @@ export const handleModifiedFileMessage = async (
 
         state.isWaitingForUserInteraction = true;
 
+        // Set up the pending interaction using the same mechanism as UserInteraction messages
+        // This ensures that handleFileResponse can properly trigger queue processing
+        console.log(`Setting up pending interaction for ModifiedFile message with ID: ${msg.id}`);
         await new Promise<void>((resolve) => {
           pendingInteractions.set(msg.id, async (response: any) => {
-            // Use the new queue manager if available, otherwise fall back to old behavior
-            if (queueManager) {
-              await handleUserInteractionComplete(state, queueManager);
-            } else {
-              // Fallback to old behavior for backward compatibility
-              state.isWaitingForUserInteraction = false;
-              // Note: Old processQueuedMessages function was removed,
-              // so this fallback won't process queued messages
-              console.warn("Queue manager not available, queued messages may not be processed");
+            console.log(
+              `ModifiedFile resolver called for messageId: ${msg.id} with response:`,
+              response,
+            );
+            try {
+              // Use the centralized interaction completion handler
+              if (queueManager) {
+                console.log(`Calling handleUserInteractionComplete for messageId: ${msg.id}`);
+                await handleUserInteractionComplete(state, queueManager);
+                console.log(`handleUserInteractionComplete completed for messageId: ${msg.id}`);
+              } else {
+                // Fallback to old behavior for backward compatibility
+                state.isWaitingForUserInteraction = false;
+                console.warn("Queue manager not available, queued messages may not be processed");
+              }
+
+              // Remove the entry from pendingInteractions to prevent memory leaks
+              pendingInteractions.delete(msg.id);
+              console.log(`ModifiedFile resolver completed for messageId: ${msg.id}`);
+              resolve();
+            } catch (error) {
+              console.error(`Error in ModifiedFile resolver for messageId: ${msg.id}:`, error);
+              // Remove the entry from pendingInteractions to prevent memory leaks
+              pendingInteractions.delete(msg.id);
+              resolve();
             }
-
-            // Remove the entry from pendingInteractions to prevent memory leaks
-            pendingInteractions.delete(msg.id);
-
-            resolve();
           });
         });
       } else {

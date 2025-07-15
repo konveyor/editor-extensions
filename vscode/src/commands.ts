@@ -212,12 +212,25 @@ const commandsMap: (state: ExtensionState) => {
 
         // Store the resolver function in the state so webview handler can access it
         state.resolvePendingInteraction = (messageId: string, response: any) => {
+          console.log(`resolvePendingInteraction called with messageId: ${messageId}`);
+          console.log(
+            `Available pending interactions: ${Array.from(pendingInteractions.keys()).join(", ")}`,
+          );
           const resolver = pendingInteractions.get(messageId);
+          console.log(`Resolver found: ${!!resolver}`);
           if (resolver) {
-            pendingInteractions.delete(messageId);
-            resolver(response);
-            return true;
+            console.log(`Found resolver for messageId: ${messageId}, calling it`);
+            try {
+              pendingInteractions.delete(messageId);
+              resolver(response);
+              console.log(`Resolver executed successfully for messageId: ${messageId}`);
+              return true;
+            } catch (error) {
+              console.error(`Error executing resolver for messageId: ${messageId}:`, error);
+              return false;
+            }
           }
+          console.log(`No resolver found for messageId: ${messageId}`);
           return false;
         };
 
@@ -282,10 +295,17 @@ const commandsMap: (state: ExtensionState) => {
             }
           });
 
-          // Clean up pending interactions and resolver function to prevent memory leaks
-          pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
-          state.isWaitingForUserInteraction = false;
+          // Only clean up if we're not waiting for user interaction
+          // This prevents clearing pending interactions while users are still deciding on file changes
+          if (!state.isWaitingForUserInteraction) {
+            console.log("Workflow completed, cleaning up pending interactions");
+            pendingInteractions.clear();
+            state.resolvePendingInteraction = undefined;
+          } else {
+            console.log(
+              "Workflow completed but waiting for user interaction, preserving pending interactions",
+            );
+          }
 
           // Clean up workflow resources
           if (workflow) {
@@ -404,16 +424,30 @@ const commandsMap: (state: ExtensionState) => {
         }
 
         // Clean up pending interactions and resolver function after successful completion
-        pendingInteractions.clear();
-        state.resolvePendingInteraction = undefined;
-        state.isWaitingForUserInteraction = false;
+        // Only clean up if we're not waiting for user interaction
+        if (!state.isWaitingForUserInteraction) {
+          console.log("Solution completed, cleaning up pending interactions");
+          pendingInteractions.clear();
+          state.resolvePendingInteraction = undefined;
+        } else {
+          console.log(
+            "Solution completed but waiting for user interaction, preserving pending interactions",
+          );
+        }
       } catch (error: any) {
         console.error("Error in getSolution:", error);
 
         // Clean up pending interactions and resolver function on error
-        pendingInteractions.clear();
-        state.resolvePendingInteraction = undefined;
-        state.isWaitingForUserInteraction = false;
+        // Only clean up if we're not waiting for user interaction
+        if (!state.isWaitingForUserInteraction) {
+          console.log("Solution failed, cleaning up pending interactions");
+          pendingInteractions.clear();
+          state.resolvePendingInteraction = undefined;
+        } else {
+          console.log(
+            "Solution failed but waiting for user interaction, preserving pending interactions",
+          );
+        }
 
         // Update the state to indicate an error
         state.mutateData((draft) => {
