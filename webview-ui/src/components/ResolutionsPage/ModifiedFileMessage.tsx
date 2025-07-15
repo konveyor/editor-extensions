@@ -34,8 +34,6 @@ import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import "highlight.js/styles/github-dark.css";
 
-
-
 interface ModifiedFileMessageProps {
   data: ModifiedFileMessageValue | LocalChange;
   timestamp?: string;
@@ -89,7 +87,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         path: data.path,
         isNew: data.isNew || false,
         diff: data.diff || "",
-        status: data.status || null as "applied" | "rejected" | null,
+        status: data.status || (null as "applied" | "rejected" | null),
         content: data.content || "",
         messageToken: data.messageToken || "",
         quickResponses: data.quickResponses,
@@ -105,7 +103,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         quickResponses: undefined,
       };
     }
-    
+
     // Fallback for unknown data types
     return {
       path: "",
@@ -131,18 +129,18 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   // Parse single-file, multi-hunk diff using proper diff library
   const parsedDiff = useMemo(() => {
     if (!diff) return null;
-    
+
     try {
       // Use the proper diff library to parse the patch
       const patches = parsePatch(diff);
-      
+
       if (!patches || patches.length === 0) {
         return null;
       }
-      
+
       // We expect a single file patch since this component handles one file
       const patch = patches[0];
-      
+
       // Transform library hunks into our format with IDs
       const hunks = patch.hunks.map((hunk, index) => ({
         id: `hunk-${index}`,
@@ -152,12 +150,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         oldLines: hunk.oldLines,
         newStart: hunk.newStart,
         newLines: hunk.newLines,
-        changes: hunk.lines
+        changes: hunk.lines,
       }));
-      
+
       return {
-        filename: patch.oldFileName || patch.newFileName || '',
-        hunks: hunks
+        filename: patch.oldFileName || patch.newFileName || "",
+        hunks: hunks,
       };
     } catch (error) {
       // Silently handle diff parsing errors and return null
@@ -173,14 +171,27 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   useEffect(() => {
     hljs.configure({
       ignoreUnescapedHTML: true,
-      languages: ['javascript', 'typescript', 'java', 'python', 'css', 'html', 'xml', 'json', 'yaml', 'properties', 'groovy', 'xml']
+      languages: [
+        "javascript",
+        "typescript",
+        "java",
+        "python",
+        "css",
+        "html",
+        "xml",
+        "json",
+        "yaml",
+        "properties",
+        "groovy",
+        "xml",
+      ],
     });
   }, []);
 
   // Update hunkStates when parsedHunks changes
   useEffect(() => {
     const newHunkStates: Record<string, boolean> = {};
-    parsedHunks.forEach(hunk => {
+    parsedHunks.forEach((hunk) => {
       newHunkStates[hunk.id] = true; // Default to accepted
     });
     setHunkStates(newHunkStates);
@@ -191,7 +202,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     responseId: string,
     messageToken: string,
     path: string,
-    content?: string
+    content?: string,
   ) => {
     if (mode === "agent") {
       interface FileResponsePayload {
@@ -205,11 +216,11 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         messageToken,
         path,
       };
-      
+
       if (content !== undefined) {
         payload.content = content;
       }
-      
+
       window.vscode.postMessage({
         type: "FILE_RESPONSE",
         payload,
@@ -217,70 +228,70 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }
   };
 
-
-
   // Generate content based on hunk selections using proper diff library
   const generateSelectedContent = (): string => {
     try {
       // Get the original content from the backend message
-      const originalContent = isModifiedFileMessageValue(data) && data.originalContent 
-        ? data.originalContent 
-        : ""; // fallback for new files or missing data
-      
+      const originalContent =
+        isModifiedFileMessageValue(data) && data.originalContent ? data.originalContent : ""; // fallback for new files or missing data
+
       // The data.content is actually the modified content from the agent
       const modifiedContent = content;
-      
+
       if (!parsedDiff || parsedHunks.length === 0) {
         console.warn("No parsed diff or hunks available, returning modified content as-is", {
           hasParsedDiff: !!parsedDiff,
           hunksLength: parsedHunks.length,
-          path
+          path,
         });
         return modifiedContent;
       }
-      
+
       // Hunk-level selection logic
-      const noHunksAccepted = parsedHunks.every(hunk => !hunkStates[hunk.id]);
+      const noHunksAccepted = parsedHunks.every((hunk) => !hunkStates[hunk.id]);
       if (noHunksAccepted) {
         console.log("No hunks accepted, returning original content unchanged", {
           totalHunks: parsedHunks.length,
-          path
+          path,
         });
         return originalContent; // Return original content unchanged
       }
-      
-      const allHunksAccepted = parsedHunks.every(hunk => hunkStates[hunk.id]);
+
+      const allHunksAccepted = parsedHunks.every((hunk) => hunkStates[hunk.id]);
       if (allHunksAccepted) {
         console.log("All hunks accepted, returning agent's modified content", {
           totalHunks: parsedHunks.length,
-          path
+          path,
         });
         return modifiedContent; // All hunks accepted - return the agent's modified content
       }
-      
+
       // Partial selection - create a new patch with only selected hunks
-      const selectedHunks = parsedHunks.filter(hunk => hunkStates[hunk.id]);
-      
+      const selectedHunks = parsedHunks.filter((hunk) => hunkStates[hunk.id]);
+
       if (selectedHunks.length === 0) {
-        console.warn("No hunks selected despite having hunks available, returning original content", {
-          totalHunks: parsedHunks.length,
-          selectedHunks: selectedHunks.length,
-          path
-        });
+        console.warn(
+          "No hunks selected despite having hunks available, returning original content",
+          {
+            totalHunks: parsedHunks.length,
+            selectedHunks: selectedHunks.length,
+            path,
+          },
+        );
         return originalContent; // No hunks selected, return original
       }
-      
+
       console.log("Applying partial patch with selected hunks", {
         totalHunks: parsedHunks.length,
         selectedHunks: selectedHunks.length,
-        path
+        path,
       });
-      
+
       // For partial selection, we'll reconstruct a patch with only selected hunks
       // and apply it to the original content
       const filename = parsedDiff.filename || path;
       let patchString = `--- a/${filename}\n+++ b/${filename}\n`;
-      
+
       try {
         // Build patch string with selected hunks
         for (const hunk of selectedHunks) {
@@ -290,60 +301,58 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
           if (!hunk.changes || !Array.isArray(hunk.changes)) {
             throw new Error(`Invalid changes array for hunk ${hunk.id}`);
           }
-          
-          patchString += hunk.header + '\n';
-          patchString += hunk.changes.join('\n') + '\n';
+
+          patchString += hunk.header + "\n";
+          patchString += hunk.changes.join("\n") + "\n";
         }
-        
+
         console.log("Successfully constructed patch string", {
           patchLength: patchString.length,
           selectedHunks: selectedHunks.length,
-          path
+          path,
         });
-        
       } catch (patchConstructionError) {
-        const errorMessage = patchConstructionError instanceof Error 
-          ? patchConstructionError.message 
-          : String(patchConstructionError);
+        const errorMessage =
+          patchConstructionError instanceof Error
+            ? patchConstructionError.message
+            : String(patchConstructionError);
         // Silently handle patch construction errors and re-throw with generic message
         throw new Error(`Failed to construct patch string: ${errorMessage}`);
       }
-      
+
       // Apply the partial patch to the original content
       let partiallyModified: string | false;
       try {
         partiallyModified = applyPatch(originalContent, patchString);
-        
+
         if (partiallyModified === false) {
           // Silently handle patch application failure and throw generic error
           throw new Error("applyPatch returned false - patch application failed");
         }
-        
+
         console.log("Successfully applied partial patch", {
           originalLength: originalContent.length,
           modifiedLength: partiallyModified.length,
           selectedHunks: selectedHunks.length,
-          path
+          path,
         });
-        
+
         return partiallyModified;
-        
       } catch (patchApplicationError) {
-        const errorMessage = patchApplicationError instanceof Error 
-          ? patchApplicationError.message 
-          : String(patchApplicationError);
+        const errorMessage =
+          patchApplicationError instanceof Error
+            ? patchApplicationError.message
+            : String(patchApplicationError);
         // Silently handle patch application errors and re-throw with generic message
         throw new Error(`Failed to apply patch: ${errorMessage}`);
       }
-      
     } catch (error) {
       // Silently handle generateSelectedContent errors and continue with fallback strategy
-      
+
       // Fallback strategy: try to return original content, then modified content
-      const originalContent = isModifiedFileMessageValue(data) && data.originalContent 
-        ? data.originalContent 
-        : "";
-      
+      const originalContent =
+        isModifiedFileMessageValue(data) && data.originalContent ? data.originalContent : "";
+
       if (originalContent) {
         console.log("Falling back to original content due to error");
         return originalContent;
@@ -363,7 +372,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     setIsExpanded(false);
 
     postFileResponse("apply", messageToken, path, selectedContent);
-    
+
     if (mode === "non-agent") {
       if (isLocalChange(data) && onApply) {
         onApply(data);
@@ -376,7 +385,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     setIsExpanded(false);
 
     postFileResponse("reject", messageToken, path);
-    
+
     if (mode === "non-agent") {
       if (isLocalChange(data) && onReject) {
         onReject(data);
@@ -468,87 +477,92 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   };
 
   const toggleHunk = (hunkId: string) => {
-    setHunkStates(prev => ({
+    setHunkStates((prev) => ({
       ...prev,
-      [hunkId]: !prev[hunkId]
+      [hunkId]: !prev[hunkId],
     }));
   };
 
   // Helper function to parse and render diff lines with syntax highlighting
   const renderDiffLines = (diffContent: string) => {
     if (!diffContent) return <div className="diff-line context">No diff content available</div>;
-    
-    const lines = diffContent.split('\n');
+
+    const lines = diffContent.split("\n");
     return lines.map((line, index) => {
-      let lineClass = 'context';
-      let lineNumber = '';
+      let lineClass = "context";
+      let lineNumber = "";
       let content = line;
       let shouldHighlight = false;
-      
-      if (line.startsWith('+')) {
-        lineClass = 'addition';
-        lineNumber = '  +';
+
+      if (line.startsWith("+")) {
+        lineClass = "addition";
+        lineNumber = "  +";
         content = line.substring(1);
         shouldHighlight = true;
-      } else if (line.startsWith('-')) {
-        lineClass = 'deletion';
-        lineNumber = '  -';
+      } else if (line.startsWith("-")) {
+        lineClass = "deletion";
+        lineNumber = "  -";
         content = line.substring(1);
         shouldHighlight = true;
-      } else if (line.startsWith('@@')) {
-        lineClass = 'meta';
-        lineNumber = '  ';
+      } else if (line.startsWith("@@")) {
+        lineClass = "meta";
+        lineNumber = "  ";
         content = line;
         shouldHighlight = false;
-      } else if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) {
-        lineClass = 'meta';
-        lineNumber = '  ';
+      } else if (
+        line.startsWith("diff ") ||
+        line.startsWith("index ") ||
+        line.startsWith("--- ") ||
+        line.startsWith("+++ ")
+      ) {
+        lineClass = "meta";
+        lineNumber = "  ";
         content = line;
         shouldHighlight = false;
       } else if (line.match(/^\d+$/)) {
         // Line numbers
-        lineClass = 'meta';
+        lineClass = "meta";
         lineNumber = line.padStart(3);
-        content = '';
+        content = "";
         shouldHighlight = false;
-      } else if (line.startsWith(' ')) {
-        lineClass = 'context';
-        lineNumber = '   ';
+      } else if (line.startsWith(" ")) {
+        lineClass = "context";
+        lineNumber = "   ";
         content = line.substring(1);
         shouldHighlight = true;
       }
-      
+
       // Apply syntax highlighting to code content
       let highlightedContent = content;
       if (shouldHighlight && content.trim()) {
         try {
-          const fileExtension = path.split('.').pop()?.toLowerCase() || '';
+          const fileExtension = path.split(".").pop()?.toLowerCase() || "";
           let language = getLanguageFromExtension(fileExtension);
-          
+
           // Map common file extensions to highlight.js languages
           const languageMap: Record<string, string> = {
-            'js': 'javascript',
-            'ts': 'typescript',
-            'jsx': 'javascript',
-            'tsx': 'typescript',
-            'java': 'java',
-            'py': 'python',
-            'css': 'css',
-            'html': 'html',
-            'xml': 'xml',
-            'json': 'json',
-            'yaml': 'yaml',
-            'yml': 'yaml',
-            'properties': 'properties',
-            'gradle': 'groovy',
-            'groovy': 'groovy',
-            'pom': 'xml',
-            'md': 'markdown'
+            js: "javascript",
+            ts: "typescript",
+            jsx: "javascript",
+            tsx: "typescript",
+            java: "java",
+            py: "python",
+            css: "css",
+            html: "html",
+            xml: "xml",
+            json: "json",
+            yaml: "yaml",
+            yml: "yaml",
+            properties: "properties",
+            gradle: "groovy",
+            groovy: "groovy",
+            pom: "xml",
+            md: "markdown",
           };
-          
+
           language = languageMap[fileExtension] || language;
-          
-          if (language && language !== 'text' && hljs.getLanguage(language)) {
+
+          if (language && language !== "text" && hljs.getLanguage(language)) {
             const highlighted = hljs.highlight(content, { language });
             highlightedContent = highlighted.value;
           }
@@ -557,14 +571,11 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
           highlightedContent = content;
         }
       }
-      
+
       return (
         <div key={index} className={`diff-line ${lineClass}`}>
           <span className="diff-line-number">{lineNumber}</span>
-          <span 
-            className="diff-content"
-            dangerouslySetInnerHTML={{ __html: highlightedContent }}
-          />
+          <span className="diff-content" dangerouslySetInnerHTML={{ __html: highlightedContent }} />
         </div>
       );
     });
@@ -598,10 +609,10 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
             <div className="hunk-selection-header">
               <h3 className="hunk-selection-title">Review Changes</h3>
               <span className="hunk-count">
-                {parsedHunks.length} change{parsedHunks.length !== 1 ? 's' : ''} found
+                {parsedHunks.length} change{parsedHunks.length !== 1 ? "s" : ""} found
               </span>
             </div>
-            
+
             {parsedHunks.map((hunk, index) => (
               <div key={hunk.id} className="hunk-item">
                 <div className="hunk-item-header">
@@ -614,7 +625,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                       variant={hunkStates[hunk.id] ? "primary" : "secondary"}
                       size="sm"
                       icon={<CheckCircleIcon />}
-                      onClick={() => setHunkStates(prev => ({ ...prev, [hunk.id]: true }))}
+                      onClick={() => setHunkStates((prev) => ({ ...prev, [hunk.id]: true }))}
                       isDisabled={actionTaken !== null}
                     >
                       Accept
@@ -623,7 +634,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                       variant={!hunkStates[hunk.id] ? "danger" : "secondary"}
                       size="sm"
                       icon={<TimesCircleIcon />}
-                      onClick={() => setHunkStates(prev => ({ ...prev, [hunk.id]: false }))}
+                      onClick={() => setHunkStates((prev) => ({ ...prev, [hunk.id]: false }))}
                       isDisabled={actionTaken !== null}
                     >
                       Reject
@@ -645,7 +656,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                       <span>Context</span>
                     </div>
                   </div>
-                  {renderDiffLines(hunk.changes.join('\n'))}
+                  {renderDiffLines(hunk.changes.join("\n"))}
                 </div>
               </div>
             ))}
@@ -678,7 +689,10 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
     if (quickResponses && messageToken) {
       return (
-        <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentSpaceBetween" }}>
+        <Flex
+          className="modified-file-actions"
+          justifyContent={{ default: "justifyContentSpaceBetween" }}
+        >
           <FlexItem>
             <Flex gap={{ default: "gapMd" }}>
               {!isNew && mode !== "agent" && (
@@ -713,14 +727,17 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                   <Button
                     variant={response.id === "apply" ? "primary" : "danger"}
                     icon={response.id === "apply" ? <CheckCircleIcon /> : <TimesCircleIcon />}
-                    className={response.id === "apply" ? "quick-accept-button" : "quick-reject-button"}
+                    className={
+                      response.id === "apply" ? "quick-accept-button" : "quick-reject-button"
+                    }
                     onClick={() => {
                       const action = response.id === "apply" ? "applied" : "rejected";
                       setActionTaken(action);
 
-                      const contentToSend = response.id === "apply" ? generateSelectedContent() : content;
+                      const contentToSend =
+                        response.id === "apply" ? generateSelectedContent() : content;
                       postFileResponse(response.id, messageToken, path, contentToSend);
-                      
+
                       if (mode === "non-agent") {
                         if (isLocalChange(data)) {
                           if (response.id === "apply" && onApply) {
@@ -745,7 +762,10 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }
 
     return (
-      <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentSpaceBetween" }}>
+      <Flex
+        className="modified-file-actions"
+        justifyContent={{ default: "justifyContentSpaceBetween" }}
+      >
         <FlexItem>
           <Flex gap={{ default: "gapMd" }}>
             {!isNew && mode !== "agent" && (
@@ -868,11 +888,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               aria-label="Close modal"
             />
           </div>
-          <div className="modal-content-scrollable">
-            {renderExpandedDiff()}
-          </div>
+          <div className="modal-content-scrollable">{renderExpandedDiff()}</div>
           <div className="modal-actions">
-            <Flex justifyContent={{ default: "justifyContentSpaceBetween" }} alignItems={{ default: "alignItemsCenter" }}>
+            <Flex
+              justifyContent={{ default: "justifyContentSpaceBetween" }}
+              alignItems={{ default: "alignItemsCenter" }}
+            >
               <FlexItem>
                 <Flex gap={{ default: "gapMd" }}>
                   {parsedHunks.length > 1 && (
@@ -883,7 +904,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                           icon={<PlusCircleIcon />}
                           onClick={() => {
                             const newStates: Record<string, boolean> = {};
-                            parsedHunks.forEach(hunk => {
+                            parsedHunks.forEach((hunk) => {
                               newStates[hunk.id] = true;
                             });
                             setHunkStates(newStates);
@@ -900,7 +921,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                           icon={<MinusCircleIcon />}
                           onClick={() => {
                             const newStates: Record<string, boolean> = {};
-                            parsedHunks.forEach(hunk => {
+                            parsedHunks.forEach((hunk) => {
                               newStates[hunk.id] = false;
                             });
                             setHunkStates(newStates);
@@ -916,10 +937,13 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                 </Flex>
               </FlexItem>
               <FlexItem>
-                <Flex gap={{ default: "gapLg" }} justifyContent={{ default: "justifyContentFlexEnd" }}>
+                <Flex
+                  gap={{ default: "gapLg" }}
+                  justifyContent={{ default: "justifyContentFlexEnd" }}
+                >
                   <FlexItem>
-                    <Button 
-                      variant="plain" 
+                    <Button
+                      variant="plain"
                       icon={<CheckIcon />}
                       onClick={applyFile}
                       isDisabled={actionTaken !== null}
@@ -930,18 +954,17 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                     </Button>
                   </FlexItem>
                   <FlexItem>
-                    <Button 
-                      variant="plain" 
+                    <Button
+                      variant="plain"
                       icon={<CloseIcon />}
                       onClick={rejectFile}
                       isDisabled={actionTaken !== null}
                       className="cancel-button"
                       aria-label="reject changes"
                     >
-                     Reject changes 
+                      Reject changes
                     </Button>
                   </FlexItem>
-
                 </Flex>
               </FlexItem>
             </Flex>

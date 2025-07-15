@@ -49,31 +49,44 @@ const useResolutionData = (state: any) => {
 
   const hasNothingToView = useMemo(() => {
     if (isAgentMode) {
-      return solutionState === "none" && (!Array.isArray(chatMessages) || chatMessages?.length === 0);
+      return (
+        solutionState === "none" && (!Array.isArray(chatMessages) || chatMessages?.length === 0)
+      );
     } else {
       // Non-agentic mode: Nothing to view if we have no chat messages AND no local changes
-      return solutionState === "none" && 
-             (!Array.isArray(chatMessages) || chatMessages?.length === 0) &&
-             (!Array.isArray(localChanges) || localChanges?.length === 0);
+      return (
+        solutionState === "none" &&
+        (!Array.isArray(chatMessages) || chatMessages?.length === 0) &&
+        (!Array.isArray(localChanges) || localChanges?.length === 0)
+      );
     }
   }, [solutionState, chatMessages, localChanges, isAgentMode]);
 
   const getPendingLocalChanges = useCallback(() => {
-    return Array.isArray(localChanges) ? localChanges.filter(({ state }) => state === "pending") : [];
+    return Array.isArray(localChanges)
+      ? localChanges.filter(({ state }) => state === "pending")
+      : [];
   }, [localChanges]);
 
   const isHistorySolution = useMemo(() => {
-    return !isTriggeredByUser && !isAgentMode && Array.isArray(localChanges) && localChanges?.length > 0;
+    return (
+      !isTriggeredByUser && !isAgentMode && Array.isArray(localChanges) && localChanges?.length > 0
+    );
   }, [isTriggeredByUser, isAgentMode, localChanges]);
 
   const hasContent = useMemo(() => {
     if (isAgentMode) {
-      return solutionState === "received" || (Array.isArray(chatMessages) && chatMessages?.length > 0);
+      return (
+        solutionState === "received" || (Array.isArray(chatMessages) && chatMessages?.length > 0)
+      );
     } else {
       // Non-agentic mode: Has content if there are chat messages OR local changes
-      return (solutionState === "received" || isHistorySolution) || 
-             (Array.isArray(chatMessages) && chatMessages?.length > 0) ||
-             (Array.isArray(localChanges) && localChanges?.length > 0);
+      return (
+        solutionState === "received" ||
+        isHistorySolution ||
+        (Array.isArray(chatMessages) && chatMessages?.length > 0) ||
+        (Array.isArray(localChanges) && localChanges?.length > 0)
+      );
     }
   }, [solutionState, chatMessages, localChanges, isAgentMode, isHistorySolution]);
 
@@ -84,11 +97,11 @@ const useResolutionData = (state: any) => {
 
     const pendingChanges = getPendingLocalChanges();
     const allProcessed = solutionState === "received" && pendingChanges.length === 0;
-    
+
     if (!allProcessed) return null;
 
-    const appliedChanges = localChanges.filter(change => change.state === "applied");
-    const rejectedChanges = localChanges.filter(change => change.state === "discarded");
+    const appliedChanges = localChanges.filter((change) => change.state === "applied");
+    const rejectedChanges = localChanges.filter((change) => change.state === "discarded");
 
     if (appliedChanges.length === localChanges.length) {
       return "all-applied";
@@ -219,68 +232,71 @@ const ResolutionPage: React.FC = () => {
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
   // Render chat messages - used in both modes but with different ModifiedFile handling
-  const renderChatMessages = useCallback((mode: "agent" | "non-agent" = "agent") => {
-    if (!Array.isArray(chatMessages) || chatMessages?.length === 0) {
-      return null;
-    }
-
-    return chatMessages.map((msg) => {
-      if (!msg) return null;
-
-      if (msg.kind === ChatMessageType.Tool) {
-        const { toolName, toolStatus } = msg.value as ToolMessageValue;
-        return (
-          <ToolMessage
-            key={msg.messageToken}
-            toolName={toolName}
-            status={toolStatus as "succeeded" | "failed" | "running"}
-            timestamp={msg.timestamp}
-          />
-        );
+  const renderChatMessages = useCallback(
+    (mode: "agent" | "non-agent" = "agent") => {
+      if (!Array.isArray(chatMessages) || chatMessages?.length === 0) {
+        return null;
       }
 
-      if (msg.kind === ChatMessageType.ModifiedFile) {
-        // In non-agentic mode, ModifiedFile messages are handled separately via localChanges
-        // In agentic mode, they're rendered here
-        if (mode === "agent") {
-          const fileData = msg.value as ModifiedFileMessageValue;
+      return chatMessages.map((msg) => {
+        if (!msg) return null;
+
+        if (msg.kind === ChatMessageType.Tool) {
+          const { toolName, toolStatus } = msg.value as ToolMessageValue;
           return (
-            <ModifiedFileMessage 
-              key={msg.messageToken} 
-              data={fileData} 
-              timestamp={msg.timestamp} 
-              mode="agent"
+            <ToolMessage
+              key={msg.messageToken}
+              toolName={toolName}
+              status={toolStatus as "succeeded" | "failed" | "running"}
+              timestamp={msg.timestamp}
             />
           );
         }
-        return null; // Skip in non-agentic mode
-      }
 
-      if (msg.kind === ChatMessageType.String) {
-        const message = msg.value?.message as string;
-        return (
-          <ReceivedMessage
-            timestamp={msg.timestamp}
-            key={msg.messageToken}
-            content={message}
-            isLoading={isFetchingSolution && !message}
-            isProcessing={state.isProcessingQuickResponse}
-            quickResponses={
-              Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
-                ? msg.quickResponses.map((response) => ({
-                    ...response,
-                    messageToken: msg.messageToken,
-                    isDisabled: response.id === "run-analysis" && isAnalyzing,
-                  }))
-                : undefined
-            }
-          />
-        );
-      }
+        if (msg.kind === ChatMessageType.ModifiedFile) {
+          // In non-agentic mode, ModifiedFile messages are handled separately via localChanges
+          // In agentic mode, they're rendered here
+          if (mode === "agent") {
+            const fileData = msg.value as ModifiedFileMessageValue;
+            return (
+              <ModifiedFileMessage
+                key={msg.messageToken}
+                data={fileData}
+                timestamp={msg.timestamp}
+                mode="agent"
+              />
+            );
+          }
+          return null; // Skip in non-agentic mode
+        }
 
-      return null;
-    });
-  }, [chatMessages, isFetchingSolution, state.isProcessingQuickResponse, isAnalyzing]);
+        if (msg.kind === ChatMessageType.String) {
+          const message = msg.value?.message as string;
+          return (
+            <ReceivedMessage
+              timestamp={msg.timestamp}
+              key={msg.messageToken}
+              content={message}
+              isLoading={isFetchingSolution && !message}
+              isProcessing={state.isProcessingQuickResponse}
+              quickResponses={
+                Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                  ? msg.quickResponses.map((response) => ({
+                      ...response,
+                      messageToken: msg.messageToken,
+                      isDisabled: response.id === "run-analysis" && isAnalyzing,
+                    }))
+                  : undefined
+              }
+            />
+          );
+        }
+
+        return null;
+      });
+    },
+    [chatMessages, isFetchingSolution, state.isProcessingQuickResponse, isAnalyzing],
+  );
 
   // Render local changes for non-agent mode
   const renderLocalChanges = useCallback(() => {
@@ -345,8 +361,8 @@ const ResolutionPage: React.FC = () => {
               completionStatus === "all-applied"
                 ? "All resolutions have been applied"
                 : completionStatus === "all-rejected"
-                ? "All resolutions have been rejected"
-                : "All resolutions have been processed (some applied, some rejected)"
+                  ? "All resolutions have been rejected"
+                  : "All resolutions have been processed (some applied, some rejected)"
             }
             isProcessing={state.isProcessingQuickResponse}
           />
