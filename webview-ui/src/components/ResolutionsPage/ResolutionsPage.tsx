@@ -28,6 +28,7 @@ import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patter
 import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
+import { MessageWrapper } from "./MessageWrapper";
 
 // Unified hook for both modes
 const useResolutionData = (state: any) => {
@@ -98,7 +99,9 @@ const useResolutionData = (state: any) => {
     const pendingChanges = getPendingLocalChanges();
     const allProcessed = solutionState === "received" && pendingChanges.length === 0;
 
-    if (!allProcessed) return null;
+    if (!allProcessed) {
+      return null;
+    }
 
     const appliedChanges = localChanges.filter((change) => change.state === "applied");
     const rejectedChanges = localChanges.filter((change) => change.state === "discarded");
@@ -171,12 +174,13 @@ const UserRequestMessages: React.FC<{
   return (
     <>
       {USER_REQUEST_MESSAGES.map((msg) => (
-        <SentMessage
-          key={msg.messageToken}
-          timestamp={msg.timestamp}
-          content={msg.value.message as string}
-          extraContent={msg.extraContent}
-        />
+        <MessageWrapper key={msg.messageToken}>
+          <SentMessage
+            timestamp={msg.timestamp}
+            content={msg.value.message as string}
+            extraContent={msg.extraContent}
+          />
+        </MessageWrapper>
       ))}
     </>
   );
@@ -239,17 +243,20 @@ const ResolutionPage: React.FC = () => {
       }
 
       return chatMessages.map((msg) => {
-        if (!msg) return null;
+        if (!msg) {
+          return null;
+        }
 
         if (msg.kind === ChatMessageType.Tool) {
           const { toolName, toolStatus } = msg.value as ToolMessageValue;
           return (
-            <ToolMessage
-              key={msg.messageToken}
-              toolName={toolName}
-              status={toolStatus as "succeeded" | "failed" | "running"}
-              timestamp={msg.timestamp}
-            />
+            <MessageWrapper key={msg.messageToken}>
+              <ToolMessage
+                toolName={toolName}
+                status={toolStatus as "succeeded" | "failed" | "running"}
+                timestamp={msg.timestamp}
+              />
+            </MessageWrapper>
           );
         }
 
@@ -259,12 +266,9 @@ const ResolutionPage: React.FC = () => {
           if (mode === "agent") {
             const fileData = msg.value as ModifiedFileMessageValue;
             return (
-              <ModifiedFileMessage
-                key={msg.messageToken}
-                data={fileData}
-                timestamp={msg.timestamp}
-                mode="agent"
-              />
+              <MessageWrapper key={msg.messageToken}>
+                <ModifiedFileMessage data={fileData} timestamp={msg.timestamp} mode="agent" />
+              </MessageWrapper>
             );
           }
           return null; // Skip in non-agentic mode
@@ -273,22 +277,23 @@ const ResolutionPage: React.FC = () => {
         if (msg.kind === ChatMessageType.String) {
           const message = msg.value?.message as string;
           return (
-            <ReceivedMessage
-              timestamp={msg.timestamp}
-              key={msg.messageToken}
-              content={message}
-              isLoading={isFetchingSolution && !message}
-              isProcessing={state.isProcessingQuickResponse}
-              quickResponses={
-                Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
-                  ? msg.quickResponses.map((response) => ({
-                      ...response,
-                      messageToken: msg.messageToken,
-                      isDisabled: response.id === "run-analysis" && isAnalyzing,
-                    }))
-                  : undefined
-              }
-            />
+            <MessageWrapper key={msg.messageToken}>
+              <ReceivedMessage
+                timestamp={msg.timestamp}
+                content={message}
+                isLoading={isFetchingSolution && !message}
+                isProcessing={state.isProcessingQuickResponse}
+                quickResponses={
+                  Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                    ? msg.quickResponses.map((response) => ({
+                        ...response,
+                        messageToken: msg.messageToken,
+                        isDisabled: response.id === "run-analysis" && isAnalyzing,
+                      }))
+                    : undefined
+                }
+              />
+            </MessageWrapper>
           );
         }
 
@@ -414,10 +419,12 @@ const ResolutionPage: React.FC = () => {
 
             {/* No content to view */}
             {hasNothingToView && (
-              <ReceivedMessage
-                content="No resolutions available."
-                isProcessing={state.isProcessingQuickResponse}
-              />
+              <MessageWrapper>
+                <ReceivedMessage
+                  content="No resolutions available."
+                  isProcessing={state.isProcessingQuickResponse}
+                />
+              </MessageWrapper>
             )}
 
             {/* Render content based on mode */}
