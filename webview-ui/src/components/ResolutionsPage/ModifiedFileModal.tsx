@@ -1,16 +1,10 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Modal, ModalVariant, Button, Flex, FlexItem } from "@patternfly/react-core";
-import {
-  CompressIcon,
-  PlusCircleIcon,
-  MinusCircleIcon,
-  CheckIcon,
-  CloseIcon,
-} from "@patternfly/react-icons";
+import { Modal, ModalVariant } from "@patternfly/react-core";
 
 import { parsePatch, applyPatch } from "diff";
 import { SingleHunkDisplay } from "./SingleHunkDisplay";
 import { HunkSelectionInterface } from "./HunkSelectionInterface";
+import { ModifiedFileModalHeader } from "./ModifiedFileModalHeader";
 
 interface ParsedHunk {
   id: string;
@@ -39,7 +33,8 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
   onReject,
 }) => {
   // Use shared data normalization hook
-  const { path, isNew, diff, content, originalContent, fileName } = useModifiedFileData(data);
+  const normalizedData = useModifiedFileData(data);
+  const { path, isNew, diff, content, originalContent, fileName } = normalizedData;
   // Parse single-file, multi-hunk diff using proper diff library
   const parsedDiff = useMemo(() => {
     if (!diff) {
@@ -81,8 +76,6 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
 
   const parsedHunks = parsedDiff?.hunks || [];
   const [hunkStates, setHunkStates] = useState<Record<string, boolean>>({});
-
-
 
   // Update hunkStates when parsedHunks changes
   useEffect(() => {
@@ -186,8 +179,6 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
     onReject();
   };
 
-
-
   // Helper to handle hunk state changes
   const handleHunkStateChange = (hunkId: string, accepted: boolean) => {
     setHunkStates((prev) => ({ ...prev, [hunkId]: accepted }));
@@ -212,105 +203,43 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
       </div>
     );
   };
+  const isSingleHunk = parsedHunks.length <= 1;
+
+  // Handlers for multi-hunk selection
+  const handleSelectAll = () => {
+    const newStates: Record<string, boolean> = {};
+    parsedHunks.forEach((hunk) => {
+      newStates[hunk.id] = true;
+    });
+    setHunkStates(newStates);
+  };
+
+  const handleDeselectAll = () => {
+    const newStates: Record<string, boolean> = {};
+    parsedHunks.forEach((hunk) => {
+      newStates[hunk.id] = false;
+    });
+    setHunkStates(newStates);
+  };
+
   return (
     <Modal variant={ModalVariant.large} isOpen={isOpen} className="modified-file-modal">
       <div className="expanded-modal-content">
-        <div className="modal-custom-header sticky-header">
-          <div className="modal-title-section">
-            <h2 className="modal-title">
-              {isNew ? "Created file: " : "Modified file: "}
-              <span className="modal-filename">{fileName}</span>
-            </h2>
-          </div>
-          <Button
-            variant="plain"
-            onClick={onClose}
-            icon={<CompressIcon />}
-            className="modal-close-button"
-            aria-label="Close modal"
-          />
-        </div>
+        <ModifiedFileModalHeader
+          isNew={isNew}
+          fileName={fileName}
+          isSingleHunk={isSingleHunk}
+          actionTaken={actionTaken}
+          parsedHunks={parsedHunks}
+          hunkStates={hunkStates}
+          onClose={onClose}
+          onApply={handleModalApply}
+          onReject={handleModalReject}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+        />
+
         <div className="modal-content-scrollable">{renderExpandedDiff()}</div>
-        <div className="modal-actions">
-          <Flex
-            justifyContent={{ default: "justifyContentSpaceBetween" }}
-            alignItems={{ default: "alignItemsCenter" }}
-          >
-            <FlexItem>
-              <Flex gap={{ default: "gapMd" }}>
-                {parsedHunks.length > 1 && (
-                  <>
-                    <FlexItem>
-                      <Button
-                        variant="secondary"
-                        icon={<PlusCircleIcon />}
-                        onClick={() => {
-                          const newStates: Record<string, boolean> = {};
-                          parsedHunks.forEach((hunk) => {
-                            newStates[hunk.id] = true;
-                          });
-                          setHunkStates(newStates);
-                        }}
-                        isDisabled={actionTaken !== null}
-                        className="select-all-button"
-                      >
-                        Select All
-                      </Button>
-                    </FlexItem>
-                    <FlexItem>
-                      <Button
-                        variant="secondary"
-                        icon={<MinusCircleIcon />}
-                        onClick={() => {
-                          const newStates: Record<string, boolean> = {};
-                          parsedHunks.forEach((hunk) => {
-                            newStates[hunk.id] = false;
-                          });
-                          setHunkStates(newStates);
-                        }}
-                        isDisabled={actionTaken !== null}
-                        className="deselect-all-button"
-                      >
-                        Deselect All
-                      </Button>
-                    </FlexItem>
-                  </>
-                )}
-              </Flex>
-            </FlexItem>
-            <FlexItem>
-              <Flex
-                gap={{ default: "gapLg" }}
-                justifyContent={{ default: "justifyContentFlexEnd" }}
-              >
-                <FlexItem>
-                  <Button
-                    variant="plain"
-                    icon={<CheckIcon />}
-                    onClick={handleModalApply}
-                    isDisabled={actionTaken !== null}
-                    className="submit-button"
-                    aria-label="Accept changes"
-                  >
-                    Accept Changes
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button
-                    variant="plain"
-                    icon={<CloseIcon />}
-                    onClick={handleModalReject}
-                    isDisabled={actionTaken !== null}
-                    className="cancel-button"
-                    aria-label="reject changes"
-                  >
-                    Reject changes
-                  </Button>
-                </FlexItem>
-              </Flex>
-            </FlexItem>
-          </Flex>
-        </div>
       </div>
     </Modal>
   );

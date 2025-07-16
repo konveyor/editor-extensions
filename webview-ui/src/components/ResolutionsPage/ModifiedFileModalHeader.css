@@ -1,0 +1,47 @@
+.action-status {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.action-status.applied {
+  color: #27ae60;
+  background-color: #e8f5e8;
+  border: 1px solid #b7e4c7;
+}
+
+.action-status.rejected {
+  color: #e74c3c;
+  background-color: #fdf2f2;
+  border: 1px solid #f8d7da;
+}
+
+.modal-custom-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e5e5;
+  background: #f8f9fa;
+  min-height: 60px;
+}
+
+.modal-custom-header .pf-v5-l-flex {
+  align-items: center;
+}
+
+.modal-custom-header .pf-v5-c-button--m-sm {
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+}
+
+.modal-title {
+  margin: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-filename {
+  font-family: monospace;
+}
