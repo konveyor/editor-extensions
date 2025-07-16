@@ -14,4 +14,4 @@ export const SingleHunkDisplay: React.FC<SingleHunkDisplayProps> = ({ diff, file
       <DiffLinesRenderer diffContent={diff} filePath={filePath} />
     </div>
   );
-}; 
+};

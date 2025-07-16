@@ -26,12 +26,10 @@ export const ModifiedFileHeader: React.FC<ModifiedFileHeaderProps> = ({
         <FlexItem grow={{ default: "grow" }}>
           {isNew ? "Created file:" : "Modified file:"} <strong>{fileName}</strong>
         </FlexItem>
-        {formattedTime && (
-          <FlexItem className="modified-file-timestamp">{formattedTime}</FlexItem>
-        )}
+        {formattedTime && <FlexItem className="modified-file-timestamp">{formattedTime}</FlexItem>}
       </Flex>
     </CardTitle>
   );
 };
 
-export default ModifiedFileHeader; 
+export default ModifiedFileHeader;

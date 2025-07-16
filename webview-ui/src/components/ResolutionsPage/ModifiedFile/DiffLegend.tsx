@@ -17,4 +17,4 @@ export const DiffLegend: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

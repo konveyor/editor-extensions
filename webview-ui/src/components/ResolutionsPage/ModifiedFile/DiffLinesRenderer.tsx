@@ -1,6 +1,6 @@
 import React from "react";
 import hljs from "highlight.js";
-import { getLanguageFromExtension } from "../../../../shared/src/utils/languageMapping";
+import { getLanguageFromExtension } from "../../../../../shared/src/utils/languageMapping";
 
 interface DiffLinesRendererProps {
   diffContent: string;
@@ -93,7 +93,7 @@ export const DiffLinesRenderer: React.FC<DiffLinesRendererProps> = ({ diffConten
             const highlighted = hljs.highlight(content, { language });
             highlightedContent = highlighted.value;
           }
-        } catch (error) {
+        } catch {
           // Fallback to plain text if highlighting fails
           highlightedContent = content;
         }
@@ -109,4 +109,4 @@ export const DiffLinesRenderer: React.FC<DiffLinesRendererProps> = ({ diffConten
   };
 
   return <>{renderDiffLines(diffContent)}</>;
-}; 
+};

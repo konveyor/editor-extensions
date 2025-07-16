@@ -6,12 +6,6 @@ import { SingleHunkDisplay } from "./SingleHunkDisplay";
 import { HunkSelectionInterface } from "./HunkSelectionInterface";
 import { ModifiedFileModalHeader } from "./ModifiedFileModalHeader";
 
-interface ParsedHunk {
-  id: string;
-  header: string;
-  changes: string[];
-}
-
 import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
 import { useModifiedFileData } from "./useModifiedFileData";
 
@@ -68,7 +62,7 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
         filename: patch.oldFileName || patch.newFileName || "",
         hunks: hunks,
       };
-    } catch (error) {
+    } catch {
       // Silently handle diff parsing errors and return null
       return null;
     }
@@ -156,7 +150,7 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
             : String(patchApplicationError);
         throw new Error(`Failed to apply patch: ${errorMessage}`);
       }
-    } catch (error) {
+    } catch {
       // Fallback strategy: try to return original content, then modified content
       if (originalContent) {
         return originalContent;

@@ -22,7 +22,7 @@ import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
 import { ToolMessage } from "./ToolMessage";
-import { ModifiedFileMessage } from "./ModifiedFileMessage";
+import { ModifiedFileMessage } from "./ModifiedFile";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
@@ -96,7 +96,7 @@ const useResolutionData = (state: any) => {
     if (isAgentMode) {
       return null;
     }
-    
+
     if (!Array.isArray(localChanges) || localChanges.length === 0) {
       return null;
     }

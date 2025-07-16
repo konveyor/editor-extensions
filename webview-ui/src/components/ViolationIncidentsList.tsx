@@ -99,7 +99,8 @@ const ViolationIncidentsList = ({
     }
   };
 
-  const onDeleteGroup = (type: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _onDeleteGroup = (type: string) => {
     if (type === "Category") {
       setFilters({ ...filters, category: [] });
     }

@@ -56,7 +56,6 @@ import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 import ProgressIndicator from "../ProgressIndicator";
 import { Incident } from "@editor-extensions/shared";
-import { PageHeader } from "@patternfly/react-component-groups";
 
 const AnalysisPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();

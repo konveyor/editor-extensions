@@ -70,4 +70,4 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
       ))}
     </div>
   );
-}; 
+};

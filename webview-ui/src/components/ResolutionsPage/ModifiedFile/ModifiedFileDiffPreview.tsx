@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import { getLanguageFromExtension } from "../../../../shared/src/utils/languageMapping";
+import { getLanguageFromExtension } from "../../../../../shared/src/utils/languageMapping";
 
 interface ModifiedFileDiffPreviewProps {
   diff: string;
@@ -48,7 +48,7 @@ export const ModifiedFileDiffPreview: React.FC<ModifiedFileDiffPreviewProps> = (
       }
 
       return "```diff\n" + formattedDiff + "\n```";
-    } catch (error) {
+    } catch {
       return `\`\`\`\n// Error parsing diff content for ${fileName}\n\`\`\``;
     }
   };
