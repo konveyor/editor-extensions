@@ -5,6 +5,7 @@ dist/
 downloaded_assets/
 downloaded_cache/
 vscode/jdtls-plugin/
+.idea/
 *.vsix
 
 # TypeScript build info

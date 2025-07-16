@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KAI Performance Visualizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="./single-run-controller.js" defer></script>
+  <script src="./visualizer.js" defer></script>
+</head>
+
+<body>
+<div id="navbar">
+  <h1>KAI Performance Visualizer</h1>
+  <div class="right">
+    <button id="help-button" class="help-button">?</button>
+  </div>
+
+</div>
+<div id="dashboard">
+  <div id="history-performance" class="box-shadow-hover">
+    <h2>KAI Performance History Report</h2>
+    <div class="utils">
+      <label for="date-range-input">Select Date Range</label>
+      <div id="date-range-pick">
+        <input id="date-range-input" type="text" placeholder="Select date range" />
+      </div>
+    </div>
+    <canvas id="kai-performance-chart"></canvas>
+  </div>
+  <div id="single-performance" class="box-shadow-hover">
+    <h2>Single Run Details</h2>
+    <div class="utils">
+      <label for="date-picker">Select Date</label>
+      <input type="date" id="date-picker" />
+    </div>
+
+    <div id="single-performance-container">
+      <div id="single-runs-selectors-container" style="display: none">
+        <h3>There were more than one run for the selected day, choose the one you want to inspect</h3>
+        <ul id="single-runs-selectors-list"></ul>
+      </div>
+      <div id="single-run-overview" style="display: none">
+        <div class="insights-grid" id="insights-grid"></div>
+        <table id="file-evaluations-table">
+          <thead>
+            <tr>
+              <th>File Uri</th>
+              <th>Competency</th>
+              <th>Effectiveness</th>
+              <th>Specificity</th>
+              <th>Average Score</th>
+              <th>Valid Code</th>
+              <th>Unnecessary Changes</th>
+              <th>LLM notes</th>
+            </tr>
+          </thead>
+          <tbody id="file-evaluations-table-body">
+
+          </tbody>
+        </table>
+        <div id="file-evaluations-errors-container">
+          <h3>Errors found during evaluation</h3>
+          <ul id="file-evaluations-errors-list"></ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<div id="footer"></div>
+</body>
+
+</html>
