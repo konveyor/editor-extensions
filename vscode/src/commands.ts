@@ -141,11 +141,13 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
+      logger.info("Get solution command called", { incidents, effort });
       await commands.executeCommand("konveyor.showResolutionPanel");
       // Create a scope for the solution
       const scope: Scope = { incidents, effort };
       const clientId = uuidv4();
       state.solutionServerClient.setClientId(clientId);
+      logger.debug("Client ID set", { clientId });
 
       // Update the state to indicate we're starting to fetch a solution
       state.mutateData((draft) => {
@@ -171,13 +173,14 @@ const commandsMap: (
           return;
         }
 
-        const kaiAgent = new KaiInteractiveWorkflow();
+        const kaiAgent = new KaiInteractiveWorkflow(logger);
         const agentInit = kaiAgent.init({
           model: model,
           workspaceDir: state.data.workspaceRoot,
           fsCache: state.kaiFsCache,
           solutionServerClient: state.solutionServerClient,
         });
+        logger.debug("Agent initialized");
 
         // revert the changes back to on-disk
         // state.kaiFsCache.on("cacheInvalidated", async (path) => {

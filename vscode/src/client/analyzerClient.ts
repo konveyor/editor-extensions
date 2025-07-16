@@ -149,7 +149,15 @@ export class AnalyzerClient {
       this.logger.error("Error in message writer", e);
     });
     this.analyzerRpcConnection = await rpc.createMessageConnection(reader, writer);
-    this.analyzerRpcConnection.trace(rpc.Trace.Messages, console, false);
+    this.analyzerRpcConnection.trace(
+      rpc.Trace.Messages,
+      {
+        log: (message) => {
+          this.logger.debug("RPC Trace", message);
+        },
+      },
+      false,
+    );
     this.analyzerRpcConnection.onUnhandledNotification((e) => {
       this.logger.warn(`Unhandled notification: ${e.method}`);
     });

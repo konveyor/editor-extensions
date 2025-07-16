@@ -183,6 +183,7 @@ class VsCodeExtension {
       );
 
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
+      this.state.logger.info("Extension initialized");
     } catch (error) {
       this.state.logger.error("Error initializing extension", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
@@ -303,6 +304,7 @@ class VsCodeExtension {
   }
 
   public async dispose() {
+    this.state.logger.info("Disposing extension");
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {
       this.state.logger.error("Error disconnecting from solution server", error);
