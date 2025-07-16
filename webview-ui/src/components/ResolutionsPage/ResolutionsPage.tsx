@@ -92,7 +92,12 @@ const useResolutionData = (state: any) => {
   }, [solutionState, chatMessages, localChanges, isAgentMode, isHistorySolution]);
 
   const getCompletionStatus = useCallback(() => {
-    if (isAgentMode || !Array.isArray(localChanges) || localChanges.length === 0) {
+    // NEVER show completion status in agent mode
+    if (isAgentMode) {
+      return null;
+    }
+    
+    if (!Array.isArray(localChanges) || localChanges.length === 0) {
       return null;
     }
 
@@ -408,7 +413,7 @@ const ResolutionPage: React.FC = () => {
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
-          <MessageBox ref={messageBoxRef} enableSmartScroll style={{ paddingBottom: "2rem" }}>
+          <MessageBox ref={messageBoxRef} style={{ paddingBottom: "2rem" }}>
             {/* User request messages - shown in both modes when triggered by user */}
             {isTriggeredByUser && (
               <UserRequestMessages

@@ -54,7 +54,7 @@ const getHumanReadableToolName = (toolName: string): string => {
     checkDependencies: "Checking dependencies",
 
     // Network operations
-    searchFqdn: "Searching domain information",
+    searchFqdn: "Searching dependency information",
 
     // Database operations
     queryDatabase: "Querying database",

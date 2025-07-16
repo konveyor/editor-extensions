@@ -370,12 +370,9 @@ const commandsMap: (state: ExtensionState) => {
           // Only set solutionData in non-agentic mode where we have traditional diffs
           if (!getConfigAgentMode()) {
             draft.solutionData = solutionResponse;
-            draft.chatMessages.push({
-              messageToken: `m${Date.now()}`,
-              kind: ChatMessageType.String,
-              value: { message: "Solution generated successfully!" },
-              timestamp: new Date().toISOString(),
-            });
+            // Note: Removed redundant "Solution generated successfully!" message
+            // The specific completion status messages (e.g. "All resolutions have been applied")
+            // provide more meaningful feedback to users
           }
           // In agentic mode, file changes are handled through ModifiedFile messages in chat
         });
