@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
-import { Task, TaskManager, TasksHistory } from "src/taskManager/types";
+import { Task, TaskManager, TasksHistory, TasksList } from "src/taskManager/types";
 
 export class DiagnosticTask implements Task {
   private id: string;
@@ -116,11 +116,11 @@ export class AnalysisDiagnosticTask implements Task {
 }
 
 export class DiagnosticTaskHistory implements TasksHistory {
-  private unresolvedTasks: Map<string, number>;
+  private unresolvedTasksCounter: Map<string, number>;
   private resolvedTasks: Array<DiagnosticTask | AnalysisDiagnosticTask>;
 
   constructor() {
-    this.unresolvedTasks = new Map<string, number>();
+    this.unresolvedTasksCounter = new Map<string, number>();
     this.resolvedTasks = [];
   }
 
@@ -128,34 +128,38 @@ export class DiagnosticTaskHistory implements TasksHistory {
     this.resolvedTasks.concat(tasks);
     // remove from unresolved too
     tasks.forEach((t) => {
-      if (this.unresolvedTasks.has(t.getId())) {
-        this.unresolvedTasks.delete(t.getId());
+      if (this.unresolvedTasksCounter.has(t.getId())) {
+        this.unresolvedTasksCounter.delete(t.getId());
       }
     });
   }
 
   addUnresolvedTasks(tasks: Array<DiagnosticTask | AnalysisDiagnosticTask>): void {
     tasks.forEach((t) => {
-      if (!this.unresolvedTasks.has(t.getId())) {
-        this.unresolvedTasks.set(t.getId(), 0);
+      if (!this.unresolvedTasksCounter.has(t.getId())) {
+        this.unresolvedTasksCounter.set(t.getId(), 0);
       }
-      this.unresolvedTasks.set(t.getId(), (this.unresolvedTasks.get(t.getId()) ?? 0) + 1);
+      this.unresolvedTasksCounter.set(
+        t.getId(),
+        (this.unresolvedTasksCounter.get(t.getId()) ?? 0) + 1,
+      );
     });
   }
 
   frequentlyUnresolved(task: DiagnosticTask | AnalysisDiagnosticTask): boolean {
-    return (this.unresolvedTasks.get(task.getId()) ?? 0) > 2;
+    return (this.unresolvedTasksCounter.get(task.getId()) ?? 0) > 2;
   }
 
-  getSummary(): string {
-    return "";
+  reset(): void {
+    this.unresolvedTasksCounter.clear();
+    this.resolvedTasks = [];
   }
 }
 
 export class DiagnosticTaskManager implements TaskManager {
+  public history: TasksHistory;
   private initialized: boolean = false;
   private currentTasks: Array<DiagnosticTask | AnalysisDiagnosticTask>;
-  private history: TasksHistory;
 
   constructor(private readonly excludedDiagnosticSources: string[]) {
     this.history = new DiagnosticTaskHistory();
@@ -174,7 +178,11 @@ export class DiagnosticTaskManager implements TaskManager {
     }
   }
 
-  getTasks(): Task[] {
+  getTasks(): TasksList {
+    const tasksList: TasksList = {
+      currentTasks: [],
+      discardedTasks: [],
+    };
     const newDiagnostics = this.getCurrentDiagnostics();
     const resolvedTasks = this.currentTasks.filter(
       (oldTask) => !newDiagnostics.some((newTask) => newTask.equals(oldTask)),
@@ -188,7 +196,9 @@ export class DiagnosticTaskManager implements TaskManager {
     this.history.addResolvedTasks(resolvedTasks);
     this.history.addUnresolvedTasks(unresolvedTasks);
     this.currentTasks = newDiagnostics;
-    return newTasks.filter((t) => !this.history.frequentlyUnresolved(t));
+    tasksList.currentTasks = newTasks.filter((t) => !this.history.frequentlyUnresolved(t));
+    tasksList.discardedTasks = newTasks.filter((t) => this.history.frequentlyUnresolved(t));
+    return tasksList;
   }
 
   private getCurrentDiagnostics(): Array<DiagnosticTask | AnalysisDiagnosticTask> {

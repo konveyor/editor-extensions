@@ -64,6 +64,7 @@ import {
 } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
 import { getModelConfig, ModelProvider } from "./client/modelProvider";
+import { flattenCurrentTasks, summarizeTasks } from "./taskManager";
 import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 
@@ -229,29 +230,19 @@ const commandsMap: (state: ExtensionState) => {
                         }
                       }, 1000);
                     });
-                    const tasks = state.taskManager.getTasks().map((t) => {
-                      return {
-                        uri: t.getUri().fsPath,
-                        task:
-                          t.toString().length > 100
-                            ? t.toString().slice(0, 100).replaceAll("`", "'").replaceAll(">", "") +
-                              "..."
-                            : t.toString(),
-                      } as { uri: string; task: string };
-                    });
-                    if (tasks.length > 0) {
+                    const tasksList = state.taskManager.getTasks();
+                    if (tasksList.currentTasks.length > 0) {
                       state.mutateData((draft) => {
                         draft.chatMessages.push({
                           kind: ChatMessageType.String,
                           messageToken: msg.id,
                           timestamp: new Date().toISOString(),
                           value: {
-                            message: `It appears that my fixes caused following issues:\n\n - \
-                              ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
+                            message: `It appears that my fixes caused following issues:\n${summarizeTasks(tasksList)}\n\nDo you want me to continue fixing them?`,
                           },
                         });
                       });
-                      msg.data.response = { tasks, yesNo: true };
+                      msg.data.response = { tasks: flattenCurrentTasks(tasksList), yesNo: true };
                       kaiAgent.resolveUserInteraction(msg);
                     } else {
                       msg.data.response = {
