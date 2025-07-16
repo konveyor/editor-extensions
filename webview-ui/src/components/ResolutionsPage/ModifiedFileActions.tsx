@@ -1,28 +1,12 @@
 import React from "react";
-import {
-  Button,
-  Flex,
-  FlexItem,
-} from "@patternfly/react-core";
-import {
-  CheckCircleIcon,
-  TimesCircleIcon,
-  EyeIcon,
-  ExpandIcon,
-} from "@patternfly/react-icons";
-import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
+import { Button, Flex, FlexItem } from "@patternfly/react-core";
+import { CheckCircleIcon, TimesCircleIcon, EyeIcon, ExpandIcon } from "@patternfly/react-icons";
+import { NormalizedFileData } from "./useModifiedFileData";
 
 interface ModifiedFileActionsProps {
   actionTaken: "applied" | "rejected" | null;
-  status: "applied" | "rejected" | null;
-  quickResponses?: Array<{ id: string; content: string }>;
-  messageToken: string;
-  isNew: boolean;
   mode: "agent" | "non-agent";
-  path: string;
-  diff: string;
-  content: string;
-  data: ModifiedFileMessageValue | LocalChange;
+  normalizedData: NormalizedFileData;
   onApply: () => void;
   onReject: () => void;
   onView: (path: string, diff: string) => void;
@@ -169,9 +153,7 @@ const QuickResponseButtons: React.FC<{
             <Button
               variant={response.id === "apply" ? "primary" : "danger"}
               icon={response.id === "apply" ? <CheckCircleIcon /> : <TimesCircleIcon />}
-              className={
-                response.id === "apply" ? "quick-accept-button" : "quick-reject-button"
-              }
+              className={response.id === "apply" ? "quick-accept-button" : "quick-reject-button"}
               onClick={() => onQuickResponse(response.id)}
               aria-label={response.id === "apply" ? "Apply changes" : "Reject changes"}
               isDisabled={actionTaken !== null}
@@ -188,19 +170,16 @@ const QuickResponseButtons: React.FC<{
 // Main Actions Component
 export const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   actionTaken,
-  status,
-  quickResponses,
-  messageToken,
-  isNew,
   mode,
-  path,
-  diff,
+  normalizedData,
   onApply,
   onReject,
   onView,
   onExpandToggle,
   onQuickResponse,
 }) => {
+  const { status, quickResponses, messageToken, isNew, path, diff } = normalizedData;
+
   // Show status if action has been taken
   if (actionTaken || status) {
     return <StatusDisplay status={(actionTaken || status)!} />;
@@ -235,4 +214,4 @@ export const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   );
 };
 
-export default ModifiedFileActions; 
+export default ModifiedFileActions;

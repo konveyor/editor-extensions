@@ -26,40 +26,38 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   onView,
 }) => {
   // Use shared data normalization hook
-  const { path, isNew, diff, status, content, messageToken, quickResponses, fileName } =
-    useModifiedFileData(data);
+  const normalizedData = useModifiedFileData(data);
+  const { path, isNew, diff, status, content, messageToken, fileName } = normalizedData;
   const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(status || null);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Reusable function to handle FILE_RESPONSE message posting
+  // Function to handle FILE_RESPONSE message posting (agent mode only)
   const postFileResponse = (
     responseId: string,
     messageToken: string,
     path: string,
     content?: string,
   ) => {
-    if (mode === "agent") {
-      interface FileResponsePayload {
-        responseId: string;
-        messageToken: string;
-        path: string;
-        content?: string;
-      }
-      const payload: FileResponsePayload = {
-        responseId,
-        messageToken,
-        path,
-      };
-
-      if (content !== undefined) {
-        payload.content = content;
-      }
-
-      window.vscode.postMessage({
-        type: "FILE_RESPONSE",
-        payload,
-      });
+    interface FileResponsePayload {
+      responseId: string;
+      messageToken: string;
+      path: string;
+      content?: string;
     }
+    const payload: FileResponsePayload = {
+      responseId,
+      messageToken,
+      path,
+    };
+
+    if (content !== undefined) {
+      payload.content = content;
+    }
+
+    window.vscode.postMessage({
+      type: "FILE_RESPONSE",
+      payload,
+    });
   };
 
   const applyFile = (selectedContent?: string) => {
@@ -69,13 +67,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     // Use provided selected content or fall back to full content
     const contentToApply = selectedContent || content;
 
-    // Main component "Accept All Changes" - use the content directly
-    postFileResponse("apply", messageToken, path, contentToApply);
-
-    if (mode === "non-agent") {
-      if (isLocalChange(data) && onApply) {
-        // Pass the selected content for apply
-        const modifiedChange = { ...data, content: contentToApply };
+    if (mode === "agent") {
+      // Agent mode: Use FILE_RESPONSE flow for direct file writing
+      postFileResponse("apply", messageToken, path, contentToApply);
+    } else {
+      // Non-agent mode: Use callback flow with modified data
+      if (onApply && isLocalChange(data)) {
+        // Create modified LocalChange with updated content
+        const modifiedChange: LocalChange = { ...data, content: contentToApply };
         onApply(modifiedChange);
       }
     }
@@ -85,10 +84,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     setActionTaken("rejected");
     setIsExpanded(false);
 
-    postFileResponse("reject", messageToken, path);
-
-    if (mode === "non-agent") {
-      if (isLocalChange(data) && onReject) {
+    if (mode === "agent") {
+      // Agent mode: Use FILE_RESPONSE flow
+      postFileResponse("reject", messageToken, path);
+    } else {
+      // Non-agent mode: Use callback flow
+      if (onReject && isLocalChange(data)) {
         onReject(data);
       }
     }
@@ -96,6 +97,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   const viewFileInVSCode = (filePath: string, fileDiff: string) => {
     if (mode === "agent") {
+      // Agent mode: Use SHOW_MAXIMIZED_DIFF message
       interface ShowMaximizedDiffPayload {
         path: string;
         content: string;
@@ -113,6 +115,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         payload,
       });
     } else {
+      // Non-agent mode: Use callback flow
       if (onView && isLocalChange(data)) {
         onView(data);
       }
@@ -128,15 +131,15 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     const action = responseId === "apply" ? "applied" : "rejected";
     setActionTaken(action);
 
-    // Main component: apply=modified content, reject=original content
-    const contentToSend = responseId === "apply" ? content : undefined;
-    postFileResponse(responseId, messageToken, path, contentToSend);
-
-    if (mode === "non-agent") {
+    if (mode === "agent") {
+      // Agent mode: Use FILE_RESPONSE flow
+      const contentToSend = responseId === "apply" ? content : undefined;
+      postFileResponse(responseId, messageToken, path, contentToSend);
+    } else {
+      // Non-agent mode: Use callback flow
       if (isLocalChange(data)) {
         if (responseId === "apply" && onApply) {
-          // Pass the modified content for apply
-          const modifiedChange = { ...data, content };
+          const modifiedChange: LocalChange = { ...data, content };
           onApply(modifiedChange);
         } else if (responseId === "reject" && onReject) {
           onReject(data);
@@ -154,15 +157,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
             <ModifiedFileDiffPreview diff={diff} path={path} />
             <ModifiedFileActions
               actionTaken={actionTaken}
-              status={status}
-              quickResponses={quickResponses}
-              messageToken={messageToken}
-              isNew={isNew}
               mode={mode}
-              path={path}
-              diff={diff}
-              content={content}
-              data={data}
+              normalizedData={normalizedData}
               onApply={() => applyFile()}
               onReject={rejectFile}
               onView={viewFileInVSCode}
