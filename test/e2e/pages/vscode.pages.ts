@@ -4,7 +4,6 @@ import { downloadFile } from '../utilities/download.utils';
 import {
   cleanupRepo,
   generateRandomString,
-  getKAIPluginName,
   getOSInfo,
   getVscodeExecutablePath,
 } from '../utilities/utils';
@@ -14,6 +13,7 @@ import { expect } from '@playwright/test';
 import { Application } from './application.pages';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
+import fs from 'fs';
 
 export class VSCode extends Application {
   public static async open(repoUrl?: string, repoDir?: string) {
@@ -25,7 +25,7 @@ export class VSCode extends Application {
         console.log(`Cloning repository from ${repoUrl}`);
         execSync(`git clone ${repoUrl}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       throw new Error('Failed to clone the repository');
     }
 
@@ -51,7 +51,7 @@ export class VSCode extends Application {
    */
   public static async init(repoDir?: string): Promise<VSCode> {
     try {
-      await VSCode.installExtensionFromVSIX();
+      await VSCode.installExtension();
       return repoDir ? VSCode.open(repoDir) : VSCode.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
@@ -59,33 +59,28 @@ export class VSCode extends Application {
     }
   }
 
-  /**
-   * Installs an extension from a VSIX file using the VSCode CLI.
-   * This method is static because it is independent of the instance.
-   */
-  private static async installExtensionFromVSIX(): Promise<void> {
+  private static async installExtension(): Promise<void> {
     try {
-      let vsixFilePath = getKAIPluginName();
-      if (!vsixFilePath) {
-        console.warn(
-          'VSIX_FILE_PATH environment variable is not set. Skipping extension installation.'
-        );
-        return;
-      }
-      if (getOSInfo() === 'windows') {
-        const basePath = process.cwd();
-        vsixFilePath = path.resolve(basePath, vsixFilePath);
-      }
       const installedExtensions = execSync('code --list-extensions', {
         encoding: 'utf-8',
       });
+
       if (installedExtensions.includes('konveyor.konveyor-ai')) {
-        console.log(`KAI plugin already installed`);
+        console.log(`Extension already installed`);
         return;
       }
-      console.log(`Installing extension from ${vsixFilePath}...`);
-      await downloadFile();
-      execSync(`code --install-extension "${vsixFilePath}"`, {
+
+      let extensionPath = '';
+      if (process.env.VSIX_FILE_PATH && fs.existsSync(process.env.VSIX_FILE_PATH)) {
+        console.log(`vsix present in ${process.env.VSIX_FILE_PATH}`);
+        extensionPath = process.env.VSIX_FILE_PATH;
+      } else if (process.env.VSIX_DOWNLOAD_URL) {
+        console.log(`vsix downloaded from ${process.env.VSIX_DOWNLOAD_URL}`);
+        extensionPath = 'extension.vsix';
+        await downloadFile(process.env.VSIX_DOWNLOAD_URL, extensionPath);
+      }
+
+      execSync(`code --install-extension "${extensionPath}"`, {
         stdio: 'inherit',
       });
       console.log('Extension installed successfully.');

@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 import dotenv from 'dotenv';
 
 import path from 'path';
+
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
@@ -18,7 +19,7 @@ export default defineConfig({
   },
   use: {
     viewport: { width: 1920, height: 1080 },
-    screenshot: 'only-on-failure', // Not yet supported on Electron
+    screenshot: 'only-on-failure', // Not yet supported on Electron https://github.com/microsoft/playwright/issues/8208
     trace: 'retain-on-failure',
     launchOptions: {
       args: ['--window-size=1920,1080', '--start-maximized'],

@@ -21,10 +21,6 @@ export function getOSInfo(): string {
   }
 }
 
-export function getKAIPluginName(): string {
-  return process.env.VSIX_FILE_NAME || 'konveyor-v0.1.0.vsix';
-}
-
 export async function cleanupRepo(repoDir: string) {
   if (!repoDir) {
     console.debug(`Directory ${repoDir} does not exist, skipping cleanup.`);
@@ -60,7 +56,7 @@ export async function uninstallExtension() {
 }
 
 export function getVscodeExecutablePath() {
-  return getOSInfo() == 'windows'
+  return getOSInfo() === 'windows'
     ? process.env.WINDOWS_VSCODE_EXECUTABLE_PATH
     : process.env.VSCODE_EXECUTABLE_PATH || '/usr/share/code/code';
 }

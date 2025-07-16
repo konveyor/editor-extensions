@@ -6,12 +6,9 @@ import { getKAIPluginName } from './utils';
  * Downloads the KAI plugin VSIX file from the default URL to the local directory.
  * Uses environment variables DEFAULT_VSIX_DOWNLOAD_URL and VSIX_FILE_NAME.
  */
-export async function downloadFile(): Promise<void> {
-  const outputLocationPath = getKAIPluginName();
-  const defaultUrl = process.env.DEFAULT_VSIX_DOWNLOAD_URL || '';
-
-  const writer = fs.createWriteStream(outputLocationPath);
-  const response = await fetchUrl(defaultUrl);
+export async function downloadFile(url: string, outputFile: string): Promise<void> {
+  const writer = fs.createWriteStream(outputFile);
+  const response = await fetchUrl(url);
   response.data.pipe(writer);
 
   return new Promise((resolve, reject) => {
