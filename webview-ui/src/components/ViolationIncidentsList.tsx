@@ -292,12 +292,14 @@ const ViolationIncidentsList = ({
             buttonId="sort-ascending"
             isSelected={isSortAscending}
             onChange={() => setIsSortAscending(true)}
+            aria-label="Sort ascending"
           />
           <ToggleGroupItem
             icon={<SortAmountDownIcon />}
             buttonId="sort-descending"
             isSelected={!isSortAscending}
             onChange={() => setIsSortAscending(false)}
+            aria-label="Sort descending"
           />
         </ToggleGroup>
       </ToolbarItem>

@@ -1,0 +1,326 @@
+/* Enhanced Syntax Highlighting with Theme Variables */
+
+/* Base syntax highlighting using theme variables */
+.diff-line .hljs-keyword,
+.hljs-keyword {
+  color: var(--syntax-keyword, #569cd6) !important;
+  font-weight: 600;
+}
+
+.diff-line .hljs-string,
+.hljs-string {
+  color: var(--syntax-string, #ce9178) !important;
+}
+
+.diff-line .hljs-comment,
+.hljs-comment {
+  color: var(--syntax-comment, #6a9955) !important;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.diff-line .hljs-number,
+.hljs-number {
+  color: var(--syntax-number, #b5cea8) !important;
+}
+
+.diff-line .hljs-function,
+.hljs-function,
+.hljs-title {
+  color: var(--syntax-function, #dcdcaa) !important;
+  font-weight: 600;
+}
+
+.diff-line .hljs-variable,
+.hljs-variable {
+  color: var(--syntax-variable, #9cdcfe) !important;
+}
+
+.diff-line .hljs-type,
+.hljs-type,
+.hljs-class,
+.hljs-built_in {
+  color: var(--syntax-type, #4ec9b0) !important;
+}
+
+.diff-line .hljs-operator,
+.hljs-operator {
+  color: var(--syntax-operator, #d4d4d4) !important;
+}
+
+.diff-line .hljs-punctuation,
+.hljs-punctuation {
+  color: var(--syntax-punctuation, #d4d4d4) !important;
+}
+
+.diff-line .hljs-literal,
+.hljs-constant,
+.hljs-selector-id {
+  color: var(--syntax-constant, #4fc1ff) !important;
+}
+
+.diff-line .hljs-property,
+.hljs-attr,
+.hljs-property {
+  color: var(--syntax-property, #9cdcfe) !important;
+}
+
+/* HTML/XML specific */
+.diff-line .hljs-tag,
+.hljs-tag,
+.hljs-name {
+  color: var(--syntax-keyword, #569cd6) !important;
+}
+
+.diff-line .hljs-selector-tag,
+.hljs-selector-tag {
+  color: var(--syntax-keyword, #569cd6) !important;
+}
+
+.diff-line .hljs-selector-class,
+.hljs-selector-class {
+  color: var(--syntax-type, #4ec9b0) !important;
+}
+
+/* Enhanced diff styling with theme variables */
+.enhanced-diff-renderer {
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  background-color: var(--syntax-bg, var(--pf-global--BackgroundColor--200));
+  color: var(--syntax-fg, var(--pf-global--Color--100));
+  border-radius: 6px;
+  border: 1px solid var(--pf-global--BorderColor--100);
+  overflow: hidden;
+}
+
+.enhanced-diff-renderer .diff-container {
+  background-color: var(--syntax-bg, var(--pf-global--BackgroundColor--200));
+}
+
+.enhanced-diff-renderer .diff-line {
+  padding: 0.125rem 1rem;
+  margin: 0;
+  white-space: pre;
+  border-left: 3px solid transparent;
+  position: relative;
+  transition: background-color 0.15s ease;
+  color: var(--syntax-fg, var(--pf-global--Color--100));
+}
+
+.enhanced-diff-renderer .diff-line:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.vscode-dark .enhanced-diff-renderer .diff-line:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.enhanced-diff-renderer .diff-line.addition {
+  background-color: var(--diff-addition-bg, rgba(34, 134, 58, 0.15));
+  color: var(--diff-addition-fg, #22863a);
+  border-left-color: var(--diff-addition-fg, #22863a);
+}
+
+.enhanced-diff-renderer .diff-line.deletion {
+  background-color: var(--diff-deletion-bg, rgba(203, 36, 49, 0.15));
+  color: var(--diff-deletion-fg, #cb2431);
+  border-left-color: var(--diff-deletion-fg, #cb2431);
+}
+
+.enhanced-diff-renderer .diff-line.context {
+  background-color: var(--syntax-bg, var(--pf-global--BackgroundColor--200));
+  color: var(--syntax-fg, var(--pf-global--Color--100));
+}
+
+.enhanced-diff-renderer .diff-line.meta {
+  background-color: var(--diff-meta-bg, rgba(106, 115, 125, 0.1));
+  color: var(--diff-meta-fg, #6a737d);
+  border-left-color: var(--diff-meta-fg, #6a737d);
+  font-weight: 600;
+}
+
+/* Line numbers with theme variables */
+.enhanced-diff-renderer .diff-line-number {
+  display: inline-block;
+  width: 3rem;
+  color: var(--line-number, #858585);
+  user-select: none;
+  margin-right: 1rem;
+  text-align: right;
+}
+
+.enhanced-diff-renderer .diff-line.addition .diff-line-number {
+  color: var(--diff-addition-fg, #22863a);
+  opacity: 0.6;
+}
+
+.enhanced-diff-renderer .diff-line.deletion .diff-line-number {
+  color: var(--diff-deletion-fg, #cb2431);
+  opacity: 0.6;
+}
+
+.enhanced-diff-renderer .diff-line.meta .diff-line-number {
+  color: var(--diff-meta-fg, #6a737d);
+  opacity: 0.6;
+}
+
+/* Override hljs background for diff lines */
+.enhanced-diff-renderer .diff-line .hljs,
+.diff-line .hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Preserve diff colors in syntax highlighting */
+.enhanced-diff-renderer .diff-line.addition .hljs *,
+.diff-line.addition .hljs * {
+  color: inherit !important;
+}
+
+.enhanced-diff-renderer .diff-line.deletion .hljs *,
+.diff-line.deletion .hljs * {
+  color: inherit !important;
+}
+
+/* Performance optimizations */
+.enhanced-diff-renderer .diff-container {
+  will-change: scroll-position;
+  contain: layout style paint;
+}
+
+.enhanced-diff-renderer .diff-line {
+  contain: layout style;
+}
+
+/* Scrollbar styling for diff containers */
+.enhanced-diff-renderer .diff-container::-webkit-scrollbar {
+  width: 12px;
+}
+
+.enhanced-diff-renderer .diff-container::-webkit-scrollbar-track {
+  background: var(--gutter, #2f2f2f);
+}
+
+.enhanced-diff-renderer .diff-container::-webkit-scrollbar-thumb {
+  background: var(--line-number, #858585);
+  border-radius: 6px;
+}
+
+.enhanced-diff-renderer .diff-container::-webkit-scrollbar-thumb:hover {
+  background: var(--line-number-active, #c6c6c6);
+}
+
+/* Loading and performance indicators */
+.diff-performance-info {
+  background-color: var(--pf-global--BackgroundColor--150);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+  font-family: monospace;
+}
+
+.vscode-dark .diff-performance-info {
+  background-color: var(--pf-global--BackgroundColor--dark-150);
+  border-bottom-color: var(--pf-global--BorderColor--dark-100);
+}
+
+.diff-scroll-indicator {
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+}
+
+.diff-info {
+  background-color: var(--pf-global--BackgroundColor--150);
+  font-family:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+}
+
+.vscode-dark .diff-info {
+  background-color: var(--pf-global--BackgroundColor--dark-150);
+}
+
+/* Enhanced language-specific highlighting */
+.hljs-javascript .hljs-keyword,
+.hljs-typescript .hljs-keyword {
+  color: var(--syntax-keyword, #ff7b72) !important;
+}
+
+.hljs-python .hljs-keyword {
+  color: var(--syntax-keyword, #ff7b72) !important;
+}
+
+.hljs-java .hljs-keyword {
+  color: var(--syntax-keyword, #ff7b72) !important;
+}
+
+/* JSON specific highlighting */
+.hljs-json .hljs-attr {
+  color: var(--syntax-property, #79c0ff) !important;
+}
+
+.hljs-json .hljs-string {
+  color: var(--syntax-string, #a5d6ff) !important;
+}
+
+/* CSS specific highlighting */
+.hljs-css .hljs-selector-tag {
+  color: var(--syntax-keyword, #ff7b72) !important;
+}
+
+.hljs-css .hljs-attribute {
+  color: var(--syntax-property, #79c0ff) !important;
+}
+
+/* HTML specific highlighting */
+.hljs-html .hljs-tag {
+  color: var(--syntax-type, #7ee787) !important;
+}
+
+.hljs-html .hljs-name {
+  color: var(--syntax-function, #d2a8ff) !important;
+}
+
+/* Responsive design for mobile devices */
+@media (max-width: 768px) {
+  .enhanced-diff-renderer {
+    font-size: 0.75rem;
+  }
+
+  .enhanced-diff-renderer .diff-line {
+    padding: 0.125rem 0.5rem;
+  }
+
+  .enhanced-diff-renderer .diff-line-number {
+    width: 2.5rem;
+    margin-right: 0.5rem;
+  }
+}
+
+/* High contrast mode adjustments */
+.vscode-high-contrast .enhanced-diff-renderer .diff-line.addition {
+  background-color: rgba(0, 255, 0, 0.3) !important;
+  color: #00ff00 !important;
+  border-left-color: #00ff00 !important;
+}
+
+.vscode-high-contrast .enhanced-diff-renderer .diff-line.deletion {
+  background-color: rgba(255, 0, 0, 0.3) !important;
+  color: #ff0000 !important;
+  border-left-color: #ff0000 !important;
+}
+
+.vscode-high-contrast .enhanced-diff-renderer .diff-line.context {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Animation for smooth transitions */
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced-diff-renderer .diff-line {
+    transition: background-color 0.15s ease;
+  }
+
+  .diff-scroll-indicator {
+    transition: opacity 0.3s ease;
+  }
+}
