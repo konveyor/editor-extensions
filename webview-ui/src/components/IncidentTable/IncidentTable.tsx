@@ -31,10 +31,8 @@ export const IncidentTable: FC<IncidentTableProps> = ({
     let successRate = foundIncident?.successRateMetric;
     
     if (successRate) {
-      // Check if successRate is array-like with data at index 0
-      if (typeof successRate === 'object' && '0' in successRate) {
-        successRate = (successRate as any)[0]; // Extract the real data
-      }
+      // Server returns array format, always extract from index 0
+      successRate = (successRate as any)[0];
     }
     
     return successRate;
