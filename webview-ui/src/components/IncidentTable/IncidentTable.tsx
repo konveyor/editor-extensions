@@ -27,7 +27,17 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   // Helper function to get success rate from any incident in the group
   const getSuccessRate = (incidents: EnhancedIncident[]) => {
     // Find the first incident with success rate data
-    return incidents.find((incident) => incident.successRateMetric)?.successRateMetric;
+    const foundIncident = incidents.find((incident) => incident.successRateMetric);
+    let successRate = foundIncident?.successRateMetric;
+    
+    if (successRate) {
+      // Check if successRate is array-like with data at index 0
+      if (typeof successRate === 'object' && '0' in successRate) {
+        successRate = (successRate as any)[0]; // Extract the real data
+      }
+    }
+    
+    return successRate;
   };
 
   const tooltipProps = {
