@@ -137,7 +137,24 @@ export async function handleFileResponse(
         const isDeleted = fileValue.isDeleted;
         // Use the content passed from the frontend (includes hunk-level selections)
         // instead of the original agent's content from the chat message
+        console.log(
+          `handleFileResponse: content parameter length: ${content?.length || "undefined"}`,
+        );
+        console.log(
+          `handleFileResponse: fileValue.content length: ${fileValue.content?.length || "undefined"}`,
+        );
+        console.log(
+          `handleFileResponse: content parameter preview: ${content?.substring(0, 100)}...`,
+        );
+        console.log(
+          `handleFileResponse: fileValue.content preview: ${fileValue.content?.substring(0, 100)}...`,
+        );
+
         const fileContent = content || fileValue.content;
+        console.log(
+          `handleFileResponse: final fileContent length: ${fileContent?.length || "undefined"}`,
+        );
+        console.log(`handleFileResponse: using content from parameter: ${content !== undefined}`);
 
         try {
           if (isDeleted) {

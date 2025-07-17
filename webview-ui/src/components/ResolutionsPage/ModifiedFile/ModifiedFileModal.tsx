@@ -9,6 +9,9 @@ import { ModifiedFileModalHeader } from "./ModifiedFileModalHeader";
 import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
 import { useModifiedFileData } from "./useModifiedFileData";
 
+// Define hunk state type - 3-state system
+type HunkState = 'pending' | 'accepted' | 'rejected';
+
 interface ModifiedFileModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,9 +29,18 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
   onApply,
   onReject,
 }) => {
+  console.log("ModifiedFileModal: data received:", data);
+  console.log("ModifiedFileModal: data type:", typeof data);
+  console.log("ModifiedFileModal: data keys:", Object.keys(data));
   // Use shared data normalization hook
   const normalizedData = useModifiedFileData(data);
+  console.log("ModifiedFileModal: normalizedData:", normalizedData);
   const { path, isNew, diff, content, originalContent, fileName } = normalizedData;
+  console.log("ModifiedFileModal: extracted values:");
+  console.log("ModifiedFileModal: content length:", content?.length || 'undefined');
+  console.log("ModifiedFileModal: originalContent length:", originalContent?.length || 'undefined');
+  console.log("ModifiedFileModal: content preview:", content?.substring(0, 100));
+  console.log("ModifiedFileModal: originalContent preview:", originalContent?.substring(0, 100));
   // Parse single-file, multi-hunk diff using proper diff library
   const parsedDiff = useMemo(() => {
     if (!diff) {
@@ -69,52 +81,63 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
   }, [diff]);
 
   const parsedHunks = parsedDiff?.hunks || [];
-  const [hunkStates, setHunkStates] = useState<Record<string, boolean>>({});
+  const [hunkStates, setHunkStates] = useState<Record<string, HunkState>>({});
 
   // Update hunkStates when parsedHunks changes
   useEffect(() => {
-    const newHunkStates: Record<string, boolean> = {};
+    const newHunkStates: Record<string, HunkState> = {};
     parsedHunks.forEach((hunk) => {
-      newHunkStates[hunk.id] = true; // Default to accepted
+      // For single hunks, default to 'accepted' so they can be applied directly
+      // For multiple hunks, default to 'pending' so user must make explicit decisions
+      newHunkStates[hunk.id] = parsedHunks.length === 1 ? 'accepted' : 'pending';
     });
     setHunkStates(newHunkStates);
   }, [parsedHunks]);
 
   // Generate content based on hunk selections using proper diff library
   const generateSelectedContent = (): string => {
+    console.log("ModifiedFileModal: generateSelectedContent called");
+    console.log("ModifiedFileModal: parsedDiff exists:", !!parsedDiff);
+    console.log("ModifiedFileModal: parsedHunks length:", parsedHunks.length);
+    console.log("ModifiedFileModal: hunkStates:", hunkStates);
+    console.log("ModifiedFileModal: content length:", content?.length || 'undefined');
+    console.log("ModifiedFileModal: originalContent length:", originalContent?.length || 'undefined');
+    
     try {
       const modifiedContent = content;
 
       if (!parsedDiff || parsedHunks.length === 0) {
+        console.log("ModifiedFileModal: No parsedDiff or hunks, returning modifiedContent");
         return modifiedContent;
       }
 
-      // Hunk-level selection logic
-      const noHunksAccepted = parsedHunks.every((hunk) => !hunkStates[hunk.id]);
-      if (noHunksAccepted) {
-        return originalContent; // Return original content unchanged
+      // For 3-state system: only apply ACCEPTED hunks
+      const acceptedHunks = parsedHunks.filter((hunk) => hunkStates[hunk.id] === 'accepted');
+      console.log("ModifiedFileModal: acceptedHunks count:", acceptedHunks.length);
+      console.log("ModifiedFileModal: total hunks:", parsedHunks.length);
+      
+      if (acceptedHunks.length === 0) {
+        console.log("ModifiedFileModal: No hunks accepted, returning originalContent");
+        return originalContent; // No hunks accepted - return original content unchanged
       }
 
-      const allHunksAccepted = parsedHunks.every((hunk) => hunkStates[hunk.id]);
+      const allHunksAccepted = acceptedHunks.length === parsedHunks.length;
+      console.log("ModifiedFileModal: allHunksAccepted:", allHunksAccepted);
+      
       if (allHunksAccepted) {
+        console.log("ModifiedFileModal: All hunks accepted, returning modifiedContent");
+        console.log("ModifiedFileModal: modifiedContent preview:", modifiedContent?.substring(0, 200));
         return modifiedContent; // All hunks accepted - return the agent's modified content
       }
 
-      // Partial selection - create a new patch with only selected hunks
-      const selectedHunks = parsedHunks.filter((hunk) => hunkStates[hunk.id]);
-
-      if (selectedHunks.length === 0) {
-        return originalContent; // No hunks selected, return original
-      }
-
-      // For partial selection, we'll reconstruct a patch with only selected hunks
-      // and apply it to the original content
+      // Partial selection - create a new patch with only accepted hunks
+      console.log("ModifiedFileModal: Partial selection - creating patch with accepted hunks");
       const filename = parsedDiff.filename || path;
       let patchString = `--- a/${filename}\n+++ b/${filename}\n`;
 
       try {
-        // Build patch string with selected hunks
-        for (const hunk of selectedHunks) {
+        // Build patch string with accepted hunks
+        for (const hunk of acceptedHunks) {
           if (!hunk.header) {
             throw new Error(`Missing header for hunk ${hunk.id}`);
           }
@@ -142,21 +165,28 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           throw new Error("applyPatch returned false - patch application failed");
         }
 
+        console.log("ModifiedFileModal: Patch applied successfully, returning partiallyModified");
+        console.log("ModifiedFileModal: partiallyModified preview:", partiallyModified?.substring(0, 200));
         return partiallyModified;
       } catch (patchApplicationError) {
         const errorMessage =
           patchApplicationError instanceof Error
             ? patchApplicationError.message
             : String(patchApplicationError);
+        console.error("ModifiedFileModal: Patch application failed:", errorMessage);
         throw new Error(`Failed to apply patch: ${errorMessage}`);
       }
-    } catch {
+    } catch (error) {
+      console.error("ModifiedFileModal: generateSelectedContent error:", error);
       // Fallback strategy: try to return original content, then modified content
       if (originalContent) {
+        console.log("ModifiedFileModal: Fallback - returning originalContent");
         return originalContent;
       } else if (content) {
+        console.log("ModifiedFileModal: Fallback - returning content");
         return content;
       } else {
+        console.log("ModifiedFileModal: Fallback - returning empty string");
         return "";
       }
     }
@@ -164,7 +194,11 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
 
   // Modal-specific apply handler that generates selected content
   const handleModalApply = () => {
+    console.log("ModifiedFileModal: handleModalApply called");
     const selectedContent = generateSelectedContent();
+    console.log("ModifiedFileModal: generated content length:", selectedContent.length);
+    console.log("ModifiedFileModal: hunk states:", hunkStates);
+    console.log("ModifiedFileModal: calling onApply with selected content");
     onApply(selectedContent);
   };
 
@@ -173,9 +207,14 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
     onReject();
   };
 
-  // Helper to handle hunk state changes
-  const handleHunkStateChange = (hunkId: string, accepted: boolean) => {
-    setHunkStates((prev) => ({ ...prev, [hunkId]: accepted }));
+  // Helper to handle hunk state changes - now 3-state
+  const handleHunkStateChange = (hunkId: string, newState: HunkState) => {
+    setHunkStates((prev) => ({ ...prev, [hunkId]: newState }));
+  };
+
+  // Bridge function to convert 3-state to HunkState for HunkSelectionInterface compatibility
+  const handleHunkStateChangeForInterface = (hunkId: string, state: 'accepted' | 'rejected' | 'pending') => {
+    handleHunkStateChange(hunkId, state);
   };
 
   const renderExpandedDiff = () => {
@@ -189,7 +228,7 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           <HunkSelectionInterface
             parsedHunks={parsedHunks}
             hunkStates={hunkStates}
-            onHunkStateChange={handleHunkStateChange}
+            onHunkStateChange={handleHunkStateChangeForInterface}
             actionTaken={actionTaken}
             filePath={path}
           />
@@ -197,24 +236,32 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
       </div>
     );
   };
+  
   const isSingleHunk = parsedHunks.length <= 1;
 
-  // Handlers for multi-hunk selection
-  const handleSelectAll = () => {
-    const newStates: Record<string, boolean> = {};
-    parsedHunks.forEach((hunk) => {
-      newStates[hunk.id] = true;
-    });
-    setHunkStates(newStates);
+  // Calculate hunk summary for traditional submit system
+  const getHunkSummary = () => {
+    const total = parsedHunks.length;
+    const accepted = parsedHunks.filter(hunk => hunkStates[hunk.id] === 'accepted').length;
+    const rejected = parsedHunks.filter(hunk => hunkStates[hunk.id] === 'rejected').length;
+    const pending = parsedHunks.filter(hunk => hunkStates[hunk.id] === 'pending').length;
+    
+    return { total, accepted, rejected, pending };
   };
 
-  const handleDeselectAll = () => {
-    const newStates: Record<string, boolean> = {};
-    parsedHunks.forEach((hunk) => {
-      newStates[hunk.id] = false;
-    });
-    setHunkStates(newStates);
-  };
+  const hunkSummary = getHunkSummary();
+  
+  // Submit validation - can only submit if some decisions have been made
+  const hasDecisions = hunkSummary.accepted > 0 || hunkSummary.rejected > 0;
+  // For single hunks: always allow submit (they default to accepted)
+  // For multiple hunks: only allow submit if decisions have been made
+  const canSubmit = isSingleHunk || hasDecisions;
+  
+  console.log("ModifiedFileModal: submit validation");
+  console.log("ModifiedFileModal: isSingleHunk:", isSingleHunk);
+  console.log("ModifiedFileModal: hunkSummary:", hunkSummary);
+  console.log("ModifiedFileModal: hasDecisions:", hasDecisions);
+  console.log("ModifiedFileModal: canSubmit:", canSubmit);
 
   return (
     <Modal variant={ModalVariant.large} isOpen={isOpen} className="modified-file-modal">
@@ -224,13 +271,11 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           fileName={fileName}
           isSingleHunk={isSingleHunk}
           actionTaken={actionTaken}
-          parsedHunks={parsedHunks}
-          hunkStates={hunkStates}
+          hunkSummary={hunkSummary}
+          canSubmit={canSubmit}
           onClose={onClose}
           onApply={handleModalApply}
           onReject={handleModalReject}
-          onSelectAll={handleSelectAll}
-          onDeselectAll={handleDeselectAll}
         />
 
         <div className="modal-content-scrollable">{renderExpandedDiff()}</div>

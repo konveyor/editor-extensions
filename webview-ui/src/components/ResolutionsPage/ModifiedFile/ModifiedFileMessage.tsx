@@ -38,6 +38,13 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     path: string,
     content?: string,
   ) => {
+    console.log("ModifiedFileMessage: postFileResponse called");
+    console.log("ModifiedFileMessage: responseId:", responseId);
+    console.log("ModifiedFileMessage: messageToken:", messageToken);
+    console.log("ModifiedFileMessage: path:", path);
+    console.log("ModifiedFileMessage: content length:", content?.length || 'undefined');
+    console.log("ModifiedFileMessage: content preview:", content?.substring(0, 100));
+    
     interface FileResponsePayload {
       responseId: string;
       messageToken: string;
@@ -52,8 +59,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
     if (content !== undefined) {
       payload.content = content;
+      console.log("ModifiedFileMessage: payload includes content");
+    } else {
+      console.log("ModifiedFileMessage: payload does NOT include content");
     }
 
+    console.log("ModifiedFileMessage: posting message to VSCode");
     window.vscode.postMessage({
       type: "FILE_RESPONSE",
       payload,
@@ -61,14 +72,23 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   };
 
   const applyFile = (selectedContent?: string) => {
+    console.log("ModifiedFileMessage: applyFile called");
+    console.log("ModifiedFileMessage: selectedContent length:", selectedContent?.length || 'undefined');
+    console.log("ModifiedFileMessage: original content length:", content?.length || 'undefined');
+    console.log("ModifiedFileMessage: selectedContent preview:", selectedContent?.substring(0, 100));
+    console.log("ModifiedFileMessage: original content preview:", content?.substring(0, 100));
+    
     setActionTaken("applied");
     setIsExpanded(false);
 
     // Use provided selected content or fall back to full content
     const contentToApply = selectedContent || content;
+    console.log("ModifiedFileMessage: contentToApply length:", contentToApply?.length || 'undefined');
+    console.log("ModifiedFileMessage: using selectedContent:", selectedContent !== undefined);
 
     if (mode === "agent") {
       // Agent mode: Use FILE_RESPONSE flow for direct file writing
+      console.log("ModifiedFileMessage: posting FILE_RESPONSE with content");
       postFileResponse("apply", messageToken, path, contentToApply);
     } else {
       // Non-agent mode: Use callback flow with modified data
