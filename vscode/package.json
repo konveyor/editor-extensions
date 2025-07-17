@@ -503,7 +503,7 @@
         "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Should analysis of file be run when it is saved?",
+          "description": "Should analysis of file be run when it is saved? (Automatically enabled when Agent Mode is active)",
           "scope": "window",
           "order": 6
         },
@@ -521,7 +521,7 @@
         "konveyor.kai.agentMode": {
           "type": "boolean",
           "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution.",
+          "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
           "order": 6
         },
