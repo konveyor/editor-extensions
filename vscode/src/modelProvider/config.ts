@@ -1,9 +1,12 @@
 import { parse } from "yaml";
 import { workspace, Uri } from "vscode";
+import { KaiModelProvider } from "@editor-extensions/agentic";
 
-import { ModelClientConfig } from "./types";
+import { ParsedModelConfig } from "./types";
+import { ModelCreators } from "./modelCreator";
+import { BaseModelProvider, ModelProviders, runModelHealthCheck } from "./modelProvider";
 
-export async function getModelConfig(yamlUri: Uri): Promise<ModelClientConfig> {
+export async function parseModelConfig(yamlUri: Uri): Promise<ParsedModelConfig> {
   const yamlFile = await workspace.fs.readFile(yamlUri);
   const yamlString = new TextDecoder("utf8").decode(yamlFile);
   const yamlDoc = parse(yamlString);
@@ -26,4 +29,41 @@ export async function getModelConfig(yamlUri: Uri): Promise<ModelClientConfig> {
       llmRetryDelay,
     },
   };
+}
+
+export async function getModelProviderFromConfig(
+  parsedConfig: ParsedModelConfig,
+): Promise<KaiModelProvider> {
+  if (!ModelCreators[parsedConfig.config.provider]) {
+    throw new Error("Unsupported model provider");
+  }
+
+  const modelCreator = ModelCreators[parsedConfig.config.provider]();
+  const defaultArgs = modelCreator.defaultArgs();
+  const configArgs = parsedConfig.config.args;
+  //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
+  const args = { ...defaultArgs, ...configArgs };
+  modelCreator.validate(args, parsedConfig.env);
+  const streamingModel = modelCreator.create(
+    {
+      ...args,
+      streaming: true,
+    },
+    parsedConfig.env,
+  );
+  const nonStreamingModel = modelCreator.create(
+    {
+      ...args,
+      streaming: false,
+    },
+    parsedConfig.env,
+  );
+
+  if (ModelProviders[parsedConfig.config.provider]) {
+    return ModelProviders[parsedConfig.config.provider]();
+  }
+
+  const capabilities = await runModelHealthCheck(streamingModel, nonStreamingModel);
+
+  return new BaseModelProvider(streamingModel, nonStreamingModel, capabilities);
 }

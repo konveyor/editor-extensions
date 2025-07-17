@@ -1,7 +1,6 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
-import { type BaseChatModelCallOptions } from "@langchain/core/language_models/chat_models";
 import {
   AIMessage,
   AIMessageChunk,
@@ -9,33 +8,33 @@ import {
   SystemMessage,
   ToolMessage,
 } from "@langchain/core/messages";
-import { type Runnable } from "@langchain/core/runnables";
 import { type ToolCall } from "@langchain/core/messages/tool";
 import { type MessagesAnnotation } from "@langchain/langgraph";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
 import { type IterableReadableStream } from "@langchain/core/utils/stream";
-import { type ChatModelPair, type ChatModelCapabilities } from "@editor-extensions/shared";
 
+import {
+  type KaiWorkflowMessage,
+  KaiWorkflowMessageType,
+  type KaiModelProvider,
+  type KaiModelProviderInvokeCallOptions,
+} from "../types";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
-import { type KaiWorkflowMessage, KaiWorkflowMessageType } from "../types";
 
 export abstract class BaseNode extends KaiWorkflowEventEmitter {
   constructor(
     private readonly name: string,
-    protected readonly modelPair: ChatModelPair,
-    protected readonly modelCapabilities: ChatModelCapabilities,
+    protected readonly modelProvider: KaiModelProvider,
     private readonly tools: DynamicStructuredTool[],
   ) {
     super();
-    this.name = name;
-    this.tools = tools;
 
     // binding this is needed to work inside langgraph
-    this.stream = this.stream.bind(this);
+    this.process_stream = this.process_stream.bind(this);
     this.runTools = this.runTools.bind(this);
     this.newMessageId = this.newMessageId.bind(this);
     this.streamOrInvoke = this.streamOrInvoke.bind(this);
-    this.getRunnableWithTools = this.getRunnableWithTools.bind(this);
+    this.getInputWithTools = this.getInputWithTools.bind(this);
     this.aiMessageToString = this.aiMessageToString.bind(this);
     this.getToolsAsMessage = this.getToolsAsMessage.bind(this);
     this.getToolsMatchingSelectors = this.getToolsMatchingSelectors.bind(this);
@@ -65,7 +64,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       // toolsSelector matches tool names to enable
       toolsSelectors?: string[];
     },
-    options?: Partial<BaseChatModelCallOptions> | undefined,
+    options?: KaiModelProviderInvokeCallOptions | undefined,
   ): Promise<AIMessage | AIMessageChunk | undefined> {
     const messageId = this.newMessageId();
     const {
@@ -74,20 +73,32 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       toolsSelectors = [],
     } = streamOptions || {};
     try {
-      const { inputWithTools, runnable } = this.getRunnableWithTools(
-        input,
-        enableTools,
-        toolsSelectors,
-      );
+      // if we don't have tools enabled or registered, we should be able to stream without any issues
+      if (!enableTools || !this.tools.length) {
+        return this.process_stream(
+          messageId,
+          enableTools,
+          emitResponseChunks,
+          await this.modelProvider.stream(input, options),
+        );
+      }
 
-      // fallback to invoke when we cannot stream tool calls
+      let runnable: KaiModelProvider = this.modelProvider;
+      let processedInput: BaseLanguageModelInput = input;
+
+      if (this.modelProvider.toolCallsSupported()) {
+        runnable = this.modelProvider.bindTools(this.tools);
+      } else {
+        // use custom tool parsing if model does not support tool calls
+        processedInput = this.getInputWithTools(input, toolsSelectors);
+      }
+
+      // use invoke if the model does not support streaming tool calls but supports normal tool calls
       if (
-        enableTools &&
-        this.tools.length > 0 &&
-        this.modelCapabilities.supportsTools &&
-        !this.modelCapabilities.supportsToolsInStreaming
+        this.modelProvider.toolCallsSupported() &&
+        !this.modelProvider.toolCallsSupportedInStreaming()
       ) {
-        const fullResponse = await runnable.invoke(inputWithTools, options);
+        const fullResponse = await runnable.invoke(processedInput, options);
         if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
@@ -98,10 +109,12 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         return fullResponse;
       }
 
-      const stream = await runnable.stream(inputWithTools, options);
-      if (stream) {
-        return this.stream(messageId, enableTools, emitResponseChunks, stream);
-      }
+      return this.process_stream(
+        messageId,
+        enableTools,
+        emitResponseChunks,
+        await this.modelProvider.stream(processedInput, options),
+      );
     } catch (err) {
       console.error("Error callling stream()", err);
       if (emitResponseChunks) {
@@ -114,7 +127,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     }
   }
 
-  private async stream(
+  private async process_stream(
     messageId: string,
     enableTools: boolean,
     emitResponseChunks: boolean,
@@ -135,7 +148,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       }
       // for native tools support or when we don't expect tool calls
       // we send the chunk as-is
-      if (this.modelCapabilities.supportsTools || !enableTools) {
+      if (this.modelProvider.toolCallsSupported() || !enableTools) {
         if (emitResponseChunks) {
           this.emitWorkflowMessage({
             id: messageId,
@@ -256,51 +269,23 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         data: new AIMessageChunk(buffer),
       });
     }
-    if (response && !this.modelCapabilities.supportsTools) {
+    if (response && !this.modelProvider.toolCallsSupported()) {
       response.tool_calls = toolCalls;
     }
     return response;
   }
 
-  private getRunnableWithTools(
+  private getInputWithTools(
     input: BaseLanguageModelInput,
-    enableTools?: boolean,
-    toolsSelectors?: string[],
-  ): {
-    inputWithTools: BaseLanguageModelInput;
-    runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
-  } {
-    const response: {
-      inputWithTools: BaseLanguageModelInput;
-      runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions>;
-    } = {
-      inputWithTools: input,
-      runnable: this.modelPair.streamingModel,
-    };
-    if (!this.tools || this.tools.length < 1 || !enableTools) {
-      return response;
-    }
-    const filteredTools = this.getToolsMatchingSelectors(toolsSelectors);
-    if (
-      this.modelCapabilities.supportsToolsInStreaming &&
-      this.modelPair.streamingModel.bindTools
-    ) {
-      response.runnable = this.modelPair.streamingModel.bindTools(filteredTools);
-      return response;
-    }
-    if (this.modelCapabilities.supportsTools && this.modelPair.nonStreamingModel.bindTools) {
-      response.runnable = this.modelPair.nonStreamingModel.bindTools(filteredTools);
-      return response;
-    }
+    toolSelectors: string[] = [],
+  ): BaseLanguageModelInput {
+    const filteredTools = this.getToolsMatchingSelectors(toolSelectors);
     // NOTE: This assumes that all messages we will send will either
     // be a list of BaseMessage or strings. we are not adding tools support
     // for all possible values of BaseLanguageModelInput. If you are seeing
     // your requests producing errors or weird output, this is the place to look
     if (typeof input === "string") {
-      response.inputWithTools = [
-        new SystemMessage(this.getToolsAsMessage(filteredTools)),
-        new HumanMessage(input),
-      ];
+      return [new SystemMessage(this.getToolsAsMessage(filteredTools)), new HumanMessage(input)];
     } else if (Array.isArray(input)) {
       let modified = [];
       if (input.length > 0 && input[0] instanceof SystemMessage) {
@@ -317,9 +302,9 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
           m.tool_calls = [];
         }
       });
-      response.inputWithTools = modified;
+      return modified;
     }
-    return response;
+    return [];
   }
 
   private getToolsAsMessage(tools: DynamicStructuredTool[]): string {
@@ -379,7 +364,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
       try {
         this.emitWorkflowMessage(toolCallEvent);
         const result = await tool.invoke(toolCall.args);
-        if (this.modelCapabilities.supportsTools) {
+        if (this.modelProvider.toolCallsSupported()) {
           toolCallResponses.push(
             new ToolMessage({
               content: result,
@@ -409,7 +394,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
             status: "failed",
           },
         });
-        if (this.modelCapabilities.supportsTools) {
+        if (this.modelProvider.toolCallsSupported()) {
           toolCallResponses.push(
             new ToolMessage({
               content: err instanceof Error ? err.message || String(err) : String(err),
@@ -424,7 +409,7 @@ Make sure you always use \`\`\` at the start and end of the JSON block to clearl
         }
       }
     }
-    if (this.modelCapabilities.supportsTools) {
+    if (this.modelProvider.toolCallsSupported()) {
       return { messages: toolCallResponses };
     } else {
       return { messages: new HumanMessage(nonToolCallResponses.join("\n\n")) };

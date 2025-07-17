@@ -66,10 +66,7 @@ describe("model health check test", () => {
       ],
     });
 
-    const { supportsTools } = await runModelHealthCheck({
-      streamingModel: model,
-      nonStreamingModel: model,
-    });
+    const { supportsTools } = await runModelHealthCheck(model, model);
     expect(supportsTools).toBe(true);
   });
 
@@ -82,10 +79,7 @@ describe("model health check test", () => {
       ],
     });
 
-    const { supportsTools } = await runModelHealthCheck({
-      streamingModel: model,
-      nonStreamingModel: model,
-    });
+    const { supportsTools } = await runModelHealthCheck(model, model);
     expect(supportsTools).toBe(false);
   });
 });

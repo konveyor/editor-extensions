@@ -99,8 +99,7 @@ export class KaiInteractiveWorkflow
     const depTools = new JavaDependencyTools();
 
     const analysisIssueFixNodes = new AnalysisIssueFix(
-      options.modelPair,
-      options.modelCapabilities,
+      options.modelProvider,
       fsTools.all(),
       options.fsCache,
       workspaceDir,
@@ -115,12 +114,10 @@ export class KaiInteractiveWorkflow
     });
 
     this.diagnosticsNodes = new DiagnosticsIssueFix(
-      options.modelPair,
-      options.modelCapabilities,
-      workspaceDir,
+      options.modelProvider,
       fsTools.all(),
       depTools.all(),
-      options.fsCache,
+      workspaceDir,
     );
     this.diagnosticsNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);

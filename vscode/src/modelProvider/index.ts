@@ -1,2 +1,2 @@
-export { getModelConfig } from "./config";
-export { ModelProvider, runModelHealthCheck } from "./modelProvider";
+export { getModelProviderFromConfig, parseModelConfig } from "./config";
+export { BaseModelProvider, runModelHealthCheck } from "./modelProvider";

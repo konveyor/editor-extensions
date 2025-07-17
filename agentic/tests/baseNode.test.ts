@@ -2,19 +2,19 @@ import { z } from "zod";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
-import { type ChatModelCapabilities, type ChatModelPair } from "@editor-extensions/shared";
 
-import { KaiWorkflowMessageType } from "../src";
-import { FakeChatModelWithToolCalls } from "./base";
 import { BaseNode } from "../src/nodes/base";
+import { KaiWorkflowMessageType } from "../src";
+import { KaiModelProvider } from "../src/types";
+import { FakeChatModelWithToolCalls, FakeModelProvider } from "./base";
 
 class TestNode extends BaseNode {
   constructor(
-    modelPair: ChatModelPair,
-    modelCapabilities: ChatModelCapabilities,
+    modelProvider: KaiModelProvider,
     tools: DynamicStructuredTool[],
+    private readonly enableTools: boolean = true,
   ) {
-    super("test", modelPair, modelCapabilities, tools);
+    super("test", modelProvider, tools);
 
     this.invoke = this.invoke.bind(this);
   }
@@ -66,17 +66,7 @@ describe("testBaseNode", () => {
       },
     });
 
-    const node = new TestNode(
-      {
-        streamingModel: model,
-        nonStreamingModel: model,
-      },
-      {
-        supportsTools: false,
-        supportsToolsInStreaming: false,
-      },
-      [adderTool],
-    );
+    const node = new TestNode(new FakeModelProvider(model, [adderTool], false, false), [adderTool]);
 
     const { response } = await node.invoke("What is 2 gamma 2?");
     expect(response?.content).toBe(testResponse);
@@ -119,17 +109,7 @@ TOOL_CALL
       true,
     );
 
-    const node = new TestNode(
-      {
-        streamingModel: model,
-        nonStreamingModel: model,
-      },
-      {
-        supportsTools: false,
-        supportsToolsInStreaming: false,
-      },
-      [],
-    );
+    const node = new TestNode(new FakeModelProvider(model, [], false, false), []);
 
     const { response } = await node.invoke("Fix that issue that I told you about, will ya?");
     expect(response?.content).toBe(testResponse);
@@ -173,17 +153,7 @@ TOOL_CALL
       true,
     );
 
-    const node = new TestNode(
-      {
-        streamingModel: model,
-        nonStreamingModel: model,
-      },
-      {
-        supportsTools: false,
-        supportsToolsInStreaming: false,
-      },
-      [],
-    );
+    const node = new TestNode(new FakeModelProvider(model, [], false, false), []);
 
     const { response } = await node.invoke("Fix that issue that I told you about, will ya?");
     expect(response?.content).toBe(testResponse);
@@ -211,17 +181,7 @@ of the \`application.properties\` file. Then I will add the JMS topic to it.
       true,
     );
 
-    const node = new TestNode(
-      {
-        streamingModel: model,
-        nonStreamingModel: model,
-      },
-      {
-        supportsTools: false,
-        supportsToolsInStreaming: false,
-      },
-      [],
-    );
+    const node = new TestNode(new FakeModelProvider(model, [], false, false), []);
 
     const { chunks, response } = await node.invoke(
       "Fix that issue that I told you about, will ya?",

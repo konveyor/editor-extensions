@@ -23,7 +23,7 @@ export interface KaiModelConfig {
 /**
  * This is the config and environment variables combined used by the model provider to create a model client.
  */
-export interface ModelClientConfig {
+export interface ParsedModelConfig {
   env: Record<string, string>;
   config: KaiModelConfig;
 }
@@ -32,4 +32,9 @@ export interface ModelCreator {
   defaultArgs(): Record<string, any>;
   validate(args: Record<string, any>, env: Record<string, string>): void;
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel;
+}
+
+export interface ModelCapabilities {
+  supportsTools: boolean;
+  supportsToolsInStreaming: boolean;
 }

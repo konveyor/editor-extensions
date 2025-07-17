@@ -1,238 +1,99 @@
 import { z } from "zod";
-import { ChatOllama } from "@langchain/ollama";
-import { ChatDeepSeek } from "@langchain/deepseek";
-import { AzureChatOpenAI, ChatOpenAI } from "@langchain/openai";
-import { ChatBedrockConverse, type ChatBedrockConverseInput } from "@langchain/aws";
-import { ChatGoogleGenerativeAI, type GoogleGenerativeAIChatInput } from "@langchain/google-genai";
+
 import {
+  BindToolsInput,
   type BaseChatModel,
   type BaseChatModelCallOptions,
 } from "@langchain/core/language_models/chat_models";
-import { type Runnable } from "@langchain/core/runnables";
+import { type Runnable, type RunnableConfig } from "@langchain/core/runnables";
 import { DynamicStructuredTool } from "@langchain/core/tools";
+import { IterableReadableStream } from "@langchain/core/utils/stream";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import { SystemMessage, HumanMessage, type AIMessageChunk } from "@langchain/core/messages";
-import { type ChatModelCapabilities, type ChatModelPair } from "@editor-extensions/shared";
+import { type ChatModelCapabilities } from "@editor-extensions/shared";
+import { KaiModelProvider, KaiModelProviderInvokeCallOptions } from "@editor-extensions/agentic";
 
-import { ModelCreator, ModelClientConfig } from "./types";
+// If there are special cases for a model provider, we will add them here
+export const ModelProviders: Record<string, () => KaiModelProvider> = {};
 
-// TODO (pgaikwad) - right now, we are returning ChatModelPair as-is, however
-// there needs to be another type that exposes invoke, stream methods and internally
-// takes care of edge cases that we have already solved in python e.g. bedrock token limit
-export class ModelProvider {
-  static fromConfig(modelConf: ModelClientConfig): ChatModelPair {
-    let modelCreator: ModelCreator;
-    switch (modelConf.config.provider) {
-      case "AzureChatOpenAI":
-        modelCreator = new AzureChatOpenAICreator();
-        break;
-      case "ChatBedrock":
-        modelCreator = new ChatBedrockCreator();
-        break;
-      case "ChatDeepSeek":
-        modelCreator = new ChatDeepSeekCreator();
-        break;
-      case "ChatGoogleGenerativeAI":
-        modelCreator = new ChatGoogleGenerativeAICreator();
-        break;
-      case "ChatOllama":
-        modelCreator = new ChatOllamaCreator();
-        break;
-      case "ChatOpenAI":
-        modelCreator = new ChatOpenAICreator();
-        break;
-      default:
-        throw new Error("Unsupported model provider");
+/**
+ * Base model provider class used for providers that do not require any special handling of invoke or stream
+ * Adds helpful functionality on top of base invoke, stream, and bindTools:
+ * - Returns a real error if the model does not support tools instead of silently failing (which most providers do underneath)
+ * - Returns a real error if the model does not support streaming or tool calls in streaming
+ * - Wraps bindTools to return a ModelProvider instance instead of a base runnable
+ *
+ * @param streamingModel - The streaming model to use
+ * @param nonStreamingModel - The non-streaming model to use
+ * @param capabilities - The capabilities of the model
+ * @param demoMode - Whether the model is in demo mode
+ * @param tools - The tools to use
+ * @param toolKwargs - The tool kwargs to use
+ */
+export class BaseModelProvider implements KaiModelProvider {
+  constructor(
+    private readonly streamingModel: BaseChatModel,
+    private readonly nonStreamingModel: BaseChatModel,
+    private readonly capabilities: ChatModelCapabilities,
+    private readonly demoMode: boolean = false,
+    private readonly tools: BindToolsInput[] | undefined = undefined,
+    private readonly toolKwargs: Partial<KaiModelProviderInvokeCallOptions> | undefined = undefined,
+  ) {}
+
+  bindTools(
+    tools: BindToolsInput[],
+    kwargs?: Partial<KaiModelProviderInvokeCallOptions>,
+  ): KaiModelProvider {
+    return new BaseModelProvider(
+      this.streamingModel,
+      this.nonStreamingModel,
+      this.capabilities,
+      this.demoMode,
+      tools,
+      kwargs,
+    );
+  }
+
+  async invoke(
+    input: BaseLanguageModelInput,
+    options?: KaiModelProviderInvokeCallOptions,
+  ): Promise<AIMessageChunk> {
+    if (this.tools && this.nonStreamingModel.bindTools && this.capabilities.supportsTools) {
+      return this.nonStreamingModel.bindTools(this.tools, this.toolKwargs).invoke(input, options);
     }
-    const defaultArgs = modelCreator.defaultArgs();
-    const configArgs = modelConf.config.args;
-    //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
-    const args = { ...defaultArgs, ...configArgs };
-    modelCreator.validate(args, modelConf.env);
-    return {
-      streamingModel: modelCreator.create(
-        {
-          ...args,
-          streaming: true,
-        },
-        modelConf.env,
-      ),
-      nonStreamingModel: modelCreator.create(
-        {
-          ...args,
-          streaming: false,
-        },
-        modelConf.env,
-      ),
-    };
-  }
-}
-
-class AzureChatOpenAICreator implements ModelCreator {
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
-    return new AzureChatOpenAI({
-      openAIApiKey: env.AZURE_OPENAI_API_KEY,
-      ...args,
-    });
+    return this.nonStreamingModel.invoke(input, options);
   }
 
-  defaultArgs(): Record<string, any> {
-    return {
-      streaming: true,
-      temperature: 0.1,
-      maxRetries: 2,
-    };
-  }
-
-  validate(args: Record<string, any>, env: Record<string, string>): void {
-    [
-      ["deploymentName", "azureOpenAIApiDeploymentName"],
-      ["openAIApiVersion", "azureOpenAIApiVersion"],
-    ].forEach((keys) => {
-      const hasAtLeastOne = keys.some((key) => key in args);
-      if (!hasAtLeastOne) {
-        throw new Error(`Missing at least one of required keys: ${keys.join(" or ")}`);
-      }
-    });
-
-    validateMissingConfigKeys(env, ["AZURE_OPENAI_API_KEY"], "environment variable(s)");
-  }
-}
-
-class ChatBedrockCreator implements ModelCreator {
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
-    const config: ChatBedrockConverseInput = {
-      ...args,
-      region: env.AWS_DEFAULT_REGION,
-    };
-    // aws credentials can be specified globally using a credentials file
-    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
-      config.credentials = {
-        accessKeyId: env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-      };
+  stream(
+    input: any,
+    options?: Partial<RunnableConfig> | undefined,
+  ): Promise<IterableReadableStream<any>> {
+    if (this.tools && this.streamingModel.bindTools && this.capabilities.supportsToolsInStreaming) {
+      return this.streamingModel.bindTools(this.tools, this.toolKwargs).stream(input, options);
     }
-    return new ChatBedrockConverse(config);
+    return this.streamingModel.stream(input, options);
   }
 
-  defaultArgs(): Record<string, any> {
-    return {
-      streaming: true,
-      model: "meta.llama3-70b-instruct-v1:0",
-    };
+  toolCallsSupported(): boolean {
+    return this.capabilities.supportsTools;
   }
 
-  validate(args: Record<string, any>, _env: Record<string, string>): void {
-    validateMissingConfigKeys(args, ["model"], "model arg(s)");
+  toolCallsSupportedInStreaming(): boolean {
+    return this.capabilities.supportsToolsInStreaming;
   }
 }
 
-class ChatDeepSeekCreator implements ModelCreator {
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
-    return new ChatDeepSeek({
-      apiKey: env.DEEPSEEK_API_KEY,
-      ...args,
-    });
-  }
-
-  defaultArgs(): Record<string, any> {
-    return {
-      model: "deepseek-chat",
-      streaming: true,
-      temperature: 0,
-      maxRetries: 2,
-    };
-  }
-
-  validate(args: Record<string, any>, env: Record<string, string>): void {
-    validateMissingConfigKeys(args, ["model"], "model arg(s)");
-    validateMissingConfigKeys(env, ["DEEPSEEK_API_KEY"], "environment variable(s)");
-  }
-}
-
-class ChatGoogleGenerativeAICreator implements ModelCreator {
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
-    return new ChatGoogleGenerativeAI({
-      apiKey: env.GOOGLE_API_KEY,
-      ...args,
-    } as GoogleGenerativeAIChatInput);
-  }
-
-  defaultArgs(): Record<string, any> {
-    return {
-      model: "gemini-pro",
-      temperature: 0.7,
-      streaming: true,
-    };
-  }
-
-  validate(args: Record<string, any>, env: Record<string, string>): void {
-    validateMissingConfigKeys(args, ["model"], "model arg(s)");
-    validateMissingConfigKeys(env, ["GOOGLE_API_KEY"], "environment variable(s)");
-  }
-}
-
-class ChatOllamaCreator implements ModelCreator {
-  create(args: Record<string, any>, _: Record<string, string>): BaseChatModel {
-    return new ChatOllama({
-      ...args,
-    });
-  }
-
-  defaultArgs(): Record<string, any> {
-    return {
-      temperature: 0.1,
-      streaming: true,
-    };
-  }
-
-  validate(args: Record<string, any>, _: Record<string, string>): void {
-    validateMissingConfigKeys(args, ["model", "baseUrl"], "model arg(s)");
-  }
-}
-
-class ChatOpenAICreator implements ModelCreator {
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
-    return new ChatOpenAI({
-      openAIApiKey: env.OPENAI_API_KEY,
-      ...args,
-    });
-  }
-
-  defaultArgs(): Record<string, any> {
-    return {
-      model: "gpt-4o",
-      temperature: 0.1,
-      streaming: true,
-    };
-  }
-
-  validate(args: Record<string, any>, env: Record<string, string>): void {
-    validateMissingConfigKeys(args, ["model"], "model arg(s)");
-    validateMissingConfigKeys(env, ["OPENAI_API_KEY"], "environment variable(s)");
-  }
-}
-
-function validateMissingConfigKeys(
-  record: Record<string, any>,
-  keys: string[],
-  name: "environment variable(s)" | "model arg(s)",
-): void {
-  const missingKeys = keys.filter((k) => !(k in record));
-  if (missingKeys && missingKeys.length) {
-    throw Error(`Required ${name} missing in model config - ${missingKeys.join(", ")}`);
-  }
-}
 /**
  * Check if the model is connected and supports tools
- * @param modelPair a streaming and non-streaming model pair
+ * @param streamingModel a streaming model
+ * @param nonStreamingModel a non-streaming model
  * @returns ChatModelCapabilities
  * @throws Error if the model is not connected
  */
 export async function runModelHealthCheck(
-  modelPair: ChatModelPair,
+  streamingModel: BaseChatModel,
+  nonStreamingModel: BaseChatModel,
 ): Promise<ChatModelCapabilities> {
-  const { streamingModel, nonStreamingModel } = modelPair;
   const response: ChatModelCapabilities = {
     supportsTools: false,
     supportsToolsInStreaming: false,

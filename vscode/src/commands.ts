@@ -151,7 +151,7 @@ const commandsMap: (state: ExtensionState) => {
 
       try {
         // Get the model provider configuration from settings YAML
-        if (!state.chatModelData) {
+        if (!state.modelProvider) {
           throw new Error(
             "Chat model is not initialized. Please check your model provider settings.",
           );
@@ -166,8 +166,7 @@ const commandsMap: (state: ExtensionState) => {
 
         const kaiAgent = new KaiInteractiveWorkflow();
         const agentInit = kaiAgent.init({
-          modelPair: state.chatModelData,
-          modelCapabilities: state.chatModelData,
+          modelProvider: state.modelProvider,
           workspaceDir: state.data.workspaceRoot,
           fsCache: state.kaiFsCache,
           solutionServerClient: state.solutionServerClient,

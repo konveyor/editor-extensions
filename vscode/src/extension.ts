@@ -24,8 +24,8 @@ import {
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
-import { ModelProvider, getModelConfig, runModelHealthCheck } from "./modelProvider";
-import { type ModelClientConfig } from "./modelProvider/types";
+import { ParsedModelConfig } from "./modelProvider/types";
+import { getModelProviderFromConfig, parseModelConfig } from "./modelProvider";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -95,7 +95,7 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
-      chatModelData: undefined,
+      modelProvider: undefined,
     };
   }
 
@@ -326,9 +326,9 @@ class VsCodeExtension {
   }
 
   private async setupModelProvider(settingsPath: vscode.Uri): Promise<ConfigError | undefined> {
-    let modelConfig: ModelClientConfig;
+    let modelConfig: ParsedModelConfig;
     try {
-      modelConfig = await getModelConfig(settingsPath);
+      modelConfig = await parseModelConfig(settingsPath);
     } catch (err) {
       console.error("Error getting model config:", err);
       const configError = createConfigError.providerNotConfigured();
@@ -336,12 +336,7 @@ class VsCodeExtension {
       return configError;
     }
     try {
-      const modelPair = ModelProvider.fromConfig(modelConfig);
-      const capabilities = await runModelHealthCheck(modelPair);
-      this.state.chatModelData = {
-        ...modelPair,
-        ...capabilities,
-      };
+      this.state.modelProvider = await getModelProviderFromConfig(modelConfig);
     } catch (err) {
       console.error("Error running model health check:", err);
       const configError = createConfigError.providerConnnectionFailed();
