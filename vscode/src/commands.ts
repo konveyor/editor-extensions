@@ -221,14 +221,16 @@ const commandsMap: (state: ExtensionState) => {
               console.error(`Error executing resolver for messageId: ${messageId}:`, error);
               return false;
             }
+          } else {
+            return false;
           }
-          return false;
         };
 
         // Set up the event listener to use our message processing function
 
         workflow.removeAllListeners();
         workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+          console.log(`Workflow message received: ${msg.type} (${msg.id})`);
           await processMessage(
             msg,
             state,
@@ -241,6 +243,25 @@ const commandsMap: (state: ExtensionState) => {
             queueManager, // Pass the queue manager
           );
         });
+
+        // Add error event listener to catch workflow errors
+        workflow.on("error", (error: any) => {
+          console.error("Workflow error:", error);
+          state.mutateData((draft) => {
+            draft.isFetchingSolution = false;
+            if (draft.solutionState === "started") {
+              draft.solutionState = "failedOnSending";
+            }
+          });
+        });
+
+        // Set up periodic monitoring for stuck interactions
+        const stuckInteractionCheck = setInterval(() => {
+          if (state.isWaitingForUserInteraction && pendingInteractions.size > 0) {
+            console.log(`Monitoring pending interactions: ${pendingInteractions.size} active`);
+            console.log("Pending interaction IDs:", Array.from(pendingInteractions.keys()));
+          }
+        }, 60000); // Check every minute
 
         try {
           const agentModeEnabled = getConfigAgentMode();
@@ -267,7 +288,18 @@ const commandsMap: (state: ExtensionState) => {
           console.error(`Error in running the agent - ${err}`);
           console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
           window.showInformationMessage(`We encountered an error running the agent.`);
+
+          // Ensure isFetchingSolution is reset on any error
+          state.mutateData((draft) => {
+            draft.isFetchingSolution = false;
+            if (draft.solutionState === "started") {
+              draft.solutionState = "failedOnSending";
+            }
+          });
         } finally {
+          // Clear the stuck interaction monitoring
+          clearInterval(stuckInteractionCheck);
+
           // Ensure isFetchingSolution is reset even if workflow fails unexpectedly
           state.mutateData((draft) => {
             draft.isFetchingSolution = false;
@@ -439,6 +471,17 @@ const commandsMap: (state: ExtensionState) => {
       } catch (error: any) {
         console.error("Error notifying solution server of file acceptance:", error);
       }
+    },
+    "konveyor.resetFetchingState": async () => {
+      console.warn("Manually resetting isFetchingSolution state");
+      state.mutateData((draft) => {
+        draft.isFetchingSolution = false;
+        if (draft.solutionState === "started") {
+          draft.solutionState = "failedOnSending";
+        }
+      });
+      state.isWaitingForUserInteraction = false;
+      window.showInformationMessage("Fetching state has been reset.");
     },
     "konveyor.changeDiscarded": async (clientId: string, path: string) => {
       try {

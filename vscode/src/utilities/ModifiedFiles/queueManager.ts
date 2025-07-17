@@ -39,6 +39,20 @@ export class MessageQueueManager {
   }
 
   /**
+   * Gets the current queue length for monitoring
+   */
+  getQueueLength(): number {
+    return this.messageQueue.length;
+  }
+
+  /**
+   * Checks if queue processing is currently active
+   */
+  isProcessingQueueActive(): boolean {
+    return this.isProcessingQueue;
+  }
+
+  /**
    * Processes all queued messages
    * This is the generic queue processing logic that was previously tightly coupled to ModifiedFile handler
    * IMPORTANT: This method ensures queued messages are processed BEFORE any new incoming messages
@@ -62,10 +76,17 @@ export class MessageQueueManager {
       const queuedMessages = [...this.messageQueue];
       this.messageQueue.length = 0;
 
+      // Log the types of messages being processed for debugging
+      const messageTypes = queuedMessages.map((msg) => msg.type);
+      console.log(`Queued message types: ${messageTypes.join(", ")}`);
+
       // Process each message sequentially without any filtering or deduplication
       // All messages in the queue should be processed as they are
       for (let i = 0; i < queuedMessages.length; i++) {
         const queuedMsg = queuedMessages[i];
+        console.log(
+          `Processing queued message ${i + 1}/${queuedMessages.length}: ${queuedMsg.type} (${queuedMsg.id})`,
+        );
 
         try {
           // Dynamically import processMessage to avoid circular dependency
@@ -81,6 +102,7 @@ export class MessageQueueManager {
             this.maxTaskManagerIterations,
             this, // Pass the queue manager itself
           );
+          console.log(`Successfully processed queued message: ${queuedMsg.type} (${queuedMsg.id})`);
         } catch (error) {
           console.error(`Error processing queued message ${queuedMsg.id}:`, error);
           // Continue processing other messages even if one fails
@@ -108,20 +130,6 @@ export class MessageQueueManager {
   }
 
   /**
-   * Gets the current queue length
-   */
-  getQueueLength(): number {
-    return this.messageQueue.length;
-  }
-
-  /**
-   * Checks if the queue is currently being processed
-   */
-  isProcessingQueueActive(): boolean {
-    return this.isProcessingQueue;
-  }
-
-  /**
    * Clears the queue (useful for cleanup)
    */
   clearQueue(): void {
@@ -145,5 +153,11 @@ export async function handleUserInteractionComplete(
   state.isWaitingForUserInteraction = false;
 
   // Process any queued messages
-  await queueManager.processQueuedMessages();
+  if (queueManager.getQueueLength() > 0) {
+    console.log(`Starting to process ${queueManager.getQueueLength()} queued messages`);
+    await queueManager.processQueuedMessages();
+    console.log(`Finished processing queued messages`);
+  } else {
+    console.log(`No queued messages to process`);
+  }
 }

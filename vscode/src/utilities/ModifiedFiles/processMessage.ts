@@ -55,10 +55,16 @@ export const processMessage = async (
 ) => {
   // If we're waiting for user interaction, queue the message for later processing
   if (queueManager && queueManager.shouldQueueMessage()) {
+    console.log(
+      `Queuing ${msg.type} message ${msg.id} - waiting for user interaction (queue manager)`,
+    );
     queueManager.enqueueMessage(msg);
     return;
   } else if (state.isWaitingForUserInteraction) {
     // Fallback to old behavior for backward compatibility
+    console.log(
+      `Queuing ${msg.type} message ${msg.id} in fallback queue - waiting for user interaction`,
+    );
     messageQueue.push(msg);
     return;
   }
@@ -66,11 +72,14 @@ export const processMessage = async (
   // CRITICAL: Before processing this message, ensure any queued messages are processed first
   // This prevents race conditions where new messages bypass queued ones
   // BUT only if we're not already in the middle of processing the queue (to prevent infinite recursion)
+  // AND only if we're not waiting for user interaction (to maintain proper order)
   if (
     queueManager &&
     queueManager.getQueueLength() > 0 &&
-    !queueManager.isProcessingQueueActive()
+    !queueManager.isProcessingQueueActive() &&
+    !state.isWaitingForUserInteraction
   ) {
+    console.log(`Processing queued messages before handling ${msg.type} message ${msg.id}`);
     // First, queue the current message to maintain order
     queueManager.enqueueMessage(msg);
     // Then process all queued messages (including the one we just added)
@@ -80,6 +89,20 @@ export const processMessage = async (
 
   // Check if we should process this message or skip it as a duplicate
   if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
+    return;
+  }
+
+  // Double-check that we're not waiting for user interaction before processing
+  if (state.isWaitingForUserInteraction) {
+    console.warn(
+      `Attempting to process ${msg.type} message ${msg.id} while waiting for user interaction - this should not happen`,
+    );
+    // Queue the message instead of processing it
+    if (queueManager) {
+      queueManager.enqueueMessage(msg);
+    } else {
+      messageQueue.push(msg);
+    }
     return;
   }
 
@@ -133,28 +156,21 @@ export const processMessage = async (
 
             // Add the question to chat with quick responses
             state.mutateData((draft) => {
-              // Check if we already have a pending interaction message
-              const hasPendingInteraction = draft.chatMessages.some(
-                (m: any) =>
-                  m.kind === ChatMessageType.String &&
-                  m.quickResponses &&
-                  m.quickResponses.length > 0,
-              );
-
-              if (!hasPendingInteraction) {
-                draft.chatMessages.push({
-                  kind: ChatMessageType.String,
-                  messageToken: msg.id,
-                  timestamp: new Date().toISOString(),
-                  value: {
-                    message: message,
-                  },
-                  quickResponses: [
-                    { id: "yes", content: "Yes" },
-                    { id: "no", content: "No" },
-                  ],
-                });
-              }
+              // Always add the interaction message - don't skip based on existing interactions
+              // Multiple interactions can be pending at the same time
+              draft.chatMessages.push({
+                kind: ChatMessageType.String,
+                messageToken: msg.id,
+                timestamp: new Date().toISOString(),
+                value: {
+                  message: message,
+                },
+                quickResponses: [
+                  { id: "yes", content: "Yes" },
+                  { id: "no", content: "No" },
+                ],
+              });
+              console.log(`Added yesNo interaction message with ID: ${msg.id}`);
             });
 
             // Handle user interaction promise
@@ -183,6 +199,7 @@ export const processMessage = async (
                   content: choice,
                 })),
               });
+              console.log(`Added choice interaction message with ID: ${msg.id}`);
             });
 
             // Handle user interaction promise
@@ -232,6 +249,7 @@ export const processMessage = async (
                     { id: "no", content: "No" },
                   ],
                 });
+                console.log(`Added tasks interaction message with ID: ${msg.id}`);
               });
 
               // Handle user interaction promise

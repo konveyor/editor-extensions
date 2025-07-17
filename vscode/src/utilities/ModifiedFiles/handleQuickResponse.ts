@@ -101,6 +101,8 @@ export async function handleQuickResponse(
           // As a fallback, reset the waiting flag if no pending interaction was found
           // This should rarely happen if the architecture is working correctly
           state.isWaitingForUserInteraction = false;
+        } else {
+          console.log(`Successfully resolved interaction for messageToken: ${messageToken}`);
         }
       } else {
         console.warn(
