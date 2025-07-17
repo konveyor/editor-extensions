@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { getConfigAnalyzeOnSave } from "../utilities";
+import { getConfigAnalyzeOnSave, getConfigAgentMode } from "../utilities";
 import { ExtensionState } from "../extensionState";
 import { BatchedAnalysisTrigger } from "./batchedAnalysisTrigger";
 
@@ -11,7 +11,7 @@ export const registerAnalysisTrigger = (
 
   vscode.workspace.onDidChangeTextDocument(
     async (e: vscode.TextDocumentChangeEvent) => {
-      if (!getConfigAnalyzeOnSave()) {
+      if (!getConfigAnalyzeOnSave() && !getConfigAgentMode()) {
         return;
       }
 
@@ -45,7 +45,7 @@ export const registerAnalysisTrigger = (
 
   vscode.workspace.onDidSaveTextDocument(
     async (d: vscode.TextDocument) => {
-      if (!getConfigAnalyzeOnSave()) {
+      if (!getConfigAnalyzeOnSave() && !getConfigAgentMode()) {
         return;
       }
       await state.kaiFsCache.invalidate(d.uri.fsPath);
@@ -61,7 +61,7 @@ export const registerAnalysisTrigger = (
 };
 
 export const runPartialAnalysis = async (state: ExtensionState, filePaths: vscode.Uri[]) => {
-  if (!getConfigAnalyzeOnSave()) {
+  if (!getConfigAnalyzeOnSave() && !getConfigAgentMode()) {
     return;
   }
 

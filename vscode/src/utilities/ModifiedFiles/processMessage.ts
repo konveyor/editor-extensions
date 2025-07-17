@@ -215,10 +215,25 @@ export const processMessage = async (
         case "tasks": {
           if (state.currentTaskManagerIterations < maxTaskManagerIterations) {
             state.currentTaskManagerIterations += 1;
-            await new Promise<void>((resolve) => {
+
+            // Wait for analysis to complete with a timeout to prevent hanging
+            console.log(
+              `Tasks interaction: Waiting for analysis to complete... (iteration ${state.currentTaskManagerIterations}/${maxTaskManagerIterations})`,
+            );
+            await new Promise<void>((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                clearInterval(interval);
+                console.warn(
+                  `Tasks interaction timed out waiting for analysis to complete after 30 seconds`,
+                );
+                resolve(); // Resolve anyway to prevent hanging
+              }, 30000); // 30 second timeout
+
               const interval = setInterval(() => {
                 if (!state.data.isAnalysisScheduled && !state.data.isAnalyzing) {
                   clearInterval(interval);
+                  clearTimeout(timeout);
+                  console.log(`Tasks interaction: Analysis completed, proceeding with task check`);
                   resolve();
                   return;
                 }

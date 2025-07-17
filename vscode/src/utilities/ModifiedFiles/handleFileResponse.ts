@@ -1,6 +1,7 @@
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
 import { ChatMessageType } from "@editor-extensions/shared";
+import { getConfigAgentMode } from "../configuration";
 
 /**
  * Creates a new file with the specified content
@@ -166,6 +167,21 @@ export async function handleFileResponse(
           } else {
             console.log(`Updating existing file at ${path}`);
             await updateExistingFile(uri, path, fileContent, state);
+          }
+
+          // Trigger analysis after file changes are applied in agentic mode
+          // This ensures that the tasks interaction can detect new diagnostic issues
+          if (getConfigAgentMode()) {
+            console.log(`Triggering analysis after applying changes to ${path}`);
+            try {
+              await state.analyzerClient.runAnalysis([uri]);
+            } catch (analysisError) {
+              console.warn(
+                `Failed to trigger analysis after applying changes to ${path}:`,
+                analysisError,
+              );
+              // Don't throw here - file changes were successful, analysis failure is not critical
+            }
           }
         } catch (error) {
           console.error("Error applying file changes:", error);
