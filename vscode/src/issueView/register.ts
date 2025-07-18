@@ -42,11 +42,13 @@ export function registerIssueView({
 
   let firstLoad = true;
   let lastRuleSets: Immutable<RuleSet[]> = [];
+  let lastEnhancedIncidents: Immutable<ExtensionData["enhancedIncidents"]> = [];
   return (data: Immutable<ExtensionData>) => {
     // by-reference comparison assumes immutable state object
-    if (lastRuleSets !== data.ruleSets) {
-      model.updateIssues(data.ruleSets);
+    if (lastRuleSets !== data.ruleSets || lastEnhancedIncidents !== data.enhancedIncidents) {
+      model.updateIssues(data.ruleSets, data.enhancedIncidents);
       lastRuleSets = data.ruleSets;
+      lastEnhancedIncidents = data.enhancedIncidents;
     }
 
     if (firstLoad) {

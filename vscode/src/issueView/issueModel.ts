@@ -27,7 +27,12 @@
  *  SOFTWARE.
  *--------------------------------------------------------------------------------------------*/
 
-import { Incident, RuleSet, Violation, groupIncidentsByMsg } from "@editor-extensions/shared";
+import {
+  Incident,
+  RuleSet,
+  groupIncidentsByMsg,
+  EnhancedIncident,
+} from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import * as vscode from "vscode";
 import { allIncidents } from "./transformation";
@@ -40,6 +45,7 @@ export class IssuesModel {
 
   readonly items: IncidentTypeItem[] = [];
   private ruleSets: Immutable<RuleSet[]> = [];
+  private enhancedIncidents: Immutable<EnhancedIncident[]> = [];
 
   constructor() {}
 
@@ -50,11 +56,15 @@ export class IssuesModel {
     return this.findIncidentType(incidentMsg)?.files.find((it) => it.uri === fileUri);
   }
 
-  updateIssues(ruleSets: Immutable<RuleSet[]>) {
+  updateIssues(ruleSets: Immutable<RuleSet[]>, enhancedIncidents: Immutable<EnhancedIncident[]>) {
     this.ruleSets = ruleSets;
+    this.enhancedIncidents = enhancedIncidents;
+
+    // Use raw incidents for building the tree (existing logic)
     const incidentsByMsg: { [msg: string]: [string, Incident][] } = groupIncidentsByMsg(
       allIncidents(ruleSets),
     );
+
     // entries [msg, incidentsByFile]
     const treeItemsAsEntries: [string, { [uri: string]: Incident[] }][] = Object.entries(
       incidentsByMsg,
@@ -159,18 +169,33 @@ export class IssuesModel {
     // TODO not implemented
   }
 
-  findViolation(msg: string): Immutable<Violation> | undefined {
-    return this.ruleSets
-      .flatMap((r) => Object.values(r.violations ?? {}))
-      .find((v) => v.incidents?.some((it) => it.message === msg));
+  /**
+   * Look up enhanced incidents that match the given raw incidents
+   */
+  private findMatchingEnhancedIncidents(rawIncidents: Incident[]): EnhancedIncident[] {
+    return rawIncidents
+      .map((rawIncident) => {
+        // Find matching enhanced incident by message, uri, and line number
+        return this.enhancedIncidents.find(
+          (enhanced) =>
+            enhanced.message === rawIncident.message &&
+            enhanced.uri === rawIncident.uri &&
+            enhanced.lineNumber === rawIncident.lineNumber,
+        );
+      })
+      .filter((enhanced): enhanced is EnhancedIncident => enhanced !== undefined);
   }
 
   fix(incidentMessage: string, incidents: Incident[]) {
-    const firstViolation: Immutable<Violation> | undefined = this.findViolation(incidentMessage);
-    vscode.commands.executeCommand("konveyor.getSolution", incidents, firstViolation);
+    // Look up the enhanced incidents that correspond to these raw incidents
+    const enhancedIncidents = this.findMatchingEnhancedIncidents(incidents);
 
-    vscode.commands.executeCommand("konveyor.diffView.focus");
-    vscode.commands.executeCommand("konveyor.showResolutionPanel");
+    if (enhancedIncidents.length === 0) {
+      vscode.window.showErrorMessage("No enhanced incidents found with profile information");
+      return;
+    }
+
+    vscode.commands.executeCommand("konveyor.getSolution", enhancedIncidents);
   }
 }
 
