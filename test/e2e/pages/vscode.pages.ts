@@ -33,9 +33,17 @@ export class VSCode extends Application {
     if (repoDir) {
       args.push(path.resolve(repoDir));
     }
-
+    let executablePath = process.env.VSCODE_EXECUTABLE_PATH;
+    if (!executablePath) {
+      if (getOSInfo() === 'linux') {
+        executablePath = '/usr/share/code/code';
+      } else {
+        c;
+        throw new Error('VSCODE_EXECUTABLE_PATH env variable not provided');
+      }
+    }
     const vscodeApp = await electron.launch({
-      executablePath: process.env.VSCODE_EXECUTABLE_PATH,
+      executablePath: executablePath,
       args,
     });
 
