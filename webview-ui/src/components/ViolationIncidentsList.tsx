@@ -165,10 +165,12 @@ const ViolationIncidentsList = ({
     }
 
     if (filters.hasSuccessRate) {
-      filtered = filtered.filter(
-        (incident) =>
-          incident.successRateMetric && incident.successRateMetric.accepted_solutions > 0,
-      );
+      filtered = filtered.filter((incident) => {
+        if (!incident.successRateMetric) return false;
+        // Server returns array format, always extract from index 0
+        const successRate = (incident.successRateMetric as any)[0];
+        return successRate && successRate.accepted_solutions > 0;
+      });
     }
 
     const groups = new Map<string, { label: string; incidents: EnhancedIncident[] }>();

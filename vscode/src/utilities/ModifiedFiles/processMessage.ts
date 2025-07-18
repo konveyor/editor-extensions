@@ -14,6 +14,57 @@ import { MessageQueueManager, handleUserInteractionComplete } from "./queueManag
 
 import { shouldProcessMessage } from "./shouldProcessMessage";
 
+// Helper function to wait for analysis completion with timeout
+const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
+  return new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      console.warn("Tasks interaction: Analysis wait timed out after 30 seconds");
+      resolve();
+    }, 30000);
+
+    const interval = setInterval(() => {
+      const isAnalyzing = state.data.isAnalyzing;
+      const isAnalysisScheduled = state.data.isAnalysisScheduled;
+
+      if (!isAnalysisScheduled && !isAnalyzing) {
+        clearInterval(interval);
+        clearTimeout(timeout);
+        console.log("Tasks interaction: Analysis completed");
+        resolve();
+      }
+    }, 1000);
+  });
+};
+
+// Helper function to reset stuck analysis flags
+const resetStuckAnalysisFlags = (state: ExtensionState): void => {
+  if (state.data.isAnalyzing || state.data.isAnalysisScheduled) {
+    console.warn("Tasks interaction: Force resetting stuck analysis flags");
+    state.mutateData((draft) => {
+      draft.isAnalyzing = false;
+      draft.isAnalysisScheduled = false;
+    });
+  }
+};
+
+// Helper function to format tasks for display
+const formatTasksForDisplay = (tasks: any[]): { uri: string; task: string }[] => {
+  return tasks.map((t) => ({
+    uri: t.getUri().fsPath,
+    task:
+      t.toString().length > 100
+        ? t.toString().slice(0, 100).replaceAll("`", "'").replaceAll(">", "") + "..."
+        : t.toString(),
+  }));
+};
+
+// Helper function to create tasks message
+const createTasksMessage = (tasks: { uri: string; task: string }[]): string => {
+  const uniqueTasks = [...new Set(tasks.map((t) => t.task))];
+  return `It appears that my fixes caused following issues:\n\n - ${uniqueTasks.join("\n * ")}\n\nDo you want me to continue fixing them?`;
+};
+
 // Helper function to handle user interaction promises uniformly
 const handleUserInteractionPromise = async (
   msg: KaiWorkflowMessage,
@@ -21,25 +72,84 @@ const handleUserInteractionPromise = async (
   queueManager: MessageQueueManager | undefined,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
-  // Set waiting flag and set up interaction handling
   state.isWaitingForUserInteraction = true;
 
-  // Set up the pending interaction handler
   await new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      console.warn(`User interaction timeout for message ${msg.id}`);
+      pendingInteractions.delete(msg.id);
+      state.isWaitingForUserInteraction = false;
+      resolve();
+    }, 60000);
+
     pendingInteractions.set(msg.id, async (response: any) => {
-      // Use the centralized interaction completion handler
+      clearTimeout(timeout);
+
       if (queueManager) {
         await handleUserInteractionComplete(state, queueManager);
       } else {
-        // Fallback for backward compatibility
         state.isWaitingForUserInteraction = false;
       }
 
-      // Remove the entry from pendingInteractions to prevent memory leaks
       pendingInteractions.delete(msg.id);
       resolve();
     });
   });
+};
+
+// Main function to handle tasks interaction
+const handleTasksInteraction = async (
+  msg: KaiWorkflowMessage,
+  state: ExtensionState,
+  workflow: KaiInteractiveWorkflow,
+  queueManager: MessageQueueManager | undefined,
+  pendingInteractions: Map<string, (response: any) => void>,
+  maxTaskManagerIterations: number,
+): Promise<void> => {
+  // Check if we've exceeded max iterations
+  if (state.currentTaskManagerIterations >= maxTaskManagerIterations) {
+    (msg.data as KaiUserInteraction).response = { yesNo: false };
+    await workflow.resolveUserInteraction(msg as any);
+    return;
+  }
+
+  // Increment iteration counter
+  state.currentTaskManagerIterations += 1;
+
+  // Wait for analysis to complete
+  await waitForAnalysisCompletion(state);
+
+  // Reset any stuck analysis flags
+  resetStuckAnalysisFlags(state);
+
+  // Get and format tasks
+  const rawTasks = state.taskManager.getTasks();
+  const tasks = formatTasksForDisplay(rawTasks);
+
+  if (tasks.length === 0) {
+    // No tasks found - auto-reject
+    (msg.data as KaiUserInteraction).response = { yesNo: false };
+    await workflow.resolveUserInteraction(msg as any);
+    return;
+  }
+  // Show tasks to user and wait for response
+  state.mutateData((draft) => {
+    draft.chatMessages.push({
+      kind: ChatMessageType.String,
+      messageToken: msg.id,
+      timestamp: new Date().toISOString(),
+      value: {
+        message: createTasksMessage(tasks),
+        tasksData: tasks,
+      },
+      quickResponses: [
+        { id: "yes", content: "Yes" },
+        { id: "no", content: "No" },
+      ],
+    });
+  });
+
+  await handleUserInteractionPromise(msg, state, queueManager, pendingInteractions);
 };
 
 export const processMessage = async (
@@ -55,16 +165,10 @@ export const processMessage = async (
 ) => {
   // If we're waiting for user interaction, queue the message for later processing
   if (queueManager && queueManager.shouldQueueMessage()) {
-    console.log(
-      `Queuing ${msg.type} message ${msg.id} - waiting for user interaction (queue manager)`,
-    );
     queueManager.enqueueMessage(msg);
     return;
   } else if (state.isWaitingForUserInteraction) {
     // Fallback to old behavior for backward compatibility
-    console.log(
-      `Queuing ${msg.type} message ${msg.id} in fallback queue - waiting for user interaction`,
-    );
     messageQueue.push(msg);
     return;
   }
@@ -79,7 +183,6 @@ export const processMessage = async (
     !queueManager.isProcessingQueueActive() &&
     !state.isWaitingForUserInteraction
   ) {
-    console.log(`Processing queued messages before handling ${msg.type} message ${msg.id}`);
     // First, queue the current message to maintain order
     queueManager.enqueueMessage(msg);
     // Then process all queued messages (including the one we just added)
@@ -170,7 +273,6 @@ export const processMessage = async (
                   { id: "no", content: "No" },
                 ],
               });
-              console.log(`Added yesNo interaction message with ID: ${msg.id}`);
             });
 
             // Handle user interaction promise
@@ -199,7 +301,6 @@ export const processMessage = async (
                   content: choice,
                 })),
               });
-              console.log(`Added choice interaction message with ID: ${msg.id}`);
             });
 
             // Handle user interaction promise
@@ -213,80 +314,27 @@ export const processMessage = async (
           break;
         }
         case "tasks": {
-          if (state.currentTaskManagerIterations < maxTaskManagerIterations) {
-            state.currentTaskManagerIterations += 1;
-
-            // Wait for analysis to complete with a timeout to prevent hanging
-            console.log(
-              `Tasks interaction: Waiting for analysis to complete... (iteration ${state.currentTaskManagerIterations}/${maxTaskManagerIterations})`,
-            );
-            await new Promise<void>((resolve, reject) => {
-              const timeout = setTimeout(() => {
-                clearInterval(interval);
-                console.warn(
-                  `Tasks interaction timed out waiting for analysis to complete after 30 seconds`,
-                );
-                resolve(); // Resolve anyway to prevent hanging
-              }, 30000); // 30 second timeout
-
-              const interval = setInterval(() => {
-                if (!state.data.isAnalysisScheduled && !state.data.isAnalyzing) {
-                  clearInterval(interval);
-                  clearTimeout(timeout);
-                  console.log(`Tasks interaction: Analysis completed, proceeding with task check`);
-                  resolve();
-                  return;
-                }
-              }, 1000);
-            });
-            const tasks = state.taskManager.getTasks().map((t) => {
-              return {
-                uri: t.getUri().fsPath,
-                task:
-                  t.toString().length > 100
-                    ? t.toString().slice(0, 100).replaceAll("`", "'").replaceAll(">", "") + "..."
-                    : t.toString(),
-              } as { uri: string; task: string };
-            });
-            if (tasks.length > 0) {
-              state.mutateData((draft) => {
-                draft.chatMessages.push({
-                  kind: ChatMessageType.String,
-                  messageToken: msg.id,
-                  timestamp: new Date().toISOString(),
-                  value: {
-                    message: `It appears that my fixes caused following issues:\n\n - \
-                              ${[...new Set(tasks.map((t) => t.task))].join("\n * ")}\n\nDo you want me to continue fixing them?`,
-                    tasksData: tasks, // Store tasks data for retrieval in quick response handler
-                  },
-                  quickResponses: [
-                    { id: "yes", content: "Yes" },
-                    { id: "no", content: "No" },
-                  ],
-                });
-                console.log(`Added tasks interaction message with ID: ${msg.id}`);
-              });
-
-              // Handle user interaction promise
-              await handleUserInteractionPromise(msg, state, queueManager, pendingInteractions);
-            } else {
-              msg.data.response = {
-                yesNo: false,
-              };
-              workflow.resolveUserInteraction(msg);
-            }
-          } else {
-            msg.data.response = {
-              yesNo: false,
-            };
-            workflow.resolveUserInteraction(msg);
-          }
+          await handleTasksInteraction(
+            msg,
+            state,
+            workflow,
+            queueManager,
+            pendingInteractions,
+            maxTaskManagerIterations,
+          );
+          break;
+        }
+        default: {
+          console.warn(`Unknown user interaction type: ${interaction.type}, auto-rejecting`);
+          (msg.data as KaiUserInteraction).response = { yesNo: false };
+          await workflow.resolveUserInteraction(msg as any);
+          break;
         }
       }
       break;
     }
     case KaiWorkflowMessageType.LLMResponseChunk: {
-      const chunk = msg.data;
+      const chunk = msg.data as any;
       let content: string;
       if (typeof chunk.content === "string") {
         content = chunk.content;

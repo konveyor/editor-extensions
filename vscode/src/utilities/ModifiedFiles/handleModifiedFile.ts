@@ -125,8 +125,6 @@ export const handleModifiedFileMessage = async (
   const { path: filePath } = msg.data as KaiModifiedFile;
   const isAgentMode = getConfigAgentMode();
 
-  console.log(`handleModifiedFileMessage: ${filePath}, agentMode: ${isAgentMode}`);
-
   // Process the modified file and store it in the modifiedFiles map
   modifiedFilesPromises.push(
     processModifiedFile(modifiedFiles, msg.data as KaiModifiedFile, eventEmitter),
@@ -141,8 +139,6 @@ export const handleModifiedFileMessage = async (
     // Get file state from modifiedFiles map
     const fileState = modifiedFiles.get(uri.fsPath);
     if (fileState) {
-      console.log(`File state created for ${filePath}, modifiedFiles size: ${modifiedFiles.size}`);
-
       if (isAgentMode) {
         // In agentic mode: Add chat message and wait for user interaction
         const isNew = fileState.originalContent === undefined;
@@ -175,28 +171,19 @@ export const handleModifiedFileMessage = async (
 
         // Set up the pending interaction using the same mechanism as UserInteraction messages
         // This ensures that handleFileResponse can properly trigger queue processing
-        console.log(`Setting up pending interaction for ModifiedFile message with ID: ${msg.id}`);
         await new Promise<void>((resolve) => {
           pendingInteractions.set(msg.id, async (response: any) => {
-            console.log(
-              `ModifiedFile resolver called for messageId: ${msg.id} with response:`,
-              response,
-            );
             try {
               // Use the centralized interaction completion handler
               if (queueManager) {
-                console.log(`Calling handleUserInteractionComplete for messageId: ${msg.id}`);
                 await handleUserInteractionComplete(state, queueManager);
-                console.log(`handleUserInteractionComplete completed for messageId: ${msg.id}`);
               } else {
                 // Fallback to old behavior for backward compatibility
                 state.isWaitingForUserInteraction = false;
-                console.warn("Queue manager not available, queued messages may not be processed");
               }
 
               // Remove the entry from pendingInteractions to prevent memory leaks
               pendingInteractions.delete(msg.id);
-              console.log(`ModifiedFile resolver completed for messageId: ${msg.id}`);
               resolve();
             } catch (error) {
               console.error(`Error in ModifiedFile resolver for messageId: ${msg.id}:`, error);

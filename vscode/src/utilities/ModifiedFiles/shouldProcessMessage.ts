@@ -61,6 +61,20 @@ export const shouldProcessMessage = (
     case KaiWorkflowMessageType.UserInteraction: {
       // For user interactions, create a unique key based on the interaction type and data
       const interaction = msg.data as KaiUserInteraction;
+
+      // Special handling for tasks interactions - use message ID to allow multiple tasks interactions
+      if (interaction.type === "tasks") {
+        const tasksKey = `interaction:tasks:${msg.id}`;
+
+        if (processedTokens.has(tasksKey)) {
+          return false;
+        }
+
+        processedTokens.add(tasksKey);
+        return true;
+      }
+
+      // For other interaction types, use the original logic
       const interactionData = JSON.stringify(msg.data);
       const interactionKey = `interaction:${interaction.type}:${interactionData}`;
 

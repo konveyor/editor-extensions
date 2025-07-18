@@ -25,9 +25,6 @@ export class MessageQueueManager {
    */
   enqueueMessage(message: KaiWorkflowMessage): void {
     this.messageQueue.push(message);
-    console.log(
-      `Queued message ${message.id} (${message.type}), queue length: ${this.messageQueue.length}`,
-    );
   }
 
   /**
@@ -60,7 +57,6 @@ export class MessageQueueManager {
   async processQueuedMessages(): Promise<void> {
     // Prevent concurrent queue processing
     if (this.isProcessingQueue) {
-      console.log("Queue processing already in progress, skipping");
       return;
     }
 
@@ -69,7 +65,6 @@ export class MessageQueueManager {
     }
 
     this.isProcessingQueue = true;
-    console.log(`Processing ${this.messageQueue.length} queued messages`);
 
     try {
       // Create a copy of the current queue and clear the original
@@ -78,15 +73,11 @@ export class MessageQueueManager {
 
       // Log the types of messages being processed for debugging
       const messageTypes = queuedMessages.map((msg) => msg.type);
-      console.log(`Queued message types: ${messageTypes.join(", ")}`);
 
       // Process each message sequentially without any filtering or deduplication
       // All messages in the queue should be processed as they are
       for (let i = 0; i < queuedMessages.length; i++) {
         const queuedMsg = queuedMessages[i];
-        console.log(
-          `Processing queued message ${i + 1}/${queuedMessages.length}: ${queuedMsg.type} (${queuedMsg.id})`,
-        );
 
         try {
           // Dynamically import processMessage to avoid circular dependency
@@ -102,14 +93,11 @@ export class MessageQueueManager {
             this.maxTaskManagerIterations,
             this, // Pass the queue manager itself
           );
-          console.log(`Successfully processed queued message: ${queuedMsg.type} (${queuedMsg.id})`);
         } catch (error) {
           console.error(`Error processing queued message ${queuedMsg.id}:`, error);
           // Continue processing other messages even if one fails
         }
       }
-
-      console.log(`Finished processing ${queuedMessages.length} queued messages`);
     } catch (error) {
       console.error("Error processing queued messages:", error);
 
@@ -145,18 +133,12 @@ export async function handleUserInteractionComplete(
   state: ExtensionState,
   queueManager: MessageQueueManager,
 ): Promise<void> {
-  console.log(
-    `User interaction complete, processing ${queueManager.getQueueLength()} queued messages`,
-  );
-
   // Reset the waiting flag
   state.isWaitingForUserInteraction = false;
 
   // Process any queued messages
   if (queueManager.getQueueLength() > 0) {
-    console.log(`Starting to process ${queueManager.getQueueLength()} queued messages`);
     await queueManager.processQueuedMessages();
-    console.log(`Finished processing queued messages`);
   } else {
     console.log(`No queued messages to process`);
   }

@@ -287,7 +287,6 @@ const commandsMap: (state: ExtensionState) => {
         } catch (err) {
           console.error(`Error in running the agent - ${err}`);
           console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
-          window.showInformationMessage(`We encountered an error running the agent.`);
 
           // Ensure isFetchingSolution is reset on any error
           state.mutateData((draft) => {
@@ -306,6 +305,9 @@ const commandsMap: (state: ExtensionState) => {
             if (draft.solutionState === "started") {
               draft.solutionState = "failedOnSending";
             }
+            // Also ensure analysis flags are reset to prevent stuck tasks interactions
+            draft.isAnalyzing = false;
+            draft.isAnalysisScheduled = false;
           });
 
           // Only clean up if we're not waiting for user interaction

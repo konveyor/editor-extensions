@@ -42,22 +42,22 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
     }
 
     const { total, accepted, rejected, pending } = hunkSummary;
-    
+
     if (pending === total) {
       return {
         text: `${total} changes pending review`,
-        variant: 'warning' as const
+        variant: "warning" as const,
       };
     }
-    
+
     const parts: string[] = [];
     if (accepted > 0) parts.push(`${accepted} accepted`);
     if (rejected > 0) parts.push(`${rejected} rejected`);
     if (pending > 0) parts.push(`${pending} pending`);
-    
+
     return {
       text: parts.join(", "),
-      variant: 'info' as const
+      variant: "info" as const,
     };
   };
 
@@ -68,14 +68,14 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
     if (isSingleHunk) {
       return {
         text: "Apply Changes",
-        variant: "primary" as const
+        variant: "primary" as const,
       };
     }
 
     if (!canSubmit) {
       return {
         text: "Submit Changes",
-        variant: "primary" as const
+        variant: "primary" as const,
       };
     }
 
@@ -83,20 +83,20 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
     if (accepted > 0 && rejected === 0) {
       return {
         text: `Apply ${accepted} Changes`,
-        variant: "primary" as const
+        variant: "primary" as const,
       };
     }
 
     if (accepted === 0 && rejected > 0) {
       return {
         text: "Submit Rejections",
-        variant: "secondary" as const
+        variant: "secondary" as const,
       };
     }
 
     return {
       text: `Submit ${accepted + rejected} Decisions`,
-      variant: "primary" as const
+      variant: "primary" as const,
     };
   };
 
@@ -106,7 +106,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
     <div className="modal-custom-header sticky-header">
       <div className="modal-header-content">
         {/* Title Row */}
-        <Flex 
+        <Flex
           className="modal-title-row"
           justifyContent={{ default: "justifyContentSpaceBetween" }}
           alignItems={{ default: "alignItemsCenter" }}
@@ -119,7 +119,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
               <span className="modal-filename">{fileName}</span>
             </h2>
           </FlexItem>
-          
+
           {/* Close button */}
           <FlexItem className="modal-close-container">
             <Button
@@ -133,17 +133,12 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
 
         {/* Status Alert */}
         {statusMessage && (
-          <Alert
-            variant={statusMessage.variant}
-            title={statusMessage.text}
-            isInline
-            isPlain
-          />
+          <Alert variant={statusMessage.variant} title={statusMessage.text} isInline isPlain />
         )}
 
         {/* Action Row */}
         {actionTaken === null && (
-          <Flex 
+          <Flex
             className="modal-action-row"
             justifyContent={{ default: "justifyContentCenter" }}
             alignItems={{ default: "alignItemsCenter" }}
@@ -157,17 +152,13 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                     variant="primary"
                     onClick={onSelectAll}
                     isDisabled={hunkSummary.accepted === hunkSummary.total}
-                    style={{ minWidth: '100px' }}
+                    style={{ minWidth: "100px" }}
                   >
                     Select All
                   </Button>
                 </FlexItem>
                 <FlexItem>
-                  <Button
-                    variant="danger"
-                    onClick={onReject}
-                    style={{ minWidth: '100px' }}
-                  >
+                  <Button variant="danger" onClick={onReject} style={{ minWidth: "100px" }}>
                     Reject All
                   </Button>
                 </FlexItem>
@@ -179,14 +170,11 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
               <Button
                 variant={submitButtonInfo.variant}
                 onClick={() => {
-                  console.log("ModifiedFileModalHeader: Submit button clicked");
-                  console.log("ModifiedFileModalHeader: canSubmit:", canSubmit);
-                  console.log("ModifiedFileModalHeader: hunkSummary:", hunkSummary);
                   onApply();
                 }}
                 isDisabled={!canSubmit}
                 icon={<CheckIcon />}
-                style={{ minWidth: '120px' }}
+                style={{ minWidth: "120px" }}
               >
                 {submitButtonInfo.text}
               </Button>
@@ -199,7 +187,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                   variant="danger"
                   onClick={onReject}
                   icon={<CloseIcon />}
-                  style={{ minWidth: '100px' }}
+                  style={{ minWidth: "100px" }}
                 >
                   Reject Changes
                 </Button>
@@ -212,7 +200,9 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
         {actionTaken && (
           <Alert
             variant={actionTaken === "applied" ? "success" : "danger"}
-            title={actionTaken === "applied" ? "Changes Applied Successfully" : "All Changes Rejected"}
+            title={
+              actionTaken === "applied" ? "Changes Applied Successfully" : "All Changes Rejected"
+            }
             isInline
             isPlain
           />

@@ -90,6 +90,7 @@ const AnalysisPage: React.FC = () => {
   useEffect(() => {
     if (enhancedIncidents.length > 0 && solutionServerEnabled) {
       dispatch(getSuccessRate());
+      console.log("Fetching success rates for incidents...", enhancedIncidents);
     }
   }, [enhancedIncidents.length, localChanges.length, solutionServerEnabled, dispatch]);
 
