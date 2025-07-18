@@ -24,6 +24,7 @@ const defaultState: ExtensionData = {
   configErrors: [],
   profiles: [],
   activeProfileId: "",
+  isAgentMode: false,
 };
 
 const windowState =

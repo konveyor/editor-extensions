@@ -1,13 +1,18 @@
 import { AnalyzerClient } from "./client/analyzerClient";
-import { KonveyorFileModel } from "./diffView";
-import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
-import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
-import { KaiFsCache, SolutionServerClient } from "@editor-extensions/agentic";
+import { AnalysisProfile, ExtensionData, ModifiedFileState } from "@editor-extensions/shared";
+import {
+  KaiFsCache,
+  KaiInteractiveWorkflow,
+  SolutionServerClient,
+} from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { MemFS } from "./data/fileSystemProvider";
+import { KonveyorFileModel } from "./diffView/fileModel";
+import { EventEmitter } from "events";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -24,4 +29,21 @@ export interface ExtensionState {
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
   taskManager: DiagnosticTaskManager;
+  workflowManager: {
+    workflow: KaiInteractiveWorkflow | undefined;
+    isInitialized: boolean;
+    init: (config: {
+      model: any;
+      workspaceDir: string;
+      solutionServerClient?: SolutionServerClient;
+    }) => Promise<void>;
+    getWorkflow: () => KaiInteractiveWorkflow;
+    dispose: () => void;
+  };
+  resolvePendingInteraction?: (messageId: string, response: any) => boolean;
+  modifiedFiles: Map<string, ModifiedFileState>;
+  modifiedFilesEventEmitter: EventEmitter;
+  isWaitingForUserInteraction: boolean;
+  lastMessageId: string;
+  currentTaskManagerIterations: number;
 }

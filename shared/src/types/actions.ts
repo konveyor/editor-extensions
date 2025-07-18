@@ -22,6 +22,7 @@ export const OPEN_PROFILE_MANAGER = "OPEN_PROFILE_MANAGER";
 export const ADD_PROFILE = "ADD_PROFILE";
 export const DELETE_PROFILE = "DELETE_PROFILE";
 export const UPDATE_PROFILE = "UPDATE_PROFILE";
+export const QUICK_RESPONSE = "QUICK_RESPONSE";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -48,7 +49,8 @@ export type WebviewActionType =
   | typeof ADD_PROFILE
   | typeof DELETE_PROFILE
   | typeof UPDATE_PROFILE
-  | typeof OPEN_PROFILE_MANAGER;
+  | typeof OPEN_PROFILE_MANAGER
+  | typeof QUICK_RESPONSE;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

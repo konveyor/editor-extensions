@@ -99,7 +99,8 @@ const ViolationIncidentsList = ({
     }
   };
 
-  const onDeleteGroup = (type: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _onDeleteGroup = (type: string) => {
     if (type === "Category") {
       setFilters({ ...filters, category: [] });
     }
@@ -164,10 +165,12 @@ const ViolationIncidentsList = ({
     }
 
     if (filters.hasSuccessRate) {
-      filtered = filtered.filter(
-        (incident) =>
-          incident.successRateMetric && incident.successRateMetric.accepted_solutions > 0,
-      );
+      filtered = filtered.filter((incident) => {
+        if (!incident.successRateMetric) return false;
+        // Server returns array format, always extract from index 0
+        const successRate = (incident.successRateMetric as any)[0];
+        return successRate && successRate.accepted_solutions > 0;
+      });
     }
 
     const groups = new Map<string, { label: string; incidents: EnhancedIncident[] }>();
@@ -291,12 +294,14 @@ const ViolationIncidentsList = ({
             buttonId="sort-ascending"
             isSelected={isSortAscending}
             onChange={() => setIsSortAscending(true)}
+            aria-label="Sort ascending"
           />
           <ToggleGroupItem
             icon={<SortAmountDownIcon />}
             buttonId="sort-descending"
             isSelected={!isSortAscending}
             onChange={() => setIsSortAscending(false)}
+            aria-label="Sort descending"
           />
         </ToggleGroup>
       </ToolbarItem>
