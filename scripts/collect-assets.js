@@ -156,10 +156,15 @@ const actions = [
 
 // Run the queued actions
 const meta = [];
-for (const action of actions) {
-  if (action && typeof action === "function") {
-    const actionMeta = await action();
-    meta.push(actionMeta);
+try {
+  for (const action of actions) {
+    if (action && typeof action === "function") {
+      const actionMeta = await action();
+      meta.push(actionMeta);
+    }
   }
+  writeJson(join(DOWNLOAD_DIR, "collect-assets-meta.json"), { cwd, actions: meta }, { spaces: 2 });
+} catch (error) {
+  console.error("Asset collection failed:", error);
+  process.exit(1);
 }
-writeJson(join(DOWNLOAD_DIR, "collect-assets-meta.json"), { cwd, actions: meta }, { spaces: 2 });
