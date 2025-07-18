@@ -10,6 +10,7 @@ import { ReceivedMessage } from "./ReceivedMessage";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
+import { useScrollManagement } from "../../hooks/useScrollManagement";
 
 const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
@@ -21,6 +22,7 @@ const ResolutionPage: React.FC = () => {
     chatMessages,
     solutionState,
   } = state;
+  const { messageBoxRef } = useScrollManagement(chatMessages, isFetchingSolution);
 
   const getRemainingFiles = () =>
     resolution ? localChanges.filter(({ state }) => state === "pending") : [];
@@ -105,7 +107,7 @@ const ResolutionPage: React.FC = () => {
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
-          <MessageBox>
+          <MessageBox ref={messageBoxRef} style={{ paddingBottom: "2rem" }}>
             {isTriggeredByUser && renderedResolutionRequestMessages}
 
             {hasNothingToView && <ReceivedMessage content="No resolutions available." />}
