@@ -29,14 +29,13 @@ export class VSCode extends Application {
       throw new Error('Failed to clone the repository');
     }
 
-    const vscodeExecutablePath = getVscodeExecutablePath();
     const args = ['--disable-workspace-trust', '--skip-welcome'];
     if (repoDir) {
       args.push(path.resolve(repoDir));
     }
 
     const vscodeApp = await electron.launch({
-      executablePath: vscodeExecutablePath,
+      executablePath: process.env.VSCODE_EXECUTABLE_PATH,
       args,
     });
 

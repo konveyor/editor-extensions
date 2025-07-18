@@ -25,13 +25,62 @@ Before you begin, ensure you have the following:
 
    Install the required packages with `npm install`
 
+## Strategy
+
+These suite uses Playwright to interact with the VSCode extension as a user would.
+
+It ensures that:
+
+- The extension works as expected after installation.
+- Integration with GenAI providers is functional.
+- Feature workflows (e.g. analysis, managing profiles, requesting solutions) behave correctly.
+
+Since VSCode behavior differs significantly in headless mode, tests are expected to run with the UI
+visible in CI. It may work in headless mode in certain environments, but this is considered an edge
+case rather than a design decision. Additionally, headless mode does not work on Windows at all.
+
+## Architecture
+
+These tests use the Page Object Model pattern, in this case,
+the [vscode.pages.ts](../../e2e/pages/vscode.pages.ts) represents the VSCode instance currently
+running and should contain the methods for interacting with VSCode and the extension. This model
+extends from [application.pages.ts](../../e2e/pages/application.pages.ts), which contain more
+generic methods like copying/pasting.
+
+All static data that a test uses should be under [fixtures](../../e2e/fixtures), as of now, there
+are repositories and configurations that are shared among all tests
+
+### Tests run sequentially
+
+In a usual setup, tests would [run in parallel](https://playwright.dev/docs/test-parallel), however
+in this case parallelization is explicitly disabled to allow shared state and avoid repeated
+time-demanding VS Code setups and analyses, it also prevents multiple tests to collide when editing
+common files like genAI provider settings or binaries paths.
+
+### Dependencies
+
+Dependencies are defined by [projects](https://playwright.dev/docs/test-projects)
+in [playwright.config.ts](../../playwright.config.ts). The [global.setup.ts](../../global.setup.ts)
+file contains a function that will run before every other test suite, it contains the extension
+installation and the configuration of the GenAI provider settings that allows to verify that the
+extension was successfully installed. If this setup fails the tests won't run.
+
 ## Configuration
 
-Create an .env file by copying the content of [.env.example](../../.env.example) and replace the properties values with
+Create an .env file by copying the content of [.env.example](../../.env.example) and replace the
+properties values with
 yours.
 
-The editor extension gets a new development build each night, you can configure the extension's download url and name
-automatically by executing `node scripts/set-latest-vsix-env.mjs`
+Additionally, you can directly pass the env variables.
+
+| KEY                    | DESCRIPTION                                                                                                         |
+|------------------------|---------------------------------------------------------------------------------------------------------------------|
+| VSCODE_EXECUTABLE_PATH | Path to executable vscode                                                                                           |
+| VSIX_FILE_PATH         | Path to the extension in vsix format                                                                                |
+| VSIX_DOWNLOAD_URL      | (Optional) URL to get vsix from (only used if VSIX_FILE_PATH is not defined)                                        |
+| OPENAI_API_KEY         | OPENAI API KEY FOR GenAI provider                                                                                   |
+| KAI_QE_S3_BUCKET_NAME  | (Optional) AWS S3 bucket name (only needed if running evaluation)                                                   |
+| PARASOL_API_KEY        | (Optional) API key for MaaS provider (Only used if working with https://maas.apps.prod.rhoai.rh-aiservices-bu.com/) |
 
 ## Running Tests
 
@@ -45,7 +94,8 @@ This command will execute all tests in the repository. To run a specific test fi
 
 ## Code formatting
 
-Code is automatically formatted on pre-commit, but you can also do it manually with the following commands
+Code is automatically formatted on pre-commit, but you can also do it manually with the following
+commands
 
 1. Format code `npm run format`
 
@@ -53,28 +103,17 @@ Code is automatically formatted on pre-commit, but you can also do it manually w
 
 ## Writing a New Test Suite
 
-Before starting please note:
+To add a new test suite create a new test file inside [tests](../../e2e/tests), with `.test.ts`
+extension.
 
-* **Tests run sequentially**: Parallelization is disabled to allow shared state and avoid repeated time-demanding VS
-  Code
-  setups.
-* **Test dependencies**: Use projects in `playwright.config.ts` to define dependencies between test suites.
-* **Global setup**: The `global-setup.ts` is executed before every other test suite, it is the responsible for
-  installing the extension.
-* **Fixtures**: Under [fixtures](../../e2e/fixtures) you may find repositories and configurations that are shared among
-  all tests
-
-To add a new test suite create a new test file inside [tests](../../e2e/tests), with `.test.ts` extension
-
-### VSCode Page Object Model
-
-The [vscode.pages.ts](../../e2e/pages/vscode.pages.ts) file represents a VS Code instance and contains the functions
-shared across multiple tests. It extends from [application.pages.ts](../../e2e/pages/application.pages.ts) which should
-contain more generic functions.
+You need to ensure that your test file name falls into one of the
+existing [projects](../../playwright.config.ts) otherwise it won't run,
 
 ### Known Issues & Warnings
 
-Windows runs slower: Some tests include waitForTimeout() calls to avoid race conditions. Test on Linux when possible.
+Windows runs slower: Some tests include waitForTimeout() calls to avoid race conditions. Test on
+Linux when possible.
 
-Playwright + Electron is experimental, meaning some DOM features differ or are unsupported from the web version
+Playwright + Electron is experimental, meaning some DOM features differ or are unsupported from the
+web version
 Use the feature/sl-latest-nightly branch: Most active development happens there. main is outdated.
