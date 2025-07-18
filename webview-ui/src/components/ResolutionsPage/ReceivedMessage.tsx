@@ -66,7 +66,6 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       quickResponses={quickResponses?.map((response) => ({
         ...response,
         onClick: () => {
-          console.log("handleQuickResponse", response.id, response.messageToken);
           handleQuickResponse(response.id, response.messageToken);
         },
         isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,

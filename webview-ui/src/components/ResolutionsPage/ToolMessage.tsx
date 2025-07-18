@@ -117,7 +117,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ toolName, status, erro
   const [isExpanded, setIsExpanded] = useState(false);
   const humanReadableName = getHumanReadableToolName(toolName);
   const toolIcon = getToolIcon(toolName, status);
-  console.log("toolName, status", toolName, status);
 
   // Show additional details if the tool failed and error details are provided
   const hasAdditionalDetails = status === "failed" && errorDetails;
