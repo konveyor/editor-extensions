@@ -66,19 +66,23 @@ import { handleConfigureCustomRules } from "./utilities/profiles/profileActions"
 import { getModelConfig, ModelProvider } from "./client/modelProvider";
 import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
+import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
 
-const commandsMap: (state: ExtensionState) => {
+const commandsMap: (
+  state: ExtensionState,
+  logger: Logger,
+) => {
   [command: string]: (...args: any) => any;
-} = (state) => {
+} = (state, logger) => {
   return {
     "konveyor.openProfilesPanel": async () => {
       const provider = state.webviewProviders.get("profiles");
       if (provider) {
         provider.showWebviewPanel();
       } else {
-        console.error("Profiles provider not found");
+        logger.error("Profiles provider not found");
       }
     },
     "konveyor.startServer": async () => {
@@ -89,7 +93,7 @@ const commandsMap: (state: ExtensionState) => {
       try {
         await analyzerClient.start();
       } catch (e) {
-        console.error("Could not start the server", e);
+        logger.error("Could not start the server", { error: e });
       }
     },
     "konveyor.stopServer": async () => {
@@ -97,7 +101,7 @@ const commandsMap: (state: ExtensionState) => {
       try {
         await analyzerClient.stop();
       } catch (e) {
-        console.error("Could not shutdown and stop the server", e);
+        logger.error("Could not shutdown and stop the server", { error: e });
       }
     },
     "konveyor.restartServer": async () => {
@@ -112,7 +116,7 @@ const commandsMap: (state: ExtensionState) => {
         }
         await analyzerClient.start();
       } catch (e) {
-        console.error("Could not restart the server", e);
+        logger.error("Could not restart the server", { error: e });
       }
     },
     "konveyor.restartSolutionServer": async () => {
@@ -123,12 +127,12 @@ const commandsMap: (state: ExtensionState) => {
         await solutionServerClient.connect();
         window.showInformationMessage("Solution server restarted successfully");
       } catch (e) {
-        console.error("Could not restart the solution server", e);
+        logger.error("Could not restart the solution server", { error: e });
         window.showErrorMessage(`Failed to restart solution server: ${e}`);
       }
     },
     "konveyor.runAnalysis": async () => {
-      console.log("run analysis command called");
+      logger.info("Run analysis command called");
       const analyzerClient = state.analyzerClient;
       if (!analyzerClient || !analyzerClient.canAnalyze()) {
         window.showErrorMessage("Analyzer must be started and configured before run!");
@@ -137,11 +141,13 @@ const commandsMap: (state: ExtensionState) => {
       analyzerClient.runAnalysis();
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
+      logger.info("Get solution command called", { incidents, effort });
       await commands.executeCommand("konveyor.showResolutionPanel");
       // Create a scope for the solution
       const scope: Scope = { incidents, effort };
       const clientId = uuidv4();
       state.solutionServerClient.setClientId(clientId);
+      logger.debug("Client ID set", { clientId });
 
       // Update the state to indicate we're starting to fetch a solution
       state.mutateData((draft) => {
@@ -167,13 +173,14 @@ const commandsMap: (state: ExtensionState) => {
           return;
         }
 
-        const kaiAgent = new KaiInteractiveWorkflow();
+        const kaiAgent = new KaiInteractiveWorkflow(logger);
         const agentInit = kaiAgent.init({
           model: model,
           workspaceDir: state.data.workspaceRoot,
           fsCache: state.kaiFsCache,
           solutionServerClient: state.solutionServerClient,
         });
+        logger.debug("Agent initialized");
 
         // revert the changes back to on-disk
         // state.kaiFsCache.on("cacheInvalidated", async (path) => {
@@ -294,7 +301,7 @@ const commandsMap: (state: ExtensionState) => {
               break;
             }
             case KaiWorkflowMessageType.ModifiedFile: {
-              modifiedFilesPromises.push(processModifiedFile(modifiedFiles, msg.data));
+              modifiedFilesPromises.push(processModifiedFile(modifiedFiles, msg.data, logger));
               break;
             }
           }
@@ -310,8 +317,8 @@ const commandsMap: (state: ExtensionState) => {
             enableDiagnostics: getConfigSuperAgentMode(),
           } as KaiInteractiveWorkflowInput);
         } catch (err) {
-          console.error(`Error in running the agent - ${err}`);
-          console.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
+          logger.error("Error in running the agent", { error: err });
+          logger.info("Error trace", { stack: err instanceof Error ? err.stack : "N/A" });
           window.showErrorMessage(
             `We encountered an error running the agent - ${err instanceof Error ? err.message || String(err) : String(err)}`,
           );
@@ -331,7 +338,7 @@ const commandsMap: (state: ExtensionState) => {
               // TODO(pgaikwad) - use ws edit api
               await workspace.fs.writeFile(uri, new Uint8Array(Buffer.from(originalContent ?? "")));
             } catch (err) {
-              console.error(`Error reverting edits - ${err}`);
+              logger.error("Error reverting edits", { error: err, path });
             }
             try {
               if (!originalContent) {
@@ -348,7 +355,7 @@ const commandsMap: (state: ExtensionState) => {
                 });
               }
             } catch (err) {
-              console.error(`Error in processing diff - ${err}`);
+              logger.error("Error in processing diff", { error: err, path: relativePath });
             }
           }),
         );
@@ -386,7 +393,7 @@ const commandsMap: (state: ExtensionState) => {
         // Load the solution
         commands.executeCommand("konveyor.loadSolution", solutionResponse, { incidents });
       } catch (error: any) {
-        console.error("Error in getSolution:", error);
+        logger.error("Error in getSolution", { error });
 
         // Update the state to indicate an error
         state.mutateData((draft) => {
@@ -404,11 +411,11 @@ const commandsMap: (state: ExtensionState) => {
       }
     },
     "konveyor.getSuccessRate": async () => {
-      console.log("Getting success rate for incidents");
+      logger.info("Getting success rate for incidents");
 
       try {
         if (!state.data.enhancedIncidents || state.data.enhancedIncidents.length === 0) {
-          console.log("No incidents to update");
+          logger.info("No incidents to update");
           return;
         }
 
@@ -423,25 +430,25 @@ const commandsMap: (state: ExtensionState) => {
           draft.enhancedIncidents = updatedIncidents;
         });
       } catch (error: any) {
-        console.error("Error getting success rate:", error);
+        logger.error("Error getting success rate", { error });
       }
     },
     "konveyor.changeApplied": async (clientId: string, path: string, finalContent: string) => {
-      console.log("File change applied:", path);
+      logger.info("File change applied", { path });
 
       try {
         await state.solutionServerClient.acceptFile(clientId, path, finalContent);
       } catch (error: any) {
-        console.error("Error notifying solution server of file acceptance:", error);
+        logger.error("Error notifying solution server of file acceptance", { error, path });
       }
     },
     "konveyor.changeDiscarded": async (clientId: string, path: string) => {
-      console.log("File change discarded:", path);
+      logger.info("File change discarded", { path });
 
       try {
         await state.solutionServerClient.rejectFile(clientId, path);
       } catch (error: any) {
-        console.error("Error notifying solution server of file rejection:", error);
+        logger.error("Error notifying solution server of file rejection", { error, path });
       }
     },
     "konveyor.askContinue": async (incident: EnhancedIncident) => {
@@ -478,7 +485,7 @@ const commandsMap: (state: ExtensionState) => {
           ),
         );
       } catch (error) {
-        console.error("Failed to open document:", error);
+        logger.error("Failed to open document", { error, uri: incident.uri });
         window.showErrorMessage(
           `Failed to open document: ${error instanceof Error ? error.message : String(error)}`,
         );
@@ -591,7 +598,7 @@ const commandsMap: (state: ExtensionState) => {
     },
     "konveyor.openAnalysisDetails": async (item: IncidentTypeItem) => {
       //TODO: pass the item to webview and move the focus
-      console.log("Open details for ", item);
+      logger.info("Open details for item", { item });
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
     },
@@ -657,14 +664,17 @@ const commandsMap: (state: ExtensionState) => {
 };
 
 export function registerAllCommands(state: ExtensionState) {
+  // Create a child logger for commands
+  const logger = state.logger.child({ component: "vscode.commands" });
+
   let commandMap: { [command: string]: (...args: any) => any };
 
   // Try to create the command map
   try {
-    commandMap = commandsMap(state);
+    commandMap = commandsMap(state, logger);
   } catch (error) {
     const errorMessage = `Failed to create command map: ${error instanceof Error ? error.message : String(error)}`;
-    console.error(errorMessage, error);
+    logger.error(errorMessage, { error });
     window.showErrorMessage(
       `Konveyor extension failed to initialize commands. The extension cannot function properly.`,
     );
@@ -675,7 +685,7 @@ export function registerAllCommands(state: ExtensionState) {
   const commandEntries = Object.entries(commandMap);
   if (commandEntries.length === 0) {
     const errorMessage = `Command map is empty - no commands available to register`;
-    console.error(errorMessage);
+    logger.error(errorMessage);
     window.showErrorMessage(
       `Konveyor extension has no commands to register. The extension cannot function properly.`,
     );
@@ -706,6 +716,7 @@ interface modifiedFileState {
 async function processModifiedFile(
   modifiedFilesState: Map<string, modifiedFileState>,
   modifiedFile: KaiModifiedFile,
+  logger: Logger,
 ): Promise<void> {
   const { path, content } = modifiedFile;
   const uri = Uri.file(path);
@@ -761,7 +772,7 @@ async function processModifiedFile(
       edit.replace(uri, range, content);
       await workspace.applyEdit(edit);
     } catch (err) {
-      console.log(`Failed to apply edit made by the agent - ${String(err)}`);
+      logger.warn("Failed to apply edit made by the agent", { error: String(err), path });
     }
   }
 }

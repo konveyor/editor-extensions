@@ -11,7 +11,7 @@ import {
   SolutionState,
   Violation,
 } from "@editor-extensions/shared";
-import { paths, fsPaths, ignoresToExcludedPaths } from "../paths";
+import { paths, ignoresToExcludedPaths } from "../paths";
 import { Extension } from "../helpers/Extension";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
@@ -21,6 +21,7 @@ import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
 import { TaskManager } from "src/taskManager/types";
+import { Logger } from "winston";
 
 const uid = (() => {
   let counter = 0;
@@ -34,7 +35,6 @@ export class WorksapceCommandParams {
 
 export class AnalyzerClient {
   private assetPaths: AssetPaths;
-  private outputChannel: vscode.OutputChannel;
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
   private analyzerRpcConnection?: rpc.MessageConnection | null;
 
@@ -43,22 +43,19 @@ export class AnalyzerClient {
     private mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
     private getExtStateData: () => Immutable<ExtensionData>,
     private readonly taskManager: TaskManager,
+    private readonly logger: Logger,
   ) {
     this.assetPaths = buildAssetPaths(extContext);
     this.taskManager = taskManager;
-
-    this.outputChannel = vscode.window.createOutputChannel("Konveyor-Analyzer");
-    this.outputChannel.appendLine(
-      `current asset paths: ${JSON.stringify(this.assetPaths, null, 2)}`,
-    );
-    this.outputChannel.appendLine(`extension paths: ${JSON.stringify(fsPaths(), null, 2)}`);
-
+    this.logger = logger.child({
+      component: "AnalyzerClient",
+    });
     // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
   }
 
   private fireServerStateChange(state: ServerState) {
     this.mutateExtensionData((draft) => {
-      this.outputChannel.appendLine(`serverState change from [${draft.serverState}] to [${state}]`);
+      this.logger.info(`serverState change from [${draft.serverState}] to [${state}]`);
       draft.serverState = state;
       draft.isStartingServer = state === "starting";
       draft.isInitializingServer = state === "initializing";
@@ -106,82 +103,84 @@ export class AnalyzerClient {
       return;
     }
 
-    this.outputChannel.appendLine("Starting kai analyzer rpc");
+    this.logger.info("Starting kai analyzer rpc");
     this.fireServerStateChange("starting");
 
     const pipeName = rpc.generateRandomPipeName();
     const [analyzerRpcServer, analyzerPid] = await this.startAnalysisServer(pipeName);
     analyzerRpcServer.on("exit", (code, signal) => {
-      this.outputChannel.appendLine(
-        `Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`,
-      );
+      this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);
       this.fireServerStateChange("stopped");
     });
     analyzerRpcServer.on("close", (code, signal) => {
-      this.outputChannel.appendLine(
-        `Analyzer RPC server closed [signal: ${signal}, code: ${code}]`,
-      );
+      this.logger.info(`Analyzer RPC server closed [signal: ${signal}, code: ${code}]`);
       this.fireServerStateChange("stopped");
     });
     analyzerRpcServer.on("error", (err) => {
-      this.outputChannel.appendLine(`Analyzer RPC server error: ${err.message}`);
+      this.logger.error("Analyzer RPC server error", err);
       this.fireServerStateChange("startFailed");
     });
     this.analyzerRpcServer = analyzerRpcServer;
-    this.outputChannel.appendLine(`Analyzer RPC server started successfully [pid: ${analyzerPid}]`);
+    this.logger.info(`Analyzer RPC server started successfully [pid: ${analyzerPid}]`);
 
     const socket: Socket = await this.getSocket(pipeName);
     socket.addListener("connectionAttempt", () => {
-      this.outputChannel.appendLine("Attempting to establish connection...");
+      this.logger.info("Attempting to establish connection...");
     });
     socket.addListener("connectionAttemptFailed", () => {
-      this.outputChannel.appendLine("Connection attempt failed");
+      this.logger.info("Connection attempt failed");
     });
     socket.on("data", (data) => {
-      this.outputChannel.appendLine(`Received data: ${data.toString()}`);
+      this.logger.info(`Received data: ${data.toString()}`);
     });
     const reader = new rpc.SocketMessageReader(socket, "utf-8");
     const writer = new rpc.SocketMessageWriter(socket, "utf-8");
 
     reader.onClose(() => {
-      this.outputChannel.appendLine("Message reader closed");
+      this.logger.info("Message reader closed");
     });
-    reader.onError(() => {
-      this.outputChannel.appendLine("Error in message reader");
+    reader.onError((e) => {
+      this.logger.error("Error in message reader", e);
     });
     writer.onClose(() => {
-      this.outputChannel.appendLine("Message writer closed");
+      this.logger.info("Message writer closed");
     });
     writer.onError((e) => {
-      this.outputChannel.appendLine(`Error in message writer: ${e?.toLocaleString()}`);
+      this.logger.error("Error in message writer", e);
     });
     this.analyzerRpcConnection = await rpc.createMessageConnection(reader, writer);
-    this.analyzerRpcConnection.trace(rpc.Trace.Messages, console, false);
+    this.analyzerRpcConnection.trace(
+      rpc.Trace.Messages,
+      {
+        log: (message) => {
+          this.logger.debug("RPC Trace", message);
+        },
+      },
+      false,
+    );
     this.analyzerRpcConnection.onUnhandledNotification((e) => {
-      this.outputChannel.appendLine(`Unhandled notification: ${e.method}`);
+      this.logger.warn(`Unhandled notification: ${e.method}`);
     });
 
-    this.analyzerRpcConnection.onClose(() =>
-      this.outputChannel.appendLine("RPC connection closed"),
-    );
+    this.analyzerRpcConnection.onClose(() => this.logger.info("RPC connection closed"));
     this.analyzerRpcConnection.onRequest((method, params) => {
-      // this.outputChannel.appendLine(`Received request: ${method} + ${JSON.stringify(params)}`);
+      this.logger.debug(`Received request: ${method} + ${JSON.stringify(params)}`);
     });
 
     this.analyzerRpcConnection.onNotification("started", (_: []) => {
-      this.outputChannel.appendLine("Server initialization complete");
+      this.logger.info("Server initialization complete");
     });
     this.analyzerRpcConnection.onNotification((method: string, params: any) => {
-      this.outputChannel.appendLine(`Received notification: ${method} + ${JSON.stringify(params)}`);
+      this.logger.debug(`Received notification: ${method} + ${JSON.stringify(params)}`);
     });
     this.analyzerRpcConnection.onUnhandledNotification((e) => {
-      this.outputChannel.appendLine(`Unhandled notification: ${e.method}`);
+      this.logger.warn(`Unhandled notification: ${e.method}`);
     });
     this.analyzerRpcConnection.onRequest(
       "workspace/executeCommand",
       async (params: WorksapceCommandParams) => {
-        this.outputChannel.appendLine(`Executing workspace command: ${params.command}`);
-        this.outputChannel.appendLine(`Command arguments: ${JSON.stringify(params.arguments)}`);
+        this.logger.info(`Executing workspace command: ${params.command}`);
+        this.logger.info(`Command arguments: ${JSON.stringify(params.arguments)}`);
 
         try {
           const result = await vscode.commands.executeCommand(
@@ -190,15 +189,15 @@ export class AnalyzerClient {
             params.arguments![0],
           );
 
-          this.outputChannel.appendLine(`Command execution result: ${JSON.stringify(result)}`);
+          this.logger.info(`Command execution result: ${JSON.stringify(result)}`);
           return result;
         } catch (error) {
-          this.outputChannel.appendLine(`[Java] Command execution error: ${error}`);
+          this.logger.error(`[Java] Command execution error`, error);
         }
       },
     );
     this.analyzerRpcConnection.onError((e) => {
-      this.outputChannel.appendLine(`RPC connection error: ${e}`);
+      this.logger.error("RPC connection error", e);
     });
     this.analyzerRpcConnection.listen();
     this.analyzerRpcConnection.sendNotification("start", { type: "start" });
@@ -208,7 +207,7 @@ export class AnalyzerClient {
 
   protected async runHealthCheck(): Promise<void> {
     if (!this.analyzerRpcConnection) {
-      this.outputChannel.appendLine("Analyzer RPC connection is not established");
+      this.logger.warn("Analyzer RPC connection is not established");
       return;
     }
     try {
@@ -216,7 +215,7 @@ export class AnalyzerClient {
         "java.execute.workspaceCommand",
         "java.project.getAll",
       );
-      this.outputChannel.appendLine(
+      this.logger.info(
         `Java Language Server Healthcheck result: ${JSON.stringify(healthcheckResult)}`,
       );
       if (
@@ -229,7 +228,7 @@ export class AnalyzerClient {
         );
       }
     } catch (error) {
-      this.outputChannel.appendLine(`Error running Java Language Server healthcheck: ${error}`);
+      this.logger.error("Error running Java Language Server healthcheck", error);
     }
   }
 
@@ -241,7 +240,7 @@ export class AnalyzerClient {
     let retryCount = 0;
 
     s.on("ready", () => {
-      this.outputChannel.appendLine("got ready message");
+      this.logger.info("got ready message");
       ready = true;
     });
 
@@ -274,10 +273,9 @@ export class AnalyzerClient {
     const analyzerLspRulesPaths = this.getRulesetsPath().join(",");
     const location = paths().workspaceRepo.fsPath;
     const logs = path.join(paths().serverLogs.fsPath, "analyzer.log");
-    this.outputChannel.appendLine(`server cwd: ${paths().serverCwd.fsPath}`);
-    this.outputChannel.appendLine(`analysis server path: ${analyzerPath}`);
+    this.logger.info(`server cwd: ${paths().serverCwd.fsPath}`);
+    this.logger.info(`analysis server path: ${analyzerPath}`);
 
-    this.outputChannel.appendLine(`server args:`);
     const analyzerRpcServer = spawn(
       analyzerPath,
       [
@@ -298,7 +296,7 @@ export class AnalyzerClient {
 
     analyzerRpcServer.stderr.on("data", (data) => {
       const asString: string = data.toString().trimEnd();
-      this.outputChannel.appendLine(`${asString}`);
+      this.logger.info(`${asString}`);
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
@@ -320,12 +318,12 @@ export class AnalyzerClient {
    * Server state change: `stopping`
    */
   public async stop(): Promise<void> {
-    this.outputChannel.appendLine(`Stopping the analyzer rpc server...`);
+    this.logger.info(`Stopping the analyzer rpc server...`);
     this.fireServerStateChange("stopping");
 
     // First close the RPC connection if it exists
     if (this.analyzerRpcConnection) {
-      this.outputChannel.appendLine(`Closing analyzer rpc connection...`);
+      this.logger.info(`Closing analyzer rpc connection...`);
       this.analyzerRpcConnection.end();
       this.analyzerRpcConnection.dispose();
       this.analyzerRpcConnection = null;
@@ -339,7 +337,7 @@ export class AnalyzerClient {
       this.analyzerRpcServer = null;
     }
 
-    this.outputChannel.appendLine(`analyzer rpc server stopped`);
+    this.logger.info(`analyzer rpc server stopped`);
   }
 
   public isServerRunning(): boolean {
@@ -348,7 +346,7 @@ export class AnalyzerClient {
 
   public async notifyFileChanges(fileChanges: FileChange[]): Promise<void> {
     if (this.serverState !== "running" || !this.analyzerRpcConnection) {
-      this.outputChannel.appendLine("kai rpc server is not running, skipping notifyFileChanged.");
+      this.logger.warn("kai rpc server is not running, skipping notifyFileChanged.");
       return;
     }
     const changes = fileChanges.map((change) => ({
@@ -370,7 +368,7 @@ export class AnalyzerClient {
    */
   public async runAnalysis(filePaths?: vscode.Uri[]): Promise<void> {
     if (this.serverState !== "running" || !this.analyzerRpcConnection) {
-      this.outputChannel.appendLine("kai rpc server is not running, skipping runAnalysis.");
+      this.logger.warn("kai rpc server is not running, skipping runAnalysis.");
       return;
     }
 
@@ -388,13 +386,13 @@ export class AnalyzerClient {
             (p) => p.id === this.getExtStateData().activeProfileId,
           );
           if (!activeProfile) {
-            this.outputChannel.appendLine("No active profile found.");
+            this.logger.warn("No active profile found.");
             vscode.window.showErrorMessage("No active profile found.");
             this.fireAnalysisStateChange(false);
             return;
           }
           if (!activeProfile.labelSelector) {
-            this.outputChannel.appendLine("LabelSelector is not configured.");
+            this.logger.warn("LabelSelector is not configured.");
             vscode.window.showErrorMessage("LabelSelector is not configured.");
             this.fireAnalysisStateChange(false);
             return;
@@ -406,14 +404,14 @@ export class AnalyzerClient {
             reset_cache: !(filePaths && filePaths.length > 0),
             excluded_paths: ignoresToExcludedPaths(),
           };
-          this.outputChannel.appendLine(
+          this.logger.info(
             `Sending 'analysis_engine.Analyze' request with params: ${JSON.stringify(
               requestParams,
             )}`,
           );
 
           if (token.isCancellationRequested) {
-            this.outputChannel.appendLine("Analysis was canceled by the user.");
+            this.logger.warn("Analysis was canceled by the user.");
             this.fireAnalysisStateChange(false);
             return;
           }
@@ -432,7 +430,7 @@ export class AnalyzerClient {
           ]);
 
           if (isCancelled) {
-            this.outputChannel.appendLine("Analysis operation was canceled.");
+            this.logger.warn("Analysis operation was canceled.");
             vscode.window.showInformationMessage("Analysis was canceled.");
             this.fireAnalysisStateChange(false);
             return;
@@ -461,7 +459,7 @@ export class AnalyzerClient {
               }
             : { wellFormed: false };
 
-          this.outputChannel.appendLine(`Response received. Summary: ${JSON.stringify(summary)}`);
+          this.logger.info(`Response received. Summary: ${JSON.stringify(summary)}`);
 
           // Handle the result
           if (!isResponseWellFormed) {
@@ -490,7 +488,7 @@ export class AnalyzerClient {
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
         } catch (err: any) {
-          this.outputChannel.appendLine(`Error during analysis: ${err.message}`);
+          this.logger.error("Error during analysis", err);
           vscode.window.showErrorMessage("Analysis failed. See the output channel for details.");
         }
         this.fireAnalysisStateChange(false);
@@ -551,7 +549,7 @@ export class AnalyzerClient {
 
     if (!fs.existsSync(path)) {
       const message = `Analyzer binary doesn't exist at ${path}`;
-      this.outputChannel.appendLine(`Error: ${message}`);
+      this.logger.error(message);
       vscode.window.showErrorMessage(message);
     }
 

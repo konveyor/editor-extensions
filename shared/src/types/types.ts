@@ -263,3 +263,5 @@ export interface AnalysisProfile {
   labelSelector: string;
   readOnly?: boolean;
 }
+
+export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor Editor Extension";

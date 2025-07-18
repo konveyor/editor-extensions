@@ -24,6 +24,7 @@ import {
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+import { createLogger } from "./utilities/logger";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -74,12 +75,14 @@ class VsCodeExtension {
     };
 
     const taskManager = new DiagnosticTaskManager(getExcludedDiagnosticSources());
+    const logger = createLogger(paths);
 
     this.state = {
-      analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager),
+      analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager, logger),
       solutionServerClient: new SolutionServerClient(
         getConfigSolutionServerUrl(),
         getConfigSolutionServerEnabled(),
+        logger,
       ),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
@@ -89,6 +92,7 @@ class VsCodeExtension {
       issueModel: new IssuesModel(),
       kaiFsCache: new SimpleInMemoryCache(),
       taskManager,
+      logger,
       get data() {
         return getData();
       },
@@ -124,7 +128,7 @@ class VsCodeExtension {
       this.registerLanguageProviders();
       this.checkContinueInstalled();
       this.state.solutionServerClient.connect().catch((error) => {
-        console.error("Error connecting to solution server:", error);
+        this.state.logger.error("Error connecting to solution server", error);
       });
       this.checkJavaExtensionInstalled();
 
@@ -150,10 +154,10 @@ class VsCodeExtension {
 
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
-          console.log("Configuration modified!");
+          this.state.logger.info("Configuration modified!");
 
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
-            console.log("Effort modified!");
+            this.state.logger.info("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
             this.state.mutateData((draft) => {
               draft.solutionEffort = effort;
@@ -163,7 +167,7 @@ class VsCodeExtension {
             event.affectsConfiguration("konveyor.solutionServer.url") ||
             event.affectsConfiguration("konveyor.solutionServer.enabled")
           ) {
-            console.log("Solution server configuration modified!");
+            this.state.logger.info("Solution server configuration modified!");
             vscode.window
               .showInformationMessage(
                 "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",
@@ -179,8 +183,9 @@ class VsCodeExtension {
       );
 
       vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
+      this.state.logger.info("Extension initialized");
     } catch (error) {
-      console.error("Error initializing extension:", error);
+      this.state.logger.error("Error initializing extension", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
     }
   }
@@ -233,7 +238,7 @@ class VsCodeExtension {
     try {
       registerAllCommands(this.state);
     } catch (error) {
-      console.error("Critical error during command registration:", error);
+      this.state.logger.error("Critical error during command registration", error);
       vscode.window.showErrorMessage(
         `Konveyor extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -299,9 +304,10 @@ class VsCodeExtension {
   }
 
   public async dispose() {
+    this.state.logger.info("Disposing extension");
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {
-      console.error("Error disconnecting from solution server:", error);
+      this.state.logger.error("Error disconnecting from solution server", error);
     });
     const disposables = this.listeners.splice(0, this.listeners.length);
     for (const disposable of disposables) {
@@ -335,7 +341,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   } catch (error) {
     await extension?.dispose();
     extension = undefined;
-    console.error("Failed to activate Konveyor extension:", error);
+    console.error("Failed to activate Konveyor extension", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
   }
