@@ -76,6 +76,8 @@ const AnalysisPage: React.FC = () => {
     localChanges,
   } = state;
 
+  console.log(configErrors);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
@@ -208,7 +210,7 @@ const AnalysisPage: React.FC = () => {
                     key={index}
                   >
                     <Alert variant="warning" title={error.message}>
-                      {error.error?.message && error.error.message}
+                      {error.error ?? ""}
                     </Alert>
                   </Card>
                 ))}

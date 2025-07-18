@@ -1,7 +1,17 @@
-import { type RunnableConfig } from "@langchain/core/runnables";
+import {
+  type AIMessageChunk,
+  type AIMessage,
+  type BaseMessageChunk,
+} from "@langchain/core/messages";
+import {
+  type BaseChatModelCallOptions,
+  type BindToolsInput,
+} from "@langchain/core/language_models/chat_models";
 import { type EnhancedIncident } from "@editor-extensions/shared";
-import { type AIMessageChunk, type AIMessage } from "@langchain/core/messages";
-import { type BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { type RunnableConfig } from "@langchain/core/runnables";
+import { IterableReadableStream } from "@langchain/core/utils/stream";
+import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
+
 import { SolutionServerClient } from "./clients/solutionServerClient";
 
 export interface BaseWorkflowMessage<KaiWorkflowMessageType, D> {
@@ -67,7 +77,7 @@ export interface KaiWorkflowEvents {
 }
 
 export interface KaiWorkflowInitOptions {
-  model: BaseChatModel;
+  modelProvider: KaiModelProvider;
   workspaceDir: string;
   fsCache: KaiFsCache;
   solutionServerClient: SolutionServerClient;
@@ -94,6 +104,33 @@ export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkfl
   init(options: KaiWorkflowInitOptions): Promise<void>;
   run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
   resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;
+}
+
+export interface KaiModelProviderInvokeCallOptions extends BaseChatModelCallOptions {
+  cacheKey: string;
+}
+
+/**
+ * An interface for a model provider expected by the agentic module which:
+ * - makes model capabilities around tools explicit
+ * - adds the ability to take custom call options e.g. cache key
+ * All langchain providers should be compatible with this interface with minor changes.
+ */
+export interface KaiModelProvider<
+  InvokeCallOptions extends KaiModelProviderInvokeCallOptions = KaiModelProviderInvokeCallOptions,
+  OutputMessageType extends BaseMessageChunk = AIMessageChunk,
+  RunInput = any,
+  RunOutput = any,
+  StreamCallOptions extends RunnableConfig = RunnableConfig,
+> {
+  stream(
+    input: RunInput,
+    options?: Partial<StreamCallOptions>,
+  ): Promise<IterableReadableStream<RunOutput>>;
+  invoke(input: BaseLanguageModelInput, options?: InvokeCallOptions): Promise<OutputMessageType>;
+  bindTools(tools: BindToolsInput[], kwargs?: Partial<InvokeCallOptions>): KaiModelProvider;
+  toolCallsSupported(): boolean;
+  toolCallsSupportedInStreaming(): boolean;
 }
 
 /**

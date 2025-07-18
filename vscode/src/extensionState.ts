@@ -4,7 +4,11 @@ import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import * as vscode from "vscode";
 import { AnalysisProfile, ExtensionData } from "@editor-extensions/shared";
-import { KaiFsCache, SolutionServerClient } from "@editor-extensions/agentic";
+import {
+  type KaiFsCache,
+  type SolutionServerClient,
+  type KaiModelProvider,
+} from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
@@ -24,4 +28,5 @@ export interface ExtensionState {
   activeProfileId?: string;
   kaiFsCache: KaiFsCache;
   taskManager: DiagnosticTaskManager;
+  modelProvider: KaiModelProvider | undefined;
 }

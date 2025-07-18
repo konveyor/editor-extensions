@@ -1,4 +1,6 @@
 import { Uri } from "vscode";
+import { type BaseChatModel } from "@langchain/core/language_models/chat_models";
+
 import { SolutionEffortLevel } from "../effort";
 
 export type WebviewType = "sidebar" | "resolution" | "profiles";
@@ -169,13 +171,13 @@ export type ConfigErrorType =
   | "no-active-profile"
   | "invalid-label-selector"
   | "provider-not-configured"
-  | "provider-key-missing"
+  | "provider-connection-failed"
   | "no-custom-rules";
 
 export interface ConfigError {
   type: ConfigErrorType;
   message: string;
-  error?: Error;
+  error?: string;
 }
 
 export const createConfigError = {
@@ -199,9 +201,9 @@ export const createConfigError = {
     message: "Provider is not properly configured.",
   }),
 
-  providerKeyMissing: (): ConfigError => ({
-    type: "provider-key-missing",
-    message: "Provider credentials are missing or invalid.",
+  providerConnnectionFailed: (): ConfigError => ({
+    type: "provider-connection-failed",
+    message: "Failed to establish connection to the model.",
   }),
 
   noCustomRules: (): ConfigError => ({
@@ -249,12 +251,6 @@ export interface ProviderConfigFile {
   active?: GenAIModelConfig;
 }
 
-export interface ProviderConfigStatus {
-  configured: boolean;
-  keyMissing: boolean;
-  usingDefault: boolean;
-  activeKey?: string;
-}
 export interface AnalysisProfile {
   id: string;
   name: string;
@@ -262,4 +258,14 @@ export interface AnalysisProfile {
   useDefaultRules: boolean;
   labelSelector: string;
   readOnly?: boolean;
+}
+
+export interface ChatModelPair {
+  streamingModel: BaseChatModel;
+  nonStreamingModel: BaseChatModel;
+}
+
+export interface ChatModelCapabilities {
+  supportsTools: boolean;
+  supportsToolsInStreaming: boolean;
 }

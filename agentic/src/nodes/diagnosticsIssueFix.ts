@@ -10,11 +10,12 @@ import {
 import { type DynamicStructuredTool } from "@langchain/core/tools";
 
 import {
-  type KaiFsCache,
+  type KaiModelProvider,
   type KaiUserInteractionMessage,
   KaiWorkflowMessageType,
   type PendingUserInteraction,
 } from "../types";
+import { BaseNode } from "./base";
 import {
   type AgentName,
   type DiagnosticsPlannerInputState,
@@ -23,7 +24,6 @@ import {
   type GeneralIssueFixInputState,
   type GeneralIssueFixOutputState,
 } from "../schemas/diagnosticsIssueFix";
-import { BaseNode, type ModelInfo } from "./base";
 
 type PlannerResponseParserState = "name" | "instructions";
 
@@ -36,16 +36,13 @@ export class DiagnosticsIssueFix extends BaseNode {
   } as const;
 
   constructor(
-    modelInfo: ModelInfo,
+    modelProvider: KaiModelProvider,
+    fsTools: DynamicStructuredTool[],
+    dependencyTools: DynamicStructuredTool[],
     private readonly workspaceDir: string,
-    private readonly fsTools: DynamicStructuredTool[],
-    private readonly dependencyTools: DynamicStructuredTool[],
-    private readonly fsCache: KaiFsCache,
   ) {
-    super("DiagnosticsIssueFix", modelInfo, [...fsTools, ...dependencyTools]);
-    this.fsCache = fsCache;
+    super("DiagnosticsIssueFix", modelProvider, [...fsTools, ...dependencyTools]);
     this.diagnosticsPromises = new Map<string, PendingUserInteraction>();
-    this.workspaceDir = workspaceDir;
 
     this.planFixes = this.planFixes.bind(this);
     this.fixGeneralIssues = this.fixGeneralIssues.bind(this);

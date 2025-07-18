@@ -1,61 +1,19 @@
-import { parse } from "yaml";
-import { workspace, Uri } from "vscode";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { AzureChatOpenAI, ChatOpenAI } from "@langchain/openai";
+import { ChatBedrockConverse, type ChatBedrockConverseInput } from "@langchain/aws";
+import { ChatGoogleGenerativeAI, type GoogleGenerativeAIChatInput } from "@langchain/google-genai";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { ChatBedrockConverseInput, ChatBedrockConverse } from "@langchain/aws";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIChatInput } from "@langchain/google-genai";
+import { ModelCreator } from "./types";
 
-import { KaiModelConfig } from "./types";
-
-interface ModelCreator {
-  defaultArgs(): Record<string, any>;
-  validate(args: Record<string, any>, env: Record<string, string>): void;
-  create(args: Record<string, any>, env: Record<string, string>): BaseChatModel;
-}
-
-export interface ModelConfig {
-  env: Record<string, string>;
-  config: KaiModelConfig;
-}
-
-// TODO (pgaikwad) - right now, we are returning BaseChatModel as-is, however
-// there needs to be another type that exposes invoke, stream methods and internally
-// takes care of edge cases that we have already solved in python e.g. bedrock token limit
-export class ModelProvider {
-  static fromConfig(modelConf: ModelConfig): BaseChatModel {
-    let modelCreator: ModelCreator;
-    switch (modelConf.config.provider) {
-      case "AzureChatOpenAI":
-        modelCreator = new AzureChatOpenAICreator();
-        break;
-      case "ChatBedrock":
-        modelCreator = new ChatBedrockCreator();
-        break;
-      case "ChatDeepSeek":
-        modelCreator = new ChatDeepSeekCreator();
-        break;
-      case "ChatGoogleGenerativeAI":
-        modelCreator = new ChatGoogleGenerativeAICreator();
-        break;
-      case "ChatOllama":
-        modelCreator = new ChatOllamaCreator();
-        break;
-      case "ChatOpenAI":
-        modelCreator = new ChatOpenAICreator();
-        break;
-      default:
-        throw new Error("Unsupported model provider");
-    }
-    const defaultArgs = modelCreator.defaultArgs();
-    const configArgs = modelConf.config.args;
-    //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
-    const args = { ...defaultArgs, ...configArgs };
-    modelCreator.validate(args, modelConf.env);
-    return modelCreator.create(args, modelConf.env);
-  }
-}
+export const ModelCreators: Record<string, () => ModelCreator> = {
+  AzureChatOpenAI: () => new AzureChatOpenAICreator(),
+  ChatBedrock: () => new ChatBedrockCreator(),
+  ChatDeepSeek: () => new ChatDeepSeekCreator(),
+  ChatGoogleGenerativeAI: () => new ChatGoogleGenerativeAICreator(),
+  ChatOllama: () => new ChatOllamaCreator(),
+  ChatOpenAI: () => new ChatOpenAICreator(),
+};
 
 class AzureChatOpenAICreator implements ModelCreator {
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
@@ -111,7 +69,7 @@ class ChatBedrockCreator implements ModelCreator {
     };
   }
 
-  validate(args: Record<string, any>, env: Record<string, string>): void {
+  validate(args: Record<string, any>, _env: Record<string, string>): void {
     validateMissingConfigKeys(args, ["model"], "model arg(s)");
   }
 }
@@ -200,31 +158,6 @@ class ChatOpenAICreator implements ModelCreator {
     validateMissingConfigKeys(args, ["model"], "model arg(s)");
     validateMissingConfigKeys(env, ["OPENAI_API_KEY"], "environment variable(s)");
   }
-}
-
-export async function getModelConfig(yamlUri: Uri): Promise<ModelConfig> {
-  const yamlFile = await workspace.fs.readFile(yamlUri);
-  const yamlString = new TextDecoder("utf8").decode(yamlFile);
-  const yamlDoc = parse(yamlString);
-
-  const baseEnv = yamlDoc.environment;
-  const { environment, provider, args, template, llamaHeader, llmRetries, llmRetryDelay } =
-    yamlDoc.active;
-
-  // TODO: Base sanity checking to make sure a core set of expected fields are
-  // TODO: actually defined/referenced in the yaml could go here.
-
-  return {
-    env: { ...baseEnv, ...environment },
-    config: {
-      provider,
-      args,
-      template,
-      llamaHeader,
-      llmRetries,
-      llmRetryDelay,
-    },
-  };
 }
 
 function validateMissingConfigKeys(

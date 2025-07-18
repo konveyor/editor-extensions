@@ -7,7 +7,9 @@ import {
   type BindToolsInput,
   type BaseChatModelCallOptions,
 } from "@langchain/core/language_models/chat_models";
-import { Runnable } from "@langchain/core/runnables";
+import { Runnable, RunnableConfig } from "@langchain/core/runnables";
+
+import { KaiModelProvider, KaiModelProviderInvokeCallOptions } from "../src/types";
 
 export class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
   private ai_responses: AIMessage[];
@@ -29,8 +31,8 @@ export class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
   }
 
   bindTools(
-    tools: BindToolsInput[],
-    kwargs?: Partial<BaseChatModelCallOptions> | undefined,
+    _tools: BindToolsInput[],
+    _kwargs?: Partial<BaseChatModelCallOptions> | undefined,
   ): Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions> {
     return this;
   }
@@ -78,4 +80,50 @@ export function getAIMessageIntoRandomChunks(message: AIMessage): AIMessageChunk
     remaining = remaining.slice(chunkSize);
   }
   return responses;
+}
+
+export class FakeModelProvider implements KaiModelProvider {
+  constructor(
+    private readonly model: FakeChatModelWithToolCalls,
+    private readonly tools: BindToolsInput[],
+    private readonly supportsToolCalls: boolean,
+    private readonly supportsToolCallsInStreaming: boolean,
+  ) {}
+
+  bindTools(
+    tools: BindToolsInput[],
+    _kwargs?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
+  ): KaiModelProvider {
+    return new FakeModelProvider(
+      this.model,
+      tools,
+      this.supportsToolCalls,
+      this.supportsToolCallsInStreaming,
+    );
+  }
+
+  invoke(
+    input: BaseLanguageModelInput,
+    options?: KaiModelProviderInvokeCallOptions | undefined,
+  ): Promise<AIMessageChunk> {
+    if (this.tools.length) {
+      this.model.bindTools(this.tools, options).invoke(input, options);
+    }
+    return this.model.invoke(input, options);
+  }
+
+  stream(
+    input: any,
+    options?: Partial<RunnableConfig<Record<string, any>>> | undefined,
+  ): Promise<IterableReadableStream<any>> {
+    return this.model.stream(input, options);
+  }
+
+  toolCallsSupported(): boolean {
+    return this.supportsToolCalls;
+  }
+
+  toolCallsSupportedInStreaming(): boolean {
+    return this.supportsToolCallsInStreaming;
+  }
 }
