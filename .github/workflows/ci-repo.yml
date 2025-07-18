@@ -173,28 +173,86 @@ jobs:
           npm run dist
           npm run package
 
+      - name: Rename VSIX
+        run: |
+          mv dist/*.vsix dist/konveyor-ai.vsix
+
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
-        if: ${{ github.event_name == 'pull_request' && ! github.event.pull_request.merged }}
         with:
-          name: vscode-extension
-          path: "dist/*.vsix"
+          name: vsix-artifact
+          path: dist/konveyor-ai.vsix
+
+  test-e2e:
+    name: Test E2E
+    runs-on: ${{ matrix.os }}
+    needs: package
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: linux
+          - os: macos-latest
+            arch: macos
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./test
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-artifact
+          path: ./dist
+
+      - name: Run e2e tests (Linux)
+        if: matrix.arch == 'linux'
+        run: npx playwright test e2e/tests/configure-and-run-analysis.test.ts
+        working-directory: ./test
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+
+      - name: Run e2e tests (macOS)
+        if: matrix.arch == 'macos'
+        run: npx playwright test e2e/tests/configure-and-run-analysis.test.ts
+        working-directory: ./test
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: test-e2e
+    if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-artifact
+          path: ./dist
 
       - name: Set vsix suffix
-        if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
         id: set_time
         run: echo "vsix_suffix=$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Move vsix
-        if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
-        run: |
-          cd ./dist
-          mv *.vsix konveyor-ai.vsix
-          cd ..
-
       - name: Deploy release
         uses: WebFreak001/deploy-nightly@v3.2.0
-        if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
         with:
           upload_url: https://uploads.github.com/repos/konveyor/editor-extensions/releases/223723085/assets{?name,label}
           release_id: 223723085
@@ -204,14 +262,13 @@ jobs:
           ignore_hash: true
 
       - name: Cleanup old assets
-        if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
         run: |
-             c=1
-             for i in $(gh release view -R konveyor/editor-extensions development-builds --json assets | jq -r .assets[].name | sort -r); do
-               if [ "$c" -gt 7 ]; then
-                 gh release delete-asset -y -R konveyor/editor-extensions development-builds $i
-               fi
-               c=$((c+1))
-             done
+          c=1
+          for i in $(gh release view -R konveyor/editor-extensions development-builds --json assets | jq -r .assets[].name | sort -r); do
+            if [ "$c" -gt 7 ]; then
+              gh release delete-asset -y -R konveyor/editor-extensions development-builds $i
+            fi
+            c=$((c+1))
+          done
         env:
           GH_TOKEN: ${{ github.token }}

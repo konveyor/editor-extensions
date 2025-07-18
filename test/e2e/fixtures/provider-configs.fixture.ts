@@ -6,7 +6,7 @@ export interface ProviderConfig {
   config: string;
 }
 
-export const DEFAULT_PROVIDER: ProviderConfig = {
+export const AWS_PROVIDER: ProviderConfig = {
   provider: LLMProviders.awsBedrock,
   model: 'meta.llama3-70b-instruct-v1:0',
   config: [
@@ -55,8 +55,10 @@ export const PARASOL_PROVIDER: ProviderConfig = {
   ].join('\n'),
 };
 
+export const DEFAULT_PROVIDER = OPENAI_PROVIDER;
+
 export const providerConfigs: ProviderConfig[] = [
   //PARASOL_PROVIDER,
-  DEFAULT_PROVIDER,
+  AWS_PROVIDER,
   OPENAI_PROVIDER,
 ];
