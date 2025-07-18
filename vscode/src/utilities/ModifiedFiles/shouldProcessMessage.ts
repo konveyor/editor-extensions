@@ -22,10 +22,6 @@ export const shouldProcessMessage = (
       // but allow multiple chunks with the same message ID (which is normal)
       const chunkKey = `llm-chunk:${msg.id}:${JSON.stringify(msg.data)}`;
 
-      if (processedTokens.has(chunkKey)) {
-        return false;
-      }
-
       // Mark this specific chunk as processed
       processedTokens.add(chunkKey);
       return true;

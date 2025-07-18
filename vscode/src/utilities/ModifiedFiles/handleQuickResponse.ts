@@ -11,11 +11,6 @@ export async function handleQuickResponse(
   state: ExtensionState,
 ): Promise<void> {
   try {
-    // Set loading state
-    state.mutateData((draft) => {
-      draft.isProcessingQuickResponse = true;
-    });
-
     try {
       const messageIndex = state.data.chatMessages.findIndex(
         (msg) => msg.messageToken === messageToken,
@@ -136,9 +131,7 @@ export async function handleQuickResponse(
       // Do NOT add a status message if there are no more actionable quick responses
     } finally {
       // Clear loading state
-      state.mutateData((draft) => {
-        draft.isProcessingQuickResponse = false;
-      });
+      console.log("Clearing loading state after quick response handling");
     }
   } catch (error) {
     console.error("Error handling quick response:", error);

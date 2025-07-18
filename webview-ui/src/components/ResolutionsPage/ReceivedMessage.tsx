@@ -60,7 +60,6 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       timestamp={formatTimestamp(timestamp)}
       name="Konveyor"
       role="bot"
-      isLoading={isLoading || isProcessing}
       avatar={botAv}
       content={content}
       quickResponses={quickResponses?.map((response) => ({

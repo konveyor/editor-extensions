@@ -92,10 +92,6 @@ export async function handleFileResponse(
   state: ExtensionState,
 ): Promise<void> {
   try {
-    state.mutateData((draft) => {
-      draft.isProcessingQuickResponse = true;
-    });
-
     try {
       const messageIndex = state.data.chatMessages.findIndex(
         (msg) => msg.messageToken === messageToken,
@@ -199,9 +195,7 @@ export async function handleFileResponse(
         state.isWaitingForUserInteraction = false;
       }
     } finally {
-      state.mutateData((draft) => {
-        draft.isProcessingQuickResponse = false;
-      });
+      console.log("Clearing loading state after file response handling");
     }
   } catch (error) {
     console.error("Error handling file response:", error);

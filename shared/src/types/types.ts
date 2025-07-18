@@ -175,7 +175,6 @@ export interface ExtensionData {
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
   solutionServerEnabled: boolean;
-  isProcessingQuickResponse: boolean;
   isAgentMode: boolean;
 }
 

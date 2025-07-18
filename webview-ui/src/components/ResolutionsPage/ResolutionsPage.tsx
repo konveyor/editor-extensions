@@ -286,8 +286,6 @@ const ResolutionPage: React.FC = () => {
               <ReceivedMessage
                 timestamp={msg.timestamp}
                 content={message}
-                isLoading={isFetchingSolution && !message}
-                isProcessing={state.isProcessingQuickResponse}
                 quickResponses={
                   Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                     ? msg.quickResponses.map((response) => ({
@@ -305,7 +303,7 @@ const ResolutionPage: React.FC = () => {
         return null;
       });
     },
-    [chatMessages, isFetchingSolution, state.isProcessingQuickResponse, isAnalyzing],
+    [chatMessages, isFetchingSolution, isAnalyzing],
   );
 
   // Render local changes for non-agent mode
@@ -315,12 +313,7 @@ const ResolutionPage: React.FC = () => {
 
     return (
       <>
-        {isHistorySolution && (
-          <ReceivedMessage
-            content="Loaded last known resolution."
-            isProcessing={state.isProcessingQuickResponse}
-          />
-        )}
+        {isHistorySolution && <ReceivedMessage content="Loaded last known resolution." />}
 
         {pendingChanges.map((change, index) => (
           <ModifiedFileMessage
@@ -335,10 +328,7 @@ const ResolutionPage: React.FC = () => {
 
         {/* Show "no file changes" only when solution is received but has no local changes */}
         {solutionState === "received" && pendingChanges.length === 0 && !completionStatus && (
-          <ReceivedMessage
-            content="No file changes available in the solution."
-            isProcessing={state.isProcessingQuickResponse}
-          />
+          <ReceivedMessage content="No file changes available in the solution." />
         )}
 
         {hasResponseWithErrors && resolution && Array.isArray(resolution.encountered_errors) && (
@@ -361,7 +351,6 @@ const ResolutionPage: React.FC = () => {
                   ))}
               </ul>
             }
-            isProcessing={state.isProcessingQuickResponse}
           />
         )}
 
@@ -374,7 +363,6 @@ const ResolutionPage: React.FC = () => {
                   ? "All resolutions have been rejected"
                   : "All resolutions have been processed (some applied, some rejected)"
             }
-            isProcessing={state.isProcessingQuickResponse}
           />
         )}
       </>
@@ -388,7 +376,6 @@ const ResolutionPage: React.FC = () => {
     resolution,
     isFetchingSolution,
     solutionState,
-    state.isProcessingQuickResponse,
     handleAcceptClick,
     handleRejectClick,
     handleFileClick,
@@ -425,10 +412,7 @@ const ResolutionPage: React.FC = () => {
             {/* No content to view */}
             {hasNothingToView && (
               <MessageWrapper>
-                <ReceivedMessage
-                  content="No resolutions available."
-                  isProcessing={state.isProcessingQuickResponse}
-                />
+                <ReceivedMessage content="No resolutions available." />
               </MessageWrapper>
             )}
 

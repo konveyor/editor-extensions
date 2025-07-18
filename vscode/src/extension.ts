@@ -58,7 +58,6 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
-        isProcessingQuickResponse: false,
         solutionEffort: getConfigSolutionMaxEffortLevel(),
         solutionServerEnabled: getConfigSolutionServerEnabled(),
         configErrors: [],
