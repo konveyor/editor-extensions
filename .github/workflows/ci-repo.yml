@@ -185,16 +185,8 @@ jobs:
 
   test-e2e:
     name: Test E2E
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: package
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            arch: linux
-          - os: macos-latest
-            arch: macos
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -204,6 +196,65 @@ jobs:
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
+
+      - name: Install vscode dependencies
+        run: sudo apt-get update && sudo apt-get install -y wget
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: "oracle"
+          java-version: "17"
+
+      - name: Download and Install VSCode
+        run: |
+          wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+          sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+          echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" |sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+          rm -f packages.microsoft.gpg
+          sudo apt install apt-transport-https
+          sudo apt update
+          sudo apt install code
+
+      - name: Set up virtual X11
+        run: |
+          sudo apt-get install -y \
+            xvfb \
+            x11-xserver-utils \
+            dbus-x11 \
+            xfonts-100dpi \
+            xfonts-75dpi \
+            libxrender1 \
+            libxext6 \
+            libx11-6 \
+            xfonts-base \
+            nickle cairo-5c \
+            xorg-docs-core
+
+      - name: Set DISPLAY environment variable
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Start D-Bus
+        run: |
+          dbus-launch --exit-with-session &
+
+      - name: Start Dbus
+        run: |
+          sudo service dbus start
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          sudo chmod 700 $XDG_RUNTIME_DIR
+          sudo chown $(id -un):$(id -gn) $XDG_RUNTIME_DIR
+          export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
+          dbus-daemon --session --address=$DBUS_SESSION_BUS_ADDRESS --nofork --nopidfile --syslog-only &
+          mkdir ~/.vscode && echo '{ "disable-hardware-acceleration": true }' > ~/.vscode/argv.json
+
+      - name: Verify Installation and install Java extension
+        run: code --version && code --install-extension redhat.java
+
+      - name: Ensure no VSCode instances are running
+        run: |
+          pkill -f code || true
 
       - name: Install dependencies
         run: npm ci
@@ -216,15 +267,6 @@ jobs:
           path: ./dist
 
       - name: Run e2e tests (Linux)
-        if: matrix.arch == 'linux'
-        run: npx playwright test e2e/tests/configure-and-run-analysis.test.ts
-        working-directory: ./test
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
-
-      - name: Run e2e tests (macOS)
-        if: matrix.arch == 'macos'
         run: npx playwright test e2e/tests/configure-and-run-analysis.test.ts
         working-directory: ./test
         env:
