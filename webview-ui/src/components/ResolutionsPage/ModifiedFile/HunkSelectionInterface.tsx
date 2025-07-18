@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Flex, FlexItem, Badge } from "@patternfly/react-core";
-import { CheckCircleIcon, TimesCircleIcon, MinusCircleIcon } from "@patternfly/react-icons";
+import { CheckCircleIcon, TimesCircleIcon } from "@patternfly/react-icons";
 import { DiffLegend } from "./DiffLegend";
 import { DiffLinesRenderer } from "./DiffLinesRenderer";
 
@@ -11,7 +11,7 @@ interface ParsedHunk {
 }
 
 // Define hunk state type - 3-state system
-type HunkState = 'pending' | 'accepted' | 'rejected';
+type HunkState = "pending" | "accepted" | "rejected";
 
 interface HunkSelectionInterfaceProps {
   parsedHunks: ParsedHunk[];
@@ -31,11 +31,11 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
   const getHunkStatusBadge = (hunkId: string) => {
     const state = hunkStates[hunkId];
     switch (state) {
-      case 'accepted':
+      case "accepted":
         return <Badge isRead>Accepted</Badge>;
-      case 'rejected':
+      case "rejected":
         return <Badge isRead>Rejected</Badge>;
-      case 'pending':
+      case "pending":
       default:
         return <Badge isRead>Pending</Badge>;
     }
@@ -44,9 +44,9 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
   const getButtonVariants = (hunkId: string) => {
     const state = hunkStates[hunkId];
     return {
-      accept: state === 'accepted' ? 'primary' as const : 'secondary' as const,
-      reject: state === 'rejected' ? 'danger' as const : 'secondary' as const,
-      pending: state === 'pending' ? 'tertiary' as const : 'secondary' as const
+      accept: state === "accepted" ? ("primary" as const) : ("secondary" as const),
+      reject: state === "rejected" ? ("danger" as const) : ("secondary" as const),
+      pending: state === "pending" ? ("tertiary" as const) : ("secondary" as const),
     };
   };
 
@@ -62,11 +62,11 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
       {parsedHunks.map((hunk, index) => {
         const buttonVariants = getButtonVariants(hunk.id);
         const isDisabled = actionTaken !== null;
-        
+
         return (
           <div key={hunk.id} className="hunk-item">
             <div className="hunk-item-header">
-              <Flex 
+              <Flex
                 justifyContent={{ default: "justifyContentSpaceBetween" }}
                 alignItems={{ default: "alignItemsCenter" }}
               >
@@ -77,7 +77,7 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                     {getHunkStatusBadge(hunk.id)}
                   </div>
                 </FlexItem>
-                
+
                 <FlexItem>
                   <div className="hunk-controls">
                     <Flex gap={{ default: "gapSm" }}>
@@ -86,7 +86,7 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                           variant={buttonVariants.accept}
                           size="sm"
                           icon={<CheckCircleIcon />}
-                          onClick={() => onHunkStateChange(hunk.id, 'accepted')}
+                          onClick={() => onHunkStateChange(hunk.id, "accepted")}
                           isDisabled={isDisabled}
                           title="Accept this change"
                         >
@@ -98,7 +98,7 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                           variant={buttonVariants.reject}
                           size="sm"
                           icon={<TimesCircleIcon />}
-                          onClick={() => onHunkStateChange(hunk.id, 'rejected')}
+                          onClick={() => onHunkStateChange(hunk.id, "rejected")}
                           isDisabled={isDisabled}
                           title="Reject this change"
                         >
@@ -106,7 +106,7 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                         </Button>
                       </FlexItem>
                       <FlexItem>
-                        <Button
+                        {/* <Button
                           variant={buttonVariants.pending}
                           size="sm"
                           icon={<MinusCircleIcon />}
@@ -115,7 +115,7 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                           title="Mark as pending (skip for now)"
                         >
                           Skip
-                        </Button>
+                        </Button> */}
                       </FlexItem>
                     </Flex>
                   </div>

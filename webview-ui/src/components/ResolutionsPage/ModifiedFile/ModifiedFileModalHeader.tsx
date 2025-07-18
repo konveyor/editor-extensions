@@ -20,6 +20,7 @@ interface ModifiedFileModalHeaderProps {
   onClose: () => void;
   onApply: (selectedContent?: string) => void;
   onReject: () => void;
+  onSelectAll?: () => void;
 }
 
 export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = ({
@@ -32,6 +33,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
   onClose,
   onApply,
   onReject,
+  onSelectAll,
 }) => {
   // Generate status message for multi-hunk scenarios
   const getStatusMessage = () => {
@@ -147,6 +149,31 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
             alignItems={{ default: "alignItemsCenter" }}
             gap={{ default: "gapMd" }}
           >
+            {/* Multi-hunk selection buttons */}
+            {!isSingleHunk && onSelectAll && (
+              <>
+                <FlexItem>
+                  <Button
+                    variant="primary"
+                    onClick={onSelectAll}
+                    isDisabled={hunkSummary.accepted === hunkSummary.total}
+                    style={{ minWidth: '100px' }}
+                  >
+                    Select All
+                  </Button>
+                </FlexItem>
+                <FlexItem>
+                  <Button
+                    variant="danger"
+                    onClick={onReject}
+                    style={{ minWidth: '100px' }}
+                  >
+                    Reject All
+                  </Button>
+                </FlexItem>
+              </>
+            )}
+
             {/* Submit Button */}
             <FlexItem>
               <Button
@@ -159,21 +186,25 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                 }}
                 isDisabled={!canSubmit}
                 icon={<CheckIcon />}
+                style={{ minWidth: '120px' }}
               >
                 {submitButtonInfo.text}
               </Button>
             </FlexItem>
 
-            {/* Reject Button */}
-            <FlexItem>
-              <Button
-                variant="danger"
-                onClick={onReject}
-                icon={<CloseIcon />}
-              >
-                {isSingleHunk ? "Reject Changes" : "Reject All"}
-              </Button>
-            </FlexItem>
+            {/* Reject Button - only show for single hunks since multi-hunks have Select All/Reject All */}
+            {isSingleHunk && (
+              <FlexItem>
+                <Button
+                  variant="danger"
+                  onClick={onReject}
+                  icon={<CloseIcon />}
+                  style={{ minWidth: '100px' }}
+                >
+                  Reject Changes
+                </Button>
+              </FlexItem>
+            )}
           </Flex>
         )}
 

@@ -217,6 +217,17 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
     handleHunkStateChange(hunkId, state);
   };
 
+  // Select all hunks handler (set to accepted)
+  const handleSelectAll = () => {
+    const newHunkStates: Record<string, HunkState> = {};
+    parsedHunks.forEach((hunk) => {
+      newHunkStates[hunk.id] = 'accepted';
+    });
+    setHunkStates(newHunkStates);
+  };
+
+
+
   const renderExpandedDiff = () => {
     return (
       <div className="expanded-diff-content">
@@ -276,6 +287,7 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           onClose={onClose}
           onApply={handleModalApply}
           onReject={handleModalReject}
+          onSelectAll={!isSingleHunk ? handleSelectAll : undefined}
         />
 
         <div className="modal-content-scrollable">{renderExpandedDiff()}</div>
