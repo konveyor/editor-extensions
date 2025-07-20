@@ -153,7 +153,7 @@ const ViolationIncidentsList = ({
       filtered = filtered.filter(
         (incident) =>
           incident.message.toLowerCase().includes(lowercaseSearchTerm) ||
-          incident.uri.toLowerCase().includes(lowercaseSearchTerm)||
+          incident.uri.toLowerCase().includes(lowercaseSearchTerm) ||
           incident.violation_description?.toLowerCase().includes(lowercaseSearchTerm),
       );
     }
