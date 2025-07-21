@@ -219,7 +219,7 @@ Project workspaces:
   Webview UI sources built with React and PatternFly. Vite is used to transpile and package
   the views.
 
-- [`test`](./test/) <br>
+- [`test`](tests/) <br>
   End-to-end (E2E) tests built with Playwright.
 
 Non workspace folders:

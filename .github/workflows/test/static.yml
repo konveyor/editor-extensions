@@ -27,7 +27,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./test/kai-evaluator"
+          path: "./tests/kai-evaluator"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

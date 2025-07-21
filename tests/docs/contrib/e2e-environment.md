@@ -14,16 +14,7 @@ Before you begin, ensure you have the following:
     Node.js (version 20 or later) installed.
     Visual Studio Code installed on your system.
 
-## Installation
-
-1. **Clone the Repository**
-
-        git clone https://github.com/konveyor/kai-ci
-        cd kai-ci
-
-2. **Install Dependencies**
-
-   Install the required packages with `npm install`
+Install the required packages with `cd tests && npm install`
 
 ## Strategy
 

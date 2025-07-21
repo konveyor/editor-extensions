@@ -258,7 +258,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        working-directory: ./test
+        working-directory: ./tests
 
       - name: Download VSIX artifact
         uses: actions/download-artifact@v4
@@ -268,7 +268,7 @@ jobs:
 
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/configure-and-run-analysis.test.ts
-        working-directory: ./test
+        working-directory: ./tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix

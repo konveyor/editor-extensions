@@ -38,7 +38,6 @@ export class VSCode extends Application {
       if (getOSInfo() === 'linux') {
         executablePath = '/usr/share/code/code';
       } else {
-        c;
         throw new Error('VSCODE_EXECUTABLE_PATH env variable not provided');
       }
     }
