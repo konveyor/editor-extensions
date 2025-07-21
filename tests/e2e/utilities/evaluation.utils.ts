@@ -5,6 +5,10 @@ import { getOSInfo } from './utils';
 import { execSync } from 'child_process';
 import path from 'path';
 
+function convertFileUriToPath(fileUri: string): string {
+  return fileUri.replace(getOSInfo() === 'windows' ? 'file:///' : 'file://', '');
+}
+
 export async function prepareEvaluationData(model: string) {
   console.log('Saving coolstore directory to output...');
   fs.cpSync('coolstore', `${TEST_OUTPUT_FOLDER}/coolstore-${model.replace(/[.:]/g, '-')}`, {
@@ -28,16 +32,14 @@ export async function prepareEvaluationData(model: string) {
   }
 
   for (const fileUri of Object.keys(incidentsMap)) {
-    const filePath = fileUri.replace(getOSInfo() === 'windows' ? 'file:///' : 'file://', '');
-    incidentsMap[fileUri].updatedContent = fs.readFileSync(filePath, 'utf-8');
+    incidentsMap[fileUri].updatedContent = fs.readFileSync(convertFileUriToPath(fileUri), 'utf-8');
   }
 
   console.log('Resetting coolstore repo...');
   execSync(`cd coolstore && git checkout . && cd ..`);
 
   for (const fileUri of Object.keys(incidentsMap)) {
-    const filePath = fileUri.replace(getOSInfo() === 'windows' ? 'file:///' : 'file://', '');
-    incidentsMap[fileUri].originalContent = fs.readFileSync(filePath, 'utf-8');
+    incidentsMap[fileUri].originalContent = fs.readFileSync(convertFileUriToPath(fileUri), 'utf-8');
   }
 
   fs.writeFileSync(

@@ -15,6 +15,16 @@ const outputSchema = z.object({
 const outputParser = StructuredOutputParser.fromZodSchema(outputSchema);
 
 export async function createEvaluationChain() {
+  if (
+    !process.env.AWS_ACCESS_KEY_ID ||
+    !process.env.AWS_SECRET_ACCESS_KEY ||
+    !process.env.AWS_REGION
+  ) {
+    throw new Error(
+      'Required AWS environment variables are not set: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION'
+    );
+  }
+
   const model = new BedrockChat({
     model: 'meta.llama3-70b-instruct-v1:0',
     region: process.env.AWS_REGION,

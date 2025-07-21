@@ -12,6 +12,10 @@ export async function runEvaluation(
   model = 'meta.llama3-70b-instruct-v1:0',
   repositoryPath?: string
 ) {
+  if (!fs.existsSync(fileInputPath)) {
+    throw new Error(`Input file does not exist: ${fileInputPath}`);
+  }
+
   const data = JSON.parse(fs.readFileSync(fileInputPath, 'utf-8'));
   console.log('Evaluating results...');
   const dataLength = Object.keys(data).length;
