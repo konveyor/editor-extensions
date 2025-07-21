@@ -27,7 +27,7 @@ export async function uploadObject(file: string, path: string, contentType = 'ap
 
 export async function downloadObject(path: string) {
   if (!path) {
-    throw new Error('File content and path are required');
+    throw new Error('Path is required');
   }
 
   if (!process.env.AWS_DEFAULT_REGION || !process.env.KAI_QE_S3_BUCKET_NAME) {
