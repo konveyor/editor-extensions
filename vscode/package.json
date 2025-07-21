@@ -49,7 +49,7 @@
     "commands": [
       {
         "command": "konveyor.openProfilesPanel",
-        "title": "Manage Analysis Profiles",
+        "title": "Manage Analysis Profile",
         "category": "Konveyor",
         "icon": "$(settings-gear)"
       },
@@ -503,7 +503,7 @@
         "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Should analysis of file be run when it is saved?",
+          "description": "Should analysis of file be run when it is saved? (Automatically enabled when Agent Mode is active)",
           "scope": "window",
           "order": 6
         },
@@ -521,7 +521,7 @@
         "konveyor.kai.agentMode": {
           "type": "boolean",
           "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution.",
+          "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
           "order": 6
         },
@@ -591,6 +591,13 @@
           "description": "Whether to create traces of the communication with the model",
           "scope": "window",
           "order": 50
+        },
+        "konveyor.debug.webview": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging for webview message handling",
+          "scope": "window",
+          "order": 51
         },
         "konveyor.kai.demoMode": {
           "type": "boolean",

@@ -53,8 +53,20 @@ export const getConfigAnalyzeKnownLibraries = (): boolean =>
   getConfigValue<boolean>("analysis.analyzeKnownLibraries") ?? false;
 export const getConfigAnalyzeDependencies = (): boolean =>
   getConfigValue<boolean>("analysis.analyzeDependencies") ?? true;
-export const getConfigAnalyzeOnSave = (): boolean =>
-  getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
+export const getConfigAnalyzeOnSave = (): boolean => {
+  const agentMode = getConfigAgentMode();
+  const analyzeOnSave = getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
+
+  // When agent mode is enabled, analyzeOnSave must be enabled
+  if (agentMode && !analyzeOnSave) {
+    console.warn(
+      "Agent mode is enabled but analyzeOnSave is disabled. Forcing analyzeOnSave to true for agent mode compatibility.",
+    );
+    return true;
+  }
+
+  return analyzeOnSave;
+};
 export const getConfigDiffEditorType = (): string =>
   getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
 export const getCacheDir = (): string | undefined => getConfigValue<string>("kai.cacheDir");

@@ -85,7 +85,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                   ) : (
                     <>
                       <Th width={90}>{ISSUE}</Th>
-                      <Th width={10} />
+                      <Th width={10} screenReaderText="Actions" />
                     </>
                   )}
                 </Tr>

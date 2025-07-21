@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
+import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
 import { ExtensionData } from "@editor-extensions/shared";
-import { SimpleInMemoryCache } from "@editor-extensions/agentic";
+import { KaiInteractiveWorkflow, SimpleInMemoryCache } from "@editor-extensions/agentic";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import { SolutionServerClient } from "@editor-extensions/agentic";
@@ -20,10 +21,13 @@ import {
   getConfigSolutionServerEnabled,
   getConfigSolutionServerUrl,
   updateConfigErrors,
+  getConfigAgentMode,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
+// Removed registerSuggestionCommands import since we're using merge editor now
+// Removed InlineSuggestionCodeActionProvider import since we're using merge editor now
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -59,7 +63,15 @@ class VsCodeExtension {
         configErrors: [],
         activeProfileId: "",
         profiles: [],
-      },
+        isAgentMode: getConfigAgentMode(),
+        analysisConfig: {
+          labelSelector: "",
+          labelSelectorValid: false,
+          providerConfigured: false,
+          providerKeyMissing: false,
+          customRulesConfigured: false,
+        },
+      } as ExtensionData,
       () => {},
     );
     const getData = () => this.data;
@@ -93,6 +105,65 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      modifiedFiles: new Map(),
+      modifiedFilesEventEmitter: new EventEmitter(),
+      isWaitingForUserInteraction: false,
+      lastMessageId: "0",
+      currentTaskManagerIterations: 0,
+
+      workflowManager: {
+        workflow: undefined,
+        isInitialized: false,
+        init: async (config) => {
+          if (this.state.workflowManager.isInitialized) {
+            return;
+          }
+
+          try {
+            this.state.workflowManager.workflow = new KaiInteractiveWorkflow();
+            // Make sure fsCache and solutionServerClient are passed to the workflow init
+            await this.state.workflowManager.workflow.init({
+              ...config,
+              fsCache: this.state.kaiFsCache,
+              solutionServerClient: this.state.solutionServerClient,
+            });
+            this.state.workflowManager.isInitialized = true;
+          } catch (error) {
+            console.error("Failed to initialize workflow:", error);
+            // Reset state on initialization failure to avoid inconsistent state
+            this.state.workflowManager.workflow = undefined;
+            this.state.workflowManager.isInitialized = false;
+            throw error; // Re-throw to let caller handle the error
+          }
+        },
+        getWorkflow: () => {
+          if (!this.state.workflowManager.workflow) {
+            throw new Error("Workflow not initialized");
+          }
+          return this.state.workflowManager.workflow;
+        },
+        dispose: () => {
+          try {
+            // Clean up workflow resources if workflow exists
+            if (this.state.workflowManager.workflow) {
+              // Remove all event listeners to prevent memory leaks
+              this.state.workflowManager.workflow.removeAllListeners();
+
+              // Clear any pending user interactions
+              const workflow = this.state.workflowManager.workflow as any;
+              if (workflow.userInteractionPromises) {
+                workflow.userInteractionPromises.clear();
+              }
+            }
+          } catch (error) {
+            console.error("Error during workflow cleanup:", error);
+          } finally {
+            // Always reset state regardless of cleanup success/failure
+            this.state.workflowManager.workflow = undefined;
+            this.state.workflowManager.isInitialized = false;
+          }
+        },
+      },
     };
   }
 
@@ -138,6 +209,8 @@ class VsCodeExtension {
 
       registerAnalysisTrigger(this.listeners, this.state);
 
+      // Removed decorator-related editor change listener since we're using merge editor now
+
       this.listeners.push(
         vscode.workspace.onDidSaveTextDocument((doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
@@ -150,20 +223,23 @@ class VsCodeExtension {
 
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
-          console.log("Configuration modified!");
-
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
-            console.log("Effort modified!");
             const effort = getConfigSolutionMaxEffortLevel();
             this.state.mutateData((draft) => {
               draft.solutionEffort = effort;
             });
           }
+          if (event.affectsConfiguration("konveyor.kai.agentMode")) {
+            const agentMode = getConfigAgentMode();
+            this.state.mutateData((draft) => {
+              (draft as any).isAgentMode = agentMode;
+            });
+          }
+
           if (
             event.affectsConfiguration("konveyor.solutionServer.url") ||
             event.affectsConfiguration("konveyor.solutionServer.enabled")
           ) {
-            console.log("Solution server configuration modified!");
             vscode.window
               .showInformationMessage(
                 "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",
@@ -232,6 +308,7 @@ class VsCodeExtension {
   private registerCommands(): void {
     try {
       registerAllCommands(this.state);
+      // Removed registerSuggestionCommands since we're using merge editor now
     } catch (error) {
       console.error("Critical error during command registration:", error);
       vscode.window.showErrorMessage(
@@ -299,6 +376,19 @@ class VsCodeExtension {
   }
 
   public async dispose() {
+    // Clean up pending interactions and resolver function to prevent memory leaks
+    this.state.resolvePendingInteraction = undefined;
+    this.state.isWaitingForUserInteraction = false;
+
+    // Dispose workflow manager
+    if (this.state.workflowManager && this.state.workflowManager.dispose) {
+      try {
+        this.state.workflowManager.dispose();
+      } catch (error) {
+        console.error("Error disposing workflow manager:", error);
+      }
+    }
+
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {
       console.error("Error disconnecting from solution server:", error);
@@ -342,5 +432,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function deactivate(): Promise<void> {
+  // Removed decorator disposal since we're using merge editor now
   await extension?.dispose();
 }
