@@ -152,7 +152,8 @@ const useResolutionData = (state: any) => {
 const UserRequestMessages: React.FC<{
   solutionScope: any;
   onIncidentClick: (incident: Incident) => void;
-}> = ({ solutionScope, onIncidentClick }) => {
+  isReadOnly: boolean;
+}> = ({ solutionScope, onIncidentClick, isReadOnly }) => {
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
       kind: ChatMessageType.String,
@@ -164,6 +165,7 @@ const UserRequestMessages: React.FC<{
           <IncidentTableGroup
             onIncidentSelect={onIncidentClick}
             incidents={solutionScope?.incidents || []}
+            isReadOnly={isReadOnly}
           />
         </ChatCard>
       ),
@@ -406,6 +408,7 @@ const ResolutionPage: React.FC = () => {
               <UserRequestMessages
                 solutionScope={solutionScope}
                 onIncidentClick={handleIncidentClick}
+                isReadOnly={true}
               />
             )}
 
