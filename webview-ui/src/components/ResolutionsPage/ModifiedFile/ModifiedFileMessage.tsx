@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Card, CardBody } from "@patternfly/react-core";
+import { Card, CardBody, Button } from "@patternfly/react-core";
 import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
 import ModifiedFileModal from "./ModifiedFileModal";
@@ -29,7 +29,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 }) => {
   // Use shared data normalization hook
   const normalizedData = useModifiedFileData(data);
-  const { path, isNew, diff, status, content, messageToken, fileName } = normalizedData;
+  const { path, isNew, isDeleted, diff, status, content, messageToken, fileName } = normalizedData;
   const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(status || null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -156,6 +156,56 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }
   };
 
+  // Function to open file in VSCode editor
+  const openFileInEditor = () => {
+    window.vscode.postMessage({
+      type: "OPEN_FILE_IN_EDITOR",
+      payload: {
+        path: path,
+      },
+    });
+  };
+
+  // Render minimized version when action is taken
+  if (actionTaken) {
+    const canOpenInEditor = !isNew && !isDeleted;
+
+    return (
+      <div className="modified-file-message">
+        <Card className={`modified-file-card modified-file-minimized status-${actionTaken}`}>
+          <CardBody className="modified-file-minimized-body">
+            <div className="modified-file-minimized-content">
+              <div className="modified-file-minimized-status">
+                <span className={`status-badge status-${actionTaken}`}>
+                  {actionTaken === "applied" ? "✓ Applied" : "✗ Rejected"}
+                </span>
+                <span className="modified-file-minimized-filename">
+                  {/* {isNew && "🆕 "}
+                  {isDeleted && "🗑️ "} */}
+                  {fileName}
+                </span>
+              </div>
+              {canOpenInEditor ? (
+                <Button
+                  variant="link"
+                  onClick={openFileInEditor}
+                  className="modified-file-minimized-link"
+                >
+                  Open in Editor
+                </Button>
+              ) : (
+                <span className="modified-file-minimized-disabled">
+                  {/* {isNew ? "New file" : isDeleted ? "File deleted" : ""} */}
+                </span>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  // Render full version when no action has been taken
   return (
     <>
       <div className="modified-file-message">

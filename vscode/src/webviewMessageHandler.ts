@@ -598,6 +598,16 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to open file: ${error}`);
     }
   },
+  OPEN_FILE_IN_EDITOR: async ({ path }) => {
+    try {
+      const fileUri = vscode.Uri.file(path);
+      const doc = await vscode.workspace.openTextDocument(fileUri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch (error) {
+      logger.error("Error opening file in editor:", error);
+      vscode.window.showErrorMessage(`Failed to open file in editor: ${error}`);
+    }
+  },
   [START_SERVER]() {
     vscode.commands.executeCommand("konveyor.startServer");
   },

@@ -12,8 +12,6 @@ import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
 
-import { shouldProcessMessage } from "./shouldProcessMessage";
-
 // Helper function to wait for analysis completion with timeout
 const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
   return new Promise<void>((resolve) => {
@@ -191,9 +189,9 @@ export const processMessage = async (
   }
 
   // Check if we should process this message or skip it as a duplicate
-  if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
-    return;
-  }
+  // if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
+  //   return;
+  // }
 
   // Double-check that we're not waiting for user interaction before processing
   if (state.isWaitingForUserInteraction) {
@@ -209,6 +207,15 @@ export const processMessage = async (
     return;
   }
 
+  console.log({
+    type: msg.type,
+    id: msg.id,
+    data: msg.data,
+    lastMessageId: state.lastMessageId,
+    isWaitingForUserInteraction: state.isWaitingForUserInteraction,
+    queueLength: queueManager ? queueManager.getQueueLength() : "N/A",
+    processingQueueActive: queueManager ? queueManager.isProcessingQueueActive() : "N/A",
+  });
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat

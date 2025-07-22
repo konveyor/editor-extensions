@@ -286,6 +286,7 @@ export type ModifiedFileMessageValue = {
   content: string;
   originalContent?: string; // Original file content from ModifiedFileState
   isNew: boolean;
+  isDeleted?: boolean;
   diff: string;
   messageToken?: string;
   quickResponses?: QuickResponse[];
