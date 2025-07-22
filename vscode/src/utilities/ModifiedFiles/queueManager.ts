@@ -4,12 +4,12 @@ import { ChatMessageType } from "@editor-extensions/shared";
 
 /**
  * Centralized queue manager for handling message queuing and processing
- * This decouples queue processing from specific message types
+ * Uses continuous background processing with flow control for streaming messages
  */
 export class MessageQueueManager {
   private messageQueue: KaiWorkflowMessage[] = [];
   private isProcessingQueue = false;
-  private isProcessingMessages = false; // Flag to prevent new messages during queue processing
+  private processingTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private state: ExtensionState,
@@ -18,21 +18,16 @@ export class MessageQueueManager {
     private processedTokens: Set<string>,
     private pendingInteractions: Map<string, (response: any) => void>,
     private maxTaskManagerIterations: number,
-  ) {}
+  ) {
+    // Start background processor that runs continuously
+    this.startBackgroundProcessor();
+  }
 
   /**
    * Adds a message to the queue
    */
   enqueueMessage(message: KaiWorkflowMessage): void {
     this.messageQueue.push(message);
-  }
-
-  /**
-   * Checks if we should queue a message (only when waiting for user interaction)
-   * We should NOT queue messages when we're processing the queue, as that would create an infinite loop
-   */
-  shouldQueueMessage(): boolean {
-    return this.state.isWaitingForUserInteraction;
   }
 
   /**
@@ -50,9 +45,39 @@ export class MessageQueueManager {
   }
 
   /**
-   * Processes all queued messages
-   * This is the generic queue processing logic that was previously tightly coupled to ModifiedFile handler
-   * IMPORTANT: This method ensures queued messages are processed BEFORE any new incoming messages
+   * Starts a background processor that continuously tries to process messages
+   * This handles the continuous stream of messages from the server
+   */
+  private startBackgroundProcessor(): void {
+    const processInterval = 100; // Check every 100ms
+
+    this.processingTimer = setInterval(() => {
+      // Only process if we're not already processing and not waiting for user
+      if (
+        !this.isProcessingQueue &&
+        !this.state.isWaitingForUserInteraction &&
+        this.messageQueue.length > 0
+      ) {
+        this.processQueuedMessages().catch((error) => {
+          console.error("Error in background queue processing:", error);
+        });
+      }
+    }, processInterval);
+  }
+
+  /**
+   * Stops the background processor (for cleanup)
+   */
+  stopBackgroundProcessor(): void {
+    if (this.processingTimer) {
+      clearInterval(this.processingTimer);
+      this.processingTimer = null;
+    }
+  }
+
+  /**
+   * Processes queued messages one at a time atomically
+   * Stops immediately when a blocking message triggers user interaction
    */
   async processQueuedMessages(): Promise<void> {
     // Prevent concurrent queue processing
@@ -64,42 +89,44 @@ export class MessageQueueManager {
       return;
     }
 
+    // Don't process if waiting for user interaction
+    if (this.state.isWaitingForUserInteraction) {
+      return;
+    }
+
     this.isProcessingQueue = true;
 
     try {
-      // Create a copy of the current queue and clear the original
-      const queuedMessages = [...this.messageQueue];
-      this.messageQueue.length = 0;
-
-      // Log the types of messages being processed for debugging
-      const messageTypes = queuedMessages.map((msg) => msg.type);
-
-      // Process each message sequentially without any filtering or deduplication
-      // All messages in the queue should be processed as they are
-      for (let i = 0; i < queuedMessages.length; i++) {
-        const queuedMsg = queuedMessages[i];
+      // Process messages one at a time from the front of the queue
+      while (this.messageQueue.length > 0 && !this.state.isWaitingForUserInteraction) {
+        // Take the first message from queue
+        const msg = this.messageQueue.shift()!;
 
         try {
-          // Dynamically import processMessage to avoid circular dependency
-          const { processMessage } = await import("./processMessage");
-          await processMessage(
-            queuedMsg,
+          // Call the core processing logic directly
+          const { processMessageByType } = await import("./processMessage");
+          await processMessageByType(
+            msg,
             this.state,
             this.workflow,
-            this.messageQueue, // Pass the queue so new messages can be queued during processing
             this.modifiedFilesPromises,
             this.processedTokens,
             this.pendingInteractions,
             this.maxTaskManagerIterations,
-            this, // Pass the queue manager itself
+            this,
           );
+
+          // If this message triggered user interaction, stop processing
+          if (this.state.isWaitingForUserInteraction) {
+            break;
+          }
         } catch (error) {
-          console.error(`Error processing queued message ${queuedMsg.id}:`, error);
+          console.error(`Error processing queued message ${msg.id}:`, error);
           // Continue processing other messages even if one fails
         }
       }
     } catch (error) {
-      console.error("Error processing queued messages:", error);
+      console.error("Error in queue processing:", error);
 
       // Add an error indicator to the chat
       this.state.mutateData((draft) => {
@@ -123,10 +150,18 @@ export class MessageQueueManager {
   clearQueue(): void {
     this.messageQueue.length = 0;
   }
+
+  /**
+   * Cleanup method
+   */
+  dispose(): void {
+    this.stopBackgroundProcessor();
+    this.clearQueue();
+  }
 }
 
 /**
- * Generic function to handle the transition from waiting for user interaction to processing queued messages
+ * Handle completion of user interactions and resume queued message processing
  * This should be called whenever isWaitingForUserInteraction transitions from true to false
  */
 export async function handleUserInteractionComplete(
@@ -136,10 +171,12 @@ export async function handleUserInteractionComplete(
   // Reset the waiting flag
   state.isWaitingForUserInteraction = false;
 
-  // Process any queued messages
+  // The background processor will automatically resume processing
+  // But we can trigger immediate processing if queue has messages
   if (queueManager.getQueueLength() > 0) {
-    await queueManager.processQueuedMessages();
-  } else {
-    console.log(`No queued messages to process`);
+    // Don't await - let background processor handle it
+    queueManager.processQueuedMessages().catch((error) => {
+      console.error("Error resuming queue processing:", error);
+    });
   }
 }

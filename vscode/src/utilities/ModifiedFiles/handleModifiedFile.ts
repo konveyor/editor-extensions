@@ -56,8 +56,6 @@ export const cleanupOnError = (
   if (eventEmitter) {
     eventEmitter.emit("modifiedFileError", { filePath, error });
   }
-
-  console.log(`Cleanup completed for ${filePath} after error`);
 };
 
 /**
@@ -111,9 +109,8 @@ export const handleModifiedFileMessage = async (
   modifiedFilesPromises: Array<Promise<void>>,
   processedTokens: Set<string>,
   pendingInteractions: Map<string, (response: any) => void>,
-  messageQueue: KaiWorkflowMessage[],
   state: ExtensionState,
-  queueManager?: MessageQueueManager,
+  queueManager: MessageQueueManager,
   eventEmitter?: { emit: (event: string, ...args: any[]) => void },
 ) => {
   // Ensure we're dealing with a ModifiedFile message
@@ -175,12 +172,7 @@ export const handleModifiedFileMessage = async (
           pendingInteractions.set(msg.id, async (response: any) => {
             try {
               // Use the centralized interaction completion handler
-              if (queueManager) {
-                await handleUserInteractionComplete(state, queueManager);
-              } else {
-                // Fallback to old behavior for backward compatibility
-                state.isWaitingForUserInteraction = false;
-              }
+              await handleUserInteractionComplete(state, queueManager);
 
               // Remove the entry from pendingInteractions to prevent memory leaks
               pendingInteractions.delete(msg.id);
@@ -193,11 +185,6 @@ export const handleModifiedFileMessage = async (
             }
           });
         });
-      } else {
-        // In non-agentic mode: Just store the file state, no chat interaction
-        console.log(`Non-agentic mode: File ${filePath} processed and stored in modifiedFiles`);
-        // The file is already stored in modifiedFiles by processModifiedFile
-        // No chat message or user interaction needed
       }
     }
   } catch (err) {

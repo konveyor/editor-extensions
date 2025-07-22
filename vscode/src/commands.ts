@@ -205,7 +205,6 @@ const commandsMap: (
         state.modifiedFiles.clear();
         const modifiedFilesPromises: Array<Promise<void>> = [];
         // Queue to store messages that arrive while waiting for user interaction
-        const messageQueue: KaiWorkflowMessage[] = [];
 
         // Create the queue manager for centralized queue processing
         const queueManager = new MessageQueueManager(
@@ -239,17 +238,7 @@ const commandsMap: (
         workflow.removeAllListeners();
         workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
           logger.info(`Workflow message received: ${msg.type} (${msg.id})`);
-          await processMessage(
-            msg,
-            state,
-            workflow,
-            messageQueue,
-            modifiedFilesPromises,
-            processedTokens,
-            pendingInteractions,
-            maxTaskManagerIterations,
-            queueManager, // Pass the queue manager
-          );
+          await processMessage(msg, state, queueManager);
         });
 
         // Add error event listener to catch workflow errors
@@ -262,14 +251,6 @@ const commandsMap: (
             }
           });
         });
-
-        // Set up periodic monitoring for stuck interactions
-        const stuckInteractionCheck = setInterval(() => {
-          if (state.isWaitingForUserInteraction && pendingInteractions.size > 0) {
-            logger.info(`Monitoring pending interactions: ${pendingInteractions.size} active`);
-            logger.info("Pending interaction IDs:", Array.from(pendingInteractions.keys()));
-          }
-        }, 60000); // Check every minute
 
         try {
           const agentModeEnabled = getConfigAgentMode();
@@ -305,7 +286,6 @@ const commandsMap: (
           });
         } finally {
           // Clear the stuck interaction monitoring
-          clearInterval(stuckInteractionCheck);
 
           // Ensure isFetchingSolution is reset even if workflow fails unexpectedly
           state.mutateData((draft) => {
@@ -317,6 +297,11 @@ const commandsMap: (
             draft.isAnalyzing = false;
             draft.isAnalysisScheduled = false;
           });
+
+          // Clean up queue manager
+          if (queueManager) {
+            queueManager.dispose();
+          }
 
           // Only clean up if we're not waiting for user interaction
           // This prevents clearing pending interactions while users are still deciding on file changes

@@ -12,8 +12,6 @@ import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
 
-import { shouldProcessMessage } from "./shouldProcessMessage";
-
 // Helper function to wait for analysis completion with timeout
 const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
   return new Promise<void>((resolve) => {
@@ -30,7 +28,6 @@ const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> =
       if (!isAnalysisScheduled && !isAnalyzing) {
         clearInterval(interval);
         clearTimeout(timeout);
-        console.log("Tasks interaction: Analysis completed");
         resolve();
       }
     }, 1000);
@@ -69,7 +66,7 @@ const createTasksMessage = (tasks: { uri: string; task: string }[]): string => {
 const handleUserInteractionPromise = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
-  queueManager: MessageQueueManager | undefined,
+  queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
   state.isWaitingForUserInteraction = true;
@@ -85,11 +82,7 @@ const handleUserInteractionPromise = async (
     pendingInteractions.set(msg.id, async (response: any) => {
       clearTimeout(timeout);
 
-      if (queueManager) {
-        await handleUserInteractionComplete(state, queueManager);
-      } else {
-        state.isWaitingForUserInteraction = false;
-      }
+      await handleUserInteractionComplete(state, queueManager);
 
       pendingInteractions.delete(msg.id);
       resolve();
@@ -102,7 +95,7 @@ const handleTasksInteraction = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
   workflow: KaiInteractiveWorkflow,
-  queueManager: MessageQueueManager | undefined,
+  queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
   maxTaskManagerIterations: number,
 ): Promise<void> => {
@@ -155,60 +148,33 @@ const handleTasksInteraction = async (
 export const processMessage = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
+  queueManager: MessageQueueManager,
+) => {
+  // ALWAYS queue ALL messages - let queue manager decide when to process
+  queueManager.enqueueMessage(msg);
+
+  // Trigger queue processing if not currently processing and not waiting for user
+  if (!queueManager.isProcessingQueueActive() && !state.isWaitingForUserInteraction) {
+    // Don't await - let it run in background
+    queueManager.processQueuedMessages().catch((error) => {
+      console.error("Error in background queue processing:", error);
+    });
+  }
+};
+
+/**
+ * Core message processing logic without queue management
+ */
+export const processMessageByType = async (
+  msg: KaiWorkflowMessage,
+  state: ExtensionState,
   workflow: KaiInteractiveWorkflow,
-  messageQueue: KaiWorkflowMessage[],
   modifiedFilesPromises: Array<Promise<void>>,
   processedTokens: Set<string>,
   pendingInteractions: Map<string, (response: any) => void>,
   maxTaskManagerIterations: number,
-  queueManager?: MessageQueueManager,
-) => {
-  // If we're waiting for user interaction, queue the message for later processing
-  if (queueManager && queueManager.shouldQueueMessage()) {
-    queueManager.enqueueMessage(msg);
-    return;
-  } else if (state.isWaitingForUserInteraction) {
-    // Fallback to old behavior for backward compatibility
-    messageQueue.push(msg);
-    return;
-  }
-
-  // CRITICAL: Before processing this message, ensure any queued messages are processed first
-  // This prevents race conditions where new messages bypass queued ones
-  // BUT only if we're not already in the middle of processing the queue (to prevent infinite recursion)
-  // AND only if we're not waiting for user interaction (to maintain proper order)
-  if (
-    queueManager &&
-    queueManager.getQueueLength() > 0 &&
-    !queueManager.isProcessingQueueActive() &&
-    !state.isWaitingForUserInteraction
-  ) {
-    // First, queue the current message to maintain order
-    queueManager.enqueueMessage(msg);
-    // Then process all queued messages (including the one we just added)
-    await queueManager.processQueuedMessages();
-    return;
-  }
-
-  // Check if we should process this message or skip it as a duplicate
-  if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
-    return;
-  }
-
-  // Double-check that we're not waiting for user interaction before processing
-  if (state.isWaitingForUserInteraction) {
-    console.warn(
-      `Attempting to process ${msg.type} message ${msg.id} while waiting for user interaction - this should not happen`,
-    );
-    // Queue the message instead of processing it
-    if (queueManager) {
-      queueManager.enqueueMessage(msg);
-    } else {
-      messageQueue.push(msg);
-    }
-    return;
-  }
-
+  queueManager: MessageQueueManager,
+): Promise<void> => {
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat
@@ -388,7 +354,6 @@ export const processMessage = async (
         modifiedFilesPromises,
         processedTokens,
         pendingInteractions,
-        messageQueue,
         state,
         queueManager,
         state.modifiedFilesEventEmitter,
