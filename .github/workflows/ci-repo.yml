@@ -213,7 +213,7 @@ jobs:
           rm -f packages.microsoft.gpg
           sudo apt install apt-transport-https
           sudo apt update
-          sudo apt install code
+          sudo apt install code -y
 
       - name: Set up virtual X11
         run: |
