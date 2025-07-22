@@ -206,7 +206,7 @@ export class VSCode extends Application {
   }
 
   public async createProfile(sources: string[], targets: string[], profileName?: string) {
-    await this.executeQuickCommand('Konveyor: Manage Analysis Profiles');
+    await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
 
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     // TODO ask for/add test-id for this button and comboboxes
