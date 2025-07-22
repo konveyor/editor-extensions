@@ -2,6 +2,7 @@ import React from "react";
 import { Button, Flex, FlexItem, Badge } from "@patternfly/react-core";
 import { CheckCircleIcon, TimesCircleIcon } from "@patternfly/react-icons";
 import { DiffLegend } from "./DiffLegend";
+import "./modifiedFileMessage.css";
 import { DiffLinesRenderer } from "./DiffLinesRenderer";
 
 interface ParsedHunk {

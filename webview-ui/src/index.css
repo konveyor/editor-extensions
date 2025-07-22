@@ -64,6 +64,27 @@ body {
   --pf-v6-c-page__main-container--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-t--global--text--color--link--100: #3794ff;
   --pf-t--global--color--status--danger--100: #f48771;
+
+  /* PatternFly global background colors */
+  --pf-global--BackgroundColor--100: #f5f5f5;
+  --pf-global--BackgroundColor--200: #e5e5e5;
+  --pf-global--BackgroundColor--dark-100: #2d2d2d;
+  --pf-global--BackgroundColor--dark-200: #1e1e1e;
+  --pf-global--BackgroundColor--dark-150: #262626;
+
+  /* PatternFly global border colors */
+  --pf-global--BorderColor--100: #d1d1d1;
+  --pf-global--BorderColor--200: #b8bbbe;
+  --pf-global--BorderColor--300: #8b8d8f;
+  --pf-global--BorderColor--dark-100: #6a6a6a;
+  --pf-global--BorderColor--dark-200: #525252;
+  --pf-global--BorderColor--dark-300: #3c3f41;
+
+  /* PatternFly global text colors */
+  --pf-global--Color--100: #151515;
+  --pf-global--Color--200: #6a6e73;
+  --pf-global--Color--dark-100: #f0f0f0;
+  --pf-global--Color--dark-200: #b8bbbe;
 }
 
 #root {

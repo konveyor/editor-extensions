@@ -2,6 +2,7 @@ import React from "react";
 import { DiffLegend } from "./DiffLegend";
 import { DiffLinesRenderer } from "./DiffLinesRenderer";
 import { EnhancedDiffRenderer } from "./EnhancedDiffRenderer";
+import "./modifiedFileMessage.css";
 
 interface SingleHunkDisplayProps {
   diff: string;

@@ -579,7 +579,13 @@
 }
 
 .legend-color.context {
-  background-color: var(--pf-global--Color--200);
+  background-color: var(--pf-global--BackgroundColor--100);
+  border: 2px solid var(--pf-global--BorderColor--300);
+}
+
+.vscode-dark .legend-color.context {
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  border-color: var(--pf-global--BorderColor--dark-300);
 }
 
 /* Diff line styling */
