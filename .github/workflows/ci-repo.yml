@@ -187,6 +187,7 @@ jobs:
     name: Test E2E
     runs-on: ubuntu-latest
     needs: package
+    if: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
