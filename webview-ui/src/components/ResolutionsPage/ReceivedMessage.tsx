@@ -68,7 +68,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
           handleQuickResponse(response.id, response.messageToken);
         },
         isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
-        content: selectedResponse === response.id ? `✓ ${response.content}` : response.content,
+        content: response.content,
       }))}
       extraContent={
         extraContent
