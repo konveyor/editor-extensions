@@ -15,6 +15,7 @@ export const useScrollManagement = (
   const lastUserScrollTime = useRef<number>(0);
   const isHandlingLayoutChange = useRef(false); // Track if we're handling layout changes
   const lastContentHeight = useRef<number>(0); // Track content height changes
+  const lastLocalChangesCount = useRef<number>(0); // Track local changes count
 
   const getMessageBoxElement = useCallback(() => {
     const selectors = [
@@ -172,6 +173,23 @@ export const useScrollManagement = (
     }
   }, [chatMessages, scrollToBottom, isNearBottom, getMessageBoxElement]);
 
+  // Handle local changes updates (for non-agent mode)
+  useEffect(() => {
+    if (!isAgentMode && Array.isArray(localChanges)) {
+      const currentChangesCount = localChanges.length;
+      const changesCountChanged = currentChangesCount !== lastLocalChangesCount.current;
+
+      if (changesCountChanged) {
+        lastLocalChangesCount.current = currentChangesCount;
+
+        // Auto-scroll when local changes are added/removed in non-agent mode
+        if (!userHasScrolledUp.current) {
+          setTimeout(() => scrollToBottom(false), 150);
+        }
+      }
+    }
+  }, [localChanges, isAgentMode, scrollToBottom]);
+
   // Set up scroll listener with better layout change detection
   useEffect(() => {
     const messageBox = getMessageBoxElement();
@@ -260,5 +278,5 @@ export const useScrollManagement = (
     return () => clearTimeout(timeoutId);
   }, [scrollToBottom]);
 
-  return { messageBoxRef, scrollToBottom, triggerScrollOnUserAction };
+  return { messageBoxRef, triggerScrollOnUserAction };
 };

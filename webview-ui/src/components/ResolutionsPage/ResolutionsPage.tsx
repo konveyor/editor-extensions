@@ -213,10 +213,10 @@ const ResolutionPage: React.FC = () => {
     solutionState,
   } = useResolutionData(state);
 
-    const { messageBoxRef, scrollToBottom, triggerScrollOnUserAction } = useScrollManagement(
-    chatMessages, 
-    isFetchingSolution, 
-    localChanges, 
+  const { messageBoxRef, triggerScrollOnUserAction } = useScrollManagement(
+    chatMessages,
+    isFetchingSolution,
+    localChanges,
     isAgentMode,
   );
 
@@ -282,10 +282,10 @@ const ResolutionPage: React.FC = () => {
             const fileData = msg.value as ModifiedFileMessageValue;
             return (
               <MessageWrapper key={msg.messageToken}>
-                <ModifiedFileMessage 
-                  data={fileData} 
-                  timestamp={msg.timestamp} 
-                  mode="agent" 
+                <ModifiedFileMessage
+                  data={fileData}
+                  timestamp={msg.timestamp}
+                  mode="agent"
                   onUserAction={triggerScrollOnUserAction}
                 />
               </MessageWrapper>
