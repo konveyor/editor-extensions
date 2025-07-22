@@ -1,8 +1,13 @@
 import { useRef, useCallback, useEffect } from "react";
-import { ChatMessage } from "@editor-extensions/shared";
+import { ChatMessage, LocalChange } from "@editor-extensions/shared";
 import { MessageBoxHandle } from "@patternfly/chatbot";
 
-export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolution: boolean) => {
+export const useScrollManagement = (
+  chatMessages: ChatMessage[],
+  isFetchingSolution: boolean,
+  localChanges?: LocalChange[],
+  isAgentMode?: boolean,
+) => {
   const messageBoxRef = useRef<MessageBoxHandle | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
@@ -247,5 +252,13 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     };
   }, []);
 
-  return { messageBoxRef, scrollToBottom };
+  const triggerScrollOnUserAction = useCallback(() => {
+    const timeoutId = setTimeout(() => {
+      scrollToBottom(false);
+    }, 150); // Small delay to ensure DOM updates are complete
+
+    return () => clearTimeout(timeoutId);
+  }, [scrollToBottom]);
+
+  return { messageBoxRef, scrollToBottom, triggerScrollOnUserAction };
 };

@@ -15,6 +15,7 @@ interface ModifiedFileMessageProps {
   onApply?: (change: LocalChange) => void;
   onReject?: (change: LocalChange) => void;
   onView?: (change: LocalChange) => void;
+  onUserAction?: () => void;
 }
 
 export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
@@ -24,6 +25,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   onApply,
   onReject,
   onView,
+  onUserAction,
 }) => {
   // Use shared data normalization hook
   const normalizedData = useModifiedFileData(data);
@@ -70,6 +72,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     if (mode === "agent") {
       // Agent mode: Use FILE_RESPONSE flow for direct file writing
       postFileResponse("apply", messageToken, path, contentToApply);
+      // Trigger scroll after action in agent mode
+      onUserAction?.();
     } else {
       // Non-agent mode: Use callback flow with modified data
       if (onApply && isLocalChange(data)) {
@@ -87,6 +91,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     if (mode === "agent") {
       // Agent mode: Use FILE_RESPONSE flow
       postFileResponse("reject", messageToken, path);
+      // Trigger scroll after action in agent mode
+      onUserAction?.();
     } else {
       // Non-agent mode: Use callback flow
       if (onReject && isLocalChange(data)) {
@@ -135,6 +141,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
       // Agent mode: Use FILE_RESPONSE flow
       const contentToSend = responseId === "apply" ? content : undefined;
       postFileResponse(responseId, messageToken, path, contentToSend);
+      // Trigger scroll after action in agent mode
+      onUserAction?.();
     } else {
       // Non-agent mode: Use callback flow
       if (isLocalChange(data)) {
@@ -177,6 +185,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         actionTaken={actionTaken}
         onApply={(selectedContent: string) => applyFile(selectedContent)}
         onReject={rejectFile}
+        onUserAction={onUserAction}
       />
     </>
   );
