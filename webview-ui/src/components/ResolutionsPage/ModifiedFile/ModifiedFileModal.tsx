@@ -19,6 +19,7 @@ interface ModifiedFileModalProps {
   actionTaken: "applied" | "rejected" | null;
   onApply: (selectedContent: string) => void;
   onReject: () => void;
+  onUserAction?: () => void;
 }
 
 export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
@@ -28,6 +29,7 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
   actionTaken,
   onApply,
   onReject,
+  onUserAction,
 }) => {
   const normalizedData = useModifiedFileData(data);
   const { path, isNew, diff, content, originalContent, fileName } = normalizedData;
@@ -165,11 +167,13 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
   const handleModalApply = () => {
     const selectedContent = generateSelectedContent();
     onApply(selectedContent);
+    onUserAction?.();
   };
 
   // Modal-specific reject handler
   const handleModalReject = () => {
     onReject();
+    onUserAction?.();
   };
 
   // Helper to handle hunk state changes - now 3-state
@@ -248,6 +252,7 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           onApply={handleModalApply}
           onReject={handleModalReject}
           onSelectAll={!isSingleHunk ? handleSelectAll : undefined}
+          onUserAction={onUserAction}
         />
 
         <div className="modal-content-scrollable">{renderExpandedDiff()}</div>

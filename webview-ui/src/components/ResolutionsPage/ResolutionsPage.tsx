@@ -27,8 +27,8 @@ import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
-import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { MessageWrapper } from "./MessageWrapper";
+import { useScrollManagement } from "../../hooks/useScrollManagement";
 
 // Unified hook for both modes
 const useResolutionData = (state: any) => {
@@ -207,12 +207,18 @@ const ResolutionPage: React.FC = () => {
     hasResponseWithErrors,
     resolution,
     chatMessages,
+    localChanges,
     isFetchingSolution,
     isAnalyzing,
     solutionState,
   } = useResolutionData(state);
 
-  const { messageBoxRef } = useScrollManagement(chatMessages, isFetchingSolution);
+    const { messageBoxRef, scrollToBottom, triggerScrollOnUserAction } = useScrollManagement(
+    chatMessages, 
+    isFetchingSolution, 
+    localChanges, 
+    isAgentMode,
+  );
 
   // Event handlers
   const handleFileClick = (change: LocalChange) => dispatch(viewFix(change));
@@ -226,6 +232,8 @@ const ResolutionPage: React.FC = () => {
       content: change.content,
     };
     dispatch(applyFile(applyFilePayload));
+    // Trigger scroll after accepting change
+    triggerScrollOnUserAction();
   };
   const handleRejectClick = (change: LocalChange) => {
     const discardFilePayload: DiscardFilePayload = {
@@ -236,6 +244,8 @@ const ResolutionPage: React.FC = () => {
       messageToken: change.messageToken,
     };
     dispatch(discardFile(discardFilePayload));
+    // Trigger scroll after rejecting change
+    triggerScrollOnUserAction();
   };
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
@@ -272,7 +282,12 @@ const ResolutionPage: React.FC = () => {
             const fileData = msg.value as ModifiedFileMessageValue;
             return (
               <MessageWrapper key={msg.messageToken}>
-                <ModifiedFileMessage data={fileData} timestamp={msg.timestamp} mode="agent" />
+                <ModifiedFileMessage 
+                  data={fileData} 
+                  timestamp={msg.timestamp} 
+                  mode="agent" 
+                  onUserAction={triggerScrollOnUserAction}
+                />
               </MessageWrapper>
             );
           }

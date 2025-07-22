@@ -21,6 +21,7 @@ interface ModifiedFileModalHeaderProps {
   onApply: (selectedContent?: string) => void;
   onReject: () => void;
   onSelectAll?: () => void;
+  onUserAction?: () => void;
 }
 
 export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = ({
@@ -34,6 +35,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
   onApply,
   onReject,
   onSelectAll,
+  onUserAction,
 }) => {
   // Generate status message for multi-hunk scenarios
   const getStatusMessage = () => {
@@ -150,7 +152,10 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                 <FlexItem>
                   <Button
                     variant="primary"
-                    onClick={onSelectAll}
+                    onClick={() => {
+                      onSelectAll();
+                      onUserAction?.();
+                    }}
                     isDisabled={hunkSummary.accepted === hunkSummary.total}
                     style={{ minWidth: "100px" }}
                   >
@@ -158,7 +163,14 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                   </Button>
                 </FlexItem>
                 <FlexItem>
-                  <Button variant="danger" onClick={onReject} style={{ minWidth: "100px" }}>
+                  <Button 
+                    variant="danger" 
+                    onClick={() => {
+                      onReject();
+                      onUserAction?.();
+                    }} 
+                    style={{ minWidth: "100px" }}
+                  >
                     Reject All
                   </Button>
                 </FlexItem>
@@ -171,6 +183,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                 variant={submitButtonInfo.variant}
                 onClick={() => {
                   onApply();
+                  onUserAction?.();
                 }}
                 isDisabled={!canSubmit}
                 icon={<CheckIcon />}
@@ -185,7 +198,10 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
               <FlexItem>
                 <Button
                   variant="danger"
-                  onClick={onReject}
+                  onClick={() => {
+                    onReject();
+                    onUserAction?.();
+                  }}
                   icon={<CloseIcon />}
                   style={{ minWidth: "100px" }}
                 >
