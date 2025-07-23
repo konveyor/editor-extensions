@@ -107,4 +107,3 @@ Linux when possible.
 
 Playwright + Electron is experimental, meaning some DOM features differ or are unsupported from the
 web version
-Use the feature/sl-latest-nightly branch: Most active development happens there. main is outdated.

@@ -1,7 +1,7 @@
 # VSCode Automation with Playwright
 
 This module contains automated tests using Playwright to launch VSCode, install the extension and
-perform a series od e2e tests
+perform a series of e2e tests
 
 ## Table of Contents
 
