@@ -193,7 +193,7 @@ const UserRequestMessages: React.FC<{
   );
 };
 
-const ResolutionPage: React.FC = () => {
+const ResolutionPage: React.FC<{ hideTitle?: boolean }> = ({ hideTitle = false }) => {
   const { state, dispatch } = useExtensionStateContext();
   const { solutionScope } = state;
 
@@ -406,15 +406,17 @@ const ResolutionPage: React.FC = () => {
         </PageSidebar>
       }
     >
-      <PageSection>
-        <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
-          Kai Results
-          {isFetchingSolution && <LoadingIndicator />}
-          {!isFetchingSolution && (
-            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
-          )}
-        </Title>
-      </PageSection>
+      {!hideTitle && (
+        <PageSection>
+          <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
+            Kai Results
+            {isFetchingSolution && <LoadingIndicator />}
+            {!isFetchingSolution && (
+              <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+            )}
+          </Title>
+        </PageSection>
+      )}
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
           <MessageBox ref={messageBoxRef} style={{ paddingBottom: "2rem" }}>

@@ -5,3 +5,108 @@
   gap: 12px;
   padding: 8px 0px;
 }
+
+.server-status-header-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.header-server-button {
+  min-width: 120px;
+  justify-content: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-server-button.server-running {
+  border-color: var(--pf-v6-global--success-color--100);
+}
+
+.header-server-button.server-stopped {
+  border-color: var(--pf-v6-global--danger-color--100);
+}
+
+.header-spinner {
+  display: inline-block;
+}
+
+.button-icon {
+  flex-shrink: 0;
+}
+
+.button-text {
+  display: inline;
+}
+
+.button-text-short {
+  display: none;
+}
+
+.server-status-label {
+  font-size: 0.75rem;
+  margin-left: 4px;
+}
+
+.status-text-full {
+  display: inline;
+}
+
+.status-text-short {
+  display: none;
+}
+
+/* Responsive behavior */
+@media (max-width: 600px) {
+  .header-server-button {
+    min-width: 80px;
+    gap: 0.25rem;
+  }
+
+  .server-status-header-wrapper {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .button-text {
+    display: none;
+  }
+
+  .button-text-short {
+    display: inline;
+  }
+
+  .status-text-full {
+    display: none;
+  }
+
+  .status-text-short {
+    display: inline;
+  }
+
+  .header-server-button {
+    min-width: 60px;
+  }
+}
+
+@media (max-width: 320px) {
+  .server-status-label {
+    display: none;
+  }
+
+  .header-server-button {
+    min-width: 40px;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .button-text-short {
+    display: none;
+  }
+
+  .header-server-button {
+    justify-content: center;
+  }
+}

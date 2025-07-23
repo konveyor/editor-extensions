@@ -1,0 +1,125 @@
+/* Responsive header styles */
+.unified-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.responsive-tabs {
+  width: 100%;
+  min-width: 0;
+}
+
+.responsive-tab-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.tab-icon {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+}
+
+.tab-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.processing-indicator {
+  margin-left: 0.25rem;
+  color: #f0ad4e;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.data-indicator {
+  margin-left: 0.25rem;
+  background-color: #06c;
+  color: white;
+  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.analysis-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.config-button-item {
+  flex-shrink: 0;
+}
+
+/* Mobile and very narrow widths */
+@media (max-width: 480px) {
+  .unified-title {
+    display: none !important;
+  }
+
+  .tab-text {
+    display: none;
+  }
+
+  .processing-indicator {
+    display: none;
+  }
+
+  .responsive-tab-title {
+    justify-content: center;
+    min-width: 32px;
+  }
+
+  .config-button-item {
+    display: none;
+  }
+}
+
+/* Small sidebar widths */
+@media (max-width: 600px) {
+  .unified-title {
+    font-size: 1rem !important;
+  }
+
+  .tab-text {
+    font-size: 0.875rem;
+  }
+
+  .processing-indicator {
+    font-size: 0.625rem;
+  }
+
+  .analysis-controls {
+    gap: 0.25rem;
+  }
+}
+
+/* Medium sidebar widths */
+@media (max-width: 800px) {
+  .processing-indicator {
+    display: none;
+  }
+}
+
+/* Very narrow - icon only mode */
+@media (max-width: 320px) {
+  .responsive-tabs .pf-v6-c-tabs__list {
+    justify-content: center;
+  }
+
+  .responsive-tabs .pf-v6-c-tabs__item {
+    min-width: 40px;
+  }
+
+  .analysis-controls {
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+}
