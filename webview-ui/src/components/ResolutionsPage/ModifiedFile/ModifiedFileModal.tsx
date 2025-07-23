@@ -85,6 +85,36 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
     setHunkStates(newHunkStates);
   }, [parsedHunks]);
 
+  // Enhanced state management for pending hunks
+  const [pendingHunks, setPendingHunks] = useState<Set<string>>(new Set());
+  const [acceptedHunks, setAcceptedHunks] = useState<Set<string>>(new Set());
+  const [rejectedHunks, setRejectedHunks] = useState<Set<string>>(new Set());
+
+  // Update state sets when hunkStates changes
+  useEffect(() => {
+    const newPending = new Set<string>();
+    const newAccepted = new Set<string>();
+    const newRejected = new Set<string>();
+
+    Object.entries(hunkStates).forEach(([hunkId, state]) => {
+      switch (state) {
+        case "pending":
+          newPending.add(hunkId);
+          break;
+        case "accepted":
+          newAccepted.add(hunkId);
+          break;
+        case "rejected":
+          newRejected.add(hunkId);
+          break;
+      }
+    });
+
+    setPendingHunks(newPending);
+    setAcceptedHunks(newAccepted);
+    setRejectedHunks(newRejected);
+  }, [hunkStates]);
+
   // Generate content based on hunk selections using proper diff library
   const generateSelectedContent = (): string => {
     try {
@@ -198,6 +228,24 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
     setHunkStates(newHunkStates);
   };
 
+  // Reject all hunks handler
+  const handleRejectAll = () => {
+    const newHunkStates: Record<string, HunkState> = {};
+    parsedHunks.forEach((hunk) => {
+      newHunkStates[hunk.id] = "rejected";
+    });
+    setHunkStates(newHunkStates);
+  };
+
+  // Reset all hunks to pending
+  const handleResetAll = () => {
+    const newHunkStates: Record<string, HunkState> = {};
+    parsedHunks.forEach((hunk) => {
+      newHunkStates[hunk.id] = "pending";
+    });
+    setHunkStates(newHunkStates);
+  };
+
   const renderExpandedDiff = () => {
     return (
       <div className="expanded-diff-content">
@@ -212,6 +260,9 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
             onHunkStateChange={handleHunkStateChangeForInterface}
             actionTaken={actionTaken}
             filePath={path}
+            pendingHunks={pendingHunks}
+            acceptedHunks={acceptedHunks}
+            rejectedHunks={rejectedHunks}
           />
         )}
       </div>
@@ -252,7 +303,12 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           onApply={handleModalApply}
           onReject={handleModalReject}
           onSelectAll={!isSingleHunk ? handleSelectAll : undefined}
+          onRejectAll={!isSingleHunk ? handleRejectAll : undefined}
+          onResetAll={!isSingleHunk ? handleResetAll : undefined}
           onUserAction={onUserAction}
+          pendingHunks={pendingHunks}
+          acceptedHunks={acceptedHunks}
+          rejectedHunks={rejectedHunks}
         />
 
         <div className="modal-content-scrollable">{renderExpandedDiff()}</div>

@@ -188,10 +188,15 @@
 .enhanced-diff-renderer .diff-container {
   will-change: scroll-position;
   contain: layout style paint;
+  /* Ensure smooth scrolling */
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .enhanced-diff-renderer .diff-line {
   contain: layout style;
+  /* Prevent layout shifts during scroll */
+  transform: translateZ(0);
 }
 
 /* Scrollbar styling for diff containers */
@@ -317,10 +322,10 @@
 /* Animation for smooth transitions */
 @media (prefers-reduced-motion: no-preference) {
   .enhanced-diff-renderer .diff-line {
-    transition: background-color 0.15s ease;
+    transition: background-color 0.1s ease;
   }
 
   .diff-scroll-indicator {
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease;
   }
 }

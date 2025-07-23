@@ -825,6 +825,26 @@
   border: 2px solid #22863a;
   background-color: rgba(34, 134, 58, 0.05);
   box-shadow: 0 2px 8px rgba(34, 134, 58, 0.2);
+  position: relative;
+}
+
+.hunk-item.hunk-accepted::before {
+  content: "✓";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background-color: #22863a;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+  animation: hunkAccepted 0.5s ease-in-out;
 }
 
 .hunk-item.hunk-rejected {
@@ -832,6 +852,26 @@
   background-color: rgba(203, 36, 49, 0.05);
   box-shadow: 0 2px 8px rgba(203, 36, 49, 0.2);
   opacity: 0.7;
+  position: relative;
+}
+
+.hunk-item.hunk-rejected::before {
+  content: "✗";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background-color: #cb2431;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+  animation: hunkRejected 0.5s ease-in-out;
 }
 
 .hunk-item.hunk-pending {
@@ -839,6 +879,71 @@
   border-left: 2px solid #ffa500 !important;
   background-color: rgba(255, 165, 0, 0.05);
   box-shadow: 0 2px 8px rgba(255, 165, 0, 0.2);
+  position: relative;
+}
+
+.hunk-item.hunk-pending::before {
+  content: "?";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffa500;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+  animation: hunkPending 0.5s ease-in-out;
+}
+
+@keyframes hunkAccepted {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes hunkRejected {
+  0% {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes hunkPending {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Removed overlapping state indicator badges - using inline status badges instead */
@@ -882,7 +987,6 @@
 
 .hunk-number {
   font-weight: 600;
-  color: var(--pf-global--Color--100);
 }
 
 .hunk-description {
@@ -986,6 +1090,8 @@
   border-color: #22863a !important;
   color: white !important;
   font-weight: bold;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(34, 134, 58, 0.3);
 }
 
 .hunk-controls .hunk-reject.active {
@@ -993,6 +1099,17 @@
   border-color: #cb2431 !important;
   color: white !important;
   font-weight: bold;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(203, 36, 49, 0.3);
+}
+
+.hunk-controls .hunk-pending.active {
+  background-color: #ffa500 !important;
+  border-color: #ffa500 !important;
+  color: white !important;
+  font-weight: bold;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(255, 165, 0, 0.3);
 }
 
 .hunk-content {
@@ -1135,7 +1252,9 @@
   .hunk-selection-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
   }
 
   .hunk-item-header {
@@ -1490,4 +1609,11 @@
   100% {
     transform: translateX(0);
   }
+}
+
+.modified-file-minimized-link {
+  align-self: flex-end;
+}
+.modified-file-minimized-filename {
+  padding-left: 0.5rem;
 }

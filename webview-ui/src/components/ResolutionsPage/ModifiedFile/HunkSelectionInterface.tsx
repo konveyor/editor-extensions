@@ -20,6 +20,9 @@ interface HunkSelectionInterfaceProps {
   onHunkStateChange: (hunkId: string, state: HunkState) => void;
   actionTaken: "applied" | "rejected" | null;
   filePath: string;
+  pendingHunks?: Set<string>;
+  acceptedHunks?: Set<string>;
+  rejectedHunks?: Set<string>;
 }
 
 export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
@@ -28,6 +31,9 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
   onHunkStateChange,
   actionTaken,
   filePath,
+  pendingHunks = new Set(),
+  acceptedHunks = new Set(),
+  rejectedHunks = new Set(),
 }) => {
   const getHunkStatusBadge = (hunkId: string) => {
     const state = hunkStates[hunkId];
@@ -51,21 +57,29 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
     };
   };
 
+  const getHunkItemClassName = (hunkId: string) => {
+    const state = hunkStates[hunkId];
+    const baseClass = "hunk-item";
+    switch (state) {
+      case "accepted":
+        return `${baseClass} hunk-accepted`;
+      case "rejected":
+        return `${baseClass} hunk-rejected`;
+      case "pending":
+      default:
+        return `${baseClass} hunk-pending`;
+    }
+  };
+
   return (
     <div className="hunk-selection-interface">
-      <div className="hunk-selection-header">
-        <h3 className="hunk-selection-title">Review Changes</h3>
-        <span className="hunk-count">
-          {parsedHunks.length} change{parsedHunks.length !== 1 ? "s" : ""} found
-        </span>
-      </div>
-
       {parsedHunks.map((hunk, index) => {
         const buttonVariants = getButtonVariants(hunk.id);
         const isDisabled = actionTaken !== null;
+        const hunkItemClassName = getHunkItemClassName(hunk.id);
 
         return (
-          <div key={hunk.id} className="hunk-item">
+          <div key={hunk.id} className={hunkItemClassName}>
             <div className="hunk-item-header">
               <Flex
                 justifyContent={{ default: "justifyContentSpaceBetween" }}
@@ -90,6 +104,11 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                           onClick={() => onHunkStateChange(hunk.id, "accepted")}
                           isDisabled={isDisabled}
                           title="Accept this change"
+                          className={
+                            hunkStates[hunk.id] === "accepted"
+                              ? "hunk-accept active"
+                              : "hunk-accept"
+                          }
                         >
                           Accept
                         </Button>
@@ -102,21 +121,30 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
                           onClick={() => onHunkStateChange(hunk.id, "rejected")}
                           isDisabled={isDisabled}
                           title="Reject this change"
+                          className={
+                            hunkStates[hunk.id] === "rejected"
+                              ? "hunk-reject active"
+                              : "hunk-reject"
+                          }
                         >
                           Reject
                         </Button>
                       </FlexItem>
                       <FlexItem>
-                        {/* <Button
+                        <Button
                           variant={buttonVariants.pending}
                           size="sm"
-                          icon={<MinusCircleIcon />}
-                          onClick={() => onHunkStateChange(hunk.id, 'pending')}
+                          onClick={() => onHunkStateChange(hunk.id, "pending")}
                           isDisabled={isDisabled}
                           title="Mark as pending (skip for now)"
+                          className={
+                            hunkStates[hunk.id] === "pending"
+                              ? "hunk-pending active"
+                              : "hunk-pending"
+                          }
                         >
                           Skip
-                        </Button> */}
+                        </Button>
                       </FlexItem>
                     </Flex>
                   </div>

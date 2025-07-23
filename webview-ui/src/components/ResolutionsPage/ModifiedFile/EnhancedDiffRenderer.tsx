@@ -38,6 +38,8 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastScrollTopRef = useRef<number>(0);
+  const scrollThrottleRef = useRef<number>();
 
   // Re-enabling theme application to confirm this breaks re-rendering
   useEffect(() => {
@@ -159,7 +161,19 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
   const totalHeight = parsedLines.length * lineHeight;
   const visibleCount = Math.ceil(maxHeight / lineHeight);
 
-  // Handle scroll for virtualization
+  // Ensure visible range is valid
+  const validVisibleRange = useMemo(() => {
+    if (!shouldVirtualize) {
+      return { start: 0, end: parsedLines.length };
+    }
+    
+    const start = Math.max(0, Math.min(visibleRange.start, parsedLines.length - 1));
+    const end = Math.max(start + 1, Math.min(visibleRange.end, parsedLines.length));
+    
+    return { start, end };
+  }, [shouldVirtualize, visibleRange, parsedLines.length]);
+
+  // Throttled scroll handler to prevent excessive updates
   const handleScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
       if (!shouldVirtualize) {
@@ -167,35 +181,87 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
       }
 
       const scrollTop = event.currentTarget.scrollTop;
-      const start = Math.floor(scrollTop / lineHeight);
-      const end = Math.min(start + visibleCount + 10, parsedLines.length); // +10 for buffer
+      
+      // Skip if scroll position hasn't changed significantly
+      if (Math.abs(scrollTop - lastScrollTopRef.current) < lineHeight / 2) {
+        return;
+      }
+      
+      lastScrollTopRef.current = scrollTop;
+      
+      // Throttle scroll updates to prevent excessive re-renders
+      if (scrollThrottleRef.current) {
+        return;
+      }
 
-      setVisibleRange({ start: Math.max(0, start - 5), end }); // -5 for buffer
+      scrollThrottleRef.current = requestAnimationFrame(() => {
+        const start = Math.floor(scrollTop / lineHeight);
+        const end = Math.min(start + visibleCount + 20, parsedLines.length); // Increased buffer
 
-      setIsScrolling(true);
+        // Only update if the range has changed significantly
+        const currentStart = visibleRange.start;
+        const currentEnd = visibleRange.end;
+        
+        if (Math.abs(start - currentStart) > 5 || Math.abs(end - currentEnd) > 5) {
+          setVisibleRange({ start: Math.max(0, start - 10), end }); // Increased buffer
+        }
+
+        setIsScrolling(true);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        scrollTimeoutRef.current = setTimeout(() => {
+          setIsScrolling(false);
+        }, 100); // Reduced timeout
+
+        scrollThrottleRef.current = undefined;
+      });
+    },
+    [shouldVirtualize, lineHeight, visibleCount, parsedLines.length], // Removed visibleRange from dependencies
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollThrottleRef.current) {
+        cancelAnimationFrame(scrollThrottleRef.current);
+      }
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 150);
-    },
-    [shouldVirtualize, lineHeight, visibleCount, parsedLines.length],
-  );
+    };
+  }, []);
 
   // Get visible lines for rendering
   const visibleLines = shouldVirtualize
-    ? parsedLines.slice(visibleRange.start, visibleRange.end)
+    ? parsedLines.slice(validVisibleRange.start, validVisibleRange.end)
     : parsedLines;
 
   // Calculate offset for virtualization
-  const offsetY = shouldVirtualize ? visibleRange.start * lineHeight : 0;
+  const offsetY = shouldVirtualize ? validVisibleRange.start * lineHeight : 0;
+
+  // Debug virtualization state
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development" && shouldVirtualize) {
+      console.log("Virtualization state:", {
+        totalLines: parsedLines.length,
+        visibleRange,
+        validVisibleRange,
+        visibleLines: visibleLines.length,
+        offsetY,
+        totalHeight,
+        maxHeight,
+        lineHeight
+      });
+    }
+  }, [shouldVirtualize, visibleRange, validVisibleRange, visibleLines.length, offsetY, totalHeight, maxHeight, lineHeight, parsedLines.length]);
 
   // Render a single diff line
   const renderLine = useCallback(
     (line: DiffLine, index: number) => {
-      const actualIndex = shouldVirtualize ? visibleRange.start + index : index;
-      const highlightedContent = isScrolling ? line.content : getHighlightedContent(line);
+      const actualIndex = shouldVirtualize ? validVisibleRange.start + index : index;
+      // Always use highlighted content to prevent layout shifts
+      const highlightedContent = getHighlightedContent(line);
 
       return (
         <div
@@ -208,7 +274,7 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
         </div>
       );
     },
-    [shouldVirtualize, visibleRange.start, lineHeight, isScrolling, getHighlightedContent],
+    [shouldVirtualize, validVisibleRange.start, lineHeight, getHighlightedContent],
   );
 
   // Performance monitoring
@@ -249,7 +315,13 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
         onScroll={handleScroll}
       >
         {shouldVirtualize && (
-          <div style={{ height: totalHeight, position: "relative" }}>
+          <div 
+            style={{ 
+              height: totalHeight, 
+              position: "relative",
+              width: "100%"
+            }}
+          >
             <div
               style={{
                 transform: `translateY(${offsetY}px)`,
@@ -257,6 +329,7 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
                 top: 0,
                 left: 0,
                 right: 0,
+                width: "100%",
               }}
             >
               {visibleLines.map(renderLine)}

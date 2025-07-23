@@ -33,6 +33,7 @@ const getPathFromOriginalUri = (originalUri: string | { fsPath: string }): strin
 export interface NormalizedFileData {
   path: string;
   isNew: boolean;
+  isDeleted: boolean;
   diff: string;
   status: "applied" | "rejected" | null;
   content: string;
@@ -52,6 +53,7 @@ export const useModifiedFileData = (
       normalized = {
         path: data.path,
         isNew: data.isNew || false,
+        isDeleted: data.isDeleted || false,
         diff: data.diff || "",
         status: data.status || null,
         content: data.content || "",
@@ -63,6 +65,7 @@ export const useModifiedFileData = (
       normalized = {
         path: getPathFromOriginalUri(data.originalUri),
         isNew: false,
+        isDeleted: false,
         diff: data.diff || "",
         status: getStatusFromState(data.state),
         content: data.content || "",
@@ -75,6 +78,7 @@ export const useModifiedFileData = (
       normalized = {
         path: "",
         isNew: false,
+        isDeleted: false,
         diff: "",
         status: null,
         content: "",

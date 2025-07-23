@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Flex, FlexItem, Alert } from "@patternfly/react-core";
-import { CompressIcon, CheckIcon, CloseIcon } from "@patternfly/react-icons";
+import { CompressIcon, CheckIcon, CloseIcon, UndoIcon } from "@patternfly/react-icons";
 import "./ModifiedFileModalHeader.css";
 
 interface HunkSummary {
@@ -21,7 +21,12 @@ interface ModifiedFileModalHeaderProps {
   onApply: (selectedContent?: string) => void;
   onReject: () => void;
   onSelectAll?: () => void;
+  onRejectAll?: () => void;
+  onResetAll?: () => void;
   onUserAction?: () => void;
+  pendingHunks?: Set<string>;
+  acceptedHunks?: Set<string>;
+  rejectedHunks?: Set<string>;
 }
 
 export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = ({
@@ -35,7 +40,12 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
   onApply,
   onReject,
   onSelectAll,
+  onRejectAll,
+  onResetAll,
   onUserAction,
+  pendingHunks = new Set(),
+  acceptedHunks = new Set(),
+  rejectedHunks = new Set(),
 }) => {
   // Generate status message for multi-hunk scenarios
   const getStatusMessage = () => {
@@ -69,8 +79,9 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
   const getSubmitButtonInfo = () => {
     if (isSingleHunk) {
       return {
-        text: "Apply Changes",
+        text: "Apply",
         variant: "primary" as const,
+        className: "modal-accept-button success-button",
       };
     }
 
@@ -78,6 +89,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
       return {
         text: "Submit Changes",
         variant: "primary" as const,
+        className: "modal-accept-button",
       };
     }
 
@@ -86,6 +98,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
       return {
         text: `Apply ${accepted} Changes`,
         variant: "primary" as const,
+        className: "modal-accept-button success-button",
       };
     }
 
@@ -93,26 +106,49 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
       return {
         text: "Submit Rejections",
         variant: "secondary" as const,
+        className: "modal-reject-button danger-button",
       };
     }
 
     return {
       text: `Submit ${accepted + rejected} Decisions`,
       variant: "primary" as const,
+      className: "modal-accept-button mixed-button",
     };
   };
 
   const submitButtonInfo = getSubmitButtonInfo();
 
+  // Get button states for color coding
+  const getButtonStates = () => {
+    const hasAccepted = acceptedHunks.size > 0;
+    const hasRejected = rejectedHunks.size > 0;
+    const hasPending = pendingHunks.size > 0;
+    const allAccepted = acceptedHunks.size === hunkSummary.total;
+    const allRejected = rejectedHunks.size === hunkSummary.total;
+
+    return {
+      selectAll: !allAccepted && (hasPending || hasRejected),
+      rejectAll: !allRejected && (hasPending || hasAccepted),
+      resetAll: hasAccepted || hasRejected,
+      apply: hasAccepted || (isSingleHunk && !actionTaken),
+      reject: isSingleHunk && !actionTaken,
+    };
+  };
+
+  const buttonStates = getButtonStates();
+
   return (
     <div className="modal-custom-header sticky-header">
       <div className="modal-header-content">
-        {/* Title Row */}
+        {/* Combined Title and Actions Row */}
         <Flex
           className="modal-title-row"
           justifyContent={{ default: "justifyContentSpaceBetween" }}
           alignItems={{ default: "alignItemsCenter" }}
+          gap={{ default: "gapMd" }}
         >
+          {/* Title Section */}
           <FlexItem flex={{ default: "flex_1" }} className="modal-title-container">
             <h2 className="modal-title">
               <span className="modal-action-text">
@@ -122,6 +158,97 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
             </h2>
           </FlexItem>
 
+          {/* Action Buttons Section */}
+          {actionTaken === null && (
+            <FlexItem className="modal-actions-container">
+              <Flex
+                className="modal-action-buttons"
+                justifyContent={{ default: "justifyContentFlexEnd" }}
+                alignItems={{ default: "alignItemsCenter" }}
+                gap={{ default: "gapSm" }}
+              >
+                {/* Multi-hunk selection buttons */}
+                {!isSingleHunk && (
+                  <>
+                    {onSelectAll && buttonStates.selectAll && (
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          onSelectAll();
+                          onUserAction?.();
+                        }}
+                        className="bulk-select-button success-button"
+                        size="sm"
+                      >
+                        Select All
+                      </Button>
+                    )}
+                    {onRejectAll && buttonStates.rejectAll && (
+                      <Button 
+                        variant="danger" 
+                        onClick={() => {
+                          onRejectAll();
+                          onUserAction?.();
+                        }} 
+                        className="bulk-reject-button danger-button"
+                        size="sm"
+                      >
+                        Reject All
+                      </Button>
+                    )}
+                    {onResetAll && buttonStates.resetAll && (
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => {
+                          onResetAll();
+                          onUserAction?.();
+                        }} 
+                        className="bulk-reset-button secondary-button"
+                        icon={<UndoIcon />}
+                        size="sm"
+                      >
+                        Reset
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                {/* Submit Button */}
+                {buttonStates.apply && (
+                  <Button
+                    variant={submitButtonInfo.variant}
+                    onClick={() => {
+                      onApply();
+                      onUserAction?.();
+                    }}
+                    isDisabled={!canSubmit}
+                    icon={<CheckIcon />}
+                    className={submitButtonInfo.className}
+                    size="sm"
+                  >
+                    {submitButtonInfo.text}
+                  </Button>
+                )}
+
+                {/* Reject Button - only show for single hunks since multi-hunks have Select All/Reject All */}
+                {buttonStates.reject && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      onReject();
+                      onUserAction?.();
+                    }}
+                    icon={<CloseIcon />}
+                    className="modal-reject-button danger-button"
+                    size="sm"
+                  >
+                    Reject 
+                  </Button>
+                )}
+              </Flex>
+            </FlexItem>
+          )}
+
           {/* Close button */}
           <FlexItem className="modal-close-container">
             <Button
@@ -129,87 +256,16 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
               onClick={onClose}
               icon={<CompressIcon />}
               aria-label="Close modal"
+              className="modal-close-button"
+              size="sm"
             />
           </FlexItem>
         </Flex>
 
         {/* Status Alert */}
         {statusMessage && (
-          <Alert variant={statusMessage.variant} title={statusMessage.text} isInline isPlain />
-        )}
-
-        {/* Action Row */}
-        {actionTaken === null && (
-          <Flex
-            className="modal-action-row"
-            justifyContent={{ default: "justifyContentCenter" }}
-            alignItems={{ default: "alignItemsCenter" }}
-            gap={{ default: "gapMd" }}
-          >
-            {/* Multi-hunk selection buttons */}
-            {!isSingleHunk && onSelectAll && (
-              <>
-                <FlexItem>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      onSelectAll();
-                      onUserAction?.();
-                    }}
-                    isDisabled={hunkSummary.accepted === hunkSummary.total}
-                    style={{ minWidth: "100px" }}
-                  >
-                    Select All
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button 
-                    variant="danger" 
-                    onClick={() => {
-                      onReject();
-                      onUserAction?.();
-                    }} 
-                    style={{ minWidth: "100px" }}
-                  >
-                    Reject All
-                  </Button>
-                </FlexItem>
-              </>
-            )}
-
-            {/* Submit Button */}
-            <FlexItem>
-              <Button
-                variant={submitButtonInfo.variant}
-                onClick={() => {
-                  onApply();
-                  onUserAction?.();
-                }}
-                isDisabled={!canSubmit}
-                icon={<CheckIcon />}
-                style={{ minWidth: "120px" }}
-              >
-                {submitButtonInfo.text}
-              </Button>
-            </FlexItem>
-
-            {/* Reject Button - only show for single hunks since multi-hunks have Select All/Reject All */}
-            {isSingleHunk && (
-              <FlexItem>
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    onReject();
-                    onUserAction?.();
-                  }}
-                  icon={<CloseIcon />}
-                  style={{ minWidth: "100px" }}
-                >
-                  Reject Changes
-                </Button>
-              </FlexItem>
-            )}
-          </Flex>
+          <Alert variant={statusMessage.variant} title={statusMessage.text} isInline isPlain 
+          className="modal-status-alert"  />
         )}
 
         {/* Completion Status */}
