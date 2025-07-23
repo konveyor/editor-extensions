@@ -11,7 +11,6 @@ import { ExtensionState } from "../../extensionState";
 import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
-import { shouldProcessMessage } from "./shouldProcessMessage";
 
 // Helper function to wait for analysis completion with timeout
 const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
@@ -150,44 +149,20 @@ const handleTasksInteraction = async (
 export const processMessage = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
-  workflow: KaiInteractiveWorkflow,
-  modifiedFilesPromises: Array<Promise<void>>,
-  processedTokens: Set<string>,
-  pendingInteractions: Map<string, (response: any) => void>,
-  maxTaskManagerIterations: number,
   queueManager: MessageQueueManager,
 ) => {
-  // Queue ALL messages during user interactions to ensure one file prompt at a time
-  if (queueManager && state.isWaitingForUserInteraction) {
-    // Queue everything (including file messages) during user interactions
-    queueManager.enqueueMessage(msg);
-    console.log(`Message queued during user interaction: ${msg.type} (${msg.id})`);
-    return;
+  // ALWAYS queue ALL messages - let queue manager decide when to process
+  queueManager.enqueueMessage(msg);
+  console.log(`Message queued: ${msg.type} (${msg.id})`);
+
+  // Trigger queue processing if not currently processing and not waiting for user
+  if (!queueManager.isProcessingQueueActive() && !state.isWaitingForUserInteraction) {
+    console.log(`Triggering queue processing for message: ${msg.type} (${msg.id})`);
+    // Don't await - let it run in background
+    queueManager.processQueuedMessages().catch((error) => {
+      console.error("Error in background queue processing:", error);
+    });
   }
-
-  // Process all messages immediately when not waiting for user
-  console.log(`Processing message immediately: ${msg.type} (${msg.id})`);
-
-  // Fallback for when no queue manager is provided (should not happen normally)
-  console.log(`Processing message directly (no queue manager): ${msg.type} (${msg.id})`);
-
-  // Check for duplicates
-  if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
-    console.log(`Skipping duplicate message: ${msg.type} (${msg.id})`);
-    return;
-  }
-
-  // Process the message
-  await processMessageByType(
-    msg,
-    state,
-    workflow,
-    modifiedFilesPromises,
-    processedTokens,
-    pendingInteractions,
-    maxTaskManagerIterations,
-    queueManager,
-  );
 };
 
 /**

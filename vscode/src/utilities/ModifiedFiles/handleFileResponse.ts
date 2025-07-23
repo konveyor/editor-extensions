@@ -171,6 +171,10 @@ export async function handleFileResponse(
       // Trigger the pending interaction resolver which will handle queue processing
       // and reset isWaitingForUserInteraction through the centralized handleUserInteractionComplete
       console.log(`Attempting to resolve pending interaction for messageToken: ${messageToken}`);
+      console.log(
+        `isWaitingForUserInteraction before resolve: ${state.isWaitingForUserInteraction}`,
+      );
+
       if (state.resolvePendingInteraction) {
         const resolved = state.resolvePendingInteraction(messageToken, {
           responseId: responseId,
@@ -185,6 +189,9 @@ export async function handleFileResponse(
         } else {
           console.log(
             `Successfully resolved pending interaction for messageToken: ${messageToken}`,
+          );
+          console.log(
+            `isWaitingForUserInteraction after resolve: ${state.isWaitingForUserInteraction}`,
           );
         }
       } else {

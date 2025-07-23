@@ -238,16 +238,7 @@ const commandsMap: (
         workflow.removeAllListeners();
         workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
           logger.info(`Workflow message received: ${msg.type} (${msg.id})`);
-          await processMessage(
-            msg,
-            state,
-            workflow,
-            modifiedFilesPromises,
-            processedTokens,
-            pendingInteractions,
-            maxTaskManagerIterations,
-            queueManager,
-          );
+          await processMessage(msg, state, queueManager);
         });
 
         // Add error event listener to catch workflow errors
@@ -315,6 +306,11 @@ const commandsMap: (
             draft.isAnalyzing = false;
             draft.isAnalysisScheduled = false;
           });
+
+          // Clean up queue manager
+          if (queueManager) {
+            queueManager.dispose();
+          }
 
           // Only clean up if we're not waiting for user interaction
           // This prevents clearing pending interactions while users are still deciding on file changes

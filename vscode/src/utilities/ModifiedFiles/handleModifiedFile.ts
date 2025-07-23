@@ -173,8 +173,13 @@ export const handleModifiedFileMessage = async (
         await new Promise<void>((resolve) => {
           pendingInteractions.set(msg.id, async (response: any) => {
             try {
+              console.log(`File message resolver called for messageId: ${msg.id}`);
+              console.log(`Queue length before processing: ${queueManager.getQueueLength()}`);
+
               // Use the centralized interaction completion handler
               await handleUserInteractionComplete(state, queueManager);
+
+              console.log(`Queue length after processing: ${queueManager.getQueueLength()}`);
 
               // Remove the entry from pendingInteractions to prevent memory leaks
               pendingInteractions.delete(msg.id);
