@@ -111,9 +111,8 @@ export const handleModifiedFileMessage = async (
   modifiedFilesPromises: Array<Promise<void>>,
   processedTokens: Set<string>,
   pendingInteractions: Map<string, (response: any) => void>,
-  messageQueue: KaiWorkflowMessage[],
   state: ExtensionState,
-  queueManager?: MessageQueueManager,
+  queueManager: MessageQueueManager,
   eventEmitter?: { emit: (event: string, ...args: any[]) => void },
 ) => {
   // Ensure we're dealing with a ModifiedFile message
@@ -175,12 +174,7 @@ export const handleModifiedFileMessage = async (
           pendingInteractions.set(msg.id, async (response: any) => {
             try {
               // Use the centralized interaction completion handler
-              if (queueManager) {
-                await handleUserInteractionComplete(state, queueManager);
-              } else {
-                // Fallback to old behavior for backward compatibility
-                state.isWaitingForUserInteraction = false;
-              }
+              await handleUserInteractionComplete(state, queueManager);
 
               // Remove the entry from pendingInteractions to prevent memory leaks
               pendingInteractions.delete(msg.id);

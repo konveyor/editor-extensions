@@ -9,7 +9,6 @@ import { ChatMessageType } from "@editor-extensions/shared";
 export class MessageQueueManager {
   private messageQueue: KaiWorkflowMessage[] = [];
   private isProcessingQueue = false;
-  private isProcessingMessages = false; // Flag to prevent new messages during queue processing
 
   constructor(
     private state: ExtensionState,
@@ -80,18 +79,18 @@ export class MessageQueueManager {
         const queuedMsg = queuedMessages[i];
 
         try {
-          // Dynamically import processMessage to avoid circular dependency
-          const { processMessage } = await import("./processMessage");
-          await processMessage(
+          // Call the core processing logic directly to avoid recursion
+          const { processMessageByType } = await import("./processMessage");
+          console.log(`Processing queued message ${queuedMsg.id} of type ${queuedMsg.type}`);
+          await processMessageByType(
             queuedMsg,
             this.state,
             this.workflow,
-            this.messageQueue, // Pass the queue so new messages can be queued during processing
             this.modifiedFilesPromises,
             this.processedTokens,
             this.pendingInteractions,
             this.maxTaskManagerIterations,
-            this, // Pass the queue manager itself
+            this, // Pass this for functions that need it
           );
         } catch (error) {
           console.error(`Error processing queued message ${queuedMsg.id}:`, error);
@@ -126,7 +125,7 @@ export class MessageQueueManager {
 }
 
 /**
- * Generic function to handle the transition from waiting for user interaction to processing queued messages
+ * Handle completion of ModifiedFile interactions and resume queued LLM stream
  * This should be called whenever isWaitingForUserInteraction transitions from true to false
  */
 export async function handleUserInteractionComplete(
@@ -136,10 +135,11 @@ export async function handleUserInteractionComplete(
   // Reset the waiting flag
   state.isWaitingForUserInteraction = false;
 
-  // Process any queued messages
+  // Process any queued LLM chunks and other messages that were paused during file interaction
   if (queueManager.getQueueLength() > 0) {
+    console.log(`Resuming ${queueManager.getQueueLength()} queued messages after file interaction`);
     await queueManager.processQueuedMessages();
   } else {
-    console.log(`No queued messages to process`);
+    console.log(`No queued messages to resume`);
   }
 }

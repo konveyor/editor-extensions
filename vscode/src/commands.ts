@@ -205,7 +205,6 @@ const commandsMap: (
         state.modifiedFiles.clear();
         const modifiedFilesPromises: Array<Promise<void>> = [];
         // Queue to store messages that arrive while waiting for user interaction
-        const messageQueue: KaiWorkflowMessage[] = [];
 
         // Create the queue manager for centralized queue processing
         const queueManager = new MessageQueueManager(
@@ -243,12 +242,11 @@ const commandsMap: (
             msg,
             state,
             workflow,
-            messageQueue,
             modifiedFilesPromises,
             processedTokens,
             pendingInteractions,
             maxTaskManagerIterations,
-            queueManager, // Pass the queue manager
+            queueManager,
           );
         });
 
@@ -266,10 +264,10 @@ const commandsMap: (
         // Set up periodic monitoring for stuck interactions
         const stuckInteractionCheck = setInterval(() => {
           if (state.isWaitingForUserInteraction && pendingInteractions.size > 0) {
-            logger.info(`Monitoring pending interactions: ${pendingInteractions.size} active`);
-            logger.info("Pending interaction IDs:", Array.from(pendingInteractions.keys()));
+            logger.debug(`Monitoring pending interactions: ${pendingInteractions.size} active`);
+            logger.debug("Pending interaction IDs:", Array.from(pendingInteractions.keys()));
           }
-        }, 60000); // Check every minute
+        }, 30000); // Check every 30 seconds
 
         try {
           const agentModeEnabled = getConfigAgentMode();

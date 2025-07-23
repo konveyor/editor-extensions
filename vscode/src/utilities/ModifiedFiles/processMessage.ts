@@ -11,6 +11,7 @@ import { ExtensionState } from "../../extensionState";
 import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
+import { shouldProcessMessage } from "./shouldProcessMessage";
 
 // Helper function to wait for analysis completion with timeout
 const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
@@ -67,7 +68,7 @@ const createTasksMessage = (tasks: { uri: string; task: string }[]): string => {
 const handleUserInteractionPromise = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
-  queueManager: MessageQueueManager | undefined,
+  queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
   state.isWaitingForUserInteraction = true;
@@ -83,11 +84,7 @@ const handleUserInteractionPromise = async (
     pendingInteractions.set(msg.id, async (response: any) => {
       clearTimeout(timeout);
 
-      if (queueManager) {
-        await handleUserInteractionComplete(state, queueManager);
-      } else {
-        state.isWaitingForUserInteraction = false;
-      }
+      await handleUserInteractionComplete(state, queueManager);
 
       pendingInteractions.delete(msg.id);
       resolve();
@@ -100,7 +97,7 @@ const handleTasksInteraction = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
   workflow: KaiInteractiveWorkflow,
-  queueManager: MessageQueueManager | undefined,
+  queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
   maxTaskManagerIterations: number,
 ): Promise<void> => {
@@ -154,68 +151,58 @@ export const processMessage = async (
   msg: KaiWorkflowMessage,
   state: ExtensionState,
   workflow: KaiInteractiveWorkflow,
-  messageQueue: KaiWorkflowMessage[],
   modifiedFilesPromises: Array<Promise<void>>,
   processedTokens: Set<string>,
   pendingInteractions: Map<string, (response: any) => void>,
   maxTaskManagerIterations: number,
-  queueManager?: MessageQueueManager,
+  queueManager: MessageQueueManager,
 ) => {
-  // If we're waiting for user interaction, queue the message for later processing
-  if (queueManager && queueManager.shouldQueueMessage()) {
+  // Queue ALL messages during user interactions to ensure one file prompt at a time
+  if (queueManager && state.isWaitingForUserInteraction) {
+    // Queue everything (including file messages) during user interactions
     queueManager.enqueueMessage(msg);
-    return;
-  } else if (state.isWaitingForUserInteraction) {
-    // Fallback to old behavior for backward compatibility
-    messageQueue.push(msg);
+    console.log(`Message queued during user interaction: ${msg.type} (${msg.id})`);
     return;
   }
 
-  // CRITICAL: Before processing this message, ensure any queued messages are processed first
-  // This prevents race conditions where new messages bypass queued ones
-  // BUT only if we're not already in the middle of processing the queue (to prevent infinite recursion)
-  // AND only if we're not waiting for user interaction (to maintain proper order)
-  if (
-    queueManager &&
-    queueManager.getQueueLength() > 0 &&
-    !queueManager.isProcessingQueueActive() &&
-    !state.isWaitingForUserInteraction
-  ) {
-    // First, queue the current message to maintain order
-    queueManager.enqueueMessage(msg);
-    // Then process all queued messages (including the one we just added)
-    await queueManager.processQueuedMessages();
+  // Process all messages immediately when not waiting for user
+  console.log(`Processing message immediately: ${msg.type} (${msg.id})`);
+
+  // Fallback for when no queue manager is provided (should not happen normally)
+  console.log(`Processing message directly (no queue manager): ${msg.type} (${msg.id})`);
+
+  // Check for duplicates
+  if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
+    console.log(`Skipping duplicate message: ${msg.type} (${msg.id})`);
     return;
   }
 
-  // Check if we should process this message or skip it as a duplicate
-  // if (!shouldProcessMessage(msg, state.lastMessageId, processedTokens)) {
-  //   return;
-  // }
+  // Process the message
+  await processMessageByType(
+    msg,
+    state,
+    workflow,
+    modifiedFilesPromises,
+    processedTokens,
+    pendingInteractions,
+    maxTaskManagerIterations,
+    queueManager,
+  );
+};
 
-  // Double-check that we're not waiting for user interaction before processing
-  if (state.isWaitingForUserInteraction) {
-    console.warn(
-      `Attempting to process ${msg.type} message ${msg.id} while waiting for user interaction - this should not happen`,
-    );
-    // Queue the message instead of processing it
-    if (queueManager) {
-      queueManager.enqueueMessage(msg);
-    } else {
-      messageQueue.push(msg);
-    }
-    return;
-  }
-
-  console.log({
-    type: msg.type,
-    id: msg.id,
-    data: msg.data,
-    lastMessageId: state.lastMessageId,
-    isWaitingForUserInteraction: state.isWaitingForUserInteraction,
-    queueLength: queueManager ? queueManager.getQueueLength() : "N/A",
-    processingQueueActive: queueManager ? queueManager.isProcessingQueueActive() : "N/A",
-  });
+/**
+ * Core message processing logic without queue management
+ */
+export const processMessageByType = async (
+  msg: KaiWorkflowMessage,
+  state: ExtensionState,
+  workflow: KaiInteractiveWorkflow,
+  modifiedFilesPromises: Array<Promise<void>>,
+  processedTokens: Set<string>,
+  pendingInteractions: Map<string, (response: any) => void>,
+  maxTaskManagerIterations: number,
+  queueManager: MessageQueueManager,
+): Promise<void> => {
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat
@@ -395,7 +382,6 @@ export const processMessage = async (
         modifiedFilesPromises,
         processedTokens,
         pendingInteractions,
-        messageQueue,
         state,
         queueManager,
         state.modifiedFilesEventEmitter,
