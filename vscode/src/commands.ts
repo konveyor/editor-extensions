@@ -645,6 +645,15 @@ const commandsMap: (
     "konveyor.discardAll": async () => discardAll(state),
     "konveyor.discardFile": async (item: FileItem | Uri) => discardFile(item, state),
     "konveyor.showResolutionPanel": () => {
+      const unifiedProvider = state.webviewProviders?.get("unified");
+      if (unifiedProvider) {
+        // For unified view, focus the view - it will auto-switch to resolution tab if data is available
+        commands.executeCommand("konveyor.unifiedView.focus");
+      } else {
+        logger.error("Unified view provider not found");
+      }
+    },
+    "konveyor.showResolutionPanelAsTab": () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
     },
@@ -715,6 +724,14 @@ const commandsMap: (
       window.showInformationMessage(
         `getSolution parameters updated: max_priority=${maxPriority}, max_depth=${maxDepth}, max_iterations=${maxIterations}`,
       );
+    },
+    "konveyor.showUnifiedView": () => {
+      const unifiedProvider = state.webviewProviders?.get("unified");
+      if (unifiedProvider) {
+        commands.executeCommand("konveyor.unifiedView.focus");
+      } else {
+        logger.error("Unified view provider not found");
+      }
     },
   };
 };

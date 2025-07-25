@@ -73,7 +73,19 @@
       },
       {
         "command": "konveyor.showResolutionPanel",
-        "title": "Open Konveyor Resolution View",
+        "title": "Open Konveyor AI Assistant (Side Panel)",
+        "category": "Konveyor",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "konveyor.showUnifiedView",
+        "title": "Open Konveyor AI Assistant",
+        "category": "Konveyor",
+        "icon": "$(robot)"
+      },
+      {
+        "command": "konveyor.showResolutionPanelAsTab",
+        "title": "Open Konveyor Resolution View in Tab",
         "category": "Konveyor",
         "icon": "$(beaker)"
       },
@@ -296,6 +308,12 @@
         {
           "id": "konveyor.diffView",
           "name": "Konveyor Resolutions"
+        },
+        {
+          "id": "konveyor.unifiedView",
+          "name": "Konveyor AI Assistant",
+          "type": "webview",
+          "when": "konveyor:hasResolutionData"
         }
       ]
     },
@@ -307,7 +325,7 @@
           "when": "view == konveyor.issueView"
         },
         {
-          "command": "konveyor.showResolutionPanel",
+          "command": "konveyor.showResolutionPanelAsTab",
           "group": "navigation@2",
           "when": "view == konveyor.issueView"
         },

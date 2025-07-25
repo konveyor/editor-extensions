@@ -57,7 +57,11 @@ import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 import ProgressIndicator from "../ProgressIndicator";
 import { Incident } from "@editor-extensions/shared";
 
-const AnalysisPage: React.FC = () => {
+interface AnalysisPageProps {
+  hideControls?: boolean; // Hide masthead controls when in unified mode
+}
+
+const AnalysisPage: React.FC<AnalysisPageProps> = ({ hideControls = false }) => {
   const { state, dispatch } = useExtensionStateContext();
 
   const {
@@ -129,33 +133,35 @@ const AnalysisPage: React.FC = () => {
               </PageSidebar>
             }
             masthead={
-              <Masthead>
-                <MastheadMain />
-                <MastheadContent>
-                  <Toolbar>
-                    <ToolbarContent>
-                      <ToolbarGroup align={{ default: "alignEnd" }}>
-                        <ToolbarItem>
-                          <ServerStatusToggle
-                            isRunning={serverRunning}
-                            isStarting={isStartingServer}
-                            isInitializing={isInitializingServer}
-                            onToggle={handleServerToggle}
-                            hasWarning={configInvalid}
-                          />
-                        </ToolbarItem>
-                        <ToolbarItem>
-                          <ConfigButton
-                            onClick={() => setIsConfigOpen(true)}
-                            hasWarning={configErrors.length > 0}
-                            warningMessage="Please review your configuration before running analysis."
-                          />
-                        </ToolbarItem>
-                      </ToolbarGroup>
-                    </ToolbarContent>
-                  </Toolbar>
-                </MastheadContent>
-              </Masthead>
+              !hideControls ? (
+                <Masthead>
+                  <MastheadMain />
+                  <MastheadContent>
+                    <Toolbar>
+                      <ToolbarContent>
+                        <ToolbarGroup align={{ default: "alignEnd" }}>
+                          <ToolbarItem>
+                            <ServerStatusToggle
+                              isRunning={serverRunning}
+                              isStarting={isStartingServer}
+                              isInitializing={isInitializingServer}
+                              onToggle={handleServerToggle}
+                              hasWarning={configInvalid}
+                            />
+                          </ToolbarItem>
+                          <ToolbarItem>
+                            <ConfigButton
+                              onClick={() => setIsConfigOpen(true)}
+                              hasWarning={configErrors.length > 0}
+                              warningMessage="Please review your configuration before running analysis."
+                            />
+                          </ToolbarItem>
+                        </ToolbarGroup>
+                      </ToolbarContent>
+                    </Toolbar>
+                  </MastheadContent>
+                </Masthead>
+              ) : undefined
             }
           >
             {!selectedProfile && (

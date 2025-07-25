@@ -83,6 +83,15 @@ class VsCodeExtension {
     const mutateData = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
       setData(data);
+
+      // Set context for when resolution data is available to control view visibility
+      const hasResolutionData =
+        data.solutionState !== "none" ||
+        (Array.isArray(data.chatMessages) && data.chatMessages.length > 0) ||
+        (Array.isArray(data.localChanges) && data.localChanges.length > 0);
+
+      vscode.commands.executeCommand("setContext", "konveyor:hasResolutionData", hasResolutionData);
+
       return data;
     };
 
@@ -281,16 +290,19 @@ class VsCodeExtension {
   private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
+    const unifiedProvider = new KonveyorGUIWebviewViewProvider(this.state, "unified");
     const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
 
     this.state.webviewProviders.set("sidebar", sidebarProvider);
     this.state.webviewProviders.set("resolution", resolutionViewProvider);
+    this.state.webviewProviders.set("unified", unifiedProvider);
     this.state.webviewProviders.set("profiles", profilesViewProvider);
 
-    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
-      this.onDidChangeData((data) => {
-        provider.sendMessageToWebview(data);
-      }),
+    [sidebarProvider, resolutionViewProvider, unifiedProvider, profilesViewProvider].forEach(
+      (provider) =>
+        this.onDidChangeData((data) => {
+          provider.sendMessageToWebview(data);
+        }),
     );
 
     this.context.subscriptions.push(
@@ -302,6 +314,11 @@ class VsCodeExtension {
       vscode.window.registerWebviewViewProvider(
         KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
         resolutionViewProvider,
+        { webviewOptions: { retainContextWhenHidden: true } },
+      ),
+      vscode.window.registerWebviewViewProvider(
+        KonveyorGUIWebviewViewProvider.UNIFIED_VIEW_TYPE,
+        unifiedProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
       ),
       vscode.window.registerWebviewViewProvider(

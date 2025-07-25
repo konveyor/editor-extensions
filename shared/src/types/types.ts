@@ -1,7 +1,7 @@
 import { Uri } from "vscode";
 import { SolutionEffortLevel } from "../effort";
 
-export type WebviewType = "sidebar" | "resolution" | "profiles";
+export type WebviewType = "sidebar" | "resolution" | "profiles" | "unified";
 
 export interface Incident {
   uri: string;
