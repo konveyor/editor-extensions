@@ -1,6 +1,7 @@
 import { KaiWorkflowMessage, KaiInteractiveWorkflow } from "@editor-extensions/agentic";
 import { ExtensionState } from "src/extensionState";
 import { ChatMessageType } from "@editor-extensions/shared";
+import { Logger } from "winston";
 
 /**
  * Centralized queue manager for handling message queuing and processing
@@ -10,6 +11,7 @@ export class MessageQueueManager {
   private messageQueue: KaiWorkflowMessage[] = [];
   private isProcessingQueue = false;
   private processingTimer: NodeJS.Timeout | null = null;
+  private logger: Logger;
 
   constructor(
     private state: ExtensionState,
@@ -21,6 +23,9 @@ export class MessageQueueManager {
   ) {
     // Start background processor that runs continuously
     this.startBackgroundProcessor();
+    this.logger = state.logger.child({
+      component: "MessageQueueManager",
+    });
   }
 
   /**
@@ -59,7 +64,7 @@ export class MessageQueueManager {
         this.messageQueue.length > 0
       ) {
         this.processQueuedMessages().catch((error) => {
-          console.error("Error in background queue processing:", error);
+          this.logger.error("Error in background queue processing:", error);
         });
       }
     }, processInterval);
@@ -121,12 +126,12 @@ export class MessageQueueManager {
             break;
           }
         } catch (error) {
-          console.error(`Error processing queued message ${msg.id}:`, error);
+          this.logger.error(`Error processing queued message ${msg.id}:`, error);
           // Continue processing other messages even if one fails
         }
       }
     } catch (error) {
-      console.error("Error in queue processing:", error);
+      this.logger.error("Error in queue processing:", error);
 
       // Add an error indicator to the chat
       this.state.mutateData((draft) => {
@@ -176,7 +181,9 @@ export async function handleUserInteractionComplete(
   if (queueManager.getQueueLength() > 0) {
     // Don't await - let background processor handle it
     queueManager.processQueuedMessages().catch((error) => {
-      console.error("Error resuming queue processing:", error);
+      state.logger
+        .child({ component: "MessageQueueManager.handleUserInteractionComplete" })
+        .error("Error resuming queue processing:", error);
     });
   }
 }

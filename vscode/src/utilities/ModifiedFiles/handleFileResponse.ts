@@ -20,7 +20,9 @@ const createNewFile = async (
       try {
         await vscode.workspace.fs.createDirectory(directoryUri);
       } catch (dirError) {
-        console.error(`Failed to create directory at ${directoryPath}:`, dirError);
+        state.logger
+          .child({ component: "handleFileResponse.createNewFile" })
+          .error(`Failed to create directory at ${directoryPath}:`, dirError);
       }
     }
     await vscode.workspace.fs.writeFile(uri, Buffer.from(content));
@@ -28,7 +30,9 @@ const createNewFile = async (
       `Created new file ${vscode.workspace.asRelativePath(uri)}`,
     );
   } catch (error) {
-    console.error(`Failed to create file at ${filePath}:`, error);
+    state.logger
+      .child({ component: "handleFileResponse.createNewFile" })
+      .error(`Failed to create file at ${filePath}:`, error);
     throw new Error(`Failed to create file: ${error}`);
   }
 };
@@ -46,7 +50,9 @@ const updateExistingFile = async (
     await vscode.workspace.fs.writeFile(uri, Buffer.from(content));
     vscode.window.showInformationMessage(`Updated file ${vscode.workspace.asRelativePath(uri)}`);
   } catch (error) {
-    console.error(`Failed to update file at ${filePath}:`, error);
+    state.logger
+      .child({ component: "handleFileResponse.updateExistingFile" })
+      .error(`Failed to update file at ${filePath}:`, error);
     throw new Error(`Failed to update file: ${error}`);
   }
 };
@@ -65,7 +71,9 @@ const deleteFile = async (
       await vscode.workspace.fs.stat(uri);
       fileExists = true;
     } catch (statError) {
-      console.log(`File at ${filePath} does not exist or cannot be accessed`);
+      state.logger
+        .child({ component: "handleFileResponse.deleteFile" })
+        .warn(`File at ${filePath} does not exist or cannot be accessed`, statError);
       fileExists = false;
     }
 
@@ -74,7 +82,9 @@ const deleteFile = async (
       vscode.window.showInformationMessage(`Deleted file ${vscode.workspace.asRelativePath(uri)}`);
     }
   } catch (error) {
-    console.error(`Failed to delete file at ${filePath}:`, error);
+    state.logger
+      .child({ component: "handleFileResponse.deleteFile" })
+      .error(`Failed to delete file at ${filePath}:`, error);
     throw new Error(`Failed to delete file: ${error}`);
   }
 };
@@ -86,13 +96,16 @@ export async function handleFileResponse(
   content: string | undefined,
   state: ExtensionState,
 ): Promise<void> {
+  const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });
   try {
     const messageIndex = state.data.chatMessages.findIndex(
       (msg) => msg.messageToken === messageToken,
     );
 
     if (messageIndex === -1) {
-      console.error("Message token not found:", messageToken);
+      state.logger
+        .child({ component: "handleFileResponse.handleFileResponse" })
+        .error("Message token not found:", messageToken);
       return;
     }
 
@@ -144,7 +157,7 @@ export async function handleFileResponse(
           try {
             await state.analyzerClient.runAnalysis([uri]);
           } catch (analysisError) {
-            console.warn(
+            logger.warn(
               `Failed to trigger analysis after applying changes to ${path}:`,
               analysisError,
             );
@@ -152,7 +165,7 @@ export async function handleFileResponse(
           }
         }
       } catch (error) {
-        console.error("Error applying file changes:", error);
+        logger.error("Error applying file changes:", error);
         vscode.window.showErrorMessage(`Failed to apply changes: ${error}`);
         throw error;
       }
@@ -167,20 +180,20 @@ export async function handleFileResponse(
       });
 
       if (!resolved) {
-        console.warn(`No pending interaction found for messageToken: ${messageToken}`);
+        logger.warn(`No pending interaction found for messageToken: ${messageToken}`);
         // As a fallback, reset the waiting flag if no pending interaction was found
         // This should rarely happen if the architecture is working correctly
         state.isWaitingForUserInteraction = false;
       }
     } else {
-      console.warn(
+      logger.warn(
         "resolvePendingInteraction function not available - this indicates a setup issue",
       );
       // As a fallback, reset the waiting flag
       state.isWaitingForUserInteraction = false;
     }
   } catch (error) {
-    console.error("Error handling file response:", error);
+    logger.error("Error handling file response:", error);
     vscode.window.showErrorMessage(`Failed to handle file response: ${error}`);
     throw error;
   }
