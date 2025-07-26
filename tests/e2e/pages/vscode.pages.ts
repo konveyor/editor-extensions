@@ -213,7 +213,7 @@ export class VSCode extends Application {
     await manageProfileView.getByRole('button', { name: '+ New Profile' }).click();
 
     const randomName = generateRandomString();
-    const nameToUse = profileName ? `${profileName}-${randomName}` : randomName;
+    const nameToUse = profileName ? profileName : randomName;
     await manageProfileView.getByRole('textbox', { name: 'Profile Name' }).fill(nameToUse);
 
     // Select Targets
@@ -237,5 +237,31 @@ export class VSCode extends Application {
       await manageProfileView.getByRole('option', { name: source, exact: true }).click();
     }
     await this.window.keyboard.press('Escape');
+  }
+
+  public async deleteProfile(profileName: string) {
+    await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
+    // await this.getWindow().pause();
+    const manageProfileView = await this.getView(KAIViews.manageProfiles);
+    const profileList = manageProfileView.getByRole('list', {
+      name: 'Profile list',
+    });
+
+    const profileItems = profileList.getByRole('listitem');
+    try {
+      await profileItems.filter({ hasText: profileName }).click();
+      await manageProfileView.getByRole('button', { name: 'Delete Profile' }).click();
+      const confirmButton = manageProfileView
+        .getByRole('dialog', { name: 'Delete profile?' })
+        .getByRole('button', { name: 'Confirm' });
+      await confirmButton.click();
+      await manageProfileView
+        .getByRole('listitem')
+        .filter({ hasText: profileName })
+        .waitFor({ state: 'hidden', timeout: 10000 });
+    } catch (error) {
+      console.log('Error deleting profile:', error);
+      throw error;
+    }
   }
 }
