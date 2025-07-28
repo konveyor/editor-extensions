@@ -62,7 +62,7 @@ providerConfigs.forEach((config) => {
       await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
       await analysisView.locator('button#get-solution-button').nth(3).click();
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-      const fixLocator = resolutionView.locator('button[aria-label="Apply fix"]').first();
+      const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]').first();
       await vscodeApp.waitDefault();
       await expect(fixLocator).toBeVisible({ timeout: 60000 });
       expect(await fixLocator.count()).toEqual(1);
@@ -79,7 +79,7 @@ providerConfigs.forEach((config) => {
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);
       await analysisView.locator('button#get-solution-button').first().click({ timeout: 300000 });
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-      const fixLocator = resolutionView.locator('button[aria-label="Apply fix"]');
+      const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
       await vscodeApp.waitDefault();
       await expect(fixLocator.first()).toBeVisible({ timeout: 3600000 });
       const fixesNumber = await fixLocator.count();
