@@ -3,6 +3,72 @@ body {
   padding: 0;
 }
 
+/* Force PatternFly to use bundled fonts - fixes DevSpaces 401 error */
+@font-face {
+  font-family: "RedHatDisplay";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatDisplayVF.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatDisplay";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatDisplayVF-Italic.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatText";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatTextVF.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatText";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatTextVF-Italic.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatMono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatMonoVF.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatMono";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatMonoVF-Italic.woff2") format("woff2-variations");
+}
+
+/* Override PatternFly font variables to use local fonts */
+:root {
+  --pf-t--global--font--family--heading:
+    "RedHatDisplay", "Red Hat Display", "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans JP",
+    "Noto Sans KR", "Noto Sans Malayalam", "Noto Sans SC", "Noto Sans TC", "Noto Sans Thai",
+    BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+  --pf-t--global--font--family--body:
+    "RedHatText", "Red Hat Text", "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans JP",
+    "Noto Sans KR", "Noto Sans Malayalam", "Noto Sans SC", "Noto Sans TC", "Noto Sans Thai",
+    BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+  --pf-t--global--font--family--mono:
+    "RedHatMono", "Red Hat Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas",
+    "Liberation Mono", "Courier New", monospace;
+}
+
 .pf-v6-c-masthead,
 .pf-v6-c-page,
 .pf-v6-c-page__main-container,

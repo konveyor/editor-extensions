@@ -179,27 +179,27 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     const isProd = process.env.NODE_ENV === "production";
     const localServerUrl = "localhost:*";
 
-    const prodPolicy = [
-      `base-uri 'self';`,
-      `default-src 'none';`,
-      `script-src ${webview.cspSource} 'nonce-${nonce}';`,
-      `style-src ${webview.cspSource};`,
-      `font-src ${webview.cspSource};`,
-      `connect-src ${webview.cspSource};`,
-      `img-src data: ${webview.cspSource};`,
-    ];
-
-    const devPolicy = [
-      `base-uri 'self';`,
-      `default-src 'none';`,
-      `script-src ${webview.cspSource} 'nonce-${nonce}' http://${localServerUrl};`,
-      `style-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
-      `font-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl};`,
-      `connect-src ${webview.cspSource} ws://${localServerUrl} http://${localServerUrl};`,
-      `img-src data: ${webview.cspSource} http://${localServerUrl};`,
-    ];
-
-    return (isProd ? prodPolicy : devPolicy).filter(Boolean).join(" ");
+    if (isProd) {
+      // Production CSP - stricter, only allow local resources
+      return [
+        `default-src 'none'`,
+        `script-src 'nonce-${nonce}' 'unsafe-eval'`,
+        `style-src ${webview.cspSource} 'unsafe-inline'`,
+        `font-src ${webview.cspSource} data:`,
+        `img-src ${webview.cspSource} data: https:`,
+        `connect-src ${webview.cspSource}`,
+      ].join("; ");
+    } else {
+      // Development CSP - allow local dev server
+      return [
+        `default-src 'none'`,
+        `script-src 'nonce-${nonce}' 'unsafe-eval' ${webview.cspSource} http://${localServerUrl}`,
+        `style-src ${webview.cspSource} 'unsafe-inline' http://${localServerUrl}`,
+        `font-src ${webview.cspSource} data: http://${localServerUrl}`,
+        `img-src ${webview.cspSource} data: https: http://${localServerUrl}`,
+        `connect-src ${webview.cspSource} http://${localServerUrl} ws://${localServerUrl}`,
+      ].join("; ");
+    }
   }
 
   private _getScriptUri(webview: Webview): Uri {
