@@ -7,7 +7,9 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/vscode",
-        "--enable-proposed-api=konveyor.konveyor-ai"
+        "--enable-proposed-api=konveyor.konveyor-ai",
+        "--verbose"
+
       ],
 
       "cwd": "${workspaceFolder}/vscode",
@@ -39,7 +41,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
+      "internalConsoleOptions": "neverOpen"
     }
   ]
 }

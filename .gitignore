@@ -4,6 +4,7 @@ build/
 dist/
 downloaded_assets/
 downloaded_cache/
+test-data-dir/
 vscode/jdtls-plugin/
 .idea/
 *.vsix
@@ -15,3 +16,4 @@ vscode/.metadata
 # Miscellaneous
 .vscode/*.aider*
 .vscode/settings.json
+

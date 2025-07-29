@@ -1,12 +1,7 @@
-import { _electron as electron, FrameLocator } from 'playwright';
+import { _electron as electron, FrameLocator, Page } from 'playwright';
 import { execSync } from 'child_process';
 import { downloadFile } from '../utilities/download.utils';
-import {
-  cleanupRepo,
-  generateRandomString,
-  getOSInfo,
-  getVscodeExecutablePath,
-} from '../utilities/utils';
+import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
 import * as path from 'path';
 import { LeftBarItems } from '../enums/left-bar-items.enum';
 import { expect } from '@playwright/test';
@@ -17,6 +12,12 @@ import fs from 'fs';
 
 export class VSCode extends Application {
   public static async open(repoUrl?: string, repoDir?: string) {
+    /**
+     * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
+     * so Playwright doesn't detect that the process has finished
+     */
+    const args = ['--disable-workspace-trust', '--skip-welcome', '--user-data-dir=./test-data-dir'];
+
     try {
       if (repoUrl) {
         if (repoDir) {
@@ -29,10 +30,10 @@ export class VSCode extends Application {
       throw new Error('Failed to clone the repository');
     }
 
-    const args = ['--disable-workspace-trust', '--skip-welcome'];
     if (repoDir) {
       args.push(path.resolve(repoDir));
     }
+
     let executablePath = process.env.VSCODE_EXECUTABLE_PATH;
     if (!executablePath) {
       if (getOSInfo() === 'linux') {
@@ -41,10 +42,22 @@ export class VSCode extends Application {
         throw new Error('VSCODE_EXECUTABLE_PATH env variable not provided');
       }
     }
+
+    if (process.env.E2E_DEV_MODE && +process.env.E2E_DEV_MODE === 1) {
+      args.push(
+        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode')}`,
+        '--enable-proposed-api=konveyor.konveyor-ai'
+      );
+      console.log('Running in DEV mode...');
+    }
+
+    console.log(`Code command: ${executablePath} ${args.join(' ')}`);
+
     const vscodeApp = await electron.launch({
       executablePath: executablePath,
       args,
     });
+    await vscodeApp.firstWindow();
 
     const window = await vscodeApp.firstWindow({ timeout: 60000 });
     console.log('VSCode opened');
@@ -57,7 +70,10 @@ export class VSCode extends Application {
    */
   public static async init(repoDir?: string): Promise<VSCode> {
     try {
-      await VSCode.installExtension();
+      if (!process.env.E2E_DEV_MODE || +process.env.E2E_DEV_MODE === 0) {
+        await VSCode.installExtension();
+      }
+
       return repoDir ? VSCode.open(repoDir) : VSCode.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
@@ -84,6 +100,8 @@ export class VSCode extends Application {
         console.log(`vsix downloaded from ${process.env.VSIX_DOWNLOAD_URL}`);
         extensionPath = 'extension.vsix';
         await downloadFile(process.env.VSIX_DOWNLOAD_URL, extensionPath);
+      } else {
+        throw new Error(`Extension path or url not found: ${extensionPath}`);
       }
 
       execSync(`code --install-extension "${extensionPath}"`, {
