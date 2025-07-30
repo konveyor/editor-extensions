@@ -32,14 +32,16 @@ const getInitialState = (): ExtensionData => {
   try {
     if (typeof window !== "undefined" && window["konveyorInitialData"]) {
       const windowData = window["konveyorInitialData"] as Partial<ExtensionData>;
-      
+
       // Ensure all array properties exist and are arrays
       return {
         ...defaultState,
         ...windowData,
         localChanges: Array.isArray(windowData.localChanges) ? windowData.localChanges : [],
         ruleSets: Array.isArray(windowData.ruleSets) ? windowData.ruleSets : [],
-        enhancedIncidents: Array.isArray(windowData.enhancedIncidents) ? windowData.enhancedIncidents : [],
+        enhancedIncidents: Array.isArray(windowData.enhancedIncidents)
+          ? windowData.enhancedIncidents
+          : [],
         chatMessages: Array.isArray(windowData.chatMessages) ? windowData.chatMessages : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
@@ -48,7 +50,7 @@ const getInitialState = (): ExtensionData => {
   } catch (error) {
     console.warn("Failed to parse konveyorInitialData, using default state:", error);
   }
-  
+
   return defaultState;
 };
 
@@ -72,7 +74,9 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         ...event.data,
         localChanges: Array.isArray(event.data.localChanges) ? event.data.localChanges : [],
         ruleSets: Array.isArray(event.data.ruleSets) ? event.data.ruleSets : [],
-        enhancedIncidents: Array.isArray(event.data.enhancedIncidents) ? event.data.enhancedIncidents : [],
+        enhancedIncidents: Array.isArray(event.data.enhancedIncidents)
+          ? event.data.enhancedIncidents
+          : [],
         chatMessages: Array.isArray(event.data.chatMessages) ? event.data.chatMessages : [],
         configErrors: Array.isArray(event.data.configErrors) ? event.data.configErrors : [],
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],

@@ -294,8 +294,6 @@ export interface ModifiedFileState {
   editType: "inMemory" | "toDisk";
 }
 
-export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor Editor Extension";
-
 /**
  * A general purpose cache to store and retrieve inputs and their corresponding outputs.
  *
@@ -311,3 +309,5 @@ export interface InputOutputCache<K, V, C, O> {
   invalidate(input: K, opts?: O): Promise<void>;
   reset(): Promise<void>;
 }
+
+export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor";

@@ -105,6 +105,7 @@ export class AnalyzerClient {
 
     this.logger.info("Starting kai analyzer rpc");
     this.fireServerStateChange("starting");
+    const startTime = performance.now();
 
     const pipeName = rpc.generateRandomPipeName();
     const [analyzerRpcServer, analyzerPid] = await this.startAnalysisServer(pipeName);
@@ -131,7 +132,7 @@ export class AnalyzerClient {
       this.logger.info("Connection attempt failed");
     });
     socket.on("data", (data) => {
-      this.logger.info(`Received data: ${data.toString()}`);
+      this.logger.debug(`Received data: ${data.toString()}`);
     });
     const reader = new rpc.SocketMessageReader(socket, "utf-8");
     const writer = new rpc.SocketMessageWriter(socket, "utf-8");
@@ -153,7 +154,7 @@ export class AnalyzerClient {
       rpc.Trace.Messages,
       {
         log: (message) => {
-          this.logger.debug("RPC Trace", message);
+          this.logger.silly("RPC Trace", { message: JSON.stringify(message) });
         },
       },
       false,
@@ -179,8 +180,10 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.onRequest(
       "workspace/executeCommand",
       async (params: WorksapceCommandParams) => {
-        this.logger.info(`Executing workspace command: ${params.command}`);
-        this.logger.info(`Command arguments: ${JSON.stringify(params.arguments)}`);
+        this.logger.debug(`Executing workspace command`, {
+          command: params.command,
+          arguments: JSON.stringify(params.arguments),
+        });
 
         try {
           const result = await vscode.commands.executeCommand(
@@ -189,7 +192,7 @@ export class AnalyzerClient {
             params.arguments![0],
           );
 
-          this.logger.info(`Command execution result: ${JSON.stringify(result)}`);
+          this.logger.debug(`Command execution result: ${JSON.stringify(result)}`);
           return result;
         } catch (error) {
           this.logger.error(`[Java] Command execution error`, error);
@@ -203,6 +206,7 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.sendNotification("start", { type: "start" });
     this.fireServerStateChange("running");
     await this.runHealthCheck();
+    this.logger.info(`startAnalyzer took ${performance.now() - startTime}ms`);
   }
 
   protected async runHealthCheck(): Promise<void> {
@@ -296,7 +300,7 @@ export class AnalyzerClient {
 
     analyzerRpcServer.stderr.on("data", (data) => {
       const asString: string = data.toString().trimEnd();
-      this.logger.info(`${asString}`);
+      this.logger.error(`${asString}`);
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
@@ -371,6 +375,8 @@ export class AnalyzerClient {
       this.logger.warn("kai rpc server is not running, skipping runAnalysis.");
       return;
     }
+    this.logger.info("Running analysis");
+    const analysisStartTime = performance.now();
 
     await vscode.window.withProgress(
       {
@@ -494,6 +500,7 @@ export class AnalyzerClient {
         this.fireAnalysisStateChange(false);
       },
     );
+    this.logger.info(`runAnalysis took ${performance.now() - analysisStartTime}ms`);
   }
 
   public canAnalyze(): boolean {

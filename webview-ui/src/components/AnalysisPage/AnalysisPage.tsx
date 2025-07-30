@@ -356,5 +356,5 @@ const AnalysisPage: React.FC = () => {
     </Drawer>
   );
 };
-
 export default AnalysisPage;
+
