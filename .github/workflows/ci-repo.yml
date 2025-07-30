@@ -246,8 +246,8 @@ jobs:
           dbus-daemon --session --address=$DBUS_SESSION_BUS_ADDRESS --nofork --nopidfile --syslog-only &
           mkdir ~/.vscode && echo '{ "disable-hardware-acceleration": true }' > ~/.vscode/argv.json
 
-      - name: Verify Installation and install Java extension
-        run: code --version && code --install-extension redhat.java
+      - name: Verify Installation
+        run: code --version
 
       - name: Ensure no VSCode instances are running
         run: |

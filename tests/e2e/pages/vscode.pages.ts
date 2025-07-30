@@ -88,11 +88,7 @@ export class VSCode extends Application {
 
   private static async installExtension(): Promise<void> {
     try {
-      const installedExtensions = execSync('code --list-extensions', {
-        encoding: 'utf-8',
-      });
-
-      if (installedExtensions.includes('konveyor.konveyor-ai')) {
+      if (VSCode.isExtensionInstalled('konveyor.konveyor-ai')) {
         console.log(`Extension already installed`);
         return;
       }
@@ -296,5 +292,13 @@ export class VSCode extends Application {
       console.log('Error deleting profile:', error);
       throw error;
     }
+  }
+
+  public static isExtensionInstalled(extension: string) {
+    const installedExtensions = execSync('code --list-extensions', {
+      encoding: 'utf-8',
+    });
+
+    return installedExtensions.includes(extension);
   }
 }
