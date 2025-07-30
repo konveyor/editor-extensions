@@ -302,13 +302,15 @@ export const ModifiedFileModal: React.FC<ModifiedFileModalProps> = ({
           onClose={onClose}
           onApply={handleModalApply}
           onReject={handleModalReject}
-          onSelectAll={!isSingleHunk ? handleSelectAll : undefined}
-          onRejectAll={!isSingleHunk ? handleRejectAll : undefined}
-          onResetAll={!isSingleHunk ? handleResetAll : undefined}
-          onUserAction={onUserAction}
           pendingHunks={pendingHunks}
           acceptedHunks={acceptedHunks}
           rejectedHunks={rejectedHunks}
+          {...(onUserAction && { onUserAction })}
+          {...(!isSingleHunk && {
+            onSelectAll: handleSelectAll,
+            onRejectAll: handleRejectAll,
+            onResetAll: handleResetAll,
+          })}
         />
 
         <div className="modal-content-scrollable">{renderExpandedDiff()}</div>

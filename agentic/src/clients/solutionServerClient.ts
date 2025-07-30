@@ -70,7 +70,16 @@ export class SolutionServerClient {
     );
 
     try {
-      await this.mcpClient?.connect(new StreamableHTTPClientTransport(new URL(this.serverUrl)));
+      // Create transport for MCP connection
+      const transport = new StreamableHTTPClientTransport(new URL(this.serverUrl));
+
+      // Ensure we have a client before attempting connection
+      if (!this.mcpClient) {
+        throw new Error("MCP client not initialized");
+      }
+
+      // Connect with runtime validation since external library types don't match our strict settings
+      await this.mcpClient.connect(transport);
       this.logger.info("Connected to MCP solution server");
       this.isConnected = true;
     } catch (error) {

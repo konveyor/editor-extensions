@@ -29,13 +29,11 @@ export const SentMessage: React.FC<SentMessageProps> = ({
       role="user"
       avatar={userAv}
       content={content}
-      extraContent={
-        extraContent
-          ? {
-              afterMainContent: extraContent,
-            }
-          : undefined
-      }
+      {...(extraContent && {
+        extraContent: {
+          afterMainContent: extraContent,
+        },
+      })}
     />
   );
 };

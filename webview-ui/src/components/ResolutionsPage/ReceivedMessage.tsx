@@ -61,22 +61,22 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       name="Konveyor"
       role="bot"
       avatar={botAv}
-      content={content}
-      quickResponses={quickResponses?.map((response) => ({
-        ...response,
-        onClick: () => {
-          handleQuickResponse(response.id, response.messageToken);
+      content={content ?? ""}
+      {...(quickResponses && {
+        quickResponses: quickResponses.map((response) => ({
+          ...response,
+          onClick: () => {
+            handleQuickResponse(response.id, response.messageToken);
+          },
+          isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
+          content: response.content,
+        })),
+      })}
+      {...(extraContent && {
+        extraContent: {
+          afterMainContent: extraContent,
         },
-        isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
-        content: response.content,
-      }))}
-      extraContent={
-        extraContent
-          ? {
-              afterMainContent: extraContent,
-            }
-          : undefined
-      }
+      })}
       additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
     />
   );

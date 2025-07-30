@@ -208,10 +208,7 @@ export async function runModelHealthCheck(
   const tool: DynamicStructuredTool = new DynamicStructuredTool({
     name: "gamma",
     description: "Custom operator that works with two numbers",
-    schema: z.object({
-      a: z.string(),
-      b: z.string(),
-    }),
+    schema: z.any(),
     func: async ({ a, b }: { a: string; b: string }) => {
       return a + b;
     },

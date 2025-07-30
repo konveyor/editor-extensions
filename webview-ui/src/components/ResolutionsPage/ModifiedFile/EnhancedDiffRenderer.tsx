@@ -239,7 +239,7 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
 
   // Debug virtualization state
   useEffect(() => {
-    if (process.env.NODE_ENV === "development" && shouldVirtualize) {
+    if (process.env["NODE_ENV"] === "development" && shouldVirtualize) {
       console.log("Virtualization state:", {
         totalLines: parsedLines.length,
         visibleRange,
@@ -290,7 +290,7 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
     const result = visibleLines.length;
     const end = performance.now();
 
-    if (process.env.NODE_ENV === "development") {
+    if (process.env["NODE_ENV"] === "development") {
       console.log(`Rendered ${result} lines in ${(end - start).toFixed(2)}ms`);
     }
 
@@ -300,7 +300,7 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
   return (
     <div className="enhanced-diff-renderer">
       {/* Performance info (development only) */}
-      {process.env.NODE_ENV === "development" && (
+      {process.env["NODE_ENV"] === "development" && (
         <div
           className="diff-performance-info"
           style={{ fontSize: "12px", color: "#888", padding: "4px 8px" }}

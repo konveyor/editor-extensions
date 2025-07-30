@@ -196,6 +196,7 @@ export class AnalyzerClient {
           return result;
         } catch (error) {
           this.logger.error(`[Java] Command execution error`, error);
+          return undefined;
         }
       },
     );

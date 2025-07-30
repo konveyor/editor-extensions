@@ -51,7 +51,9 @@ export async function handleQuickResponse(
       // });
 
       // Create the workflow message with proper typing
-      let interactionType = responseId.startsWith("choice-") ? "choice" : "yesNo";
+      let interactionType: "choice" | "yesNo" | "tasks" = responseId.startsWith("choice-")
+        ? "choice"
+        : "yesNo";
       let responseData: { choice: number } | { yesNo: boolean } | { tasks: any; yesNo: boolean } =
         responseId.startsWith("choice-")
           ? { choice: parseInt(responseId.split("-")[1]) }
@@ -61,18 +63,21 @@ export async function handleQuickResponse(
       if (msg.value && "tasksData" in msg.value) {
         interactionType = "tasks";
         responseData = {
-          tasks: msg.value.tasksData,
+          tasks: msg.value["tasksData"],
           yesNo: responseId === "yes",
         };
       }
 
+      const interactionData: KaiUserInteraction = {
+        type: interactionType,
+        response: responseData,
+        systemMessage: {}, // Required by KaiUserInteraction interface
+      };
+
       const workflowMessage: KaiWorkflowMessage = {
         id: messageToken,
         type: KaiWorkflowMessageType.UserInteraction,
-        data: {
-          type: interactionType,
-          response: responseData,
-        } as KaiUserInteraction,
+        data: interactionData,
       };
 
       if (!state.workflowManager.isInitialized) {

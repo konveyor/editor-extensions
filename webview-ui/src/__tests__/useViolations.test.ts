@@ -19,7 +19,6 @@ describe("useViolations hook", () => {
       {
         name: "test",
         description: "test",
-        violations: undefined,
       },
     ];
 

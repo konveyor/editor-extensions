@@ -28,13 +28,13 @@ export const SingleHunkDisplay: React.FC<SingleHunkDisplayProps> = ({
         <EnhancedDiffRenderer
           diffContent={diff}
           filePath={filePath}
-          content={content}
+          content={content ?? ""}
           maxHeight={500}
           lineHeight={24}
           enableVirtualization={lineCount > 100}
         />
       ) : (
-        <DiffLinesRenderer diffContent={diff} filePath={filePath} content={content} />
+        <DiffLinesRenderer diffContent={diff} filePath={filePath} content={content ?? ""} />
       )}
     </div>
   );

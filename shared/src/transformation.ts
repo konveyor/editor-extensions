@@ -11,25 +11,30 @@ export const sanitizeIncidents = (incidents: Incident[]): Incident[] =>
         // expect non-empty path in format file:///some/file.ext
         it.uri.startsWith("file://"),
     )
-    .map((it) => ({
-      ...it,
-      // line numbers are optional - use first line as fallback
-      // expect 1-based numbering (vscode.Position is zero-based)
-      lineNumber: Number.isInteger(it.lineNumber) && it.lineNumber! > 0 ? it.lineNumber : 1,
-    }));
+    .map(
+      (it): Incident => ({
+        ...it,
+        // line numbers are optional - use first line as fallback
+        // expect 1-based numbering (vscode.Position is zero-based)
+        lineNumber:
+          Number.isInteger(it.lineNumber) && it.lineNumber !== undefined && it.lineNumber > 0
+            ? it.lineNumber
+            : 1,
+      }),
+    );
 
 export const groupIncidentsByMsg = (
   incidents: Incident[],
-): { [msg: string]: [string, Incident][] } =>
-  incidents
+): { [msg: string]: [string, Incident][] } => {
+  const result: Record<string, [string, Incident][]> = {};
+
+  return incidents
     .map((it): [string, string, Incident] => [it.message, it.uri, it])
-    .reduce(
-      (acc, [msg, uri, incident]) => {
-        if (!acc[msg]) {
-          acc[msg] = [];
-        }
-        acc[msg].push([uri, incident]);
-        return acc;
-      },
-      {} as { [msg: string]: [string, Incident][] },
-    );
+    .reduce((acc, [msg, uri, incident]) => {
+      if (!acc[msg]) {
+        acc[msg] = [];
+      }
+      acc[msg].push([uri, incident]);
+      return acc;
+    }, result);
+};

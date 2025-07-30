@@ -18,7 +18,7 @@ export const ModelCreators: Record<string, () => ModelCreator> = {
 class AzureChatOpenAICreator implements ModelCreator {
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
     return new AzureChatOpenAI({
-      openAIApiKey: env.AZURE_OPENAI_API_KEY,
+      openAIApiKey: env["AZURE_OPENAI_API_KEY"],
       ...args,
     });
   }
@@ -50,13 +50,13 @@ class ChatBedrockCreator implements ModelCreator {
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
     const config: ChatBedrockConverseInput = {
       ...args,
-      region: env.AWS_DEFAULT_REGION,
+      region: env["AWS_DEFAULT_REGION"],
     };
     // aws credentials can be specified globally using a credentials file
-    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
+    if (env["AWS_ACCESS_KEY_ID"] && env["AWS_SECRET_ACCESS_KEY"]) {
       config.credentials = {
-        accessKeyId: env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+        accessKeyId: env["AWS_ACCESS_KEY_ID"],
+        secretAccessKey: env["AWS_SECRET_ACCESS_KEY"],
       };
     }
     return new ChatBedrockConverse(config);
@@ -77,7 +77,7 @@ class ChatBedrockCreator implements ModelCreator {
 class ChatDeepSeekCreator implements ModelCreator {
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
     return new ChatDeepSeek({
-      apiKey: env.DEEPSEEK_API_KEY,
+      apiKey: env["DEEPSEEK_API_KEY"],
       ...args,
     });
   }
@@ -99,10 +99,12 @@ class ChatDeepSeekCreator implements ModelCreator {
 
 class ChatGoogleGenerativeAICreator implements ModelCreator {
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
-    return new ChatGoogleGenerativeAI({
-      apiKey: env.GOOGLE_API_KEY,
+    const config: GoogleGenerativeAIChatInput = {
       ...args,
-    } as GoogleGenerativeAIChatInput);
+      model: args["model"] || "gemini-pro",
+      apiKey: env["GOOGLE_API_KEY"],
+    };
+    return new ChatGoogleGenerativeAI(config);
   }
 
   defaultArgs(): Record<string, any> {
@@ -141,7 +143,7 @@ class ChatOllamaCreator implements ModelCreator {
 class ChatOpenAICreator implements ModelCreator {
   create(args: Record<string, any>, env: Record<string, string>): BaseChatModel {
     return new ChatOpenAI({
-      openAIApiKey: env.OPENAI_API_KEY,
+      openAIApiKey: env["OPENAI_API_KEY"],
       ...args,
     });
   }

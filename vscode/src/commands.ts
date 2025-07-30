@@ -28,6 +28,7 @@ import {
 import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
+  type KaiInteractiveWorkflow,
 } from "@editor-extensions/agentic";
 import {
   applyAll,
@@ -152,12 +153,12 @@ const commandsMap: (
         draft.solutionScope = scope;
         draft.chatMessages = []; // Clear previous chat messages (agentic mode)
         draft.localChanges = []; // Clear previous local changes (non-agentic mode)
-        draft.solutionData = undefined; // Clear previous solution data
+        delete draft.solutionData;
       });
 
       // Declare variables outside try block for proper cleanup access
       const pendingInteractions = new Map<string, (response: any) => void>();
-      let workflow: any;
+      let workflow: KaiInteractiveWorkflow;
 
       try {
         // Get the model provider configuration from settings YAML
@@ -230,16 +231,8 @@ const commandsMap: (
           await processMessage(msg, state, queueManager);
         });
 
-        // Add error event listener to catch workflow errors
-        workflow.on("error", (error: any) => {
-          logger.error("Workflow error:", error);
-          state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
-              draft.solutionState = "failedOnSending";
-            }
-          });
-        });
+        // TODO: Add proper error event listener once KaiWorkflowEventEmitter supports error events
+        // Currently the interface only supports "workflowMessage" events in a type-safe way
 
         try {
           const input: KaiInteractiveWorkflowInput = {
@@ -295,7 +288,7 @@ const commandsMap: (
           // This prevents clearing pending interactions while users are still deciding on file changes
           if (!state.isWaitingForUserInteraction) {
             pendingInteractions.clear();
-            state.resolvePendingInteraction = undefined;
+            state.resolvePendingInteraction = () => false;
           }
 
           // Clean up workflow resources
@@ -401,7 +394,7 @@ const commandsMap: (
         // Only clean up if we're not waiting for user interaction
         if (!state.isWaitingForUserInteraction) {
           pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
+          state.resolvePendingInteraction = () => false;
         }
       } catch (error: any) {
         logger.error("Error in getSolution", { error });
@@ -410,7 +403,7 @@ const commandsMap: (
         // Only clean up if we're not waiting for user interaction
         if (!state.isWaitingForUserInteraction) {
           pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
+          state.resolvePendingInteraction = () => false;
         }
 
         // Update the state to indicate an error
@@ -441,7 +434,7 @@ const commandsMap: (
 
         const currentIncidents = state.data.enhancedIncidents.map((incident) => ({
           ...incident,
-          violation_labels: incident.violation_labels ? [...incident.violation_labels] : undefined,
+          violation_labels: incident.violation_labels ? [...incident.violation_labels] : [],
         }));
         const updatedIncidents = await state.solutionServerClient.getSuccessRate(currentIncidents);
 

@@ -210,7 +210,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     <>
       <div className="modified-file-message">
         <Card className="modified-file-card">
-          <ModifiedFileHeader isNew={isNew} fileName={fileName} timestamp={timestamp} />
+          <ModifiedFileHeader isNew={isNew} fileName={fileName} timestamp={timestamp ?? ""} />
           <CardBody>
             <ModifiedFileDiffPreview diff={diff} path={path} />
             <ModifiedFileActions
@@ -235,7 +235,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         actionTaken={actionTaken}
         onApply={(selectedContent: string) => applyFile(selectedContent)}
         onReject={rejectFile}
-        onUserAction={onUserAction}
+        {...(onUserAction && { onUserAction })}
       />
     </>
   );

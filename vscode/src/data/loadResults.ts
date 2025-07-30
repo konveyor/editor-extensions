@@ -58,8 +58,8 @@ const doLoadSolution = async (
   await writeSolutionsToMemFs(localChanges, state);
   state.mutateData((draft) => {
     draft.localChanges = localChanges;
-    draft.solutionData = castDraft(solution);
-    draft.solutionScope = castDraft(scope);
+    draft.solutionData = solution ? castDraft(solution) : (undefined as any);
+    draft.solutionScope = scope ? castDraft(scope) : (undefined as any);
   });
 };
 
@@ -67,42 +67,48 @@ function enhanceIncidentsFromRuleSets(ruleSets: RuleSet[]): EnhancedIncident[] {
   const seen = new Set<string>();
   const firstProfileName = ruleSets[0]?.activeProfileName;
 
-  return ruleSets.flatMap((ruleSet) =>
-    Object.entries(ruleSet.violations || {}).flatMap(([violationId, violation]) =>
-      violation.incidents
-        .filter((incident: Incident) => {
-          // Validate profile name consistency
-          if (ruleSet.activeProfileName !== firstProfileName) {
-            throw new Error(
-              `Found RuleSet with different activeProfileName. Expected "${firstProfileName}" but found "${ruleSet.activeProfileName}"`,
-            );
-          }
+  if (!firstProfileName) {
+    return [];
+  }
 
-          // Create a unique key from the violation ID, URI, and line number
-          // This primarily protects us from duplicate incidents in the same
-          // file when the line number is undefined, but it also serves as a
-          // general rule if we have seen this particular violation at this
-          // location before, it is a duplicate
-          const key = `${violationId}:${incident.uri}:${incident.lineNumber}`;
-          if (seen.has(key)) {
-            return false;
-          }
-          seen.add(key);
-          return true;
-        })
-        .map((incident: Incident) => ({
-          ...incident,
-          ruleset_name: ruleSet.name,
-          ruleset_description: ruleSet.description,
-          violation_name: violationId,
-          violation_description: violation.description,
-          violation_category: violation.category,
-          violation_labels: violation.labels,
-          violationId,
-          uri: incident.uri,
-          message: incident.message,
-          activeProfileName: ruleSet.activeProfileName,
-        })),
-    ),
-  );
+  return ruleSets
+    .filter((ruleSet) => ruleSet.activeProfileName) // Only process ruleSets with defined activeProfileName
+    .flatMap((ruleSet) =>
+      Object.entries(ruleSet.violations || {}).flatMap(([violationId, violation]) =>
+        violation.incidents
+          .filter((incident: Incident) => {
+            // Validate profile name consistency
+            if (ruleSet.activeProfileName !== firstProfileName) {
+              throw new Error(
+                `Found RuleSet with different activeProfileName. Expected "${firstProfileName}" but found "${ruleSet.activeProfileName}"`,
+              );
+            }
+
+            // Create a unique key from the violation ID, URI, and line number
+            // This primarily protects us from duplicate incidents in the same
+            // file when the line number is undefined, but it also serves as a
+            // general rule if we have seen this particular violation at this
+            // location before, it is a duplicate
+            const key = `${violationId}:${incident.uri}:${incident.lineNumber}`;
+            if (seen.has(key)) {
+              return false;
+            }
+            seen.add(key);
+            return true;
+          })
+          .map((incident: Incident) => ({
+            ...incident,
+            ruleset_name: ruleSet.name ?? "",
+            ruleset_description: ruleSet.description ?? "",
+            violation_name: violationId,
+            violation_description: violation.description,
+            violation_category: violation.category ?? "mandatory",
+            violation_labels: violation.labels ?? [],
+            violationId,
+            uri: incident.uri,
+            message: incident.message,
+            activeProfileName: ruleSet.activeProfileName!,
+          })),
+      ),
+    );
 }

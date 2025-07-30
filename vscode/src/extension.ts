@@ -58,39 +58,30 @@ class VsCodeExtension {
     public readonly context: vscode.ExtensionContext,
     logger: winston.Logger,
   ) {
-    this.data = produce(
-      {
-        localChanges: [],
-        ruleSets: [],
-        enhancedIncidents: [],
-        resolutionPanelData: undefined,
-        isAnalyzing: false,
-        isFetchingSolution: false,
-        isStartingServer: false,
-        isInitializingServer: false,
-        isAnalysisScheduled: false,
-        isContinueInstalled: false,
-        solutionData: undefined,
-        serverState: "initial",
-        solutionScope: undefined,
-        workspaceRoot: paths.workspaceRepo.toString(true),
-        chatMessages: [],
-        solutionState: "none",
-        solutionServerEnabled: getConfigSolutionServerEnabled(),
-        configErrors: [],
-        activeProfileId: "",
-        profiles: [],
-        isAgentMode: getConfigAgentMode(),
-        analysisConfig: {
-          labelSelector: "",
-          labelSelectorValid: false,
-          providerConfigured: false,
-          providerKeyMissing: false,
-          customRulesConfigured: false,
-        },
-      } as ExtensionData,
-      () => {},
-    );
+    const initialData: ExtensionData = {
+      localChanges: [],
+      ruleSets: [],
+      enhancedIncidents: [],
+      resolutionPanelData: undefined,
+      isAnalyzing: false,
+      isFetchingSolution: false,
+      isStartingServer: false,
+      isInitializingServer: false,
+      isAnalysisScheduled: false,
+      isContinueInstalled: false,
+      serverState: "initial",
+      workspaceRoot: paths.workspaceRepo.toString(true),
+      chatMessages: [],
+      solutionState: "none",
+      solutionEffort: getConfigSolutionMaxEffortLevel(),
+      solutionServerEnabled: getConfigSolutionServerEnabled(),
+      configErrors: [],
+      activeProfileId: "",
+      profiles: [],
+      isAgentMode: getConfigAgentMode(),
+    };
+
+    this.data = produce(initialData, () => {});
     const getData = () => this.data;
     const setData = (data: Immutable<ExtensionData>) => {
       this.data = data;
@@ -468,7 +459,7 @@ class VsCodeExtension {
 
   public async dispose() {
     // Clean up pending interactions and resolver function to prevent memory leaks
-    this.state.resolvePendingInteraction = undefined;
+    this.state.resolvePendingInteraction = () => false;
     this.state.isWaitingForUserInteraction = false;
 
     // Dispose workflow manager

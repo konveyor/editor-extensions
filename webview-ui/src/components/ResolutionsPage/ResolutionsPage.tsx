@@ -230,8 +230,8 @@ const ResolutionPage: React.FC = () => {
         typeof change.originalUri === "string"
           ? change.originalUri
           : change.originalUri.fsPath || "",
-      messageToken: change.messageToken,
-      content: change.content,
+      messageToken: change.messageToken ?? "",
+      content: change.content ?? "",
     };
     dispatch(applyFile(applyFilePayload));
     // Trigger scroll after accepting change
@@ -243,7 +243,7 @@ const ResolutionPage: React.FC = () => {
         typeof change.originalUri === "string"
           ? change.originalUri
           : change.originalUri.fsPath || "",
-      messageToken: change.messageToken,
+      messageToken: change.messageToken ?? "",
     };
     dispatch(discardFile(discardFilePayload));
     // Trigger scroll after rejecting change
@@ -305,7 +305,7 @@ const ResolutionPage: React.FC = () => {
                 content={message}
                 quickResponses={
                   Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
-                    ? msg.quickResponses.map((response) => ({
+                    ? msg.quickResponses.map((response: any) => ({
                         ...response,
                         messageToken: msg.messageToken,
                         isDisabled: response.id === "run-analysis" && isAnalyzing,
@@ -355,12 +355,15 @@ const ResolutionPage: React.FC = () => {
               <ul>
                 {resolution.encountered_errors?.length > 0 &&
                   Object.entries(
-                    resolution.encountered_errors.reduce((acc: Record<string, number>, error) => {
-                      if (error) {
-                        acc[error] = (acc[error] || 0) + 1;
-                      }
-                      return acc;
-                    }, {}),
+                    resolution.encountered_errors.reduce(
+                      (acc: Record<string, number>, error: string) => {
+                        if (error) {
+                          acc[error] = (acc[error] || 0) + 1;
+                        }
+                        return acc;
+                      },
+                      {},
+                    ),
                   ).map(([errorText, count], index) => (
                     <li key={index}>
                       {errorText} {(count as number) > 1 && `(x${count})`}

@@ -70,7 +70,22 @@ const tsConfig = {
     ],
     "@typescript-eslint/no-require-imports": "warn",
     "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-    "@typescript-eslint/no-explicit-any": "off",
+
+    // 🛡️ Type Safety Rules - Prevent dangerous type assertions
+    "@typescript-eslint/no-explicit-any": "warn", // Warn about 'any' types
+    "@typescript-eslint/consistent-type-assertions": [
+      "error",
+      {
+        assertionStyle: "as",
+        objectLiteralTypeAssertions: "never", // Ban object literal assertions like `{...} as Type`
+      },
+    ],
+    // Temporarily warn instead of error for unsafe operations while fixing
+    "@typescript-eslint/no-unsafe-assignment": "warn",
+    "@typescript-eslint/no-unsafe-member-access": "warn",
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-unsafe-return": "warn",
+
     "react/jsx-key": "warn",
     "react/no-unknown-property": ["warn"],
   },

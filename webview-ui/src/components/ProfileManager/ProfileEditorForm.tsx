@@ -198,7 +198,7 @@ export const ProfileEditorForm: React.FC<{
       <FormGroup label="Profile Name" fieldId="profile-name" isRequired>
         <TextInput
           id="profile-name"
-          isDisabled={profile.readOnly}
+          isDisabled={profile.readOnly ?? false}
           value={localProfile.name}
           onChange={(_e, value) => handleInputChange(value, "name")}
           onBlur={handleBlur}
@@ -257,7 +257,7 @@ export const ProfileEditorForm: React.FC<{
         <Switch
           id="use-default-rules"
           isChecked={localProfile.useDefaultRules}
-          isDisabled={profile.readOnly}
+          isDisabled={profile.readOnly ?? false}
           onChange={(_e, checked) => {
             const updated = { ...localProfile, useDefaultRules: checked };
             setLocalProfile(updated);
@@ -278,7 +278,7 @@ export const ProfileEditorForm: React.FC<{
           <StackItem isFilled>
             <Button
               variant="secondary"
-              isDisabled={profile.readOnly}
+              isDisabled={profile.readOnly ?? false}
               onClick={() =>
                 dispatch({
                   type: CONFIGURE_CUSTOM_RULES,
@@ -343,7 +343,7 @@ export const ProfileEditorForm: React.FC<{
           <Button
             variant="danger"
             onClick={() => setIsDeleteDialogOpen(true)}
-            isDisabled={profile.readOnly}
+            isDisabled={profile.readOnly ?? false}
           >
             Delete Profile
           </Button>

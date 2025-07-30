@@ -13,12 +13,11 @@ const defaultState: ExtensionData = {
   isInitializingServer: false,
   isAnalysisScheduled: false,
   isContinueInstalled: false,
-  solutionData: undefined,
-  serverState: "initial",
-  solutionScope: undefined,
+  serverState: "initial" as const,
   workspaceRoot: "/",
   chatMessages: [],
-  solutionState: "none",
+  solutionState: "none" as const,
+  solutionEffort: "Low" as const,
   solutionServerEnabled: false,
   configErrors: [],
   profiles: [],
@@ -29,9 +28,9 @@ const defaultState: ExtensionData = {
 // Safely merge window state with default state to ensure all arrays are defined
 const getInitialState = (): ExtensionData => {
   try {
-    if (typeof window !== "undefined" && window["konveyorInitialData"]) {
-      const windowData = window["konveyorInitialData"] as Partial<ExtensionData>;
-
+    // Check if window object is available and contains konveyorInitialData
+    if (typeof window !== "undefined" && (window as any)["konveyorInitialData"]) {
+      const windowData = (window as any)["konveyorInitialData"] as Partial<ExtensionData>;
       // Ensure all array properties exist and are arrays
       return {
         ...defaultState,
@@ -54,7 +53,6 @@ const getInitialState = (): ExtensionData => {
 };
 
 const windowState = getInitialState();
-
 type ExtensionStateContextType = {
   state: ExtensionData;
   dispatch: (message: WebviewAction<WebviewActionType, unknown>) => void;
