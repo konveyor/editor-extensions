@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
 import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
 import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
+import UnifiedPage from "./components/UnifiedPage/UnifiedPage";
 import { WebviewType } from "@editor-extensions/shared";
 import { ExtensionStateProvider } from "./context/ExtensionStateContext";
 import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
@@ -20,6 +21,7 @@ const App: React.FC = () => {
       <ExtensionStateProvider>
         {currentView === "sidebar" && <AnalysisPage />}
         {currentView === "resolution" && <ResolutionPage />}
+        {currentView === "unified" && <UnifiedPage />}
         {currentView === "profiles" && <ProfileManagerPage />}
       </ExtensionStateProvider>
     </div>

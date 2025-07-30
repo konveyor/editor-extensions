@@ -1,6 +1,6 @@
 import React from "react";
-import { Button, Label, Spinner } from "@patternfly/react-core";
-import { OnIcon } from "@patternfly/react-icons";
+import { Button, Label, Spinner, Tooltip } from "@patternfly/react-core";
+import { OnIcon, OffIcon } from "@patternfly/react-icons";
 import "./styles.css";
 
 interface ServerStatusToggleProps {
@@ -18,30 +18,70 @@ export function ServerStatusToggle({
   hasWarning,
   onToggle,
 }: ServerStatusToggleProps) {
+  const getButtonContent = () => {
+    if (isStarting || isInitializing) {
+      return (
+        <>
+          <Spinner size="sm" aria-label="Loading spinner" className="header-spinner" />
+          <span className="button-text">
+            {isStarting ? "Starting..." : "Initializing..."}
+          </span>
+        </>
+      );
+    }
+    
+    return (
+      <>
+        {isRunning ? <OnIcon className="button-icon" /> : <OffIcon className="button-icon" />}
+        <span className="button-text">
+          {isRunning ? "Stop Server" : "Start Server"}
+        </span>
+        <span className="button-text-short">
+          {isRunning ? "Stop" : "Start"}
+        </span>
+      </>
+    );
+  };
+
+  const getTooltipContent = () => {
+    if (hasWarning) {
+      return "Cannot start server: Check your configuration";
+    }
+    if (isStarting) {
+      return "Server is starting...";
+    }
+    if (isInitializing) {
+      return "Server is initializing...";
+    }
+    return isRunning ? "Click to stop the analyzer server" : "Click to start the analyzer server";
+  };
+
   return (
-    <div>
-      <div className="server-status-wrapper">
-        {isStarting ? (
-          <Spinner size="sm" aria-label="Loading spinner" className="server-status-spinner" />
-        ) : isInitializing ? (
-          <Spinner size="sm" aria-label="Loading spinner" className="server-status-spinner" />
-        ) : (
-          <Button
-            variant="control"
-            size="sm"
-            icon={<OnIcon />}
-            onClick={onToggle}
-            isDisabled={isStarting || isInitializing || hasWarning}
-            className="server-action-button"
-          >
-            {isStarting || isInitializing ? "" : isRunning ? "Stop" : "Start"}
-          </Button>
-        )}
-        <p>Server Status</p>
-        <Label color={isRunning ? "green" : "red"} isCompact>
-          {isRunning ? "Running" : "Stopped"}
-        </Label>
-      </div>
+    <div className="server-status-header-wrapper">
+      <Tooltip content={getTooltipContent()}>
+        <Button
+          variant={isRunning ? "secondary" : "primary"}
+          size="sm"
+          onClick={onToggle}
+          isDisabled={isStarting || isInitializing || hasWarning}
+          className={`header-server-button ${isRunning ? 'server-running' : 'server-stopped'}`}
+        >
+          {getButtonContent()}
+        </Button>
+      </Tooltip>
+      
+      <Label 
+        color={isRunning ? "green" : hasWarning ? "orange" : "red"} 
+        isCompact 
+        className="server-status-label"
+      >
+        <span className="status-text-full">
+          {isRunning ? "Running" : hasWarning ? "Config Error" : "Stopped"}
+        </span>
+        <span className="status-text-short">
+          {isRunning ? "On" : hasWarning ? "Err" : "Off"}
+        </span>
+      </Label>
     </div>
   );
 }
