@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import { getLanguageFromExtension } from "../../../../../shared/src/utils/languageMapping";
+import { getLanguageFromExtension } from "@editor-extensions/shared";
 
 interface ModifiedFileDiffPreviewProps {
   diff: string;

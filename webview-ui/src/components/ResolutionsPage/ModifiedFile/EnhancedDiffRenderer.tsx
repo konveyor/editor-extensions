@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import hljs from "highlight.js";
-import {
-  detectLanguage,
-  isLanguageSupported,
-} from "../../../../../shared/src/utils/languageMapping";
+import { detectLanguage, isLanguageSupported } from "@editor-extensions/shared";
 import { applyTheme, watchThemeChanges } from "../../../utils/syntaxHighlightingTheme";
 
 // Re-enabling CSS import to test if this breaks re-rendering

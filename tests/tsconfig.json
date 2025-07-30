@@ -12,11 +12,5 @@
     "types": ["node", "playwright"]
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "test-output",
-    "kai-evaluator",
-    "kai-client-ci"
-  ]
+  "exclude": ["node_modules", "dist", "test-output", "kai-evaluator", "kai-client-ci"]
 }

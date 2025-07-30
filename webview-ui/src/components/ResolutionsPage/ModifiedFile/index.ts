@@ -21,7 +21,4 @@ export {
 } from "../../../utils/syntaxHighlightingTheme";
 
 // Enhanced language detection
-export {
-  detectLanguage,
-  isLanguageSupported,
-} from "../../../../../shared/src/utils/languageMapping";
+export { detectLanguage, isLanguageSupported } from "@editor-extensions/shared";
