@@ -92,7 +92,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
     this._panel.onDidDispose(() => {
       this.handleViewClosed();
-      this._panel = undefined;
+      delete this._panel;
       this._isWebviewReady = false;
       this._isPanelReady = false;
     });
@@ -120,7 +120,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private initializeWebview(webview: Webview, data: Immutable<ExtensionData>): void {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env["NODE_ENV"] === "production";
     const extensionUri = this._extensionState.extensionContext.extensionUri;
 
     let assetsUri: Uri;
@@ -176,7 +176,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
    * @link https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
    */
   private _getContentSecurityPolicy(nonce: string, webview: Webview): string {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env["NODE_ENV"] === "production";
     const localServerUrl = "localhost:*";
 
     if (isProd) {
@@ -203,21 +203,21 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getScriptUri(webview: Webview): Uri {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env["NODE_ENV"] === "production";
     return isProd
       ? this._getUri(webview, ["assets", "index.js"])
       : Uri.parse(`${DEV_SERVER_ROOT}/src/index.tsx`);
   }
 
   private _getStylesUri(webview: Webview): Uri {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env["NODE_ENV"] === "production";
     return isProd
       ? this._getUri(webview, ["assets", "index.css"])
       : Uri.parse(`${DEV_SERVER_ROOT}/src/index.css`);
   }
 
   private _getReactRefreshScript(nonce: string): string {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env["NODE_ENV"] === "production";
 
     return isProd
       ? ""
@@ -232,7 +232,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _getUri(webview: Webview, pathList: string[]): Uri {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env["NODE_ENV"] === "production";
 
     if (isProd) {
       return webview.asWebviewUri(

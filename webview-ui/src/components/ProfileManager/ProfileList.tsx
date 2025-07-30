@@ -126,7 +126,7 @@ export const ProfileList: React.FC<{
                         <DropdownItem
                           key="delete"
                           onClick={() => setIsDeleteDialogOpen(true)}
-                          isDisabled={profile.readOnly}
+                          isDisabled={profile.readOnly ?? false}
                         >
                           Delete
                         </DropdownItem>

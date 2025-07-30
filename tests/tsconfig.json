@@ -9,7 +9,13 @@
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "skipLibCheck": true,
-    "types": ["node", "playwright"]
+    "types": ["node", "playwright"],
+    
+    // Additional strict options to prevent type assertions
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts"],
   "exclude": ["node_modules", "dist", "test-output", "kai-evaluator", "kai-client-ci"]

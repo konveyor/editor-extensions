@@ -10,7 +10,7 @@ export function useViolations(analysisResults: RuleSet[] | undefined): EnhancedV
       Object.entries<Violation>(ruleSet.violations || {}).map(([violationId, violation]) => ({
         id: violationId,
         ...violation,
-        rulesetName: ruleSet.name,
+        rulesetName: ruleSet.name ?? "",
         violationName: violationId,
       })),
     );

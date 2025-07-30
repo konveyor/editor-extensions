@@ -39,7 +39,7 @@ class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
 
     const matchingRes = this.ai_responses.find((item) => item.content === response.content);
     if (matchingRes) {
-      response.tool_calls = matchingRes.tool_calls;
+      response.tool_calls = matchingRes.tool_calls ?? [];
     }
     return response;
   }

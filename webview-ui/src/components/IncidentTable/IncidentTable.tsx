@@ -41,13 +41,11 @@ export const IncidentTable: FC<IncidentTableProps> = ({
     <>
       <Card isPlain>
         <CardHeader
-          actions={
-            isReadOnly
-              ? undefined
-              : {
-                  actions: <GetSolutionDropdown incidents={incidents} scope="in-between" />,
-                }
-          }
+          {...(!isReadOnly && {
+            actions: {
+              actions: <GetSolutionDropdown incidents={incidents} scope="in-between" />,
+            },
+          })}
         >
           <Flex direction={{ default: "column" }} spaceItems={{ default: "spaceItemsSm" }}>
             <Markdown>{message}</Markdown>
