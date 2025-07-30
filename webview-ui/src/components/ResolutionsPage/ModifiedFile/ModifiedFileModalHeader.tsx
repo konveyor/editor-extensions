@@ -63,9 +63,15 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
     }
 
     const parts: string[] = [];
-    if (accepted > 0) parts.push(`${accepted} accepted`);
-    if (rejected > 0) parts.push(`${rejected} rejected`);
-    if (pending > 0) parts.push(`${pending} pending`);
+    if (accepted > 0) {
+      parts.push(`${accepted} accepted`);
+    }
+    if (rejected > 0) {
+      parts.push(`${rejected} rejected`);
+    }
+    if (pending > 0) {
+      parts.push(`${pending} pending`);
+    }
 
     return {
       text: parts.join(", "),
@@ -184,12 +190,12 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                       </Button>
                     )}
                     {onRejectAll && buttonStates.rejectAll && (
-                      <Button 
-                        variant="danger" 
+                      <Button
+                        variant="danger"
                         onClick={() => {
                           onRejectAll();
                           onUserAction?.();
-                        }} 
+                        }}
                         className="bulk-reject-button danger-button"
                         size="sm"
                       >
@@ -197,12 +203,12 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                       </Button>
                     )}
                     {onResetAll && buttonStates.resetAll && (
-                      <Button 
-                        variant="secondary" 
+                      <Button
+                        variant="secondary"
                         onClick={() => {
                           onResetAll();
                           onUserAction?.();
-                        }} 
+                        }}
                         className="bulk-reset-button secondary-button"
                         icon={<UndoIcon />}
                         size="sm"
@@ -242,7 +248,7 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
                     className="modal-reject-button danger-button"
                     size="sm"
                   >
-                    Reject 
+                    Reject
                   </Button>
                 )}
               </Flex>
@@ -264,8 +270,13 @@ export const ModifiedFileModalHeader: React.FC<ModifiedFileModalHeaderProps> = (
 
         {/* Status Alert */}
         {statusMessage && (
-          <Alert variant={statusMessage.variant} title={statusMessage.text} isInline isPlain 
-          className="modal-status-alert"  />
+          <Alert
+            variant={statusMessage.variant}
+            title={statusMessage.text}
+            isInline
+            isPlain
+            className="modal-status-alert"
+          />
         )}
 
         {/* Completion Status */}

@@ -1,6 +1,9 @@
 import React, { useEffect } from "react";
 import hljs from "highlight.js";
-import { detectLanguage, isLanguageSupported } from "../../../../../shared/src/utils/languageMapping";
+import {
+  detectLanguage,
+  isLanguageSupported,
+} from "../../../../../shared/src/utils/languageMapping";
 import { applyTheme, watchThemeChanges } from "../../../utils/syntaxHighlightingTheme";
 
 // Re-enabling CSS import to test if this breaks re-rendering
@@ -12,10 +15,10 @@ interface DiffLinesRendererProps {
   content?: string; // Optional full file content for better language detection
 }
 
-export const DiffLinesRenderer: React.FC<DiffLinesRendererProps> = ({ 
-  diffContent, 
-  filePath, 
-  content 
+export const DiffLinesRenderer: React.FC<DiffLinesRendererProps> = ({
+  diffContent,
+  filePath,
+  content,
 }) => {
   // Re-enabling theme application to confirm this breaks re-rendering
   useEffect(() => {
@@ -83,16 +86,17 @@ export const DiffLinesRenderer: React.FC<DiffLinesRendererProps> = ({
       let highlightedContent = content;
       if (shouldHighlightLine && content.trim() && detectedLanguage !== "plaintext") {
         try {
-          const highlighted = hljs.highlight(content, { 
+          const highlighted = hljs.highlight(content, {
             language: detectedLanguage,
-            ignoreIllegals: true 
+            ignoreIllegals: true,
           });
           highlightedContent = highlighted.value;
         } catch (error) {
           // If highlighting fails, try auto-detection as fallback
           try {
             const autoHighlighted = hljs.highlightAuto(content);
-            if (autoHighlighted.relevance > 5) { // Only use if confidence is high
+            if (autoHighlighted.relevance > 5) {
+              // Only use if confidence is high
               highlightedContent = autoHighlighted.value;
             }
           } catch {

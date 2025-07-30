@@ -7,7 +7,6 @@ downloaded_cache/
 vscode/jdtls-plugin/
 .idea/
 *.vsix
-CLAUDE.md
 
 # TypeScript build info
 **/tsconfig.tsbuildinfo
