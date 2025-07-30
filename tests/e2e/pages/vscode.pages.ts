@@ -9,6 +9,7 @@ import { Application } from './application.pages';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import fs from 'fs';
+import { TEST_DATA_DIR } from '../utilities/consts';
 
 export class VSCode extends Application {
   public static async open(repoUrl?: string, repoDir?: string) {
@@ -16,7 +17,11 @@ export class VSCode extends Application {
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
      */
-    const args = ['--disable-workspace-trust', '--skip-welcome', '--user-data-dir=./test-data-dir'];
+    const args = [
+      '--disable-workspace-trust',
+      '--skip-welcome',
+      `--user-data-dir=${TEST_DATA_DIR}`,
+    ];
 
     try {
       if (repoUrl) {
@@ -145,10 +150,21 @@ export class VSCode extends Application {
     const window = this.getWindow();
 
     const navLi = window.locator(`a[aria-label^="${name}"]`).locator('..');
-    await expect(navLi).toBeVisible();
-    if ((await navLi.getAttribute('aria-expanded')) === 'false') {
-      await navLi.click();
+
+    if (await navLi.isVisible()) {
+      if ((await navLi.getAttribute('aria-expanded')) === 'false') {
+        await navLi.click();
+      }
+      return;
     }
+
+    const moreButton = window.getByRole('button', { name: LeftBarItems.AdditionalViews });
+    await expect(moreButton).toBeVisible();
+    await moreButton.click();
+
+    const menuBtn = window.locator(`a.action-menu-item span[aria-label^="${name}"]`);
+    await expect(menuBtn).toBeVisible();
+    await menuBtn.click({ delay: 500 });
   }
 
   public async openAnalysisView(): Promise<void> {
@@ -259,7 +275,6 @@ export class VSCode extends Application {
 
   public async deleteProfile(profileName: string) {
     await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
-    // await this.getWindow().pause();
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     const profileList = manageProfileView.getByRole('list', {
       name: 'Profile list',

@@ -88,3 +88,4 @@ screenshots/
 coolstore/
 test-output
 *.vsix
+test-data-dir/

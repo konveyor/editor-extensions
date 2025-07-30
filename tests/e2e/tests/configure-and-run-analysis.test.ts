@@ -7,6 +7,7 @@ test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `automation-${randomString}`;
+
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(600000);
     const repoInfo = testRepoData['coolstore'];

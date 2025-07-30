@@ -4,7 +4,6 @@ build/
 dist/
 downloaded_assets/
 downloaded_cache/
-test-data-dir/
 vscode/jdtls-plugin/
 .idea/
 *.vsix

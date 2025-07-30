@@ -2,13 +2,15 @@ import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.pages';
 import { SCREENSHOTS_FOLDER, TEST_OUTPUT_FOLDER } from '../utilities/consts';
 import { getOSInfo, getRepoName, generateRandomString } from '../utilities/utils';
-import { providerConfigs } from '../fixtures/provider-configs.fixture';
+import { DEFAULT_PROVIDER, providerConfigs } from '../fixtures/provider-configs.fixture';
 import path from 'path';
 import { runEvaluation } from '../../kai-evaluator/core';
 import { prepareEvaluationData, saveOriginalAnalysisFile } from '../utilities/evaluation.utils';
 import { KAIViews } from '../enums/views.enum';
 
-providerConfigs.forEach((config) => {
+const providers = process.env.CI ? providerConfigs : [DEFAULT_PROVIDER];
+
+providers.forEach((config) => {
   test.describe(`Coolstore app tests | ${config.model}`, () => {
     let vscodeApp: VSCode;
     let allOk = true;
