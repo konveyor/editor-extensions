@@ -124,6 +124,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
           data: `Failed to get llm response - ${String(err)}`,
         });
       }
+      return undefined;
     }
   }
 

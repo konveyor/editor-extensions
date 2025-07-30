@@ -36,17 +36,18 @@ describe("analysis data transformations", () => {
     expect(result).toHaveLength(4);
     result.forEach((res) => expect(res.lineNumber).toBe(1));
   });
-  it("filters out incidents without message", () => {
+  it("filters out incidents with invalid URI format", () => {
     const response = [
       produce(FOO, (draft: RuleSet) => {
+        // Create incidents - one with invalid URI (should be filtered out), one with valid URI
         draft.violations!["foo-01"].incidents = [
           {
-            uri: "file:///src/Foo.java",
-            message: "", // Required property for Incident
+            uri: "/src/Foo.java", // Invalid - doesn't start with "file://"
+            message: "Invalid URI incident",
           },
           {
             uri: "file:///src/Foo.java",
-            message: "",
+            message: "Valid incident with message",
           },
         ];
       }),
