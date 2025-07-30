@@ -77,6 +77,8 @@ export class JavaDependencyTools {
                 return `g:${val}`;
               case 2:
                 return `v:${val}`;
+              default:
+                return `${val}`;
             }
           })
           .join(" AND ");
