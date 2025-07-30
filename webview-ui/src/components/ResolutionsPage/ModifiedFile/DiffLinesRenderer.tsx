@@ -88,7 +88,7 @@ export const DiffLinesRenderer: React.FC<DiffLinesRendererProps> = ({
             ignoreIllegals: true,
           });
           highlightedContent = highlighted.value;
-        } catch (error) {
+        } catch {
           // If highlighting fails, try auto-detection as fallback
           try {
             const autoHighlighted = hljs.highlightAuto(content);

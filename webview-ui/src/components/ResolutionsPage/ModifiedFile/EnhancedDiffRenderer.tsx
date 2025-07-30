@@ -134,7 +134,7 @@ export const EnhancedDiffRenderer: React.FC<EnhancedDiffRendererProps> = ({
         setHighlightCache((cache) => new Map(cache).set(cacheKey, result));
 
         return result;
-      } catch (error) {
+      } catch {
         // Fallback with auto-detection
         try {
           const autoHighlighted = hljs.highlightAuto(line.content);
