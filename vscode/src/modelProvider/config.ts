@@ -76,7 +76,7 @@ export async function getModelProviderFromConfig(
     pathlib.join(
       dir,
       parsedConfig.config.provider,
-      (parsedConfig.config.args.model ?? parsedConfig.config.args.model_id ?? "").replace(
+      (parsedConfig.config.args["model"] ?? parsedConfig.config.args["model_id"] ?? "").replace(
         /[^a-zA-Z0-9_-]/g,
         "_",
       ),
