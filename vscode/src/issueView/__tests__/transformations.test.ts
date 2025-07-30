@@ -42,8 +42,8 @@ describe("analysis data transformations", () => {
         draft.violations!["foo-01"].incidents = [
           {
             uri: "file:///src/Foo.java",
-            //no message
-          } as Incident,
+            message: "", // Required property for Incident
+          },
           {
             uri: "file:///src/Foo.java",
             message: "",
@@ -67,8 +67,9 @@ describe("analysis data transformations", () => {
             message: "",
           },
           {
+            uri: "", // Required property for Incident
             message: "",
-          } as Incident,
+          },
         ];
       }),
     ];

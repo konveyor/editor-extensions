@@ -85,10 +85,15 @@ export async function ensurePaths(
     serverLogs: context.logUri,
   };
 
-  _fsPaths = {} as ExtensionFsPaths;
-  for (const key of Object.keys(_paths) as Array<keyof ExtensionPaths>) {
-    _fsPaths[key] = _paths[key].fsPath;
-  }
+  _fsPaths = {
+    extResources: _paths.extResources.fsPath,
+    workspaceRepo: _paths.workspaceRepo.fsPath,
+    data: _paths.data.fsPath,
+    settings: _paths.settings.fsPath,
+    settingsYaml: _paths.settingsYaml.fsPath,
+    serverCwd: _paths.serverCwd.fsPath,
+    serverLogs: _paths.serverLogs.fsPath,
+  };
 
   return _paths;
 }

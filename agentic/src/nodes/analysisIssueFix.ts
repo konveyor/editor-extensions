@@ -152,11 +152,14 @@ export class AnalysisIssueFix extends BaseNode {
               : acc.uris,
           };
         },
-        {
-          reasoning: "",
-          additionalInfo: "",
-          uris: [],
-        } as { reasoning: string; additionalInfo: string; uris: string[] },
+        (() => {
+          const initial: { reasoning: string; additionalInfo: string; uris: string[] } = {
+            reasoning: "",
+            additionalInfo: "",
+            uris: [],
+          };
+          return initial;
+        })(),
       );
       nextState.inputAllAdditionalInfo = accumulated.additionalInfo;
       nextState.inputAllReasoning = accumulated.reasoning;
