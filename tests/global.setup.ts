@@ -6,7 +6,9 @@ async function globalSetup() {
   const vscodeApp = await VSCode.init();
 
   if (!VSCode.isExtensionInstalled('redhat.java')) {
-    throw new Error('Required extension `redhat.java` not found');
+    throw new Error(
+      'Required extension `redhat.java` was not found. It should have been installed automatically as a dependency'
+    );
   }
 
   if (getOSInfo() === 'windows' && process.env.CI) {

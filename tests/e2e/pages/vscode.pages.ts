@@ -48,7 +48,7 @@ export class VSCode extends Application {
       }
     }
 
-    if (process.env.E2E_DEV_MODE && +process.env.E2E_DEV_MODE === 1) {
+    if (!process.env.VSIX_FILE_PATH && !process.env.VSIX_DOWNLOAD_URL) {
       args.push(
         `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode')}`,
         '--enable-proposed-api=konveyor.konveyor-ai'
@@ -75,7 +75,7 @@ export class VSCode extends Application {
    */
   public static async init(repoDir?: string): Promise<VSCode> {
     try {
-      if (!process.env.E2E_DEV_MODE || +process.env.E2E_DEV_MODE === 0) {
+      if (process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL) {
         await VSCode.installExtension();
       }
 
