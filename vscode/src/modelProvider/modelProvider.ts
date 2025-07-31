@@ -1,4 +1,3 @@
-import { z } from "zod";
 import * as winston from "winston";
 import {
   type BindToolsInput,
@@ -111,9 +110,9 @@ export class BaseModelProvider implements KaiModelProvider {
   }
 
   async stream(
-    input: any,
+    input: BaseLanguageModelInput,
     options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
-  ): Promise<IterableReadableStream<any>> {
+  ): Promise<IterableReadableStream<AIMessageChunk>> {
     if (options && options.cacheKey) {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
@@ -205,10 +204,17 @@ export async function runModelHealthCheck(
     supportsToolsInStreaming: false,
   };
 
-  const tool: DynamicStructuredTool = new DynamicStructuredTool({
+  const tool = new DynamicStructuredTool({
     name: "gamma",
     description: "Custom operator that works with two numbers",
-    schema: z.any(),
+    schema: {
+      type: "object",
+      properties: {
+        a: { type: "string" },
+        b: { type: "string" },
+      },
+      required: ["a", "b"],
+    },
     func: async ({ a, b }: { a: string; b: string }) => {
       return a + b;
     },
