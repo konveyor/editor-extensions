@@ -244,9 +244,6 @@ const actions: {
       diff: diff,
       state: "pending",
     };
-<<<<<<< HEAD
-    return actions.VIEW_FILE({ path, change }, state, logger);
-=======
     // Call VIEW_FILE directly instead of through actions reference
     const uri = vscode.Uri.file(path);
     try {
@@ -264,7 +261,6 @@ const actions: {
       logger.error("Error handling SHOW_MAXIMIZED_DIFF:", error);
       vscode.window.showErrorMessage(`Failed to show diff: ${error}`);
     }
->>>>>>> 5442a03 (:ghost: No more implicit returns or assertions)
   },
 
   VIEW_FILE: async ({ path, change }, state, logger) => {
