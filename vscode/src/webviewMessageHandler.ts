@@ -24,6 +24,7 @@ import {
   SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
+  TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   VIEW_FIX,
   WEBVIEW_READY,
@@ -43,6 +44,7 @@ import {
 } from "./utilities/profiles/profileService";
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
 import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
+import { getConfigDiffEditorType, toggleAgentMode } from "./utilities/configuration";
 
 // Create output channel for logging
 const outputChannel = vscode.window.createOutputChannel("Konveyor WebView");
@@ -215,7 +217,7 @@ const actions: {
     vscode.commands.executeCommand("konveyor.modelProviderSettingsOpen");
   },
   [GET_SOLUTION](scope: Scope) {
-    vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.effort);
+    vscode.commands.executeCommand("konveyor.getSolution", scope.incidents);
     vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");
   },
@@ -361,7 +363,6 @@ const actions: {
       const relativePath = vscode.workspace.asRelativePath(uri);
 
       // Check user preference for diff editor type
-      const { getConfigDiffEditorType } = await import("./utilities/configuration");
       const editorType = getConfigDiffEditorType();
 
       if (editorType === "merge") {
@@ -616,6 +617,9 @@ const actions: {
   },
   [GET_SUCCESS_RATE]() {
     vscode.commands.executeCommand("konveyor.getSuccessRate");
+  },
+  [TOGGLE_AGENT_MODE]() {
+    toggleAgentMode();
   },
 };
 

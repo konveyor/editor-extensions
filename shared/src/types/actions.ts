@@ -24,6 +24,7 @@ export const DELETE_PROFILE = "DELETE_PROFILE";
 export const UPDATE_PROFILE = "UPDATE_PROFILE";
 export const QUICK_RESPONSE = "QUICK_RESPONSE";
 export const OPEN_FILE_IN_EDITOR = "OPEN_FILE_IN_EDITOR";
+export const TOGGLE_AGENT_MODE = "TOGGLE_AGENT_MODE";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -52,7 +53,8 @@ export type WebviewActionType =
   | typeof UPDATE_PROFILE
   | typeof OPEN_PROFILE_MANAGER
   | typeof QUICK_RESPONSE
-  | typeof OPEN_FILE_IN_EDITOR;
+  | typeof OPEN_FILE_IN_EDITOR
+  | typeof TOGGLE_AGENT_MODE;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

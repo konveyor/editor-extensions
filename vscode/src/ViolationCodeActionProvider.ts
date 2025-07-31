@@ -64,7 +64,7 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
     askKaiAction.command = {
       command: "konveyor.getSolution",
       title: "Ask Kai",
-      arguments: [[incident], this.state.data.solutionEffort],
+      arguments: [[incident]],
     };
     askKaiAction.diagnostics = [diagnostic];
     actions.push(askKaiAction);

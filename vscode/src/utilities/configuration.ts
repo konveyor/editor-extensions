@@ -108,6 +108,10 @@ export const updateSolutionServerEnabled = async (value: boolean): Promise<void>
 export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
 };
+export const toggleAgentMode = async (): Promise<void> => {
+  const currentValue = getConfigAgentMode();
+  await updateConfigValue("kai.agentMode", !currentValue, vscode.ConfigurationTarget.Workspace);
+};
 
 export const updateGetSolutionMaxIterations = async (value: number | null): Promise<void> => {
   await updateConfigValue(
@@ -197,7 +201,7 @@ export const registerConfigChangeListener = (
       event.affectsConfiguration("konveyor.kai.getSolutionMaxPriority")
     ) {
       state.mutateData((draft) => {
-        draft.solutionEffort = getConfigSolutionMaxEffortLevel();
+        // Removed solutionEffort as it's no longer used
         updateConfigErrors(draft, settingsPath);
       });
     }
