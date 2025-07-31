@@ -526,13 +526,6 @@
           "scope": "window",
           "order": 6
         },
-        "konveyor.kai.superAgentMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution.",
-          "scope": "window",
-          "order": 6
-        },
         "konveyor.kai.excludedDiagnosticSources": {
           "type": "array",
           "default": [

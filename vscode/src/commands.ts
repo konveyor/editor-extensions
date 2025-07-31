@@ -48,7 +48,6 @@ import {
   updateGetSolutionMaxIterations,
   updateGetSolutionMaxPriority,
   getConfigAgentMode,
-  getConfigSuperAgentMode,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
@@ -248,8 +247,7 @@ const commandsMap: (
             incidents,
             migrationHint: profileName,
             programmingLanguage: "Java",
-            enableAdditionalInformation: agentModeEnabled,
-            enableDiagnostics: getConfigSuperAgentMode(),
+            enableAgentMode: agentModeEnabled,
           };
 
           await workflow.run(input);
