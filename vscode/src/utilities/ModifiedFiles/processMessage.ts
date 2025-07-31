@@ -7,11 +7,12 @@ import {
   KaiWorkflowMessageType,
   KaiUserInteraction,
 } from "@editor-extensions/agentic";
-import { flattenCurrentTasks, summarizeTasks, type TasksList } from "../../taskManager";
+import { flattenCurrentTasks, type TasksList } from "../../taskManager";
 import { ExtensionState } from "../../extensionState";
 import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
+import { summarizeTasksStructured } from "../../taskManager/utils";
 
 // Helper function to wait for analysis completion with timeout
 const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
@@ -47,8 +48,16 @@ const resetStuckAnalysisFlags = (state: ExtensionState): void => {
 };
 
 // Helper function to create tasks message
-const createTasksMessage = (tasks: TasksList): string => {
-  return `It appears that my fixes caused following issues:\n\n${summarizeTasks(tasks)}\n\nDo you want me to continue fixing them?`;
+const createTasksMessage = (tasks: TasksList): { message: string; diagnosticSummary: any } => {
+  const diagnosticSummary = summarizeTasksStructured(tasks);
+  return {
+    message: `It appears that my fixes caused following issues. Please review the issues below and select which ones you'd like me to fix. `,
+    diagnosticSummary: {
+      summary: diagnosticSummary.summary,
+      issuesByFile: diagnosticSummary.issuesByFile,
+      totalIssues: diagnosticSummary.totalIssues,
+    },
+  };
 };
 
 // Helper function to handle user interaction promises uniformly
@@ -111,12 +120,14 @@ const handleTasksInteraction = async (
   }
   // Show tasks to user and wait for response
   state.mutateData((draft) => {
+    const tasksMessage = createTasksMessage(rawTasks);
     draft.chatMessages.push({
       kind: ChatMessageType.String,
       messageToken: msg.id,
       timestamp: new Date().toISOString(),
       value: {
-        message: createTasksMessage(rawTasks),
+        message: tasksMessage.message,
+        diagnosticSummary: tasksMessage.diagnosticSummary,
         tasksData: flattenCurrentTasks(rawTasks),
       },
       quickResponses: [
