@@ -134,6 +134,7 @@ export enum ChatMessageType {
   JSON = "JsonChatMessage",
   Tool = "ToolChatMessage",
   ModifiedFile = "ModifiedFileChatMessage",
+  Diagnostic = "DiagnosticChatMessage",
 }
 
 export interface QuickResponse {
@@ -311,3 +312,23 @@ export interface InputOutputCache<K, V, C, O> {
 }
 
 export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor";
+
+export interface DiagnosticIssue {
+  id: string;
+  message: string;
+  uri: string;
+  filename: string;
+  selected?: boolean;
+}
+
+export interface DiagnosticSummary {
+  summary: string;
+  issuesByFile: Record<string, DiagnosticIssue[]>;
+  totalIssues: number;
+}
+
+export interface DiagnosticMessageValue {
+  message: string;
+  diagnosticSummary: DiagnosticSummary;
+  tasksData: { uri: string; task: string }[];
+}

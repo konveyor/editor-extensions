@@ -298,11 +298,13 @@ const ResolutionPage: React.FC = () => {
 
         if (msg.kind === ChatMessageType.String) {
           const message = msg.value?.message as string;
+          const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
           return (
             <MessageWrapper key={msg.messageToken}>
               <ReceivedMessage
                 timestamp={msg.timestamp}
                 content={message}
+                diagnosticSummary={diagnosticSummary}
                 quickResponses={
                   Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                     ? msg.quickResponses.map((response) => ({

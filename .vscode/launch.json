@@ -13,10 +13,14 @@
       ],
 
       "cwd": "${workspaceFolder}/vscode",
-      "outFiles": ["${workspaceFolder}/vscode/out/**/*.js"],
+      "outFiles": [
+        "${workspaceFolder}/vscode/out/**/*.js",
+        "${workspaceFolder}/agentic/dist/**/*.js"
+      ],
       "sourceMaps": true,
       "resolveSourceMapLocations": [
         "${workspaceFolder}/vscode/out/**",
+        "${workspaceFolder}/agentic/dist/**",
         "!**/node_modules/**"
       ],
 

@@ -70,10 +70,23 @@ export interface ApplyFilePayload {
   content?: string;
 }
 
+export interface QuickResponsePayload {
+  responseId: string;
+  messageToken: string;
+  selectedIssues?: string[];
+}
+
 export const applyFile = (
   payload: ApplyFilePayload,
 ): WebviewAction<WebviewActionType, ApplyFilePayload> => ({
   type: "APPLY_FILE",
+  payload,
+});
+
+export const quickResponse = (
+  payload: QuickResponsePayload,
+): WebviewAction<WebviewActionType, QuickResponsePayload> => ({
+  type: "QUICK_RESPONSE",
   payload,
 });
 

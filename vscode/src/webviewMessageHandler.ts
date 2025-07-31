@@ -376,8 +376,8 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to open file comparison: ${error}`);
     }
   },
-  QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
-    handleQuickResponse(messageToken, responseId, state);
+  QUICK_RESPONSE: async ({ responseId, messageToken, selectedIssues }, state) => {
+    handleQuickResponse(messageToken, responseId, state, selectedIssues);
   },
   FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state) => {
     handleFileResponse(messageToken, responseId, path, content, state);
