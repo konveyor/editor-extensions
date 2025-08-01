@@ -12,6 +12,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
 
+    // Strict settings by default to prevent type assertions
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+
     "removeComments": true,
     "declaration": true,
     "declarationMap": true,

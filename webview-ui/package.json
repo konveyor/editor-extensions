@@ -39,6 +39,7 @@
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
+    "@types/path-browserify": "^1.0.3",
     "@types/vscode-webview": "^1.57.5",
     "global-jsdom": "^26.0.0",
     "jsdom": "^26.0.0",

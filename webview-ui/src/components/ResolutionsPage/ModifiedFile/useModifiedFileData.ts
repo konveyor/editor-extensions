@@ -58,7 +58,7 @@ export const useModifiedFileData = (
         status: data.status || null,
         content: data.content || "",
         messageToken: data.messageToken || "",
-        quickResponses: data.quickResponses,
+        quickResponses: data.quickResponses ?? [],
         originalContent: data.originalContent || "",
       };
     } else if (isLocalChange(data)) {
@@ -70,7 +70,7 @@ export const useModifiedFileData = (
         status: getStatusFromState(data.state),
         content: data.content || "",
         messageToken: data.messageToken || "",
-        quickResponses: undefined,
+        quickResponses: [],
         originalContent: "",
       };
     } else {
@@ -83,7 +83,7 @@ export const useModifiedFileData = (
         status: null,
         content: "",
         messageToken: "",
-        quickResponses: undefined,
+        quickResponses: [],
         originalContent: "",
       };
     }

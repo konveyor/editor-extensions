@@ -147,7 +147,6 @@ export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps>
           onKeyDown={handleKeyDown}
           innerRef={textInputRef}
           placeholder={placeholder}
-          aria-activedescendant={activeItemId ?? undefined}
           role="combobox"
           isExpanded={isOpen}
           aria-controls={`${fieldId}-listbox`}

@@ -242,7 +242,23 @@ const actions: {
       diff: diff,
       state: "pending",
     };
-    return actions.VIEW_FILE({ path, change }, state, logger);
+    // Call VIEW_FILE directly instead of through actions reference
+    const uri = vscode.Uri.file(path);
+    try {
+      if (!change || !change.diff) {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc);
+        return;
+      }
+      await vscode.commands.executeCommand("konveyor.diffView.viewFix", {
+        originalUri: change.originalUri,
+        modifiedUri: change.modifiedUri,
+        diff: change.diff,
+      });
+    } catch (error) {
+      logger.error("Error handling SHOW_MAXIMIZED_DIFF:", error);
+      vscode.window.showErrorMessage(`Failed to show diff: ${error}`);
+    }
   },
 
   VIEW_FILE: async ({ path, change }, state, logger) => {

@@ -17,12 +17,12 @@ suite("Extension Test Suite", () => {
         violation.incidents.map((incident) => ({
           ...incident,
           violationId,
-          ruleset_name: ruleSet.name,
-          ruleset_description: ruleSet.description,
+          ruleset_name: ruleSet.name ?? "",
+          ruleset_description: ruleSet.description ?? "",
           violation_name: violationId,
           violation_description: violation.description,
-          violation_category: violation.category,
-          violation_labels: violation.labels,
+          violation_category: violation.category ?? "mandatory",
+          violation_labels: violation.labels ?? [],
         })),
       ),
     );

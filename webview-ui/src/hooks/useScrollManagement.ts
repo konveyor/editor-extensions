@@ -240,6 +240,7 @@ export const useScrollManagement = (
       };
     } catch (error) {
       console.warn("Error setting up scroll event listener:", error);
+      return;
     }
   }, [getMessageBoxElement, isNearBottom]);
 
@@ -258,6 +259,7 @@ export const useScrollManagement = (
 
       return () => clearInterval(interval);
     }
+    return;
   }, [isFetchingSolution, scrollToBottom, isNearBottom]);
 
   // Cleanup timeout on component unmount to prevent memory leaks

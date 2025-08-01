@@ -78,7 +78,10 @@ export class IssuesModel {
           acc[uri].push(incident);
           return acc;
         },
-        {} as { [uri: string]: Incident[] },
+        (() => {
+          const initial: { [uri: string]: Incident[] } = {};
+          return initial;
+        })(),
       ),
     ]);
 
