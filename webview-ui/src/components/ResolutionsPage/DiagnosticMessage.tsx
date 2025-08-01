@@ -4,7 +4,7 @@ import { QuickResponse } from "@editor-extensions/shared";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import botAv from "./bot_avatar.svg?inline";
-import DiagnosticMessage from "./DiagnosticMessage";
+import DiagnosticIssuesView from "./DiagnosticIssuesView";
 import { quickResponse } from "../../hooks/actions";
 
 // Import diagnostic types from the shared types file
@@ -26,18 +26,18 @@ interface QuickResponseWithToken extends QuickResponse {
   messageToken: string;
 }
 
-interface ReceivedMessageProps {
+interface DiagnosticMessageProps {
   content?: string;
   extraContent?: React.ReactNode;
   isLoading?: boolean;
   timestamp?: string | Date;
   quickResponses?: QuickResponseWithToken[];
   isProcessing?: boolean;
-  diagnosticSummary?: DiagnosticSummary;
+  diagnosticSummary: DiagnosticSummary;
   question?: string; // Optional question to provide context for Yes/No buttons
 }
 
-export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
+export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
   content,
   extraContent,
   isLoading,
@@ -48,22 +48,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   question,
 }) => {
   const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
-
-  // If we have diagnostic summary, use the DiagnosticMessage component
-  if (diagnosticSummary) {
-    return (
-      <DiagnosticMessage
-        content={content}
-        extraContent={extraContent}
-        isLoading={isLoading}
-        timestamp={timestamp}
-        quickResponses={quickResponses}
-        isProcessing={isProcessing}
-        diagnosticSummary={diagnosticSummary}
-        question={question}
-      />
-    );
-  }
+  const [selectedIssues, setSelectedIssues] = useState<DiagnosticIssue[]>([]);
 
   // Don't render anything if there's no content and no extra content
   // This prevents "phantom" blank messages from appearing
@@ -88,30 +73,55 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       quickResponse({
         responseId,
         messageToken,
+        selectedIssues: selectedIssues.map(issue => issue.id), // Include selected issues
       })
     );
   };
 
+  const handleIssueSelectionChange = (issues: DiagnosticIssue[]) => {
+    setSelectedIssues(issues);
+  };
+
   return (
-    <Message
-      timestamp={formatTimestamp(timestamp)}
-      name="Konveyor"
-      role="bot"
-      avatar={botAv}
-      content={content || ""} // Ensure content is never undefined
-      quickResponses={
-        quickResponses?.map((response) => ({
-          ...response,
-          onClick: () => {
-            handleQuickResponse(response.id, response.messageToken);
-          },
-          isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
-          content: response.content,
-        }))
-      }
-      additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
-    />
+    <>
+      <Message
+        timestamp={formatTimestamp(timestamp)}
+        name="Konveyor"
+        role="bot"
+        avatar={botAv}
+        content={content || ""}
+        additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
+      />
+      
+      <DiagnosticIssuesView
+        diagnosticSummary={diagnosticSummary}
+        onIssueSelectionChange={handleIssueSelectionChange}
+        isProcessing={isProcessing}
+      />
+
+      {question && quickResponses && quickResponses.length > 0 && (
+        <Message
+          timestamp={formatTimestamp(timestamp)}
+          name="Konveyor"
+          role="bot"
+          avatar={botAv}
+          content={question}
+          quickResponses={
+            quickResponses.map((response) => ({
+              ...response,
+              onClick: () => {
+                handleQuickResponse(response.id, response.messageToken);
+              },
+              isDisabled: response.isDisabled || isProcessing || selectedResponse !== null || 
+                (response.id === "yes" && selectedIssues.length === 0),
+              content: response.content,
+            }))
+          }
+          additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
+        />
+      )}
+    </>
   );
 };
 
-export default ReceivedMessage;
+export default DiagnosticMessage; 

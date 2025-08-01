@@ -51,7 +51,7 @@ const resetStuckAnalysisFlags = (state: ExtensionState): void => {
 const createTasksMessage = (tasks: TasksList): { message: string; diagnosticSummary: any } => {
   const diagnosticSummary = summarizeTasksStructured(tasks);
   return {
-    message: `It appears that my fixes caused following issues. Please review the issues below and select which ones you'd like me to fix. Do you want me to continue fixing the selected issues?`,
+    message: `It appears that my fixes caused following issues. Please review the issues below and select which ones you'd like me to fix. `,
     diagnosticSummary: {
       summary: diagnosticSummary.summary,
       issuesByFile: Object.fromEntries(diagnosticSummary.issuesByFile),

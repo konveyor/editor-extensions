@@ -296,15 +296,60 @@ const ResolutionPage: React.FC = () => {
           return null; // Skip in non-agentic mode
         }
 
-        if (msg.kind === ChatMessageType.String) {
+        if (msg.kind === ChatMessageType.Diagnostic) {
           const message = msg.value?.message as string;
           const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
+
+          // Determine if we have Yes/No quick responses and create an appropriate question
+          const hasYesNoResponses =
+            Array.isArray(msg.quickResponses) &&
+            msg.quickResponses.some((response) => response.id === "yes" || response.id === "no");
+
+          const question = hasYesNoResponses
+            ? "Would you like me to fix the selected issues?"
+            : undefined;
+
           return (
             <MessageWrapper key={msg.messageToken}>
               <ReceivedMessage
                 timestamp={msg.timestamp}
                 content={message}
                 diagnosticSummary={diagnosticSummary}
+                question={question}
+                quickResponses={
+                  Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                    ? msg.quickResponses.map((response) => ({
+                        ...response,
+                        messageToken: msg.messageToken,
+                        isDisabled: response.id === "run-analysis" && isAnalyzing,
+                      }))
+                    : undefined
+                }
+              />
+            </MessageWrapper>
+          );
+        }
+
+        if (msg.kind === ChatMessageType.String) {
+          const message = msg.value?.message as string;
+          const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
+
+          // Determine if we have Yes/No quick responses and create an appropriate question
+          const hasYesNoResponses =
+            Array.isArray(msg.quickResponses) &&
+            msg.quickResponses.some((response) => response.id === "yes" || response.id === "no");
+
+          const question = hasYesNoResponses
+            ? "Would you like me to fix the selected issues?"
+            : undefined;
+
+          return (
+            <MessageWrapper key={msg.messageToken}>
+              <ReceivedMessage
+                timestamp={msg.timestamp}
+                content={message}
+                diagnosticSummary={diagnosticSummary}
+                question={question}
                 quickResponses={
                   Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                     ? msg.quickResponses.map((response) => ({

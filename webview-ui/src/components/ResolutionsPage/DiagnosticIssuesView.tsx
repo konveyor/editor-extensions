@@ -16,28 +16,19 @@ interface DiagnosticSummary {
   totalIssues: number;
 }
 
-interface QuickResponse {
-  id: string;
-  content: string;
-  messageToken: string;
-}
-
 interface DiagnosticIssuesViewProps {
   diagnosticSummary: DiagnosticSummary;
   onIssueSelectionChange?: (selectedIssues: DiagnosticIssue[]) => void;
-  quickResponses?: QuickResponse[];
   isProcessing?: boolean;
 }
 
 export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   diagnosticSummary,
   onIssueSelectionChange,
-  quickResponses,
   isProcessing = false,
 }) => {
   const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
-  const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
 
   const handleIssueToggle = useCallback(
     (issueId: string) => {
@@ -103,26 +94,6 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
       onIssueSelectionChange([]);
     }
   }, [onIssueSelectionChange]);
-
-  const handleQuickResponse = useCallback(
-    (responseId: string, messageToken: string) => {
-      setSelectedResponse(responseId);
-      window.vscode.postMessage({
-        type: "QUICK_RESPONSE",
-        payload: {
-          responseId,
-          messageToken,
-          selectedIssues: Array.from(selectedIssues),
-        },
-      });
-    },
-    [selectedIssues, diagnosticSummary],
-  );
-
-  // Hide the diagnostic view after a response is selected
-  if (selectedResponse !== null) {
-    return null;
-  }
 
   return (
     <div className="diagnostic-issues-view">
@@ -224,42 +195,16 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
 
       {selectedIssues.size > 0 && (
         <div className="selection-summary">
-          <div>{selectedIssues.size} issue(s) selected</div>
-          <div className="selected-issues-details">
-            {Object.entries(diagnosticSummary.issuesByFile).map(([filename, issues]) => {
-              const selectedInFile = issues.filter((issue) => selectedIssues.has(issue.id));
-              if (selectedInFile.length === 0) {
-                return null;
-              }
-
-              return (
-                <div key={filename} className="selected-file">
-                  {filename}: {selectedInFile.length} issue(s)
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {quickResponses && quickResponses.length > 0 && (
-        <div className="diagnostic-footer">
-          <div className="quick-responses">
-            {quickResponses.map((response) => (
-              <button
-                key={response.id}
-                className={`quick-response-btn ${selectedResponse === response.id ? "selected" : ""}`}
-                onClick={() => handleQuickResponse(response.id, response.messageToken)}
-                disabled={
-                  isProcessing ||
-                  selectedResponse !== null ||
-                  (response.id === "yes" && selectedIssues.size === 0)
-                }
-              >
-                {response.content}
-              </button>
-            ))}
-          </div>
+          {(() => {
+            const selectedFiles = Object.entries(diagnosticSummary.issuesByFile).filter(([filename, issues]) => 
+              issues.some(issue => selectedIssues.has(issue.id))
+            );
+            return (
+              <div>
+                {selectedIssues.size} issue{selectedIssues.size !== 1 ? 's' : ''} selected across {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
