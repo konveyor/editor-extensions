@@ -118,7 +118,7 @@ export class DiagnosticsIssueFix extends BaseNode {
         if (response.data.response?.tasks && response.data.response.yesNo) {
           nextState.shouldEnd = false;
           // group tasks by uris
-          let newTasks: { uri: string; tasks: string[] }[] =
+          const newTasks: { uri: string; tasks: string[] }[] =
             response.data.response.tasks
               ?.reduce(
                 (acc, val) => {
@@ -137,27 +137,6 @@ export class DiagnosticsIssueFix extends BaseNode {
                 tasks: group.tasks.sort(),
               }))
               .sort((a, b) => a.uri.localeCompare(b.uri)) ?? [];
-
-          // If selected files are provided, filter to only those files
-          if (
-            response.data.response.selectedIssues &&
-            response.data.response.selectedIssues.length > 0
-          ) {
-            // selectedIssues now contains file URIs instead of individual issue IDs
-            const selectedFileUris = new Set(response.data.response.selectedIssues);
-
-            // Filter to only include selected files
-            newTasks = newTasks.filter((group) => selectedFileUris.has(group.uri));
-
-            console.log("Backend filtered tasks:", {
-              filteredTasks: newTasks.map((group) => ({
-                uri: group.uri,
-                taskCount: group.tasks.length,
-                tasks: group.tasks.slice(0, 2), // Show first 2 tasks for debugging
-              })),
-            });
-          }
-
           if (!newTasks || newTasks.length < 1) {
             nextState.shouldEnd = true;
           }
@@ -252,8 +231,6 @@ Make sure your instructions are specific to fixing issues in this file.`
 
 **Here is the list of issues that need to be solved:**
 - ${state.plannerInputTasks.tasks.join("\n - ")}
-
-**IMPORTANT:** These are the specific issues that the user has selected to be fixed. Only address these exact issues - do not attempt to fix any other issues that might exist in the file.
 
 **Previous context about migration**
 ${state.plannerInputBackground}
