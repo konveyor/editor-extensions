@@ -3,6 +3,7 @@ import "./styles.css";
 import React, { useState, useEffect } from "react";
 import {
   Alert,
+  AlertActionLink,
   AlertGroup,
   Backdrop,
   Button,
@@ -160,22 +161,6 @@ const AnalysisPage: React.FC = () => {
               </Masthead>
             }
           >
-            {!selectedProfile && (
-              <PageSection padding={{ default: "noPadding" }}>
-                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
-                  <Alert variant="danger" title="No active profile selected">
-                    Please select or create a profile before running an analysis.
-                    <Button
-                      variant="link"
-                      onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
-                      style={{ marginLeft: "0.5rem" }}
-                    >
-                      Manage Profiles
-                    </Button>
-                  </Alert>
-                </Card>
-              </PageSection>
-            )}
             {errorMessage && (
               <PageSection padding={{ default: "noPadding" }}>
                 <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
@@ -209,7 +194,19 @@ const AnalysisPage: React.FC = () => {
                     style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}
                     key={index}
                   >
-                    <Alert variant="warning" title={error.message}>
+                    <Alert 
+                      variant="warning" 
+                      title={error.message}
+                      actionLinks={
+                        error.type === "no-active-profile" ? (
+                          <AlertActionLink
+                            onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+                          >
+                            Manage Profiles
+                          </AlertActionLink>
+                        ) : undefined
+                      }
+                    >
                       {error.error ?? ""}
                     </Alert>
                   </Card>
