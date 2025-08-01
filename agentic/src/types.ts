@@ -55,6 +55,7 @@ export interface KaiUserInteraction {
       uri: string;
       task: string;
     }[];
+    selectedIssues?: string[];
   };
 }
 
