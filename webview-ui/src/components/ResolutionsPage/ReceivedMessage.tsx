@@ -3,7 +3,7 @@ import { Message } from "@patternfly/chatbot";
 import { QuickResponse } from "@editor-extensions/shared";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import botAv from "./bot_avatar.svg";
+import botAv from "./bot_avatar.svg?inline";
 import DiagnosticIssuesView from "./DiagnosticIssuesView";
 import { quickResponse } from "../../hooks/actions";
 
