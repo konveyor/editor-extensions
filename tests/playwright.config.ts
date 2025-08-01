@@ -31,6 +31,10 @@ export default defineConfig({
       testMatch: /.*configure-and-run-analysis\.test\.ts/,
     },
     {
+      name: 'solution-server-tests',
+      testMatch: ['**/solution-server/**/*.test.ts'],
+    },
+    {
       name: 'analysis-tests',
       testMatch: /.*analyze.+\.test\.ts/,
       dependencies: ['configure-and-run-analysis'],

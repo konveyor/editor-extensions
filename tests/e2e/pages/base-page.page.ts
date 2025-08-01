@@ -1,7 +1,7 @@
 import { ElectronApplication, Page } from 'playwright';
 import { getOSInfo } from '../utilities/utils';
 
-export class Application {
+export class BasePage {
   protected readonly app: ElectronApplication;
   protected readonly window: Page;
 

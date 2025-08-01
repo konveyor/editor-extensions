@@ -5,13 +5,14 @@ import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils
 import * as path from 'path';
 import { LeftBarItems } from '../enums/left-bar-items.enum';
 import { expect } from '@playwright/test';
-import { Application } from './application.pages';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import fs from 'fs';
 import { TEST_DATA_DIR } from '../utilities/consts';
+import { BasePage } from './base-page.page';
+import { installExtension } from '../utilities/vscode-commands.utils';
 
-export class VSCode extends Application {
+export class VSCode extends BasePage {
   public static async open(repoUrl?: string, repoDir?: string) {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
@@ -76,41 +77,12 @@ export class VSCode extends Application {
   public static async init(repoDir?: string): Promise<VSCode> {
     try {
       if (process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL) {
-        await VSCode.installExtension();
+        await installExtension();
       }
 
       return repoDir ? VSCode.open(repoDir) : VSCode.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
-      throw error;
-    }
-  }
-
-  private static async installExtension(): Promise<void> {
-    try {
-      if (VSCode.isExtensionInstalled('konveyor.konveyor-ai')) {
-        console.log(`Extension already installed`);
-        return;
-      }
-
-      let extensionPath = '';
-      if (process.env.VSIX_FILE_PATH && fs.existsSync(process.env.VSIX_FILE_PATH)) {
-        console.log(`vsix present in ${process.env.VSIX_FILE_PATH}`);
-        extensionPath = process.env.VSIX_FILE_PATH;
-      } else if (process.env.VSIX_DOWNLOAD_URL) {
-        console.log(`vsix downloaded from ${process.env.VSIX_DOWNLOAD_URL}`);
-        extensionPath = 'extension.vsix';
-        await downloadFile(process.env.VSIX_DOWNLOAD_URL, extensionPath);
-      } else {
-        throw new Error(`Extension path or url not found: ${extensionPath}`);
-      }
-
-      execSync(`code --install-extension "${extensionPath}"`, {
-        stdio: 'inherit',
-      });
-      console.log('Extension installed successfully.');
-    } catch (error) {
-      console.error('Error installing the VSIX extension:', error);
       throw error;
     }
   }
@@ -129,7 +101,7 @@ export class VSCode extends Application {
     }
   }
 
-  private async executeQuickCommand(command: string) {
+  public async executeQuickCommand(command: string) {
     await this.waitDefault();
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+Shift+P`, { delay: 500 });
@@ -294,11 +266,5 @@ export class VSCode extends Application {
     }
   }
 
-  public static isExtensionInstalled(extension: string) {
-    const installedExtensions = execSync('code --list-extensions', {
-      encoding: 'utf-8',
-    });
-
-    return installedExtensions.includes(extension);
-  }
+  public openConfiguration() {}
 }
