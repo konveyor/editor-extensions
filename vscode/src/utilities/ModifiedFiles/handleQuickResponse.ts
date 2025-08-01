@@ -38,10 +38,26 @@ export async function handleQuickResponse(
       // Check if this message is related to "tasks" interaction by looking for tasksData in the message value
       if (msg.value && "tasksData" in msg.value) {
         interactionType = "tasks";
+
+        // Filter tasks based on selected issues if any are selected
+        let filteredTasks = msg.value.tasksData as Array<{ uri: string; task: string }>;
+        if (selectedIssues && selectedIssues.length > 0) {
+          // selectedIssues contains individual issue IDs in format: "${uri}-${task}"
+          const selectedIssueIds = new Set(selectedIssues);
+
+          // Filter tasks to only include those that match selected issue IDs
+          filteredTasks = (msg.value.tasksData as Array<{ uri: string; task: string }>).filter(
+            (task) => {
+              const issueId = `${task.uri}-${task.task}`;
+              return selectedIssueIds.has(issueId);
+            },
+          );
+        }
+
         responseData = {
-          tasks: msg.value.tasksData,
+          tasks: filteredTasks,
           yesNo: responseId === "yes",
-          selectedIssues: selectedIssues, // Include selected issues
+          selectedIssues: selectedIssues, // Include selected issues for reference
         };
       }
 
