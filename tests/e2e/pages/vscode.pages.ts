@@ -12,7 +12,7 @@ import fs from 'fs';
 import { TEST_DATA_DIR } from '../utilities/consts';
 
 export class VSCode extends Application {
-  public static async open(repoUrl?: string, repoDir?: string) {
+  public static async open(repoUrl?: string, repoDir?: string, branch?: string) {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
@@ -28,8 +28,13 @@ export class VSCode extends Application {
         if (repoDir) {
           await cleanupRepo(repoDir);
         }
-        console.log(`Cloning repository from ${repoUrl}`);
-        execSync(`git clone ${repoUrl}`);
+        if (branch) {
+          console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
+          execSync(`git clone ${repoUrl} -b ${branch}`);
+        } else {
+          console.log(`Cloning repository from ${repoUrl}`);
+          execSync(`git clone ${repoUrl}`);
+        }
       }
     } catch (error: any) {
       throw new Error('Failed to clone the repository');
