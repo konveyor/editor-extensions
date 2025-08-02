@@ -380,4 +380,8 @@ export class VSCode extends BasePage {
       throw error;
     }
   }
+
+  public async closeAllOtherEditors() {
+    await this.executeQuickCommand('View: Close Other Editors in Group');
+  }
 }
