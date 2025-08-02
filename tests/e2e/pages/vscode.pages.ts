@@ -306,4 +306,8 @@ export class VSCode extends Application {
 
     return installedExtensions.includes(extension);
   }
+
+  public async closeAllOtherEditors() {
+    await this.executeQuickCommand('View: Close Other Editors in Group');
+  }
 }
