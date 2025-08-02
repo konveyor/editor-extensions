@@ -12,5 +12,12 @@
     "branch": "main",
     "sources": [],
     "targets": ["openjdk17"]
+  },
+  "jboss-eap-quickstarts": {
+    "repoUrl": "https://github.com/jboss-developer/jboss-eap-quickstarts",
+    "repoName": "jboss-eap-quickstarts",
+    "branch": "7.4.x",
+    "sources": [],
+    "targets": ["eap7", "eap8"]
   }
 }
