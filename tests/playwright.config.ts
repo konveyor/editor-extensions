@@ -43,5 +43,10 @@ export default defineConfig({
       name: 'agent-flow-tests',
       testMatch: /.*agent_flow.+\.test\.ts/,
     },
+    {
+      name: 'llm-checks',
+      testMatch: /llm-revert-check_jboss-eap-quickstarts\.test\.ts/,
+      dependencies: ['configure-and-run-analysis'],
+    },
   ],
 });
