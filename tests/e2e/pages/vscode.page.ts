@@ -14,6 +14,7 @@ import { BasePage } from './base.page';
 import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
 
+<<<<<<< HEAD:tests/e2e/pages/vscode.page.ts
 export class VSCode extends BasePage {
   constructor(
     app: ElectronApplication,
@@ -24,6 +25,10 @@ export class VSCode extends BasePage {
   }
 
   public static async open(repoUrl?: string, repoDir?: string) {
+=======
+export class VSCode extends Application {
+  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
+>>>>>>> 1eb304d (Update tests/e2e/pages/vscode.pages.ts):tests/e2e/pages/vscode.pages.ts
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
