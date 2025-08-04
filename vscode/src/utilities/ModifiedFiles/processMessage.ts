@@ -54,7 +54,7 @@ const createTasksMessage = (tasks: TasksList): { message: string; diagnosticSumm
     message: `It appears that my fixes caused following issues. Please review the issues below and select which ones you'd like me to fix. `,
     diagnosticSummary: {
       summary: diagnosticSummary.summary,
-      issuesByFile: Object.fromEntries(diagnosticSummary.issuesByFile),
+      issuesByFile: diagnosticSummary.issuesByFile,
       totalIssues: diagnosticSummary.totalIssues,
     },
   };

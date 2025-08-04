@@ -1,18 +1,6 @@
 import { basename } from "path";
 import { TasksList } from "./types";
-
-export interface DiagnosticIssue {
-  id: string;
-  message: string;
-  uri: string;
-  filename: string;
-}
-
-export interface DiagnosticSummary {
-  summary: string;
-  issuesByFile: Map<string, DiagnosticIssue[]>;
-  totalIssues: number;
-}
+import { DiagnosticIssue, DiagnosticSummary } from "@editor-extensions/shared";
 
 /**
  * Summarizes the tasks into structured data for interactive display.
@@ -20,7 +8,7 @@ export interface DiagnosticSummary {
  */
 export function summarizeTasksStructured(tasks: TasksList): DiagnosticSummary {
   const uriToTasksMap = new Map<string, string[]>();
-  const issuesByFile = new Map<string, DiagnosticIssue[]>();
+  const issuesByFile: Record<string, DiagnosticIssue[]> = {};
 
   tasks.currentTasks.forEach((task) => {
     const uri = task.getUri();
@@ -44,7 +32,7 @@ export function summarizeTasksStructured(tasks: TasksList): DiagnosticSummary {
       filename,
     }));
 
-    issuesByFile.set(filename, fileIssues);
+    issuesByFile[filename] = fileIssues;
 
     // Show first 2 issues in summary
     uniqueTasks.slice(0, Math.min(2, uniqueTasks.length)).forEach((task) => {
