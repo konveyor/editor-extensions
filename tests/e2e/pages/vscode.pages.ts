@@ -12,7 +12,7 @@ import fs from 'fs';
 import { TEST_DATA_DIR } from '../utilities/consts';
 
 export class VSCode extends Application {
-  public static async open(repoUrl?: string, repoDir?: string, branch?: string) {
+  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
