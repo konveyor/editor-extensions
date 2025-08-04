@@ -1,26 +1,11 @@
 import React, { useState } from "react";
 import { Message } from "@patternfly/chatbot";
-import { QuickResponse } from "@editor-extensions/shared";
+import { QuickResponse, DiagnosticSummary } from "@editor-extensions/shared";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import botAv from "./bot_avatar.svg?inline";
 import DiagnosticMessage from "./DiagnosticMessage";
 import { quickResponse } from "../../hooks/actions";
-
-// Import diagnostic types from the shared types file
-interface DiagnosticIssue {
-  id: string;
-  message: string;
-  uri: string;
-  filename: string;
-  selected?: boolean;
-}
-
-interface DiagnosticSummary {
-  summary: string;
-  issuesByFile: Record<string, DiagnosticIssue[]>;
-  totalIssues: number;
-}
 
 interface QuickResponseWithToken extends QuickResponse {
   messageToken: string;

@@ -1,20 +1,6 @@
 import React, { useState, useCallback } from "react";
 import "./diagnosticIssuesView.css";
-
-// Import diagnostic types locally since they might not be properly exported from shared
-interface DiagnosticIssue {
-  id: string;
-  message: string;
-  uri: string;
-  filename: string;
-  selected?: boolean;
-}
-
-interface DiagnosticSummary {
-  summary: string;
-  issuesByFile: Record<string, DiagnosticIssue[]>;
-  totalIssues: number;
-}
+import { DiagnosticIssue, DiagnosticSummary } from "@editor-extensions/shared";
 
 interface DiagnosticIssuesViewProps {
   diagnosticSummary: DiagnosticSummary;
