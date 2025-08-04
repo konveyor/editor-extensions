@@ -73,8 +73,8 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
       quickResponse({
         responseId,
         messageToken,
-        selectedIssues: selectedIssues.map(issue => issue.id), // Include selected issues
-      })
+        selectedIssues: selectedIssues.map((issue) => issue.id), // Include selected issues
+      }),
     );
   };
 
@@ -92,7 +92,7 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
         content={content || ""}
         additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
       />
-      
+
       <DiagnosticIssuesView
         diagnosticSummary={diagnosticSummary}
         onIssueSelectionChange={handleIssueSelectionChange}
@@ -106,17 +106,18 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
           role="bot"
           avatar={botAv}
           content={question}
-          quickResponses={
-            quickResponses.map((response) => ({
-              ...response,
-              onClick: () => {
-                handleQuickResponse(response.id, response.messageToken);
-              },
-              isDisabled: response.isDisabled || isProcessing || selectedResponse !== null || 
-                (response.id === "yes" && selectedIssues.length === 0),
-              content: response.content,
-            }))
-          }
+          quickResponses={quickResponses.map((response) => ({
+            ...response,
+            onClick: () => {
+              handleQuickResponse(response.id, response.messageToken);
+            },
+            isDisabled:
+              response.isDisabled ||
+              isProcessing ||
+              selectedResponse !== null ||
+              (response.id === "yes" && selectedIssues.length === 0),
+            content: response.content,
+          }))}
           additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
         />
       )}
@@ -124,4 +125,4 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
   );
 };
 
-export default DiagnosticMessage; 
+export default DiagnosticMessage;

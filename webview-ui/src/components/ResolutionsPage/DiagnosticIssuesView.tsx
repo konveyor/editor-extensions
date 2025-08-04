@@ -30,6 +30,20 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 
+  // Common function to update selected issues and notify parent
+  const updateSelectedIssues = useCallback(
+    (newSelected: Set<string>) => {
+      setSelectedIssues(newSelected);
+      
+      if (onIssueSelectionChange) {
+        const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
+        const selectedIssuesList = allIssues.filter((issue) => newSelected.has(issue.id));
+        onIssueSelectionChange(selectedIssuesList);
+      }
+    },
+    [diagnosticSummary, onIssueSelectionChange],
+  );
+
   const handleIssueToggle = useCallback(
     (issueId: string) => {
       const newSelected = new Set(selectedIssues);
@@ -38,16 +52,9 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
       } else {
         newSelected.add(issueId);
       }
-      setSelectedIssues(newSelected);
-
-      // Notify parent of selection change
-      if (onIssueSelectionChange) {
-        const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
-        const selectedIssuesList = allIssues.filter((issue) => newSelected.has(issue.id));
-        onIssueSelectionChange(selectedIssuesList);
-      }
+      updateSelectedIssues(newSelected);
     },
-    [selectedIssues, diagnosticSummary, onIssueSelectionChange],
+    [selectedIssues, updateSelectedIssues],
   );
 
   const handleFileToggle = useCallback(
@@ -80,20 +87,12 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   const handleSelectAll = useCallback(() => {
     const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
     const allIssueIds = new Set(allIssues.map((issue) => issue.id));
-    setSelectedIssues(allIssueIds);
-
-    if (onIssueSelectionChange) {
-      onIssueSelectionChange(allIssues);
-    }
-  }, [diagnosticSummary, onIssueSelectionChange]);
+    updateSelectedIssues(allIssueIds);
+  }, [diagnosticSummary, updateSelectedIssues]);
 
   const handleSelectNone = useCallback(() => {
-    setSelectedIssues(new Set());
-
-    if (onIssueSelectionChange) {
-      onIssueSelectionChange([]);
-    }
-  }, [onIssueSelectionChange]);
+    updateSelectedIssues(new Set());
+  }, [updateSelectedIssues]);
 
   return (
     <div className="diagnostic-issues-view">
@@ -127,31 +126,17 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
                     checked={issues.every((issue) => selectedIssues.has(issue.id))}
                     onChange={() => {
                       const allSelected = issues.every((issue) => selectedIssues.has(issue.id));
+                      const newSelected = new Set(selectedIssues);
+                      
                       if (allSelected) {
                         // Deselect all issues in this file
-                        const newSelected = new Set(selectedIssues);
                         issues.forEach((issue) => newSelected.delete(issue.id));
-                        setSelectedIssues(newSelected);
-                        if (onIssueSelectionChange) {
-                          const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
-                          const selectedIssuesList = allIssues.filter((issue) =>
-                            newSelected.has(issue.id),
-                          );
-                          onIssueSelectionChange(selectedIssuesList);
-                        }
                       } else {
                         // Select all issues in this file
-                        const newSelected = new Set(selectedIssues);
                         issues.forEach((issue) => newSelected.add(issue.id));
-                        setSelectedIssues(newSelected);
-                        if (onIssueSelectionChange) {
-                          const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
-                          const selectedIssuesList = allIssues.filter((issue) =>
-                            newSelected.has(issue.id),
-                          );
-                          onIssueSelectionChange(selectedIssuesList);
-                        }
                       }
+                      
+                      updateSelectedIssues(newSelected);
                     }}
                   />
                   <button
