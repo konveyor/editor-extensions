@@ -5,13 +5,13 @@ import { DiagnosticIssue, DiagnosticSummary } from "@editor-extensions/shared";
 interface DiagnosticIssuesViewProps {
   diagnosticSummary: DiagnosticSummary;
   onIssueSelectionChange?: (selectedIssues: DiagnosticIssue[]) => void;
-  isProcessing?: boolean;
+  isMessageResponded?: boolean;
 }
 
 export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   diagnosticSummary,
   onIssueSelectionChange,
-  isProcessing = false,
+  isMessageResponded = false,
 }) => {
   const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
@@ -19,19 +19,29 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   // Common function to update selected issues and notify parent
   const updateSelectedIssues = useCallback(
     (newSelected: Set<string>) => {
+      // Don't allow selection changes when message has been responded to
+      if (isMessageResponded) {
+        return;
+      }
+
       setSelectedIssues(newSelected);
-      
+
       if (onIssueSelectionChange) {
         const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
         const selectedIssuesList = allIssues.filter((issue) => newSelected.has(issue.id));
         onIssueSelectionChange(selectedIssuesList);
       }
     },
-    [diagnosticSummary, onIssueSelectionChange],
+    [diagnosticSummary, onIssueSelectionChange, isMessageResponded],
   );
 
   const handleIssueToggle = useCallback(
     (issueId: string) => {
+      // Don't allow selection changes when message has been responded to
+      if (isMessageResponded) {
+        return;
+      }
+
       const newSelected = new Set(selectedIssues);
       if (newSelected.has(issueId)) {
         newSelected.delete(issueId);
@@ -40,7 +50,7 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
       }
       updateSelectedIssues(newSelected);
     },
-    [selectedIssues, updateSelectedIssues],
+    [selectedIssues, updateSelectedIssues, isMessageResponded],
   );
 
   const handleFileToggle = useCallback(
@@ -71,24 +81,42 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   }, []);
 
   const handleSelectAll = useCallback(() => {
+    // Don't allow selection changes when message has been responded to
+    if (isMessageResponded) {
+      return;
+    }
+
     const allIssues = Object.values(diagnosticSummary.issuesByFile).flat();
     const allIssueIds = new Set(allIssues.map((issue) => issue.id));
     updateSelectedIssues(allIssueIds);
-  }, [diagnosticSummary, updateSelectedIssues]);
+  }, [diagnosticSummary, updateSelectedIssues, isMessageResponded]);
 
   const handleSelectNone = useCallback(() => {
+    // Don't allow selection changes when message has been responded to
+    if (isMessageResponded) {
+      return;
+    }
+
     updateSelectedIssues(new Set());
-  }, [updateSelectedIssues]);
+  }, [updateSelectedIssues, isMessageResponded]);
 
   return (
-    <div className="diagnostic-issues-view">
+    <div className={`diagnostic-issues-view ${isMessageResponded ? "processing" : ""}`}>
       <div className="diagnostic-header">
         <h3>Diagnostic Issues ({diagnosticSummary.totalIssues} total)</h3>
         <div className="diagnostic-actions">
-          <button className="diagnostic-action-btn" onClick={handleSelectAll}>
+          <button
+            className="diagnostic-action-btn"
+            onClick={handleSelectAll}
+            disabled={isMessageResponded}
+          >
             Select All
           </button>
-          <button className="diagnostic-action-btn" onClick={handleSelectNone}>
+          <button
+            className="diagnostic-action-btn"
+            onClick={handleSelectNone}
+            disabled={isMessageResponded}
+          >
             Select None
           </button>
         </div>
@@ -111,9 +139,14 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
                     type="checkbox"
                     checked={issues.every((issue) => selectedIssues.has(issue.id))}
                     onChange={() => {
+                      // Don't allow selection changes when message has been responded to
+                      if (isMessageResponded) {
+                        return;
+                      }
+
                       const allSelected = issues.every((issue) => selectedIssues.has(issue.id));
                       const newSelected = new Set(selectedIssues);
-                      
+
                       if (allSelected) {
                         // Deselect all issues in this file
                         issues.forEach((issue) => newSelected.delete(issue.id));
@@ -121,9 +154,10 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
                         // Select all issues in this file
                         issues.forEach((issue) => newSelected.add(issue.id));
                       }
-                      
+
                       updateSelectedIssues(newSelected);
                     }}
+                    disabled={isMessageResponded}
                   />
                   <button
                     className="filename-btn"
@@ -153,6 +187,7 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
                         type="checkbox"
                         checked={selectedIssues.has(issue.id)}
                         onChange={() => handleIssueToggle(issue.id)}
+                        disabled={isMessageResponded}
                       />
                       <span className="issue-message">{issue.message}</span>
                     </label>
@@ -167,12 +202,13 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
       {selectedIssues.size > 0 && (
         <div className="selection-summary">
           {(() => {
-            const selectedFiles = Object.entries(diagnosticSummary.issuesByFile).filter(([filename, issues]) => 
-              issues.some(issue => selectedIssues.has(issue.id))
+            const selectedFiles = Object.entries(diagnosticSummary.issuesByFile).filter(
+              ([filename, issues]) => issues.some((issue) => selectedIssues.has(issue.id)),
             );
             return (
               <div>
-                {selectedIssues.size} issue{selectedIssues.size !== 1 ? 's' : ''} selected across {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+                {selectedIssues.size} issue{selectedIssues.size !== 1 ? "s" : ""} selected across{" "}
+                {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""}
               </div>
             );
           })()}

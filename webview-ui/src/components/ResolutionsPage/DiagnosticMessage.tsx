@@ -17,9 +17,10 @@ interface DiagnosticMessageProps {
   isLoading?: boolean;
   timestamp?: string | Date;
   quickResponses?: QuickResponseWithToken[];
-  isProcessing?: boolean;
+  isMessageResponded?: boolean;
   diagnosticSummary: DiagnosticSummary;
   question?: string; // Optional question to provide context for Yes/No buttons
+  onQuickResponse?: () => void; // Callback when a quick response is selected
 }
 
 export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
@@ -28,9 +29,10 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
   isLoading,
   timestamp = new Date(),
   quickResponses,
-  isProcessing = false,
+  isMessageResponded = false,
   diagnosticSummary,
   question,
+  onQuickResponse,
 }) => {
   const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
   const [selectedIssues, setSelectedIssues] = useState<DiagnosticIssue[]>([]);
@@ -54,6 +56,12 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
     // Update state to reflect selected response
     // Note: Consider using React.memo or other optimization techniques if flickering persists
     setSelectedResponse(responseId);
+
+    // Notify parent that a quick response was selected
+    if (onQuickResponse) {
+      onQuickResponse();
+    }
+
     window.vscode.postMessage(
       quickResponse({
         responseId,
@@ -81,7 +89,7 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
       <DiagnosticIssuesView
         diagnosticSummary={diagnosticSummary}
         onIssueSelectionChange={handleIssueSelectionChange}
-        isProcessing={isProcessing}
+        isMessageResponded={isMessageResponded}
       />
 
       {question && quickResponses && quickResponses.length > 0 && (
@@ -98,7 +106,7 @@ export const DiagnosticMessage: React.FC<DiagnosticMessageProps> = ({
             },
             isDisabled:
               response.isDisabled ||
-              isProcessing ||
+              isMessageResponded ||
               selectedResponse !== null ||
               (response.id === "yes" && selectedIssues.length === 0),
             content: response.content,

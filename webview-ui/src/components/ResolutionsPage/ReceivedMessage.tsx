@@ -17,9 +17,10 @@ interface ReceivedMessageProps {
   isLoading?: boolean;
   timestamp?: string | Date;
   quickResponses?: QuickResponseWithToken[];
-  isProcessing?: boolean;
+  isMessageResponded?: boolean;
   diagnosticSummary?: DiagnosticSummary;
   question?: string; // Optional question to provide context for Yes/No buttons
+  onQuickResponse?: () => void; // Callback when a quick response is selected
 }
 
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
@@ -28,9 +29,10 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   isLoading,
   timestamp = new Date(),
   quickResponses,
-  isProcessing = false,
+  isMessageResponded = false,
   diagnosticSummary,
   question,
+  onQuickResponse,
 }) => {
   const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
 
@@ -43,9 +45,10 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
         isLoading={isLoading}
         timestamp={timestamp}
         quickResponses={quickResponses}
-        isProcessing={isProcessing}
+        isMessageResponded={isMessageResponded}
         diagnosticSummary={diagnosticSummary}
         question={question}
+        onQuickResponse={onQuickResponse}
       />
     );
   }
@@ -69,11 +72,17 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
     // Update state to reflect selected response
     // Note: Consider using React.memo or other optimization techniques if flickering persists
     setSelectedResponse(responseId);
+
+    // Notify parent that a quick response was selected
+    if (onQuickResponse) {
+      onQuickResponse();
+    }
+
     window.vscode.postMessage(
       quickResponse({
         responseId,
         messageToken,
-      })
+      }),
     );
   };
 
@@ -84,16 +93,14 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       role="bot"
       avatar={botAv}
       content={content || ""} // Ensure content is never undefined
-      quickResponses={
-        quickResponses?.map((response) => ({
-          ...response,
-          onClick: () => {
-            handleQuickResponse(response.id, response.messageToken);
-          },
-          isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
-          content: response.content,
-        }))
-      }
+      quickResponses={quickResponses?.map((response) => ({
+        ...response,
+        onClick: () => {
+          handleQuickResponse(response.id, response.messageToken);
+        },
+        isDisabled: response.isDisabled || isMessageResponded || selectedResponse !== null,
+        content: response.content,
+      }))}
       additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
     />
   );

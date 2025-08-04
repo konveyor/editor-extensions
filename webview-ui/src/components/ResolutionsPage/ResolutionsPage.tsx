@@ -1,5 +1,5 @@
 import "./resolutionsPage.css";
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { CheckCircleIcon } from "@patternfly/react-icons";
 import {
@@ -197,6 +197,9 @@ const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
   const { solutionScope } = state;
 
+  // Track which messages have had their quick responses selected
+  const [respondedMessageTokens, setRespondedMessageTokens] = useState<Set<string>>(new Set());
+
   // Unified data hook
   const {
     isAgentMode,
@@ -252,6 +255,11 @@ const ResolutionPage: React.FC = () => {
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
+  // Handle quick response selection
+  const handleQuickResponse = useCallback((messageToken: string) => {
+    setRespondedMessageTokens((prev) => new Set([...prev, messageToken]));
+  }, []);
+
   // Render chat messages - used in both modes but with different ModifiedFile handling
   const renderChatMessages = useCallback(
     (mode: "agent" | "non-agent" = "agent") => {
@@ -263,6 +271,9 @@ const ResolutionPage: React.FC = () => {
         if (!msg) {
           return null;
         }
+
+        // Check if this specific message has been responded to
+        const isMessageResponded = respondedMessageTokens.has(msg.messageToken);
 
         if (msg.kind === ChatMessageType.Tool) {
           const { toolName, toolStatus } = msg.value as ToolMessageValue;
@@ -293,7 +304,6 @@ const ResolutionPage: React.FC = () => {
               </MessageWrapper>
             );
           }
-          return null; // Skip in non-agentic mode
         }
 
         if (msg.kind === ChatMessageType.Diagnostic) {
@@ -316,6 +326,8 @@ const ResolutionPage: React.FC = () => {
                 content={message}
                 diagnosticSummary={diagnosticSummary}
                 question={question}
+                isMessageResponded={isMessageResponded}
+                onQuickResponse={() => handleQuickResponse(msg.messageToken)}
                 quickResponses={
                   Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                     ? msg.quickResponses.map((response) => ({
@@ -350,6 +362,8 @@ const ResolutionPage: React.FC = () => {
                 content={message}
                 diagnosticSummary={diagnosticSummary}
                 question={question}
+                isMessageResponded={isMessageResponded}
+                onQuickResponse={() => handleQuickResponse(msg.messageToken)}
                 quickResponses={
                   Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                     ? msg.quickResponses.map((response) => ({
@@ -367,7 +381,7 @@ const ResolutionPage: React.FC = () => {
         return null;
       });
     },
-    [chatMessages, isFetchingSolution, isAnalyzing],
+    [chatMessages, respondedMessageTokens, handleQuickResponse],
   );
 
   // Render local changes for non-agent mode
