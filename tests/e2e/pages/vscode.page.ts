@@ -44,13 +44,8 @@ export class VSCode extends Application {
         if (repoDir) {
           await cleanupRepo(repoDir);
         }
-        if (branch) {
-          console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
-          execSync(`git clone ${repoUrl} -b ${branch}`);
-        } else {
-          console.log(`Cloning repository from ${repoUrl}`);
-          execSync(`git clone ${repoUrl}`);
-        }
+        console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
+        execSync(`git clone ${repoUrl} -b ${branch}`);
       }
     } catch (error: any) {
       throw new Error('Failed to clone the repository');
