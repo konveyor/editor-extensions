@@ -4,7 +4,10 @@ import { isExtensionInstalled } from './e2e/utilities/vscode-commands.utils';
 
 async function globalSetup() {
   console.log('Running global setup...');
-  const vscodeApp = await VSCode.init();
+  const vscodeApp = await VSCode.init(
+    'https://github.com/konveyor-ecosystem/coolstore',
+    'coolstore'
+  );
 
   if (!isExtensionInstalled('redhat.java')) {
     throw new Error(
@@ -16,7 +19,12 @@ async function globalSetup() {
     await vscodeApp.getWindow().waitForTimeout(60000);
   }
 
-  await vscodeApp.configureGenerativeAI();
+  await vscodeApp
+    .getWindow()
+    .getByRole('button', { name: 'Java: Ready' })
+    .waitFor({ timeout: 30000 });
+
+  await vscodeApp.openAnalysisView();
   console.log('Completed global setup.');
   await vscodeApp.closeVSCode();
 }

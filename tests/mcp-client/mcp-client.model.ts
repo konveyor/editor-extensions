@@ -36,19 +36,26 @@ export class MCPClient {
     }
   }
 
-  public async getBestHint(rulesetName: string, violationName: string) {
+  public async getBestHint(rulesetName: string, violationName: string): Promise<BestHintResponse> {
     const bestHintSchema = z.object({
       hint_id: z.number(),
       hint: z.string(),
     });
 
-    return await this.request<BestHintResponse>(
+    const response = await this.request<BestHintResponse>(
       'get_best_hint',
       {
         ruleset_name: rulesetName,
         violation_name: violationName,
       },
       bestHintSchema
+    );
+
+    return (
+      response || {
+        hint_id: -1,
+        hint: '',
+      }
     );
   }
 
@@ -67,14 +74,29 @@ export class MCPClient {
       unknown_solutions: z.number(),
     });
 
-    return await this.request<SuccessRateResponse>(
+    const response = await this.request<SuccessRateResponse>(
       'get_success_rate',
       { violation_ids: violationIds },
       successRateSchema
     );
+
+    return (
+      response || {
+        counted_solutions: 0,
+        accepted_solutions: 0,
+        rejected_solutions: 0,
+        modified_solutions: 0,
+        pending_solutions: 0,
+        unknown_solutions: 0,
+      }
+    );
   }
 
-  private async request<T>(endpoint: string, params: any, schema: z.ZodSchema<T>): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    params: any,
+    schema: z.ZodSchema<T>
+  ): Promise<T | null> {
     const result = await this.client?.callTool({
       name: endpoint,
       arguments: params,
@@ -104,7 +126,7 @@ export class MCPClient {
       .join('');
 
     if (!textContent) {
-      throw new Error(`No content received from ${endpoint}`);
+      return null;
     }
 
     try {

@@ -1,4 +1,4 @@
-import { _electron as electron, FrameLocator, Page } from 'playwright';
+import { _electron as electron, FrameLocator } from 'playwright';
 import { execSync } from 'child_process';
 import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
 import * as path from 'path';
@@ -71,15 +71,16 @@ export class VSCode extends BasePage {
 
   /**
    * launches VSCode with KAI plugin installed and repoUrl app opened.
+   * @param repoUrl
    * @param repoDir path to repo
    */
-  public static async init(repoDir?: string): Promise<VSCode> {
+  public static async init(repoUrl?: string, repoDir?: string): Promise<VSCode> {
     try {
       if (process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL) {
         await installExtension();
       }
 
-      return repoDir ? VSCode.open(repoDir) : VSCode.open();
+      return repoUrl ? VSCode.open(repoUrl, repoDir) : VSCode.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
       throw error;
@@ -125,7 +126,7 @@ export class VSCode extends BasePage {
       return;
     }
 
-    const moreButton = window.getByRole('button', { name: LeftBarItems.AdditionalViews });
+    const moreButton = window.getByRole('button', { name: LeftBarItems.AdditionalViews }).first();
     await expect(moreButton).toBeVisible();
     await moreButton.click();
 

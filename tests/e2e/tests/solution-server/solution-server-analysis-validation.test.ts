@@ -135,6 +135,6 @@ test.describe(`Solution server analysis validations`, () => {
       analysisView.locator(
         `#javax-to-jakarta-import-00001-${accept ? 'accepted' : 'rejected'}-solutions`
       )
-    ).toContainText(`${successRate[key]} ${accept ? 'accepted' : 'rejected'}`); // TODO <- this
+    ).toContainText(`${successRate[key]} ${accept ? 'accepted' : 'rejected'}`);
   }
 });
