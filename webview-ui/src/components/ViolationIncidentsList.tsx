@@ -364,12 +364,20 @@ const ViolationIncidentsList = ({
                             return (
                               <>
                                 {successRate && successRate.accepted_solutions > 0 && (
-                                  <Label color="green" isCompact>
+                                  <Label
+                                    id={`${group.id}-accepted-solutions`}
+                                    color="green"
+                                    isCompact
+                                  >
                                     {successRate.accepted_solutions} accepted
                                   </Label>
                                 )}
                                 {successRate && successRate.rejected_solutions > 0 && (
-                                  <Label color="red" isCompact>
+                                  <Label
+                                    id={`${group.id}-rejected-solutions`}
+                                    color="red"
+                                    isCompact
+                                  >
                                     {successRate.rejected_solutions} rejected
                                   </Label>
                                 )}

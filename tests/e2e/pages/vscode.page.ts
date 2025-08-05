@@ -1,16 +1,15 @@
 import { _electron as electron, FrameLocator, Page } from 'playwright';
 import { execSync } from 'child_process';
-import { downloadFile } from '../utilities/download.utils';
 import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
 import * as path from 'path';
 import { LeftBarItems } from '../enums/left-bar-items.enum';
 import { expect } from '@playwright/test';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
-import fs from 'fs';
 import { TEST_DATA_DIR } from '../utilities/consts';
 import { BasePage } from './base-page.page';
 import { installExtension } from '../utilities/vscode-commands.utils';
+import { FixTypes } from '../enums/fix-types.enum';
 
 export class VSCode extends BasePage {
   public static async open(repoUrl?: string, repoDir?: string) {
@@ -266,5 +265,10 @@ export class VSCode extends BasePage {
     }
   }
 
-  public openConfiguration() {}
+  public async searchAndRequestFix(searchTerm: string, fixType: FixTypes) {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    await this.searchViolation(searchTerm);
+    await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
+    await analysisView.locator('button#get-solution-button').nth(fixType).click();
+  }
 }

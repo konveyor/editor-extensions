@@ -118,7 +118,9 @@
     "universalify": "^0.1.2",
     "wrappy": "^1.0.2",
     "ws": "^8.18.1",
-    "yauzl": "^2.10.0"
+    "yauzl": "^2.10.0",
+    "@anthropic-ai/sdk": "^0.57.0",
+    "@modelcontextprotocol/sdk": "^1.17.1"
   },
   "keywords": [],
   "author": "",
