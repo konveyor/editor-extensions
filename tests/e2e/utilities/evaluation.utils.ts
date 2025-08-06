@@ -51,18 +51,17 @@ export async function prepareEvaluationData(model: string) {
   console.log('Incidents mapping finished.');
 }
 
-export async function saveOriginalAnalysisFile() {
+export async function saveOriginalAnalysisFile(konveyorRepoPath?: string) {
   fs.cpSync(
-    await getFirstAnalysisFile(),
+    await getFirstAnalysisFile(konveyorRepoPath),
     path.join(TEST_OUTPUT_FOLDER, ORIGINAL_ANALYSIS_FILENAME),
     { force: true }
   );
 }
 
-async function getFirstAnalysisFile() {
-  const konveyorFolder = 'coolstore/.vscode/konveyor';
+async function getFirstAnalysisFile(konveyorRepoPath?: string) {
+  const konveyorFolder = konveyorRepoPath ? konveyorRepoPath : 'coolstore/.vscode/konveyor';
   const files = await fs.promises.readdir(konveyorFolder);
-
   const analysisFiles = files.filter((file) => file.startsWith('analysis'));
 
   if (!analysisFiles.length) {

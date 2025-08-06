@@ -35,5 +35,10 @@ export default defineConfig({
       testMatch: /.*analyze.+\.test\.ts/,
       dependencies: ['configure-and-run-analysis'],
     },
+    {
+      name: 'llm-checks',
+      testMatch: /llm-revert-check_jboss-eap-quickstarts\.test\.ts/,
+      dependencies: ['configure-and-run-analysis'],
+    },
   ],
 });
