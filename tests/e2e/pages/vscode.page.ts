@@ -7,7 +7,7 @@ import { expect } from '@playwright/test';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { TEST_DATA_DIR } from '../utilities/consts';
-import { BasePage } from './base-page.page';
+import { BasePage } from './base.page';
 import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
 

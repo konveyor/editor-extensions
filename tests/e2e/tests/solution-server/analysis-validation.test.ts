@@ -45,13 +45,13 @@ test.describe(`Solution server analysis validations`, () => {
   });
 
   test('Reject solution and assert success rate', async () => {
-    await handleAndAssertSolution(false);
+    await requestFixAndAssertSolution(false);
     const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
     expect(bestHint.hint_id).toEqual(bestHintBase.hint_id);
   });
 
   test('Accept solution and assert success rate', async () => {
-    await handleAndAssertSolution(true);
+    await requestFixAndAssertSolution(true);
     const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
     expect(bestHint.hint_id).not.toEqual(bestHintBase.hint_id);
 
@@ -81,16 +81,17 @@ test.describe(`Solution server analysis validations`, () => {
    * 6. Validates that the success rates are updated correctly (pending decremented, accepted/rejected incremented)
    * 7. Asserts that the UI displays the correct success rate counts
    */
-  async function handleAndAssertSolution(accept: boolean) {
+  async function requestFixAndAssertSolution(accept: boolean) {
     await vsCode.searchAndRequestFix(
       'Replace the `javax.persistence` import statement with `jakarta.persistence`',
       FixTypes.Incident
     );
 
     const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
-    await resolutionView
-      .locator(`button[aria-label="${accept ? 'Accept' : 'Reject'} all changes"]`)
-      .waitFor();
+    const actionButton = resolutionView.locator(
+      `button[aria-label="${accept ? 'Accept' : 'Reject'} all changes"]`
+    );
+    await actionButton.waitFor();
 
     let successRate = await mcpClient.getSuccessRate([
       {
@@ -100,9 +101,7 @@ test.describe(`Solution server analysis validations`, () => {
     ]);
     expect(successRate.pending_solutions).toBe(successRateBase.pending_solutions + 1);
     expect(successRate.counted_solutions).toBe(successRateBase.counted_solutions + 1);
-    await resolutionView
-      .locator(`button[aria-label="${accept ? 'Accept' : 'Reject'} all changes"]`)
-      .click();
+    await actionButton.click();
 
     await vsCode.openAnalysisView();
     const analysisView = await vsCode.getView(KAIViews.analysisView);

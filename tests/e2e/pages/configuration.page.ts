@@ -23,4 +23,14 @@ export class Configuration {
     const checkbox = window.getByLabel(configuration);
     await checkbox.setChecked(enabled);
   }
+
+  public async setInputConfiguration(configuration: ConfigurationOptions, value: string) {
+    const window = this.vsCode.getWindow();
+    await window.getByLabel(configuration).fill(value);
+  }
+
+  public async setDropdownConfiguration(configuration: ConfigurationOptions, value: string) {
+    const selectLocator = this.vsCode.getWindow().locator(`select[aria-label="${configuration}"]`);
+    await selectLocator.selectOption({ value });
+  }
 }
