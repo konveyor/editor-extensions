@@ -33,9 +33,9 @@ case rather than a design decision. Additionally, headless mode does not work on
 ## Architecture
 
 These tests use the Page Object Model pattern, in this case,
-the [vscode.pages.ts](../../e2e/pages/vscode.pages.ts) represents the VSCode instance currently
+the [vscode.page.ts](../../e2e/pages/vscode.page.ts) represents the VSCode instance currently
 running and should contain the methods for interacting with VSCode and the extension. This model
-extends from [application.pages.ts](../../e2e/pages/application.pages.ts), which contain more
+extends from [application.page.ts](../../e2e/pages/application.page.ts), which contain more
 generic methods like copying/pasting.
 
 All static data that a test uses should be under [fixtures](../../e2e/fixtures), as of now, there

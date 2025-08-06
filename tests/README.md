@@ -12,6 +12,8 @@ perform a series of e2e tests
 
 Features already automated in this repo:
 
+## General
+
 - Install extension from vsix
 - Configure GenAI Provider
 - Create and manage analysis profiles
@@ -21,6 +23,12 @@ Features already automated in this repo:
 - Fix Issues using default effort
 - Accept proposed solutions
 - Evaluation: [kai-evaluator](kai-evaluator)
+
+## Solution Server
+
+- [solution-server-analysis-validation.test.ts](e2e/tests/solution-server/solution-server-analysis-validation.test.ts):
+  Tests the process of requesting, accepting, and rejecting solutions, and verifies that the
+  solution server's success rate and best hints endpoints are updated accordingly.
 
 # 🚀 Getting Started
 
