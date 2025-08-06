@@ -26,7 +26,9 @@ export async function installExtension(): Promise<void> {
       extensionPath = 'extension.vsix';
       await downloadFile(process.env.VSIX_DOWNLOAD_URL, extensionPath);
     } else {
-      throw new Error(`Extension path or url not found: ${extensionPath}`);
+      throw new Error(
+        `Extension installation failed: No valid VSIX file path or download URL available: ${extensionPath}`
+      );
     }
 
     execSync(`code --install-extension "${extensionPath}"`, {

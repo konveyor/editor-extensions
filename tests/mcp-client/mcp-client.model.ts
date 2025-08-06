@@ -32,7 +32,7 @@ export class MCPClient {
       await mcpClient.client.connect(mcpClient.transport);
       return mcpClient;
     } catch (error) {
-      throw Error(`Failed to connect to the MCP Sever with error ${error}`);
+      throw Error(`Failed to connect to the MCP server with error ${error}`);
     }
   }
 
@@ -112,7 +112,7 @@ export class MCPClient {
             .join(' ')
         : 'Unknown error';
       throw new Error(
-        `An error occured during the request: ${errorMessage}\n endpoint: ${endpoint}\n params: ${JSON.stringify(params)}`
+        `An error occurred during the request: ${errorMessage}\n endpoint: ${endpoint}\n params: ${JSON.stringify(params)}`
       );
     }
 
