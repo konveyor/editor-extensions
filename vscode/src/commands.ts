@@ -22,7 +22,6 @@ import {
   RuleSet,
   Scope,
   Solution,
-  SolutionEffortLevel,
   ChatMessageType,
   GetSolutionResult,
 } from "@editor-extensions/shared";
@@ -48,7 +47,6 @@ import {
   updateGetSolutionMaxIterations,
   updateGetSolutionMaxPriority,
   getConfigAgentMode,
-  getConfigSuperAgentMode,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
@@ -133,12 +131,14 @@ const commandsMap: (
       }
       analyzerClient.runAnalysis();
     },
-    "konveyor.getSolution": async (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
-      logger.info("Get solution command called", { incidents, effort });
+    "konveyor.getSolution": async (incidents: EnhancedIncident[]) => {
+      // Read agent mode from configuration instead of parameter
+      const agentMode = getConfigAgentMode();
+      logger.info("Get solution command called", { incidents, agentMode });
       await commands.executeCommand("konveyor.showResolutionPanel");
 
       // Create a scope for the solution
-      const scope: Scope = { incidents, effort };
+      const scope: Scope = { incidents };
 
       const clientId = uuidv4();
       state.solutionServerClient.setClientId(clientId);
@@ -242,14 +242,11 @@ const commandsMap: (
         });
 
         try {
-          const agentModeEnabled = getConfigAgentMode();
-
           const input: KaiInteractiveWorkflowInput = {
             incidents,
             migrationHint: profileName,
             programmingLanguage: "Java",
-            enableAdditionalInformation: agentModeEnabled,
-            enableDiagnostics: getConfigSuperAgentMode(),
+            enableAgentMode: agentMode,
           };
 
           await workflow.run(input);
@@ -257,7 +254,7 @@ const commandsMap: (
           // Wait for all message processing to complete before proceeding
           // This is critical for non-agentic mode where ModifiedFile messages
           // are processed asynchronously during the workflow
-          if (!agentModeEnabled) {
+          if (!agentMode) {
             // Give a short delay to ensure all async message processing completes
             await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -314,7 +311,7 @@ const commandsMap: (
 
         // In agentic mode, file changes are handled through ModifiedFile messages
         // In non-agentic mode, we need to process diffs from modified files
-        if (!getConfigAgentMode()) {
+        if (!agentMode) {
           // Wait for all file processing to complete
           await Promise.all(modifiedFilesPromises);
 
@@ -376,7 +373,7 @@ const commandsMap: (
         const solutionResponse: GetSolutionResult = {
           changes: allDiffs,
           encountered_errors: [],
-          scope: { incidents, effort },
+          scope: { incidents },
           clientId: clientId,
         };
 
@@ -386,7 +383,7 @@ const commandsMap: (
           draft.isFetchingSolution = false;
 
           // Only set solutionData in non-agentic mode where we have traditional diffs
-          if (!getConfigAgentMode()) {
+          if (!agentMode) {
             draft.solutionData = solutionResponse;
             // Note: Removed redundant "Solution generated successfully!" message
             // The specific completion status messages (e.g. "All resolutions have been applied")
@@ -396,7 +393,7 @@ const commandsMap: (
         });
 
         // Load the solution
-        if (!getConfigAgentMode()) {
+        if (!agentMode) {
           commands.executeCommand("konveyor.loadSolution", solutionResponse, { incidents });
         }
 

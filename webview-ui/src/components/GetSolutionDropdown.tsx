@@ -7,7 +7,6 @@ import {
   MenuToggle,
   MenuToggleAction,
 } from "@patternfly/react-core";
-import { SolutionEffortLevel } from "@editor-extensions/shared";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
@@ -26,8 +25,8 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
 
   const [isOpen, setIsOpen] = useState(false);
   const { state, dispatch } = useExtensionStateContext();
-  const onGetSolution = (incidents: EnhancedIncident[], effort: SolutionEffortLevel) => {
-    dispatch(getSolution(incidents, effort));
+  const onGetSolution = (incidents: EnhancedIncident[]) => {
+    dispatch(getSolution(incidents));
   };
 
   const onGetSolutionWithKonveyorContext = (incident: EnhancedIncident) => {
@@ -56,7 +55,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
             <MenuToggleAction
               id="get-solution-button"
               key="split-action-primary"
-              onClick={() => onGetSolution(incidents, state.solutionEffort)}
+              onClick={() => onGetSolution(incidents)}
               aria-label="Get solution"
             >
               <WrenchIcon />
@@ -81,11 +80,8 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
           label={`Get solution for ${incidents.length} ${incidents.length > 1 ? "incidents" : "incident"}`}
           labelHeadingLevel="h3"
         >
-          <DropdownItem
-            key="get-rag-solution"
-            onClick={() => onGetSolution(incidents, state.solutionEffort)}
-          >
-            Get RAG solution
+          <DropdownItem key="get-rag-solution" onClick={() => onGetSolution(incidents)}>
+            Get solution
           </DropdownItem>
           {scope === "incident" && incidents.length === 1 && state.isContinueInstalled && (
             <DropdownItem

@@ -24,6 +24,7 @@ import {
   SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
+  TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   VIEW_FIX,
   WEBVIEW_READY,
@@ -43,69 +44,24 @@ import {
 } from "./utilities/profiles/profileService";
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
 import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
-
-// Create output channel for logging
-const outputChannel = vscode.window.createOutputChannel("Konveyor WebView");
-
-// Logger with configurable debug level
-class WebviewLogger {
-  private static instance: WebviewLogger;
-  private debugEnabled: boolean = false;
-
-  private constructor() {
-    // Check if debug logging is enabled via configuration
-    this.debugEnabled = vscode.workspace.getConfiguration("konveyor").get("debug.webview", false);
-  }
-
-  static getInstance(): WebviewLogger {
-    if (!WebviewLogger.instance) {
-      WebviewLogger.instance = new WebviewLogger();
-    }
-    return WebviewLogger.instance;
-  }
-
-  debug(message: string, ...args: any[]): void {
-    if (this.debugEnabled) {
-      const timestamp = new Date().toISOString();
-      const formattedMessage = args.length > 0 ? `${message} ${JSON.stringify(args)}` : message;
-      outputChannel.appendLine(`[${timestamp}] DEBUG: ${formattedMessage}`);
-    }
-  }
-
-  info(message: string, ...args: any[]): void {
-    const timestamp = new Date().toISOString();
-    const formattedMessage = args.length > 0 ? `${message} ${JSON.stringify(args)}` : message;
-    outputChannel.appendLine(`[${timestamp}] INFO: ${formattedMessage}`);
-  }
-
-  error(message: string, ...args: any[]): void {
-    const timestamp = new Date().toISOString();
-    const formattedMessage = args.length > 0 ? `${message} ${JSON.stringify(args)}` : message;
-    outputChannel.appendLine(`[${timestamp}] ERROR: ${formattedMessage}`);
-  }
-
-  updateDebugSetting(): void {
-    this.debugEnabled = vscode.workspace.getConfiguration("konveyor").get("debug.webview", false);
-  }
-}
-
-const logger = WebviewLogger.getInstance();
-
-// Listen for configuration changes to update debug setting
-vscode.workspace.onDidChangeConfiguration((event) => {
-  if (event.affectsConfiguration("konveyor.debug.webview")) {
-    logger.updateDebugSetting();
-  }
-});
+import winston from "winston";
+import { getConfigDiffEditorType, toggleAgentMode } from "./utilities/configuration";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
-    await messageHandler(message, state);
+    const logger = state.logger.child({
+      component: "webviewMessageHandler",
+    });
+    await messageHandler(message, state, logger);
   });
 }
 
 const actions: {
-  [name: string]: (payload: any, state: ExtensionState) => void | Promise<void>;
+  [name: string]: (
+    payload: any,
+    state: ExtensionState,
+    logger: winston.Logger,
+  ) => void | Promise<void>;
 } = {
   [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
     const userProfiles = getUserProfiles(state.extensionContext);
@@ -192,7 +148,7 @@ const actions: {
   [OPEN_PROFILE_MANAGER]() {
     vscode.commands.executeCommand("konveyor.openProfilesPanel");
   },
-  [WEBVIEW_READY]() {
+  [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");
   },
   [CONFIGURE_SOURCES_TARGETS]() {
@@ -215,7 +171,7 @@ const actions: {
     vscode.commands.executeCommand("konveyor.modelProviderSettingsOpen");
   },
   [GET_SOLUTION](scope: Scope) {
-    vscode.commands.executeCommand("konveyor.getSolution", scope.incidents, scope.effort);
+    vscode.commands.executeCommand("konveyor.getSolution", scope.incidents);
     vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");
   },
@@ -229,7 +185,7 @@ const actions: {
       true,
     );
   },
-  [APPLY_FILE](payload: any) {
+  [APPLY_FILE](payload: any, _state, logger) {
     // Handle both LocalChange (old format) and ApplyFilePayload (new format)
     if (payload.originalUri) {
       // Old format: LocalChange with originalUri
@@ -245,7 +201,7 @@ const actions: {
       logger.error("APPLY_FILE payload missing both originalUri and path:", payload);
     }
   },
-  [DISCARD_FILE](payload: any) {
+  [DISCARD_FILE](payload: any, _state, logger) {
     // Handle both LocalChange (old format) and DiscardFilePayload (new format)
     if (payload.originalUri) {
       // Old format: LocalChange with originalUri
@@ -262,7 +218,7 @@ const actions: {
     }
   },
   // New actions with unique names to avoid overwriting existing diff view commands
-  REJECT_FILE: async ({ path }, state) => {
+  REJECT_FILE: async ({ path }, _state, logger) => {
     try {
       // For rejecting changes, we don't need to do anything since we're not
       // directly modifying the real file until the user applies changes
@@ -274,7 +230,7 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to reject changes: ${error}`);
     }
   },
-  SHOW_MAXIMIZED_DIFF: async ({ path, content, diff, messageToken }, state) => {
+  SHOW_MAXIMIZED_DIFF: async ({ path, _content, diff, messageToken }, state, logger) => {
     // TODO: Implement new maximized diff view component
     // This will replace the continue flow for agentic mode
     // Should show a full-screen webview with:
@@ -288,10 +244,10 @@ const actions: {
       diff: diff,
       state: "pending",
     };
-    return actions.VIEW_FILE({ path, change }, state);
+    return actions.VIEW_FILE({ path, change }, state, logger);
   },
 
-  VIEW_FILE: async ({ path, change }, state) => {
+  VIEW_FILE: async ({ path, change }, state, logger) => {
     try {
       const uri = vscode.Uri.file(path);
 
@@ -361,7 +317,6 @@ const actions: {
       const relativePath = vscode.workspace.asRelativePath(uri);
 
       // Check user preference for diff editor type
-      const { getConfigDiffEditorType } = await import("./utilities/configuration");
       const editorType = getConfigDiffEditorType();
 
       if (editorType === "merge") {
@@ -429,7 +384,7 @@ const actions: {
     handleFileResponse(messageToken, responseId, path, content, state);
   },
 
-  CHECK_FILE_STATE: async ({ path, messageToken }, state) => {
+  CHECK_FILE_STATE: async ({ path, messageToken }, state, logger) => {
     try {
       const uri = vscode.Uri.file(path);
 
@@ -598,7 +553,7 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to open file: ${error}`);
     }
   },
-  OPEN_FILE_IN_EDITOR: async ({ path }) => {
+  OPEN_FILE_IN_EDITOR: async ({ path }, _state, logger) => {
     try {
       const fileUri = vscode.Uri.file(path);
       const doc = await vscode.workspace.openTextDocument(fileUri);
@@ -617,22 +572,30 @@ const actions: {
   [GET_SUCCESS_RATE]() {
     vscode.commands.executeCommand("konveyor.getSuccessRate");
   },
+  [TOGGLE_AGENT_MODE]() {
+    toggleAgentMode();
+  },
 };
 
 export const messageHandler = async (
   message: WebviewAction<WebviewActionType, unknown>,
   state: ExtensionState,
+  logger: winston.Logger,
 ) => {
+  logger.debug("messageHandler: " + JSON.stringify(message));
   const handler = actions?.[message?.type];
   if (handler) {
-    await handler(message.payload, state);
+    await handler(message.payload, state, logger);
   } else {
-    defaultHandler(message);
+    defaultHandler(message, logger);
   }
 };
 
-const defaultHandler = (message: WebviewAction<WebviewActionType, unknown>) => {
-  logger.error("Unknown message from webview:", message);
+const defaultHandler = (
+  message: WebviewAction<WebviewActionType, unknown>,
+  logger: winston.Logger,
+) => {
+  logger.error("Unknown message from webview:", JSON.stringify(message));
 };
 
 function updateConfigErrorsFromActiveProfile(draft: ExtensionData) {

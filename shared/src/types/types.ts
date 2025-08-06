@@ -1,7 +1,5 @@
 import { Uri } from "vscode";
 
-import { SolutionEffortLevel } from "../effort";
-
 export type WebviewType = "sidebar" | "resolution" | "profiles";
 
 export interface Incident {
@@ -119,7 +117,6 @@ export interface SolutionResponse {
 
 export interface Scope {
   incidents: EnhancedIncident[];
-  effort: SolutionEffortLevel;
 }
 
 export interface ScopeWithKonveyorContext {
@@ -171,7 +168,6 @@ export interface ExtensionData {
   solutionData?: Solution;
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
-  solutionEffort: SolutionEffortLevel;
   configErrors: ConfigError[];
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
@@ -294,8 +290,6 @@ export interface ModifiedFileState {
   editType: "inMemory" | "toDisk";
 }
 
-export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor Editor Extension";
-
 /**
  * A general purpose cache to store and retrieve inputs and their corresponding outputs.
  *
@@ -311,3 +305,5 @@ export interface InputOutputCache<K, V, C, O> {
   invalidate(input: K, opts?: O): Promise<void>;
   reset(): Promise<void>;
 }
+
+export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor";

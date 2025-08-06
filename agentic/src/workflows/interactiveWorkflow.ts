@@ -32,10 +32,7 @@ import { AgentName, DiagnosticsOrchestratorState } from "../schemas/diagnosticsI
 export interface KaiInteractiveWorkflowInput extends KaiWorkflowInput {
   programmingLanguage: string;
   migrationHint: string;
-  // whether or not to enable addressing additional information (default false)
-  enableAdditionalInformation?: boolean;
-  // whether or not to enable addressing diagnostics issues (default false)
-  enableDiagnostics?: boolean;
+  enableAgentMode: boolean;
 }
 
 // output state of the initial analysis workflow
@@ -241,7 +238,7 @@ export class KaiInteractiveWorkflow
       currentIdx: 0,
       migrationHint: input.migrationHint,
       programmingLanguage: input.programmingLanguage,
-      enableAdditionalInformation: input.enableAdditionalInformation ?? false,
+      enableAdditionalInformation: input.enableAgentMode ?? false,
       cacheSubDir,
       // internal fields
       inputFileContent: undefined,
@@ -270,15 +267,14 @@ export class KaiInteractiveWorkflow
         recursionLimit: incidentsByUris.length * 2 + 10,
       });
 
+    let shouldAddressAdditionalInfo = false;
     // if there is any additional information spit by analysis workflow, capture that
     const additionalInformation: string = analysisFixOutputState.summarizedAdditionalInfo;
     if (
-      !input.enableAdditionalInformation ||
-      additionalInformation.length < 1 ||
-      additionalInformation.includes("NO-CHANGE")
+      input.enableAgentMode &&
+      additionalInformation.length > 0 &&
+      !additionalInformation.includes("NO-CHANGE")
     ) {
-      return runResponse;
-    } else {
       // wait for user confirmation
       const id = `req-${Date.now()}`;
       const userConfirmationPromise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
@@ -299,12 +295,11 @@ export class KaiInteractiveWorkflow
       });
       try {
         const response = await userConfirmationPromise;
-        if (response.data.response && !(response.data.response.yesNo ?? false)) {
-          return runResponse;
+        if (response.data.response && (response.data.response.yesNo ?? false)) {
+          shouldAddressAdditionalInfo = true;
         }
       } catch (e) {
         this.logger.error(`Failed to wait for user response`, e);
-        return runResponse;
       } finally {
         this.userInteractionPromises.delete(id);
       }
@@ -313,12 +308,14 @@ export class KaiInteractiveWorkflow
     // run the interactive workflow for further issues
     const interactiveWorkflowInput: typeof DiagnosticsOrchestratorState.State = {
       inputSummarizedAdditionalInfo:
-        (input.enableAdditionalInformation ?? false) ? additionalInformation : undefined,
+        (input.enableAgentMode ?? false) && shouldAddressAdditionalInfo
+          ? additionalInformation
+          : undefined,
       migrationHint: input.migrationHint,
       programmingLanguage: input.programmingLanguage,
       plannerInputAgents: ["generalFix", "javaDependency"],
       plannerInputBackground: analysisFixOutputState.summarizedHistory,
-      enableDiagnosticsFixes: input.enableDiagnostics ?? false,
+      enableDiagnosticsFixes: input.enableAgentMode ?? false,
       cacheSubDir,
       // internal fields
       inputDiagnosticsTasks: undefined,

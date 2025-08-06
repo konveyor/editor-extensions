@@ -97,6 +97,24 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
 
 ---
 
+## Troubleshooting
+
+### Accessing Extension Logs
+
+The Konveyor extension generates detailed logs to help diagnose issues:
+
+1. **Via Command Palette**: Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) and run `Show Extension Logs Directory`, then navigate to the `konveyor.konveyor-ai` folder.
+
+2. **Via Output Panel**: View real-time logs in VS Code's Output panel by selecting "Konveyor" from the dropdown.
+
+3. **Log Files**:
+   - Extension logs are stored as `extension.log` with automatic rotation (10MB max size, 3 files retained).
+   - Analyzer RPC logs are stored as `analyzer.log` without rotation.
+
+**Note**: Logs are no longer stored in the workspace `.vscode` directory. They now use VS Code's standard extension logging location.
+
+---
+
 ## Contributing
 
 We welcome contributions! Please file issues on [GitHub](https://github.com/konveyor/editor-extensions/issues) or open a pull request.

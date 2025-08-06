@@ -32,6 +32,7 @@ import {
   Spinner,
   Stack,
   StackItem,
+  Switch,
   Title,
   Toolbar,
   ToolbarContent,
@@ -45,6 +46,7 @@ import {
   runAnalysis,
   stopServer,
   getSuccessRate,
+  toggleAgentMode,
 } from "../../hooks/actions";
 import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
@@ -73,6 +75,7 @@ const AnalysisPage: React.FC = () => {
     serverState,
     solutionServerEnabled,
     localChanges,
+    isAgentMode,
   } = state;
 
   console.log(configErrors);
@@ -103,6 +106,10 @@ const AnalysisPage: React.FC = () => {
 
   const handleRunAnalysis = () => dispatch(runAnalysis());
   const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
+
+  const handleAgentModeToggle = () => {
+    dispatch(toggleAgentMode());
+  };
 
   const panelContent = (
     <WalkthroughDrawer
@@ -145,6 +152,20 @@ const AnalysisPage: React.FC = () => {
                             onToggle={handleServerToggle}
                             hasWarning={configInvalid}
                           />
+                        </ToolbarItem>
+                        <ToolbarItem>
+                          <div>
+                            <div className="agent-mode-wrapper">
+                              <Switch
+                                id="agent-mode-switch"
+                                isChecked={isAgentMode}
+                                label="Agent Mode"
+                                onChange={(_event) => handleAgentModeToggle()}
+                                aria-label="Toggle Agent Mode"
+                                isReversed
+                              />
+                            </div>
+                          </div>
                         </ToolbarItem>
                         <ToolbarItem>
                           <ConfigButton
@@ -356,5 +377,4 @@ const AnalysisPage: React.FC = () => {
     </Drawer>
   );
 };
-
 export default AnalysisPage;

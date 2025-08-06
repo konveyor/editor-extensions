@@ -5,7 +5,7 @@
   "author": "Konveyor",
   "icon": "resources/konveyor-icon-color.png",
   "license": "Apache-2.0",
-  "version": "0.1.0",
+  "version": "0.2.0-pre.1",
   "main": "./out/extension.js",
   "publisher": "konveyor",
   "repository": {
@@ -523,13 +523,6 @@
           "type": "boolean",
           "default": false,
           "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
-          "scope": "window",
-          "order": 6
-        },
-        "konveyor.kai.superAgentMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution.",
           "scope": "window",
           "order": 6
         },

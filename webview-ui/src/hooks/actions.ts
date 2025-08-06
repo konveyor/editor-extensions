@@ -4,7 +4,6 @@ import {
   LocalChange,
   Scope,
   ScopeWithKonveyorContext,
-  SolutionEffortLevel,
   WebviewAction,
   WebviewActionType,
 } from "@editor-extensions/shared";
@@ -38,10 +37,9 @@ export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => (
 
 export const getSolution = (
   incidents: EnhancedIncident[],
-  effort: SolutionEffortLevel,
 ): WebviewAction<WebviewActionType, Scope> => ({
   type: "GET_SOLUTION",
-  payload: { incidents, effort },
+  payload: { incidents },
 });
 
 export const getSolutionWithKonveyorContext = (
@@ -116,5 +114,10 @@ export const configureModelProviderSettings = (): WebviewAction<WebviewActionTyp
 
 export const getSuccessRate = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "GET_SUCCESS_RATE",
+  payload: {},
+});
+
+export const toggleAgentMode = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "TOGGLE_AGENT_MODE",
   payload: {},
 });

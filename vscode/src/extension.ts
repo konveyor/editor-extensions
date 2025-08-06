@@ -3,7 +3,12 @@ import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import { ConfigError, createConfigError, ExtensionData } from "@editor-extensions/shared";
+import {
+  ConfigError,
+  createConfigError,
+  ExtensionData,
+  KONVEYOR_OUTPUT_CHANNEL_NAME,
+} from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import {
@@ -21,7 +26,6 @@ import { ExtensionPaths, ensurePaths, paths } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
-  getConfigSolutionMaxEffortLevel,
   getConfigSolutionServerEnabled,
   getConfigSolutionServerUrl,
   updateConfigErrors,
@@ -30,15 +34,17 @@ import {
   getTraceDir,
   getTraceEnabled,
   getConfigKaiDemoMode,
+  getConfigLogLevel,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
 // Removed InlineSuggestionCodeActionProvider import since we're using merge editor now
-import { createLogger } from "./utilities/logger";
 import { ParsedModelConfig } from "./modelProvider/types";
 import { getModelProviderFromConfig, parseModelConfig } from "./modelProvider";
+import winston from "winston";
+import { OutputChannelTransport } from "winston-transport-vscode";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -50,6 +56,7 @@ class VsCodeExtension {
   constructor(
     public readonly paths: ExtensionPaths,
     public readonly context: vscode.ExtensionContext,
+    logger: winston.Logger,
   ) {
     this.data = produce(
       {
@@ -69,7 +76,6 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
-        solutionEffort: getConfigSolutionMaxEffortLevel(),
         solutionServerEnabled: getConfigSolutionServerEnabled(),
         configErrors: [],
         activeProfileId: "",
@@ -97,7 +103,6 @@ class VsCodeExtension {
     };
 
     const taskManager = new DiagnosticTaskManager(getExcludedDiagnosticSources());
-    const logger = createLogger(paths);
 
     this.state = {
       analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager, logger),
@@ -192,8 +197,6 @@ class VsCodeExtension {
 
   public async initialize(): Promise<void> {
     try {
-      this.checkWorkspace();
-
       const bundled = getBundledProfiles();
       const user = getUserProfiles(this.context);
       const allProfiles = [...bundled, ...user];
@@ -249,6 +252,23 @@ class VsCodeExtension {
         }),
       );
 
+      // Listen for workspace folder changes to update workspace configuration errors
+      this.listeners.push(
+        vscode.workspace.onDidChangeWorkspaceFolders(() => {
+          this.state.logger.info("Workspace folders changed!");
+          vscode.window
+            .showInformationMessage(
+              "Workspace folders have changed. Please restart the Konveyor extension for changes to take effect.",
+              "Restart Now",
+            )
+            .then((selection) => {
+              if (selection === "Restart Now") {
+                vscode.commands.executeCommand("workbench.action.reloadWindow");
+              }
+            });
+        }),
+      );
+
       registerAnalysisTrigger(this.listeners, this.state);
 
       // Removed decorator-related editor change listener since we're using merge editor now
@@ -274,15 +294,11 @@ class VsCodeExtension {
 
           if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
             this.state.logger.info("Effort modified!");
-            const effort = getConfigSolutionMaxEffortLevel();
-            this.state.mutateData((draft) => {
-              draft.solutionEffort = effort;
-            });
           }
           if (event.affectsConfiguration("konveyor.kai.agentMode")) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
-              (draft as any).isAgentMode = agentMode;
+              draft.isAgentMode = agentMode;
             });
           }
 
@@ -310,14 +326,6 @@ class VsCodeExtension {
     } catch (error) {
       this.state.logger.error("Error initializing extension", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
-    }
-  }
-
-  private checkWorkspace(): void {
-    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 1) {
-      vscode.window.showWarningMessage(
-        "Konveyor does not currently support multi-root workspaces. Only the first workspace folder will be analyzed.",
-      );
     }
   }
 
@@ -486,29 +494,39 @@ class VsCodeExtension {
 let extension: VsCodeExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  // Logger is our bae...before anything else
+  const outputChannel = vscode.window.createOutputChannel(KONVEYOR_OUTPUT_CHANNEL_NAME);
+  const logger = winston.createLogger({
+    level: getConfigLogLevel(),
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.errors({ stack: true }),
+      winston.format.json(),
+    ),
+    transports: [
+      new winston.transports.File({
+        filename: vscode.Uri.joinPath(context.logUri, "extension.log").fsPath,
+        maxsize: 10 * 1024 * 1024, // 10MB
+        maxFiles: 3,
+      }),
+      new OutputChannelTransport({
+        outputChannel,
+      }),
+    ],
+  });
+
+  logger.info("Logger created");
+
   try {
-    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-      // Now we could theoretically create an extension with a no-workspace error instead of throwing
-      // This demonstrates the flexibility of the new configErrors approach:
-      //
-      // const extension = new VsCodeExtension({ workspaceRepo: "" }, context);
-      // extension.state.mutateData((draft) => {
-      //   draft.configErrors.push(createConfigError.noWorkspace());
-      // });
-      // return;
-
-      throw new Error("Please open a workspace folder before using this extension.");
-    }
-
-    const paths = await ensurePaths(context);
+    const paths = await ensurePaths(context, logger);
     await copySampleProviderSettings();
 
-    extension = new VsCodeExtension(paths, context);
+    extension = new VsCodeExtension(paths, context, logger);
     await extension.initialize();
   } catch (error) {
     await extension?.dispose();
     extension = undefined;
-    console.error("Failed to activate Konveyor extension", error);
+    logger.error("Failed to activate Konveyor extension", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
   }

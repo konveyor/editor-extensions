@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
 import slash from "slash";
+import winston from "winston";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -48,26 +49,40 @@ async function ensureDirectory(uri: vscode.Uri, ...parts: string[]): Promise<vsc
   return joined;
 }
 
-export async function ensurePaths(context: vscode.ExtensionContext): Promise<ExtensionPaths> {
-  const firstWorkspace = vscode.workspace.workspaceFolders?.[0];
-  if (!firstWorkspace) {
-    throw new Error("An open workspace is required");
-  }
-
+export async function ensurePaths(
+  context: vscode.ExtensionContext,
+  logger: winston.Logger,
+): Promise<ExtensionPaths> {
+  _logger = logger.child({ component: "paths" });
   const globalScope = context.globalStorageUri;
   const workspaceScope = context.storageUri!;
+
+  // Handle no workspace case gracefully
+  if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+    throw new Error("No workspace folder found");
+  }
+
+  if (vscode.workspace.workspaceFolders.length > 1) {
+    const message =
+      "Multi-root workspaces are not supported! Only the first workspace folder will be analyzed.";
+    logger.warn(message);
+    vscode.window.showWarningMessage(message);
+  }
+
+  const firstWorkspace = vscode.workspace.workspaceFolders[0];
   const workspaceRepoScope = vscode.Uri.joinPath(firstWorkspace.uri, ".vscode");
   const extResources = vscode.Uri.joinPath(context.extensionUri, "resources");
-  const settingsYaml = vscode.Uri.joinPath(globalScope, "settings", "provider-settings.yaml");
+  const settings = vscode.Uri.joinPath(globalScope, "settings");
+  const settingsYaml = vscode.Uri.joinPath(settings, "provider-settings.yaml");
 
   _paths = {
     extResources,
     workspaceRepo: firstWorkspace.uri,
     data: await ensureDirectory(workspaceRepoScope, "konveyor"),
-    settings: await ensureDirectory(globalScope, "settings"),
+    settings: await ensureDirectory(settings),
     settingsYaml,
     serverCwd: await ensureDirectory(workspaceScope, "kai-rpc-server"),
-    serverLogs: await ensureDirectory(workspaceRepoScope, "konveyor-logs"),
+    serverLogs: context.logUri,
   };
 
   _fsPaths = {} as ExtensionFsPaths;
@@ -80,6 +95,7 @@ export async function ensurePaths(context: vscode.ExtensionContext): Promise<Ext
 
 let _paths: ExtensionPaths | undefined = undefined;
 let _fsPaths: Record<keyof ExtensionPaths, string> | undefined = undefined;
+let _logger: winston.Logger | undefined = undefined;
 
 export function paths(): ExtensionPaths {
   if (_paths === undefined) {
@@ -140,7 +156,7 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
   }
 
   const f = relative(fsPaths().workspaceRepo, uri.fsPath);
-  console.log(f);
+  _logger?.debug(`isUriIgnored: ${f}`);
   return isIgnoredBy(f);
 };
 
@@ -164,7 +180,7 @@ export const ignoresToExcludedPaths = () => {
   for (const glob of IGNORE_FILE_IN_PRIORITY_ORDER) {
     const ignoreFiles = globbySync(glob, { cwd, absolute: true });
     if (ignoreFiles.length > 0) {
-      console.log("Using file:", ignoreFiles[0]);
+      _logger?.debug(`Using file: ${ignoreFiles[0]}`);
       const base = slash(relative(cwd, dirname(ignoreFiles[0])));
 
       ignores = readFileSync(ignoreFiles[0], "utf-8")

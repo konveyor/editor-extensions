@@ -6,7 +6,6 @@
 import { KaiModifiedFile } from "@editor-extensions/agentic";
 import { ModifiedFileState } from "@editor-extensions/shared";
 import { Uri, workspace } from "vscode";
-import { getConfigSuperAgentMode } from "../configuration";
 
 //    b. For a non-build file, applies the edit to the file in-memory
 export async function processModifiedFile(
@@ -59,10 +58,6 @@ export async function processModifiedFile(
       console.error(`No existing state found for ${uri.fsPath}, cannot update content.`);
       return;
     }
-  }
-  // if we are not running full agentic flow, we don't have to persist changes
-  if (!getConfigSuperAgentMode()) {
-    return;
   }
   // Skip applying any edits to prevent modifying files or opening in editor
   console.log(`Skipping edit for ${uri.fsPath} to avoid modifying file or opening in editor`);
