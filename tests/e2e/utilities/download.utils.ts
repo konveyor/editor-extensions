@@ -1,6 +1,5 @@
 import axios from 'axios';
 import * as fs from 'fs';
-import { getKAIPluginName } from './utils';
 
 /**
  * Downloads the KAI plugin VSIX file from the default URL to the local directory.
