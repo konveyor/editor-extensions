@@ -124,12 +124,6 @@ test.describe(`Solution server analysis validations`, () => {
     expect(successRate[key]).toBe(successRateBase[key] + 1);
     expect(successRate.counted_solutions).toBe(successRateBase.counted_solutions + 1);
 
-    console.log(
-      await analysisView
-        .locator(`#javax-to-jakarta-import-00001-${accept ? 'accepted' : 'rejected'}-solutions`)
-        .innerText()
-    );
-
     await expect(
       analysisView.locator(
         `#javax-to-jakarta-import-00001-${accept ? 'accepted' : 'rejected'}-solutions`
