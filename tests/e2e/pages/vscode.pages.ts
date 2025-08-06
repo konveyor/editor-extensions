@@ -230,9 +230,10 @@ export class VSCode extends Application {
 
   public async configureGenerativeAI(config: string = DEFAULT_PROVIDER.config) {
     await this.executeQuickCommand('Konveyor: Open the GenAI model provider configuration file');
-    await this.window.keyboard.press('Control+a+Delete');
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
-    await this.window.keyboard.press('Control+s', { delay: 500 });
+    await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
   }
 
   public async createProfile(sources: string[], targets: string[], profileName?: string) {
