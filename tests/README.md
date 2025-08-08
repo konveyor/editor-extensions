@@ -26,7 +26,7 @@ Features already automated in this repo:
 
 ## Solution Server
 
-- [solution-server-analysis-validation.test.ts](e2e/tests/solution-server/solution-server-analysis-validation.test.ts):
+- [analysis-validation.test.ts](e2e/tests/solution-server/analysis-validation.test.ts)[solution-server-analysis-validation.test.ts](e2e/tests/solution-server/solution-server-analysis-validation.test.ts):
   Tests the process of requesting, accepting, and rejecting solutions, and verifies that the
   solution server's success rate and best hints endpoints are updated accordingly.
 
