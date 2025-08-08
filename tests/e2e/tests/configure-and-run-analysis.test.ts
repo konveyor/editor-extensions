@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.pages';
-import { OPENAI_PROVIDER } from '../fixtures/provider-configs.fixture';
+import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../utilities/utils';
 
 test.describe(`Configure extension and run analysis`, () => {
@@ -21,7 +21,7 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(OPENAI_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
   });
 
   test('Start server', async () => {

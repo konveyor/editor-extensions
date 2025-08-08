@@ -226,7 +226,7 @@ const commandsMap: (
 
         workflow.removeAllListeners();
         workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-          logger.info(`Workflow message received: ${msg.type} (${msg.id})`);
+          logger.debug(`Workflow message received: ${msg.type} (${msg.id})`);
           await processMessage(msg, state, queueManager);
         });
 

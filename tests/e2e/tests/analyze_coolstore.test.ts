@@ -1,8 +1,14 @@
+import * as pathlib from 'path';
 import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.pages';
 import { SCREENSHOTS_FOLDER, TEST_OUTPUT_FOLDER } from '../utilities/consts';
-import { getOSInfo, getRepoName, generateRandomString } from '../utilities/utils';
-import { DEFAULT_PROVIDER, providerConfigs } from '../fixtures/provider-configs.fixture';
+import { getOSInfo, getRepoName, providerIdentifier } from '../utilities/utils';
+import {
+  DEFAULT_PROVIDER,
+  OPENAI_GPT4O_PROVIDER,
+  OPENAI_GPT4OMINI_PROVIDER,
+  providerConfigs,
+} from '../fixtures/provider-configs.fixture';
 import path from 'path';
 import { runEvaluation } from '../../kai-evaluator/core';
 import { prepareEvaluationData, saveOriginalAnalysisFile } from '../utilities/evaluation.utils';
@@ -11,20 +17,26 @@ import { KAIViews } from '../enums/views.enum';
 const providers = process.env.CI ? providerConfigs : [DEFAULT_PROVIDER];
 
 providers.forEach((config) => {
+  // NOTE: profileName is hardcoded for cache consistency
+  const profileName = 'JavaEE to Quarkus';
+
   test.describe(`Coolstore app tests | ${config.model}`, () => {
     let vscodeApp: VSCode;
     let allOk = true;
-    const randomString = generateRandomString();
-    let profileName = '';
     test.beforeAll(async ({ testRepoData }, testInfo) => {
       test.setTimeout(1600000);
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
-      profileName = `${repoInfo.repoName}-${randomString}`;
       vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+      try {
+        await vscodeApp.deleteProfile(profileName);
+      } catch {
+        console.log(`An existing profile probably doesn't exist, creating a new one`);
+      }
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
+      await vscodeApp.ensureLLMCache();
     });
 
     test.beforeEach(async () => {
@@ -97,6 +109,69 @@ providers.forEach((config) => {
       }
     });
 
+    // this test uses cached data, and only ensures that the agent mode flow works
+    test('Fix JMS Topic issue with agent mode enabled (offline)', async () => {
+      // NOTE: update this list when you create cache for a new provider
+      const cacheAvailableFor = [
+        providerIdentifier(OPENAI_GPT4O_PROVIDER),
+        providerIdentifier(OPENAI_GPT4OMINI_PROVIDER),
+      ];
+      // only run this test when either one is true:
+      // 1. we are creating new cache
+      // 2. we have cache checked-in for this provider
+      test.skip(
+        !(process.env.UPDATE_LLM_CACHE || cacheAvailableFor.includes(providerIdentifier(config))),
+        `Skipping as either cache is not available for provider ${config.provider} or UPDATE_LLM_CACHE is not set`
+      );
+
+      test.setTimeout(3600000);
+      // set demoMode and update java configuration to auto-reload
+      await vscodeApp.writeOrUpdateVSCodeSettings({
+        'konveyor.kai.cacheDir': pathlib.join('.vscode', 'cache'),
+        'konveyor.kai.demoMode': true,
+        'java.configuration.updateBuildConfiguration': 'automatic',
+      });
+      // we need to run analysis before enabling agent mode
+      await vscodeApp.waitDefault();
+      await vscodeApp.runAnalysis();
+      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
+        timeout: 300000,
+      });
+      // enable agent mode
+      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+      const agentModeSwitch = analysisView.locator('input#agent-mode-switch');
+      await agentModeSwitch.click();
+      // find the JMS issue to fix
+      await vscodeApp.searchViolation('References to JavaEE/JakartaEE JMS elements');
+      const fixButton = analysisView.locator('button#get-solution-button');
+      await expect(fixButton.first()).toBeVisible({ timeout: 6000 });
+      await fixButton.first().click();
+      const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
+      const loadingIndicator = resolutionView.locator('div.loading-indicator');
+      await expect(loadingIndicator.first()).toBeVisible({ timeout: 6000 });
+      let loadingIndicatorSeen = true;
+      let maxIterations = 1000; // just for safety against inf loops
+      while (loadingIndicatorSeen) {
+        maxIterations -= 1;
+        if (maxIterations <= 0) {
+          throw new Error('Agent loop did not finish within 1000 iterations, this is unexpected');
+        }
+        // if the loading indicator is no longer visible, we have reached the end
+        if ((await resolutionView.locator('div.loading-indicator').count()) === 0) {
+          loadingIndicatorSeen = false;
+          break;
+        }
+        // either a Yes/No button or 'Accept all changes' button will be visible throughout the flow
+        const yesButton = resolutionView.locator('button').filter({ hasText: 'Yes' });
+        const acceptChangesLocator = resolutionView.locator(
+          'button[aria-label="Accept all changes"]'
+        );
+        const eitherButton = yesButton.or(acceptChangesLocator);
+        await expect(eitherButton.last()).toBeVisible({ timeout: 40000 });
+        await eitherButton.last().dispatchEvent('click');
+      }
+    });
+
     test.afterEach(async () => {
       if (test.info().status !== test.info().expectedStatus) {
         allOk = false;
@@ -109,6 +184,9 @@ providers.forEach((config) => {
     });
 
     test.afterAll(async () => {
+      if (process.env.UPDATE_LLM_CACHE) {
+        await vscodeApp.updateLLMCache();
+      }
       await vscodeApp.closeVSCode();
       // Evaluation should be performed just on Linux, on CI by default and only if all tests under this suite passed
       if (getOSInfo() === 'linux' && allOk && process.env.CI) {

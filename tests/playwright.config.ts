@@ -33,7 +33,6 @@ export default defineConfig({
     {
       name: 'analysis-tests',
       testMatch: /.*analyze.+\.test\.ts/,
-      dependencies: ['configure-and-run-analysis'],
     },
   ],
 });

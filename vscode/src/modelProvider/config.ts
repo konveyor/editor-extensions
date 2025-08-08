@@ -45,25 +45,30 @@ export async function getModelProviderFromConfig(
     throw new Error("Unsupported model provider");
   }
 
+  const processEnvFiltered = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== undefined),
+  ) as Record<string, string>;
+  const mergedEnv = { ...processEnvFiltered, ...parsedConfig.env };
+
   const modelCreator = ModelCreators[parsedConfig.config.provider]();
   const defaultArgs = modelCreator.defaultArgs();
   const configArgs = parsedConfig.config.args;
   //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
   const args = { ...defaultArgs, ...configArgs };
-  modelCreator.validate(args, parsedConfig.env);
+  modelCreator.validate(args, mergedEnv);
   const streamingModel = modelCreator.create(
     {
       ...args,
       streaming: true,
     },
-    parsedConfig.env,
+    mergedEnv,
   );
   const nonStreamingModel = modelCreator.create(
     {
       ...args,
       streaming: false,
     },
-    parsedConfig.env,
+    mergedEnv,
   );
 
   if (ModelProviders[parsedConfig.config.provider]) {

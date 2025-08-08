@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import type { TestInfo } from '@playwright/test';
 import { rm } from 'node:fs/promises';
+import { ProviderConfig } from '../fixtures/provider-configs.fixture';
 
 // Function to get OS information
 export function getOSInfo(): string {
@@ -76,4 +77,8 @@ export function generateRandomString(length: number = 8): string {
   return Math.random()
     .toString(36)
     .substring(2, 2 + length);
+}
+
+export function providerIdentifier(providerConfig: ProviderConfig) {
+  return `${providerConfig.provider}-${providerConfig.model}`;
 }
