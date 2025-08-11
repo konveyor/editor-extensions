@@ -23,11 +23,6 @@ import { FileChange } from "./types";
 import { TaskManager } from "src/taskManager/types";
 import { Logger } from "winston";
 
-const uid = (() => {
-  let counter = 0;
-  return (prefix: string = "") => `${prefix}${counter++}`;
-})();
-
 export class WorksapceCommandParams {
   public command: string | undefined;
   public arguments: any[] | undefined;

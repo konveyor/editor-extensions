@@ -20,9 +20,9 @@ interface HunkSelectionInterfaceProps {
   onHunkStateChange: (hunkId: string, state: HunkState) => void;
   actionTaken: "applied" | "rejected" | null;
   filePath: string;
-  pendingHunks?: Set<string>;
-  acceptedHunks?: Set<string>;
-  rejectedHunks?: Set<string>;
+  _pendingHunks?: Set<string>;
+  _acceptedHunks?: Set<string>;
+  _rejectedHunks?: Set<string>;
 }
 
 export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
@@ -31,9 +31,9 @@ export const HunkSelectionInterface: React.FC<HunkSelectionInterfaceProps> = ({
   onHunkStateChange,
   actionTaken,
   filePath,
-  pendingHunks = new Set(),
-  acceptedHunks = new Set(),
-  rejectedHunks = new Set(),
+  _pendingHunks = new Set(),
+  _acceptedHunks = new Set(),
+  _rejectedHunks = new Set(),
 }) => {
   const getHunkStatusBadge = (hunkId: string) => {
     const state = hunkStates[hunkId];
