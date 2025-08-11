@@ -194,8 +194,8 @@ const AnalysisPage: React.FC = () => {
                     style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}
                     key={index}
                   >
-                    <Alert 
-                      variant="warning" 
+                    <Alert
+                      variant="warning"
                       title={error.message}
                       actionLinks={
                         error.type === "no-active-profile" ? (
