@@ -173,6 +173,7 @@ export interface ExtensionData {
   activeProfileId: string | null;
   solutionServerEnabled: boolean;
   isAgentMode: boolean;
+  solutionEffort?: string;
 }
 
 export type ConfigErrorType =

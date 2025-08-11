@@ -35,6 +35,7 @@ import {
   getTraceEnabled,
   getConfigKaiDemoMode,
   getConfigLogLevel,
+  getConfigSolutionMaxEffortLevel,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
