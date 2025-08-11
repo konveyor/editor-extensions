@@ -69,25 +69,6 @@ export function registerDiffView({
         .map(([change, index, [fromUri, toUri], filePath]) =>
           vscode.workspace.fs.copy(fromUri, toUri, { overwrite: true }).then(async () => {
             lastLocalChanges[index] = change;
-
-            if (change.state === "discarded") {
-              vscode.commands.executeCommand(
-                "konveyor.changeDiscarded",
-                change.clientId,
-                change.originalUri.fsPath,
-              );
-              return filePath;
-            }
-
-            // Read the final content that was just written
-            const finalContent = await vscode.workspace.fs.readFile(change.originalUri);
-            const finalContentText = new TextDecoder().decode(finalContent);
-            vscode.commands.executeCommand(
-              "konveyor.changeApplied",
-              change.clientId,
-              change.originalUri.fsPath,
-              finalContentText,
-            );
             return filePath;
           }),
         ),

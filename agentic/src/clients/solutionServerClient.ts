@@ -527,7 +527,7 @@ export class SolutionServerClient {
     }
   }
 
-  public async acceptFile(clientId: string, uri: string, content: string): Promise<void> {
+  public async acceptFile(uri: string, content: string): Promise<void> {
     if (!this.enabled) {
       this.logger.info("Solution server is disabled, skipping accept_file");
       return;
@@ -546,7 +546,7 @@ export class SolutionServerClient {
       await this.mcpClient!.callTool({
         name: "accept_file",
         arguments: {
-          client_id: clientId,
+          client_id: this.currentClientId,
           solution_file: {
             uri: uri,
             content: content,
@@ -561,7 +561,7 @@ export class SolutionServerClient {
     }
   }
 
-  public async rejectFile(clientId: string, uri: string): Promise<void> {
+  public async rejectFile(uri: string): Promise<void> {
     if (!this.enabled) {
       this.logger.info("Solution server is disabled, skipping reject_file");
       return;
@@ -580,7 +580,7 @@ export class SolutionServerClient {
       await this.mcpClient!.callTool({
         name: "reject_file",
         arguments: {
-          client_id: clientId,
+          client_id: this.currentClientId,
           file_uri: uri,
         },
       });

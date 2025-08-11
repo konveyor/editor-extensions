@@ -169,6 +169,17 @@ export async function handleFileResponse(
         vscode.window.showErrorMessage(`Failed to apply changes: ${error}`);
         throw error;
       }
+
+      // Notify solution server of the change
+      try {
+        if (isDeleted) {
+          await vscode.commands.executeCommand("konveyor.changeDiscarded", path);
+        } else {
+          await vscode.commands.executeCommand("konveyor.changeApplied", path, fileContent);
+        }
+      } catch (error) {
+        logger.error("Error notifying solution server:", error);
+      }
     }
 
     // Trigger the pending interaction resolver which will handle queue processing

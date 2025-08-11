@@ -132,6 +132,12 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[]) => {
+      if (state.data.isFetchingSolution || state.data.solutionState !== "none") {
+        logger.info("Solution already being fetched");
+        window.showWarningMessage("Solution already being fetched");
+        return;
+      }
+
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });
@@ -226,7 +232,6 @@ const commandsMap: (
 
         workflow.removeAllListeners();
         workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-          logger.info(`Workflow message received: ${msg.type} (${msg.id})`);
           await processMessage(msg, state, queueManager);
         });
 
@@ -402,6 +407,11 @@ const commandsMap: (
         if (!state.isWaitingForUserInteraction) {
           pendingInteractions.clear();
           state.resolvePendingInteraction = undefined;
+
+          // Reset solution state
+          state.mutateData((draft) => {
+            draft.solutionState = "none";
+          });
         }
       } catch (error: any) {
         logger.error("Error in getSolution", { error });
@@ -453,11 +463,11 @@ const commandsMap: (
         logger.error("Error getting success rate", { error });
       }
     },
-    "konveyor.changeApplied": async (clientId: string, path: string, finalContent: string) => {
+    "konveyor.changeApplied": async (path: string, finalContent: string) => {
       logger.info("File change applied", { path });
 
       try {
-        await state.solutionServerClient.acceptFile(clientId, path, finalContent);
+        await state.solutionServerClient.acceptFile(path, finalContent);
       } catch (error: any) {
         logger.error("Error notifying solution server of file acceptance", { error, path });
       }
@@ -473,11 +483,11 @@ const commandsMap: (
       state.isWaitingForUserInteraction = false;
       window.showInformationMessage("Fetching state has been reset.");
     },
-    "konveyor.changeDiscarded": async (clientId: string, path: string) => {
+    "konveyor.changeDiscarded": async (path: string) => {
       logger.info("File change discarded", { path });
 
       try {
-        await state.solutionServerClient.rejectFile(clientId, path);
+        await state.solutionServerClient.rejectFile(path);
       } catch (error: any) {
         logger.error("Error notifying solution server of file rejection", { error, path });
       }

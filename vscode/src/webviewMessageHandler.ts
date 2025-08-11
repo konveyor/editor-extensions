@@ -185,37 +185,38 @@ const actions: {
       true,
     );
   },
-  [APPLY_FILE](payload: any, _state, logger) {
+  async [APPLY_FILE](payload: any, _state, logger) {
+    let fileUri: vscode.Uri;
     // Handle both LocalChange (old format) and ApplyFilePayload (new format)
     if (payload.originalUri) {
       // Old format: LocalChange with originalUri
-      vscode.commands.executeCommand(
-        "konveyor.applyFile",
-        vscode.Uri.from(payload.originalUri),
-        true,
-      );
+      fileUri = vscode.Uri.from(payload.originalUri);
     } else if (payload.path) {
       // New format: ApplyFilePayload with path
-      vscode.commands.executeCommand("konveyor.applyFile", vscode.Uri.file(payload.path), true);
+      fileUri = vscode.Uri.file(payload.path);
     } else {
       logger.error("APPLY_FILE payload missing both originalUri and path:", payload);
+      return;
     }
+
+    await vscode.commands.executeCommand("konveyor.applyFile", fileUri);
   },
-  [DISCARD_FILE](payload: any, _state, logger) {
+  async [DISCARD_FILE](payload: any, _state, logger) {
+    let fileUri: vscode.Uri;
+
     // Handle both LocalChange (old format) and DiscardFilePayload (new format)
     if (payload.originalUri) {
       // Old format: LocalChange with originalUri
-      vscode.commands.executeCommand(
-        "konveyor.discardFile",
-        vscode.Uri.from(payload.originalUri),
-        true,
-      );
+      fileUri = vscode.Uri.from(payload.originalUri);
     } else if (payload.path) {
       // New format: DiscardFilePayload with path
-      vscode.commands.executeCommand("konveyor.discardFile", vscode.Uri.file(payload.path), true);
+      fileUri = vscode.Uri.file(payload.path);
     } else {
       logger.error("DISCARD_FILE payload missing both originalUri and path:", payload);
+      return;
     }
+
+    await vscode.commands.executeCommand("konveyor.discardFile", fileUri);
   },
   // New actions with unique names to avoid overwriting existing diff view commands
   REJECT_FILE: async ({ path }, _state, logger) => {
