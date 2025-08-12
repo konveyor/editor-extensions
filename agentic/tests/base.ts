@@ -38,10 +38,10 @@ export class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
   }
 
   async invoke(
-    input: BaseLanguageModelInput,
-    options?: BaseChatModelCallOptions | undefined,
+    _input: BaseLanguageModelInput,
+    _options?: BaseChatModelCallOptions | undefined,
   ): Promise<AIMessageChunk> {
-    const response = await super.invoke(input, options);
+    const response = await super.invoke(_input, _options);
 
     const matchingRes = this.ai_responses.find((item) => item.content === response.content);
     if (matchingRes) {
@@ -52,9 +52,9 @@ export class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
 
   async stream(
     /* trunk-ignore(eslint/@typescript-eslint/no-unused-vars) */
-    input: BaseLanguageModelInput,
+    _input: BaseLanguageModelInput,
     /* trunk-ignore(eslint/@typescript-eslint/no-unused-vars) */
-    options?: Partial<BaseChatModelCallOptions> | undefined,
+    _options?: Partial<BaseChatModelCallOptions> | undefined,
   ): Promise<IterableReadableStream<AIMessageChunk>> {
     return IterableReadableStream.fromAsyncGenerator(yieldResponses(this.responses!));
   }

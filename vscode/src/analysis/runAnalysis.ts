@@ -20,7 +20,7 @@ export const registerAnalysisTrigger = (
   );
 
   vscode.workspace.onDidCloseTextDocument(
-    ({ uri }: vscode.TextDocument) => {},
+    ({ uri: _uri }: vscode.TextDocument) => {},
     undefined,
     disposables,
   );

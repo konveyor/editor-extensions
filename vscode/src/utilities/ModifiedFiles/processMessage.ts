@@ -68,7 +68,7 @@ const handleUserInteractionPromise = async (
       resolve();
     }, 60000);
 
-    pendingInteractions.set(msg.id, async (response: any) => {
+    pendingInteractions.set(msg.id, async (_response: any) => {
       clearTimeout(timeout);
 
       await handleUserInteractionComplete(state, queueManager);

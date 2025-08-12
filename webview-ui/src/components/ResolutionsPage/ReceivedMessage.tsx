@@ -13,7 +13,7 @@ interface QuickResponseWithToken extends QuickResponse {
 interface ReceivedMessageProps {
   content?: string;
   extraContent?: React.ReactNode;
-  isLoading?: boolean;
+  _isLoading?: boolean;
   timestamp?: string | Date;
   quickResponses?: QuickResponseWithToken[];
   isProcessing?: boolean;
@@ -22,7 +22,7 @@ interface ReceivedMessageProps {
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   content,
   extraContent,
-  isLoading,
+  _isLoading,
   timestamp = new Date(),
   quickResponses,
   isProcessing = false,

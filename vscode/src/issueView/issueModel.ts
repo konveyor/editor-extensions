@@ -165,7 +165,7 @@ export class IssuesModel {
     return undefined;
   }
 
-  remove(item: IncidentTypeItem | FileItem | ReferenceItem) {
+  remove(_item: IncidentTypeItem | FileItem | ReferenceItem) {
     // TODO not implemented
   }
 

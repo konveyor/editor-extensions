@@ -78,7 +78,7 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
   } else {
     try {
       diff = createPatch(filePath, fileState.originalContent as string, fileState.modifiedContent);
-    } catch (diffErr) {
+    } catch {
       diff = `// Error creating diff for ${filePath}`;
     }
   }
@@ -169,7 +169,7 @@ export const handleModifiedFileMessage = async (
         // Set up the pending interaction using the same mechanism as UserInteraction messages
         // This ensures that handleFileResponse can properly trigger queue processing
         await new Promise<void>((resolve) => {
-          pendingInteractions.set(msg.id, async (response: any) => {
+          pendingInteractions.set(msg.id, async (_response: any) => {
             try {
               // Use the centralized interaction completion handler
               await handleUserInteractionComplete(state, queueManager);
