@@ -45,6 +45,7 @@ import { ParsedModelConfig } from "./modelProvider/types";
 import { getModelProviderFromConfig, parseModelConfig } from "./modelProvider";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
+import { DiffDecorationManager } from "./decorations";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -129,6 +130,7 @@ class VsCodeExtension {
       isWaitingForUserInteraction: false,
       lastMessageId: "0",
       currentTaskManagerIterations: 0,
+      decorationManagers: new Map<string, DiffDecorationManager>(), // Initialize decoration managers map
 
       workflowManager: {
         workflow: undefined,
@@ -479,6 +481,16 @@ class VsCodeExtension {
         this.state.logger.error("Error disposing workflow manager:", error);
       }
     }
+
+    // Clean up decoration managers to prevent memory leaks
+    for (const [uri, manager] of this.state.decorationManagers.entries()) {
+      try {
+        manager.dispose();
+      } catch (error) {
+        this.state.logger.error(`Error disposing decoration manager for ${uri}:`, error);
+      }
+    }
+    this.state.decorationManagers.clear();
 
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {

@@ -128,6 +128,25 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }
   };
 
+  const viewFileWithDecorations = (filePath: string, fileDiff: string) => {
+    interface ShowDiffWithDecoratorsPayload {
+      path: string;
+      content: string;
+      diff: string;
+      messageToken: string;
+    }
+    const payload: ShowDiffWithDecoratorsPayload = {
+      path: filePath,
+      content: content,
+      diff: fileDiff,
+      messageToken: messageToken,
+    };
+    window.vscode.postMessage({
+      type: "SHOW_DIFF_WITH_DECORATORS",
+      payload,
+    });
+  };
+
   const handleExpandToggle = () => {
     setIsExpanded(!isExpanded);
   };
@@ -220,6 +239,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               onApply={() => applyFile()}
               onReject={rejectFile}
               onView={viewFileInVSCode}
+              onViewWithDecorations={viewFileWithDecorations}
               onExpandToggle={handleExpandToggle}
               onQuickResponse={handleQuickResponse}
             />

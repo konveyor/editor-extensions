@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Flex, FlexItem } from "@patternfly/react-core";
-import { CheckCircleIcon, TimesCircleIcon, EyeIcon, ExpandIcon } from "@patternfly/react-icons";
+import { CheckCircleIcon, TimesCircleIcon, EyeIcon, ExpandIcon, CodeIcon } from "@patternfly/react-icons";
 import { NormalizedFileData } from "./useModifiedFileData";
 
 interface ModifiedFileActionsProps {
@@ -10,6 +10,7 @@ interface ModifiedFileActionsProps {
   onApply: () => void;
   onReject: () => void;
   onView: (path: string, diff: string) => void;
+  onViewWithDecorations?: (path: string, diff: string) => void;
   onExpandToggle: () => void;
   onQuickResponse: (responseId: string) => void;
 }
@@ -39,10 +40,11 @@ const ActionButtons: React.FC<{
   mode: "agent" | "non-agent";
   actionTaken: "applied" | "rejected" | null;
   onView: () => void;
+  onViewWithDecorations?: () => void;
   onExpandToggle: () => void;
   onApply: () => void;
   onReject: () => void;
-}> = ({ isNew, mode, actionTaken, onView, onExpandToggle, onApply, onReject }) => (
+}> = ({ isNew, mode, actionTaken, onView, onViewWithDecorations, onExpandToggle, onApply, onReject }) => (
   <Flex
     className="modified-file-actions"
     justifyContent={{ default: "justifyContentSpaceBetween" }}
@@ -58,6 +60,18 @@ const ActionButtons: React.FC<{
               aria-label="View file in VSCode"
             >
               View
+            </Button>
+          </FlexItem>
+        )}
+        {!isNew && onViewWithDecorations && (
+          <FlexItem>
+            <Button
+              variant="link"
+              icon={<CodeIcon />}
+              onClick={onViewWithDecorations}
+              aria-label="View diff with decorations in VSCode"
+            >
+              View Diff
             </Button>
           </FlexItem>
         )}
@@ -175,6 +189,7 @@ export const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   onApply,
   onReject,
   onView,
+  onViewWithDecorations,
   onExpandToggle,
   onQuickResponse,
 }) => {
@@ -207,6 +222,7 @@ export const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
       mode={mode}
       actionTaken={actionTaken}
       onView={() => onView(path, diff)}
+      onViewWithDecorations={onViewWithDecorations ? () => onViewWithDecorations(path, diff) : undefined}
       onExpandToggle={onExpandToggle}
       onApply={onApply}
       onReject={onReject}

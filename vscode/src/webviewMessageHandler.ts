@@ -247,6 +247,24 @@ const actions: {
     return actions.VIEW_FILE({ path, change }, state, logger);
   },
 
+  SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
+    try {
+      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
+
+      // Execute the command to show diff with decorations
+      await vscode.commands.executeCommand(
+        "konveyor.showDiffWithDecorations",
+        path,
+        diff,
+        content,
+        messageToken,
+      );
+    } catch (error) {
+      logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
+      vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
+    }
+  },
+
   VIEW_FILE: async ({ path, change }, state, logger) => {
     try {
       const uri = vscode.Uri.file(path);

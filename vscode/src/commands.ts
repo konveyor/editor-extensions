@@ -57,6 +57,8 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
+import { DiffDecorationManager } from "./decorations";
+import { parsePatch } from "diff";
 import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
@@ -690,6 +692,121 @@ const commandsMap: (
       window.showInformationMessage(
         `getSolution parameters updated: max_priority=${maxPriority}, max_depth=${maxDepth}, max_iterations=${maxIterations}`,
       );
+    },
+
+    "konveyor.showDiffWithDecorations": async (
+      filePath: string,
+      diff: string,
+      content: string,
+      messageToken: string,
+    ) => {
+      try {
+        logger.info("showDiffWithDecorations called", { filePath, messageToken });
+
+        const uri = Uri.file(filePath);
+
+        // Open the file in the editor
+        const doc = await workspace.openTextDocument(uri);
+        const editor = await window.showTextDocument(doc, { preview: false });
+
+        // Clear any existing decorations for this file
+        const existingManager = state.decorationManagers.get(uri.toString());
+        if (existingManager) {
+          existingManager.dispose();
+        }
+
+        // Create new decoration manager
+        const decorationManager = new DiffDecorationManager(uri.toString());
+        decorationManager.initializeForEditor(editor);
+        state.decorationManagers.set(uri.toString(), decorationManager);
+
+        // Parse the diff to extract line-by-line changes
+        const parsedDiff = parsePatch(diff);
+
+        if (!parsedDiff || parsedDiff.length === 0) {
+          window.showErrorMessage("Failed to parse diff for decorations");
+          return;
+        }
+
+        const diffLines: Array<{ type: string; line: string; lineNumber: number }> = [];
+
+        // Process each hunk in the diff
+        for (const fileDiff of parsedDiff) {
+          if (!fileDiff.hunks) {
+            continue;
+          }
+
+          for (const hunk of fileDiff.hunks) {
+            let currentLine = hunk.oldStart - 1; // Convert to 0-based
+
+            for (const line of hunk.lines) {
+              const lineType = line.charAt(0);
+              const lineContent = line.substring(1);
+
+              switch (lineType) {
+                case "+":
+                  diffLines.push({
+                    type: "added",
+                    line: lineContent,
+                    lineNumber: currentLine,
+                  });
+                  break;
+                case "-":
+                  diffLines.push({
+                    type: "removed",
+                    line: lineContent,
+                    lineNumber: currentLine,
+                  });
+                  currentLine++;
+                  break;
+                case " ":
+                  diffLines.push({
+                    type: "same",
+                    line: lineContent,
+                    lineNumber: currentLine,
+                  });
+                  currentLine++;
+                  break;
+              }
+            }
+          }
+        }
+
+        // Apply decorations
+        decorationManager.applyDiffDecorations(diffLines);
+
+        logger.info(`Applied decorations for ${diffLines.length} diff lines`);
+
+        // TODO: Add CodeLens for accept/reject buttons
+        // This would require implementing a CodeLens provider similar to Continue's approach
+      } catch (error) {
+        logger.error("Error in showDiffWithDecorations:", error);
+        window.showErrorMessage(
+          `Failed to show diff with decorations: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    },
+
+    "konveyor.clearDiffDecorations": async (filePath?: string) => {
+      try {
+        if (filePath) {
+          // Clear decorations for specific file
+          const uri = Uri.file(filePath);
+          const manager = state.decorationManagers.get(uri.toString());
+          if (manager) {
+            manager.dispose();
+            state.decorationManagers.delete(uri.toString());
+          }
+        } else {
+          // Clear all decorations
+          for (const [uri, manager] of state.decorationManagers.entries()) {
+            manager.dispose();
+          }
+          state.decorationManagers.clear();
+        }
+      } catch (error) {
+        logger.error("Error clearing diff decorations:", error);
+      }
     },
   };
 };
