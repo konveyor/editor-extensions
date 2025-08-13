@@ -1,12 +1,14 @@
 import { basename } from "path";
 import { TasksList } from "./types";
+import { DiagnosticIssue, DiagnosticSummary } from "@editor-extensions/shared";
 
 /**
- * Summarizes the tasks into a string to be displayed to the user.
+ * Summarizes the tasks into structured data for interactive display.
  * @param tasks - The tasks to summarize.
  */
-export function summarizeTasks(tasks: TasksList): string {
+export function summarizeTasksStructured(tasks: TasksList): DiagnosticSummary {
   const uriToTasksMap = new Map<string, string[]>();
+  const issuesByFile: Record<string, DiagnosticIssue[]> = {};
 
   tasks.currentTasks.forEach((task) => {
     const uri = task.getUri();
@@ -18,8 +20,21 @@ export function summarizeTasks(tasks: TasksList): string {
 
   let summary = "### New issues:\n";
   uriToTasksMap.forEach((taskList, uri) => {
-    summary += `- ${taskList.length} new issues in **${basename(uri)}**.\n`;
+    const filename = basename(uri);
+    summary += `- ${taskList.length} new issues in **${filename}**.\n`;
+
+    // Create structured issues for this file
     const uniqueTasks = Array.from(new Set(taskList));
+    const fileIssues: DiagnosticIssue[] = uniqueTasks.map((task) => ({
+      id: `${uri}-${task}`,
+      message: task.length > 200 ? task.slice(0, 197) + "..." : task,
+      uri,
+      filename,
+    }));
+
+    issuesByFile[filename] = fileIssues;
+
+    // Show first 2 issues in summary
     uniqueTasks.slice(0, Math.min(2, uniqueTasks.length)).forEach((task) => {
       summary += `  - ${task.length > 200 ? task.slice(0, 197) + "..." : task}\n`;
     });
@@ -37,7 +52,19 @@ export function summarizeTasks(tasks: TasksList): string {
     });
   }
 
-  return summary;
+  return {
+    summary,
+    issuesByFile,
+    totalIssues: tasks.currentTasks.length,
+  };
+}
+
+/**
+ * Summarizes the tasks into a string to be displayed to the user.
+ * @param tasks - The tasks to summarize.
+ */
+export function summarizeTasks(tasks: TasksList): string {
+  return summarizeTasksStructured(tasks).summary;
 }
 
 /**
