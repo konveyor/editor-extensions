@@ -1,4 +1,5 @@
 import { ExtensionState } from "./extensionState";
+import * as vscode from "vscode";
 import {
   window,
   commands,
@@ -9,6 +10,7 @@ import {
   Selection,
   TextEditorRevealType,
   Position,
+  ViewColumn,
 } from "vscode";
 import {
   cleanRuleSets,
@@ -58,10 +60,14 @@ import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 import { DiffDecorationManager } from "./decorations";
+import { DiffCodeLensProvider } from "./diffCodeLensProvider";
 import { parsePatch } from "diff";
 import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
+
+// Global CodeLens provider for diff blocks
+const diffCodeLensProvider = new DiffCodeLensProvider(new Map());
 
 const commandsMap: (
   state: ExtensionState,
@@ -705,9 +711,16 @@ const commandsMap: (
 
         const uri = Uri.file(filePath);
 
-        // Open the file in the editor
+        // Open the file in the editor in a split view to keep the resolution panel visible
         const doc = await workspace.openTextDocument(uri);
-        const editor = await window.showTextDocument(doc, { preview: false });
+
+        // Open the file in Column 2 (right side) to create a split view
+        // Left: Resolution panel | Right: File with decorations
+        const editor = await window.showTextDocument(doc, {
+          viewColumn: ViewColumn.Two,
+          preview: false,
+          preserveFocus: true, // Keep focus on the resolution panel for workflow continuity
+        });
 
         // Clear any existing decorations for this file
         const existingManager = state.decorationManagers.get(uri.toString());
@@ -773,9 +786,18 @@ const commandsMap: (
         }
 
         // Apply decorations
-        decorationManager.applyDiffDecorations(diffLines);
+        decorationManager.applyDiffDecorations(diffLines, messageToken);
 
-        logger.info(`Applied decorations for ${diffLines.length} diff lines`);
+        // Update CodeLens provider with diff blocks
+        const diffBlocks = decorationManager.getDiffBlocks();
+        diffCodeLensProvider.addDiffBlocks(uri.toString(), diffBlocks);
+
+        logger.info(
+          `Applied decorations for ${diffLines.length} diff lines with ${diffBlocks.length} diff blocks`,
+        );
+
+        // Don't explicitly show the resolution panel again as it causes flickering
+        // Instead, rely on VSCode's natural layout behavior to maintain the split view
 
         // TODO: Add CodeLens for accept/reject buttons
         // This would require implementing a CodeLens provider similar to Continue's approach
@@ -797,19 +819,117 @@ const commandsMap: (
             manager.dispose();
             state.decorationManagers.delete(uri.toString());
           }
+          // Clear CodeLens for this file
+          diffCodeLensProvider.clearDiffBlocks(uri.toString());
         } else {
           // Clear all decorations
           for (const [uri, manager] of state.decorationManagers.entries()) {
             manager.dispose();
           }
           state.decorationManagers.clear();
+          // Clear all CodeLens
+          diffCodeLensProvider.clearDiffBlocks();
         }
       } catch (error) {
         logger.error("Error clearing diff decorations:", error);
       }
     },
+
+    "konveyor.acceptDiffBlock": async (
+      fileUri: string,
+      blockIndex: number,
+      messageToken: string,
+    ) => {
+      try {
+        logger.info("acceptDiffBlock called", { fileUri, blockIndex, messageToken });
+
+        const manager = state.decorationManagers.get(fileUri);
+        if (!manager) {
+          logger.warn("No decoration manager found for file:", fileUri);
+          return;
+        }
+
+        const diffBlocks = manager.getDiffBlocks();
+        const block = diffBlocks[blockIndex];
+        if (!block) {
+          logger.warn("No diff block found at index:", blockIndex);
+          return;
+        }
+
+        // Apply the specific diff block changes
+        // For now, we'll simulate acceptance by clearing the decorations for this block
+        // TODO: Implement actual file content modification here
+
+        // Remove the accepted block from diff blocks
+        diffBlocks.splice(blockIndex, 1);
+        diffCodeLensProvider.addDiffBlocks(fileUri, diffBlocks);
+
+        // If no more blocks, clear all decorations
+        if (diffBlocks.length === 0) {
+          manager.dispose();
+          state.decorationManagers.delete(fileUri);
+          diffCodeLensProvider.clearDiffBlocks(fileUri);
+        }
+
+        // Send response back to webview if needed
+        // TODO: Implement FILE_RESPONSE message here
+
+        logger.info(`Accepted diff block ${blockIndex} for ${fileUri}`);
+      } catch (error) {
+        logger.error("Error accepting diff block:", error);
+        window.showErrorMessage(`Failed to accept changes: ${error}`);
+      }
+    },
+
+    "konveyor.rejectDiffBlock": async (
+      fileUri: string,
+      blockIndex: number,
+      messageToken: string,
+    ) => {
+      try {
+        logger.info("rejectDiffBlock called", { fileUri, blockIndex, messageToken });
+
+        const manager = state.decorationManagers.get(fileUri);
+        if (!manager) {
+          logger.warn("No decoration manager found for file:", fileUri);
+          return;
+        }
+
+        const diffBlocks = manager.getDiffBlocks();
+        const block = diffBlocks[blockIndex];
+        if (!block) {
+          logger.warn("No diff block found at index:", blockIndex);
+          return;
+        }
+
+        // Reject the specific diff block changes
+        // For now, we'll simulate rejection by clearing the decorations for this block
+        // TODO: Implement actual file content reversion here
+
+        // Remove the rejected block from diff blocks
+        diffBlocks.splice(blockIndex, 1);
+        diffCodeLensProvider.addDiffBlocks(fileUri, diffBlocks);
+
+        // If no more blocks, clear all decorations
+        if (diffBlocks.length === 0) {
+          manager.dispose();
+          state.decorationManagers.delete(fileUri);
+          diffCodeLensProvider.clearDiffBlocks(fileUri);
+        }
+
+        // Send response back to webview if needed
+        // TODO: Implement FILE_RESPONSE message here
+
+        logger.info(`Rejected diff block ${blockIndex} for ${fileUri}`);
+      } catch (error) {
+        logger.error("Error rejecting diff block:", error);
+        window.showErrorMessage(`Failed to reject changes: ${error}`);
+      }
+    },
   };
 };
+
+export { diffCodeLensProvider };
 
 export function registerAllCommands(state: ExtensionState) {
   // Create a child logger for commands
@@ -846,5 +966,19 @@ export function registerAllCommands(state: ExtensionState) {
     } catch (error) {
       throw new Error(`Failed to register command '${command}': ${error}`);
     }
+  }
+
+  // Register the CodeLens provider for diff blocks
+  try {
+    state.extensionContext.subscriptions.push(
+      vscode.languages.registerCodeLensProvider(
+        "*", // Apply to all file types
+        diffCodeLensProvider,
+      ),
+    );
+    logger.info("Diff CodeLens provider registered successfully");
+  } catch (error) {
+    logger.error("Failed to register diff CodeLens provider:", error);
+    throw new Error(`Failed to register diff CodeLens provider: ${error}`);
   }
 }

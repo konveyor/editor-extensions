@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { DiffBlock } from "./diffCodeLensProvider";
 
 const removedLineDecorationType = (line: string) =>
   vscode.window.createTextEditorDecorationType({
@@ -163,6 +164,7 @@ export class DiffDecorationManager {
   private addedLineDecorations: AddedLineDecorationManager | null = null;
   private removedLineDecorations: RemovedLineDecorationManager | null = null;
   private editor: vscode.TextEditor | null = null;
+  private diffBlocks: DiffBlock[] = [];
 
   constructor(private fileUri: string) {}
 
@@ -172,13 +174,17 @@ export class DiffDecorationManager {
     this.removedLineDecorations = new RemovedLineDecorationManager(editor);
   }
 
-  applyDiffDecorations(diffLines: Array<{ type: string; line: string; lineNumber: number }>) {
+  applyDiffDecorations(
+    diffLines: Array<{ type: string; line: string; lineNumber: number }>,
+    messageToken: string,
+  ) {
     if (!this.editor || !this.addedLineDecorations || !this.removedLineDecorations) {
       throw new Error("Manager not initialized with editor");
     }
 
-    // Clear existing decorations
+    // Clear existing decorations and diff blocks
     this.clearDecorations();
+    this.diffBlocks = [];
 
     // Group consecutive lines by type
     let currentGroup: { type: string; lines: string[]; startLine: number } | null = null;
@@ -187,7 +193,7 @@ export class DiffDecorationManager {
       if (!currentGroup || currentGroup.type !== diffLine.type) {
         // Apply previous group if it exists
         if (currentGroup) {
-          this.applyGroup(currentGroup);
+          this.applyGroup(currentGroup, messageToken);
         }
         // Start new group
         currentGroup = {
@@ -203,11 +209,18 @@ export class DiffDecorationManager {
 
     // Apply the last group
     if (currentGroup) {
-      this.applyGroup(currentGroup);
+      this.applyGroup(currentGroup, messageToken);
     }
   }
 
-  private applyGroup(group: { type: string; lines: string[]; startLine: number }) {
+  getDiffBlocks(): DiffBlock[] {
+    return this.diffBlocks;
+  }
+
+  private applyGroup(
+    group: { type: string; lines: string[]; startLine: number },
+    messageToken: string,
+  ) {
     if (!this.addedLineDecorations || !this.removedLineDecorations) {
       return;
     }
@@ -215,11 +228,27 @@ export class DiffDecorationManager {
     switch (group.type) {
       case "added":
         this.addedLineDecorations.addLines(group.startLine, group.lines.length);
+        // Create diff block for CodeLens
+        this.diffBlocks.push({
+          startLine: group.startLine,
+          numAdded: group.lines.length,
+          numRemoved: 0,
+          fileUri: this.fileUri,
+          messageToken,
+        });
         break;
       case "removed":
         this.removedLineDecorations.addLines(group.startLine, group.lines);
+        // Create diff block for CodeLens
+        this.diffBlocks.push({
+          startLine: group.startLine,
+          numAdded: 0,
+          numRemoved: group.lines.length,
+          fileUri: this.fileUri,
+          messageToken,
+        });
         break;
-      // "same" lines don't need decorations
+      // "same" lines don't need decorations or CodeLens
     }
   }
 
