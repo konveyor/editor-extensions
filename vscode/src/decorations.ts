@@ -165,6 +165,7 @@ export class DiffDecorationManager {
   private removedLineDecorations: RemovedLineDecorationManager | null = null;
   private editor: vscode.TextEditor | null = null;
   private diffBlocks: DiffBlock[] = [];
+  private originalContent: string = "";
 
   constructor(private fileUri: string) {}
 
@@ -174,9 +175,11 @@ export class DiffDecorationManager {
     this.removedLineDecorations = new RemovedLineDecorationManager(editor);
   }
 
-  applyDiffDecorations(
-    diffLines: Array<{ type: string; line: string; lineNumber: number }>,
+  applyDiffDecorationsWithRange(
+    diffLines: Array<{ type: string; line: string }>,
     messageToken: string,
+    originalContent: string,
+    startLine: number,
   ) {
     if (!this.editor || !this.addedLineDecorations || !this.removedLineDecorations) {
       throw new Error("Manager not initialized with editor");
@@ -185,71 +188,94 @@ export class DiffDecorationManager {
     // Clear existing decorations and diff blocks
     this.clearDecorations();
     this.diffBlocks = [];
+    this.originalContent = originalContent;
 
-    // Group consecutive lines by type
-    let currentGroup: { type: string; lines: string[]; startLine: number } | null = null;
+    // Follow Continue's exact approach from reapplyWithMyersDiff
+    let numRed = 0;
+    let numGreen = 0;
 
-    for (const diffLine of diffLines) {
-      if (!currentGroup || currentGroup.type !== diffLine.type) {
-        // Apply previous group if it exists
-        if (currentGroup) {
-          this.applyGroup(currentGroup, messageToken);
-        }
-        // Start new group
-        currentGroup = {
-          type: diffLine.type,
-          lines: [diffLine.line],
-          startLine: diffLine.lineNumber,
+    const codeLensBlocks: DiffBlock[] = [];
+
+    diffLines.forEach((diffLine, index) => {
+      if (diffLine.type === "old") {
+        // Use Continue's exact positioning: startLine + index
+        this.removedLineDecorations!.addLine(startLine + index, diffLine.line);
+        numRed++;
+      } else if (diffLine.type === "new") {
+        // Use Continue's exact positioning: startLine + index
+        this.addedLineDecorations!.addLine(startLine + index);
+        numGreen++;
+      } else if (diffLine.type === "same" && (numRed > 0 || numGreen > 0)) {
+        // Create a diff block when we hit a "same" line after changes
+        // Use Continue's exact positioning: startLine + index - numRed - numGreen
+        const blockStartLine = startLine + index - numRed - numGreen;
+
+        const newBlock: DiffBlock = {
+          startLine: blockStartLine,
+          numAdded: numGreen,
+          numRemoved: numRed,
+          fileUri: this.fileUri,
+          messageToken,
         };
-      } else {
-        // Add to current group
-        currentGroup.lines.push(diffLine.line);
+
+        console.log(`[DEBUG] Creating diff block at same line:`, newBlock);
+        codeLensBlocks.push(newBlock);
+
+        // Reset counters
+        numRed = 0;
+        numGreen = 0;
       }
+    });
+
+    // Handle final block if we end on changes (no trailing "same" line)
+    if (numRed > 0 || numGreen > 0) {
+      // Use Continue's exact positioning: startLine + diffLines.length - numRed - numGreen
+      const blockStartLine = startLine + diffLines.length - numRed - numGreen;
+
+      const newBlock: DiffBlock = {
+        startLine: blockStartLine,
+        numAdded: numGreen,
+        numRemoved: numRed,
+        fileUri: this.fileUri,
+        messageToken,
+      };
+
+      console.log(`[DEBUG] Creating final diff block:`, newBlock);
+      codeLensBlocks.push(newBlock);
     }
 
-    // Apply the last group
-    if (currentGroup) {
-      this.applyGroup(currentGroup, messageToken);
-    }
+    this.diffBlocks = codeLensBlocks;
+  }
+
+  // Keep the old method for backward compatibility
+  applyDiffDecorations(
+    diffLines: Array<{ type: string; line: string; lineNumber: number }>,
+    messageToken: string,
+    originalContent: string,
+  ) {
+    // Convert to new format and call new method with startLine = 0
+    const convertedLines = diffLines.map((line) => ({
+      type: line.type === "added" ? "new" : line.type === "removed" ? "old" : "same",
+      line: line.line,
+    }));
+    this.applyDiffDecorationsWithRange(convertedLines, messageToken, originalContent, 0);
   }
 
   getDiffBlocks(): DiffBlock[] {
     return this.diffBlocks;
   }
 
-  private applyGroup(
-    group: { type: string; lines: string[]; startLine: number },
-    messageToken: string,
-  ) {
-    if (!this.addedLineDecorations || !this.removedLineDecorations) {
-      return;
-    }
+  getOriginalContent(): string {
+    return this.originalContent;
+  }
 
-    switch (group.type) {
-      case "added":
-        this.addedLineDecorations.addLines(group.startLine, group.lines.length);
-        // Create diff block for CodeLens
-        this.diffBlocks.push({
-          startLine: group.startLine,
-          numAdded: group.lines.length,
-          numRemoved: 0,
-          fileUri: this.fileUri,
-          messageToken,
-        });
-        break;
-      case "removed":
-        this.removedLineDecorations.addLines(group.startLine, group.lines);
-        // Create diff block for CodeLens
-        this.diffBlocks.push({
-          startLine: group.startLine,
-          numAdded: 0,
-          numRemoved: group.lines.length,
-          fileUri: this.fileUri,
-          messageToken,
-        });
-        break;
-      // "same" lines don't need decorations or CodeLens
-    }
+  // Expose decoration managers for direct access
+  getRemovedDecorations(): RemovedLineDecorationManager | null {
+    return this.removedLineDecorations;
+  }
+
+  getAddedDecorations(): AddedLineDecorationManager | null {
+    return this.addedLineDecorations;
   }
 
   clearDecorations() {

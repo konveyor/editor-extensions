@@ -52,4 +52,5 @@ export interface ExtensionState {
   logger: winston.Logger;
   modelProvider: KaiModelProvider | undefined;
   decorationManagers: Map<string, DiffDecorationManager>; // Map to store decoration managers by file URI
+  appliedDiffs: Set<string>; // Track applied diff file+token combinations to prevent double application
 }

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { SimpleDiffCodeLens } from "./diffManager";
 
 export interface DiffBlock {
   startLine: number;
@@ -6,50 +7,50 @@ export interface DiffBlock {
   numRemoved: number;
   fileUri: string;
   messageToken: string;
+  addedContent?: string[]; // Actual content to be added
+  removedContent?: string[]; // Actual content being removed
 }
 
 export class DiffCodeLensProvider implements vscode.CodeLensProvider {
   private _eventEmitter: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
   onDidChangeCodeLenses: vscode.Event<void> = this._eventEmitter.event;
 
-  constructor(private readonly diffBlocks: Map<string, DiffBlock[]>) {}
+  constructor(private readonly codeLensMap: Map<string, SimpleDiffCodeLens[]>) {}
 
   public refresh(): void {
     this._eventEmitter.fire();
   }
 
-  public addDiffBlocks(fileUri: string, blocks: DiffBlock[]): void {
-    this.diffBlocks.set(fileUri, blocks);
-    this.refresh();
-  }
-
-  public clearDiffBlocks(fileUri?: string): void {
-    if (fileUri) {
-      this.diffBlocks.delete(fileUri);
-    } else {
-      this.diffBlocks.clear();
-    }
-    this.refresh();
-  }
+  // Methods removed - now using manager pattern
 
   public provideCodeLenses(
     document: vscode.TextDocument,
     _: vscode.CancellationToken,
   ): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
     const uri = document.uri.toString();
-    const blocks = this.diffBlocks.get(uri);
+    const blocks = this.codeLensMap.get(uri);
 
     if (!blocks || blocks.length === 0) {
       return [];
     }
 
+    console.log(`CodeLens provider: ${blocks.length} blocks for ${uri}`);
+    blocks.forEach((block, i) => {
+      console.log(
+        `Block ${i}: start=${block.start}, numAdded=${block.numAdded}, numRemoved=${block.numRemoved}`,
+      );
+    });
+
     const codeLenses: vscode.CodeLens[] = [];
 
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i];
-      const range = new vscode.Range(
-        new vscode.Position(block.startLine, 0),
-        new vscode.Position(block.startLine, 0),
+      const start = new vscode.Position(block.start, 0);
+      // Use Continue's exact range calculation: spans numAdded + numRemoved lines
+      const range = new vscode.Range(start, start.translate(block.numAdded + block.numRemoved));
+
+      console.log(
+        `Creating CodeLens for block ${i} at line ${block.start} (multi-line range: ${block.numAdded + block.numRemoved} lines)`,
       );
 
       // Accept button
@@ -57,7 +58,7 @@ export class DiffCodeLensProvider implements vscode.CodeLensProvider {
         new vscode.CodeLens(range, {
           title: `Accept`,
           command: "konveyor.acceptDiffBlock",
-          arguments: [uri, i, block.messageToken],
+          arguments: [uri, i],
         }),
       );
 
@@ -66,11 +67,12 @@ export class DiffCodeLensProvider implements vscode.CodeLensProvider {
         new vscode.CodeLens(range, {
           title: `Reject`,
           command: "konveyor.rejectDiffBlock",
-          arguments: [uri, i, block.messageToken],
+          arguments: [uri, i],
         }),
       );
     }
 
+    console.log(`CodeLens provider: created ${codeLenses.length} CodeLens items`);
     return codeLenses;
   }
 }

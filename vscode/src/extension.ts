@@ -131,6 +131,7 @@ class VsCodeExtension {
       lastMessageId: "0",
       currentTaskManagerIterations: 0,
       decorationManagers: new Map<string, DiffDecorationManager>(), // Initialize decoration managers map
+      appliedDiffs: new Set<string>(), // Initialize applied diffs tracking
 
       workflowManager: {
         workflow: undefined,

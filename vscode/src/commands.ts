@@ -59,15 +59,21 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
-import { DiffDecorationManager } from "./decorations";
 import { DiffCodeLensProvider } from "./diffCodeLensProvider";
+import { SimpleDiffManager } from "./diffManager";
 import { parsePatch } from "diff";
 import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
 
-// Global CodeLens provider for diff blocks
-const diffCodeLensProvider = new DiffCodeLensProvider(new Map());
+// Global diff manager and CodeLens provider
+const simpleDiffManager = new SimpleDiffManager();
+const diffCodeLensProvider = new DiffCodeLensProvider(simpleDiffManager.fileUriToCodeLens);
+
+// Set up the refresh callback
+simpleDiffManager.setRefreshCodeLensCallback(() => {
+  diffCodeLensProvider.refresh();
+});
 
 const commandsMap: (
   state: ExtensionState,
@@ -709,6 +715,19 @@ const commandsMap: (
       try {
         logger.info("showDiffWithDecorations called", { filePath, messageToken });
 
+        // Check if this file+token combination has already been applied
+        const fileKey = `${filePath}:${messageToken}`;
+        if (state.appliedDiffs?.has(fileKey)) {
+          logger.warn("Diff already applied for this file+token, skipping", {
+            filePath,
+            messageToken,
+          });
+          window.showWarningMessage(
+            `Changes already applied to ${workspace.asRelativePath(Uri.file(filePath))}`,
+          );
+          return;
+        }
+
         const uri = Uri.file(filePath);
 
         // Open the file in the editor in a split view to keep the resolution panel visible
@@ -722,18 +741,10 @@ const commandsMap: (
           preserveFocus: true, // Keep focus on the resolution panel for workflow continuity
         });
 
-        // Clear any existing decorations for this file
-        const existingManager = state.decorationManagers.get(uri.toString());
-        if (existingManager) {
-          existingManager.dispose();
-        }
+        // Clear any existing diff for this file
+        simpleDiffManager.clearDiffForFile(uri.toString());
 
-        // Create new decoration manager
-        const decorationManager = new DiffDecorationManager(uri.toString());
-        decorationManager.initializeForEditor(editor);
-        state.decorationManagers.set(uri.toString(), decorationManager);
-
-        // Parse the diff to extract line-by-line changes
+        // Parse the diff using Continue's range-based approach
         const parsedDiff = parsePatch(diff);
 
         if (!parsedDiff || parsedDiff.length === 0) {
@@ -741,59 +752,108 @@ const commandsMap: (
           return;
         }
 
-        const diffLines: Array<{ type: string; line: string; lineNumber: number }> = [];
+        // Get current file content
+        const currentContent = doc.getText();
 
-        // Process each hunk in the diff
+        // Calculate the affected range from all hunks (like Continue does)
+        let startLine = Number.MAX_SAFE_INTEGER;
+        let endLine = 0;
+
         for (const fileDiff of parsedDiff) {
           if (!fileDiff.hunks) {
             continue;
           }
 
           for (const hunk of fileDiff.hunks) {
-            let currentLine = hunk.oldStart - 1; // Convert to 0-based
+            // oldStart is 1-based, convert to 0-based
+            const hunkStart = hunk.oldStart - 1;
+            const hunkEnd = hunkStart + hunk.oldLines;
 
+            startLine = Math.min(startLine, hunkStart);
+            endLine = Math.max(endLine, hunkEnd);
+          }
+        }
+
+        console.log(`[DEBUG] Calculated range: startLine=${startLine}, endLine=${endLine}`);
+
+        // Reconstruct old and new content for the range (like Continue's reapplyWithMyersDiff)
+        const diffLines: Array<{ type: string; line: string }> = [];
+
+        for (const fileDiff of parsedDiff) {
+          if (!fileDiff.hunks) {
+            continue;
+          }
+
+          for (const hunk of fileDiff.hunks) {
             for (const line of hunk.lines) {
               const lineType = line.charAt(0);
               const lineContent = line.substring(1);
 
               switch (lineType) {
                 case "+":
-                  diffLines.push({
-                    type: "added",
-                    line: lineContent,
-                    lineNumber: currentLine,
-                  });
+                  diffLines.push({ type: "new", line: lineContent });
                   break;
                 case "-":
-                  diffLines.push({
-                    type: "removed",
-                    line: lineContent,
-                    lineNumber: currentLine,
-                  });
-                  currentLine++;
+                  diffLines.push({ type: "old", line: lineContent });
                   break;
                 case " ":
-                  diffLines.push({
-                    type: "same",
-                    line: lineContent,
-                    lineNumber: currentLine,
-                  });
-                  currentLine++;
+                  diffLines.push({ type: "same", line: lineContent });
                   break;
               }
             }
           }
         }
 
-        // Apply decorations
-        decorationManager.applyDiffDecorations(diffLines, messageToken);
+        // Get old and new content for the range (like Continue does)
+        const oldRangeContent =
+          diffLines
+            .filter((line) => line.type === "same" || line.type === "old")
+            .map((line) => line.line)
+            .join("\n") + "\n";
 
-        // Update CodeLens provider with diff blocks
-        const diffBlocks = decorationManager.getDiffBlocks();
-        diffCodeLensProvider.addDiffBlocks(uri.toString(), diffBlocks);
+        const newRangeContent =
+          diffLines
+            .filter((line) => line.type === "same" || line.type === "new")
+            .map((line) => line.line)
+            .join("\n") + "\n";
+
+        console.log(`[DEBUG] Old range content lines: ${oldRangeContent.split("\n").length - 1}`);
+        console.log(`[DEBUG] New range content lines: ${newRangeContent.split("\n").length - 1}`);
+
+        // Replace only the affected range (like Continue does)
+        const rangeToReplace = new vscode.Range(startLine, 0, endLine, 0);
+        const edit = new vscode.WorkspaceEdit();
+
+        // Remove the trailing newline for the replacement content
+        const replacementContent = newRangeContent.slice(0, -1);
+        edit.replace(uri, rangeToReplace, replacementContent);
+
+        const applySuccess = await workspace.applyEdit(edit);
+
+        if (!applySuccess) {
+          window.showErrorMessage("Failed to apply diff to file range");
+          return;
+        }
+
+        console.log(
+          `[DEBUG] Generated ${diffLines.length} diff lines from ${parsedDiff.length} file diffs`,
+        );
+
+        // Use the manager to handle decorations and CodeLens
+        await simpleDiffManager.showDiffWithDecorations(
+          uri.toString(),
+          startLine,
+          endLine,
+          diffLines,
+          messageToken,
+          currentContent,
+        );
+
+        // Mark this diff as applied to prevent double application
+        state.appliedDiffs.add(fileKey);
 
         logger.info(
-          `Applied decorations for ${diffLines.length} diff lines with ${diffBlocks.length} diff blocks`,
+          `Applied decorations for ${diffLines.length} diff lines using SimpleDiffManager`,
         );
 
         // Don't explicitly show the resolution panel again as it causes flickering
@@ -812,115 +872,30 @@ const commandsMap: (
     "konveyor.clearDiffDecorations": async (filePath?: string) => {
       try {
         if (filePath) {
-          // Clear decorations for specific file
           const uri = Uri.file(filePath);
-          const manager = state.decorationManagers.get(uri.toString());
-          if (manager) {
-            manager.dispose();
-            state.decorationManagers.delete(uri.toString());
-          }
-          // Clear CodeLens for this file
-          diffCodeLensProvider.clearDiffBlocks(uri.toString());
+          simpleDiffManager.clearDiffForFile(uri.toString());
         } else {
-          // Clear all decorations
-          for (const [uri, manager] of state.decorationManagers.entries()) {
-            manager.dispose();
-          }
-          state.decorationManagers.clear();
-          // Clear all CodeLens
-          diffCodeLensProvider.clearDiffBlocks();
+          simpleDiffManager.clearAllDiffs();
         }
       } catch (error) {
         logger.error("Error clearing diff decorations:", error);
       }
     },
 
-    "konveyor.acceptDiffBlock": async (
-      fileUri: string,
-      blockIndex: number,
-      messageToken: string,
-    ) => {
+    "konveyor.acceptDiffBlock": async (fileUri: string, blockIndex: number) => {
       try {
-        logger.info("acceptDiffBlock called", { fileUri, blockIndex, messageToken });
-
-        const manager = state.decorationManagers.get(fileUri);
-        if (!manager) {
-          logger.warn("No decoration manager found for file:", fileUri);
-          return;
-        }
-
-        const diffBlocks = manager.getDiffBlocks();
-        const block = diffBlocks[blockIndex];
-        if (!block) {
-          logger.warn("No diff block found at index:", blockIndex);
-          return;
-        }
-
-        // Apply the specific diff block changes
-        // For now, we'll simulate acceptance by clearing the decorations for this block
-        // TODO: Implement actual file content modification here
-
-        // Remove the accepted block from diff blocks
-        diffBlocks.splice(blockIndex, 1);
-        diffCodeLensProvider.addDiffBlocks(fileUri, diffBlocks);
-
-        // If no more blocks, clear all decorations
-        if (diffBlocks.length === 0) {
-          manager.dispose();
-          state.decorationManagers.delete(fileUri);
-          diffCodeLensProvider.clearDiffBlocks(fileUri);
-        }
-
-        // Send response back to webview if needed
-        // TODO: Implement FILE_RESPONSE message here
-
-        logger.info(`Accepted diff block ${blockIndex} for ${fileUri}`);
+        logger.info("acceptDiffBlock called", { fileUri, blockIndex });
+        await simpleDiffManager.processDiff("accept", fileUri, blockIndex);
       } catch (error) {
         logger.error("Error accepting diff block:", error);
         window.showErrorMessage(`Failed to accept changes: ${error}`);
       }
     },
 
-    "konveyor.rejectDiffBlock": async (
-      fileUri: string,
-      blockIndex: number,
-      messageToken: string,
-    ) => {
+    "konveyor.rejectDiffBlock": async (fileUri: string, blockIndex: number) => {
       try {
-        logger.info("rejectDiffBlock called", { fileUri, blockIndex, messageToken });
-
-        const manager = state.decorationManagers.get(fileUri);
-        if (!manager) {
-          logger.warn("No decoration manager found for file:", fileUri);
-          return;
-        }
-
-        const diffBlocks = manager.getDiffBlocks();
-        const block = diffBlocks[blockIndex];
-        if (!block) {
-          logger.warn("No diff block found at index:", blockIndex);
-          return;
-        }
-
-        // Reject the specific diff block changes
-        // For now, we'll simulate rejection by clearing the decorations for this block
-        // TODO: Implement actual file content reversion here
-
-        // Remove the rejected block from diff blocks
-        diffBlocks.splice(blockIndex, 1);
-        diffCodeLensProvider.addDiffBlocks(fileUri, diffBlocks);
-
-        // If no more blocks, clear all decorations
-        if (diffBlocks.length === 0) {
-          manager.dispose();
-          state.decorationManagers.delete(fileUri);
-          diffCodeLensProvider.clearDiffBlocks(fileUri);
-        }
-
-        // Send response back to webview if needed
-        // TODO: Implement FILE_RESPONSE message here
-
-        logger.info(`Rejected diff block ${blockIndex} for ${fileUri}`);
+        logger.info("rejectDiffBlock called", { fileUri, blockIndex });
+        await simpleDiffManager.processDiff("reject", fileUri, blockIndex);
       } catch (error) {
         logger.error("Error rejecting diff block:", error);
         window.showErrorMessage(`Failed to reject changes: ${error}`);
