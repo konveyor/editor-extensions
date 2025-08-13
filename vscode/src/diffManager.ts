@@ -32,57 +32,79 @@ export class SimpleDiffManager {
     // Clear any existing diff for this file
     this.clearDiffForFile(fileUri);
 
-    // Get the editor
+    // Get the editor - open the document first if needed
     const uri = vscode.Uri.parse(fileUri);
-    const editor = vscode.window.activeTextEditor;
+    let editor = vscode.window.activeTextEditor;
+
+    // If no active editor or wrong file, open the correct file
     if (!editor || editor.document.uri.toString() !== fileUri) {
-      throw new Error("No active editor for file");
+      const document = await vscode.workspace.openTextDocument(uri);
+      editor = await vscode.window.showTextDocument(document, {
+        viewColumn: vscode.ViewColumn.Two,
+        preview: false,
+        preserveFocus: true,
+      });
     }
 
     // Create decoration manager
     const decorationManager = new DiffDecorationManager(fileUri);
     decorationManager.initializeForEditor(editor);
-    this.fileUriToDecorationManager.set(fileUri, decorationManager);
 
-    // Apply decorations using Continue's approach
+    // Process diff lines and apply decorations
+    // Key insight: diff lines represent changes to apply, decorations show where they go in current file
+    let currentOriginalLine = startLine; // Track position in original content
+    let currentDisplayLine = startLine; // Track position in current file for decorations
     let numRed = 0;
     let numGreen = 0;
+    let blockStartLine = startLine;
     const codeLensBlocks: SimpleDiffCodeLens[] = [];
 
+    console.log(`[DEBUG] Processing ${diffLines.length} diff lines starting at line ${startLine}`);
+
     diffLines.forEach((diffLine, index) => {
+      console.log(
+        `[DEBUG] Line ${index}: type=${diffLine.type}, originalLine=${currentOriginalLine}, displayLine=${currentDisplayLine}`,
+      );
+
       if (diffLine.type === "old") {
-        // Use Continue's exact positioning: startLine + index
-        decorationManager.getRemovedDecorations()!.addLine(startLine + index, diffLine.line);
+        // Removed lines: show ghost text at current display position
+        decorationManager.getRemovedDecorations()!.addLine(currentDisplayLine, diffLine.line);
         numRed++;
+        currentOriginalLine++; // This line existed in original
+        // Don't advance currentDisplayLine - removed lines don't take space in current file
       } else if (diffLine.type === "new") {
-        // Use Continue's exact positioning: startLine + index
-        decorationManager.getAddedDecorations()!.addLine(startLine + index);
+        // Added lines: show highlight at current display position
+        decorationManager.getAddedDecorations()!.addLine(currentDisplayLine);
         numGreen++;
-      } else if (diffLine.type === "same" && (numRed > 0 || numGreen > 0)) {
-        // Create a diff block when we hit a "same" line after changes
-        // Use Continue's exact positioning: startLine + index - numRed - numGreen
-        const blockStartLine = startLine + index - numRed - numGreen;
+        currentDisplayLine++; // Added lines do take space in current file
+        // Don't advance currentOriginalLine - this line didn't exist in original
+      } else if (diffLine.type === "same") {
+        // Same line: create block if we have changes, then advance both pointers
+        if (numRed > 0 || numGreen > 0) {
+          codeLensBlocks.push({
+            start: blockStartLine,
+            numAdded: numGreen,
+            numRemoved: numRed,
+          });
 
-        codeLensBlocks.push({
-          start: blockStartLine,
-          numAdded: numGreen,
-          numRemoved: numRed,
-        });
+          console.log(
+            `[DEBUG] Created CodeLens block: start=${blockStartLine}, added=${numGreen}, removed=${numRed}`,
+          );
 
-        console.log(
-          `[DEBUG] Created CodeLens block: start=${blockStartLine}, added=${numGreen}, removed=${numRed}`,
-        );
+          // Reset for next block
+          numRed = 0;
+          numGreen = 0;
+        }
 
-        // Reset counters
-        numRed = 0;
-        numGreen = 0;
+        // Advance both pointers for same lines
+        currentOriginalLine++;
+        currentDisplayLine++;
+        blockStartLine = currentDisplayLine;
       }
     });
 
     // Handle final block if we end on changes (no trailing "same" line)
     if (numRed > 0 || numGreen > 0) {
-      const blockStartLine = startLine + diffLines.length - numRed - numGreen;
-
       codeLensBlocks.push({
         start: blockStartLine,
         numAdded: numGreen,
@@ -93,6 +115,14 @@ export class SimpleDiffManager {
         `[DEBUG] Created final CodeLens block: start=${blockStartLine}, added=${numGreen}, removed=${numRed}`,
       );
     }
+
+    console.log(
+      `[DEBUG] Applied ${numRed + numGreen} total decorations (${numRed} red, ${numGreen} green)`,
+    );
+    console.log(`[DEBUG] Created ${codeLensBlocks.length} CodeLens blocks`);
+
+    // Store the decoration manager so it stays active
+    this.fileUriToDecorationManager.set(fileUri, decorationManager);
 
     // Store CodeLens blocks in shared map
     this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
