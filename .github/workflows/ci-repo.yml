@@ -264,7 +264,7 @@ jobs:
           path: ./dist
 
       - name: Run e2e tests (Linux)
-        run: npx playwright test e2e/tests/configure-and-run-analysis.test.ts
+        run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
         working-directory: ./tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
