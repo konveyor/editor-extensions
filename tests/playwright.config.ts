@@ -27,8 +27,8 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'configure-and-run-analysis',
-      testMatch: /.*configure-and-run-analysis\.test\.ts/,
+      name: 'base',
+      testMatch: ['**/base/**/*.test.ts'],
     },
     {
       name: 'solution-server-tests',
@@ -37,7 +37,7 @@ export default defineConfig({
     {
       name: 'analysis-tests',
       testMatch: /.*analyze.+\.test\.ts/,
-      dependencies: ['configure-and-run-analysis'],
+      dependencies: ['base'],
     },
   ],
 });

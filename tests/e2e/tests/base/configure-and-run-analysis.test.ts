@@ -1,7 +1,7 @@
-import { expect, test } from '../fixtures/test-repo-fixture';
-import { VSCode } from '../pages/vscode.page';
-import { OPENAI_PROVIDER } from '../fixtures/provider-configs.fixture';
-import { generateRandomString } from '../utilities/utils';
+import { expect, test } from '../../fixtures/test-repo-fixture';
+import { VSCode } from '../../pages/vscode.page';
+import { OPENAI_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import { generateRandomString } from '../../utilities/utils';
 
 test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
