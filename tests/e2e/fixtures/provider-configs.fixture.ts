@@ -62,3 +62,20 @@ export const providerConfigs: ProviderConfig[] = [
   AWS_PROVIDER,
   OPENAI_PROVIDER,
 ];
+
+export function getAvailableProviders(): ProviderConfig[] {
+  const providers: ProviderConfig[] = [];
+  if (process.env.OPENAI_API_KEY) {
+    providers.push(OPENAI_PROVIDER);
+  }
+
+  if (
+    process.env.AWS_ACCESS_KEY_ID &&
+    process.env.AWS_SECRET_ACCESS_KEY &&
+    process.env.AWS_DEFAULT_REGION
+  ) {
+    providers.push(AWS_PROVIDER);
+  }
+
+  return providers;
+}

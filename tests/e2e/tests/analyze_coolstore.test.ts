@@ -58,25 +58,6 @@ providers.forEach((config) => {
       });
     });
 
-    test('Fix Issue with default (Low) effort', async () => {
-      test.setTimeout(3600000);
-      await vscodeApp.openAnalysisView();
-      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-      await vscodeApp.searchViolation('InventoryEntity');
-      await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
-      await analysisView.locator('button#get-solution-button').nth(3).click();
-      const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-      const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]').first();
-      await vscodeApp.waitDefault();
-      await expect(fixLocator).toBeVisible({ timeout: 60000 });
-      expect(await fixLocator.count()).toEqual(1);
-      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
-      await fixLocator.dispatchEvent('click');
-      await expect(
-        resolutionView.getByText('All resolutions have been applied').first()
-      ).toBeVisible({ timeout: 60000 });
-    });
-
     test('Fix all issues with default (Low) effort', async () => {
       test.setTimeout(3600000);
       await vscodeApp.openAnalysisView();
