@@ -7,8 +7,7 @@ import { FixTypes } from '../../enums/fix-types.enum';
 
 test.describe(`@tier0 Run analysis and fix one issue`, () => {
   let vscodeApp: VSCode;
-  const randomString = generateRandomString();
-  const profileName = `automation-${randomString}`;
+  const profileName = `fix-single-issue-${generateRandomString()}`;
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(600000);
