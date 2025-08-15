@@ -14,8 +14,8 @@ const removedLineDecorationType = (line: string) =>
       color: "#808080",
       textDecoration: "none; white-space: pre",
     },
-    // Hide the actual text to show only ghost text
-    textDecoration: "none; display: none",
+    // Do not hide underlying text to ensure new content is visible in replace blocks
+    textDecoration: "none",
   });
 
 const addedLineDecorationType = vscode.window.createTextEditorDecorationType({
@@ -26,6 +26,23 @@ const addedLineDecorationType = vscode.window.createTextEditorDecorationType({
   outlineColor: { id: "diffEditor.insertedTextBorder" },
   rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
 });
+
+// Ghost text decoration for added lines to render the new content text
+const addedGhostLineDecorationType = (line: string) =>
+  vscode.window.createTextEditorDecorationType({
+    isWholeLine: true,
+    backgroundColor: { id: "diffEditor.insertedLineBackground" },
+    outlineWidth: "1px",
+    outlineStyle: "solid",
+    outlineColor: { id: "diffEditor.insertedTextBorder" },
+    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+    before: {
+      contentText: line,
+      color: "#4CAF50",
+      textDecoration: "none; white-space: pre",
+    },
+    textDecoration: "none",
+  });
 
 function translateRange(range: vscode.Range, lineOffset: number): vscode.Range {
   return new vscode.Range(range.start.translate(lineOffset), range.end.translate(lineOffset));
@@ -84,6 +101,77 @@ export class AddedLineDecorationManager {
       }
     }
     this.editor.setDecorations(this.decorationType, this.ranges);
+  }
+}
+
+// Class for managing ghost-text decorations for added lines (GREEN text)
+export class AddedGhostLineDecorationManager {
+  constructor(private editor: vscode.TextEditor) {}
+
+  ranges: {
+    line: string;
+    range: vscode.Range;
+    decoration: vscode.TextEditorDecorationType;
+  }[] = [];
+
+  applyToNewEditor(newEditor: vscode.TextEditor) {
+    this.editor = newEditor;
+    this.applyDecorations();
+  }
+
+  addLines(startIndex: number, lines: string[]) {
+    let i = 0;
+    for (const line of lines) {
+      this.ranges.push({
+        line,
+        range: new vscode.Range(startIndex + i, 0, startIndex + i, Number.MAX_SAFE_INTEGER),
+        decoration: addedGhostLineDecorationType(line),
+      });
+      i++;
+    }
+    this.applyDecorations();
+  }
+
+  addLine(index: number, line: string) {
+    this.addLines(index, [line]);
+  }
+
+  applyDecorations() {
+    this.ranges.forEach((r) => {
+      this.editor.setDecorations(r.decoration, [r.range]);
+    });
+  }
+
+  clear() {
+    this.ranges.forEach((r) => {
+      r.decoration.dispose();
+    });
+    this.ranges = [];
+  }
+
+  shiftDownAfterLine(afterLine: number, offset: number) {
+    for (let i = 0; i < this.ranges.length; i++) {
+      if (this.ranges[i].range.start.line >= afterLine) {
+        this.ranges[i].range = translateRange(this.ranges[i].range, offset);
+      }
+    }
+    this.applyDecorations();
+  }
+
+  deleteRangesStartingAt(line: number) {
+    for (let i = 0; i < this.ranges.length; i++) {
+      if (this.ranges[i].range.start.line === line) {
+        let sequential = 0;
+        while (
+          i + sequential < this.ranges.length &&
+          this.ranges[i + sequential].range.start.line === line + sequential
+        ) {
+          this.ranges[i + sequential].decoration.dispose();
+          sequential++;
+        }
+        return this.ranges.splice(i, sequential);
+      }
+    }
   }
 }
 
@@ -162,6 +250,7 @@ export class RemovedLineDecorationManager {
 // Manager to handle decorations for a file
 export class DiffDecorationManager {
   private addedLineDecorations: AddedLineDecorationManager | null = null;
+  private addedGhostLineDecorations: AddedGhostLineDecorationManager | null = null;
   private removedLineDecorations: RemovedLineDecorationManager | null = null;
   private editor: vscode.TextEditor | null = null;
   private diffBlocks: DiffBlock[] = [];
@@ -172,6 +261,7 @@ export class DiffDecorationManager {
   initializeForEditor(editor: vscode.TextEditor) {
     this.editor = editor;
     this.addedLineDecorations = new AddedLineDecorationManager(editor);
+    this.addedGhostLineDecorations = new AddedGhostLineDecorationManager(editor);
     this.removedLineDecorations = new RemovedLineDecorationManager(editor);
   }
 
@@ -204,6 +294,7 @@ export class DiffDecorationManager {
       } else if (diffLine.type === "new") {
         // Use Continue's exact positioning: startLine + index
         this.addedLineDecorations!.addLine(startLine + index);
+        this.addedGhostLineDecorations?.addLine(startLine + index, diffLine.line);
         numGreen++;
       } else if (diffLine.type === "same" && (numRed > 0 || numGreen > 0)) {
         // Create a diff block when we hit a "same" line after changes
@@ -278,14 +369,20 @@ export class DiffDecorationManager {
     return this.addedLineDecorations;
   }
 
+  getAddedGhostDecorations(): AddedGhostLineDecorationManager | null {
+    return this.addedGhostLineDecorations;
+  }
+
   clearDecorations() {
     this.addedLineDecorations?.clear();
+    this.addedGhostLineDecorations?.clear();
     this.removedLineDecorations?.clear();
   }
 
   dispose() {
     this.clearDecorations();
     this.addedLineDecorations = null;
+    this.addedGhostLineDecorations = null;
     this.removedLineDecorations = null;
     this.editor = null;
   }

@@ -715,6 +715,11 @@ const commandsMap: (
       try {
         logger.info("showDiffWithDecorations called", { filePath, messageToken });
 
+        // Validate inputs
+        if (!filePath || !diff || !messageToken) {
+          throw new Error("Missing required parameters: filePath, diff, or messageToken");
+        }
+
         // Check if this file+token combination has already been applied
         const fileKey = `${filePath}:${messageToken}`;
         if (state.appliedDiffs?.has(fileKey)) {
@@ -729,6 +734,13 @@ const commandsMap: (
         }
 
         const uri = Uri.file(filePath);
+
+        // Validate file exists and is accessible
+        try {
+          await workspace.fs.stat(uri);
+        } catch (error) {
+          throw new Error(`File not accessible: ${filePath}`);
+        }
 
         // Open the file in the editor in a split view to keep the resolution panel visible
         const doc = await workspace.openTextDocument(uri);
@@ -748,8 +760,7 @@ const commandsMap: (
         const parsedDiff = parsePatch(diff);
 
         if (!parsedDiff || parsedDiff.length === 0) {
-          window.showErrorMessage("Failed to parse diff for decorations");
-          return;
+          throw new Error("Failed to parse diff for decorations");
         }
 
         // Get current file content
@@ -773,6 +784,15 @@ const commandsMap: (
             endLine = Math.max(endLine, hunkEnd);
           }
         }
+
+        // Validate calculated range
+        if (startLine === Number.MAX_SAFE_INTEGER || endLine === 0) {
+          throw new Error("Failed to calculate valid diff range");
+        }
+
+        // Ensure range is within document bounds
+        startLine = Math.max(0, startLine);
+        endLine = Math.min(doc.lineCount, endLine);
 
         console.log(`[DEBUG] Calculated range: startLine=${startLine}, endLine=${endLine}`);
 
@@ -799,9 +819,19 @@ const commandsMap: (
                 case " ":
                   diffLines.push({ type: "same", line: lineContent });
                   break;
+                case "\\":
+                  // Handle special case for files without trailing newline
+                  continue;
+                default:
+                  logger.warn(`Unknown diff line type: ${lineType}`);
+                  continue;
               }
             }
           }
+        }
+
+        if (diffLines.length === 0) {
+          throw new Error("No valid diff lines found");
         }
 
         // Get old and new content for the range (like Continue does)
@@ -831,8 +861,7 @@ const commandsMap: (
         const applySuccess = await workspace.applyEdit(edit);
 
         if (!applySuccess) {
-          window.showErrorMessage("Failed to apply diff to file range");
-          return;
+          throw new Error("Failed to apply diff to file range");
         }
 
         console.log(
@@ -863,6 +892,12 @@ const commandsMap: (
         // This would require implementing a CodeLens provider similar to Continue's approach
       } catch (error) {
         logger.error("Error in showDiffWithDecorations:", error);
+
+        // Clean up any partial state
+        if (filePath) {
+          simpleDiffManager.clearDiffForFile(Uri.file(filePath).toString());
+        }
+
         window.showErrorMessage(
           `Failed to show diff with decorations: ${error instanceof Error ? error.message : String(error)}`,
         );

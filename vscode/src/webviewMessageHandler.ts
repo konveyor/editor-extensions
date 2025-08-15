@@ -47,6 +47,53 @@ import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse
 import winston from "winston";
 import { getConfigDiffEditorType, toggleAgentMode } from "./utilities/configuration";
 
+// Utility function for diff validation and normalization
+function validateAndNormalizeDiff(
+  diff: string,
+  originalContent: string,
+): {
+  isValid: boolean;
+  normalizedDiff: string;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  if (!diff || typeof diff !== "string") {
+    errors.push("Diff content is missing or invalid");
+    return { isValid: false, normalizedDiff: "", errors };
+  }
+
+  if (!originalContent || typeof originalContent !== "string") {
+    errors.push("Original content is missing or invalid");
+    return { isValid: false, normalizedDiff: "", errors };
+  }
+
+  // Normalize line endings (like myers.ts does)
+  const normalizedDiff = diff.replace(/\r\n/g, "\n");
+  const normalizedOriginal = originalContent.replace(/\r\n/g, "\n");
+
+  // Basic diff format validation
+  const lines = normalizedDiff.split("\n");
+  let hasValidHunk = false;
+
+  for (const line of lines) {
+    if (line.startsWith("@@")) {
+      hasValidHunk = true;
+      break;
+    }
+  }
+
+  if (!hasValidHunk) {
+    errors.push("Diff does not contain valid hunk headers");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    normalizedDiff,
+    errors,
+  };
+}
+
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
     const logger = state.logger.child({
@@ -327,12 +374,20 @@ const actions: {
         logger.debug(`Using current file content as baseline for ${path} (no modifiedFiles state)`);
       }
 
+      // Validate and normalize the diff before processing
+      const diffValidation = validateAndNormalizeDiff(change.diff, baselineContent);
+      if (!diffValidation.isValid) {
+        logger.error("Diff validation failed:", diffValidation.errors);
+        vscode.window.showErrorMessage(`Invalid diff format: ${diffValidation.errors.join(", ")}`);
+        return;
+      }
+
       // Parse and apply the diff to get the suggested content with timeout protection
       const DIFF_TIMEOUT_MS = 3000; // 3 seconds timeout
 
       const diffParsingPromise = (async () => {
         const { parsePatch } = await import("diff");
-        const parsedDiff = parsePatch(change.diff);
+        const parsedDiff = parsePatch(diffValidation.normalizedDiff);
 
         if (!parsedDiff || parsedDiff.length === 0) {
           throw new Error("Failed to parse diff for comparison");
@@ -340,7 +395,7 @@ const actions: {
 
         // Apply the patch to get the suggested content
         const { applyPatch } = await import("diff");
-        const suggestedContent = applyPatch(baselineContent, change.diff);
+        const suggestedContent = applyPatch(baselineContent, diffValidation.normalizedDiff);
 
         if (suggestedContent === false) {
           throw new Error("Failed to apply patch for comparison");
@@ -539,7 +594,10 @@ const actions: {
       }
 
       // Normalize content for comparison (handle line endings and whitespace)
-      const normalize = (text: string) => text.replace(/\r\n/g, "\n").trim();
+      const normalize = (text: string) => {
+        // Use the same normalization approach as myers.ts
+        return text.replace(/\r\n/g, "\n").replace(/\n$/, ""); // Remove trailing newline for comparison
+      };
       const normalizedCurrent = normalize(currentText);
       const normalizedOriginal = normalize(originalContent);
       const normalizedSuggested = normalize(suggestedContent);

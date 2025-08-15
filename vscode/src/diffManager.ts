@@ -12,23 +12,137 @@ export interface DiffLine {
   line: string;
 }
 
+// Utility functions for content normalization and diff handling
+export class DiffUtils {
+  /**
+   * Normalize content for comparison (handle line endings and whitespace)
+   * Similar to myers.ts approach but preserves original content structure
+   */
+  static normalizeContent(text: string): string {
+    return text.replace(/\r\n/g, "\n");
+  }
+
+  /**
+   * Check if two contents are equivalent after normalization
+   * Handles edge cases like trailing newlines and whitespace differences
+   */
+  static contentsAreEquivalent(content1: string, content2: string): boolean {
+    const normalized1 = this.normalizeContent(content1);
+    const normalized2 = this.normalizeContent(content2);
+
+    // Handle trailing newline differences (like myers.ts does)
+    const trimmed1 = normalized1.endsWith("\n") ? normalized1.slice(0, -1) : normalized1;
+    const trimmed2 = normalized2.endsWith("\n") ? normalized2.slice(0, -1) : normalized2;
+
+    return trimmed1 === trimmed2;
+  }
+
+  /**
+   * Validate diff structure and content
+   * Ensures diff can be safely applied
+   */
+  static validateDiff(
+    diffLines: DiffLine[],
+    originalContent: string,
+  ): {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!Array.isArray(diffLines) || diffLines.length === 0) {
+      errors.push("Diff lines must be a non-empty array");
+      return { isValid: false, errors, warnings };
+    }
+
+    const originalLines = originalContent.split("\n");
+    let lineIndex = 0;
+
+    for (let i = 0; i < diffLines.length; i++) {
+      const diffLine = diffLines[i];
+
+      if (!diffLine || typeof diffLine.type !== "string" || typeof diffLine.line !== "string") {
+        errors.push(`Invalid diff line at index ${i}`);
+        continue;
+      }
+
+      if (!["old", "new", "same"].includes(diffLine.type)) {
+        errors.push(`Unknown diff line type '${diffLine.type}' at index ${i}`);
+        continue;
+      }
+
+      if (diffLine.type === "old" || diffLine.type === "same") {
+        if (lineIndex >= originalLines.length) {
+          errors.push(
+            `Diff references line ${lineIndex + 1} but original content only has ${originalLines.length} lines`,
+          );
+        } else if (diffLine.type === "old" && diffLine.line !== originalLines[lineIndex]) {
+          warnings.push(
+            `Old line at index ${i} doesn't match original content at line ${lineIndex + 1}`,
+          );
+        }
+        lineIndex++;
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * Reconstruct content from diff lines
+   * Useful for validation and testing
+   */
+  static reconstructContent(diffLines: DiffLine[], originalContent: string): string {
+    const originalLines = originalContent.split("\n");
+    const reconstructedLines: string[] = [];
+    let lineIndex = 0;
+
+    for (const diffLine of diffLines) {
+      if (diffLine.type === "same" || diffLine.type === "old") {
+        if (lineIndex < originalLines.length) {
+          reconstructedLines.push(originalLines[lineIndex]);
+          lineIndex++;
+        }
+      } else if (diffLine.type === "new") {
+        reconstructedLines.push(diffLine.line);
+      }
+    }
+
+    return reconstructedLines.join("\n");
+  }
+}
+
 export class StreamingDiffHandler {
   private editor: vscode.TextEditor;
   private fileUri: string;
   public decorationManager: DiffDecorationManager; // Make public for cleanup access
   private diffBlocks: SimpleDiffCodeLens[] = [];
-  private currentBlock: { startLine: number; numAdded: number; numRemoved: number } | null = null;
-  private currentLine = 0;
   private documentChangeListener: vscode.Disposable | null = null;
+  private originalContent: string = ""; // Store original content for validation
+
+  // Indexing state following Continue's approach
+  private baseStartLine: number;
+  private currentIndex: number = 0; // Increments for every diff line processed
+  private numAddedInRun: number = 0;
+  private numRemovedInRun: number = 0;
 
   constructor(
     editor: vscode.TextEditor,
     fileUri: string,
     decorationManager: DiffDecorationManager,
+    startLine: number = 0,
   ) {
     this.editor = editor;
     this.fileUri = fileUri;
     this.decorationManager = decorationManager;
+    this.originalContent = editor.document.getText();
+    this.baseStartLine = startLine;
     this.setupDocumentChangeListener();
   }
 
@@ -53,56 +167,115 @@ export class StreamingDiffHandler {
     });
   }
 
+  // Validate that diff can be applied to current content
+  private validateDiffApplication(diffLines: DiffLine[]): boolean {
+    try {
+      // Use the utility class for validation
+      const validation = DiffUtils.validateDiff(diffLines, this.originalContent);
+
+      if (!validation.isValid) {
+        console.warn("Diff validation failed:", validation.errors);
+        return false;
+      }
+
+      if (validation.warnings.length > 0) {
+        console.warn("Diff validation warnings:", validation.warnings);
+      }
+
+      return true;
+    } catch (error) {
+      console.warn("Diff validation failed:", error);
+      return false;
+    }
+  }
+
+  // Normalize content for comparison (handle line endings and whitespace)
+  private normalizeContent(text: string): string {
+    return DiffUtils.normalizeContent(text);
+  }
+
   async streamDiffLine(diffLine: DiffLine): Promise<void> {
+    // Validate the diff line
+    if (!diffLine || typeof diffLine.type !== "string" || typeof diffLine.line !== "string") {
+      console.warn("Invalid diff line received:", diffLine);
+      return;
+    }
+
+    const targetLine = this.baseStartLine + this.currentIndex;
+
     if (diffLine.type === "old") {
-      // Removed line: add ghost text decoration
-      this.decorationManager.getRemovedDecorations()?.addLine(this.currentLine, diffLine.line);
-
-      if (!this.currentBlock) {
-        this.currentBlock = { startLine: this.currentLine, numAdded: 0, numRemoved: 0 };
-      }
-      this.currentBlock.numRemoved++;
-
-      // Don't advance currentLine for removed lines
+      // Removed line: add ghost text decoration at the indexed line
+      this.decorationManager.getRemovedDecorations()?.addLine(targetLine, diffLine.line);
+      this.numRemovedInRun++;
+      this.currentIndex++; // Advance index for every diff line processed
     } else if (diffLine.type === "new") {
-      // Added line: add highlight decoration
-      this.decorationManager.getAddedDecorations()?.addLine(this.currentLine);
-
-      if (!this.currentBlock) {
-        this.currentBlock = { startLine: this.currentLine, numAdded: 0, numRemoved: 0 };
-      }
-      this.currentBlock.numAdded++;
-
-      this.currentLine++; // Added lines advance the current position
+      // Added line: add highlight decoration and ghost text at the indexed line
+      this.decorationManager.getAddedDecorations()?.addLine(targetLine);
+      // If available, also render ghost text for the added content so it's visible pre-apply
+      // Note: method exposed via DiffDecorationManager
+      (this.decorationManager as any)
+        .getAddedGhostDecorations?.()
+        ?.addLine(targetLine, diffLine.line);
+      this.numAddedInRun++;
+      this.currentIndex++; // Advance index
     } else if (diffLine.type === "same") {
       // Same line: finalize current block if exists
-      if (
-        this.currentBlock &&
-        (this.currentBlock.numAdded > 0 || this.currentBlock.numRemoved > 0)
-      ) {
+      if (this.numAddedInRun > 0 || this.numRemovedInRun > 0) {
         this.diffBlocks.push({
-          start: this.currentBlock.startLine,
-          numAdded: this.currentBlock.numAdded,
-          numRemoved: this.currentBlock.numRemoved,
+          start: this.baseStartLine + this.currentIndex - this.numAddedInRun - this.numRemovedInRun,
+          numAdded: this.numAddedInRun,
+          numRemoved: this.numRemovedInRun,
         });
-        this.currentBlock = null;
+        this.numAddedInRun = 0;
+        this.numRemovedInRun = 0;
       }
+      this.currentIndex++; // Advance index
+    } else {
+      console.warn("Unknown diff line type:", diffLine.type);
+    }
+  }
 
-      this.currentLine++; // Same lines advance the current position
+  // Process multiple diff lines with validation
+  async processDiffLines(diffLines: DiffLine[]): Promise<void> {
+    // Validate the entire diff before processing
+    if (!this.validateDiffApplication(diffLines)) {
+      console.warn("Diff validation failed, attempting to process anyway");
+    }
+
+    // Process each line
+    for (const diffLine of diffLines) {
+      await this.streamDiffLine(diffLine);
     }
   }
 
   finalizeDiff(): SimpleDiffCodeLens[] {
     // Handle final block if we end on changes
-    if (this.currentBlock && (this.currentBlock.numAdded > 0 || this.currentBlock.numRemoved > 0)) {
+    if (this.numAddedInRun > 0 || this.numRemovedInRun > 0) {
       this.diffBlocks.push({
-        start: this.currentBlock.startLine,
-        numAdded: this.currentBlock.numAdded,
-        numRemoved: this.currentBlock.numRemoved,
+        start: this.baseStartLine + this.currentIndex - this.numAddedInRun - this.numRemovedInRun,
+        numAdded: this.numAddedInRun,
+        numRemoved: this.numRemovedInRun,
       });
+      this.numAddedInRun = 0;
+      this.numRemovedInRun = 0;
     }
 
-    return this.diffBlocks;
+    // Validate final blocks
+    const validatedBlocks = this.diffBlocks.filter(
+      (block) =>
+        block.start >= 0 &&
+        block.numAdded >= 0 &&
+        block.numRemoved >= 0 &&
+        block.start + Math.max(block.numAdded, block.numRemoved) <= this.editor.document.lineCount,
+    );
+
+    if (validatedBlocks.length !== this.diffBlocks.length) {
+      console.warn(
+        `Filtered ${this.diffBlocks.length - validatedBlocks.length} invalid diff blocks`,
+      );
+    }
+
+    return validatedBlocks;
   }
 
   dispose() {
@@ -140,32 +313,47 @@ export class SimpleDiffManager {
   }
 
   async startStreamingDiff(fileUri: string, startLine: number = 0): Promise<StreamingDiffHandler> {
-    // Clear any existing diff for this file
-    this.clearForFileUri(fileUri);
+    try {
+      // Clear any existing diff for this file
+      this.clearForFileUri(fileUri);
 
-    // Get the editor - open the document first if needed
-    const uri = vscode.Uri.parse(fileUri);
-    let editor = vscode.window.activeTextEditor;
+      // Validate file URI
+      if (!fileUri || typeof fileUri !== "string") {
+        throw new Error("Invalid file URI provided");
+      }
 
-    // If no active editor or wrong file, open the correct file
-    if (!editor || editor.document.uri.toString() !== fileUri) {
-      const document = await vscode.workspace.openTextDocument(uri);
-      editor = await vscode.window.showTextDocument(document, {
-        viewColumn: vscode.ViewColumn.Two,
-        preview: false,
-        preserveFocus: true,
-      });
+      // Get the editor - open the document first if needed
+      const uri = vscode.Uri.parse(fileUri);
+      let editor = vscode.window.activeTextEditor;
+
+      // If no active editor or wrong file, open the correct file
+      if (!editor || editor.document.uri.toString() !== fileUri) {
+        const document = await vscode.workspace.openTextDocument(uri);
+        editor = await vscode.window.showTextDocument(document, {
+          viewColumn: vscode.ViewColumn.Two,
+          preview: false,
+          preserveFocus: true,
+        });
+      }
+
+      // Validate that we have a valid editor
+      if (!editor || !editor.document) {
+        throw new Error("Failed to get valid editor for file");
+      }
+
+      // Create decoration manager
+      const decorationManager = new DiffDecorationManager(fileUri);
+      decorationManager.initializeForEditor(editor);
+
+      // Create streaming handler with startLine
+      const handler = new StreamingDiffHandler(editor, fileUri, decorationManager, startLine);
+      this.fileUriToHandler.set(fileUri, handler);
+
+      return handler;
+    } catch (error) {
+      console.error("Failed to start streaming diff:", error);
+      throw error;
     }
-
-    // Create decoration manager
-    const decorationManager = new DiffDecorationManager(fileUri);
-    decorationManager.initializeForEditor(editor);
-
-    // Create streaming handler
-    const handler = new StreamingDiffHandler(editor, fileUri, decorationManager);
-    this.fileUriToHandler.set(fileUri, handler);
-
-    return handler;
   }
 
   async streamDiffLines(fileUri: string, diffLines: AsyncIterable<DiffLine>): Promise<void> {
@@ -174,17 +362,24 @@ export class SimpleDiffManager {
       throw new Error(`No streaming diff handler found for ${fileUri}`);
     }
 
-    // Process each diff line as it arrives
-    for await (const diffLine of diffLines) {
-      await handler.streamDiffLine(diffLine);
+    try {
+      // Process each diff line as it arrives
+      for await (const diffLine of diffLines) {
+        await handler.streamDiffLine(diffLine);
+      }
+
+      // Finalize and store the results
+      const codeLensBlocks = handler.finalizeDiff();
+      this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
+
+      // Refresh CodeLens
+      this.refreshCodeLens();
+    } catch (error) {
+      console.error("Error streaming diff lines:", error);
+      // Clean up on error
+      this.clearForFileUri(fileUri);
+      throw error;
     }
-
-    // Finalize and store the results
-    const codeLensBlocks = handler.finalizeDiff();
-    this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
-
-    // Refresh CodeLens
-    this.refreshCodeLens();
   }
 
   // Backward compatibility method for static diff processing
@@ -196,29 +391,48 @@ export class SimpleDiffManager {
     messageToken: string,
     originalContent: string,
   ) {
-    // Convert to streaming format
-    const streamingDiffLines = diffLines.map((line) => ({
-      type: line.type as "old" | "new" | "same",
-      line: line.line,
-    }));
+    try {
+      // Validate inputs
+      if (!fileUri || !diffLines || !Array.isArray(diffLines)) {
+        throw new Error("Invalid parameters for showDiffWithDecorations");
+      }
 
-    // Start streaming diff
-    const handler = await this.startStreamingDiff(fileUri, startLine);
+      // Convert to streaming format with validation
+      const streamingDiffLines: DiffLine[] = diffLines
+        .filter((line) => line && typeof line.type === "string" && typeof line.line === "string")
+        .map((line) => ({
+          type: line.type as "old" | "new" | "same",
+          line: line.line,
+        }));
 
-    // Process all lines at once (simulating streaming)
-    for (const diffLine of streamingDiffLines) {
-      await handler.streamDiffLine(diffLine);
+      if (streamingDiffLines.length === 0) {
+        console.warn("No valid diff lines found");
+        return;
+      }
+
+      // Start streaming diff
+      const handler = await this.startStreamingDiff(fileUri, startLine);
+
+      // Process all lines at once (simulating streaming)
+      await handler.processDiffLines(streamingDiffLines);
+
+      // Finalize and store the results
+      const codeLensBlocks = handler.finalizeDiff();
+      this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
+
+      console.log(
+        `[DEBUG] Processed ${streamingDiffLines.length} diff lines starting at line ${startLine}`,
+      );
+      console.log(`[DEBUG] Created ${codeLensBlocks.length} CodeLens blocks`);
+
+      // Refresh CodeLens
+      this.refreshCodeLens();
+    } catch (error) {
+      console.error("Error in showDiffWithDecorations:", error);
+      // Clean up on error
+      this.clearForFileUri(fileUri);
+      throw error;
     }
-
-    // Finalize and store the results
-    const codeLensBlocks = handler.finalizeDiff();
-    this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
-
-    console.log(`[DEBUG] Processed ${diffLines.length} diff lines starting at line ${startLine}`);
-    console.log(`[DEBUG] Created ${codeLensBlocks.length} CodeLens blocks`);
-
-    // Refresh CodeLens
-    this.refreshCodeLens();
   }
 
   async processDiff(
