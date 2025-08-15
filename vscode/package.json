@@ -264,6 +264,12 @@
         "title": "Generate Debug Archive",
         "category": "Konveyor",
         "icon": "$(bug)"
+      },
+      {
+        "command": "konveyor.configureSolutionServerCredentials",
+        "title": "Configure Solution Server Credentials",
+        "category": "Konveyor",
+        "icon": "$(key)"
       }
     ],
     "submenus": [
@@ -495,12 +501,33 @@
           "scope": "window",
           "order": 4
         },
+        "konveyor.solutionServer.auth": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable authentication for the solution server.",
+          "scope": "window",
+          "order": 5
+        },
+        "konveyor.solutionServer.auth.realm": {
+          "type": "string",
+          "default": "tackle",
+          "description": "Keycloak realm for authentication.",
+          "scope": "window",
+          "order": 6
+        },
+        "konveyor.solutionServer.auth.insecure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skip SSL certificate verification for the solution server.",
+          "scope": "window",
+          "order": 7
+        },
         "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Should analysis of file be run when it is saved? (Automatically enabled when Agent Mode is active)",
           "scope": "window",
-          "order": 6
+          "order": 8
         },
         "konveyor.diffEditorType": {
           "type": "string",
@@ -511,14 +538,14 @@
           "default": "merge",
           "description": "Select the editor to use when resolving proposed solutions.",
           "scope": "window",
-          "order": 7
+          "order": 9
         },
         "konveyor.kai.agentMode": {
           "type": "boolean",
           "default": false,
           "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
-          "order": 6
+          "order": 10
         },
         "konveyor.kai.excludedDiagnosticSources": {
           "type": "array",
@@ -527,7 +554,7 @@
           ],
           "description": "List of diagnostic sources to exclude from agentic workflow.",
           "scope": "window",
-          "order": 8
+          "order": 11
         },
         "konveyor.kai.getSolutionMaxPriority": {
           "type": [

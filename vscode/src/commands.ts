@@ -50,7 +50,9 @@ import {
   getWorkspaceRelativePath,
   getTraceEnabled,
   getTraceDir,
+  getConfigSolutionServerAuth,
 } from "./utilities/configuration";
+import { promptForCredentials } from "./utilities/auth";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -542,12 +544,12 @@ const commandsMap: (
         openLabel: "Select Analyzer Binary",
         filters: isWindows
           ? {
-              "Executable Files": ["exe"],
-              "All Files": ["*"],
-            }
+            "Executable Files": ["exe"],
+            "All Files": ["*"],
+          }
           : {
-              "All Files": ["*"],
-            },
+            "All Files": ["*"],
+          },
       };
 
       const fileUri = await window.showOpenDialog(options);
@@ -760,6 +762,24 @@ const commandsMap: (
           extensionConfigPath,
         });
       }
+    },
+    "konveyor.configureSolutionServerCredentials": async () => {
+      if (!getConfigSolutionServerAuth()) {
+        logger.info("Solution server authentication is disabled.");
+        window.showInformationMessage(
+          "Solution server authentication is disabled. Please enable it in the extension settings.",
+        );
+        return;
+      }
+
+      const credentials = await promptForCredentials(state.extensionContext);
+      if (!credentials) {
+        logger.info("Credential configuration cancelled.");
+        return;
+      }
+
+      await commands.executeCommand("konveyor.restartSolutionServer");
+      logger.info("Solution server credentials updated successfully.");
     },
   };
 };

@@ -34,6 +34,17 @@ await copy({
           rulesets: "./assets/rulesets",
         };
 
+        // Override realm configuration based on environment variable
+        const targetRealm = process.env.KONVEYOR_REALM;
+        if (
+          targetRealm &&
+          packageJson.contributes?.configuration?.properties?.["konveyor.solutionServer.realm"]
+        ) {
+          packageJson.contributes.configuration.properties[
+            "konveyor.solutionServer.realm"
+          ].default = targetRealm;
+        }
+
         return JSON.stringify(packageJson, null, 2);
       },
     },

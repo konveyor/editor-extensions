@@ -28,6 +28,9 @@ import {
   getExcludedDiagnosticSources,
   getConfigSolutionServerEnabled,
   getConfigSolutionServerUrl,
+  getConfigSolutionServerAuth,
+  getConfigSolutionServerRealm,
+  getConfigSolutionServerInsecure,
   updateConfigErrors,
   getConfigAgentMode,
   getCacheDir,
@@ -35,6 +38,7 @@ import {
   getTraceEnabled,
   getConfigKaiDemoMode,
   getConfigLogLevel,
+  checkAndPromptForCredentials,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
@@ -109,6 +113,8 @@ class VsCodeExtension {
       solutionServerClient: new SolutionServerClient(
         getConfigSolutionServerUrl(),
         getConfigSolutionServerEnabled(),
+        getConfigSolutionServerAuth(),
+        getConfigSolutionServerInsecure(),
         logger,
       ),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
@@ -208,6 +214,24 @@ class VsCodeExtension {
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
+      // Get credentials for solution server client if auth is enabled
+      if (getConfigSolutionServerAuth()) {
+        const credentials = await checkAndPromptForCredentials(this.context);
+        if (credentials) {
+          const authConfig = {
+            username: credentials.username,
+            password: credentials.password,
+            realm: getConfigSolutionServerRealm(),
+            clientId: `${getConfigSolutionServerRealm()}-ui`,
+          };
+          this.state.solutionServerClient.setAuthConfig(authConfig);
+        } else {
+          this.state.mutateData((draft) => {
+            draft.configErrors.push(createConfigError.missingAuthCredentials());
+          });
+        }
+      }
+
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = activeProfileId;
@@ -297,10 +321,10 @@ class VsCodeExtension {
               draft.isAgentMode = agentMode;
             });
           }
-
           if (
             event.affectsConfiguration("konveyor.solutionServer.url") ||
-            event.affectsConfiguration("konveyor.solutionServer.enabled")
+            event.affectsConfiguration("konveyor.solutionServer.enabled") ||
+            event.affectsConfiguration("konveyor.solutionServer.auth")
           ) {
             this.state.logger.info("Solution server configuration modified!");
             vscode.window
