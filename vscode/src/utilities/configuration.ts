@@ -21,6 +21,12 @@ export const getConfigSolutionServerUrl = (): string =>
   getConfigValue<string>("solutionServer.url") || "http://localhost:8000";
 export const getConfigSolutionServerEnabled = (): boolean =>
   getConfigValue<boolean>("solutionServer.enabled") ?? false;
+export const getConfigSolutionServerAuth = (): boolean =>
+  getConfigValue<boolean>("solutionServer.auth") ?? false;
+export const getConfigSolutionServerRealm = (): string =>
+  getConfigValue<string>("solutionServer.auth.realm") || "tackle";
+export const getConfigSolutionServerInsecure = (): boolean =>
+  getConfigValue<boolean>("solutionServer.auth.insecure") ?? false;
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigIncidentLimit = (): number =>
   getConfigValue<number>("analysis.incidentLimit") || 10000;

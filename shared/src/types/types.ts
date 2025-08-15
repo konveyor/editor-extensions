@@ -25,6 +25,13 @@ export interface SuccessRateMetric {
   unknown_solutions: number;
 }
 
+export interface SolutionServerAuthConfig {
+  username: string;
+  password: string;
+  realm: string;
+  clientId: string;
+}
+
 export interface Violation {
   description: string;
   category?: Category;
@@ -181,7 +188,8 @@ export type ConfigErrorType =
   | "invalid-label-selector"
   | "provider-not-configured"
   | "provider-connection-failed"
-  | "no-custom-rules";
+  | "no-custom-rules"
+  | "missing-auth-credentials";
 
 export interface ConfigError {
   type: ConfigErrorType;
@@ -218,6 +226,11 @@ export const createConfigError = {
   noCustomRules: (): ConfigError => ({
     type: "no-custom-rules",
     message: "No custom rules configured and default rules are disabled.",
+  }),
+
+  missingAuthCredentials: (): ConfigError => ({
+    type: "missing-auth-credentials",
+    message: "Authentication is enabled but credentials are not configured.",
   }),
 };
 

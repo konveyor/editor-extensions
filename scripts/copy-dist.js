@@ -34,6 +34,20 @@ await copy({
           rulesets: "./assets/rulesets",
         };
 
+        // Override realm configuration based on environment variable
+        const targetRealm = process.env.KONVEYOR_REALM;
+        if (targetRealm) {
+          const configProps = packageJson.contributes?.configuration?.properties;
+          // First check for the new correct key
+          if (configProps?.["konveyor.solutionServer.auth.realm"]) {
+            configProps["konveyor.solutionServer.auth.realm"].default = targetRealm;
+          }
+          // Fall back to legacy key if new one doesn't exist
+          else if (configProps?.["konveyor.solutionServer.realm"]) {
+            configProps["konveyor.solutionServer.realm"].default = targetRealm;
+          }
+        }
+
         return JSON.stringify(packageJson, null, 2);
       },
     },
