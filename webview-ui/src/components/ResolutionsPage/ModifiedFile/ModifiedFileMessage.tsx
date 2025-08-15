@@ -32,6 +32,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const { path, isNew, isDeleted, diff, status, content, messageToken, fileName } = normalizedData;
   const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(status || null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isFileApplied, setIsFileApplied] = useState(false);
 
   // Function to handle FILE_RESPONSE message posting (agent mode only)
   const postFileResponse = (
@@ -128,6 +129,46 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }
   };
 
+  const viewFileWithDecorations = (filePath: string, fileDiff: string) => {
+    // Prevent multiple applications
+    if (isFileApplied) {
+      return;
+    }
+    
+    setIsFileApplied(true);
+    
+    interface ShowDiffWithDecoratorsPayload {
+      path: string;
+      content: string;
+      diff: string;
+      messageToken: string;
+    }
+    const payload: ShowDiffWithDecoratorsPayload = {
+      path: filePath,
+      content: content,
+      diff: fileDiff,
+      messageToken: messageToken,
+    };
+    window.vscode.postMessage({
+      type: "SHOW_DIFF_WITH_DECORATORS",
+      payload,
+    });
+  };
+
+  const handleContinue = () => {
+    // Mark as applied to continue the conversation flow
+    if (mode === "agent") {
+      postFileResponse("apply", messageToken, path, content);
+      onUserAction?.();
+    } else {
+      if (onApply && isLocalChange(data)) {
+        const modifiedChange: LocalChange = { ...data, content };
+        onApply(modifiedChange);
+      }
+    }
+    setActionTaken("applied");
+  };
+
   const handleExpandToggle = () => {
     setIsExpanded(!isExpanded);
   };
@@ -220,8 +261,11 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               onApply={() => applyFile()}
               onReject={rejectFile}
               onView={viewFileInVSCode}
+              onViewWithDecorations={viewFileWithDecorations}
               onExpandToggle={handleExpandToggle}
               onQuickResponse={handleQuickResponse}
+              isFileApplied={isFileApplied}
+              onContinue={handleContinue}
             />
           </CardBody>
         </Card>

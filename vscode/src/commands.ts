@@ -2,6 +2,7 @@ import AdmZip from "adm-zip";
 import * as pathlib from "path";
 import * as fs from "fs/promises";
 import { ExtensionState } from "./extensionState";
+import * as vscode from "vscode";
 import {
   window,
   commands,
@@ -12,6 +13,7 @@ import {
   Selection,
   TextEditorRevealType,
   Position,
+  ViewColumn,
 } from "vscode";
 import {
   cleanRuleSets,
@@ -60,10 +62,22 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
+import { DiffCodeLensProvider } from "./diffCodeLensProvider";
+import { SimpleDiffManager } from "./diffManager";
+import { parsePatch } from "diff";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 
 const isWindows = process.platform === "win32";
+
+// Global diff manager and CodeLens provider
+const simpleDiffManager = new SimpleDiffManager();
+const diffCodeLensProvider = new DiffCodeLensProvider(simpleDiffManager.fileUriToCodeLens);
+
+// Set up the refresh callback
+simpleDiffManager.setRefreshCodeLensCallback(() => {
+  diffCodeLensProvider.refresh();
+});
 
 const commandsMap: (
   state: ExtensionState,
@@ -761,8 +775,206 @@ const commandsMap: (
         });
       }
     },
+
+    "konveyor.showDiffWithDecorations": async (
+      filePath: string,
+      diff: string,
+      content: string,
+      messageToken: string,
+    ) => {
+      try {
+        logger.info("showDiffWithDecorations called", { filePath, messageToken });
+
+        // Check if this file+token combination has already been applied
+        const fileKey = `${filePath}:${messageToken}`;
+        if (state.appliedDiffs?.has(fileKey)) {
+          logger.warn("Diff already applied for this file+token, skipping", {
+            filePath,
+            messageToken,
+          });
+          window.showWarningMessage(
+            `Changes already applied to ${workspace.asRelativePath(Uri.file(filePath))}`,
+          );
+          return;
+        }
+
+        const uri = Uri.file(filePath);
+
+        // Open the file in the editor in a split view to keep the resolution panel visible
+        const doc = await workspace.openTextDocument(uri);
+
+        // Open the file in Column 2 (right side) to create a split view
+        // Left: Resolution panel | Right: File with decorations
+        const editor = await window.showTextDocument(doc, {
+          viewColumn: ViewColumn.Two,
+          preview: false,
+          preserveFocus: true, // Keep focus on the resolution panel for workflow continuity
+        });
+
+        // Clear any existing diff for this file
+        simpleDiffManager.clearDiffForFile(uri.toString());
+
+        // Parse the diff using Continue's range-based approach
+        const parsedDiff = parsePatch(diff);
+
+        if (!parsedDiff || parsedDiff.length === 0) {
+          window.showErrorMessage("Failed to parse diff for decorations");
+          return;
+        }
+
+        // Get current file content
+        const currentContent = doc.getText();
+
+        // Calculate the affected range from all hunks (like Continue does)
+        let startLine = Number.MAX_SAFE_INTEGER;
+        let endLine = 0;
+
+        for (const fileDiff of parsedDiff) {
+          if (!fileDiff.hunks) {
+            continue;
+          }
+
+          for (const hunk of fileDiff.hunks) {
+            // oldStart is 1-based, convert to 0-based
+            const hunkStart = hunk.oldStart - 1;
+            const hunkEnd = hunkStart + hunk.oldLines;
+
+            startLine = Math.min(startLine, hunkStart);
+            endLine = Math.max(endLine, hunkEnd);
+          }
+        }
+
+        console.log(`[DEBUG] Calculated range: startLine=${startLine}, endLine=${endLine}`);
+
+        // Reconstruct old and new content for the range (like Continue's reapplyWithMyersDiff)
+        const diffLines: Array<{ type: string; line: string }> = [];
+
+        for (const fileDiff of parsedDiff) {
+          if (!fileDiff.hunks) {
+            continue;
+          }
+
+          for (const hunk of fileDiff.hunks) {
+            for (const line of hunk.lines) {
+              const lineType = line.charAt(0);
+              const lineContent = line.substring(1);
+
+              switch (lineType) {
+                case "+":
+                  diffLines.push({ type: "new", line: lineContent });
+                  break;
+                case "-":
+                  diffLines.push({ type: "old", line: lineContent });
+                  break;
+                case " ":
+                  diffLines.push({ type: "same", line: lineContent });
+                  break;
+              }
+            }
+          }
+        }
+
+        // Get old and new content for the range (like Continue does)
+        const oldRangeContent =
+          diffLines
+            .filter((line) => line.type === "same" || line.type === "old")
+            .map((line) => line.line)
+            .join("\n") + "\n";
+
+        const newRangeContent =
+          diffLines
+            .filter((line) => line.type === "same" || line.type === "new")
+            .map((line) => line.line)
+            .join("\n") + "\n";
+
+        console.log(`[DEBUG] Old range content lines: ${oldRangeContent.split("\n").length - 1}`);
+        console.log(`[DEBUG] New range content lines: ${newRangeContent.split("\n").length - 1}`);
+
+        // Replace only the affected range (like Continue does)
+        const rangeToReplace = new vscode.Range(startLine, 0, endLine, 0);
+        const edit = new vscode.WorkspaceEdit();
+
+        // Remove the trailing newline for the replacement content
+        const replacementContent = newRangeContent.slice(0, -1);
+        edit.replace(uri, rangeToReplace, replacementContent);
+
+        const applySuccess = await workspace.applyEdit(edit);
+
+        if (!applySuccess) {
+          window.showErrorMessage("Failed to apply diff to file range");
+          return;
+        }
+
+        console.log(
+          `[DEBUG] Generated ${diffLines.length} diff lines from ${parsedDiff.length} file diffs`,
+        );
+
+        // Use the manager to handle decorations and CodeLens
+        await simpleDiffManager.showDiffWithDecorations(
+          uri.toString(),
+          startLine,
+          endLine,
+          diffLines,
+          messageToken,
+          currentContent,
+        );
+
+        // Mark this diff as applied to prevent double application
+        state.appliedDiffs.add(fileKey);
+
+        logger.info(
+          `Applied decorations for ${diffLines.length} diff lines using SimpleDiffManager`,
+        );
+
+        // Don't explicitly show the resolution panel again as it causes flickering
+        // Instead, rely on VSCode's natural layout behavior to maintain the split view
+
+        // TODO: Add CodeLens for accept/reject buttons
+        // This would require implementing a CodeLens provider similar to Continue's approach
+      } catch (error) {
+        logger.error("Error in showDiffWithDecorations:", error);
+        window.showErrorMessage(
+          `Failed to show diff with decorations: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    },
+
+    "konveyor.clearDiffDecorations": async (filePath?: string) => {
+      try {
+        if (filePath) {
+          const uri = Uri.file(filePath);
+          simpleDiffManager.clearDiffForFile(uri.toString());
+        } else {
+          simpleDiffManager.clearAllDiffs();
+        }
+      } catch (error) {
+        logger.error("Error clearing diff decorations:", error);
+      }
+    },
+
+    "konveyor.acceptDiffBlock": async (fileUri: string, blockIndex: number) => {
+      try {
+        logger.info("acceptDiffBlock called", { fileUri, blockIndex });
+        await simpleDiffManager.processDiff("accept", fileUri, blockIndex);
+      } catch (error) {
+        logger.error("Error accepting diff block:", error);
+        window.showErrorMessage(`Failed to accept changes: ${error}`);
+      }
+    },
+
+    "konveyor.rejectDiffBlock": async (fileUri: string, blockIndex: number) => {
+      try {
+        logger.info("rejectDiffBlock called", { fileUri, blockIndex });
+        await simpleDiffManager.processDiff("reject", fileUri, blockIndex);
+      } catch (error) {
+        logger.error("Error rejecting diff block:", error);
+        window.showErrorMessage(`Failed to reject changes: ${error}`);
+      }
+    },
   };
 };
+
+export { diffCodeLensProvider };
 
 export function registerAllCommands(state: ExtensionState) {
   // Create a child logger for commands
@@ -799,5 +1011,19 @@ export function registerAllCommands(state: ExtensionState) {
     } catch (error) {
       throw new Error(`Failed to register command '${command}': ${error}`);
     }
+  }
+
+  // Register the CodeLens provider for diff blocks
+  try {
+    state.extensionContext.subscriptions.push(
+      vscode.languages.registerCodeLensProvider(
+        "*", // Apply to all file types
+        diffCodeLensProvider,
+      ),
+    );
+    logger.info("Diff CodeLens provider registered successfully");
+  } catch (error) {
+    logger.error("Failed to register diff CodeLens provider:", error);
+    throw new Error(`Failed to register diff CodeLens provider: ${error}`);
   }
 }
