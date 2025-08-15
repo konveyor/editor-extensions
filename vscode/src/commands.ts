@@ -904,7 +904,7 @@ const commandsMap: (
   };
 };
 
-export { diffCodeLensProvider };
+export { diffCodeLensProvider, simpleDiffManager };
 
 export function registerAllCommands(state: ExtensionState) {
   // Create a child logger for commands

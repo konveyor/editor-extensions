@@ -137,6 +137,44 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     
     setIsFileApplied(true);
     
+    // Try using streaming diff first for better performance
+    if (mode === "agent") {
+      // Start streaming diff for real-time updates
+      window.vscode.postMessage({
+        type: "START_STREAMING_DIFF",
+        payload: {
+          path: filePath,
+          startLine: 0,
+        },
+      });
+      
+      // Parse diff and stream lines individually
+      try {
+        const diffLines = parseDiffToLines(fileDiff);
+        diffLines.forEach((diffLine, index) => {
+          // Delay each line slightly to simulate streaming
+          setTimeout(() => {
+            window.vscode.postMessage({
+              type: "STREAM_DIFF_LINE",
+              payload: {
+                path: filePath,
+                diffLine,
+              },
+            });
+          }, index * 10); // 10ms delay between lines
+        });
+      } catch (error) {
+        console.warn("Failed to parse diff for streaming, falling back to static", error);
+        // Fall back to static diff display
+        fallbackToStaticDiff(filePath, fileDiff);
+      }
+    } else {
+      // Non-agent mode: use static diff display
+      fallbackToStaticDiff(filePath, fileDiff);
+    }
+  };
+
+  const fallbackToStaticDiff = (filePath: string, fileDiff: string) => {
     interface ShowDiffWithDecoratorsPayload {
       path: string;
       content: string;
@@ -153,6 +191,27 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
       type: "SHOW_DIFF_WITH_DECORATORS",
       payload,
     });
+  };
+
+  // Simple diff parser - converts unified diff to line-by-line format
+  const parseDiffToLines = (diff: string): Array<{ type: "old" | "new" | "same"; line: string }> => {
+    const lines = diff.split('\n');
+    const diffLines: Array<{ type: "old" | "new" | "same"; line: string }> = [];
+    
+    for (const line of lines) {
+      if (line.startsWith('@@')) {
+        // Skip hunk headers
+        continue;
+      } else if (line.startsWith('-')) {
+        diffLines.push({ type: "old", line: line.substring(1) });
+      } else if (line.startsWith('+')) {
+        diffLines.push({ type: "new", line: line.substring(1) });
+      } else if (line.startsWith(' ')) {
+        diffLines.push({ type: "same", line: line.substring(1) });
+      }
+    }
+    
+    return diffLines;
   };
 
   const handleContinue = () => {

@@ -7,11 +7,119 @@ export interface SimpleDiffCodeLens {
   numRemoved: number;
 }
 
+export interface DiffLine {
+  type: "old" | "new" | "same";
+  line: string;
+}
+
+export class StreamingDiffHandler {
+  private editor: vscode.TextEditor;
+  private fileUri: string;
+  public decorationManager: DiffDecorationManager; // Make public for cleanup access
+  private diffBlocks: SimpleDiffCodeLens[] = [];
+  private currentBlock: { startLine: number; numAdded: number; numRemoved: number } | null = null;
+  private currentLine = 0;
+  private documentChangeListener: vscode.Disposable | null = null;
+
+  constructor(
+    editor: vscode.TextEditor,
+    fileUri: string,
+    decorationManager: DiffDecorationManager,
+  ) {
+    this.editor = editor;
+    this.fileUri = fileUri;
+    this.decorationManager = decorationManager;
+    this.setupDocumentChangeListener();
+  }
+
+  private setupDocumentChangeListener() {
+    this.documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {
+      if (event.document.uri.toString() === this.fileUri) {
+        // Update decoration ranges if user edits the document while diff is active
+        for (const change of event.contentChanges) {
+          const lineOffset = change.range.start.line;
+          const lineDelta =
+            change.text.split("\n").length - 1 - (change.range.end.line - change.range.start.line);
+
+          if (lineDelta !== 0) {
+            // Adjust all decorations below the edit
+            this.decorationManager
+              .getRemovedDecorations()
+              ?.shiftDownAfterLine(lineOffset, lineDelta);
+            this.decorationManager.getAddedDecorations()?.shiftDownAfterLine(lineOffset, lineDelta);
+          }
+        }
+      }
+    });
+  }
+
+  async streamDiffLine(diffLine: DiffLine): Promise<void> {
+    if (diffLine.type === "old") {
+      // Removed line: add ghost text decoration
+      this.decorationManager.getRemovedDecorations()?.addLine(this.currentLine, diffLine.line);
+
+      if (!this.currentBlock) {
+        this.currentBlock = { startLine: this.currentLine, numAdded: 0, numRemoved: 0 };
+      }
+      this.currentBlock.numRemoved++;
+
+      // Don't advance currentLine for removed lines
+    } else if (diffLine.type === "new") {
+      // Added line: add highlight decoration
+      this.decorationManager.getAddedDecorations()?.addLine(this.currentLine);
+
+      if (!this.currentBlock) {
+        this.currentBlock = { startLine: this.currentLine, numAdded: 0, numRemoved: 0 };
+      }
+      this.currentBlock.numAdded++;
+
+      this.currentLine++; // Added lines advance the current position
+    } else if (diffLine.type === "same") {
+      // Same line: finalize current block if exists
+      if (
+        this.currentBlock &&
+        (this.currentBlock.numAdded > 0 || this.currentBlock.numRemoved > 0)
+      ) {
+        this.diffBlocks.push({
+          start: this.currentBlock.startLine,
+          numAdded: this.currentBlock.numAdded,
+          numRemoved: this.currentBlock.numRemoved,
+        });
+        this.currentBlock = null;
+      }
+
+      this.currentLine++; // Same lines advance the current position
+    }
+  }
+
+  finalizeDiff(): SimpleDiffCodeLens[] {
+    // Handle final block if we end on changes
+    if (this.currentBlock && (this.currentBlock.numAdded > 0 || this.currentBlock.numRemoved > 0)) {
+      this.diffBlocks.push({
+        start: this.currentBlock.startLine,
+        numAdded: this.currentBlock.numAdded,
+        numRemoved: this.currentBlock.numRemoved,
+      });
+    }
+
+    return this.diffBlocks;
+  }
+
+  dispose() {
+    this.documentChangeListener?.dispose();
+    this.decorationManager.dispose();
+  }
+
+  getDiffBlocks(): SimpleDiffCodeLens[] {
+    return this.diffBlocks;
+  }
+}
+
 export class SimpleDiffManager {
   // Shared map that CodeLens provider reads from
   public fileUriToCodeLens: Map<string, SimpleDiffCodeLens[]> = new Map();
 
-  private fileUriToDecorationManager: Map<string, DiffDecorationManager> = new Map();
+  public fileUriToHandler: Map<string, StreamingDiffHandler> = new Map(); // Make public for external access
 
   public refreshCodeLens: () => void = () => {};
 
@@ -21,16 +129,19 @@ export class SimpleDiffManager {
     this.refreshCodeLens = callback;
   }
 
-  async showDiffWithDecorations(
-    fileUri: string,
-    startLine: number,
-    endLine: number,
-    diffLines: Array<{ type: string; line: string }>,
-    messageToken: string,
-    originalContent: string,
-  ) {
+  // Method to get active streaming handlers (for debugging)
+  getActiveHandlers(): string[] {
+    return Array.from(this.fileUriToHandler.keys());
+  }
+
+  // Method to check if a file has an active diff
+  hasActiveDiff(fileUri: string): boolean {
+    return this.fileUriToHandler.has(fileUri);
+  }
+
+  async startStreamingDiff(fileUri: string, startLine: number = 0): Promise<StreamingDiffHandler> {
     // Clear any existing diff for this file
-    this.clearDiffForFile(fileUri);
+    this.clearForFileUri(fileUri);
 
     // Get the editor - open the document first if needed
     const uri = vscode.Uri.parse(fileUri);
@@ -50,83 +161,61 @@ export class SimpleDiffManager {
     const decorationManager = new DiffDecorationManager(fileUri);
     decorationManager.initializeForEditor(editor);
 
-    // Process diff lines and apply decorations
-    // Key insight: diff lines represent changes to apply, decorations show where they go in current file
-    let currentOriginalLine = startLine; // Track position in original content
-    let currentDisplayLine = startLine; // Track position in current file for decorations
-    let numRed = 0;
-    let numGreen = 0;
-    let blockStartLine = startLine;
-    const codeLensBlocks: SimpleDiffCodeLens[] = [];
+    // Create streaming handler
+    const handler = new StreamingDiffHandler(editor, fileUri, decorationManager);
+    this.fileUriToHandler.set(fileUri, handler);
 
-    console.log(`[DEBUG] Processing ${diffLines.length} diff lines starting at line ${startLine}`);
+    return handler;
+  }
 
-    diffLines.forEach((diffLine, index) => {
-      console.log(
-        `[DEBUG] Line ${index}: type=${diffLine.type}, originalLine=${currentOriginalLine}, displayLine=${currentDisplayLine}`,
-      );
-
-      if (diffLine.type === "old") {
-        // Removed lines: show ghost text at current display position
-        decorationManager.getRemovedDecorations()!.addLine(currentDisplayLine, diffLine.line);
-        numRed++;
-        currentOriginalLine++; // This line existed in original
-        // Don't advance currentDisplayLine - removed lines don't take space in current file
-      } else if (diffLine.type === "new") {
-        // Added lines: show highlight at current display position
-        decorationManager.getAddedDecorations()!.addLine(currentDisplayLine);
-        numGreen++;
-        currentDisplayLine++; // Added lines do take space in current file
-        // Don't advance currentOriginalLine - this line didn't exist in original
-      } else if (diffLine.type === "same") {
-        // Same line: create block if we have changes, then advance both pointers
-        if (numRed > 0 || numGreen > 0) {
-          codeLensBlocks.push({
-            start: blockStartLine,
-            numAdded: numGreen,
-            numRemoved: numRed,
-          });
-
-          console.log(
-            `[DEBUG] Created CodeLens block: start=${blockStartLine}, added=${numGreen}, removed=${numRed}`,
-          );
-
-          // Reset for next block
-          numRed = 0;
-          numGreen = 0;
-        }
-
-        // Advance both pointers for same lines
-        currentOriginalLine++;
-        currentDisplayLine++;
-        blockStartLine = currentDisplayLine;
-      }
-    });
-
-    // Handle final block if we end on changes (no trailing "same" line)
-    if (numRed > 0 || numGreen > 0) {
-      codeLensBlocks.push({
-        start: blockStartLine,
-        numAdded: numGreen,
-        numRemoved: numRed,
-      });
-
-      console.log(
-        `[DEBUG] Created final CodeLens block: start=${blockStartLine}, added=${numGreen}, removed=${numRed}`,
-      );
+  async streamDiffLines(fileUri: string, diffLines: AsyncIterable<DiffLine>): Promise<void> {
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (!handler) {
+      throw new Error(`No streaming diff handler found for ${fileUri}`);
     }
 
-    console.log(
-      `[DEBUG] Applied ${numRed + numGreen} total decorations (${numRed} red, ${numGreen} green)`,
-    );
-    console.log(`[DEBUG] Created ${codeLensBlocks.length} CodeLens blocks`);
+    // Process each diff line as it arrives
+    for await (const diffLine of diffLines) {
+      await handler.streamDiffLine(diffLine);
+    }
 
-    // Store the decoration manager so it stays active
-    this.fileUriToDecorationManager.set(fileUri, decorationManager);
-
-    // Store CodeLens blocks in shared map
+    // Finalize and store the results
+    const codeLensBlocks = handler.finalizeDiff();
     this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
-    console.log(`[DEBUG] Stored ${codeLensBlocks.length} CodeLens blocks for ${fileUri}`);
+
+    // Refresh CodeLens
+    this.refreshCodeLens();
+  }
+
+  // Backward compatibility method for static diff processing
+  async showDiffWithDecorations(
+    fileUri: string,
+    startLine: number,
+    endLine: number,
+    diffLines: Array<{ type: string; line: string }>,
+    messageToken: string,
+    originalContent: string,
+  ) {
+    // Convert to streaming format
+    const streamingDiffLines = diffLines.map((line) => ({
+      type: line.type as "old" | "new" | "same",
+      line: line.line,
+    }));
+
+    // Start streaming diff
+    const handler = await this.startStreamingDiff(fileUri, startLine);
+
+    // Process all lines at once (simulating streaming)
+    for (const diffLine of streamingDiffLines) {
+      await handler.streamDiffLine(diffLine);
+    }
+
+    // Finalize and store the results
+    const codeLensBlocks = handler.finalizeDiff();
+    this.fileUriToCodeLens.set(fileUri, codeLensBlocks);
+
+    console.log(`[DEBUG] Processed ${diffLines.length} diff lines starting at line ${startLine}`);
+    console.log(`[DEBUG] Created ${codeLensBlocks.length} CodeLens blocks`);
 
     // Refresh CodeLens
     this.refreshCodeLens();
@@ -162,7 +251,7 @@ export class SimpleDiffManager {
       }
     } else {
       // Handle entire file accept/reject
-      this.clearDiffForFile(targetFileUri);
+      this.clearForFileUri(targetFileUri);
     }
 
     // Save the file
@@ -183,13 +272,29 @@ export class SimpleDiffManager {
 
     console.log(`[DEBUG] Accepting block ${blockIndex} for ${fileUri}`);
 
+    // Get the handler to clean up decorations for this block
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      // Remove decorations for accepted lines
+      const addedDecorations = handler.decorationManager.getAddedDecorations();
+      const removedDecorations = handler.decorationManager.getRemovedDecorations();
+
+      // Clear decorations in the range of this block
+      for (let i = 0; i < block.numAdded; i++) {
+        addedDecorations?.deleteRangeStartingAt(block.start + i);
+      }
+      for (let i = 0; i < block.numRemoved; i++) {
+        removedDecorations?.deleteRangesStartingAt(block.start);
+      }
+    }
+
     // Remove the accepted block from CodeLens
     blocks.splice(blockIndex, 1);
     this.fileUriToCodeLens.set(fileUri, blocks);
 
     // If no more blocks, clear everything
     if (blocks.length === 0) {
-      this.clearDiffForFile(fileUri);
+      this.clearForFileUri(fileUri);
     } else {
       // Refresh CodeLens to show remaining blocks
       this.refreshCodeLens();
@@ -211,13 +316,29 @@ export class SimpleDiffManager {
 
     console.log(`[DEBUG] Rejecting block ${blockIndex} for ${fileUri}`);
 
-    // For now, just remove the block (later we can implement actual revert logic)
+    // Get the handler to clean up decorations for this block
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      // Remove decorations for rejected lines
+      const addedDecorations = handler.decorationManager.getAddedDecorations();
+      const removedDecorations = handler.decorationManager.getRemovedDecorations();
+
+      // Clear decorations in the range of this block
+      for (let i = 0; i < block.numAdded; i++) {
+        addedDecorations?.deleteRangeStartingAt(block.start + i);
+      }
+      for (let i = 0; i < block.numRemoved; i++) {
+        removedDecorations?.deleteRangesStartingAt(block.start);
+      }
+    }
+
+    // Remove the rejected block from CodeLens
     blocks.splice(blockIndex, 1);
     this.fileUriToCodeLens.set(fileUri, blocks);
 
     // If no more blocks, clear everything
     if (blocks.length === 0) {
-      this.clearDiffForFile(fileUri);
+      this.clearForFileUri(fileUri);
     } else {
       // Refresh CodeLens to show remaining blocks
       this.refreshCodeLens();
@@ -228,30 +349,41 @@ export class SimpleDiffManager {
     );
   }
 
-  clearDiffForFile(fileUri: string) {
+  clearForFileUri(fileUri: string) {
     // Clear CodeLens
     this.fileUriToCodeLens.delete(fileUri);
 
-    // Clear decorations
-    const decorationManager = this.fileUriToDecorationManager.get(fileUri);
-    if (decorationManager) {
-      decorationManager.dispose();
-      this.fileUriToDecorationManager.delete(fileUri);
+    // Dispose streaming handler
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      handler.dispose();
+      this.fileUriToHandler.delete(fileUri);
     }
+
+    // Clear VS Code context
+    vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
 
     // Refresh CodeLens
     this.refreshCodeLens();
+  }
+
+  // Backward compatibility alias
+  clearDiffForFile(fileUri: string) {
+    this.clearForFileUri(fileUri);
   }
 
   clearAllDiffs() {
     // Clear all CodeLens
     this.fileUriToCodeLens.clear();
 
-    // Clear all decorations
-    for (const [, manager] of this.fileUriToDecorationManager.entries()) {
-      manager.dispose();
+    // Dispose all streaming handlers
+    for (const [, handler] of this.fileUriToHandler.entries()) {
+      handler.dispose();
     }
-    this.fileUriToDecorationManager.clear();
+    this.fileUriToHandler.clear();
+
+    // Clear VS Code context
+    vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
 
     // Refresh CodeLens
     this.refreshCodeLens();

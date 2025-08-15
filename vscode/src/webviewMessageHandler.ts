@@ -251,7 +251,7 @@ const actions: {
     try {
       logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
 
-      // Execute the command to show diff with decorations
+      // Execute the command to show diff with decorations using streaming approach
       await vscode.commands.executeCommand(
         "konveyor.showDiffWithDecorations",
         path,
@@ -262,6 +262,41 @@ const actions: {
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
+    }
+  },
+
+  // New streaming diff action for real-time updates
+  START_STREAMING_DIFF: async ({ path, startLine = 0 }, state, logger) => {
+    try {
+      logger.info("START_STREAMING_DIFF called", { path, startLine });
+
+      // Import and use the streaming diff manager
+      const { simpleDiffManager } = await import("./commands");
+      await simpleDiffManager.startStreamingDiff(path, startLine);
+
+      // Set VS Code context to indicate streaming is active
+      await vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
+    } catch (error) {
+      logger.error("Error handling START_STREAMING_DIFF:", error);
+      vscode.window.showErrorMessage(`Failed to start streaming diff: ${error}`);
+    }
+  },
+
+  STREAM_DIFF_LINE: async ({ path, diffLine }, state, logger) => {
+    try {
+      // Import and use the streaming diff manager
+      const { simpleDiffManager } = await import("./commands");
+      const handler = simpleDiffManager.fileUriToHandler?.get(path);
+
+      if (handler) {
+        await handler.streamDiffLine(diffLine);
+        // Refresh CodeLens after each line for real-time updates
+        simpleDiffManager.refreshCodeLens();
+      } else {
+        logger.warn("No streaming handler found for path", { path });
+      }
+    } catch (error) {
+      logger.error("Error handling STREAM_DIFF_LINE:", error);
     }
   },
 
