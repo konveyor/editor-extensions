@@ -36,11 +36,6 @@ export class SolutionServerClientError extends Error {
   }
 }
 
-export interface KeycloakCredentials {
-  username: string;
-  password: string;
-}
-
 export interface TokenResponse {
   access_token: string;
   token_type: string;
@@ -81,10 +76,6 @@ export class SolutionServerClient {
     });
   }
 
-  public setBearerToken(token: string): void {
-    this.bearerToken = token;
-  }
-
   public setAuthConfig(authConfig: SolutionServerAuthConfig | null): void {
     this.authConfig = authConfig;
   }
@@ -108,8 +99,16 @@ export class SolutionServerClient {
       }
 
       // Always get fresh tokens on startup/connect
-      await this.exchangeForTokens();
-      this.startTokenRefreshTimer();
+      try {
+        if (!this.bearerToken) {
+          await this.exchangeForTokens();
+        }
+        this.startTokenRefreshTimer();
+      } catch (error) {
+        this.logger.error("Failed to exchange for tokens", error);
+        await this.disconnect();
+        return;
+      }
     }
 
     this.mcpClient = new Client(
@@ -147,7 +146,7 @@ export class SolutionServerClient {
       this.isConnected = true;
     } catch (error) {
       this.logger.error("Failed to connect to MCP solution server", error);
-      this.isConnected = false;
+      await this.disconnect();
       throw error;
     }
 
@@ -777,6 +776,16 @@ export class SolutionServerClient {
       this.bearerToken = tokenResponse.access_token;
       this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
       this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - 30000; // 30 second buffer
+
+      if (this.isConnected) {
+        this.logger.info("Reconnecting to MCP solution server");
+        try {
+          await this.disconnect();
+          await this.connect();
+        } catch (error) {
+          this.logger.error("Error reconnecting to MCP solution server", error);
+        }
+      }
 
       // Restart the refresh timer
       this.startTokenRefreshTimer();

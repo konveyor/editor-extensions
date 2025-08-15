@@ -216,7 +216,7 @@ class VsCodeExtension {
 
       // Get credentials for solution server client if auth is enabled
       if (getConfigSolutionServerAuth()) {
-        const credentials = await checkAndPromptForCredentials(this.context);
+        const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
         if (credentials) {
           const authConfig = {
             username: credentials.username,

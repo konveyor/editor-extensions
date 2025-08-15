@@ -1,10 +1,7 @@
 import * as vscode from "vscode";
 import { getConfigSolutionServerAuth } from "./configuration";
-
-export interface KeycloakCredentials {
-  username: string;
-  password: string;
-}
+import { Logger } from "winston";
+import { KeycloakCredentials } from "@editor-extensions/shared";
 const AUTH_DATA_KEY = "konveyor.solutionServer.authData";
 
 /**
@@ -51,6 +48,7 @@ export async function storeCredentials(
  */
 export async function getStoredCredentials(
   context: vscode.ExtensionContext,
+  logger?: Logger,
 ): Promise<KeycloakCredentials | undefined> {
   try {
     const stored = await context.secrets.get(AUTH_DATA_KEY);
@@ -59,7 +57,9 @@ export async function getStoredCredentials(
     }
     return JSON.parse(stored) as KeycloakCredentials;
   } catch (error) {
-    console.error("Error getting stored credentials", error);
+    if (logger) {
+      logger.error("Error getting stored credentials", error);
+    }
     return undefined;
   }
 }
@@ -74,8 +74,11 @@ export async function clearCredentials(context: vscode.ExtensionContext): Promis
 /**
  * Check if credentials are stored
  */
-export async function hasStoredCredentials(context: vscode.ExtensionContext): Promise<boolean> {
-  const credentials = await getStoredCredentials(context);
+export async function hasStoredCredentials(
+  context: vscode.ExtensionContext,
+  logger?: Logger,
+): Promise<boolean> {
+  const credentials = await getStoredCredentials(context, logger);
   return credentials !== undefined;
 }
 
@@ -84,12 +87,13 @@ export async function hasStoredCredentials(context: vscode.ExtensionContext): Pr
  */
 export async function checkAndPromptForCredentials(
   context: vscode.ExtensionContext,
+  logger?: Logger,
 ): Promise<KeycloakCredentials | undefined> {
   if (!getConfigSolutionServerAuth()) {
     return undefined;
   }
 
-  const credentials = await getStoredCredentials(context);
+  const credentials = await getStoredCredentials(context, logger);
   if (credentials) {
     return credentials;
   }
