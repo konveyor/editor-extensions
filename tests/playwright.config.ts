@@ -37,7 +37,10 @@ export default defineConfig({
     {
       name: 'analysis-tests',
       testMatch: /.*analyze.+\.test\.ts/,
-      dependencies: ['configure-and-run-analysis'],
+    },
+    {
+      name: 'agent-flow-tests',
+      testMatch: /.*agent_flow.+\.test\.ts/,
     },
   ],
 });

@@ -2,9 +2,10 @@ import { parse } from "yaml";
 import * as pathlib from "path";
 import * as winston from "winston";
 import { workspace, Uri } from "vscode";
+import { AIMessage } from "@langchain/core/messages";
 import { KaiModelProvider } from "@editor-extensions/agentic";
 
-import { ParsedModelConfig } from "./types";
+import { type ModelCapabilities, ParsedModelConfig } from "./types";
 import { ModelCreators } from "./modelCreator";
 import { getCacheForModelProvider } from "./utils";
 import { getTraceEnabled, getConfigKaiDemoMode } from "../utilities/configuration";
@@ -71,32 +72,31 @@ export async function getModelProviderFromConfig(
     throw new Error("Unsupported model provider");
   }
 
+  const processEnvFiltered = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== undefined),
+  ) as Record<string, string>;
+  const mergedEnv = { ...processEnvFiltered, ...parsedConfig.env };
+
   const modelCreator = ModelCreators[parsedConfig.config.provider]();
   const defaultArgs = modelCreator.defaultArgs();
   const configArgs = parsedConfig.config.args;
   //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
   const args = { ...defaultArgs, ...configArgs };
-  modelCreator.validate(args, parsedConfig.env);
+  modelCreator.validate(args, mergedEnv);
   const streamingModel = modelCreator.create(
     {
       ...args,
       streaming: true,
     },
-    parsedConfig.env,
+    mergedEnv,
   );
   const nonStreamingModel = modelCreator.create(
     {
       ...args,
       streaming: false,
     },
-    parsedConfig.env,
+    mergedEnv,
   );
-
-  if (ModelProviders[parsedConfig.config.provider]) {
-    return ModelProviders[parsedConfig.config.provider]();
-  }
-
-  const capabilities = await runModelHealthCheck(streamingModel, nonStreamingModel);
 
   const subDir = (dir: string): string =>
     pathlib.join(
@@ -108,12 +108,50 @@ export async function getModelProviderFromConfig(
       ),
     );
 
+  const cache = getCacheForModelProvider(getConfigKaiDemoMode(), logger, subDir(cacheDir ?? ""));
+  const tracer = getCacheForModelProvider(getTraceEnabled(), logger, subDir(traceDir ?? ""), true);
+
+  let capabilities: ModelCapabilities = {
+    supportsTools: false,
+    supportsToolsInStreaming: false,
+  };
+  try {
+    let usingCachedHealthcheck = false;
+    if (getConfigKaiDemoMode()) {
+      const cachedHealthcheck = await cache.get("capabilities", {
+        cacheSubDir: "healthcheck",
+      });
+      if (cachedHealthcheck) {
+        capabilities = JSON.parse(cachedHealthcheck.content as string) as ModelCapabilities;
+        usingCachedHealthcheck = true;
+      }
+    }
+    if (!usingCachedHealthcheck) {
+      capabilities = await runModelHealthCheck(streamingModel, nonStreamingModel);
+      if (getConfigKaiDemoMode()) {
+        await cache.set("capabilities", new AIMessage(JSON.stringify(capabilities)), {
+          cacheSubDir: "healthcheck",
+        });
+      }
+    }
+  } catch (err) {
+    logger.error("Error running model health check:", err);
+    if (!getConfigKaiDemoMode()) {
+      // only throw error when we are not in demo mode
+      throw err;
+    }
+  }
+
+  if (ModelProviders[parsedConfig.config.provider]) {
+    return ModelProviders[parsedConfig.config.provider]();
+  }
+
   return new BaseModelProvider(
     streamingModel,
     nonStreamingModel,
     capabilities,
     logger,
-    getCacheForModelProvider(getConfigKaiDemoMode(), logger, subDir(cacheDir ?? "")),
-    getCacheForModelProvider(getTraceEnabled(), logger, subDir(traceDir ?? ""), true),
+    cache,
+    tracer,
   );
 }

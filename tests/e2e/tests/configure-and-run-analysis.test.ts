@@ -2,7 +2,7 @@ import * as pathlib from 'path';
 import * as fs from 'fs/promises';
 import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.page';
-import { OPENAI_PROVIDER } from '../fixtures/provider-configs.fixture';
+import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../utilities/utils';
 
 test.describe(`Configure extension and run analysis`, () => {
@@ -23,7 +23,7 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(OPENAI_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
   });
 
   test('Start server', async () => {

@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import type { TestInfo } from '@playwright/test';
 import { rm } from 'node:fs/promises';
+import { ProviderConfig } from '../fixtures/provider-configs.fixture';
 
 // Function to get OS information
 export function getOSInfo(): string {
@@ -69,7 +70,7 @@ export function getRepoName(testInfo: TestInfo): string {
       `Invalid test file name format: ${testInfo.file}. Expected format: prefix_reponame.test.ts`
     );
   }
-  return parts[1];
+  return parts[parts.length - 1];
 }
 
 export function generateRandomString(length: number = 8): string {

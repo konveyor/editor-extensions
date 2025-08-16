@@ -72,6 +72,7 @@ Additionally, you can directly pass the env variables.
 | OPENAI_API_KEY         | OPENAI API KEY FOR GenAI provider                                                                                                                                                                                                                          |
 | KAI_QE_S3_BUCKET_NAME  | (Optional) AWS S3 bucket name (only needed if running evaluation)                                                                                                                                                                                          |
 | PARASOL_API_KEY        | (Optional) API key for MaaS provider (Only used if working with https://maas.apps.prod.rhoai.rh-aiservices-bu.com/)                                                                                                                                        |
+| UPDATE_LLM_CACHE | (Optional) When set to true, the offline tests will run in online mode and generate new cached data for the configured provider. Will require provider credentials to run. |
 
 ## Running Tests
 

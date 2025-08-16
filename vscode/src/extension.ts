@@ -291,6 +291,37 @@ class VsCodeExtension {
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           this.state.logger.info("Configuration modified!");
+
+          if (
+            event.affectsConfiguration("konveyor.kai.demoMode") ||
+            event.affectsConfiguration("konveyor.kai.cacheDir")
+          ) {
+            this.setupModelProvider(paths().settingsYaml)
+              .then((configError) => {
+                this.state.mutateData((draft) => {
+                  if (configError) {
+                    draft.configErrors = draft.configErrors.filter(
+                      (e) => e.type !== configError.type,
+                    );
+                    draft.configErrors.push(configError);
+                  }
+                });
+              })
+              .catch((error) => {
+                this.state.logger.error("Error setting up model provider:", error);
+                this.state.mutateData((draft) => {
+                  if (error) {
+                    const configError = createConfigError.providerConnnectionFailed();
+                    draft.configErrors = draft.configErrors.filter(
+                      (e) => e.type !== configError.type,
+                    );
+                    configError.error = error instanceof Error ? error.message : String(error);
+                    draft.configErrors.push(configError);
+                  }
+                });
+              });
+          }
+
           if (event.affectsConfiguration("konveyor.kai.agentMode")) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
