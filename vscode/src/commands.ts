@@ -10,7 +10,6 @@ import {
   Selection,
   TextEditorRevealType,
   Position,
-  ViewColumn,
 } from "vscode";
 import {
   cleanRuleSets,
@@ -59,21 +58,11 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
-import { DiffCodeLensProvider } from "./diffCodeLensProvider";
-import { SimpleDiffManager } from "./diffManager";
-import { parsePatch } from "diff";
+// Removed SimpleDiffManager imports - replaced with vertical diff system
+import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
-
-// Global diff manager and CodeLens provider
-const simpleDiffManager = new SimpleDiffManager();
-const diffCodeLensProvider = new DiffCodeLensProvider(simpleDiffManager.fileUriToCodeLens);
-
-// Set up the refresh callback
-simpleDiffManager.setRefreshCodeLensCallback(() => {
-  diffCodeLensProvider.refresh();
-});
 
 const commandsMap: (
   state: ExtensionState,
@@ -713,233 +702,114 @@ const commandsMap: (
       messageToken: string,
     ) => {
       try {
-        logger.info("showDiffWithDecorations called", { filePath, messageToken });
+        logger.info("showDiffWithDecorations using vertical diff", { filePath, messageToken });
 
-        // Validate inputs
-        if (!filePath || !diff || !messageToken) {
-          throw new Error("Missing required parameters: filePath, diff, or messageToken");
+        // Check if vertical diff system is initialized
+        if (!state.staticDiffAdapter) {
+          throw new Error("Vertical diff system not initialized");
         }
 
-        // Check if this file+token combination has already been applied
-        const fileKey = `${filePath}:${messageToken}`;
-        if (state.appliedDiffs?.has(fileKey)) {
-          logger.warn("Diff already applied for this file+token, skipping", {
-            filePath,
-            messageToken,
-          });
-          window.showWarningMessage(
-            `Changes already applied to ${workspace.asRelativePath(Uri.file(filePath))}`,
-          );
+        // Get original content
+        const uri = Uri.file(filePath);
+        const doc = await workspace.openTextDocument(uri);
+        const originalContent = doc.getText();
+
+        // Apply using Continue's system
+        await state.staticDiffAdapter.applyStaticDiff(
+          filePath,
+          diff,
+          originalContent,
+          messageToken,
+        );
+
+        logger.info("Vertical diff applied successfully");
+      } catch (error) {
+        logger.error("Error in vertical diff:", error);
+        vscode.window.showErrorMessage(`Failed to show diff: ${error}`);
+      }
+    },
+
+    "konveyor.acceptDiff": async (filePath?: string) => {
+      if (!filePath) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
           return;
         }
-
-        const uri = Uri.file(filePath);
-
-        // Validate file exists and is accessible
-        try {
-          await workspace.fs.stat(uri);
-        } catch (error) {
-          throw new Error(`File not accessible: ${filePath}`);
-        }
-
-        // Open the file in the editor in a split view to keep the resolution panel visible
-        const doc = await workspace.openTextDocument(uri);
-
-        // Open the file in Column 2 (right side) to create a split view
-        // Left: Resolution panel | Right: File with decorations
-        const editor = await window.showTextDocument(doc, {
-          viewColumn: ViewColumn.Two,
-          preview: false,
-          preserveFocus: true, // Keep focus on the resolution panel for workflow continuity
-        });
-
-        // Clear any existing diff for this file
-        simpleDiffManager.clearDiffForFile(uri.toString());
-
-        // Parse the diff using Continue's range-based approach
-        const parsedDiff = parsePatch(diff);
-
-        if (!parsedDiff || parsedDiff.length === 0) {
-          throw new Error("Failed to parse diff for decorations");
-        }
-
-        // Get current file content
-        const currentContent = doc.getText();
-
-        // Calculate the affected range from all hunks (like Continue does)
-        let startLine = Number.MAX_SAFE_INTEGER;
-        let endLine = 0;
-
-        for (const fileDiff of parsedDiff) {
-          if (!fileDiff.hunks) {
-            continue;
-          }
-
-          for (const hunk of fileDiff.hunks) {
-            // oldStart is 1-based, convert to 0-based
-            const hunkStart = hunk.oldStart - 1;
-            const hunkEnd = hunkStart + hunk.oldLines;
-
-            startLine = Math.min(startLine, hunkStart);
-            endLine = Math.max(endLine, hunkEnd);
-          }
-        }
-
-        // Validate calculated range
-        if (startLine === Number.MAX_SAFE_INTEGER || endLine === 0) {
-          throw new Error("Failed to calculate valid diff range");
-        }
-
-        // Ensure range is within document bounds
-        startLine = Math.max(0, startLine);
-        endLine = Math.min(doc.lineCount, endLine);
-
-        console.log(`[DEBUG] Calculated range: startLine=${startLine}, endLine=${endLine}`);
-
-        // Reconstruct old and new content for the range (like Continue's reapplyWithMyersDiff)
-        const diffLines: Array<{ type: string; line: string }> = [];
-
-        for (const fileDiff of parsedDiff) {
-          if (!fileDiff.hunks) {
-            continue;
-          }
-
-          for (const hunk of fileDiff.hunks) {
-            for (const line of hunk.lines) {
-              const lineType = line.charAt(0);
-              const lineContent = line.substring(1);
-
-              switch (lineType) {
-                case "+":
-                  diffLines.push({ type: "new", line: lineContent });
-                  break;
-                case "-":
-                  diffLines.push({ type: "old", line: lineContent });
-                  break;
-                case " ":
-                  diffLines.push({ type: "same", line: lineContent });
-                  break;
-                case "\\":
-                  // Handle special case for files without trailing newline
-                  continue;
-                default:
-                  logger.warn(`Unknown diff line type: ${lineType}`);
-                  continue;
-              }
-            }
-          }
-        }
-
-        if (diffLines.length === 0) {
-          throw new Error("No valid diff lines found");
-        }
-
-        // Get old and new content for the range (like Continue does)
-        const oldRangeContent =
-          diffLines
-            .filter((line) => line.type === "same" || line.type === "old")
-            .map((line) => line.line)
-            .join("\n") + "\n";
-
-        const newRangeContent =
-          diffLines
-            .filter((line) => line.type === "same" || line.type === "new")
-            .map((line) => line.line)
-            .join("\n") + "\n";
-
-        console.log(`[DEBUG] Old range content lines: ${oldRangeContent.split("\n").length - 1}`);
-        console.log(`[DEBUG] New range content lines: ${newRangeContent.split("\n").length - 1}`);
-
-        // Replace only the affected range (like Continue does)
-        const rangeToReplace = new vscode.Range(startLine, 0, endLine, 0);
-        const edit = new vscode.WorkspaceEdit();
-
-        // Remove the trailing newline for the replacement content
-        const replacementContent = newRangeContent.slice(0, -1);
-        edit.replace(uri, rangeToReplace, replacementContent);
-
-        const applySuccess = await workspace.applyEdit(edit);
-
-        if (!applySuccess) {
-          throw new Error("Failed to apply diff to file range");
-        }
-
-        console.log(
-          `[DEBUG] Generated ${diffLines.length} diff lines from ${parsedDiff.length} file diffs`,
-        );
-
-        // Use the manager to handle decorations and CodeLens
-        await simpleDiffManager.showDiffWithDecorations(
-          uri.toString(),
-          startLine,
-          endLine,
-          diffLines,
-          messageToken,
-          currentContent,
-        );
-
-        // Mark this diff as applied to prevent double application
-        state.appliedDiffs.add(fileKey);
-
-        logger.info(
-          `Applied decorations for ${diffLines.length} diff lines using SimpleDiffManager`,
-        );
-
-        // Don't explicitly show the resolution panel again as it causes flickering
-        // Instead, rely on VSCode's natural layout behavior to maintain the split view
-
-        // TODO: Add CodeLens for accept/reject buttons
-        // This would require implementing a CodeLens provider similar to Continue's approach
-      } catch (error) {
-        logger.error("Error in showDiffWithDecorations:", error);
-
-        // Clean up any partial state
-        if (filePath) {
-          simpleDiffManager.clearDiffForFile(Uri.file(filePath).toString());
-        }
-
-        window.showErrorMessage(
-          `Failed to show diff with decorations: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        filePath = editor.document.fileName;
       }
+      if (!state.staticDiffAdapter) {
+        vscode.window.showErrorMessage("Vertical diff system not initialized");
+        return;
+      }
+      await state.staticDiffAdapter.acceptAll(filePath);
+      vscode.window.showInformationMessage("Changes accepted");
     },
 
-    "konveyor.clearDiffDecorations": async (filePath?: string) => {
-      try {
-        if (filePath) {
-          const uri = Uri.file(filePath);
-          simpleDiffManager.clearDiffForFile(uri.toString());
-        } else {
-          simpleDiffManager.clearAllDiffs();
+    "konveyor.rejectDiff": async (filePath?: string) => {
+      if (!filePath) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
         }
-      } catch (error) {
-        logger.error("Error clearing diff decorations:", error);
+        filePath = editor.document.fileName;
       }
+      if (!state.staticDiffAdapter) {
+        vscode.window.showErrorMessage("Vertical diff system not initialized");
+        return;
+      }
+      await state.staticDiffAdapter.rejectAll(filePath);
+      vscode.window.showInformationMessage("Changes rejected");
     },
 
-    "konveyor.acceptDiffBlock": async (fileUri: string, blockIndex: number) => {
+    "konveyor.acceptVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
       try {
-        logger.info("acceptDiffBlock called", { fileUri, blockIndex });
-        await simpleDiffManager.processDiff("accept", fileUri, blockIndex);
+        logger.info("acceptVerticalDiffBlock called", { fileUri, blockIndex });
+        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        if (!state.staticDiffAdapter) {
+          throw new Error("Vertical diff system not initialized");
+        }
+        await state.staticDiffAdapter.acceptRejectBlock(filePath, blockIndex, true);
       } catch (error) {
         logger.error("Error accepting diff block:", error);
         window.showErrorMessage(`Failed to accept changes: ${error}`);
       }
     },
 
-    "konveyor.rejectDiffBlock": async (fileUri: string, blockIndex: number) => {
+    "konveyor.rejectVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
       try {
-        logger.info("rejectDiffBlock called", { fileUri, blockIndex });
-        await simpleDiffManager.processDiff("reject", fileUri, blockIndex);
+        logger.info("rejectVerticalDiffBlock called", { fileUri, blockIndex });
+        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        if (!state.staticDiffAdapter) {
+          throw new Error("Vertical diff system not initialized");
+        }
+        await state.staticDiffAdapter.acceptRejectBlock(filePath, blockIndex, false);
       } catch (error) {
         logger.error("Error rejecting diff block:", error);
         window.showErrorMessage(`Failed to reject changes: ${error}`);
       }
     },
+
+    "konveyor.clearDiffDecorations": async (filePath?: string) => {
+      try {
+        if (filePath) {
+          const fileUri = vscode.Uri.file(filePath).toString();
+          state.verticalDiffManager?.clearForfileUri(fileUri, false);
+        } else {
+          // Clear all active diffs
+          if (state.verticalDiffManager) {
+            for (const fileUri of state.verticalDiffManager.fileUriToCodeLens.keys()) {
+              state.verticalDiffManager.clearForfileUri(fileUri, false);
+            }
+          }
+        }
+      } catch (error) {
+        logger.error("Error clearing diff decorations:", error);
+      }
+    },
   };
 };
 
-export { diffCodeLensProvider, simpleDiffManager };
+// Exports removed - vertical diff system will be initialized locally
 
 export function registerAllCommands(state: ExtensionState) {
   // Create a child logger for commands
@@ -978,17 +848,24 @@ export function registerAllCommands(state: ExtensionState) {
     }
   }
 
-  // Register the CodeLens provider for diff blocks
+  // Create and register CodeLens provider for vertical diff blocks
   try {
-    state.extensionContext.subscriptions.push(
-      vscode.languages.registerCodeLensProvider(
-        "*", // Apply to all file types
-        diffCodeLensProvider,
-      ),
-    );
-    logger.info("Diff CodeLens provider registered successfully");
+    if (state.verticalDiffManager) {
+      const verticalCodeLensProvider = new VerticalDiffCodeLensProvider(state.verticalDiffManager);
+
+      state.extensionContext.subscriptions.push(
+        vscode.languages.registerCodeLensProvider("*", verticalCodeLensProvider),
+      );
+
+      // Connect refresh callback
+      state.verticalDiffManager.refreshCodeLens = () => verticalCodeLensProvider.refresh();
+
+      logger.info("Vertical diff CodeLens provider registered successfully");
+    } else {
+      logger.warn("Vertical diff manager not initialized, skipping CodeLens registration");
+    }
   } catch (error) {
-    logger.error("Failed to register diff CodeLens provider:", error);
-    throw new Error(`Failed to register diff CodeLens provider: ${error}`);
+    logger.error("Failed to register vertical diff CodeLens provider:", error);
+    throw new Error(`Failed to register vertical diff CodeLens provider: ${error}`);
   }
 }

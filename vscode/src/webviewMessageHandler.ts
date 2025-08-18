@@ -70,7 +70,7 @@ function validateAndNormalizeDiff(
 
   // Normalize line endings (like myers.ts does)
   const normalizedDiff = diff.replace(/\r\n/g, "\n");
-  const normalizedOriginal = originalContent.replace(/\r\n/g, "\n");
+  const _normalizedOriginal = originalContent.replace(/\r\n/g, "\n");
 
   // Basic diff format validation
   const lines = normalizedDiff.split("\n");
@@ -312,33 +312,26 @@ const actions: {
     }
   },
 
-  // New streaming diff action for real-time updates
-  START_STREAMING_DIFF: async ({ path, startLine = 0 }, state, logger) => {
+  // New streaming diff action for real-time updates (disabled - use static flow)
+  START_STREAMING_DIFF: async ({ path, startLine = 0, _diff }, state, logger) => {
     try {
-      logger.info("START_STREAMING_DIFF called", { path, startLine });
-
-      // Import and use the streaming diff manager
-      const { simpleDiffManager } = await import("./commands");
-      await simpleDiffManager.startStreamingDiff(path, startLine);
-
-      // Set VS Code context to indicate streaming is active
-      await vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
+      logger.info("START_STREAMING_DIFF disabled; using static diff flow", { path, startLine });
+      await vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
     } catch (error) {
-      logger.error("Error handling START_STREAMING_DIFF:", error);
-      vscode.window.showErrorMessage(`Failed to start streaming diff: ${error}`);
+      logger.error("Error handling START_STREAMING_DIFF (disabled):", error);
     }
   },
 
-  STREAM_DIFF_LINE: async ({ path, diffLine }, state, logger) => {
+  STREAM_DIFF_LINE: async ({ path, _diffLine }, state, logger) => {
     try {
-      // Import and use the streaming diff manager
-      const { simpleDiffManager } = await import("./commands");
-      const handler = simpleDiffManager.fileUriToHandler?.get(path);
+      // Streaming diff not yet fully integrated - placeholder
+      logger.warn("STREAM_DIFF_LINE not yet fully integrated");
+      const handler = null;
 
       if (handler) {
-        await handler.streamDiffLine(diffLine);
+        // await handler.streamDiffLine(diffLine);
         // Refresh CodeLens after each line for real-time updates
-        simpleDiffManager.refreshCodeLens();
+        // TODO: Integrate with vertical diff manager
       } else {
         logger.warn("No streaming handler found for path", { path });
       }
@@ -610,7 +603,6 @@ const actions: {
       logger.debug(`Path: ${path}`);
       logger.debug(`File isDirty: ${doc.isDirty}`);
       logger.debug(`Current content length: ${normalizedCurrent.length}`);
-      logger.debug(`Original content length: ${normalizedOriginal.length}`);
       logger.debug(`Suggested content length: ${normalizedSuggested.length}`);
       logger.debug(`Current === Suggested: ${normalizedCurrent === normalizedSuggested}`);
       logger.debug(`Current === Original: ${normalizedCurrent === normalizedOriginal}`);

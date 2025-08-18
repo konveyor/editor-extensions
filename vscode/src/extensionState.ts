@@ -15,7 +15,10 @@ import { MemFS } from "./data/fileSystemProvider";
 import { KonveyorFileModel } from "./diffView/fileModel";
 import { EventEmitter } from "events";
 import winston from "winston";
-import { DiffDecorationManager } from "./decorations";
+// Removed - replaced with vertical diff system
+// import { DiffDecorationManager } from "./decorations";
+import { VerticalDiffManager } from "./diff/vertical/manager";
+import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -51,6 +54,8 @@ export interface ExtensionState {
   currentTaskManagerIterations: number;
   logger: winston.Logger;
   modelProvider: KaiModelProvider | undefined;
-  decorationManagers: Map<string, DiffDecorationManager>; // Map to store decoration managers by file URI
+  // decorationManagers: Map<string, DiffDecorationManager>; // Removed - using vertical diff system
   appliedDiffs: Set<string>; // Track applied diff file+token combinations to prevent double application
+  verticalDiffManager?: VerticalDiffManager; // Vertical diff system manager
+  staticDiffAdapter?: StaticDiffAdapter; // Adapter for static diffs
 }

@@ -45,7 +45,11 @@ import { ParsedModelConfig } from "./modelProvider/types";
 import { getModelProviderFromConfig, parseModelConfig } from "./modelProvider";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import { DiffDecorationManager } from "./decorations";
+// Removed - replaced with vertical diff system
+// import { DiffDecorationManager } from "./decorations";
+import { VerticalDiffManager } from "./diff/vertical/manager";
+import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
+import { VsCodeIde } from "./diff/vscodeIde";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -130,7 +134,7 @@ class VsCodeExtension {
       isWaitingForUserInteraction: false,
       lastMessageId: "0",
       currentTaskManagerIterations: 0,
-      decorationManagers: new Map<string, DiffDecorationManager>(), // Initialize decoration managers map
+      // decorationManagers: new Map<string, DiffDecorationManager>(), // Removed - using vertical diff system
       appliedDiffs: new Set<string>(), // Initialize applied diffs tracking
 
       workflowManager: {
@@ -195,11 +199,15 @@ class VsCodeExtension {
         },
       },
       modelProvider: undefined,
+      verticalDiffManager: undefined,
+      staticDiffAdapter: undefined,
     };
   }
 
   public async initialize(): Promise<void> {
     try {
+      // Initialize vertical diff system
+      this.initializeVerticalDiff();
       const bundled = getBundledProfiles();
       const user = getUserProfiles(this.context);
       const allProfiles = [...bundled, ...user];
@@ -330,6 +338,34 @@ class VsCodeExtension {
       this.state.logger.error("Error initializing extension", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
     }
+  }
+
+  private initializeVerticalDiff(): void {
+    // Create minimal webview protocol for vertical diff
+    const webviewProtocol = {
+      request: async (method: string, params: any) => {
+        if (method === "updateApplyState") {
+          this.state.logger.info("Diff status update", params);
+        }
+      },
+    };
+
+    // Create minimal edit decoration manager
+    const editDecorationManager = { clear: () => {} };
+
+    // Create VS Code IDE implementation
+    const ide = new VsCodeIde();
+
+    // Initialize managers
+    this.state.verticalDiffManager = new VerticalDiffManager(
+      webviewProtocol as any,
+      editDecorationManager as any,
+      ide,
+    );
+
+    this.state.staticDiffAdapter = new StaticDiffAdapter(this.state.verticalDiffManager);
+
+    this.state.logger.info("Vertical diff system initialized");
   }
 
   private registerWebviewProvider(): void {
@@ -483,15 +519,8 @@ class VsCodeExtension {
       }
     }
 
-    // Clean up decoration managers to prevent memory leaks
-    for (const [uri, manager] of this.state.decorationManagers.entries()) {
-      try {
-        manager.dispose();
-      } catch (error) {
-        this.state.logger.error(`Error disposing decoration manager for ${uri}:`, error);
-      }
-    }
-    this.state.decorationManagers.clear();
+    // Decoration managers removed - using vertical diff system
+    // Cleanup is handled by vertical diff manager
 
     await this.state.analyzerClient?.stop();
     await this.state.solutionServerClient?.disconnect().catch((error) => {

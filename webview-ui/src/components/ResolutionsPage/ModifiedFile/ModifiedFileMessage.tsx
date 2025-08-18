@@ -150,59 +150,11 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     if (isFileApplied) {
       return;
     }
-    
+
     setIsFileApplied(true);
-    
-    // Try using streaming diff first for better performance
-    if (mode === "agent") {
-      try {
-        const startLine = getStartLineFromDiff(fileDiff);
-        // Start streaming diff for real-time updates
-        window.vscode.postMessage({
-          type: "START_STREAMING_DIFF",
-          payload: {
-            path: filePath,
-            startLine,
-          },
-        });
-        
-        // Parse diff and stream lines individually
-        const diffLines = parseDiffToLines(fileDiff);
-        
-        if (diffLines.length === 0) {
-          console.warn("No valid diff lines found, falling back to static diff");
-          fallbackToStaticDiff(filePath, fileDiff);
-          return;
-        }
-        
-        // Stream lines with error handling
-        diffLines.forEach((diffLine, index) => {
-          // Delay each line slightly to simulate streaming
-          setTimeout(() => {
-            try {
-              window.vscode.postMessage({
-                type: "STREAM_DIFF_LINE",
-                payload: {
-                  path: filePath,
-                  diffLine,
-                },
-              });
-            } catch (error) {
-              console.error("Error streaming diff line:", error);
-              // Fall back to static diff on error
-              fallbackToStaticDiff(filePath, fileDiff);
-            }
-          }, index * 10); // 10ms delay between lines
-        });
-      } catch (error) {
-        console.warn("Failed to parse diff for streaming, falling back to static", error);
-        // Fall back to static diff display
-        fallbackToStaticDiff(filePath, fileDiff);
-      }
-    } else {
-      // Non-agent mode: use static diff display
-      fallbackToStaticDiff(filePath, fileDiff);
-    }
+
+    // Always use static diff display for reliability
+    fallbackToStaticDiff(filePath, fileDiff);
   };
 
   const fallbackToStaticDiff = (filePath: string, fileDiff: string) => {
@@ -228,10 +180,10 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const parseDiffToLines = (diff: string): Array<{ type: "old" | "new" | "same"; line: string }> => {
     const lines = diff.split('\n');
     const diffLines: Array<{ type: "old" | "new" | "same"; line: string }> = [];
-    
+
     let currentHunk: { oldStart: number; oldLines: number; newStart: number; newLines: number } | null = null;
     let hunkLines: Array<{ type: "old" | "new" | "same"; line: string }> = [];
-    
+
     for (const line of lines) {
       if (line.startsWith('@@')) {
         // Parse hunk header: @@ -oldStart,oldLines +newStart,newLines @@
@@ -242,7 +194,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
             diffLines.push(...hunkLines);
             hunkLines = [];
           }
-          
+
           currentHunk = {
             oldStart: parseInt(hunkMatch[1]),
             oldLines: parseInt(hunkMatch[2] || '1'),
@@ -252,12 +204,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         }
         continue;
       }
-      
+
       if (!currentHunk) {
         // Skip lines before first hunk
         continue;
       }
-      
+
       // Parse diff line content
       if (line.startsWith('-')) {
         hunkLines.push({ type: "old", line: line.substring(1) });
@@ -270,12 +222,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         continue;
       }
     }
-    
+
     // Process final hunk
     if (currentHunk && hunkLines.length > 0) {
       diffLines.push(...hunkLines);
     }
-    
+
     // Post-process: combine consecutive old/new pairs that are identical after trimming
     // This matches the logic from myers.ts
     for (let i = 0; i < diffLines.length - 1; i++) {
@@ -289,7 +241,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         i--; // Recheck this position
       }
     }
-    
+
     // Remove trailing empty old lines (like myers.ts does)
     while (
       diffLines.length > 0 &&
@@ -298,7 +250,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     ) {
       diffLines.pop();
     }
-    
+
     return diffLines;
   };
 

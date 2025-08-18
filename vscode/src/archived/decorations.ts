@@ -14,8 +14,8 @@ const removedLineDecorationType = (line: string) =>
       color: "#808080",
       textDecoration: "none; white-space: pre",
     },
-    // Do not hide underlying text to ensure new content is visible in replace blocks
-    textDecoration: "none",
+    // Hide the actual text to show only ghost text (matches Continue)
+    textDecoration: "none; display: none",
   });
 
 const addedLineDecorationType = vscode.window.createTextEditorDecorationType({

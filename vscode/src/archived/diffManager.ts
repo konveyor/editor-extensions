@@ -209,13 +209,9 @@ export class StreamingDiffHandler {
       this.numRemovedInRun++;
       this.currentIndex++; // Advance index for every diff line processed
     } else if (diffLine.type === "new") {
-      // Added line: add highlight decoration and ghost text at the indexed line
+      // Added line: add highlight decoration at the indexed line
       this.decorationManager.getAddedDecorations()?.addLine(targetLine);
-      // If available, also render ghost text for the added content so it's visible pre-apply
-      // Note: method exposed via DiffDecorationManager
-      (this.decorationManager as any)
-        .getAddedGhostDecorations?.()
-        ?.addLine(targetLine, diffLine.line);
+      // Skip added ghost when content already pre-applied
       this.numAddedInRun++;
       this.currentIndex++; // Advance index
     } else if (diffLine.type === "same") {
@@ -388,8 +384,8 @@ export class SimpleDiffManager {
     startLine: number,
     endLine: number,
     diffLines: Array<{ type: string; line: string }>,
-    messageToken: string,
-    originalContent: string,
+    _messageToken: string,
+    _originalContent: string,
   ) {
     try {
       // Validate inputs
@@ -439,8 +435,8 @@ export class SimpleDiffManager {
     action: "accept" | "reject",
     fileUri?: string,
     blockIndex?: number,
-    streamId?: string,
-    toolCallId?: string,
+    _streamId?: string,
+    _toolCallId?: string,
   ) {
     // Get current file if not provided
     let targetFileUri = fileUri;
