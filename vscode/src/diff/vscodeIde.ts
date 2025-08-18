@@ -4,7 +4,7 @@
  */
 
 import * as vscode from "vscode";
-import { IDE } from "../core-diff";
+import { IDE } from "./types";
 
 export class VsCodeIde implements IDE {
   async readFile(filepath: string): Promise<string> {

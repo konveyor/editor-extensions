@@ -1,4 +1,4 @@
-import { DiffLine, IDE } from "../../core-diff";
+import { DiffLine, IDE } from "../types";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 import { VerticalDiffHandler, VerticalDiffHandlerOptions } from "./handler";

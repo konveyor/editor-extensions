@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { DiffLine } from "../core-diff";
+import { DiffLine } from "./types";
 import { VerticalDiffManager } from "./vertical/manager";
 import { parsePatch } from "diff";
 

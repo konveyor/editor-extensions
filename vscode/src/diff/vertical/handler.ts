@@ -1,4 +1,4 @@
-import { myersDiff } from "../../core-diff/diff/myers";
+import { myersDiff } from "../myers";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 
@@ -9,7 +9,7 @@ import {
   indexDecorationType,
 } from "./decorations";
 
-import type { ApplyState, DiffLine } from "../../core-diff";
+import type { ApplyState, DiffLine } from "../types";
 import type { VerticalDiffCodeLens } from "./manager";
 
 export interface VerticalDiffHandlerOptions {
