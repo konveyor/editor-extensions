@@ -14,6 +14,8 @@ import { BasePage } from './base.page';
 import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
 
+type SortOrder = 'ascending' | 'descending';
+type ListKind = 'issues' | 'files';
 export class VSCode extends BasePage {
   constructor(
     app: ElectronApplication,
@@ -197,6 +199,89 @@ export class VSCode extends BasePage {
     await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
       timeout: 30000,
     });
+  }
+
+  /**
+   * Sets the list kind (issues or files) and sort order (ascending or descending) in the analysis view.
+   * @param kind - The kind of list to display ('issues' or 'files').
+   * @param order - The sort order ('ascending' or 'descending').
+   */
+  public async setListKindAndSort(kind: ListKind, order: SortOrder): Promise<void> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    const kindButton = analysisView.getByRole('button', {
+      name: kind === 'issues' ? 'Issues' : 'Files',
+    });
+
+    await expect(kindButton).toBeVisible({ timeout: 5_000 });
+    await expect(kindButton).toBeEnabled({ timeout: 3_000 });
+    await kindButton.click();
+    await expect(kindButton).toHaveAttribute('aria-pressed', 'true');
+    const sortButton = analysisView.getByRole('button', {
+      name: order === 'ascending' ? 'Sort ascending' : 'Sort descending',
+    });
+    await expect(sortButton).toBeVisible({ timeout: 3_000 });
+    await sortButton.click();
+    await expect(sortButton).toHaveAttribute('aria-pressed', 'true');
+  }
+
+  /**
+   * Retrieves the names of items (issues or files) currently listed in the analysis view.
+   * @param _ - The kind of list ('issues' or 'files').
+   * @returns A promise that resolves to an array of item names.
+   */
+  async getListNames(_: ListKind): Promise<string[]> {
+    const view = await this.getView(KAIViews.analysisView);
+    const listCards = view
+      .locator('[data-ouia-component-type="PF6/Card"]')
+      .filter({ has: view.getByRole('heading', { level: 3 }) })
+      .filter({ has: view.getByRole('button', { name: /get solution/i }) });
+    const titles = listCards.getByRole('heading', { level: 3 });
+    await expect(titles.first()).toBeVisible({ timeout: 6_000 });
+
+    const texts = await titles.allInnerTexts();
+    return texts.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  }
+
+  /**
+   * Opens the category filter dropdown in the analysis view and returns its elements.
+   * @returns An object containing the category button, menu, and options locators.
+   */
+  public async openCategory() {
+    const view = await this.getView(KAIViews.analysisView);
+    const categoryBtn = view.getByRole('button', { name: /^Category(?:\s*\d+)?$/i });
+    await categoryBtn.scrollIntoViewIfNeeded();
+
+    await categoryBtn.click();
+    await expect(categoryBtn).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
+
+    const options = view.locator(
+      '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"]'
+    );
+
+    await expect(options.first()).toBeVisible({ timeout: 6000 });
+
+    return { categoryBtn, options };
+  }
+
+  /**
+   * Selects a category by its name or RegExp in the category filter dropdown in the analysis view.
+   * @param name - The name or RegExp of the category to select.
+   */
+  public async setCategoryByName(name: string | RegExp): Promise<void> {
+    const { categoryBtn, options } = await this.openCategory();
+    const toRegex = (s: string) =>
+      new RegExp(`^\\s*${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+
+    const opt =
+      typeof name === 'string'
+        ? options.filter({ hasText: toRegex(name) }).first()
+        : options.filter({ hasText: name as RegExp }).first();
+    await expect(opt).toBeVisible({ timeout: 5000 });
+    await opt.click();
+
+    if ((await categoryBtn.getAttribute('aria-expanded')) === 'true') {
+      await categoryBtn.click();
+    }
   }
 
   public async getView(view: KAIViews): Promise<FrameLocator> {
