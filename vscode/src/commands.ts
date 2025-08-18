@@ -2,6 +2,7 @@ import AdmZip from "adm-zip";
 import * as pathlib from "path";
 import * as fs from "fs/promises";
 import { ExtensionState } from "./extensionState";
+import * as vscode from "vscode";
 import {
   window,
   commands,
@@ -62,6 +63,8 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
+// Removed SimpleDiffManager imports - replaced with vertical diff system
+import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 
@@ -788,8 +791,171 @@ const commandsMap: (
       await commands.executeCommand("konveyor.restartSolutionServer");
       logger.info("Solution server credentials updated successfully.");
     },
+
+    "konveyor.showDiffWithDecorations": async (
+      filePath: string,
+      diff: string,
+      content: string,
+      messageToken: string,
+    ) => {
+      try {
+        logger.info("showDiffWithDecorations using vertical diff", { filePath, messageToken });
+
+        // Check if vertical diff system is initialized
+        if (!state.staticDiffAdapter) {
+          throw new Error("Vertical diff system not initialized");
+        }
+
+        // Get original content
+        const uri = Uri.file(filePath);
+        const doc = await workspace.openTextDocument(uri);
+        const originalContent = doc.getText();
+
+        // Apply using Continue's system
+        await state.staticDiffAdapter.applyStaticDiff(
+          filePath,
+          diff,
+          originalContent,
+          messageToken,
+        );
+
+        logger.info("Vertical diff applied successfully");
+      } catch (error) {
+        logger.error("Error in vertical diff:", error);
+        vscode.window.showErrorMessage(`Failed to show diff: ${error}`);
+      }
+    },
+
+    "konveyor.acceptDiff": async (filePath?: string) => {
+      if (!filePath) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
+        filePath = editor.document.fileName;
+      }
+      if (!state.staticDiffAdapter) {
+        vscode.window.showErrorMessage("Vertical diff system not initialized");
+        return;
+      }
+      await state.staticDiffAdapter.acceptAll(filePath);
+      vscode.window.showInformationMessage("Changes accepted");
+    },
+
+    "konveyor.rejectDiff": async (filePath?: string) => {
+      if (!filePath) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
+        filePath = editor.document.fileName;
+      }
+      if (!state.staticDiffAdapter) {
+        vscode.window.showErrorMessage("Vertical diff system not initialized");
+        return;
+      }
+      await state.staticDiffAdapter.rejectAll(filePath);
+      vscode.window.showInformationMessage("Changes rejected");
+    },
+
+    "konveyor.acceptVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
+      try {
+        logger.info("acceptVerticalDiffBlock called", { fileUri, blockIndex });
+        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        if (!state.staticDiffAdapter) {
+          throw new Error("Vertical diff system not initialized");
+        }
+        await state.staticDiffAdapter.acceptRejectBlock(filePath, blockIndex, true);
+      } catch (error) {
+        logger.error("Error accepting diff block:", error);
+        window.showErrorMessage(`Failed to accept changes: ${error}`);
+      }
+    },
+
+    "konveyor.rejectVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
+      try {
+        logger.info("rejectVerticalDiffBlock called", { fileUri, blockIndex });
+        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        if (!state.staticDiffAdapter) {
+          throw new Error("Vertical diff system not initialized");
+        }
+        await state.staticDiffAdapter.acceptRejectBlock(filePath, blockIndex, false);
+      } catch (error) {
+        logger.error("Error rejecting diff block:", error);
+        window.showErrorMessage(`Failed to reject changes: ${error}`);
+      }
+    },
+
+    "konveyor.clearDiffDecorations": async (filePath?: string) => {
+      try {
+        if (filePath) {
+          const fileUri = vscode.Uri.file(filePath).toString();
+          state.verticalDiffManager?.clearForfileUri(fileUri, false);
+        } else {
+          // Clear all active diffs
+          if (state.verticalDiffManager) {
+            for (const fileUri of state.verticalDiffManager.fileUriToCodeLens.keys()) {
+              state.verticalDiffManager.clearForfileUri(fileUri, false);
+            }
+          }
+        }
+      } catch (error) {
+        logger.error("Error clearing diff decorations:", error);
+      }
+    },
+
+    "konveyor.showDiffActions": async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const filePath = editor.document.fileName;
+      const fileUri = editor.document.uri.toString();
+
+      if (!state.verticalDiffManager) {
+        vscode.window.showInformationMessage("No active diff session");
+        return;
+      }
+
+      const handler = state.verticalDiffManager.getHandlerForFile(fileUri);
+      if (!handler || !handler.hasDiffForCurrentFile()) {
+        vscode.window.showInformationMessage("No active diff changes in this file");
+        return;
+      }
+
+      const blocks = state.verticalDiffManager.fileUriToCodeLens.get(fileUri) || [];
+      const totalGreen = blocks.reduce((sum, b) => sum + b.numGreen, 0);
+      const totalRed = blocks.reduce((sum, b) => sum + b.numRed, 0);
+
+      const action = await vscode.window.showQuickPick(
+        [
+          {
+            label: `$(check) Accept All Changes (${totalGreen}+ ${totalRed}-)`,
+            description: "Accept all diff changes in this file",
+            value: "accept",
+          },
+          {
+            label: `$(x) Reject All Changes`,
+            description: "Reject all diff changes in this file",
+            value: "reject",
+          },
+        ],
+        {
+          placeHolder: "Choose an action for all diff changes",
+        },
+      );
+
+      if (action?.value === "accept") {
+        await vscode.commands.executeCommand("konveyor.acceptDiff", filePath);
+      } else if (action?.value === "reject") {
+        await vscode.commands.executeCommand("konveyor.rejectDiff", filePath);
+      }
+    },
   };
 };
+
+// Exports removed - vertical diff system will be initialized locally
 
 export function registerAllCommands(state: ExtensionState) {
   // Create a child logger for commands
@@ -826,5 +992,26 @@ export function registerAllCommands(state: ExtensionState) {
     } catch (error) {
       throw new Error(`Failed to register command '${command}': ${error}`);
     }
+  }
+
+  // Create and register CodeLens provider for vertical diff blocks
+  try {
+    if (state.verticalDiffManager) {
+      const verticalCodeLensProvider = new VerticalDiffCodeLensProvider(state.verticalDiffManager);
+
+      state.extensionContext.subscriptions.push(
+        vscode.languages.registerCodeLensProvider("*", verticalCodeLensProvider),
+      );
+
+      // Connect refresh callback
+      state.verticalDiffManager.refreshCodeLens = () => verticalCodeLensProvider.refresh();
+
+      logger.info("Vertical diff CodeLens provider registered successfully");
+    } else {
+      logger.warn("Vertical diff manager not initialized, skipping CodeLens registration");
+    }
+  } catch (error) {
+    logger.error("Failed to register vertical diff CodeLens provider:", error);
+    throw new Error(`Failed to register vertical diff CodeLens provider: ${error}`);
   }
 }

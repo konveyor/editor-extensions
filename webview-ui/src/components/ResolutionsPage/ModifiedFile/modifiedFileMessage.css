@@ -84,7 +84,7 @@
   border-color: var(--pf-global--success-color--200);
   color: var(--pf-global--Color--light-100);
   font-weight: 600;
-  min-width: 140px;
+  min-width: 120px;
 }
 
 .main-accept-button:hover {
@@ -108,7 +108,7 @@
   border-color: var(--pf-global--danger-color--200);
   color: var(--pf-global--Color--light-100);
   font-weight: 600;
-  min-width: 140px;
+  min-width: 120px;
 }
 
 .main-reject-button:hover {
@@ -125,6 +125,203 @@
   background-color: var(--pf-global--disabled-color--100);
   border-color: var(--pf-global--disabled-color--200);
   color: var(--pf-global--Color--200);
+}
+
+/* Primary action button for viewing with decorations */
+.view-with-decorations-button {
+  background-color: var(--pf-global--primary-color--100);
+  border-color: var(--pf-global--primary-color--200);
+  color: var(--pf-global--Color--light-100);
+  font-weight: 600;
+  min-width: 180px;
+}
+
+.view-with-decorations-button:hover {
+  background-color: var(--pf-global--primary-color--200);
+  border-color: var(--pf-global--primary-color--300);
+  color: var(--pf-global--Color--light-100);
+}
+
+.view-with-decorations-button:focus {
+  box-shadow: 0 0 0 2px var(--pf-global--primary-color--100);
+}
+
+.view-with-decorations-button:disabled {
+  background-color: var(--pf-global--disabled-color--100);
+  border-color: var(--pf-global--disabled-color--200);
+  color: var(--pf-global--Color--200);
+}
+
+/* Secondary action button styling */
+.secondary-action-button {
+  color: var(--pf-global--Color--100);
+  font-weight: 500;
+}
+
+.secondary-action-button:hover {
+  color: var(--pf-global--Color--200);
+  background-color: var(--pf-global--BackgroundColor--200);
+}
+
+.vscode-dark .secondary-action-button {
+  color: var(--pf-global--Color--light-100);
+}
+
+.vscode-dark .secondary-action-button:hover {
+  color: var(--pf-global--Color--light-200);
+  background-color: var(--pf-global--BackgroundColor--dark-200);
+}
+
+/* Icon visibility improvements for dark theme - PatternFly v6 */
+.vscode-dark .pf-v6-c-button svg,
+.vscode-dark .pf-v6-c-button .pf-v6-c-button__icon svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
+}
+
+.vscode-dark .pf-v6-c-button:hover svg,
+.vscode-dark .pf-v6-c-button:hover .pf-v6-c-button__icon svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
+}
+
+/* Target PatternFly v6 icons specifically */
+.vscode-dark .pf-v6-c-button .pf-v6-c-button__icon {
+  color: var(--vscode-editor-foreground) !important;
+}
+
+.vscode-dark .pf-v6-c-button:hover .pf-v6-c-button__icon {
+  color: var(--vscode-editor-foreground) !important;
+}
+
+/* Button spacing and layout improvements */
+.modified-file-actions {
+  gap: 1rem;
+}
+
+.modified-file-actions .pf-c-flex {
+  gap: 0.75rem;
+}
+
+/* Ensure buttons have consistent heights - PatternFly v6 */
+.modified-file-actions .pf-v6-c-button {
+  min-height: 36px;
+  padding: 0.5rem 1rem;
+}
+
+/* Force icon visibility in all button states - PatternFly v6 */
+.modified-file-actions .pf-v6-c-button svg,
+.modified-file-actions .pf-v6-c-button .pf-v6-c-button__icon {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Icon colors for different button variants - PatternFly v6 */
+.modified-file-actions .pf-v6-c-button.pf-m-primary svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
+}
+
+.modified-file-actions .pf-v6-c-button.pf-m-danger svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
+}
+
+.modified-file-actions .pf-v6-c-button.pf-m-link svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
+}
+
+.vscode-dark .modified-file-actions .pf-v6-c-button.pf-m-link svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
+}
+
+/* Specific icon colors for Accept/Reject buttons */
+.modified-file-actions .main-accept-button .pf-v6-c-button__icon {
+  color: var(--vscode-editorGutter-addedBackground) !important;
+  fill: var(--vscode-editorGutter-addedBackground) !important;
+}
+
+.modified-file-actions .main-reject-button .pf-v6-c-button__icon {
+  color: var(--vscode-editorGutter-deletedBackground) !important;
+  fill: var(--vscode-editorGutter-deletedBackground) !important;
+}
+
+/* Hover states for Accept/Reject buttons */
+.modified-file-actions .main-accept-button:hover .pf-v6-c-button__icon {
+  color: #7cb305 !important; /* Lighter green for hover */
+  fill: #7cb305 !important;
+}
+
+.modified-file-actions .main-reject-button:hover .pf-v6-c-button__icon {
+  color: #b71c1c !important; /* Lighter red for hover */
+  fill: #b71c1c !important;
+}
+
+/* Force SVG colors in Accept/Reject button icons */
+.modified-file-actions .main-accept-button .pf-v6-c-button__icon svg {
+  color: var(--vscode-editorGutter-addedBackground) !important;
+  fill: var(--vscode-editorGutter-addedBackground) !important;
+}
+
+.modified-file-actions .main-reject-button .pf-v6-c-button__icon svg {
+  color: var(--vscode-editorGutter-deletedBackground) !important;
+  fill: var(--vscode-editorGutter-deletedBackground) !important;
+}
+
+/* Force SVG colors in Accept/Reject button icons on hover */
+.modified-file-actions .main-accept-button:hover .pf-v6-c-button__icon svg {
+  color: #7cb305 !important;
+  fill: #7cb305 !important;
+}
+
+.modified-file-actions .main-reject-button:hover .pf-v6-c-button__icon svg {
+  color: #b71c1c !important;
+  fill: #b71c1c !important;
+}
+
+/* Ensure all SVG icons are visible in PatternFly v6 buttons */
+.modified-file-actions .pf-v6-c-button svg {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-block !important;
+}
+
+/* Diff status banner styling */
+.diff-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-editorGutter-addedBackground);
+  border-radius: 6px;
+  color: var(--vscode-editor-foreground);
+  font-weight: 500;
+}
+
+.diff-status-banner .diff-status-icon {
+  color: var(--vscode-editorGutter-addedBackground);
+  fill: var(--vscode-editorGutter-addedBackground);
+}
+
+.continue-button {
+  margin-left: 12px;
+  color: var(--vscode-editorGutter-addedBackground) !important;
+}
+
+.continue-button:hover {
+  color: #7cb305 !important;
+}
+
+/* Use VS Code theme colors for general icons in dark theme (but not Accept/Reject buttons) */
+.vscode-dark
+  .modified-file-actions
+  .pf-v6-c-button:not(.main-accept-button):not(.main-reject-button)
+  svg {
+  color: var(--vscode-editor-foreground) !important;
+  fill: var(--vscode-editor-foreground) !important;
 }
 
 .quick-accept-button {

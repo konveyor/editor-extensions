@@ -58,7 +58,12 @@ export const useModifiedFileData = (
         status: data.status || null,
         content: data.content || "",
         messageToken: data.messageToken || "",
-        quickResponses: data.quickResponses,
+        quickResponses:
+          data.quickResponses &&
+          Array.isArray(data.quickResponses) &&
+          data.quickResponses.length > 0
+            ? data.quickResponses
+            : undefined,
         originalContent: data.originalContent || "",
       };
     } else if (isLocalChange(data)) {

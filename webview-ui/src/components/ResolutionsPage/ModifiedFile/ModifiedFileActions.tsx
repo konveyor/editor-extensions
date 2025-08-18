@@ -1,7 +1,15 @@
 import React from "react";
-import { Button, Flex, FlexItem } from "@patternfly/react-core";
-import { CheckCircleIcon, TimesCircleIcon, EyeIcon, ExpandIcon } from "@patternfly/react-icons";
+import { Button, Flex, FlexItem, Tooltip, Icon } from "@patternfly/react-core";
+import {
+  CheckCircleIcon,
+  TimesCircleIcon,
+  EyeIcon,
+  CodeIcon,
+  InfoCircleIcon,
+  ExclamationTriangleIcon,
+} from "@patternfly/react-icons";
 import { NormalizedFileData } from "./useModifiedFileData";
+import "./modifiedFileActions.css";
 
 interface ModifiedFileActionsProps {
   actionTaken: "applied" | "rejected" | null;
@@ -10,8 +18,10 @@ interface ModifiedFileActionsProps {
   onApply: () => void;
   onReject: () => void;
   onView: (path: string, diff: string) => void;
-  onExpandToggle: () => void;
+  onViewWithDecorations?: (path: string, diff: string) => void;
   onQuickResponse: (responseId: string) => void;
+  isFileApplied?: boolean;
+  onContinue?: () => void;
 }
 
 // Status Display Component
@@ -33,22 +43,87 @@ const StatusDisplay: React.FC<{ status: "applied" | "rejected" }> = ({ status })
   </Flex>
 );
 
-// Action Buttons Component
-const ActionButtons: React.FC<{
+// Status Banner - shown when viewing diff to guide user
+const DiffStatusBanner: React.FC<{ onApplyChanges: () => void }> = ({ onApplyChanges }) => (
+  <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentCenter" }}>
+    <FlexItem>
+      <div className="diff-status-banner">
+        <Icon status="warning">
+          <ExclamationTriangleIcon color="#b98412" />
+        </Icon>
+        <span>Reviewing changes in editor</span>
+        <Tooltip
+          content={
+            <div>
+              The file has opened in the editor to the right of this panel with inline diff
+              decorations.
+              <br />
+              <br />
+              <strong>To accept or reject changes:</strong>
+              <ul style={{ marginLeft: "20px", marginTop: "8px" }}>
+                <li>Use the CodeLens buttons at the top of the file to Accept/Reject All</li>
+                <li>Or use individual block buttons to accept/reject specific changes</li>
+                <li>Changes are auto-accepted when you save the file (Ctrl/Cmd+S)</li>
+              </ul>
+            </div>
+          }
+          position="bottom"
+        >
+          <Icon>
+            <InfoCircleIcon color="#4394e5" />
+          </Icon>
+        </Tooltip>
+        <Button variant="link" onClick={onApplyChanges} className="continue-button">
+          Continue
+        </Button>
+      </div>
+    </FlexItem>
+  </Flex>
+);
+
+// Primary Action Buttons Component
+const PrimaryActionButtons: React.FC<{
   isNew: boolean;
   mode: "agent" | "non-agent";
   actionTaken: "applied" | "rejected" | null;
   onView: () => void;
-  onExpandToggle: () => void;
+  onViewWithDecorations?: () => void;
   onApply: () => void;
   onReject: () => void;
-}> = ({ isNew, mode, actionTaken, onView, onExpandToggle, onApply, onReject }) => (
+  isViewingDiff?: boolean;
+}> = ({
+  isNew,
+  mode,
+  actionTaken,
+  onView,
+  onViewWithDecorations,
+  onApply,
+  onReject,
+  isViewingDiff,
+}) => (
   <Flex
     className="modified-file-actions"
     justifyContent={{ default: "justifyContentSpaceBetween" }}
   >
     <FlexItem>
       <Flex gap={{ default: "gapMd" }}>
+        {/* View with Decorations - Primary action for agent mode */}
+        {!isNew && onViewWithDecorations && (
+          <FlexItem>
+            <Button
+              variant="primary"
+              icon={<CodeIcon />}
+              onClick={onViewWithDecorations}
+              aria-label="Review file changes with inline diff decorations"
+              isDisabled={isViewingDiff || actionTaken !== null}
+              className="view-with-decorations-button"
+            >
+              {isViewingDiff ? "Viewing Diff..." : "Review Changes"}
+            </Button>
+          </FlexItem>
+        )}
+
+        {/* View in VSCode - Secondary action */}
         {!isNew && mode !== "agent" && (
           <FlexItem>
             <Button
@@ -56,52 +131,47 @@ const ActionButtons: React.FC<{
               icon={<EyeIcon />}
               onClick={onView}
               aria-label="View file in VSCode"
+              isDisabled={actionTaken !== null}
+              className="secondary-action-button"
             >
-              View
+              View in VSCode
             </Button>
           </FlexItem>
         )}
-        <FlexItem>
-          <Button
-            variant="link"
-            icon={<ExpandIcon />}
-            onClick={onExpandToggle}
-            aria-label="Review changes in detail"
-            isDisabled={actionTaken !== null}
-          >
-            Review Changes
-          </Button>
-        </FlexItem>
       </Flex>
     </FlexItem>
-    <FlexItem>
-      <Flex gap={{ default: "gapMd" }}>
-        <FlexItem>
-          <Button
-            variant="link"
-            icon={<CheckCircleIcon />}
-            onClick={onApply}
-            aria-label="Accept all changes"
-            className="main-accept-button"
-            isDisabled={actionTaken !== null}
-          >
-            Accept All Changes
-          </Button>
-        </FlexItem>
-        <FlexItem>
-          <Button
-            variant="link"
-            icon={<TimesCircleIcon />}
-            onClick={onReject}
-            aria-label="Reject all changes"
-            className="main-reject-button"
-            isDisabled={actionTaken !== null}
-          >
-            Reject All Changes
-          </Button>
-        </FlexItem>
-      </Flex>
-    </FlexItem>
+
+    {/* Accept/Reject buttons - only shown when not viewing diff */}
+    {!isViewingDiff && (
+      <FlexItem>
+        <Flex gap={{ default: "gapMd" }}>
+          <FlexItem>
+            <Button
+              variant="primary"
+              icon={<CheckCircleIcon />}
+              onClick={onApply}
+              aria-label="Accept all changes"
+              className="main-accept-button"
+              isDisabled={actionTaken !== null}
+            >
+              Accept All
+            </Button>
+          </FlexItem>
+          <FlexItem>
+            <Button
+              variant="danger"
+              icon={<TimesCircleIcon />}
+              onClick={onReject}
+              aria-label="Reject all changes"
+              className="main-reject-button"
+              isDisabled={actionTaken !== null}
+            >
+              Reject All
+            </Button>
+          </FlexItem>
+        </Flex>
+      </FlexItem>
+    )}
   </Flex>
 );
 
@@ -112,9 +182,10 @@ const QuickResponseButtons: React.FC<{
   mode: "agent" | "non-agent";
   actionTaken: "applied" | "rejected" | null;
   onView: () => void;
-  onExpandToggle: () => void;
   onQuickResponse: (responseId: string) => void;
-}> = ({ quickResponses, isNew, mode, actionTaken, onView, onExpandToggle, onQuickResponse }) => (
+  onApply: () => void;
+  onReject: () => void;
+}> = ({ quickResponses, isNew, mode, actionTaken, onView, onQuickResponse }) => (
   <Flex
     className="modified-file-actions"
     justifyContent={{ default: "justifyContentSpaceBetween" }}
@@ -128,26 +199,17 @@ const QuickResponseButtons: React.FC<{
               icon={<EyeIcon />}
               onClick={onView}
               aria-label="View file in VSCode"
+              className="secondary-action-button"
             >
               View
             </Button>
           </FlexItem>
         )}
-        <FlexItem>
-          <Button
-            variant="link"
-            icon={<ExpandIcon />}
-            onClick={onExpandToggle}
-            aria-label="Review changes in detail"
-            isDisabled={actionTaken !== null}
-          >
-            Review Changes
-          </Button>
-        </FlexItem>
       </Flex>
     </FlexItem>
     <FlexItem>
       <Flex gap={{ default: "gapMd" }}>
+        {/* Quick Response Buttons */}
         {quickResponses.map((response) => (
           <FlexItem key={response.id}>
             <Button
@@ -167,49 +229,69 @@ const QuickResponseButtons: React.FC<{
   </Flex>
 );
 
-// Main Actions Component
-export const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
+// Main Component
+const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   actionTaken,
   mode,
   normalizedData,
   onApply,
   onReject,
   onView,
-  onExpandToggle,
+  onViewWithDecorations,
   onQuickResponse,
+  isFileApplied,
+  onContinue,
 }) => {
-  const { status, quickResponses, messageToken, isNew, path, diff } = normalizedData;
+  const { isNew, quickResponses } = normalizedData;
 
-  // Show status if action has been taken
-  if (actionTaken || status) {
-    return <StatusDisplay status={(actionTaken || status)!} />;
+  // If action already taken, show status
+  if (actionTaken) {
+    return <StatusDisplay status={actionTaken} />;
   }
 
-  // Show quick response buttons if they exist
-  if (quickResponses && messageToken) {
+  // If viewing diff and in agent mode, show status banner
+  if (isFileApplied && mode === "agent") {
+    return (
+      <DiffStatusBanner
+        onApplyChanges={() => {
+          // Apply changes automatically (like the old Continue logic)
+          onContinue?.();
+        }}
+      />
+    );
+  }
+
+  // If quick responses available, show quick response buttons
+  if (quickResponses && quickResponses.length > 0) {
     return (
       <QuickResponseButtons
         quickResponses={quickResponses}
         isNew={isNew}
         mode={mode}
         actionTaken={actionTaken}
-        onView={() => onView(path, diff)}
-        onExpandToggle={onExpandToggle}
+        onView={() => onView(normalizedData.path, normalizedData.diff)}
         onQuickResponse={onQuickResponse}
+        onApply={onApply}
+        onReject={onReject}
       />
     );
   }
 
-  // Show default action buttons
+  // Default: show primary action buttons
   return (
-    <ActionButtons
+    <PrimaryActionButtons
       isNew={isNew}
       mode={mode}
       actionTaken={actionTaken}
-      onView={() => onView(path, diff)}
-      onExpandToggle={onExpandToggle}
+      onView={() => onView(normalizedData.path, normalizedData.diff)}
+      onViewWithDecorations={
+        onViewWithDecorations
+          ? () => onViewWithDecorations(normalizedData.path, normalizedData.diff)
+          : undefined
+      }
       onApply={onApply}
       onReject={onReject}
+      isViewingDiff={isFileApplied}
     />
   );
 };

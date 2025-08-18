@@ -69,6 +69,8 @@ export const getConfigMaxLLMQueries = (): number | undefined =>
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
 export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("kai.agentMode") ?? false;
+export const getConfigAutoAcceptOnSave = (): boolean =>
+  getConfigValue<boolean>("diff.autoAcceptOnSave") ?? true;
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("kai.excludedDiagnosticSources") ?? [];
 

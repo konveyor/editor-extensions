@@ -151,6 +151,8 @@ body {
   --pf-global--Color--200: #6a6e73;
   --pf-global--Color--dark-100: #f0f0f0;
   --pf-global--Color--dark-200: #b8bbbe;
+
+  --pf-global--warning-color--100: #b98412;
 }
 
 #root {

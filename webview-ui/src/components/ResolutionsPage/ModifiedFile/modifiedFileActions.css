@@ -1,0 +1,83 @@
+.diff-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--vscode-editor-lineHighlightBackground);
+  border: 1px solid var(--vscode-diffEditor-border);
+  border-radius: 4px;
+  width: 100%;
+}
+
+.diff-status-banner .pf-c-icon {
+  color: var(--vscode-editor-foreground);
+}
+
+.diff-status-banner span {
+  font-weight: 500;
+  color: var(--vscode-editor-foreground);
+}
+
+.diff-status-banner .continue-button {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.modified-file-actions {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.view-with-decorations-button {
+  min-width: 140px;
+}
+
+.main-accept-button,
+.main-reject-button,
+.quick-accept-button,
+.quick-reject-button {
+  min-width: 100px;
+}
+
+.secondary-action-button {
+  padding-left: 0;
+}
+.continue-button {
+  margin-left: 12px;
+  border: 1px solid var(--vscode-editorGutter-addedBackground);
+}
+
+/* Override PatternFly tooltip styles for dark mode support */
+.pf-v6-c-tooltip {
+  background-color: var(--vscode-editor-background) !important;
+  border: 1px solid var(--vscode-diffEditor-border) !important;
+  color: var(--vscode-editor-foreground) !important;
+}
+
+.pf-v6-c-tooltip__content {
+  background-color: var(--vscode-editor-background) !important;
+  color: var(--vscode-editor-foreground) !important;
+}
+
+.pf-v6-c-tooltip__arrow::before {
+  background-color: var(--vscode-editor-background) !important;
+  border-color: var(--vscode-diffEditor-border) !important;
+}
+
+/* Ensure tooltip text is readable */
+.pf-v6-c-tooltip strong {
+  color: var(--vscode-editor-foreground) !important;
+}
+
+.pf-v6-c-tooltip ul {
+  color: var(--vscode-editor-foreground) !important;
+}
+
+.pf-v6-c-tooltip li {
+  color: var(--vscode-editor-foreground) !important;
+}
+
+/* Fix tooltip text alignment */
+.pf-v6-c-tooltip__content {
+  text-align: left !important;
+}

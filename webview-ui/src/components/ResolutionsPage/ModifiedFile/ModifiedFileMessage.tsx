@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Card, CardBody, Button } from "@patternfly/react-core";
 import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
-import ModifiedFileModal from "./ModifiedFileModal";
 import ModifiedFileHeader from "./ModifiedFileHeader";
 import ModifiedFileDiffPreview from "./ModifiedFileDiffPreview";
 import ModifiedFileActions from "./ModifiedFileActions";
@@ -31,7 +30,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const normalizedData = useModifiedFileData(data);
   const { path, isNew, isDeleted, diff, status, content, messageToken, fileName } = normalizedData;
   const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(status || null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isViewingDiff, setIsViewingDiff] = useState(false);
 
   // Function to handle FILE_RESPONSE message posting (agent mode only)
   const postFileResponse = (
@@ -64,7 +63,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   const applyFile = (selectedContent?: string) => {
     setActionTaken("applied");
-    setIsExpanded(false);
+    setIsViewingDiff(false);
 
     // Use provided selected content or fall back to full content
     const contentToApply = selectedContent || content;
@@ -86,7 +85,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
 
   const rejectFile = () => {
     setActionTaken("rejected");
-    setIsExpanded(false);
+    setIsViewingDiff(false);
 
     if (mode === "agent") {
       // Agent mode: Use FILE_RESPONSE flow
@@ -128,14 +127,58 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     }
   };
 
-  const handleExpandToggle = () => {
-    setIsExpanded(!isExpanded);
+  const viewFileWithDecorations = (filePath: string, fileDiff: string) => {
+    // Prevent multiple applications
+    if (isViewingDiff) {
+      return;
+    }
+
+    setIsViewingDiff(true);
+
+    // Use the reliable vertical diff system
+    interface ShowDiffWithDecoratorsPayload {
+      path: string;
+      content: string;
+      diff: string;
+      messageToken: string;
+    }
+    const payload: ShowDiffWithDecoratorsPayload = {
+      path: filePath,
+      content: content,
+      diff: fileDiff,
+      messageToken: messageToken,
+    };
+    window.vscode.postMessage({
+      type: "SHOW_DIFF_WITH_DECORATORS",
+      payload,
+    });
   };
+
+  const handleContinue = () => {
+    // Mark as applied to continue the conversation flow
+    if (mode === "agent") {
+      postFileResponse("apply", messageToken, path, content);
+      // Trigger scroll after action in agent mode
+      onUserAction?.();
+    } else {
+      if (onApply && isLocalChange(data)) {
+        const modifiedChange: LocalChange = { ...data, content };
+        onApply(modifiedChange);
+      }
+    }
+    setActionTaken("applied");
+    setIsViewingDiff(false);
+  };
+
+
+
+
 
   // Handle quick response actions
   const handleQuickResponse = (responseId: string) => {
     const action = responseId === "apply" ? "applied" : "rejected";
     setActionTaken(action);
+    setIsViewingDiff(false);
 
     if (mode === "agent") {
       // Agent mode: Use FILE_RESPONSE flow
@@ -180,8 +223,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                   {actionTaken === "applied" ? "✓ Applied" : "✗ Rejected"}
                 </span>
                 <span className="modified-file-minimized-filename">
-                  {/* {isNew && "🆕 "}
-                  {isDeleted && "🗑️ "} */}
                   {fileName}
                 </span>
               </div>
@@ -220,23 +261,16 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               onApply={() => applyFile()}
               onReject={rejectFile}
               onView={viewFileInVSCode}
-              onExpandToggle={handleExpandToggle}
+              onViewWithDecorations={viewFileWithDecorations}
               onQuickResponse={handleQuickResponse}
+              isFileApplied={isViewingDiff}
+              onContinue={handleContinue}
             />
           </CardBody>
         </Card>
       </div>
 
-      {/* Expanded Modal View */}
-      <ModifiedFileModal
-        isOpen={isExpanded}
-        onClose={handleExpandToggle}
-        data={data}
-        actionTaken={actionTaken}
-        onApply={(selectedContent: string) => applyFile(selectedContent)}
-        onReject={rejectFile}
-        onUserAction={onUserAction}
-      />
+
     </>
   );
 };

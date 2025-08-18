@@ -10,7 +10,6 @@ export { ModifiedFileHeader } from "./ModifiedFileHeader";
 export { ModifiedFileModalHeader } from "./ModifiedFileModalHeader";
 export { SingleHunkDisplay } from "./SingleHunkDisplay";
 export { ModifiedFileMessage } from "./ModifiedFileMessage";
-export { ModifiedFileActions } from "./ModifiedFileActions";
 export { useModifiedFileData } from "./useModifiedFileData";
 
 // Theme utilities

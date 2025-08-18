@@ -231,23 +231,23 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to reject changes: ${error}`);
     }
   },
-  SHOW_MAXIMIZED_DIFF: async ({ path, _content, diff, messageToken }, state, logger) => {
-    // TODO: Implement new maximized diff view component
-    // This will replace the continue flow for agentic mode
-    // Should show a full-screen webview with:
-    // - File content with diff applied inline
-    // - Accept/Reject buttons that call FILE_RESPONSE
-    logger.info("SHOW_MAXIMIZED_DIFF - placeholder for new diff view", { path, messageToken });
-    // For now, fall back to old VIEW_FILE behavior
-    const change = {
-      originalUri: path,
-      modifiedUri: path,
-      diff: diff,
-      state: "pending",
-    };
-    return actions.VIEW_FILE({ path, change }, state, logger);
-  },
+  SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
+    try {
+      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
 
+      // Execute the command to show diff with decorations using streaming approach
+      await vscode.commands.executeCommand(
+        "konveyor.showDiffWithDecorations",
+        path,
+        diff,
+        content,
+        messageToken,
+      );
+    } catch (error) {
+      logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
+      vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
+    }
+  },
   VIEW_FILE: async ({ path, change }, state, logger) => {
     try {
       const uri = vscode.Uri.file(path);
@@ -487,7 +487,10 @@ const actions: {
       }
 
       // Normalize content for comparison (handle line endings and whitespace)
-      const normalize = (text: string) => text.replace(/\r\n/g, "\n").trim();
+      const normalize = (text: string) => {
+        // Use the same normalization approach as myers.ts
+        return text.replace(/\r\n/g, "\n").replace(/\n$/, ""); // Remove trailing newline for comparison
+      };
       const normalizedCurrent = normalize(currentText);
       const normalizedOriginal = normalize(originalContent);
       const normalizedSuggested = normalize(suggestedContent);
@@ -500,7 +503,6 @@ const actions: {
       logger.debug(`Path: ${path}`);
       logger.debug(`File isDirty: ${doc.isDirty}`);
       logger.debug(`Current content length: ${normalizedCurrent.length}`);
-      logger.debug(`Original content length: ${normalizedOriginal.length}`);
       logger.debug(`Suggested content length: ${normalizedSuggested.length}`);
       logger.debug(`Current === Suggested: ${normalizedCurrent === normalizedSuggested}`);
       logger.debug(`Current === Original: ${normalizedCurrent === normalizedOriginal}`);
