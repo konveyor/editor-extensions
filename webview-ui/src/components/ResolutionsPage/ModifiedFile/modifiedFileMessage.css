@@ -288,6 +288,33 @@
   display: inline-block !important;
 }
 
+/* Diff status banner styling */
+.diff-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-editorGutter-addedBackground);
+  border-radius: 6px;
+  color: var(--vscode-editor-foreground);
+  font-weight: 500;
+}
+
+.diff-status-banner .diff-status-icon {
+  color: var(--vscode-editorGutter-addedBackground);
+  fill: var(--vscode-editorGutter-addedBackground);
+}
+
+.continue-button {
+  margin-left: 12px;
+  color: var(--vscode-editorGutter-addedBackground) !important;
+}
+
+.continue-button:hover {
+  color: #7cb305 !important;
+}
+
 /* Use VS Code theme colors for general icons in dark theme (but not Accept/Reject buttons) */
 .vscode-dark
   .modified-file-actions

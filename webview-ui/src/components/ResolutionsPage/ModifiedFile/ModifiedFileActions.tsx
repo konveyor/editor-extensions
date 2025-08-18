@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, Flex, FlexItem } from "@patternfly/react-core";
-import { CheckCircleIcon, TimesCircleIcon, EyeIcon, CodeIcon, ArrowRightIcon } from "@patternfly/react-icons";
+import { CheckCircleIcon, TimesCircleIcon, EyeIcon, CodeIcon } from "@patternfly/react-icons";
 import { NormalizedFileData } from "./useModifiedFileData";
 
 interface ModifiedFileActionsProps {
@@ -35,20 +35,21 @@ const StatusDisplay: React.FC<{ status: "applied" | "rejected" }> = ({ status })
   </Flex>
 );
 
-// Continue Action - shown when file is applied via decorator but needs Continue
-const ContinueAction: React.FC<{
-  onContinue: () => void;
-}> = ({ onContinue }) => (
+// Status Banner - shown when viewing diff to guide user
+const DiffStatusBanner: React.FC<{ onApplyChanges: () => void }> = ({ onApplyChanges }) => (
   <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentCenter" }}>
     <FlexItem>
-      <Button
-        variant="primary"
-        icon={<ArrowRightIcon />}
-        onClick={onContinue}
-        aria-label="Continue to next step"
-      >
-        Continue
-      </Button>
+      <div className="diff-status-banner">
+        <CodeIcon className="diff-status-icon" />
+        <span>Reviewing changes - Accept or Reject to apply changes</span>
+        <Button
+          variant="link"
+          onClick={onApplyChanges}
+          className="continue-button"
+        >
+          Continue
+        </Button>
+      </div>
     </FlexItem>
   </Flex>
 );
@@ -212,9 +213,12 @@ const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
     return <StatusDisplay status={actionTaken} />;
   }
 
-  // If viewing diff and in agent mode, show continue button
-  if (isFileApplied && mode === "agent" && onContinue) {
-    return <ContinueAction onContinue={onContinue} />;
+  // If viewing diff and in agent mode, show status banner
+  if (isFileApplied && mode === "agent") {
+    return <DiffStatusBanner onApplyChanges={() => {
+      // Apply changes automatically (like the old Continue logic)
+      onContinue?.();
+    }} />;
   }
 
   // If quick responses available, show quick response buttons

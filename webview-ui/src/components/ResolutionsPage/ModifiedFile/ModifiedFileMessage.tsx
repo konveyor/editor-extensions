@@ -158,6 +158,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     // Mark as applied to continue the conversation flow
     if (mode === "agent") {
       postFileResponse("apply", messageToken, path, content);
+      // Trigger scroll after action in agent mode
       onUserAction?.();
     } else {
       if (onApply && isLocalChange(data)) {
@@ -166,7 +167,10 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
       }
     }
     setActionTaken("applied");
+    setIsViewingDiff(false);
   };
+
+
 
 
 
