@@ -83,13 +83,6 @@ await copy({
       dest: "dist/assets/opensource-labels-file",
     },
 
-    // seed assets - jdt.ls v1.38.0
-    {
-      context: "downloaded_assets/jdt.ls-1.38.0",
-      src: ["**/*", "!*.tar.gz"],
-      dest: "dist/assets/jdtls",
-    },
-
     // seed assets - kai binaries
     {
       context: "downloaded_assets/kai",

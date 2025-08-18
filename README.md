@@ -124,13 +124,9 @@ The extension requires a few assets to be downloaded and available to function. 
 the dev environment, or when packaging, the extension will download GitHub release asset and
 extract the necessary component.
 
-The core components needed to support the kai json-rpc server:
+The core components needed to support the extension are:
 
-- **kai json-rpc server** &rarr; The json-rpc server itself manages code analysis and creating
-  genAI solution.
-
-- **jdt.ls** &rarr; The [Java Language Server](https://github.com/eclipse-jdtls/eclipse.jdt.ls) used
-  by the analyzer.
+- **kai analyzer rpc server** &rarr; The json-rpc server manages source code analysis.
 
 - **jdt.ls bundle** &rarr; To support the use of jdt.ls by the analyzer, the
   [Konveyor java-analyzer-bundle](https://github.com/konveyor/java-analyzer-bundle) is used.
@@ -192,7 +188,6 @@ There are a few common ways to get your token:
   as the download source uses this as the source for the bearer token.
 
 - Open the [Tokens page](https://github.com/settings/tokens) on GitHub and generate a new token.
-
   - For new tokens, only the **Public repositories** "Read-only access to public repositories" access is needed.
 
   - For classic tokens, only the **public_repo** scope is needed.
@@ -218,6 +213,9 @@ Project workspaces:
 - [`webview-ui`](./webview-ui/) <br>
   Webview UI sources built with React and PatternFly. Vite is used to transpile and package
   the views.
+
+- [`agentic`](./agentic/) <br>
+  Contains the agentic workflows that support generating solutions.
 
 - [`test`](tests/) <br>
   End-to-end (E2E) tests built with Playwright.

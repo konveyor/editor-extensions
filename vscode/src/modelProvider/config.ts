@@ -35,6 +35,32 @@ export async function parseModelConfig(yamlUri: Uri): Promise<ParsedModelConfig>
   };
 }
 
+/**
+ * Returns a flat list of all key-values in the environment and config objects. Used to create debug archive.
+ */
+export function getProviderConfigKeys(
+  parsedConfig: ParsedModelConfig,
+): Array<{ key: string; value: any }> {
+  const flattenObject = (obj: any, prefix: string = ""): Array<{ key: string; value: any }> => {
+    const keyValuePairs: Array<{ key: string; value: any }> = [];
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        if (obj[key] !== null && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
+          keyValuePairs.push(...flattenObject(obj[key], fullKey));
+        } else {
+          // Add the leaf key and value
+          keyValuePairs.push({ key: fullKey, value: obj[key] });
+        }
+      }
+    }
+    return keyValuePairs;
+  };
+  const envKeyValues = flattenObject(parsedConfig.env, "env");
+  const configKeyValues = flattenObject(parsedConfig.config, "config");
+  return [...envKeyValues, ...configKeyValues];
+}
+
 export async function getModelProviderFromConfig(
   parsedConfig: ParsedModelConfig,
   logger: winston.Logger,

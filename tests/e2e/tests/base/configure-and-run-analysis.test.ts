@@ -1,7 +1,9 @@
+import * as pathlib from 'path';
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { OPENAI_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../../utilities/utils';
+import * as fs from 'fs/promises';
 
 test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
@@ -35,6 +37,35 @@ test.describe(`Configure extension and run analysis`, () => {
     await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
       timeout: 300000,
     });
+  });
+
+  test('Generate debug archive', async ({ testRepoData }) => {
+    await vscodeApp.executeQuickCommand('Konveyor: Generate Debug Archive');
+    await vscodeApp.waitDefault();
+    const zipPathInput = vscodeApp
+      .getWindow()
+      .getByPlaceholder('Enter the path where the debug archive will be saved');
+    expect(await zipPathInput.count()).toEqual(1);
+    await zipPathInput.fill(pathlib.join('.vscode', 'debug-archive.zip'));
+    await vscodeApp.getWindow().keyboard.press('Enter');
+    await vscodeApp.waitDefault();
+    const redactProviderConfigInput = vscodeApp
+      .getWindow()
+      .getByText(
+        'Select provider settings values you would like to include in the archive, all other values will be redacted'
+      );
+    expect(await redactProviderConfigInput.count()).toEqual(1);
+    await vscodeApp.getWindow().keyboard.press('Enter');
+    await vscodeApp.waitDefault();
+    const includeLLMTracesPrompt = vscodeApp.getWindow().getByText('Include LLM traces?');
+    if ((await includeLLMTracesPrompt.count()) === 1) {
+      await vscodeApp.getWindow().keyboard.press('Enter');
+      await vscodeApp.waitDefault();
+    }
+    const zipStat = await fs.stat(
+      pathlib.join(testRepoData['coolstore'].repoName, '.vscode', 'debug-archive.zip')
+    );
+    expect(zipStat.isFile()).toBe(true);
   });
 
   test('delete profile', async () => {

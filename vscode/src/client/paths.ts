@@ -7,9 +7,6 @@ export interface BaseAssetPaths {
   /** Base directory for the kai binaries */
   kai: string;
 
-  /** Base directory for the jdt.ls distribution to reference */
-  jdtls: string;
-
   /** Base directory that contains any number of jdt.ls bundles to be found and referenced */
   jdtlsBundles: string;
 
@@ -30,16 +27,6 @@ export interface AssetPaths extends BaseAssetPaths {
   kaiAnalyzer: string;
 
   /**
-   * The platform/arch correct internal kai rpc server binary path.
-   */
-  kaiRpcServer: string;
-
-  /**
-   * The platform/arch correct jdt.ls binary path.
-   */
-  jdtlsBin: string;
-
-  /**
    * The set of jar files globbed from the jdt.ls bundle root.
    */
   jdtlsBundleJars: string[];
@@ -56,7 +43,6 @@ export function buildAssetPaths(ctx: ExtensionContext): AssetPaths {
   const packageJson = ctx.extension.packageJSON;
   const assetPaths: BaseAssetPaths = {
     kai: "./kai",
-    jdtls: "./jdtls",
     jdtlsBundles: "./jdtls-bundles",
     fernFlowerPath: "./fernflower/fernflower.jar",
     openSourceLabelsFile: "./opensource-labels-file/maven.default.index",
@@ -74,15 +60,6 @@ export function buildAssetPaths(ctx: ExtensionContext): AssetPaths {
     `kai-analyzer-rpc${platform === "win32" ? ".exe" : ""}`,
   );
 
-  const kaiRpcServer = join(
-    assetPaths.kai,
-    `${platform}-${arch}`,
-    `kai-rpc-server${platform === "win32" ? ".exe" : ""}`,
-  );
-
-  // TODO(sdickers): bin/jdtls users python, so this may need to use a platform specific name
-  const jdtlsBin = join(assetPaths.jdtls, "bin", "jdtls");
-
   const jdtlsBundleJars = globbySync("**/*.jar", {
     cwd: assetPaths.jdtlsBundles,
     onlyFiles: true,
@@ -91,8 +68,6 @@ export function buildAssetPaths(ctx: ExtensionContext): AssetPaths {
   return {
     ...assetPaths,
     kaiAnalyzer,
-    kaiRpcServer,
-    jdtlsBin,
     jdtlsBundleJars,
   };
 }

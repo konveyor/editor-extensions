@@ -114,12 +114,6 @@
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.overrideKaiRpcServerBinaries",
-        "title": "Override Rpc Server Binary",
-        "category": "Konveyor",
-        "icon": "$(gear)"
-      },
-      {
         "command": "konveyor.configureCustomRules",
         "title": "Configure Custom Rules",
         "category": "Konveyor",
@@ -266,10 +260,10 @@
         "title": "Apply Selection"
       },
       {
-        "command": "konveyor.configureGetSolutionParams",
-        "title": "Configure getSolution Parameters",
+        "command": "konveyor.generateDebugArchive",
+        "title": "Generate Debug Archive",
         "category": "Konveyor",
-        "icon": "$(gear)"
+        "icon": "$(bug)"
       }
     ],
     "submenus": [
@@ -685,6 +679,7 @@
   "devDependencies": {
     "@types/diff": "^6.0.0",
     "@types/jsesc": "^3.0.3",
+    "@types/adm-zip": "^0.5.7",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.93.0",
     "@vscode/test-cli": "^0.0.10",
@@ -699,6 +694,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@types/mustache": "^4.2.5",
+    "adm-zip": "^0.5.16",
     "diff": "^7.0.0",
     "jsesc": "^3.1.0",
     "mustache": "^4.2.0",

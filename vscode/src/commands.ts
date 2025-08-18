@@ -1,3 +1,6 @@
+import AdmZip from "adm-zip";
+import * as pathlib from "path";
+import * as fs from "fs/promises";
 import { ExtensionState } from "./extensionState";
 import {
   window,
@@ -42,11 +45,11 @@ import {
 } from "./diffView";
 import {
   updateAnalyzerPath,
-  updateKaiRpcServerPath,
-  updateGetSolutionMaxDepth,
-  updateGetSolutionMaxIterations,
-  updateGetSolutionMaxPriority,
   getConfigAgentMode,
+  getAllConfigurationValues,
+  getWorkspaceRelativePath,
+  getTraceEnabled,
+  getTraceDir,
 } from "./utilities/configuration";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
@@ -58,6 +61,7 @@ import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 import type { Logger } from "winston";
+import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 
 const isWindows = process.platform === "win32";
 
@@ -568,42 +572,6 @@ const commandsMap: (
         window.showInformationMessage("No analyzer binary selected.");
       }
     },
-    "konveyor.overrideKaiRpcServerBinaries": async () => {
-      const options: OpenDialogOptions = {
-        canSelectMany: false,
-        openLabel: "Select Rpc Server Binary",
-        filters: isWindows
-          ? {
-              "Executable Files": ["exe"],
-              "All Files": ["*"],
-            }
-          : {
-              "All Files": ["*"],
-            },
-      };
-
-      const fileUri = await window.showOpenDialog(options);
-      if (fileUri && fileUri[0]) {
-        const filePath = fileUri[0].fsPath;
-
-        const isExecutable = await checkIfExecutable(filePath);
-        if (!isExecutable) {
-          window.showErrorMessage(
-            `The selected file "${filePath}" is not executable. Please select a valid executable file.`,
-          );
-          return;
-        }
-
-        // Update the user settings
-        await updateKaiRpcServerPath(filePath);
-
-        window.showInformationMessage(`Rpc server binary path updated to: ${filePath}`);
-      } else {
-        // Reset the setting to undefined or remove it
-        await updateKaiRpcServerPath(undefined);
-        window.showInformationMessage("No Kai rpc-server binary selected.");
-      }
-    },
     "konveyor.modelProviderSettingsOpen": async () => {
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
@@ -650,56 +618,148 @@ const commandsMap: (
     "konveyor.diffView.applySelection": applyBlock,
     "konveyor.diffView.applySelectionInline": applyBlock,
     "konveyor.partialAnalysis": async (filePaths: Uri[]) => runPartialAnalysis(state, filePaths),
-    "konveyor.configureGetSolutionParams": async () => {
-      const maxPriorityInput = await window.showInputBox({
-        prompt: "Enter max_priority for getSolution",
-        placeHolder: "0",
-        validateInput: (value) => {
-          return isNaN(Number(value)) ? "Please enter a valid number" : null;
+    "konveyor.generateDebugArchive": async () => {
+      const archiveRawPath = await window.showInputBox({
+        title: "Enter the path where the debug archive will be saved",
+        value: pathlib.join(
+          ".vscode",
+          `konveyor-log-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`,
+        ),
+        ignoreFocusOut: true,
+        placeHolder: "Enter the path where the debug archive will be saved",
+        validateInput: async (value) => {
+          if (!value) {
+            return "Path is required";
+          }
+          if (pathlib.extname(value) !== ".zip") {
+            return "Path must have a .zip extension";
+          }
+          return null;
         },
       });
-
-      if (maxPriorityInput === undefined) {
+      if (!archiveRawPath) {
+        window.showErrorMessage("No path provided");
         return;
       }
-
-      const maxPriority = Number(maxPriorityInput);
-
-      const maxDepthInput = await window.showInputBox({
-        prompt: "Enter max_depth for getSolution",
-        placeHolder: "0",
-        validateInput: (value) => {
-          return isNaN(Number(value)) ? "Please enter a valid number" : null;
-        },
-      });
-
-      if (maxDepthInput === undefined) {
+      const archivePath = getWorkspaceRelativePath(archiveRawPath, state.data.workspaceRoot);
+      if (!archivePath) {
+        window.showErrorMessage(`Invalid path: ${archiveRawPath}`);
         return;
       }
-
-      const maxDepth = Number(maxDepthInput);
-
-      const maxIterationsInput = await window.showInputBox({
-        prompt: "Enter max_iterations for getSolution",
-        placeHolder: "1",
-        validateInput: (value) => {
-          return isNaN(Number(value)) ? "Please enter a valid number" : null;
-        },
-      });
-
-      if (maxIterationsInput === undefined) {
-        return;
+      // redact provider config
+      let redactedProviderConfig: Record<string, any> = {};
+      const providerConfigPath = pathlib.join(pathlib.dirname(archivePath), `provider-config.json`);
+      let providerConfigWritten = false;
+      try {
+        const parsedConfig = await parseModelConfig(paths().settingsYaml);
+        const configuredKeys = getProviderConfigKeys(parsedConfig);
+        const unredactedKeys = await window.showQuickPick(
+          configuredKeys
+            .map((obj) => ({
+              label: obj.key,
+            }))
+            // all envs will be redacted no matter what
+            .filter((item) => !item.label.startsWith("env.")),
+          {
+            title:
+              "Select provider settings values you would like to include in the archive, all other values will be redacted",
+            canPickMany: true,
+            ignoreFocusOut: true,
+          },
+        );
+        const unredactedKeySet = new Set((unredactedKeys || []).map((item) => item.label));
+        redactedProviderConfig = configuredKeys.reduce(
+          (acc, keyValue) => {
+            acc[keyValue.key] = unredactedKeySet.has(keyValue.key) ? keyValue.value : "<redacted>";
+            return acc;
+          },
+          {} as Record<string, any>,
+        );
+        await fs.writeFile(
+          providerConfigPath,
+          JSON.stringify(redactedProviderConfig, null, 2),
+          "utf8",
+        );
+        providerConfigWritten = true;
+      } catch (err) {
+        window.showInformationMessage(
+          `Failed to parse provider settings file. Archive will not include provider settings.`,
+        );
+        logger.error("Failed to parse provider settings file", { error: err });
       }
-
-      const maxIterations = Number(maxIterationsInput);
-
-      await updateGetSolutionMaxPriority(maxPriority);
-      await updateGetSolutionMaxDepth(maxDepth);
-      await updateGetSolutionMaxIterations(maxIterations);
-
-      window.showInformationMessage(
-        `getSolution parameters updated: max_priority=${maxPriority}, max_depth=${maxDepth}, max_iterations=${maxIterations}`,
+      // get extension config
+      const extensionConfigPath = pathlib.join(
+        pathlib.dirname(archivePath),
+        `extension-config.json`,
       );
+      let extensionConfigWritten = false;
+      try {
+        await fs.writeFile(
+          extensionConfigPath,
+          JSON.stringify(getAllConfigurationValues(), null, 2),
+          "utf8",
+        );
+        extensionConfigWritten = true;
+      } catch (err) {
+        window.showInformationMessage(
+          `Failed to get extension configuration. Archive will not include extension configuration.`,
+        );
+        logger.error("Failed to get extension configuration", { error: err });
+      }
+      // add traces dir if it exists
+      const traceDir = getTraceDir(state.data.workspaceRoot);
+      let traceDirFound = false;
+      let includeLLMTraces: string | undefined = "No";
+      try {
+        if (getTraceEnabled() && traceDir) {
+          const traceStat = await fs.stat(traceDir);
+          if (traceStat.isDirectory()) {
+            includeLLMTraces = await window.showQuickPick(["Yes", "No"], {
+              title: "Include LLM traces?",
+              ignoreFocusOut: true,
+            });
+            traceDirFound = true;
+          }
+        }
+      } catch (err) {
+        logger.error("Error getting trace directory", { error: err });
+        window.showInformationMessage(
+          `Failed to get trace directory. Archive will not include LLM traces.`,
+        );
+      }
+      // add logs and write zip
+      try {
+        const zipArchive = new AdmZip();
+        if (traceDirFound && includeLLMTraces === "Yes") {
+          zipArchive.addLocalFolder(traceDir as string);
+        }
+        if (providerConfigWritten) {
+          zipArchive.addLocalFile(providerConfigPath);
+        }
+        if (extensionConfigWritten) {
+          zipArchive.addLocalFile(extensionConfigPath);
+        }
+        await fs.mkdir(pathlib.dirname(archivePath), {
+          recursive: true,
+        });
+        await zipArchive.writeZipPromise(archivePath);
+        window.showInformationMessage(`Debug archive created at: ${archivePath}`);
+      } catch (error) {
+        logger.error("Error generating debug archive", { error, archivePath });
+        window.showErrorMessage(
+          `Failed to generate debug archive: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      try {
+        await fs.unlink(providerConfigPath);
+        await fs.unlink(extensionConfigPath);
+      } catch (error) {
+        logger.error("Error cleaning up temporary files", {
+          error,
+          providerConfigPath,
+          extensionConfigPath,
+        });
+      }
     },
   };
 };

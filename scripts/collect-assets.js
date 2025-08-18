@@ -4,7 +4,6 @@ import { join } from "path";
 import { cwdToProjectRoot, ensureDirs, parseCli } from "./_util.js";
 import {
   downloadAndExtractGitHubReleaseSourceCode,
-  downloadAndExtractTarGz,
   downloadGitHubReleaseAssets,
   downloadWorkflowArtifactsAndExtractAssets,
 } from "./_download.js";
@@ -87,7 +86,7 @@ const actions = [
       sourceDirectory: join(DOWNLOAD_CACHE, "assets"),
       targetDirectory: ({ platform, arch }) => join(DOWNLOAD_DIR, "kai", `${platform}-${arch}`),
 
-      globs: ["kai-analyzer-rpc*", "kai-rpc-server*"],
+      globs: ["kai-analyzer-rpc*"],
       assets: [
         { name: "kai-rpc-server.linux-x86_64.zip", platform: "linux", arch: "x64", chmod: true },
         { name: "kai-rpc-server.linux-aarch64.zip", platform: "linux", arch: "arm64", chmod: true },
@@ -138,18 +137,6 @@ const actions = [
 
       globs: ["*.jar"],
       assets: [{ name: "kai-rpc-server.linux-x86_64.zip" }],
-    }),
-  }),
-
-  // Download and extract `jdt.ls`
-  // Base release url: https://download.eclipse.org/jdtls/milestones/1.38.0/
-  async () => ({
-    id: "jdt.ls",
-    meta: await downloadAndExtractTarGz({
-      downloadDirectory: join(DOWNLOAD_CACHE, "assets"),
-      targetDirectory: join(DOWNLOAD_DIR, "jdt.ls-1.38.0"),
-      url: "https://download.eclipse.org/jdtls/milestones/1.38.0/jdt-language-server-1.38.0-202408011337.tar.gz",
-      sha256: "ba697788a19f2ba57b16302aba6b343c649928c95f76b0d170494ac12d17ac78",
     }),
   }),
 ];

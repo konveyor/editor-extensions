@@ -291,10 +291,6 @@ class VsCodeExtension {
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           this.state.logger.info("Configuration modified!");
-
-          if (event.affectsConfiguration("konveyor.kai.getSolutionMaxEffort")) {
-            this.state.logger.info("Effort modified!");
-          }
           if (event.affectsConfiguration("konveyor.kai.agentMode")) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
