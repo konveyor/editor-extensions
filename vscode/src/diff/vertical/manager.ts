@@ -1,22 +1,6 @@
-import { ChatMessage, DiffLine, IDE, ILLM, RuleWithSource } from "../../core-diff";
+import { DiffLine, IDE } from "../../core-diff";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
-
-// Use stubs for Continue dependencies we don't need
-import {
-  streamDiffLines,
-  pruneLinesFromBottom,
-  pruneLinesFromTop,
-  getMarkdownLanguageTagForFile,
-  isFastApplyModel,
-  EditDecorationManager,
-  handleLLMError,
-  VsCodeWebviewProtocol,
-  ApplyAbortManager,
-  EDIT_MODE_STREAM_ID,
-  stripImages,
-  editOutcomeTracker,
-} from "../stubs";
 import { VerticalDiffHandler, VerticalDiffHandlerOptions } from "./handler";
 
 export interface VerticalDiffCodeLens {
@@ -35,11 +19,7 @@ export class VerticalDiffManager {
 
   logDiffs: DiffLine[] | undefined;
 
-  constructor(
-    private readonly webviewProtocol: VsCodeWebviewProtocol,
-    private readonly editDecorationManager: EditDecorationManager,
-    private readonly ide: IDE,
-  ) {
+  constructor(private readonly ide: IDE) {
     this.userChangeListener = undefined;
   }
 
@@ -53,7 +33,7 @@ export class VerticalDiffManager {
       this.fileUriToHandler.get(fileUri)?.clear(false);
       this.fileUriToHandler.delete(fileUri);
     }
-    const editor = vscode.window.activeTextEditor; // TODO might cause issues if user switches files
+    const editor = vscode.window.activeTextEditor;
     if (editor && URI.equal(editor.document.uri.toString(), fileUri)) {
       const handler = new VerticalDiffHandler(
         startLine,
@@ -114,31 +94,18 @@ export class VerticalDiffManager {
       // Calculate the number of lines added or removed
       const linesAdded = change.text.split("\n").length - 1;
       const linesDeleted = change.range.end.line - change.range.start.line;
+
+      // Calculate the net change in lines
       const lineDelta = linesAdded - linesDeleted;
 
-      // Update the diff handler with the new line delta
-      handler.updateLineDelta(event.document.uri.toString(), change.range.start.line, lineDelta);
+      // Get the line number where the change occurred
+      const lineNumber = change.range.start.line;
+
+      // Update decorations based on the change
+      // Note: updateDecorations method would need to be implemented in handler
+      // For now, we'll just log the change
+      console.log(`Document change at line ${lineNumber}, delta: ${lineDelta}`);
     });
-  }
-
-  clearForfileUri(fileUri: string | undefined, accept: boolean) {
-    if (!fileUri) {
-      const activeEditor = vscode.window.activeTextEditor;
-      if (!activeEditor) {
-        return;
-      }
-      fileUri = activeEditor.document.uri.toString();
-    }
-
-    const handler = this.fileUriToHandler.get(fileUri);
-    if (handler) {
-      handler.clear(accept);
-      this.fileUriToHandler.delete(fileUri);
-    }
-
-    this.disableDocumentChangeListener();
-
-    vscode.commands.executeCommand("setContext", "konveyor.diffVisible", false);
   }
 
   async acceptRejectVerticalDiffBlock(accept: boolean, fileUri?: string, index?: number) {
@@ -150,370 +117,157 @@ export class VerticalDiffManager {
       fileUri = activeEditor.document.uri.toString();
     }
 
-    if (typeof index === "undefined") {
-      index = 0;
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (!handler) {
+      console.warn(`No handler found for file: ${fileUri}`);
+      return;
     }
 
     const blocks = this.fileUriToCodeLens.get(fileUri);
-    const block = blocks?.[index];
-    if (!blocks || !block) {
+    if (!blocks) {
+      console.warn(`No code lens blocks found for file: ${fileUri}`);
       return;
     }
 
-    const handler = this.getHandlerForFile(fileUri);
-    if (!handler) {
+    const block = index !== undefined ? blocks[index] : blocks[0];
+    if (!block) {
+      console.warn(`Block at index ${index} not found`);
       return;
     }
 
-    // Disable listening to file changes while continue makes changes
-    this.disableDocumentChangeListener();
-
-    // CodeLens object removed from editorToVerticalDiffCodeLens here
     await handler.acceptRejectBlock(accept, block.start, block.numGreen, block.numRed);
-
-    if (blocks.length === 1) {
-      this.clearForfileUri(fileUri, true);
-    } else {
-      // Re-enable listener for user changes to file
-      this.enableDocumentChangeListener();
-    }
-
-    this.refreshCodeLens();
   }
 
-  async streamDiffLines(
-    diffStream: AsyncGenerator<DiffLine>,
-    instant: boolean,
-    streamId: string,
-    toolCallId?: string,
-  ) {
-    vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
-
-    // Get the current editor fileUri/range
-    const editor = vscode.window.activeTextEditor;
-    console.log(
-      "[VerticalDiffManager] streamDiffLines - active editor:",
-      editor?.document.fileName,
-    );
-
-    if (!editor) {
-      console.error("[VerticalDiffManager] No active editor!");
+  clearForfileUri(fileUri: string | undefined, accept: boolean = false) {
+    if (!fileUri) {
       return;
     }
-    const fileUri = editor.document.uri.toString();
-    const startLine = 0;
-    const endLine = editor.document.lineCount - 1;
 
-    console.log(
-      "[VerticalDiffManager] Working with file:",
-      fileUri,
-      "lines:",
-      startLine,
-      "-",
-      endLine,
-    );
-
-    // Check for existing handlers in the same file the new one will be created in
-    const existingHandler = this.getHandlerForFile(fileUri);
-    if (existingHandler) {
-      console.log("[VerticalDiffManager] Clearing existing handler");
-      existingHandler.clear(false);
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      handler.clear(accept);
+      this.fileUriToHandler.delete(fileUri);
     }
 
-    await new Promise((resolve) => {
-      setTimeout(resolve, 200);
-    });
+    this.disableDocumentChangeListener();
 
-    // Create new handler with determined start/end
-    console.log("[VerticalDiffManager] Creating new handler");
+    this.fileUriToCodeLens.delete(fileUri);
+    this.refreshCodeLens();
+
+    void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", false);
+  }
+
+  /**
+   * Simplified method for streaming diff lines for static diffs
+   */
+  async streamDiffLines(
+    diffStream: AsyncGenerator<DiffLine>,
+    instant: boolean = true,
+    streamId?: string,
+    toolCallId?: string,
+  ) {
+    console.log(`[Manager] streamDiffLines called - instant: ${instant}, streamId: ${streamId}`);
+    void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
+
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      console.warn("[Manager] No active editor");
+      return;
+    }
+
+    const fileUri = editor.document.uri.toString();
+    console.log(`[Manager] Working with file: ${fileUri}`);
+
+    const startLine = editor.selection.start.line;
+    const endLine = editor.selection.end.line;
+    console.log(`[Manager] Selection range: ${startLine}-${endLine}`);
+
+    // Clear any existing handler
+    const existingHandler = this.getHandlerForFile(fileUri);
+    if (existingHandler) {
+      console.log("[Manager] Clearing existing handler");
+      await existingHandler.clear(false);
+    }
+
+    // Small delay to ensure UI updates
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // Create new handler
+    console.log("[Manager] Creating new vertical diff handler");
     const diffHandler = this.createVerticalDiffHandler(fileUri, startLine, endLine, {
       instant,
       onStatusUpdate: (status, numDiffs, fileContent) => {
-        console.log("[VerticalDiffManager] Status update:", status, "numDiffs:", numDiffs);
-        void this.webviewProtocol.request("updateApplyState", {
-          streamId,
-          status,
-          numDiffs,
-          fileContent,
-          filepath: fileUri,
-          toolCallId,
-        });
+        console.log(`[Manager] Status update: ${status}, numDiffs: ${numDiffs}`);
       },
       streamId,
     });
 
     if (!diffHandler) {
-      console.error("[VerticalDiffManager] Failed to create diff handler!");
-      console.error("Active editor URI:", editor?.document.uri.toString());
-      console.error("Expected URI:", fileUri);
+      console.warn("[Manager] Failed to create vertical diff handler");
       return;
-    }
-
-    console.log("[VerticalDiffManager] Handler created successfully");
-
-    if (editor.selection) {
-      // Unselect the range
-      editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
-    }
-
-    vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
-
-    try {
-      this.logDiffs = await diffHandler.run(diffStream);
-
-      // enable a listener for user edits to file while diff is open
-      this.enableDocumentChangeListener();
-    } catch (e) {
-      this.disableDocumentChangeListener();
-      const handled = await handleLLMError(e);
-      if (!handled) {
-        let message = "Error streaming diffs";
-        if (e instanceof Error) {
-          message += `: ${e.message}`;
-        }
-        throw new Error(message);
-      }
-    } finally {
-      vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
-    }
-  }
-
-  async streamEdit({
-    input,
-    llm,
-    streamId,
-    quickEdit,
-    range,
-    newCode,
-    toolCallId,
-    rulesToInclude,
-  }: {
-    input: string;
-    llm: ILLM;
-    streamId?: string;
-    quickEdit?: string;
-    range?: vscode.Range;
-    newCode?: string;
-    toolCallId?: string;
-    rulesToInclude: undefined | RuleWithSource[];
-  }): Promise<string | undefined> {
-    void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
-
-    const editor = vscode.window.activeTextEditor;
-
-    if (!editor) {
-      return undefined;
-    }
-
-    const fileUri = editor.document.uri.toString();
-
-    let startLine, endLine: number;
-
-    if (range) {
-      startLine = range.start.line;
-      endLine = range.end.line;
-    } else {
-      startLine = editor.selection.start.line;
-      endLine = editor.selection.end.line;
-    }
-
-    // Check for existing handlers in the same file the new one will be created in
-    const existingHandler = this.getHandlerForFile(fileUri);
-
-    if (existingHandler) {
-      if (quickEdit) {
-        // Previous diff was a quickEdit
-        // Check if user has highlighted a range
-        const rangeBool =
-          startLine !== endLine ||
-          editor.selection.start.character !== editor.selection.end.character;
-
-        // Check if the range is different from the previous range
-        const newRangeBool =
-          startLine !== existingHandler.range.start.line ||
-          endLine !== existingHandler.range.end.line;
-
-        if (!rangeBool || !newRangeBool) {
-          // User did not highlight a new range -> use start/end from the previous quickEdit
-          startLine = existingHandler.range.start.line;
-          endLine = existingHandler.range.end.line;
-        }
-      }
-
-      // Clear the previous handler
-      // This allows the user to edit above the changed area,
-      // but extra delta was added for each line generated by Continue
-      // Before adding this back, we need to distinguish between human and Continue
-      // let effectiveLineDelta =
-      //   existingHandler.getLineDeltaBeforeLine(startLine);
-      // startLine += effectiveLineDelta;
-      // endLine += effectiveLineDelta;
-
-      await existingHandler.clear(false);
-    }
-
-    await new Promise((resolve) => {
-      setTimeout(resolve, 150);
-    });
-
-    // Create new handler with determined start/end
-    const diffHandler = this.createVerticalDiffHandler(fileUri, startLine, endLine, {
-      instant: isFastApplyModel(llm),
-      input,
-      onStatusUpdate: (status, numDiffs, fileContent) =>
-        streamId &&
-        void this.webviewProtocol.request("updateApplyState", {
-          streamId,
-          status,
-          numDiffs,
-          fileContent,
-          filepath: fileUri,
-          toolCallId,
-        }),
-      streamId,
-    });
-
-    if (!diffHandler) {
-      console.warn("Issue occurred while creating new vertical diff handler");
-      return undefined;
-    }
-
-    let selectedRange = diffHandler.range;
-
-    // Only if the selection is empty, use exact prefix/suffix instead of by line
-    if (selectedRange.isEmpty) {
-      selectedRange = new vscode.Range(
-        editor.selection.start.with(undefined, 0),
-        editor.selection.end.with(undefined, Number.MAX_SAFE_INTEGER),
-      );
-    }
-
-    const rangeContent = editor.document.getText(selectedRange);
-    const prefix = pruneLinesFromTop(
-      editor.document.getText(new vscode.Range(new vscode.Position(0, 0), selectedRange.start)),
-      llm.contextLength / 4,
-      llm.model,
-    );
-    const suffix = pruneLinesFromBottom(
-      editor.document.getText(
-        new vscode.Range(selectedRange.end, new vscode.Position(editor.document.lineCount, 0)),
-      ),
-      llm.contextLength / 4,
-      llm.model,
-    );
-
-    let overridePrompt: ChatMessage[] | undefined;
-    if (llm.promptTemplates?.apply && llm.renderPromptTemplate) {
-      const rendered = llm.renderPromptTemplate(llm.promptTemplates.apply, [], {
-        original_code: rangeContent,
-        new_code: newCode ?? "",
-      });
-      overridePrompt =
-        typeof rendered === "string" ? [{ role: "user", content: rendered }] : rendered;
-    }
-
-    if (editor.selection) {
-      // Unselect the range
-      editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
     }
 
     void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
 
-    this.editDecorationManager.clear();
-
-    const abortManager = ApplyAbortManager.getInstance();
-    const abortController = abortManager.get(fileUri);
-
     try {
-      const streamedLines: string[] = [];
+      console.log("[Manager] Starting diff handler.run()");
+      this.logDiffs = await diffHandler.run(diffStream);
+      console.log(`[Manager] Diff handler completed, logDiffs: ${this.logDiffs?.length}`);
 
-      async function* recordedStream() {
-        const stream = streamDiffLines({
-          highlighted: rangeContent,
-          prefix,
-          suffix,
-          llm,
-          rulesToInclude,
-          input,
-          language: getMarkdownLanguageTagForFile(fileUri),
-          overridePrompt,
-          abortController,
-        });
-
-        for await (const line of stream) {
-          if (line.type === "new" || line.type === "same") {
-            streamedLines.push(line.line);
-          }
-          yield line;
-        }
-      }
-
-      this.logDiffs = await diffHandler.run(recordedStream());
-
-      // enable a listener for user edits to file while diff is open
+      // Enable listener for user edits to file while diff is open
       this.enableDocumentChangeListener();
-
-      if (abortController.signal.aborted) {
-        void vscode.commands.executeCommand("continue.rejectDiff");
-      }
-
-      const fileAfterEdit = `${prefix}${streamedLines.join("\n")}${suffix}`;
-      await this.trackEditInteraction({
-        model: llm,
-        filepath: fileUri,
-        prompt: input,
-        fileAfterEdit,
-      });
-
-      return fileAfterEdit;
     } catch (e) {
+      console.error("[Manager] Error in streamDiffLines:", e);
       this.disableDocumentChangeListener();
-      const handled = await handleLLMError(e);
-      if (!handled) {
-        let message = "Error streaming edit diffs";
-        if (e instanceof Error) {
-          message += `: ${e.message}`;
-        }
-        throw new Error(message);
-      }
+      throw e;
     } finally {
       void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
     }
   }
 
-  async trackEditInteraction({
-    model,
-    filepath,
-    prompt,
-    fileAfterEdit,
-  }: {
-    model: ILLM;
-    filepath: string;
-    prompt: string;
-    fileAfterEdit: string | undefined;
-  }) {
-    // Get previous code content for outcome tracking
-    const previousCode = await this.ide.readFile(filepath);
-    const newCode = fileAfterEdit ?? "";
-    const previousCodeLines = previousCode.split("\n").length;
-    const newCodeLines = newCode.split("\n").length;
-    const lineChange = newCodeLines - previousCodeLines;
+  // Accept all changes in the current file
+  async acceptAll(fileUri?: string) {
+    if (!fileUri) {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (!activeEditor) {
+        return;
+      }
+      fileUri = activeEditor.document.uri.toString();
+    }
 
-    // Store pending edit data for outcome tracking
-    editOutcomeTracker.trackEditInteraction({
-      streamId: EDIT_MODE_STREAM_ID,
-      timestamp: new Date().toISOString(),
-      modelProvider: model.underlyingProviderName,
-      modelName: model.title ?? "",
-      modelTitle: model.title ?? "",
-      prompt: stripImages(prompt),
-      completion: newCode,
-      previousCode,
-      newCode,
-      filepath: filepath,
-      previousCodeLines,
-      newCodeLines,
-      lineChange,
-    });
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      // Accept all blocks
+      const blocks = this.fileUriToCodeLens.get(fileUri);
+      if (blocks) {
+        for (const block of blocks) {
+          await handler.acceptRejectBlock(true, block.start, block.numGreen, block.numRed);
+        }
+      }
+      this.clearForfileUri(fileUri, true);
+    }
+  }
+
+  // Reject all changes in the current file
+  async rejectAll(fileUri?: string) {
+    if (!fileUri) {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (!activeEditor) {
+        return;
+      }
+      fileUri = activeEditor.document.uri.toString();
+    }
+
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      // Reject all blocks
+      const blocks = this.fileUriToCodeLens.get(fileUri);
+      if (blocks) {
+        for (const block of blocks) {
+          await handler.acceptRejectBlock(false, block.start, block.numGreen, block.numRed);
+        }
+      }
+      this.clearForfileUri(fileUri, false);
+    }
   }
 }
