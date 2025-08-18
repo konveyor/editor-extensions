@@ -60,6 +60,7 @@ import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 // Removed SimpleDiffManager imports - replaced with vertical diff system
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
+import { testDecorations } from "./diff/testDecorations";
 import type { Logger } from "winston";
 
 const isWindows = process.platform === "win32";
@@ -789,6 +790,9 @@ const commandsMap: (
       }
     },
 
+    "konveyor.testDecorations": () => {
+      testDecorations();
+    },
     "konveyor.clearDiffDecorations": async (filePath?: string) => {
       try {
         if (filePath) {

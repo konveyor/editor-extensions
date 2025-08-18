@@ -103,14 +103,17 @@ export class StaticDiffAdapter {
       // Convert unified diff to DiffLine array
       const diffLines = this.parseUnifiedDiffToDiffLines(unifiedDiff, originalContent);
 
-      // Open the file
+      // Open the file and ensure it's the active editor
       const uri = vscode.Uri.file(filePath);
       const document = await vscode.workspace.openTextDocument(uri);
-      await vscode.window.showTextDocument(document, {
+      const editor = await vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.Two,
         preview: false,
-        preserveFocus: true,
+        preserveFocus: false, // Changed to false to ensure the editor becomes active
       });
+
+      // Small delay to ensure editor is fully active
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Calculate affected range from diff
       let _startLine = 0;
@@ -136,12 +139,21 @@ export class StaticDiffAdapter {
 
       // Use VerticalDiffManager to handle the diff
       // The streamId is the messageToken for tracking
+      console.log("[StaticDiffAdapter] Starting streamDiffLines with", {
+        filePath,
+        messageToken,
+        diffLinesCount: diffLines.length,
+        activeEditor: vscode.window.activeTextEditor?.document.fileName,
+      });
+
       await this.verticalDiffManager.streamDiffLines(
         diffStream,
         true, // instant mode for static diffs
         messageToken, // use messageToken as streamId
         undefined, // no toolCallId for static diffs
       );
+
+      console.log("[StaticDiffAdapter] streamDiffLines completed");
     } catch (error) {
       console.error("Failed to apply static diff:", error);
       throw error;

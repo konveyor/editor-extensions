@@ -85,7 +85,7 @@ export class VerticalDiffHandler implements vscode.Disposable {
   }
 
   async clear(accept: boolean) {
-    vscode.commands.executeCommand("setContext", "continue.streamingDiff", false);
+    vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
 
     const removedRanges = this.removedLineDecorations.ranges;
     if (accept) {
@@ -120,13 +120,20 @@ export class VerticalDiffHandler implements vscode.Disposable {
   async queueDiffLine(diffLine: DiffLine | undefined) {
     if (diffLine) {
       this._diffLinesQueue.push(diffLine);
+      console.log(
+        `[Handler] Queued diff line: ${diffLine.type}, queue size: ${this._diffLinesQueue.length}`,
+      );
     }
 
     if (this._queueLock || this.editor !== vscode.window.activeTextEditor) {
+      console.log(
+        `[Handler] Queue locked or editor not active. Lock: ${this._queueLock}, Active: ${this.editor === vscode.window.activeTextEditor}`,
+      );
       return;
     }
 
     this._queueLock = true;
+    console.log(`[Handler] Processing queue with ${this._diffLinesQueue.length} lines`);
 
     while (this._diffLinesQueue.length) {
       const line = this._diffLinesQueue.shift();
@@ -356,6 +363,9 @@ export class VerticalDiffHandler implements vscode.Disposable {
   }
 
   private async insertDeletionBuffer() {
+    console.log(
+      `[Handler] insertDeletionBuffer called - buffer: ${this.deletionBuffer.length}, insertedInBlock: ${this.insertedInCurrentBlock}`,
+    );
     if (this.deletionBuffer.length || this.insertedInCurrentBlock > 0) {
       const blocks = this.editorToVerticalDiffCodeLens.get(this.fileUri) || [];
 
@@ -379,6 +389,9 @@ export class VerticalDiffHandler implements vscode.Disposable {
       "\n".repeat(this.deletionBuffer.length - 1),
     );
 
+    console.log(
+      `[Handler] Adding removed line decorations at line ${this.currentLineIndex - this.insertedInCurrentBlock} for ${this.deletionBuffer.length} lines`,
+    );
     this.removedLineDecorations.addLines(
       this.currentLineIndex - this.insertedInCurrentBlock,
       this.deletionBuffer,
@@ -483,6 +496,10 @@ export class VerticalDiffHandler implements vscode.Disposable {
   }
 
   private async _handleDiffLine(diffLine: DiffLine) {
+    console.log(
+      `[Handler] Handling diff line: type=${diffLine.type}, currentIndex=${this.currentLineIndex}, line="${diffLine.line.substring(0, 30)}..."`,
+    );
+
     switch (diffLine.type) {
       case "same":
         await this.insertDeletionBuffer();

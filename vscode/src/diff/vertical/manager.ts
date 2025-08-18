@@ -138,7 +138,7 @@ export class VerticalDiffManager {
 
     this.disableDocumentChangeListener();
 
-    vscode.commands.executeCommand("setContext", "continue.diffVisible", false);
+    vscode.commands.executeCommand("setContext", "konveyor.diffVisible", false);
   }
 
   async acceptRejectVerticalDiffBlock(accept: boolean, fileUri?: string, index?: number) {
@@ -187,20 +187,36 @@ export class VerticalDiffManager {
     streamId: string,
     toolCallId?: string,
   ) {
-    vscode.commands.executeCommand("setContext", "continue.diffVisible", true);
+    vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
 
     // Get the current editor fileUri/range
     const editor = vscode.window.activeTextEditor;
+    console.log(
+      "[VerticalDiffManager] streamDiffLines - active editor:",
+      editor?.document.fileName,
+    );
+
     if (!editor) {
+      console.error("[VerticalDiffManager] No active editor!");
       return;
     }
     const fileUri = editor.document.uri.toString();
     const startLine = 0;
     const endLine = editor.document.lineCount - 1;
 
+    console.log(
+      "[VerticalDiffManager] Working with file:",
+      fileUri,
+      "lines:",
+      startLine,
+      "-",
+      endLine,
+    );
+
     // Check for existing handlers in the same file the new one will be created in
     const existingHandler = this.getHandlerForFile(fileUri);
     if (existingHandler) {
+      console.log("[VerticalDiffManager] Clearing existing handler");
       existingHandler.clear(false);
     }
 
@@ -209,9 +225,11 @@ export class VerticalDiffManager {
     });
 
     // Create new handler with determined start/end
+    console.log("[VerticalDiffManager] Creating new handler");
     const diffHandler = this.createVerticalDiffHandler(fileUri, startLine, endLine, {
       instant,
-      onStatusUpdate: (status, numDiffs, fileContent) =>
+      onStatusUpdate: (status, numDiffs, fileContent) => {
+        console.log("[VerticalDiffManager] Status update:", status, "numDiffs:", numDiffs);
         void this.webviewProtocol.request("updateApplyState", {
           streamId,
           status,
@@ -219,21 +237,26 @@ export class VerticalDiffManager {
           fileContent,
           filepath: fileUri,
           toolCallId,
-        }),
+        });
+      },
       streamId,
     });
 
     if (!diffHandler) {
-      console.warn("Issue occurred while creating new vertical diff handler");
+      console.error("[VerticalDiffManager] Failed to create diff handler!");
+      console.error("Active editor URI:", editor?.document.uri.toString());
+      console.error("Expected URI:", fileUri);
       return;
     }
+
+    console.log("[VerticalDiffManager] Handler created successfully");
 
     if (editor.selection) {
       // Unselect the range
       editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
     }
 
-    vscode.commands.executeCommand("setContext", "continue.streamingDiff", true);
+    vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
 
     try {
       this.logDiffs = await diffHandler.run(diffStream);
@@ -251,7 +274,7 @@ export class VerticalDiffManager {
         throw new Error(message);
       }
     } finally {
-      vscode.commands.executeCommand("setContext", "continue.streamingDiff", false);
+      vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
     }
   }
 
@@ -274,7 +297,7 @@ export class VerticalDiffManager {
     toolCallId?: string;
     rulesToInclude: undefined | RuleWithSource[];
   }): Promise<string | undefined> {
-    void vscode.commands.executeCommand("setContext", "continue.diffVisible", true);
+    void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
 
     const editor = vscode.window.activeTextEditor;
 
@@ -394,7 +417,7 @@ export class VerticalDiffManager {
       editor.selection = new vscode.Selection(editor.selection.active, editor.selection.active);
     }
 
-    void vscode.commands.executeCommand("setContext", "continue.streamingDiff", true);
+    void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
 
     this.editDecorationManager.clear();
 
@@ -454,7 +477,7 @@ export class VerticalDiffManager {
         throw new Error(message);
       }
     } finally {
-      void vscode.commands.executeCommand("setContext", "continue.streamingDiff", false);
+      void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
     }
   }
 

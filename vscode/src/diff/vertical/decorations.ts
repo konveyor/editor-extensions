@@ -56,6 +56,7 @@ export class AddedLineDecorationManager {
   }
 
   addLines(startIndex: number, numLines: number) {
+    console.log(`[AddedLineDecoration] Adding ${numLines} lines starting at ${startIndex}`);
     const lastRange = this.ranges[this.ranges.length - 1];
     if (lastRange && lastRange.end.line === startIndex - 1) {
       this.ranges[this.ranges.length - 1] = lastRange.with(
@@ -68,6 +69,7 @@ export class AddedLineDecorationManager {
       );
     }
 
+    console.log(`[AddedLineDecoration] Setting decorations for ${this.ranges.length} ranges`);
     this.editor.setDecorations(this.decorationType, this.ranges);
   }
 
@@ -117,6 +119,9 @@ export class RemovedLineDecorationManager {
   }
 
   addLines(startIndex: number, lines: string[]) {
+    console.log(
+      `[RemovedLineDecoration] Adding ${lines.length} ghost text lines starting at ${startIndex}`,
+    );
     let i = 0;
     for (const line of lines) {
       this.ranges.push({
@@ -126,6 +131,7 @@ export class RemovedLineDecorationManager {
       });
       i++;
     }
+    console.log(`[RemovedLineDecoration] Applying ${this.ranges.length} decorations`);
     this.applyDecorations();
   }
 
@@ -134,7 +140,11 @@ export class RemovedLineDecorationManager {
   }
 
   applyDecorations() {
-    this.ranges.forEach((r) => {
+    console.log(`[RemovedLineDecoration] Applying decorations to ${this.ranges.length} ranges`);
+    this.ranges.forEach((r, index) => {
+      console.log(
+        `[RemovedLineDecoration] Setting decoration ${index} at line ${r.range.start.line}: "${r.line.substring(0, 30)}..."`,
+      );
       this.editor.setDecorations(r.decoration, [r.range]);
     });
   }

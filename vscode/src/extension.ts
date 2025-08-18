@@ -50,6 +50,7 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { VsCodeIde } from "./diff/vscodeIde";
+import { MinimalWebviewProtocol } from "./diff/minimalWebviewProtocol";
 
 class VsCodeExtension {
   private state: ExtensionState;
@@ -341,16 +342,10 @@ class VsCodeExtension {
   }
 
   private initializeVerticalDiff(): void {
-    // Create minimal webview protocol for vertical diff
-    const webviewProtocol = {
-      request: async (method: string, params: any) => {
-        if (method === "updateApplyState") {
-          this.state.logger.info("Diff status update", params);
-        }
-      },
-    };
+    // Use minimal webview protocol - we don't need Continue's full system
+    const webviewProtocol = new MinimalWebviewProtocol();
 
-    // Create minimal edit decoration manager
+    // Create minimal edit decoration manager (not needed for static diffs)
     const editDecorationManager = { clear: () => {} };
 
     // Create VS Code IDE implementation
@@ -365,7 +360,7 @@ class VsCodeExtension {
 
     this.state.staticDiffAdapter = new StaticDiffAdapter(this.state.verticalDiffManager);
 
-    this.state.logger.info("Vertical diff system initialized");
+    this.state.logger.info("Vertical diff system initialized with minimal protocol");
   }
 
   private registerWebviewProvider(): void {
