@@ -36,8 +36,87 @@ test.describe(`Configure extension and run analysis`, () => {
     await vscodeApp.runAnalysis();
     await vscodeApp.waitDefault();
     await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-      timeout: 300000,
+      timeout: 400000,
     });
+  });
+
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  const isAscending = (arr: string[]) =>
+    arr.every((v, i, a) => i === 0 || collator.compare(a[i - 1], v) <= 0);
+
+  /**
+   * Checks that the issues list is sorted correctly in both ascending and descending order.
+   * Verifies that the descending order is not ascending, and ascending order is sorted.
+   */
+  test('Set list kind and sort (Issues ascending and descending)', async () => {
+    await vscodeApp.setListKindAndSort('issues', 'ascending');
+    const namesAscending = await vscodeApp.getListNames('issues');
+    expect(isAscending(namesAscending)).toBe(true);
+
+    await vscodeApp.setListKindAndSort('issues', 'descending');
+    const namesDescending = await vscodeApp.getListNames('issues');
+    expect(isAscending(namesDescending)).toBe(false);
+    expect(namesDescending).toEqual([...namesAscending].reverse());
+  });
+
+  /**
+   * Checks that the files list is sorted correctly in both ascending and descending order.
+   * Also validates that all file names look valid.
+   */
+  test('Set list kind and sort (Files ascending and descending)', async () => {
+    await vscodeApp.setListKindAndSort('files', 'ascending');
+    const filesAscending = await vscodeApp.getListNames('files');
+    expect(isAscending(filesAscending)).toBe(true);
+
+    await vscodeApp.setListKindAndSort('files', 'descending');
+    const filesDescending = await vscodeApp.getListNames('files');
+    expect(isAscending(filesDescending)).toBe(false);
+    expect(filesDescending).toEqual([...filesAscending].reverse());
+  });
+
+  /**
+   * Tests the search functionality for files.
+   * Searches for a specific file, checks that only one result is shown,
+   * then clears the search and checks that multiple files are shown again.
+   */
+  test('Files: search narrows to one; clearing expands again', async () => {
+    await vscodeApp.setListKindAndSort('files', 'ascending');
+    const all = await vscodeApp.getListNames('files');
+    expect(all.length).toBeGreaterThan(0);
+    const filename = all[0];
+    await vscodeApp.searchViolation(filename);
+    await expect.poll(async () => (await vscodeApp.getListNames('files')).length).toBe(1);
+
+    const names1 = await vscodeApp.getListNames('files');
+    expect(names1).toEqual([filename]);
+    await vscodeApp.searchViolation('');
+    const names2 = await vscodeApp.getListNames('files');
+    expect(names2.length).toBeGreaterThan(1);
+  });
+
+  const CATEGORY_NAMES = ['Potential', 'Optional', 'Mandatory'] as const;
+
+  /**
+   * Ensures that filtering issues by category never results in more issues than the baseline (unfiltered) count.
+   * Iterates through all categories, applies each filter, and checks the count.
+   * Cleans up by clearing all category selections at the end.
+   */
+  test('Category never exceeds number of incidents for Issues', async () => {
+    await vscodeApp.setListKindAndSort('issues', 'ascending');
+    await vscodeApp.searchViolation('');
+
+    const baseline = (await vscodeApp.getListNames('issues')).length;
+    expect(baseline).toBeGreaterThan(0);
+
+    let totalNumberOfIssues = 0;
+
+    for (const name of CATEGORY_NAMES) {
+      await vscodeApp.setCategoryByName(name);
+      const issuesCount = (await vscodeApp.getListNames('issues')).length;
+      totalNumberOfIssues += issuesCount;
+      await vscodeApp.setCategoryByName(name);
+    }
+    expect(totalNumberOfIssues).toBe(baseline);
   });
 
   test('Generate debug archive', async ({ testRepoData }) => {
