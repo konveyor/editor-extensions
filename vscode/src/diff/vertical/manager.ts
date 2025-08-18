@@ -198,8 +198,8 @@ export class VerticalDiffManager {
     const fileUri = editor.document.uri.toString();
     console.log(`[Manager] Working with file: ${fileUri}`);
 
-    const startLine = editor.selection.start.line;
-    const endLine = editor.selection.end.line;
+    const startLine = 0;
+    const endLine = editor.document.lineCount - 1;
     console.log(`[Manager] Selection range: ${startLine}-${endLine}`);
 
     // Clear any existing handler
