@@ -180,6 +180,7 @@ export interface ExtensionData {
   activeProfileId: string | null;
   solutionServerEnabled: boolean;
   isAgentMode: boolean;
+  diffResolvedStates: Record<string, any>;
 }
 
 export type ConfigErrorType =

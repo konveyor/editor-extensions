@@ -24,6 +24,7 @@ const defaultState: ExtensionData = {
   profiles: [],
   activeProfileId: "",
   isAgentMode: false,
+  diffResolvedStates: {},
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
@@ -44,6 +45,7 @@ const getInitialState = (): ExtensionData => {
         chatMessages: Array.isArray(windowData.chatMessages) ? windowData.chatMessages : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
+        diffResolvedStates: windowData.diffResolvedStates || {},
       };
     }
   } catch (error) {
@@ -79,6 +81,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         chatMessages: Array.isArray(event.data.chatMessages) ? event.data.chatMessages : [],
         configErrors: Array.isArray(event.data.configErrors) ? event.data.configErrors : [],
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
+        diffResolvedStates: event.data.diffResolvedStates || {},
       };
       setState(safeData);
     };
