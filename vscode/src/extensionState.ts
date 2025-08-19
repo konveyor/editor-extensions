@@ -52,6 +52,6 @@ export interface ExtensionState {
   currentTaskManagerIterations: number;
   logger: winston.Logger;
   modelProvider: KaiModelProvider | undefined;
-  verticalDiffManager?: VerticalDiffManager; // Vertical diff system manager
-  staticDiffAdapter?: StaticDiffAdapter; // Adapter for static diffs
+  verticalDiffManager?: VerticalDiffManager;
+  staticDiffAdapter?: StaticDiffAdapter;
 }

@@ -306,4 +306,30 @@ export class VerticalDiffManager {
       this.clearForFileUri(fileUri, false);
     }
   }
+
+  /**
+   * Dispose of all resources and clear all active diffs
+   * Called during extension deactivation to prevent memory leaks
+   */
+  dispose() {
+    // Clear all active handlers
+    for (const [fileUri, handler] of this.fileUriToHandler.entries()) {
+      try {
+        handler.clear(false);
+      } catch (error) {
+        console.error(`Error clearing handler for ${fileUri}:`, error);
+      }
+    }
+    this.fileUriToHandler.clear();
+
+    // Clear all code lens
+    this.fileUriToCodeLens.clear();
+
+    // Dispose document change listener
+    this.disableDocumentChangeListener();
+
+    // Clear callback references
+    this.onDiffStatusChange = undefined;
+    this.refreshCodeLens = () => {};
+  }
 }

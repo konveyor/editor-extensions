@@ -58,7 +58,7 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { SimpleIDE } from "./utilities/ideUtils";
 
 class VsCodeExtension {
-  private state: ExtensionState;
+  public state: ExtensionState;
   private data: Immutable<ExtensionData>;
   private _onDidChange = new vscode.EventEmitter<Immutable<ExtensionData>>();
   readonly onDidChangeData = this._onDidChange.event;
@@ -705,6 +705,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function deactivate(): Promise<void> {
-  // Removed decorator disposal since we're using merge editor now
-  await extension?.dispose();
+  try {
+    // Clean up diff system managers to prevent resource leaks
+    if (extension?.state?.verticalDiffManager) {
+      extension.state.verticalDiffManager.dispose();
+      extension.state.verticalDiffManager = undefined;
+    }
+
+    if (extension?.state?.staticDiffAdapter) {
+      //Disposal and lifecycle is handled by vertical diff manager
+      extension.state.staticDiffAdapter = undefined;
+    }
+
+    // Clean up the main extension
+    await extension?.dispose();
+  } catch (error) {
+    console.error("Error during extension deactivation:", error);
+  } finally {
+    extension = undefined;
+  }
 }

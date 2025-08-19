@@ -839,7 +839,14 @@ const commandsMap: (
         return;
       }
       await state.staticDiffAdapter.acceptAll(filePath);
-      vscode.window.showInformationMessage("Changes accepted");
+
+      // Save the document after accepting changes
+      const editor = vscode.window.activeTextEditor;
+      if (editor && editor.document.fileName === filePath) {
+        await editor.document.save();
+      }
+
+      vscode.window.showInformationMessage("Changes accepted and document saved");
     },
 
     "konveyor.rejectDiff": async (filePath?: string) => {
@@ -855,7 +862,14 @@ const commandsMap: (
         return;
       }
       await state.staticDiffAdapter.rejectAll(filePath);
-      vscode.window.showInformationMessage("Changes rejected");
+
+      // Save the document after rejecting changes
+      const editor = vscode.window.activeTextEditor;
+      if (editor && editor.document.fileName === filePath) {
+        await editor.document.save();
+      }
+
+      vscode.window.showInformationMessage("Changes rejected and document saved");
     },
 
     "konveyor.acceptVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
