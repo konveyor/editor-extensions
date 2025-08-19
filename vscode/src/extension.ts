@@ -710,7 +710,7 @@ export async function deactivate(): Promise<void> {
   try {
     // Clean up diff system managers to prevent resource leaks
     if (extension?.state?.verticalDiffManager) {
-      extension.state.verticalDiffManager.dispose();
+      await extension.state.verticalDiffManager.dispose();
       extension.state.verticalDiffManager = undefined;
     }
 

@@ -29,14 +29,14 @@ export class VerticalDiffManager {
     this.userChangeListener = undefined;
   }
 
-  createVerticalDiffHandler(
+  async createVerticalDiffHandler(
     fileUri: string,
     startLine: number,
     endLine: number,
     options: VerticalDiffHandlerOptions,
-  ): VerticalDiffHandler | undefined {
+  ): Promise<VerticalDiffHandler | undefined> {
     if (this.fileUriToHandler.has(fileUri)) {
-      this.fileUriToHandler.get(fileUri)?.clear(false);
+      await this.fileUriToHandler.get(fileUri)?.clear(false);
       this.fileUriToHandler.delete(fileUri);
     }
     const editor = vscode.window.activeTextEditor;
@@ -207,7 +207,7 @@ export class VerticalDiffManager {
 
     // Create new handler
     console.log("[Manager] Creating new vertical diff handler");
-    const diffHandler = this.createVerticalDiffHandler(fileUri, startLine, endLine, {
+    const diffHandler = await this.createVerticalDiffHandler(fileUri, startLine, endLine, {
       onStatusUpdate: (status, numDiffs, fileContent) => {
         console.log(`[Manager] Status update: ${status}, numDiffs: ${numDiffs}`);
 
@@ -305,11 +305,11 @@ export class VerticalDiffManager {
    * Dispose of all resources and clear all active diffs
    * Called during extension deactivation to prevent memory leaks
    */
-  dispose() {
+  async dispose() {
     // Clear all active handlers
     for (const [fileUri, handler] of this.fileUriToHandler.entries()) {
       try {
-        handler.clear(false);
+        await handler.clear(false);
       } catch (error) {
         console.error(`Error clearing handler for ${fileUri}:`, error);
       }
