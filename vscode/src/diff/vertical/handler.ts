@@ -484,9 +484,8 @@ export class VerticalDiffHandler implements vscode.Disposable {
     await this.editor.edit(
       (editBuilder) => {
         for (const range of ranges) {
-          editBuilder.delete(
-            new vscode.Range(range.start, new vscode.Position(range.end.line + 1, 0)),
-          );
+          const endLine = Math.min(range.end.line + 1, this.editor.document.lineCount);
+          editBuilder.delete(new vscode.Range(range.start, new vscode.Position(endLine, 0)));
         }
       },
       { undoStopAfter: false, undoStopBefore: false },
