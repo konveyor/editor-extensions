@@ -47,9 +47,9 @@ export async function getCurrentFile(): Promise<{ path: string } | undefined> {
 }
 
 /**
- * Simple IDE interface implementation for the vertical diff system
+ * FileEditor interface implementation for the vertical diff system
  */
-export class SimpleIDE {
+export class FileEditor {
   readFile = readFile;
   saveFile = saveFile;
   openFile = openFile;

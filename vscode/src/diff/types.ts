@@ -29,8 +29,8 @@ export interface ApplyState {
   toolCallId?: string;
 }
 
-// Minimal IDE interface for VS Code integration
-export interface IDE {
+// File editor interface for VS Code integration
+export interface FileEditor {
   readFile(filepath: string): Promise<string>;
   saveFile(filepath: string): Promise<void>;
   openFile(filepath: string): Promise<void>;

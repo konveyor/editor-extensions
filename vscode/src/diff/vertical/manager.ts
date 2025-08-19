@@ -1,9 +1,10 @@
-import { DiffLine, IDE } from "../types";
+import { DiffLine, FileEditor } from "../types";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 import { VerticalDiffHandler, VerticalDiffHandlerOptions } from "./handler";
 import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
 import { fileUriToPath } from "../../utilities/pathUtils";
+import { Logger } from "winston";
 
 export interface VerticalDiffCodeLens {
   start: number;
@@ -23,8 +24,9 @@ export class VerticalDiffManager {
   logDiffs: DiffLine[] | undefined;
 
   constructor(
-    private readonly ide: IDE,
+    private readonly fileEditor: FileEditor,
     private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>,
+    private readonly logger: Logger,
   ) {
     this.userChangeListener = undefined;
   }
@@ -110,7 +112,7 @@ export class VerticalDiffManager {
       // Update decorations based on the change
       // Note: updateDecorations method would need to be implemented in handler
       // For now, we'll just log the change
-      console.log(`Document change at line ${lineNumber}, delta: ${lineDelta}`);
+      this.logger.debug(`Document change at line ${lineNumber}, delta: ${lineDelta}`);
     });
   }
 
@@ -125,19 +127,19 @@ export class VerticalDiffManager {
 
     const handler = this.fileUriToHandler.get(fileUri);
     if (!handler) {
-      console.warn(`No handler found for file: ${fileUri}`);
+      this.logger.warn(`No handler found for file: ${fileUri}`);
       return;
     }
 
     const blocks = this.fileUriToCodeLens.get(fileUri);
     if (!blocks) {
-      console.warn(`No code lens blocks found for file: ${fileUri}`);
+      this.logger.warn(`No code lens blocks found for file: ${fileUri}`);
       return;
     }
 
     const block = index !== undefined ? blocks[index] : blocks[0];
     if (!block) {
-      console.warn(`Block at index ${index} not found`);
+      this.logger.warn(`Block at index ${index} not found`);
       return;
     }
 
@@ -186,30 +188,30 @@ export class VerticalDiffManager {
    * Simplified method for streaming diff lines for static diffs
    */
   async streamDiffLines(diffStream: AsyncGenerator<DiffLine>, streamId?: string) {
-    console.log(`[Manager] streamDiffLines called - streamId: ${streamId}`);
+    this.logger.debug(`[Manager] streamDiffLines called - streamId: ${streamId}`);
     void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
 
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-      console.warn("[Manager] No active editor");
+      this.logger.warn("[Manager] No active editor");
       return;
     }
 
     const fileUri = editor.document.uri.toString();
-    console.log(`[Manager] Working with file: ${fileUri}`);
+    this.logger.debug(`[Manager] Working with file: ${fileUri}`);
 
     const startLine = 0;
     const endLine = editor.document.lineCount - 1;
-    console.log(`[Manager] Selection range: ${startLine}-${endLine}`);
+    this.logger.debug(`[Manager] Selection range: ${startLine}-${endLine}`);
 
     // Small delay to ensure UI updates
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Create new handler
-    console.log("[Manager] Creating new vertical diff handler");
+    this.logger.debug("[Manager] Creating new vertical diff handler");
     const diffHandler = await this.createVerticalDiffHandler(fileUri, startLine, endLine, {
       onStatusUpdate: (status, numDiffs, fileContent) => {
-        console.log(`[Manager] Status update: ${status}, numDiffs: ${numDiffs}`);
+        this.logger.debug(`[Manager] Status update: ${status}, numDiffs: ${numDiffs}`);
 
         // Update cache when status is "closed" and we have final file content
         if (status === "closed" && fileContent) {
@@ -218,9 +220,9 @@ export class VerticalDiffManager {
             // This ensures the path format matches what the agent expects (absolute paths)
             const filePath = fileUriToPath(fileUri);
             this.kaiFsCache.set(filePath, fileContent);
-            console.log(`[Manager] Updated cache for file: ${filePath}`);
+            this.logger.debug(`[Manager] Updated cache for file: ${filePath}`);
           } catch (error) {
-            console.error(`[Manager] Failed to update cache:`, error);
+            this.logger.error(`[Manager] Failed to update cache:`, error);
           }
         }
       },
@@ -233,21 +235,21 @@ export class VerticalDiffManager {
     });
 
     if (!diffHandler) {
-      console.warn("[Manager] Failed to create vertical diff handler");
+      this.logger.warn("[Manager] Failed to create vertical diff handler");
       return;
     }
 
     void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
 
     try {
-      console.log("[Manager] Starting diff handler.run()");
+      this.logger.debug("[Manager] Starting diff handler.run()");
       this.logDiffs = await diffHandler.run(diffStream);
-      console.log(`[Manager] Diff handler completed, logDiffs: ${this.logDiffs?.length}`);
+      this.logger.debug(`[Manager] Diff handler completed, logDiffs: ${this.logDiffs?.length}`);
 
       // Enable listener for user edits to file while diff is open
       this.enableDocumentChangeListener();
     } catch (e) {
-      console.error("[Manager] Error in streamDiffLines:", e);
+      this.logger.error("[Manager] Error in streamDiffLines:", e);
       this.disableDocumentChangeListener();
       throw e;
     } finally {
@@ -311,7 +313,7 @@ export class VerticalDiffManager {
       try {
         await handler.clear(false);
       } catch (error) {
-        console.error(`Error clearing handler for ${fileUri}:`, error);
+        this.logger.error(`Error clearing handler for ${fileUri}:`, error);
       }
     }
     this.fileUriToHandler.clear();

@@ -52,7 +52,11 @@ export class AddedLineDecorationManager {
 
   applyToNewEditor(newEditor: vscode.TextEditor) {
     this.editor = newEditor;
-    this.editor.setDecorations(this.decorationType, this.ranges);
+    try {
+      this.editor.setDecorations(this.decorationType, this.ranges);
+    } catch (error) {
+      console.error("[AddedLineDecoration] Failed to apply decorations to new editor:", error);
+    }
   }
 
   addLines(startIndex: number, numLines: number) {
@@ -70,7 +74,11 @@ export class AddedLineDecorationManager {
     }
 
     console.log(`[AddedLineDecoration] Setting decorations for ${this.ranges.length} ranges`);
-    this.editor.setDecorations(this.decorationType, this.ranges);
+    try {
+      this.editor.setDecorations(this.decorationType, this.ranges);
+    } catch (error) {
+      console.error("[AddedLineDecoration] Failed to set decorations:", error);
+    }
   }
 
   addLine(index: number) {
@@ -79,7 +87,11 @@ export class AddedLineDecorationManager {
 
   clear() {
     this.ranges = [];
-    this.editor.setDecorations(this.decorationType, this.ranges);
+    try {
+      this.editor.setDecorations(this.decorationType, this.ranges);
+    } catch (error) {
+      console.error("[AddedLineDecoration] Failed to clear decorations:", error);
+    }
   }
 
   shiftDownAfterLine(afterLine: number, offset: number) {
@@ -88,7 +100,11 @@ export class AddedLineDecorationManager {
         this.ranges[i] = translateRange(this.ranges[i], offset);
       }
     }
-    this.editor.setDecorations(this.decorationType, this.ranges);
+    try {
+      this.editor.setDecorations(this.decorationType, this.ranges);
+    } catch (error) {
+      console.error("[AddedLineDecoration] Failed to shift decorations:", error);
+    }
   }
 
   deleteRangeStartingAt(line: number) {
@@ -97,7 +113,11 @@ export class AddedLineDecorationManager {
         return this.ranges.splice(i, 1)[0];
       }
     }
-    this.editor.setDecorations(this.decorationType, this.ranges);
+    try {
+      this.editor.setDecorations(this.decorationType, this.ranges);
+    } catch (error) {
+      console.error("[AddedLineDecoration] Failed to update decorations after delete:", error);
+    }
   }
 }
 
@@ -145,7 +165,14 @@ export class RemovedLineDecorationManager {
       console.log(
         `[RemovedLineDecoration] Setting decoration ${index} at line ${r.range.start.line}: "${r.line.substring(0, 30)}..."`,
       );
-      this.editor.setDecorations(r.decoration, [r.range]);
+      try {
+        this.editor.setDecorations(r.decoration, [r.range]);
+      } catch (error) {
+        console.error(
+          `[RemovedLineDecoration] Failed to set decoration at line ${r.range.start.line}:`,
+          error,
+        );
+      }
     });
   }
 

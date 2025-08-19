@@ -55,7 +55,7 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 // import { DiffDecorationManager } from "./decorations";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
-import { SimpleIDE } from "./utilities/ideUtils";
+import { FileEditor } from "./utilities/ideUtils";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -432,11 +432,15 @@ class VsCodeExtension {
   }
 
   private initializeVerticalDiff(): void {
-    // Create simple IDE implementation
-    const ide = new SimpleIDE();
+    // Create file editor implementation
+    const fileEditor = new FileEditor();
 
     // Initialize managers
-    this.state.verticalDiffManager = new VerticalDiffManager(ide, this.state.kaiFsCache);
+    this.state.verticalDiffManager = new VerticalDiffManager(
+      fileEditor,
+      this.state.kaiFsCache,
+      this.state.logger,
+    );
 
     // Set up the diff status change callback
     this.state.verticalDiffManager.onDiffStatusChange = (fileUri: string) => {
