@@ -71,7 +71,7 @@ export const providerConfigs: ProviderConfig[] = [
 export function getAvailableProviders(): ProviderConfig[] {
   const providers: ProviderConfig[] = [];
   if (process.env.OPENAI_API_KEY) {
-    providers.push(OPENAI_PROVIDER);
+    providers.push(OPENAI_GPT4OMINI_PROVIDER);
   }
 
   if (
