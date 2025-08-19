@@ -40,7 +40,12 @@ export class JavaDependencyTools {
       schema: z.object({
         artifactID: z.string().describe("Artifact ID of the dependency"),
         groupID: z.string().describe("Group ID of the dependency"),
-        version: z.string().describe("Version of the dependency").optional(),
+        version: z
+          .string()
+          .describe(
+            "Version of the dependency (optional). When not specified, latest version will be returned.",
+          )
+          .optional(),
       }),
       func: async ({
         artifactID,
@@ -66,55 +71,28 @@ export class JavaDependencyTools {
           return cachedResponse;
         }
 
-        let response: string = `No dependencies found matching given search criteria`;
-        const query = [artifactID, groupID, version]
-          .filter(Boolean)
-          .map((val, idx) => {
-            switch (idx) {
-              case 0:
-                return `a:${val}`;
-              case 1:
-                return `g:${val}`;
-              case 2:
-                return `v:${val}`;
-            }
-          })
-          .join(" AND ");
-        const url = `https://search.maven.org/solrsearch/select?q=${query}`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        try {
-          const fetchOptions: RequestInit = {
-            signal: controller.signal,
-          };
-          const resp = await fetch(url, fetchOptions);
-          if (resp.status !== 200) {
-            response = `Maven Central API returned status code: ${resp.status}`;
-            this.logger.error(response);
-          } else {
-            const output = (await resp.json()) as MavenApiResponse;
-            const docs = output?.response?.docs.filter(Boolean);
+        const depToString = (dep: MavenResponseDoc) =>
+          `ArtifactID: ${dep.a}, GroupID: ${dep.g}${dep.latestVersion ? `, LatestVersion: ${dep.latestVersion}` : ``}`;
 
-            if (docs && docs.length) {
-              const depToString = (dep: MavenResponseDoc) =>
-                `ArtifactID: ${dep.a}, GroupID: ${dep.g}${dep.latestVersion ? `, LatestVersion: ${dep.latestVersion}` : ``}`;
+        let response: string = `No dependencies found matching given search criteria.`;
 
-              if (docs.length > 1) {
-                response = docs.map((d) => depToString(d)).join("\n - ");
-              } else if (docs.length === 1) {
-                response = depToString(docs[0]);
-              }
-            }
+        let mavenResponse = await this.queryMavenCentral(groupID, artifactID, version);
+        if (typeof mavenResponse !== "string" && !mavenResponse.length && version) {
+          // we did not find an exact match for given version, we will try a broader search and get the latest version
+          mavenResponse = await this.queryMavenCentral(groupID, artifactID, undefined);
+        }
+        if (typeof mavenResponse === "string") {
+          // we encountered a non recoverable error
+          response = mavenResponse;
+        } else if (mavenResponse && mavenResponse.length) {
+          // we found an exact match for the given groupID and artifactID, and possibly a version
+          if (mavenResponse.length > 1) {
+            response = mavenResponse.map((d) => depToString(d)).join("\n - ");
+          } else if (mavenResponse.length === 1) {
+            response = depToString(mavenResponse[0]);
           }
-        } catch (error: any) {
-          if (error.name === "AbortError") {
-            this.logger.error("Request to Maven Central timed out.");
-          } else {
-            this.logger.error("Error fetching from Maven Central:", error);
-          }
-          response = `Encountered error retrieving dependencies: ${String(error)}`;
-        } finally {
-          clearTimeout(timeoutId);
+        } else if (mavenResponse && !mavenResponse.length) {
+          response = `Invalid GroupID or ArtifactID. Please try a different GroupID and/or ArtifactID.`;
         }
         await this.cache.set(cacheKey, response, {
           cacheSubDir,
@@ -125,4 +103,52 @@ export class JavaDependencyTools {
       },
     });
   };
+
+  private async queryMavenCentral(
+    groupID: string,
+    artifactID: string,
+    version?: string,
+  ): Promise<MavenResponseDoc[] | string> {
+    let response: MavenResponseDoc[] | string =
+      "No dependencies found matching given search criteria. Try a broader search without a version constraint.";
+    const terms: string[] = [];
+    if (artifactID) {
+      terms.push(`a:"${artifactID}"`);
+    }
+    if (groupID) {
+      terms.push(`g:"${groupID}"`);
+    }
+    if (version) {
+      terms.push(`v:"${version}"`);
+    }
+    const query = terms.join(" AND ");
+    const url = `https://search.maven.org/solrsearch/select?q=${query}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const fetchOptions: RequestInit = {
+        signal: controller.signal,
+      };
+      const resp = await fetch(url, fetchOptions);
+      if (resp.status !== 200) {
+        response = `Maven Central API returned code ${resp.status}: ${await resp.text()}`;
+      } else {
+        const output = (await resp.json()) as MavenApiResponse;
+        const docs = output?.response?.docs.filter(Boolean);
+        response = docs;
+      }
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        response = "Request to Maven Central timed out.";
+      } else {
+        response = `Encountered error retrieving dependencies: ${String(error)}`;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (typeof response === "string") {
+      this.logger.error(response);
+    }
+    return response;
+  }
 }

@@ -28,6 +28,9 @@ import {
   getExcludedDiagnosticSources,
   getConfigSolutionServerEnabled,
   getConfigSolutionServerUrl,
+  getConfigSolutionServerAuth,
+  getConfigSolutionServerRealm,
+  getConfigSolutionServerInsecure,
   updateConfigErrors,
   getConfigAgentMode,
   getCacheDir,
@@ -35,6 +38,7 @@ import {
   getTraceEnabled,
   getConfigKaiDemoMode,
   getConfigLogLevel,
+  checkAndPromptForCredentials,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
@@ -109,6 +113,8 @@ class VsCodeExtension {
       solutionServerClient: new SolutionServerClient(
         getConfigSolutionServerUrl(),
         getConfigSolutionServerEnabled(),
+        getConfigSolutionServerAuth(),
+        getConfigSolutionServerInsecure(),
         logger,
       ),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
@@ -208,6 +214,24 @@ class VsCodeExtension {
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
+      // Get credentials for solution server client if auth is enabled
+      if (getConfigSolutionServerAuth()) {
+        const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
+        if (credentials) {
+          const authConfig = {
+            username: credentials.username,
+            password: credentials.password,
+            realm: getConfigSolutionServerRealm(),
+            clientId: `${getConfigSolutionServerRealm()}-ui`,
+          };
+          this.state.solutionServerClient.setAuthConfig(authConfig);
+        } else {
+          this.state.mutateData((draft) => {
+            draft.configErrors.push(createConfigError.missingAuthCredentials());
+          });
+        }
+      }
+
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = activeProfileId;
@@ -291,16 +315,47 @@ class VsCodeExtension {
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration((event) => {
           this.state.logger.info("Configuration modified!");
+
+          if (
+            event.affectsConfiguration("konveyor.kai.demoMode") ||
+            event.affectsConfiguration("konveyor.kai.cacheDir")
+          ) {
+            this.setupModelProvider(paths().settingsYaml)
+              .then((configError) => {
+                this.state.mutateData((draft) => {
+                  if (configError) {
+                    draft.configErrors = draft.configErrors.filter(
+                      (e) => e.type !== configError.type,
+                    );
+                    draft.configErrors.push(configError);
+                  }
+                });
+              })
+              .catch((error) => {
+                this.state.logger.error("Error setting up model provider:", error);
+                this.state.mutateData((draft) => {
+                  if (error) {
+                    const configError = createConfigError.providerConnnectionFailed();
+                    draft.configErrors = draft.configErrors.filter(
+                      (e) => e.type !== configError.type,
+                    );
+                    configError.error = error instanceof Error ? error.message : String(error);
+                    draft.configErrors.push(configError);
+                  }
+                });
+              });
+          }
+
           if (event.affectsConfiguration("konveyor.kai.agentMode")) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
               draft.isAgentMode = agentMode;
             });
           }
-
           if (
             event.affectsConfiguration("konveyor.solutionServer.url") ||
-            event.affectsConfiguration("konveyor.solutionServer.enabled")
+            event.affectsConfiguration("konveyor.solutionServer.enabled") ||
+            event.affectsConfiguration("konveyor.solutionServer.auth")
           ) {
             this.state.logger.info("Solution server configuration modified!");
             vscode.window

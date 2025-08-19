@@ -270,6 +270,34 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
 
+      # This is intentionally kept in a separate step to avoid passing in credentials
+      - name: Run e2e tests (Linux - Offline)
+        run: npx playwright test e2e/tests/agent_flow_coolstore.test.ts
+        working-directory: ./tests
+        env:
+          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+          OPENAI_API_KEY: <dummy> # this only exists to pass provider validation
+
+      - name: Collect test artifacts
+        if: always()
+        run: |
+          mkdir -p test-artifacts
+          if [ -d "test-data-dir" ]; then
+            cp -r test-data-dir test-artifacts/
+          fi
+          if [ -d "test-output" ]; then
+            cp -r test-output test-artifacts/
+          fi
+        working-directory: ./tests
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-artifacts
+          path: tests/test-artifacts/
+          retention-days: 7
+
   publish:
     name: Publish Release
     runs-on: ubuntu-latest

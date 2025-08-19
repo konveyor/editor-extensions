@@ -1,3 +1,4 @@
+import * as pathlib from "path";
 import { Logger } from "winston";
 import { createHash } from "crypto";
 import { EnhancedIncident } from "@editor-extensions/shared";
@@ -80,6 +81,7 @@ export class KaiInteractiveWorkflow
 
   private userInteractionPromises: Map<string, PendingUserInteraction>;
   private readonly logger: Logger;
+  private workspaceDir: string;
 
   constructor(logger: Logger) {
     super();
@@ -90,6 +92,7 @@ export class KaiInteractiveWorkflow
     this.logger = logger.child({
       component: "KaiInteractiveWorkflow",
     });
+    this.workspaceDir = "";
 
     this.runToolsEdgeFunction = this.runToolsEdgeFunction.bind(this);
     this.analysisIssueFixRouterEdge = this.analysisIssueFixRouterEdge.bind(this);
@@ -97,15 +100,15 @@ export class KaiInteractiveWorkflow
   }
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
-    const workspaceDir = fileUriToPath(options.workspaceDir);
-    const fsTools = new FileSystemTools(workspaceDir, options.fsCache, this.logger);
+    this.workspaceDir = fileUriToPath(options.workspaceDir);
+    const fsTools = new FileSystemTools(this.workspaceDir, options.fsCache, this.logger);
     const depTools = new JavaDependencyTools(options.toolCache, this.logger);
 
     const analysisIssueFixNodes = new AnalysisIssueFix(
       options.modelProvider,
       fsTools.all(),
       options.fsCache,
-      workspaceDir,
+      this.workspaceDir,
       options.solutionServerClient,
     );
     // relay events from nodes back to callers
@@ -120,7 +123,10 @@ export class KaiInteractiveWorkflow
       options.modelProvider,
       fsTools.all(),
       depTools.all(),
-      workspaceDir,
+      this.workspaceDir,
+      this.logger.child({
+        component: "DiagnosticsNode",
+      }),
     );
     this.diagnosticsNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);
@@ -339,6 +345,12 @@ export class KaiInteractiveWorkflow
       recursionLimit: 3000,
     });
 
+    this.emitWorkflowMessage({
+      id: "interactive_workflow_done",
+      type: KaiWorkflowMessageType.LLMResponseChunk,
+      data: new AIMessageChunk("Done addressing all issues. Goodbye!"),
+    });
+
     return runResponse;
   }
 
@@ -474,7 +486,7 @@ export class KaiInteractiveWorkflow
         const incidentsData = incidents
           .map((incident) => ({
             lineNumber: incident.lineNumber,
-            uri: incident.uri,
+            uri: pathlib.relative(this.workspaceDir, fileUriToPath(incident.uri)),
             message: incident.message,
             violationId: incident.violationId,
             ruleset_name: incident.ruleset_name,
@@ -487,7 +499,7 @@ export class KaiInteractiveWorkflow
           });
 
         return {
-          uri,
+          uri: pathlib.relative(this.workspaceDir, fileUriToPath(uri)),
           incidents: incidentsData,
         };
       })

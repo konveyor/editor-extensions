@@ -39,5 +39,9 @@ export default defineConfig({
       testMatch: /.*analyze.+\.test\.ts/,
       dependencies: ['base'],
     },
+    {
+      name: 'agent-flow-tests',
+      testMatch: /.*agent_flow.+\.test\.ts/,
+    },
   ],
 });

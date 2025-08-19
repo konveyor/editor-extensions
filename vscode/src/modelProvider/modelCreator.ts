@@ -165,8 +165,13 @@ function validateMissingConfigKeys(
   keys: string[],
   name: "environment variable(s)" | "model arg(s)",
 ): void {
-  const missingKeys = keys.filter((k) => !(k in record));
+  let missingKeys = keys.filter((k) => !(k in record));
+  if (name === "environment variable(s)") {
+    missingKeys = missingKeys.filter((key) => !(key in process.env));
+  }
   if (missingKeys && missingKeys.length) {
-    throw Error(`Required ${name} missing in model config - ${missingKeys.join(", ")}`);
+    throw Error(
+      `Required ${name} missing in model config${name === "environment variable(s)" ? " or environment " : ""}- ${missingKeys.join(", ")}`,
+    );
   }
 }

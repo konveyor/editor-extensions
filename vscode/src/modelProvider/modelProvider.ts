@@ -151,6 +151,7 @@ export class BaseModelProvider implements KaiModelProvider {
     let accumulatedResponse: AIMessageChunk | undefined;
     const cache = this.cache;
     const tracer = this.tracer;
+    const logger = this.logger;
     return new ReadableStream({
       async start(controller) {
         try {
@@ -174,6 +175,7 @@ export class BaseModelProvider implements KaiModelProvider {
           }
           controller.close();
         } catch (error) {
+          logger.error(`Error streaming: ${error}`);
           controller.error(error);
         }
       },
