@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { VerticalDiffManager } from "./vertical/manager";
 
-export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider {
+export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider, vscode.Disposable {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
 
@@ -54,5 +54,9 @@ export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider {
     });
 
     return codeLenses;
+  }
+
+  dispose(): void {
+    this._onDidChangeCodeLenses.dispose();
   }
 }

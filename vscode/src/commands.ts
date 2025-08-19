@@ -1015,6 +1015,7 @@ export function registerAllCommands(state: ExtensionState) {
 
       state.extensionContext.subscriptions.push(
         vscode.languages.registerCodeLensProvider("*", verticalCodeLensProvider),
+        verticalCodeLensProvider,
       );
 
       // Connect refresh callback
