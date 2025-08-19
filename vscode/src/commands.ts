@@ -799,7 +799,7 @@ const commandsMap: (
       messageToken: string,
     ) => {
       try {
-        logger.info("showDiffWithDecorations using vertical diff", { filePath, messageToken });
+        logger.debug("showDiffWithDecorations using vertical diff", { filePath, messageToken });
 
         // Check if vertical diff system is initialized
         if (!state.staticDiffAdapter) {

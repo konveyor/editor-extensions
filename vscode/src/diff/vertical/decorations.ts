@@ -178,7 +178,13 @@ export class RemovedLineDecorationManager {
 
   // Removed decorations are always unique, so we'll always dispose
   clear() {
+    // First clear decorations from the editor before disposing
     this.ranges.forEach((r) => {
+      try {
+        this.editor.setDecorations(r.decoration, []);
+      } catch (error) {
+        console.error("[RemovedLineDecoration] Failed to clear decoration before dispose:", error);
+      }
       r.decoration.dispose();
     });
     this.ranges = [];
@@ -202,6 +208,15 @@ export class RemovedLineDecorationManager {
           i + sequential < this.ranges.length &&
           this.ranges[i + sequential].range.start.line === line + sequential
         ) {
+          // Clear decoration from editor before disposing
+          try {
+            this.editor.setDecorations(this.ranges[i + sequential].decoration, []);
+          } catch (error) {
+            console.error(
+              `[RemovedLineDecoration] Failed to clear decoration at line ${line + sequential} before dispose:`,
+              error,
+            );
+          }
           this.ranges[i + sequential].decoration.dispose();
           sequential++;
         }

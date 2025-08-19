@@ -2,13 +2,17 @@ import * as vscode from "vscode";
 import { DiffLine } from "./types";
 import { VerticalDiffManager } from "./vertical/manager";
 import { parsePatch } from "diff";
+import { Logger } from "winston";
 
 /**
  * Adapter to bridge static diffs (from ModifiedFileMessage) to Continue's vertical diff system
  * This converts a complete unified diff into the streaming format that VerticalDiffHandler expects
  */
 export class StaticDiffAdapter {
-  constructor(private verticalDiffManager: VerticalDiffManager) {}
+  constructor(
+    private verticalDiffManager: VerticalDiffManager,
+    private logger: Logger,
+  ) {}
 
   /**
    * Parse unified diff into DiffLine array format
@@ -120,7 +124,7 @@ export class StaticDiffAdapter {
 
       // Use VerticalDiffManager to handle the diff
       // The streamId is the messageToken for tracking
-      console.log("[StaticDiffAdapter] Starting streamDiffLines with", {
+      this.logger.debug("[StaticDiffAdapter] Starting streamDiffLines with", {
         filePath,
         messageToken,
         diffLinesCount: diffLines.length,
@@ -129,9 +133,9 @@ export class StaticDiffAdapter {
 
       await this.verticalDiffManager.streamDiffLines(diffStream, messageToken);
 
-      console.log("[StaticDiffAdapter] streamDiffLines completed");
+      this.logger.debug("[StaticDiffAdapter] streamDiffLines completed");
     } catch (error) {
-      console.error("Failed to apply static diff:", error);
+      this.logger.error("Failed to apply static diff:", error);
       throw error;
     }
   }

@@ -447,7 +447,10 @@ class VsCodeExtension {
       this.updateDiffStatusBarForFile(fileUri);
     };
 
-    this.state.staticDiffAdapter = new StaticDiffAdapter(this.state.verticalDiffManager);
+    this.state.staticDiffAdapter = new StaticDiffAdapter(
+      this.state.verticalDiffManager,
+      this.state.logger,
+    );
 
     this.state.logger.info("Vertical diff system initialized");
   }
