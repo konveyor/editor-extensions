@@ -62,14 +62,14 @@
 }
 
 /* Ensure header and loading indicator are always visible */
-.pf-v6-c-page__main-section .pf-v6-c-title {
+.resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title {
   display: flex !important;
   align-items: center !important;
   flex-wrap: nowrap !important;
   min-width: 0 !important;
 }
 
-.pf-v6-c-page__main-section .pf-v6-c-title .loading-indicator {
+.resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title .loading-indicator {
   display: inline-flex !important;
   margin-left: 10px !important;
   flex-shrink: 0 !important;
@@ -77,13 +77,13 @@
 
 /* Override any PatternFly responsive hiding */
 @media (max-width: 768px) {
-  .pf-v6-c-page__main-section .pf-v6-c-title {
+  .resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
   }
 
-  .pf-v6-c-page__main-section .pf-v6-c-title .loading-indicator {
+  .resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title .loading-indicator {
     display: inline-flex !important;
     visibility: visible !important;
     opacity: 1 !important;

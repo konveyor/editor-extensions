@@ -115,31 +115,6 @@ export class StaticDiffAdapter {
       // Small delay to ensure editor is fully active
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Calculate affected range from diff and set editor selection
-      let startLine = 0;
-      let endLine = document.lineCount - 1;
-
-      // Find the actual range affected by the diff
-      for (let i = 0; i < diffLines.length; i++) {
-        if (diffLines[i].type !== "same") {
-          startLine = i;
-          break;
-        }
-      }
-
-      for (let i = diffLines.length - 1; i >= 0; i--) {
-        if (diffLines[i].type !== "same") {
-          endLine = i;
-          break;
-        }
-      }
-
-      // Set the editor selection to the computed diff range
-      // This ensures the manager derives correct startLine/endLine values
-      const startPosition = new vscode.Position(startLine, 0);
-      const endPosition = new vscode.Position(endLine, 0);
-      editor.selection = new vscode.Selection(startPosition, endPosition);
-
       // Create a static stream from the diff lines
       const diffStream = this.staticDiffToStream(diffLines);
 

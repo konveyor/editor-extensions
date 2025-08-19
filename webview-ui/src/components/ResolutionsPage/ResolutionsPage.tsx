@@ -400,6 +400,7 @@ const ResolutionPage: React.FC = () => {
 
   return (
     <Page
+      className="resolutions-page"
       sidebar={
         <PageSidebar isSidebarOpen={false}>
           <PageSidebarBody />
