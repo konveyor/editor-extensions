@@ -547,6 +547,13 @@
           "scope": "window",
           "order": 10
         },
+        "konveyor.diff.autoAcceptOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically apply diff changes when saving files.",
+          "scope": "window",
+          "order": 11
+        },
         "konveyor.kai.agentMode": {
           "type": "boolean",
           "default": false,

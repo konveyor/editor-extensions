@@ -29,7 +29,15 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   // Use shared data normalization hook
   const normalizedData = useModifiedFileData(data);
   const { path, isNew, isDeleted, diff, status, content, messageToken, fileName } = normalizedData;
-  const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(status || null);
+  const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(() => {
+    if (status === "applied") {
+      return "applied";
+    }
+    if (status === "rejected") {
+      return "rejected";
+    }
+    return null; // for "pending" or undefined
+  });
   const [isViewingDiff, setIsViewingDiff] = useState(false);
 
   // Function to handle FILE_RESPONSE message posting (agent mode only)

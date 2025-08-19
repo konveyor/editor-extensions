@@ -55,7 +55,7 @@ export const useModifiedFileData = (
         isNew: data.isNew || false,
         isDeleted: data.isDeleted || false,
         diff: data.diff || "",
-        status: data.status || null,
+        status: (data.status as "applied" | "rejected" | null) || null,
         content: data.content || "",
         messageToken: data.messageToken || "",
         quickResponses:
