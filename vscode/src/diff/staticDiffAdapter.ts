@@ -127,12 +127,7 @@ export class StaticDiffAdapter {
         activeEditor: vscode.window.activeTextEditor?.document.fileName,
       });
 
-      await this.verticalDiffManager.streamDiffLines(
-        diffStream,
-        true, // instant mode for static diffs
-        messageToken, // use messageToken as streamId
-        undefined, // no toolCallId for static diffs
-      );
+      await this.verticalDiffManager.streamDiffLines(diffStream, messageToken);
 
       console.log("[StaticDiffAdapter] streamDiffLines completed");
     } catch (error) {

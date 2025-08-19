@@ -184,13 +184,8 @@ export class VerticalDiffManager {
   /**
    * Simplified method for streaming diff lines for static diffs
    */
-  async streamDiffLines(
-    diffStream: AsyncGenerator<DiffLine>,
-    instant: boolean = true,
-    streamId?: string,
-    toolCallId?: string,
-  ) {
-    console.log(`[Manager] streamDiffLines called - instant: ${instant}, streamId: ${streamId}`);
+  async streamDiffLines(diffStream: AsyncGenerator<DiffLine>, streamId?: string) {
+    console.log(`[Manager] streamDiffLines called - streamId: ${streamId}`);
     void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
 
     const editor = vscode.window.activeTextEditor;
@@ -219,7 +214,6 @@ export class VerticalDiffManager {
     // Create new handler
     console.log("[Manager] Creating new vertical diff handler");
     const diffHandler = this.createVerticalDiffHandler(fileUri, startLine, endLine, {
-      instant,
       onStatusUpdate: (status, numDiffs, fileContent) => {
         console.log(`[Manager] Status update: ${status}, numDiffs: ${numDiffs}`);
 

@@ -14,7 +14,6 @@ import type { VerticalDiffCodeLens } from "./manager";
 
 export interface VerticalDiffHandlerOptions {
   input?: string;
-  instant?: boolean;
   onStatusUpdate: (
     status?: ApplyState["status"],
     numDiffs?: ApplyState["numDiffs"],
@@ -495,26 +494,8 @@ export class VerticalDiffHandler implements vscode.Disposable {
   }
 
   private updateIndexLineDecorations() {
-    if (this.options.instant) {
-      // We don't show progress on instant apply
-      return;
-    }
-
-    // Highlight the line at the currentLineIndex
-    // And lightly highlight all lines between that and endLine
-    if (this.currentLineIndex - this.newLinesAdded >= this.endLine) {
-      this.editor.setDecorations(indexDecorationType, []);
-      this.editor.setDecorations(belowIndexDecorationType, []);
-    } else {
-      const start = new vscode.Position(this.currentLineIndex, 0);
-      this.editor.setDecorations(indexDecorationType, [
-        new vscode.Range(start, new vscode.Position(start.line, Number.MAX_SAFE_INTEGER)),
-      ]);
-      const end = new vscode.Position(this.endLine, 0);
-      this.editor.setDecorations(belowIndexDecorationType, [
-        new vscode.Range(start.translate(1), end.translate(this.newLinesAdded)),
-      ]);
-    }
+    // We don't show progress on instant apply
+    return;
   }
 
   private clearIndexLineDecorations() {
