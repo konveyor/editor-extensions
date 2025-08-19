@@ -49,19 +49,8 @@ const useResolutionData = (state: any) => {
   );
 
   const hasNothingToView = useMemo(() => {
-    if (isAgentMode) {
-      return (
-        solutionState === "none" && (!Array.isArray(chatMessages) || chatMessages?.length === 0)
-      );
-    } else {
-      // Non-agentic mode: Nothing to view if we have no chat messages AND no local changes
-      return (
-        solutionState === "none" &&
-        (!Array.isArray(chatMessages) || chatMessages?.length === 0) &&
-        (!Array.isArray(localChanges) || localChanges?.length === 0)
-      );
-    }
-  }, [solutionState, chatMessages, localChanges, isAgentMode]);
+    return solutionState === "none" && (!Array.isArray(chatMessages) || chatMessages?.length === 0);
+  }, [solutionState, chatMessages, localChanges]);
 
   const getPendingLocalChanges = useCallback(() => {
     return Array.isArray(localChanges)
@@ -80,16 +69,8 @@ const useResolutionData = (state: any) => {
       return (
         solutionState === "received" || (Array.isArray(chatMessages) && chatMessages?.length > 0)
       );
-    } else {
-      // Non-agentic mode: Has content if there are chat messages OR local changes
-      return (
-        solutionState === "received" ||
-        isHistorySolution ||
-        (Array.isArray(chatMessages) && chatMessages?.length > 0) ||
-        (Array.isArray(localChanges) && localChanges?.length > 0)
-      );
     }
-  }, [solutionState, chatMessages, localChanges, isAgentMode, isHistorySolution]);
+  }, [solutionState, chatMessages, isHistorySolution]);
 
   const getCompletionStatus = useCallback(() => {
     // NEVER show completion status in agent mode

@@ -178,33 +178,28 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     setIsViewingDiff(false);
   };
 
-
-
-
-
   // Handle quick response actions
   const handleQuickResponse = (responseId: string) => {
     const action = responseId === "apply" ? "applied" : "rejected";
     setActionTaken(action);
     setIsViewingDiff(false);
 
-    if (mode === "agent") {
-      // Agent mode: Use FILE_RESPONSE flow
-      const contentToSend = responseId === "apply" ? content : undefined;
-      postFileResponse(responseId, messageToken, path, contentToSend);
-      // Trigger scroll after action in agent mode
-      onUserAction?.();
-    } else {
-      // Non-agent mode: Use callback flow
-      if (isLocalChange(data)) {
-        if (responseId === "apply" && onApply) {
-          const modifiedChange: LocalChange = { ...data, content };
-          onApply(modifiedChange);
-        } else if (responseId === "reject" && onReject) {
-          onReject(data);
-        }
-      }
-    }
+    // Agent mode: Use FILE_RESPONSE flow
+    const contentToSend = responseId === "apply" ? content : undefined;
+    postFileResponse(responseId, messageToken, path, contentToSend);
+    // Trigger scroll after action in agent mode
+    onUserAction?.();
+    // } else {
+    //   // Non-agent mode: Use callback flow
+    //   if (isLocalChange(data)) {
+    //     if (responseId === "apply" && onApply) {
+    //       const modifiedChange: LocalChange = { ...data, content };
+    //       onApply(modifiedChange);
+    //     } else if (responseId === "reject" && onReject) {
+    //       onReject(data);
+    //     }
+    //   }
+    // }
   };
 
   // Function to open file in VSCode editor
@@ -230,9 +225,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                 <span className={`status-badge status-${actionTaken}`}>
                   {actionTaken === "applied" ? "✓ Applied" : "✗ Rejected"}
                 </span>
-                <span className="modified-file-minimized-filename">
-                  {fileName}
-                </span>
+                <span className="modified-file-minimized-filename">{fileName}</span>
               </div>
               {canOpenInEditor ? (
                 <Button
@@ -277,8 +270,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
           </CardBody>
         </Card>
       </div>
-
-
     </>
   );
 };

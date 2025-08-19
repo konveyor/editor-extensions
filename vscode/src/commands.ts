@@ -141,7 +141,7 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     "konveyor.getSolution": async (incidents: EnhancedIncident[]) => {
-      if (state.data.isFetchingSolution || state.data.solutionState !== "none") {
+      if (state.data.isFetchingSolution) {
         logger.info("Solution already being fetched");
         window.showWarningMessage("Solution already being fetched");
         return;
@@ -172,9 +172,8 @@ const commandsMap: (
         draft.isFetchingSolution = true;
         draft.solutionState = "started";
         draft.solutionScope = scope;
-        draft.chatMessages = []; // Clear previous chat messages (agentic mode)
-        draft.localChanges = []; // Clear previous local changes (non-agentic mode)
-        draft.solutionData = undefined; // Clear previous solution data
+        draft.chatMessages = []; // Clear previous chat messages
+        draft.diffResolvedStates = {}; // Clear previous diff resolution states
       });
 
       // Declare variables outside try block for proper cleanup access
@@ -398,25 +397,15 @@ const commandsMap: (
           clientId: clientId,
         };
 
-        // Update the state with the solution
+        // Update the state - solution fetching is complete
         state.mutateData((draft) => {
           draft.solutionState = "received";
           draft.isFetchingSolution = false;
-
-          // Only set solutionData in non-agentic mode where we have traditional diffs
-          if (!agentMode) {
-            draft.solutionData = solutionResponse;
-            // Note: Removed redundant "Solution generated successfully!" message
-            // The specific completion status messages (e.g. "All resolutions have been applied")
-            // provide more meaningful feedback to users
-          }
-          // In agentic mode, file changes are handled through ModifiedFile messages in chat
+          // File changes are handled through ModifiedFile messages in both agent and non-agent modes
         });
 
-        // Load the solution
-        if (!agentMode) {
-          commands.executeCommand("konveyor.loadSolution", solutionResponse, { incidents });
-        }
+        // In non-agent mode, file changes are already handled through ModifiedFile messages
+        // No need to load solution into the old diff view
 
         // Clean up pending interactions and resolver function after successful completion
         // Only clean up if we're not waiting for user interaction

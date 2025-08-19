@@ -17,7 +17,7 @@ import {
   SolutionServerClient,
   FileBasedResponseCache,
 } from "@editor-extensions/agentic";
-import { KonveyorFileModel, registerDiffView } from "./diffView";
+import { KonveyorFileModel } from "./diffView";
 import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
@@ -97,6 +97,7 @@ class VsCodeExtension {
         activeProfileId: "",
         profiles: [],
         isAgentMode: getConfigAgentMode(),
+        diffResolvedStates: {},
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -273,7 +274,7 @@ class VsCodeExtension {
         });
 
       this.registerWebviewProvider();
-      this.listeners.push(this.onDidChangeData(registerDiffView(this.state)));
+      // Diff view removed - using unified decorator flow instead
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();

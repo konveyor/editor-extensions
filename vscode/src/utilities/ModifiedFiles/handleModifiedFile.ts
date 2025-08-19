@@ -10,7 +10,6 @@ import { ModifiedFileState, ChatMessageType } from "@editor-extensions/shared";
 // Import path module for platform-agnostic path handling
 import { processModifiedFile } from "./processModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
-import { getConfigAgentMode } from "../configuration";
 
 /**
  * Performs comprehensive cleanup of resources and state variables when an error occurs
@@ -120,7 +119,6 @@ export const handleModifiedFileMessage = async (
 
   // Get file info for UI display
   const { path: filePath } = msg.data as KaiModifiedFile;
-  const isAgentMode = getConfigAgentMode();
 
   // Process the modified file and store it in the modifiedFiles map
   modifiedFilesPromises.push(
@@ -136,56 +134,54 @@ export const handleModifiedFileMessage = async (
     // Get file state from modifiedFiles map
     const fileState = modifiedFiles.get(uri.fsPath);
     if (fileState) {
-      if (isAgentMode) {
-        // In agentic mode: Add chat message and wait for user interaction
-        const isNew = fileState.originalContent === undefined;
-        const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
-        const diff = createFileDiff(fileState, filePath);
+      // Use unified logic for both agent and non-agent modes to enable decorator flow
+      const isNew = fileState.originalContent === undefined;
+      const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
+      const diff = createFileDiff(fileState, filePath);
 
-        // Add a chat message with quick responses for user interaction
-        state.mutateData((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.ModifiedFile,
-            messageToken: msg.id,
-            timestamp: new Date().toISOString(),
-            value: {
-              path: filePath,
-              content: fileState.modifiedContent,
-              originalContent: fileState.originalContent, // Use from ModifiedFileState
-              isNew: isNew,
-              isDeleted: isDeleted,
-              diff: diff,
-              messageToken: msg.id, // Add message token to value for reference
-            },
-            quickResponses: [
-              { id: "apply", content: "Apply" },
-              { id: "reject", content: "Reject" },
-            ],
-          });
+      // Add a chat message with quick responses for user interaction
+      state.mutateData((draft) => {
+        draft.chatMessages.push({
+          kind: ChatMessageType.ModifiedFile,
+          messageToken: msg.id,
+          timestamp: new Date().toISOString(),
+          value: {
+            path: filePath,
+            content: fileState.modifiedContent,
+            originalContent: fileState.originalContent, // Use from ModifiedFileState
+            isNew: isNew,
+            isDeleted: isDeleted,
+            diff: diff,
+            messageToken: msg.id, // Add message token to value for reference
+          },
+          quickResponses: [
+            { id: "apply", content: "Apply" },
+            { id: "reject", content: "Reject" },
+          ],
         });
+      });
 
-        state.isWaitingForUserInteraction = true;
+      state.isWaitingForUserInteraction = true;
 
-        // Set up the pending interaction using the same mechanism as UserInteraction messages
-        // This ensures that handleFileResponse can properly trigger queue processing
-        await new Promise<void>((resolve) => {
-          pendingInteractions.set(msg.id, async (response: any) => {
-            try {
-              // Use the centralized interaction completion handler
-              await handleUserInteractionComplete(state, queueManager);
+      // Set up the pending interaction using the same mechanism as UserInteraction messages
+      // This ensures that handleFileResponse can properly trigger queue processing
+      await new Promise<void>((resolve) => {
+        pendingInteractions.set(msg.id, async (response: any) => {
+          try {
+            // Use the centralized interaction completion handler
+            await handleUserInteractionComplete(state, queueManager);
 
-              // Remove the entry from pendingInteractions to prevent memory leaks
-              pendingInteractions.delete(msg.id);
-              resolve();
-            } catch (error) {
-              console.error(`Error in ModifiedFile resolver for messageId: ${msg.id}:`, error);
-              // Remove the entry from pendingInteractions to prevent memory leaks
-              pendingInteractions.delete(msg.id);
-              resolve();
-            }
-          });
+            // Remove the entry from pendingInteractions to prevent memory leaks
+            pendingInteractions.delete(msg.id);
+            resolve();
+          } catch (error) {
+            console.error(`Error in ModifiedFile resolver for messageId: ${msg.id}:`, error);
+            // Remove the entry from pendingInteractions to prevent memory leaks
+            pendingInteractions.delete(msg.id);
+            resolve();
+          }
         });
-      }
+      });
     }
   } catch (err) {
     console.error(`Error in handleModifiedFileMessage for ${filePath}:`, err);
