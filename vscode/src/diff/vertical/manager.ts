@@ -45,7 +45,7 @@ export class VerticalDiffManager {
         endLine,
         editor,
         this.fileUriToCodeLens,
-        this.clearForfileUri.bind(this),
+        this.clearForFileUri.bind(this),
         this.refreshCodeLens,
         options,
       );
@@ -143,7 +143,7 @@ export class VerticalDiffManager {
     await handler.acceptRejectBlock(accept, block.start, block.numGreen, block.numRed);
 
     if (blocks.length === 1) {
-      this.clearForfileUri(fileUri, true);
+      this.clearForFileUri(fileUri, true);
     } else {
       // Re-enable listener for user changes to file
       this.enableDocumentChangeListener();
@@ -157,14 +157,14 @@ export class VerticalDiffManager {
     }
   }
 
-  clearForfileUri(fileUri: string | undefined, accept: boolean = false) {
+  async clearForFileUri(fileUri: string | undefined, accept: boolean = false) {
     if (!fileUri) {
       return;
     }
 
     const handler = this.fileUriToHandler.get(fileUri);
     if (handler) {
-      handler.clear(accept);
+      await handler.clear(accept);
       this.fileUriToHandler.delete(fileUri);
     }
 
@@ -279,14 +279,14 @@ export class VerticalDiffManager {
 
     const handler = this.fileUriToHandler.get(fileUri);
     if (handler) {
-      // Accept all blocks
-      const blocks = this.fileUriToCodeLens.get(fileUri);
+      // Accept all blocks - take a shallow copy to avoid race conditions
+      const blocks = this.fileUriToCodeLens.get(fileUri)?.slice();
       if (blocks) {
         for (const block of blocks) {
           await handler.acceptRejectBlock(true, block.start, block.numGreen, block.numRed);
         }
       }
-      this.clearForfileUri(fileUri, true);
+      this.clearForFileUri(fileUri, true);
     }
   }
 
@@ -302,14 +302,14 @@ export class VerticalDiffManager {
 
     const handler = this.fileUriToHandler.get(fileUri);
     if (handler) {
-      // Reject all blocks
-      const blocks = this.fileUriToCodeLens.get(fileUri);
+      // Reject all blocks - take a shallow copy to avoid race conditions
+      const blocks = this.fileUriToCodeLens.get(fileUri)?.slice();
       if (blocks) {
         for (const block of blocks) {
           await handler.acceptRejectBlock(false, block.start, block.numGreen, block.numRed);
         }
       }
-      this.clearForfileUri(fileUri, false);
+      this.clearForFileUri(fileUri, false);
     }
   }
 }
