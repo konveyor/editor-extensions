@@ -11,6 +11,7 @@ import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
+import { Tooltip } from "@patternfly/react-core";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -33,15 +34,40 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     dispatch(getSolutionWithKonveyorContext(incident));
   };
 
-  const isButtonDisabled =
-    state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
+  const genaiDisabled = state.configErrors.some((e) => e.type === "genai-disabled");
+  const genaiConfigError = state.configErrors.some(
+    (e) => e.type === "provider-not-configured" || e.type === "provider-connection-failed",
+  );
 
-  // The disabled plain button looks terrible, just return undefined
-  if (isButtonDisabled) {
-    return undefined;
+  // Hide component completely when GenAI is disabled
+  if (genaiDisabled) {
+    return null;
   }
 
-  return (
+  const isButtonDisabled =
+    state.isFetchingSolution ||
+    state.isAnalyzing ||
+    state.serverState !== "running" ||
+    genaiConfigError;
+
+  // Get tooltip message for disabled state
+  const getDisabledTooltip = () => {
+    if (genaiConfigError) {
+      return "GenAI features unavailable. Please configure your model provider settings.";
+    }
+    if (state.isFetchingSolution) {
+      return "Currently fetching solution...";
+    }
+    if (state.isAnalyzing) {
+      return "Analysis in progress...";
+    }
+    if (state.serverState !== "running") {
+      return "Kai analyzer server not running";
+    }
+    return "";
+  };
+
+  const dropdown = (
     <Dropdown
       isOpen={isOpen}
       onSelect={() => setIsOpen(false)}
@@ -95,6 +121,13 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
       </DropdownList>
     </Dropdown>
   );
+
+  // Wrap with tooltip if disabled
+  if (isButtonDisabled) {
+    return <Tooltip content={getDisabledTooltip()}>{dropdown}</Tooltip>;
+  }
+
+  return dropdown;
 };
 
 export default GetSolutionDropdown;

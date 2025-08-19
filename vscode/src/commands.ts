@@ -144,6 +144,26 @@ const commandsMap: (
         return;
       }
 
+      // Check if GenAI is available
+      const genaiDisabledError = state.data.configErrors.find((e) => e.type === "genai-disabled");
+      const genaiConfigError = state.data.configErrors.find(
+        (e) => e.type === "provider-not-configured" || e.type === "provider-connection-failed",
+      );
+
+      if (genaiDisabledError) {
+        logger.info("GenAI disabled, cannot get solution");
+        window.showErrorMessage("GenAI functionality is disabled.");
+        return;
+      }
+
+      if (genaiConfigError) {
+        logger.info("GenAI not available, cannot get solution");
+        window.showErrorMessage(
+          "GenAI features are not available. Please configure your model provider settings.",
+        );
+        return;
+      }
+
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });
@@ -544,12 +564,12 @@ const commandsMap: (
         openLabel: "Select Analyzer Binary",
         filters: isWindows
           ? {
-            "Executable Files": ["exe"],
-            "All Files": ["*"],
-          }
+              "Executable Files": ["exe"],
+              "All Files": ["*"],
+            }
           : {
-            "All Files": ["*"],
-          },
+              "All Files": ["*"],
+            },
       };
 
       const fileUri = await window.showOpenDialog(options);

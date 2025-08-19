@@ -66,6 +66,8 @@ export const getTraceEnabled = (): boolean => getConfigValue<boolean>("kai.trace
 export const getConfigKaiDemoMode = (): boolean => getConfigValue<boolean>("kai.demoMode") ?? false;
 export const getConfigMaxLLMQueries = (): number | undefined =>
   getConfigValue<number | null>("kai.getSolutionMaxLLMQueries") ?? undefined;
+export const getConfigGenAIEnabled = (): boolean =>
+  getConfigValue<boolean>("genai.enabled") ?? true;
 export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("kai.agentMode") ?? false;
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("kai.excludedDiagnosticSources") ?? [];

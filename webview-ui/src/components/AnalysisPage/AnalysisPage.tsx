@@ -70,7 +70,7 @@ const AnalysisPage: React.FC = () => {
     isFetchingSolution: isWaitingForSolution,
     ruleSets: analysisResults,
     enhancedIncidents,
-    configErrors,
+    configErrors: rawConfigErrors,
     profiles,
     activeProfileId,
     serverState,
@@ -79,7 +79,9 @@ const AnalysisPage: React.FC = () => {
     isAgentMode,
   } = state;
 
-  console.log(configErrors);
+  console.log(rawConfigErrors);
+  const configErrors = rawConfigErrors.filter((error) => error.type !== "genai-disabled");
+  const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
@@ -154,24 +156,26 @@ const AnalysisPage: React.FC = () => {
                             hasWarning={configInvalid}
                           />
                         </ToolbarItem>
-                        <ToolbarItem>
-                          <div>
-                            <div className="agent-mode-wrapper">
-                              <Switch
-                                id="agent-mode-switch"
-                                isChecked={isAgentMode}
-                                label="Agent Mode"
-                                onChange={(_event) => handleAgentModeToggle()}
-                                aria-label="Toggle Agent Mode"
-                                isReversed
-                              />
+                        {!isGenAIDisabled && (
+                          <ToolbarItem>
+                            <div>
+                              <div className="agent-mode-wrapper">
+                                <Switch
+                                  id="agent-mode-switch"
+                                  isChecked={isAgentMode}
+                                  label="Agent Mode"
+                                  onChange={(_event) => handleAgentModeToggle()}
+                                  aria-label="Toggle Agent Mode"
+                                  isReversed
+                                />
+                              </div>
                             </div>
-                          </div>
-                        </ToolbarItem>
+                          </ToolbarItem>
+                        )}
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
-                            hasWarning={configErrors.length > 0}
+                            hasWarning={rawConfigErrors.length > 0}
                             warningMessage="Please review your configuration before running analysis."
                           />
                         </ToolbarItem>
