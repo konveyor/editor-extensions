@@ -151,7 +151,8 @@ export class VerticalDiffHandler implements vscode.Disposable {
         await this._handleDiffLine(line);
       } catch (_e) {
         // If editor is switched between calling _handleDiffLine and the edit actually being executed
-        this._diffLinesQueue.push(line);
+        // Put the line back at the front to maintain order
+        this._diffLinesQueue.unshift(line);
         break;
       }
     }
