@@ -450,7 +450,10 @@ export class VerticalDiffHandler implements vscode.Disposable {
     await this.editor.edit(
       (editBuilder) => {
         const lineCount = this.editor.document.lineCount;
-        if (index >= lineCount) {
+        if (lineCount === 0) {
+          // File is empty, insert at the beginning
+          editBuilder.insert(new vscode.Position(0, 0), text);
+        } else if (index >= lineCount) {
           // Append to end of file
           editBuilder.insert(
             new vscode.Position(lineCount, this.editor.document.lineAt(lineCount - 1).text.length),
