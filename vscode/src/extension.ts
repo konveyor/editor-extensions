@@ -310,10 +310,11 @@ class VsCodeExtension {
 
       registerAnalysisTrigger(this.listeners, this.state);
 
-      // Removed decorator-related editor change listener since we're using merge editor now
-
       this.listeners.push(
-        vscode.workspace.onDidSaveTextDocument(async (doc) => {
+        vscode.workspace.onWillSaveTextDocument(async (event) => {
+          const doc = event.document;
+
+          // Handle settings.yaml configuration changes
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
             const configError = await this.setupModelProvider(paths().settingsYaml);
             this.state.mutateData((draft) => {
@@ -325,20 +326,30 @@ class VsCodeExtension {
             });
           }
 
-          // Auto-accept all diff decorations when file is saved (if enabled)
+          // Auto-accept all diff decorations BEFORE saving (if enabled)
+          // This ensures the document is saved in its final state
           if (getConfigAutoAcceptOnSave() && this.state.verticalDiffManager) {
             const fileUri = doc.uri.toString();
             const handler = this.state.verticalDiffManager.getHandlerForFile(fileUri);
             if (handler && handler.hasDiffForCurrentFile()) {
               try {
+                // Accept all diffs BEFORE the save operation
+                // This ensures the document is saved in its final state
                 await this.state.staticDiffAdapter?.acceptAll(doc.uri.fsPath);
                 this.state.logger.info(
-                  `Auto-accepted all diff decorations for ${doc.fileName} on save`,
+                  `Auto-accepted all diff decorations for ${doc.fileName} before save`,
+                );
+                // Show user feedback that diffs were auto-accepted
+                vscode.window.showInformationMessage(
+                  `Auto-accepted all diff changes for ${doc.fileName} - saving final state`,
                 );
               } catch (error) {
                 this.state.logger.error(
-                  `Failed to auto-accept diff decorations on save for ${doc.fileName}:`,
+                  `Failed to auto-accept diff decorations before save for ${doc.fileName}:`,
                   error,
+                );
+                vscode.window.showErrorMessage(
+                  `Failed to auto-accept diff changes for ${doc.fileName}: ${error}`,
                 );
               }
             }
@@ -423,7 +434,7 @@ class VsCodeExtension {
     const ide = new SimpleIDE();
 
     // Initialize managers
-    this.state.verticalDiffManager = new VerticalDiffManager(ide);
+    this.state.verticalDiffManager = new VerticalDiffManager(ide, this.state.kaiFsCache);
 
     // Set up the diff status change callback
     this.state.verticalDiffManager.onDiffStatusChange = (fileUri: string) => {

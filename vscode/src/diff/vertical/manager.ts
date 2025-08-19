@@ -2,6 +2,7 @@ import { DiffLine, IDE } from "../types";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 import { VerticalDiffHandler, VerticalDiffHandlerOptions } from "./handler";
+import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
 
 export interface VerticalDiffCodeLens {
   start: number;
@@ -20,7 +21,10 @@ export class VerticalDiffManager {
 
   logDiffs: DiffLine[] | undefined;
 
-  constructor(private readonly ide: IDE) {
+  constructor(
+    private readonly ide: IDE,
+    private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>,
+  ) {
     this.userChangeListener = undefined;
   }
 
@@ -218,6 +222,19 @@ export class VerticalDiffManager {
       instant,
       onStatusUpdate: (status, numDiffs, fileContent) => {
         console.log(`[Manager] Status update: ${status}, numDiffs: ${numDiffs}`);
+
+        // Update cache when status is "closed" and we have final file content
+        if (status === "closed" && fileContent) {
+          try {
+            // Convert fileUri to file path for cache key
+            const uri = vscode.Uri.parse(fileUri);
+            const filePath = uri.fsPath;
+            this.kaiFsCache.set(filePath, fileContent);
+            console.log(`[Manager] Updated cache for file: ${filePath}`);
+          } catch (error) {
+            console.error(`[Manager] Failed to update cache:`, error);
+          }
+        }
       },
       streamId,
       onDiffStatusChange: (fileUri) => {
