@@ -2,7 +2,7 @@ import { DiffLine, IDE } from "../types";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 import { VerticalDiffHandler, VerticalDiffHandlerOptions } from "./handler";
-import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
+import { InMemoryCacheWithRevisions, fileUriToPath } from "@editor-extensions/agentic";
 
 export interface VerticalDiffCodeLens {
   start: number;
@@ -214,8 +214,8 @@ export class VerticalDiffManager {
         if (status === "closed" && fileContent) {
           try {
             // Convert fileUri to file path for cache key
-            const uri = vscode.Uri.parse(fileUri);
-            const filePath = uri.fsPath;
+            // Use fileUriToPath helper to ensure the path format matches what the agent expects
+            const filePath = fileUriToPath(fileUri);
             this.kaiFsCache.set(filePath, fileContent);
             console.log(`[Manager] Updated cache for file: ${filePath}`);
           } catch (error) {
