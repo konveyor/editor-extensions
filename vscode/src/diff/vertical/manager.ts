@@ -143,7 +143,7 @@ export class VerticalDiffManager {
     await handler.acceptRejectBlock(accept, block.start, block.numGreen, block.numRed);
 
     if (blocks.length === 1) {
-      this.clearForFileUri(fileUri, true);
+      await this.clearForFileUri(fileUri, true);
     } else {
       // Re-enable listener for user changes to file
       this.enableDocumentChangeListener();
@@ -200,13 +200,6 @@ export class VerticalDiffManager {
     const startLine = 0;
     const endLine = editor.document.lineCount - 1;
     console.log(`[Manager] Selection range: ${startLine}-${endLine}`);
-
-    // Clear any existing handler
-    const existingHandler = this.getHandlerForFile(fileUri);
-    if (existingHandler) {
-      console.log("[Manager] Clearing existing handler");
-      await existingHandler.clear(false);
-    }
 
     // Small delay to ensure UI updates
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -280,7 +273,7 @@ export class VerticalDiffManager {
           await handler.acceptRejectBlock(true, block.start, block.numGreen, block.numRed);
         }
       }
-      this.clearForFileUri(fileUri, true);
+      await this.clearForFileUri(fileUri, true);
     }
   }
 
@@ -303,7 +296,7 @@ export class VerticalDiffManager {
           await handler.acceptRejectBlock(false, block.start, block.numGreen, block.numRed);
         }
       }
-      this.clearForFileUri(fileUri, false);
+      await this.clearForFileUri(fileUri, false);
     }
   }
 

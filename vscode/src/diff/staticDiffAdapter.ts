@@ -141,7 +141,7 @@ export class StaticDiffAdapter {
    */
   async acceptAll(filePath: string): Promise<void> {
     const fileUri = vscode.Uri.file(filePath).toString();
-    this.verticalDiffManager.clearForFileUri(fileUri, true);
+    await this.verticalDiffManager.clearForFileUri(fileUri, true);
   }
 
   /**
@@ -149,7 +149,7 @@ export class StaticDiffAdapter {
    */
   async rejectAll(filePath: string): Promise<void> {
     const fileUri = vscode.Uri.file(filePath).toString();
-    this.verticalDiffManager.clearForFileUri(fileUri, false);
+    await this.verticalDiffManager.clearForFileUri(fileUri, false);
   }
 
   /**

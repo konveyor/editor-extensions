@@ -198,7 +198,7 @@ export class VerticalDiffHandler implements vscode.Disposable {
       //   }
       // });
     } catch (e) {
-      this.clearForFileUri(this.fileUri, false);
+      await this.clearForFileUri(this.fileUri, false);
       throw e;
     }
     return diffLines;

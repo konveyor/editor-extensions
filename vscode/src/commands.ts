@@ -904,12 +904,12 @@ const commandsMap: (
       try {
         if (filePath) {
           const fileUri = vscode.Uri.file(filePath).toString();
-          state.verticalDiffManager?.clearForFileUri(fileUri, false);
+          await state.verticalDiffManager?.clearForFileUri(fileUri, false);
         } else {
           // Clear all active diffs
           if (state.verticalDiffManager) {
             for (const fileUri of state.verticalDiffManager.fileUriToCodeLens.keys()) {
-              state.verticalDiffManager.clearForFileUri(fileUri, false);
+              await state.verticalDiffManager.clearForFileUri(fileUri, false);
             }
           }
         }

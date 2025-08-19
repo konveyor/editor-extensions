@@ -277,6 +277,8 @@ class VsCodeExtension {
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();
+
+      this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
       this.state.solutionServerClient.connect().catch((error) => {
         this.state.logger.error("Error connecting to solution server", error);
