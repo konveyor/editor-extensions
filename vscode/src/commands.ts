@@ -26,7 +26,6 @@ import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
 } from "@editor-extensions/agentic";
-// diffView imports removed - using unified decorator flow
 import {
   updateAnalyzerPath,
   getConfigAgentMode,
@@ -46,7 +45,6 @@ import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
-// Removed SimpleDiffManager imports - replaced with vertical diff system
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
@@ -572,11 +570,6 @@ const commandsMap: (
     "konveyor.cleanRuleSets": () => cleanRuleSets(state),
     "konveyor.loadStaticResults": loadStaticResults,
     "konveyor.loadResultsFromDataFolder": loadResultsFromDataFolder,
-    "konveyor.applyAll": async () => {}, // removed - using unified decorator flow
-    "konveyor.applyFile": async (item: any) => {}, // removed - using unified decorator flow
-    // diffView commands removed - using unified decorator flow
-    "konveyor.discardAll": async () => {},
-    "konveyor.discardFile": async (item: any) => {},
     "konveyor.showResolutionPanel": () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
@@ -593,7 +586,6 @@ const commandsMap: (
     },
     "konveyor.fixGroupOfIncidents": fixGroupOfIncidents,
     "konveyor.fixIncident": fixGroupOfIncidents,
-    // diffView apply commands removed - using unified decorator flow
     "konveyor.partialAnalysis": async (filePaths: Uri[]) => runPartialAnalysis(state, filePaths),
     "konveyor.generateDebugArchive": async () => {
       const archiveRawPath = await window.showInputBox({
@@ -956,8 +948,6 @@ const commandsMap: (
     },
   };
 };
-
-// Exports removed - vertical diff system will be initialized locally
 
 export function registerAllCommands(state: ExtensionState) {
   // Create a child logger for commands

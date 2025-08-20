@@ -62,28 +62,56 @@
 }
 
 /* Ensure header and loading indicator are always visible */
-.resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title {
+.resolutions-page .pf-v6-c-title {
   display: flex !important;
   align-items: center !important;
   flex-wrap: nowrap !important;
   min-width: 0 !important;
 }
 
-.resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title .loading-indicator {
+.resolutions-page .loading-indicator {
   display: inline-flex !important;
   margin-left: 10px !important;
   flex-shrink: 0 !important;
 }
 
-/* Override any PatternFly responsive hiding */
-@media (max-width: 768px) {
-  .resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title {
+/* Override any PatternFly responsive hiding at all screen sizes */
+@media (max-width: 1200px) {
+  .resolutions-page .pf-v6-c-title {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
   }
 
-  .resolutions-page .pf-v6-c-page__main-section .pf-v6-c-title .loading-indicator {
+  .resolutions-page .loading-indicator {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .resolutions-page .pf-v6-c-title {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .resolutions-page .loading-indicator {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .resolutions-page .pf-v6-c-title {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .resolutions-page .loading-indicator {
     display: inline-flex !important;
     visibility: visible !important;
     opacity: 1 !important;
