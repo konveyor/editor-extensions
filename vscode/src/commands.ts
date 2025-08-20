@@ -144,23 +144,10 @@ const commandsMap: (
         return;
       }
 
-      // Check if GenAI is available
-      const genaiDisabledError = state.data.configErrors.find((e) => e.type === "genai-disabled");
-      const genaiConfigError = state.data.configErrors.find(
-        (e) => e.type === "provider-not-configured" || e.type === "provider-connection-failed",
-      );
-
-      if (genaiDisabledError) {
+      // Check if GenAI is disabled
+      if (state.data.configErrors.some((e) => e.type === "genai-disabled")) {
         logger.info("GenAI disabled, cannot get solution");
         window.showErrorMessage("GenAI functionality is disabled.");
-        return;
-      }
-
-      if (genaiConfigError) {
-        logger.info("GenAI not available, cannot get solution");
-        window.showErrorMessage(
-          "GenAI features are not available. Please configure your model provider settings.",
-        );
         return;
       }
 
