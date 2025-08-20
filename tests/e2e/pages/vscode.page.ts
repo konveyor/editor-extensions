@@ -147,7 +147,14 @@ export class VSCode extends BasePage {
   }
 
   public async openAnalysisView(): Promise<void> {
-    await this.openLeftBarElement(LeftBarItems.Konveyor);
+    // Try using command palette first - this works reliably when extension is hidden due to too many extensions
+    try {
+      await this.executeQuickCommand('Konveyor: Open Konveyor Analysis View');
+      return;
+    } catch (error) {
+      // Fallback to activity bar approach
+      await this.openLeftBarElement(LeftBarItems.Konveyor);
+    }
 
     await this.window.getByText('Konveyor Issues').dblclick();
 
