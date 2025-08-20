@@ -62,31 +62,6 @@ export const viewFix = (change: LocalChange): WebviewAction<WebviewActionType, L
   payload: change,
 });
 
-export interface ApplyFilePayload {
-  path: string;
-  messageToken?: string;
-  content?: string;
-}
-
-export const applyFile = (
-  payload: ApplyFilePayload,
-): WebviewAction<WebviewActionType, ApplyFilePayload> => ({
-  type: "APPLY_FILE",
-  payload,
-});
-
-export interface DiscardFilePayload {
-  path: string;
-  messageToken?: string;
-}
-
-export const discardFile = (
-  payload: LocalChange | DiscardFilePayload,
-): WebviewAction<WebviewActionType, LocalChange | DiscardFilePayload> => ({
-  type: "DISCARD_FILE",
-  payload,
-});
-
 export const configureLabelSelector = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "CONFIGURE_LABEL_SELECTOR",
   payload: {}, // no payload needed here, but could pass data if needed

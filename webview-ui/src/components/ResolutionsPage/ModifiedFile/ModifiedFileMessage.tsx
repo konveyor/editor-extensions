@@ -6,6 +6,7 @@ import ModifiedFileHeader from "./ModifiedFileHeader";
 import ModifiedFileDiffPreview from "./ModifiedFileDiffPreview";
 import ModifiedFileActions from "./ModifiedFileActions";
 import { useModifiedFileData, isLocalChange } from "./useModifiedFileData";
+import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
 
 interface ModifiedFileMessageProps {
   data: ModifiedFileMessageValue | LocalChange;
@@ -39,6 +40,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     return null; // for "pending" or undefined
   });
   const [isViewingDiff, setIsViewingDiff] = useState(false);
+
+  // Get extension state to check for active decorators
+  const { state } = useExtensionStateContext();
+  const hasActiveDecorators = !!(state.activeDecorators && state.activeDecorators[messageToken]);
+  console.log(
+    `[ModifiedFileMessage] messageToken: ${messageToken}, hasActiveDecorators: ${hasActiveDecorators}, activeDecorators:`,
+    state.activeDecorators,
+  );
 
   // Function to handle FILE_RESPONSE message posting (agent mode only)
   const postFileResponse = (
@@ -266,6 +275,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               onQuickResponse={handleQuickResponse}
               isFileApplied={isViewingDiff}
               onContinue={handleContinue}
+              hasActiveDecorators={hasActiveDecorators}
             />
           </CardBody>
         </Card>

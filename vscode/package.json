@@ -182,11 +182,6 @@
         "category": "Konveyor"
       },
       {
-        "command": "konveyor.loadSolution",
-        "title": "Load solution",
-        "category": "Konveyor"
-      },
-      {
         "command": "konveyor.applyAll",
         "title": "Apply All",
         "category": "Konveyor",
@@ -349,10 +344,6 @@
         },
         {
           "command": "konveyor.loadRuleSets",
-          "when": "never"
-        },
-        {
-          "command": "konveyor.loadSolution",
           "when": "never"
         },
         {

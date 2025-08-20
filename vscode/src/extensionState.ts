@@ -11,8 +11,6 @@ import {
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
-import { MemFS } from "./data/fileSystemProvider";
-import { KonveyorFileModel } from "./diffView/fileModel";
 import { EventEmitter } from "events";
 import winston from "winston";
 import { VerticalDiffManager } from "./diff/vertical/manager";
@@ -24,8 +22,6 @@ export interface ExtensionState {
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
   extensionContext: vscode.ExtensionContext;
   diagnosticCollection: vscode.DiagnosticCollection;
-  memFs: MemFS;
-  fileModel: KonveyorFileModel;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
   mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;

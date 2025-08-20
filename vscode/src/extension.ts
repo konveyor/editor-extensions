@@ -17,8 +17,6 @@ import {
   SolutionServerClient,
   FileBasedResponseCache,
 } from "@editor-extensions/agentic";
-import { KonveyorFileModel } from "./diffView";
-import { MemFS } from "./data";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
@@ -97,7 +95,7 @@ class VsCodeExtension {
         activeProfileId: "",
         profiles: [],
         isAgentMode: getConfigAgentMode(),
-        diffResolvedStates: {},
+        activeDecorators: {},
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -133,8 +131,6 @@ class VsCodeExtension {
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
-      memFs: new MemFS(),
-      fileModel: new KonveyorFileModel(),
       issueModel: new IssuesModel(),
       kaiFsCache: new InMemoryCacheWithRevisions(true),
       taskManager,
@@ -437,11 +433,7 @@ class VsCodeExtension {
     const fileEditor = new FileEditor();
 
     // Initialize managers
-    this.state.verticalDiffManager = new VerticalDiffManager(
-      fileEditor,
-      this.state.kaiFsCache,
-      this.state.logger,
-    );
+    this.state.verticalDiffManager = new VerticalDiffManager(fileEditor, this.state);
 
     // Set up the diff status change callback
     this.state.verticalDiffManager.onDiffStatusChange = (fileUri: string) => {

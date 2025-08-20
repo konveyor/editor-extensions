@@ -22,6 +22,7 @@ interface ModifiedFileActionsProps {
   onQuickResponse: (responseId: string) => void;
   isFileApplied?: boolean;
   onContinue?: () => void;
+  hasActiveDecorators?: boolean;
 }
 
 // Status Display Component
@@ -44,7 +45,10 @@ const StatusDisplay: React.FC<{ status: "applied" | "rejected" }> = ({ status })
 );
 
 // Status Banner - shown when viewing diff to guide user
-const DiffStatusBanner: React.FC<{ onApplyChanges: () => void }> = ({ onApplyChanges }) => (
+const DiffStatusBanner: React.FC<{
+  onApplyChanges: () => void;
+  hasActiveDecorators?: boolean;
+}> = ({ onApplyChanges, hasActiveDecorators }) => (
   <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentCenter" }}>
     <FlexItem>
       <div className="diff-status-banner">
@@ -65,6 +69,9 @@ const DiffStatusBanner: React.FC<{ onApplyChanges: () => void }> = ({ onApplyCha
                 <li>Or use individual block buttons to accept/reject specific changes</li>
                 <li>Changes are auto-accepted when you save the file (Ctrl/Cmd+S)</li>
               </ul>
+              <br />
+              <strong>Important:</strong> Save your changes (Ctrl/Cmd+S) before clicking Continue to
+              preserve any edits you&apos;ve made.
             </div>
           }
           position="bottom"
@@ -73,8 +80,13 @@ const DiffStatusBanner: React.FC<{ onApplyChanges: () => void }> = ({ onApplyCha
             <InfoCircleIcon color="#4394e5" />
           </Icon>
         </Tooltip>
-        <Button variant="link" onClick={onApplyChanges} className="continue-button">
-          Continue
+        <Button
+          variant="link"
+          onClick={onApplyChanges}
+          className="continue-button"
+          isDisabled={hasActiveDecorators}
+        >
+          {hasActiveDecorators ? "Continue" : "Continue"}
         </Button>
       </div>
     </FlexItem>
@@ -84,30 +96,18 @@ const DiffStatusBanner: React.FC<{ onApplyChanges: () => void }> = ({ onApplyCha
 // Primary Action Buttons Component
 const PrimaryActionButtons: React.FC<{
   isNew: boolean;
-  mode: "agent" | "non-agent";
   actionTaken: "applied" | "rejected" | null;
-  onView: () => void;
   onViewWithDecorations?: () => void;
   onApply: () => void;
   onReject: () => void;
   isViewingDiff?: boolean;
-}> = ({
-  isNew,
-  mode,
-  actionTaken,
-  onView,
-  onViewWithDecorations,
-  onApply,
-  onReject,
-  isViewingDiff,
-}) => (
+}> = ({ isNew, actionTaken, onViewWithDecorations, onApply, onReject, isViewingDiff }) => (
   <Flex
     className="modified-file-actions"
     justifyContent={{ default: "justifyContentSpaceBetween" }}
   >
     <FlexItem>
       <Flex gap={{ default: "gapMd" }}>
-        {/* View with Decorations - Primary action for agent mode */}
         {!isNew && onViewWithDecorations && (
           <FlexItem>
             <Button
@@ -119,22 +119,6 @@ const PrimaryActionButtons: React.FC<{
               className="view-with-decorations-button"
             >
               {isViewingDiff ? "Viewing Diff..." : "Review Changes"}
-            </Button>
-          </FlexItem>
-        )}
-
-        {/* View in VSCode - Secondary action */}
-        {!isNew && mode !== "agent" && (
-          <FlexItem>
-            <Button
-              variant="link"
-              icon={<EyeIcon />}
-              onClick={onView}
-              aria-label="View file in VSCode"
-              isDisabled={actionTaken !== null}
-              className="secondary-action-button"
-            >
-              View in VSCode
             </Button>
           </FlexItem>
         )}
@@ -241,6 +225,7 @@ const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   onQuickResponse,
   isFileApplied,
   onContinue,
+  hasActiveDecorators,
 }) => {
   const { isNew, quickResponses } = normalizedData;
 
@@ -257,6 +242,7 @@ const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
           // Apply changes automatically (like the old Continue logic)
           onContinue?.();
         }}
+        hasActiveDecorators={hasActiveDecorators}
       />
     );
   }
@@ -281,9 +267,7 @@ const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   return (
     <PrimaryActionButtons
       isNew={isNew}
-      mode={mode}
       actionTaken={actionTaken}
-      onView={() => onView(normalizedData.path, normalizedData.diff)}
       onViewWithDecorations={
         onViewWithDecorations
           ? () => onViewWithDecorations(normalizedData.path, normalizedData.diff)

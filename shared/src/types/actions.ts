@@ -7,8 +7,6 @@ export const GET_SOLUTION = "GET_SOLUTION";
 export const GET_SUCCESS_RATE = "GET_SUCCESS_RATE";
 export const OPEN_FILE = "OPEN_FILE";
 export const VIEW_FIX = "VIEW_FIX";
-export const APPLY_FILE = "APPLY_FILE";
-export const DISCARD_FILE = "DISCARD_FILE";
 export const WEBVIEW_READY = "WEBVIEW_READY";
 export const GET_SOLUTION_WITH_KONVEYOR_CONTEXT = "GET_SOLUTION_WITH_KONVEYOR_CONTEXT";
 export const CONFIGURE_LABEL_SELECTOR = "CONFIGURE_LABEL_SELECTOR";
@@ -36,8 +34,6 @@ export type WebviewActionType =
   | typeof GET_SUCCESS_RATE
   | typeof OPEN_FILE
   | typeof VIEW_FIX
-  | typeof APPLY_FILE
-  | typeof DISCARD_FILE
   | typeof WEBVIEW_READY
   | typeof GET_SOLUTION_WITH_KONVEYOR_CONTEXT
   | typeof CONFIGURE_LABEL_SELECTOR

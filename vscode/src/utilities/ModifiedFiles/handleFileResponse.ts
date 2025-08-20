@@ -109,20 +109,6 @@ export async function handleFileResponse(
       return;
     }
 
-    const msg = state.data.chatMessages[messageIndex];
-
-    // Add user's response to chat
-    state.mutateData((draft) => {
-      draft.chatMessages.push({
-        kind: ChatMessageType.String,
-        messageToken: msg.messageToken,
-        timestamp: new Date().toISOString(),
-        value: {
-          message: responseId === "apply" ? "Applied file changes" : "Rejected file changes",
-        },
-      });
-    });
-
     if (responseId === "apply") {
       const uri = vscode.Uri.file(path);
       const fileMessage = state.data.chatMessages.find(

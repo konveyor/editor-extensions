@@ -32,11 +32,6 @@ export const loadStaticResults = async () => {
       vscode.window.showErrorMessage("Konveyor: analysis results point to non-existing files.");
     }
   }
-  if (solution) {
-    vscode.commands.executeCommand("konveyor.diffView.focus");
-    vscode.commands.executeCommand("konveyor.loadSolution", solution);
-    vscode.window.showInformationMessage("Successfully loaded the solutions");
-  }
 };
 
 //TODO: as for now analysis results are based on absolute paths which need to be manually adjusted

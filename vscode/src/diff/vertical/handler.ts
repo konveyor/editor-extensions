@@ -84,6 +84,10 @@ export class VerticalDiffHandler implements vscode.Disposable {
     return this.editor.document.uri.toString();
   }
 
+  public getFileUri(): string {
+    return this.fileUri;
+  }
+
   async clear(accept: boolean) {
     vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
 

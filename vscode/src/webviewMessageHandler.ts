@@ -3,17 +3,14 @@ import { ExtensionState } from "./extensionState";
 import {
   ADD_PROFILE,
   AnalysisProfile,
-  APPLY_FILE,
   ChatMessageType,
   CONFIGURE_CUSTOM_RULES,
   CONFIGURE_LABEL_SELECTOR,
   CONFIGURE_SOURCES_TARGETS,
   DELETE_PROFILE,
-  DISCARD_FILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
   GET_SUCCESS_RATE,
-  LocalChange,
   OPEN_FILE,
   OPEN_GENAI_SETTINGS,
   OVERRIDE_ANALYZER_BINARIES,
@@ -26,7 +23,6 @@ import {
   STOP_SERVER,
   TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
-  VIEW_FIX,
   WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
@@ -34,7 +30,6 @@ import {
   ExtensionData,
   createConfigError,
 } from "@editor-extensions/shared";
-import { getLanguageFromExtension } from "../../shared/src/utils/languageMapping";
 
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import {
@@ -45,7 +40,7 @@ import {
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
 import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
 import winston from "winston";
-import { getConfigDiffEditorType, toggleAgentMode } from "./utilities/configuration";
+import { toggleAgentMode } from "./utilities/configuration";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
@@ -172,52 +167,12 @@ const actions: {
   },
   [GET_SOLUTION](scope: Scope) {
     vscode.commands.executeCommand("konveyor.getSolution", scope.incidents);
-    vscode.commands.executeCommand("konveyor.diffView.focus");
     vscode.commands.executeCommand("konveyor.showResolutionPanel");
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     vscode.commands.executeCommand("konveyor.askContinue", incident);
   },
-  [VIEW_FIX](change: LocalChange) {
-    vscode.commands.executeCommand(
-      "konveyor.diffView.viewFix",
-      vscode.Uri.from(change.originalUri),
-      true,
-    );
-  },
-  async [APPLY_FILE](payload: any, _state, logger) {
-    let fileUri: vscode.Uri;
-    // Handle both LocalChange (old format) and ApplyFilePayload (new format)
-    if (payload.originalUri) {
-      // Old format: LocalChange with originalUri
-      fileUri = vscode.Uri.from(payload.originalUri);
-    } else if (payload.path) {
-      // New format: ApplyFilePayload with path
-      fileUri = vscode.Uri.file(payload.path);
-    } else {
-      logger.error("APPLY_FILE payload missing both originalUri and path:", payload);
-      return;
-    }
-
-    await vscode.commands.executeCommand("konveyor.applyFile", fileUri);
-  },
-  async [DISCARD_FILE](payload: any, _state, logger) {
-    let fileUri: vscode.Uri;
-
-    // Handle both LocalChange (old format) and DiscardFilePayload (new format)
-    if (payload.originalUri) {
-      // Old format: LocalChange with originalUri
-      fileUri = vscode.Uri.from(payload.originalUri);
-    } else if (payload.path) {
-      // New format: DiscardFilePayload with path
-      fileUri = vscode.Uri.file(payload.path);
-    } else {
-      logger.error("DISCARD_FILE payload missing both originalUri and path:", payload);
-      return;
-    }
-
-    await vscode.commands.executeCommand("konveyor.discardFile", fileUri);
-  },
+  // APPLY_FILE and DISCARD_FILE removed - using unified decorator flow
   // New actions with unique names to avoid overwriting existing diff view commands
   REJECT_FILE: async ({ path }, _state, logger) => {
     try {
@@ -246,136 +201,6 @@ const actions: {
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
-    }
-  },
-  VIEW_FILE: async ({ path, change }, state, logger) => {
-    try {
-      const uri = vscode.Uri.file(path);
-
-      if (!change || !change.diff) {
-        // If no change/diff provided, just open the file normally
-        const doc = await vscode.workspace.openTextDocument(uri);
-        await vscode.window.showTextDocument(doc, { preview: true });
-        return;
-      }
-
-      // Determine the correct baseline content to apply the diff to
-      let baselineContent: string;
-      const modifiedFileState = state.modifiedFiles.get(path);
-
-      if (modifiedFileState?.originalContent) {
-        // Use the original content from modifiedFiles state as the baseline
-        // This ensures we're applying the diff to the correct base, not to already-modified content
-        baselineContent = modifiedFileState.originalContent;
-        logger.debug(`Using original content from modifiedFiles state as baseline for ${path}`);
-      } else {
-        // Fallback: read current file content (this maintains backward compatibility)
-        const originalContent = await vscode.workspace.fs.readFile(uri);
-        baselineContent = originalContent.toString();
-        logger.debug(`Using current file content as baseline for ${path} (no modifiedFiles state)`);
-      }
-
-      // Parse and apply the diff to get the suggested content with timeout protection
-      const DIFF_TIMEOUT_MS = 3000; // 3 seconds timeout
-
-      const diffParsingPromise = (async () => {
-        const { parsePatch } = await import("diff");
-        const parsedDiff = parsePatch(change.diff);
-
-        if (!parsedDiff || parsedDiff.length === 0) {
-          throw new Error("Failed to parse diff for comparison");
-        }
-
-        // Apply the patch to get the suggested content
-        const { applyPatch } = await import("diff");
-        const suggestedContent = applyPatch(baselineContent, change.diff);
-
-        if (suggestedContent === false) {
-          throw new Error("Failed to apply patch for comparison");
-        }
-
-        return suggestedContent;
-      })();
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(`Diff parsing and application timed out after ${DIFF_TIMEOUT_MS}ms`));
-        }, DIFF_TIMEOUT_MS);
-      });
-
-      let suggestedContent: string;
-      try {
-        // Race between diff parsing/application and timeout
-        suggestedContent = await Promise.race([diffParsingPromise, timeoutPromise]);
-      } catch (error) {
-        logger.error("Diff processing failed or timed out:", error);
-        vscode.window.showErrorMessage(
-          `Failed to process diff: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        return;
-      }
-
-      const relativePath = vscode.workspace.asRelativePath(uri);
-
-      // Check user preference for diff editor type
-      const editorType = getConfigDiffEditorType();
-
-      if (editorType === "merge") {
-        // Use merge editor - need to create the file in virtual file system
-        const { fromRelativeToKonveyor, KONVEYOR_READ_ONLY_SCHEME } = await import("./utilities");
-        const modifiedUri = fromRelativeToKonveyor(relativePath);
-
-        // Create directories if needed and store the suggested content
-        state.memFs.createDirectoriesIfNeeded(modifiedUri, "konveyor");
-        state.memFs.writeFile(modifiedUri, Buffer.from(suggestedContent), {
-          create: true,
-          overwrite: true,
-        });
-
-        // For merge editor, we need to show:
-        // - Base: the baseline content (original or current)
-        // - Input1: current file content
-        // - Input2: suggested content
-        // - Output: the actual file
-
-        // Create a temporary document with the baseline content for comparison
-        const baselineUri = vscode.Uri.from({ ...uri, scheme: KONVEYOR_READ_ONLY_SCHEME });
-
-        const options = {
-          base: baselineUri,
-          input1: { uri: uri, title: "Current" }, // Current file content
-          input2: { uri: modifiedUri, title: "Suggested" }, // Suggested content
-          output: uri,
-          options: { preserveFocus: false },
-        };
-
-        await vscode.commands.executeCommand("_open.mergeEditor", options);
-
-        // File tracking removed - using full diff view approach
-      } else {
-        // Use diff editor with temporary document
-        const fileExtension = relativePath.split(".").pop() || "";
-
-        const tempDoc = await vscode.workspace.openTextDocument({
-          content: suggestedContent,
-          language: getLanguageFromExtension(fileExtension),
-        });
-
-        await vscode.commands.executeCommand(
-          "vscode.diff",
-          uri,
-          tempDoc.uri,
-          `${relativePath} ↔ Suggested Changes`,
-          {
-            preserveFocus: false,
-          },
-        );
-
-        // File tracking removed - using full diff view approach
-      }
-    } catch (error) {
-      logger.error("Error handling VIEW_FILE:", error);
-      vscode.window.showErrorMessage(`Failed to open file comparison: ${error}`);
     }
   },
   QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {

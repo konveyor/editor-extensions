@@ -1,13 +1,8 @@
 import { useRef, useCallback, useEffect } from "react";
-import { ChatMessage, LocalChange } from "@editor-extensions/shared";
+import { ChatMessage } from "@editor-extensions/shared";
 import { MessageBoxHandle } from "@patternfly/chatbot";
 
-export const useScrollManagement = (
-  chatMessages: ChatMessage[],
-  isFetchingSolution: boolean,
-  localChanges?: LocalChange[],
-  isAgentMode?: boolean,
-) => {
+export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolution: boolean) => {
   const messageBoxRef = useRef<MessageBoxHandle | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
@@ -15,7 +10,6 @@ export const useScrollManagement = (
   const lastUserScrollTime = useRef<number>(0);
   const isHandlingLayoutChange = useRef(false); // Track if we're handling layout changes
   const lastContentHeight = useRef<number>(0); // Track content height changes
-  const lastLocalChangesCount = useRef<number>(0); // Track local changes count
 
   const getMessageBoxElement = useCallback(() => {
     const selectors = [
@@ -172,23 +166,6 @@ export const useScrollManagement = (
       }
     }
   }, [chatMessages, scrollToBottom, isNearBottom, getMessageBoxElement]);
-
-  // Handle local changes updates (for non-agent mode)
-  useEffect(() => {
-    if (!isAgentMode && Array.isArray(localChanges)) {
-      const currentChangesCount = localChanges.length;
-      const changesCountChanged = currentChangesCount !== lastLocalChangesCount.current;
-
-      if (changesCountChanged) {
-        lastLocalChangesCount.current = currentChangesCount;
-
-        // Auto-scroll when local changes are added/removed in non-agent mode
-        if (!userHasScrolledUp.current) {
-          setTimeout(() => scrollToBottom(false), 150);
-        }
-      }
-    }
-  }, [localChanges, isAgentMode, scrollToBottom]);
 
   // Set up scroll listener with better layout change detection
   useEffect(() => {

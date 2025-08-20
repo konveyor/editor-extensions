@@ -1,11 +1,14 @@
-import { DiffLine, FileEditor } from "../types";
+import { DiffLine } from "../types";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 import { VerticalDiffHandler, VerticalDiffHandlerOptions } from "./handler";
-import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
 import { fileUriToPath } from "../../utilities/pathUtils";
+import { ExtensionState } from "../../extensionState";
+import { FileEditor } from "../../utilities/ideUtils";
+import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
 import { Logger } from "winston";
-
+import { ExtensionData } from "@editor-extensions/shared";
+import { Immutable } from "immer";
 export interface VerticalDiffCodeLens {
   start: number;
   numRed: number;
@@ -18,17 +21,54 @@ export class VerticalDiffManager {
 
   private fileUriToHandler: Map<string, VerticalDiffHandler> = new Map();
   fileUriToCodeLens: Map<string, VerticalDiffCodeLens[]> = new Map();
+  private fileUriToStreamId: Map<string, string> = new Map();
 
   private userChangeListener: vscode.Disposable | undefined;
 
   logDiffs: DiffLine[] | undefined;
 
+  private readonly logger: Logger;
+  private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>;
+  private readonly mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+
   constructor(
     private readonly fileEditor: FileEditor,
-    private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>,
-    private readonly logger: Logger,
+    extensionState: ExtensionState,
   ) {
+    // Destructure the properties we need from extensionState
+    const { logger, kaiFsCache, mutateData } = extensionState;
+    this.logger = logger;
+    this.kaiFsCache = kaiFsCache;
+    this.mutateData = mutateData;
+
     this.userChangeListener = undefined;
+  }
+
+  /**
+   * Auto-save document when all decorators are resolved
+   * This mimics the behavior of "Apply All Changes" but for manual decorator clearing
+   */
+  private async autoSaveDocument(fileUri: string, finalContent: string): Promise<void> {
+    try {
+      this.logger.info(`[Manager] Auto-saving document after all decorators resolved: ${fileUri}`);
+
+      // Get the document
+      const uri = vscode.Uri.parse(fileUri);
+      const document = await vscode.workspace.openTextDocument(uri);
+
+      // Check if the document has unsaved changes (isDirty indicates unsaved changes)
+      if (document.isDirty) {
+        this.logger.debug(`[Manager] Document has unsaved changes, saving now`);
+
+        // Save the document directly since content is already updated by decorators
+        await document.save();
+        this.logger.info(`[Manager] Successfully auto-saved document: ${uri.fsPath}`);
+      } else {
+        this.logger.debug(`[Manager] Document has no unsaved changes, no save needed`);
+      }
+    } catch (error) {
+      this.logger.error(`[Manager] Failed to auto-save document ${fileUri}:`, error);
+    }
   }
 
   async createVerticalDiffHandler(
@@ -165,6 +205,28 @@ export class VerticalDiffManager {
       return;
     }
 
+    // Get the streamId for this file to clear activeDecorators
+    const streamId = this.fileUriToStreamId.get(fileUri);
+    if (streamId) {
+      this.mutateData((draft: any) => {
+        if (draft.activeDecorators && draft.activeDecorators[streamId]) {
+          delete draft.activeDecorators[streamId];
+          this.logger.info(
+            `[Manager] Cleared activeDecorators for streamId: ${streamId} via clearForFileUri`,
+          );
+          this.logger.info(`[Manager] Remaining activeDecorators:`, draft.activeDecorators);
+        } else {
+          this.logger.warn(
+            `[Manager] No activeDecorators found for streamId: ${streamId}, current:`,
+            draft.activeDecorators,
+          );
+        }
+      });
+      this.fileUriToStreamId.delete(fileUri);
+    } else {
+      this.logger.warn(`[Manager] No streamId found for fileUri: ${fileUri} in clearForFileUri`);
+    }
+
     const handler = this.fileUriToHandler.get(fileUri);
     if (handler) {
       await handler.clear(accept);
@@ -200,6 +262,12 @@ export class VerticalDiffManager {
     const fileUri = editor.document.uri.toString();
     this.logger.debug(`[Manager] Working with file: ${fileUri}`);
 
+    // Track the streamId for this file
+    if (streamId) {
+      this.fileUriToStreamId.set(fileUri, streamId);
+      this.logger.debug(`[Manager] Mapped fileUri ${fileUri} to streamId ${streamId}`);
+    }
+
     const startLine = 0;
     const endLine = editor.document.lineCount - 1;
     this.logger.debug(`[Manager] Selection range: ${startLine}-${endLine}`);
@@ -223,6 +291,22 @@ export class VerticalDiffManager {
             this.logger.debug(`[Manager] Updated cache for file: ${filePath}`);
           } catch (error) {
             this.logger.error(`[Manager] Failed to update cache:`, error);
+          }
+        }
+
+        // Clear activeDecorators when all decorators are resolved
+        if ((status === "closed" || numDiffs === 0) && streamId) {
+          this.mutateData((draft: any) => {
+            if (draft.activeDecorators && draft.activeDecorators[streamId]) {
+              delete draft.activeDecorators[streamId];
+              this.logger.debug(`[Manager] Cleared activeDecorators for streamId: ${streamId}`);
+            }
+          });
+
+          // Auto-save the document when all decorators are resolved
+          // This provides the same behavior as "Apply All Changes" but for manual decoration clearing
+          if (status === "closed" && fileContent) {
+            this.autoSaveDocument(fileUri, fileContent);
           }
         }
       },
@@ -320,6 +404,9 @@ export class VerticalDiffManager {
 
     // Clear all code lens
     this.fileUriToCodeLens.clear();
+
+    // Clear streamId mappings
+    this.fileUriToStreamId.clear();
 
     // Dispose document change listener
     this.disableDocumentChangeListener();

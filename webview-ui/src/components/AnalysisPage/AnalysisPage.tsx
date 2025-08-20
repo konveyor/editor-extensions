@@ -79,10 +79,6 @@ const AnalysisPage: React.FC = () => {
     isAgentMode,
   } = state;
 
-  console.log(rawConfigErrors);
-  const configErrors = rawConfigErrors.filter((error) => error.type !== "genai-disabled");
-  const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
-
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
@@ -98,7 +94,6 @@ const AnalysisPage: React.FC = () => {
   useEffect(() => {
     if (enhancedIncidents.length > 0 && solutionServerEnabled) {
       dispatch(getSuccessRate());
-      console.log("Fetching success rates for incidents...", enhancedIncidents);
     }
   }, [enhancedIncidents.length, localChanges.length, solutionServerEnabled, dispatch]);
 
@@ -156,22 +151,20 @@ const AnalysisPage: React.FC = () => {
                             hasWarning={configInvalid}
                           />
                         </ToolbarItem>
-                        {!isGenAIDisabled && (
-                          <ToolbarItem>
-                            <div>
-                              <div className="agent-mode-wrapper">
-                                <Switch
-                                  id="agent-mode-switch"
-                                  isChecked={isAgentMode}
-                                  label="Agent Mode"
-                                  onChange={(_event) => handleAgentModeToggle()}
-                                  aria-label="Toggle Agent Mode"
-                                  isReversed
-                                />
-                              </div>
+                        <ToolbarItem>
+                          <div>
+                            <div className="agent-mode-wrapper">
+                              <Switch
+                                id="agent-mode-switch"
+                                isChecked={isAgentMode}
+                                label="Agent Mode"
+                                onChange={(_event) => handleAgentModeToggle()}
+                                aria-label="Toggle Agent Mode"
+                                isReversed
+                              />
                             </div>
-                          </ToolbarItem>
-                        )}
+                          </div>
+                        </ToolbarItem>
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
@@ -211,9 +204,9 @@ const AnalysisPage: React.FC = () => {
                 </Card>
               </PageSection>
             )}
-            {configErrors.length > 0 && (
+            {rawConfigErrors.length > 0 && (
               <PageSection padding={{ default: "noPadding" }}>
-                {configErrors.map((error, index) => (
+                {rawConfigErrors.map((error, index) => (
                   <Card
                     isCompact
                     style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}

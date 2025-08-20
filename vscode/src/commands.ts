@@ -14,18 +14,11 @@ import {
   TextEditorRevealType,
   Position,
 } from "vscode";
-import {
-  cleanRuleSets,
-  loadResultsFromDataFolder,
-  loadRuleSets,
-  loadSolution,
-  loadStaticResults,
-} from "./data";
+import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
 import {
   EnhancedIncident,
   RuleSet,
   Scope,
-  Solution,
   ChatMessageType,
   GetSolutionResult,
 } from "@editor-extensions/shared";
@@ -33,17 +26,7 @@ import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
 } from "@editor-extensions/agentic";
-import {
-  applyAll,
-  discardAll,
-  copyDiff,
-  copyPath,
-  FileItem,
-  viewFix,
-  applyFile,
-  discardFile,
-  applyBlock,
-} from "./diffView";
+// diffView imports removed - using unified decorator flow
 import {
   updateAnalyzerPath,
   getConfigAgentMode,
@@ -173,7 +156,7 @@ const commandsMap: (
         draft.solutionState = "started";
         draft.solutionScope = scope;
         draft.chatMessages = []; // Clear previous chat messages
-        draft.diffResolvedStates = {}; // Clear previous diff resolution states
+        draft.activeDecorators = {};
       });
 
       // Declare variables outside try block for proper cleanup access
@@ -589,15 +572,11 @@ const commandsMap: (
     "konveyor.cleanRuleSets": () => cleanRuleSets(state),
     "konveyor.loadStaticResults": loadStaticResults,
     "konveyor.loadResultsFromDataFolder": loadResultsFromDataFolder,
-    "konveyor.loadSolution": async (solution: Solution, scope?: Scope) =>
-      loadSolution(state, solution, scope),
-    "konveyor.applyAll": async () => applyAll(state),
-    "konveyor.applyFile": async (item: FileItem | Uri) => applyFile(item, state),
-    "konveyor.copyDiff": async (item: FileItem | Uri) => copyDiff(item, state),
-    "konveyor.copyPath": copyPath,
-    "konveyor.diffView.viewFix": viewFix,
-    "konveyor.discardAll": async () => discardAll(state),
-    "konveyor.discardFile": async (item: FileItem | Uri) => discardFile(item, state),
+    "konveyor.applyAll": async () => {}, // removed - using unified decorator flow
+    "konveyor.applyFile": async (item: any) => {}, // removed - using unified decorator flow
+    // diffView commands removed - using unified decorator flow
+    "konveyor.discardAll": async () => {},
+    "konveyor.discardFile": async (item: any) => {},
     "konveyor.showResolutionPanel": () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
@@ -614,10 +593,7 @@ const commandsMap: (
     },
     "konveyor.fixGroupOfIncidents": fixGroupOfIncidents,
     "konveyor.fixIncident": fixGroupOfIncidents,
-    "konveyor.diffView.applyBlock": applyBlock,
-    "konveyor.diffView.applyBlockInline": applyBlock,
-    "konveyor.diffView.applySelection": applyBlock,
-    "konveyor.diffView.applySelectionInline": applyBlock,
+    // diffView apply commands removed - using unified decorator flow
     "konveyor.partialAnalysis": async (filePaths: Uri[]) => runPartialAnalysis(state, filePaths),
     "konveyor.generateDebugArchive": async () => {
       const archiveRawPath = await window.showInputBox({
@@ -795,6 +771,18 @@ const commandsMap: (
           throw new Error("Vertical diff system not initialized");
         }
 
+        // Set activeDecorators to indicate decorators are being applied
+        state.mutateData((draft) => {
+          if (!draft.activeDecorators) {
+            draft.activeDecorators = {};
+          }
+          draft.activeDecorators[messageToken] = filePath;
+          logger.info(
+            `[Commands] Set activeDecorators for messageToken: ${messageToken}, filePath: ${filePath}`,
+          );
+          logger.info(`[Commands] Current activeDecorators:`, draft.activeDecorators);
+        });
+
         // Get original content
         const uri = Uri.file(filePath);
         const doc = await workspace.openTextDocument(uri);
@@ -811,6 +799,17 @@ const commandsMap: (
         logger.info("Vertical diff applied successfully");
       } catch (error) {
         logger.error("Error in vertical diff:", error);
+
+        // Clear activeDecorators on error
+        state.mutateData((draft) => {
+          if (draft.activeDecorators && draft.activeDecorators[messageToken]) {
+            delete draft.activeDecorators[messageToken];
+            logger.debug(
+              `[Commands] Cleared activeDecorators on error for messageToken: ${messageToken}`,
+            );
+          }
+        });
+
         vscode.window.showErrorMessage(`Failed to show diff: ${error}`);
       }
     },
