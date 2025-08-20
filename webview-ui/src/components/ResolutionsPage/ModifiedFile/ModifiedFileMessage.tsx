@@ -198,17 +198,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     postFileResponse(responseId, messageToken, path, contentToSend);
     // Trigger scroll after action in agent mode
     onUserAction?.();
-    // } else {
-    //   // Non-agent mode: Use callback flow
-    //   if (isLocalChange(data)) {
-    //     if (responseId === "apply" && onApply) {
-    //       const modifiedChange: LocalChange = { ...data, content };
-    //       onApply(modifiedChange);
-    //     } else if (responseId === "reject" && onReject) {
-    //       onReject(data);
-    //     }
-    //   }
-    // }
   };
 
   // Function to open file in VSCode editor
@@ -246,7 +235,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                 </Button>
               ) : (
                 <span className="modified-file-minimized-disabled">
-                  {/* {isNew ? "New file" : isDeleted ? "File deleted" : ""} */}
+                  {isNew ? "New file" : isDeleted ? "File deleted" : ""}
                 </span>
               )}
             </div>

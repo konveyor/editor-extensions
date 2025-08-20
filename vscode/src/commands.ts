@@ -992,7 +992,10 @@ export function registerAllCommands(state: ExtensionState) {
       const verticalCodeLensProvider = new VerticalDiffCodeLensProvider(state.verticalDiffManager);
 
       state.extensionContext.subscriptions.push(
-        vscode.languages.registerCodeLensProvider("*", verticalCodeLensProvider),
+        vscode.languages.registerCodeLensProvider(
+          [{ scheme: "file" }, { scheme: "untitled" }],
+          verticalCodeLensProvider,
+        ),
         verticalCodeLensProvider,
       );
 

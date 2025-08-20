@@ -265,6 +265,12 @@
         "title": "Configure Solution Server Credentials",
         "category": "Konveyor",
         "icon": "$(key)"
+      },
+      {
+        "command": "konveyor.showDiffActions",
+        "title": "Show Diff Actions",
+        "category": "Konveyor",
+        "icon": "$(diff)"
       }
     ],
     "submenus": [

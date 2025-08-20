@@ -97,11 +97,19 @@ export class VerticalDiffHandler implements vscode.Disposable {
       await this.deleteRangeLines(removedRanges.map((r) => r.range));
     } else {
       // Reject all: Re-insert red lines, delete green ones
-      for (const r of removedRanges) {
+      // Sort ranges bottom-up to prevent line index drift
+      const sortedRemovedRanges = [...removedRanges].sort(
+        (a, b) => b.range.start.line - a.range.start.line,
+      );
+      for (const r of sortedRemovedRanges) {
         await this.deleteRangeLines([r.range]);
         await this.insertTextAboveLine(r.range.start.line, r.line);
       }
-      await this.deleteRangeLines(this.addedLineDecorations.ranges);
+      // Sort added ranges bottom-up as well
+      const sortedAddedRanges = [...this.addedLineDecorations.ranges].sort(
+        (a, b) => b.start.line - a.start.line,
+      );
+      await this.deleteRangeLines(sortedAddedRanges);
     }
 
     this.clearDecorations();
@@ -480,9 +488,11 @@ export class VerticalDiffHandler implements vscode.Disposable {
 
   private async deleteLinesAt(index: number, numLines = 1) {
     const startLine = new vscode.Position(index, 0);
+    const maxTranslate = this.editor.document.lineCount - 1 - index;
+    const clampedTranslate = Math.min(numLines, Math.max(0, maxTranslate));
     await this.editor.edit(
       (editBuilder) => {
-        editBuilder.delete(new vscode.Range(startLine, startLine.translate(numLines)));
+        editBuilder.delete(new vscode.Range(startLine, startLine.translate(clampedTranslate)));
       },
       { undoStopAfter: false, undoStopBefore: false },
     );
