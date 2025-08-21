@@ -144,6 +144,13 @@ const commandsMap: (
         return;
       }
 
+      // Check if GenAI is disabled
+      if (state.data.configErrors.some((e) => e.type === "genai-disabled")) {
+        logger.info("GenAI disabled, cannot get solution");
+        window.showErrorMessage("GenAI functionality is disabled.");
+        return;
+      }
+
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });

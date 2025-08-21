@@ -11,6 +11,7 @@ import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
+import { Tooltip } from "@patternfly/react-core";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -33,15 +34,15 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
     dispatch(getSolutionWithKonveyorContext(incident));
   };
 
+  // Hide component completely when GenAI is disabled
+  if (state.configErrors.some((e) => e.type === "genai-disabled")) {
+    return null;
+  }
+
   const isButtonDisabled =
     state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
 
-  // The disabled plain button looks terrible, just return undefined
-  if (isButtonDisabled) {
-    return undefined;
-  }
-
-  return (
+  const dropdown = (
     <Dropdown
       isOpen={isOpen}
       onSelect={() => setIsOpen(false)}
@@ -95,6 +96,8 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
       </DropdownList>
     </Dropdown>
   );
+
+  return dropdown;
 };
 
 export default GetSolutionDropdown;

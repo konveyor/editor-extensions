@@ -39,6 +39,7 @@ import {
   getConfigKaiDemoMode,
   getConfigLogLevel,
   checkAndPromptForCredentials,
+  getConfigGenAIEnabled,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
@@ -318,7 +319,8 @@ class VsCodeExtension {
 
           if (
             event.affectsConfiguration("konveyor.kai.demoMode") ||
-            event.affectsConfiguration("konveyor.kai.cacheDir")
+            event.affectsConfiguration("konveyor.kai.cacheDir") ||
+            event.affectsConfiguration("konveyor.genai.enabled")
           ) {
             this.setupModelProvider(paths().settingsYaml)
               .then((configError) => {
@@ -487,11 +489,17 @@ class VsCodeExtension {
   }
 
   private async setupModelProvider(settingsPath: vscode.Uri): Promise<ConfigError | undefined> {
+    // Check if GenAI is disabled via settings
+    if (!getConfigGenAIEnabled()) {
+      return createConfigError.genaiDisabled();
+    }
+
     let modelConfig: ParsedModelConfig;
     try {
       modelConfig = await parseModelConfig(settingsPath);
     } catch (err) {
       this.state.logger.error("Error getting model config:", err);
+
       const configError = createConfigError.providerNotConfigured();
       configError.error = err instanceof Error ? err.message : String(err);
       return configError;
@@ -505,6 +513,7 @@ class VsCodeExtension {
       );
     } catch (err) {
       this.state.logger.error("Error running model health check:", err);
+
       const configError = createConfigError.providerConnnectionFailed();
       configError.error =
         err instanceof Error

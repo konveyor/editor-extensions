@@ -47,7 +47,7 @@ export function WalkthroughDrawer({
     (error) => error.type === "provider-connection-failed",
   );
   const providerNotConfigured = state.configErrors.some(
-    (error) => error.type === "provider-not-configured",
+    (error) => error.type === "provider-not-configured" || error.type === "genai-disabled",
   );
   const providerConfigured = !providerConnectionError && !providerNotConfigured;
 

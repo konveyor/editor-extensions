@@ -540,12 +540,19 @@
           "scope": "window",
           "order": 9
         },
+        "konveyor.genai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GenAI functionality for solution generation.",
+          "scope": "window",
+          "order": 10
+        },
         "konveyor.kai.agentMode": {
           "type": "boolean",
           "default": false,
           "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
-          "order": 10
+          "order": 11
         },
         "konveyor.kai.excludedDiagnosticSources": {
           "type": "array",
@@ -554,7 +561,7 @@
           ],
           "description": "List of diagnostic sources to exclude from agentic workflow.",
           "scope": "window",
-          "order": 11
+          "order": 12
         },
         "konveyor.kai.getSolutionMaxPriority": {
           "type": [

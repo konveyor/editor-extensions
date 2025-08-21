@@ -189,7 +189,8 @@ export type ConfigErrorType =
   | "provider-not-configured"
   | "provider-connection-failed"
   | "no-custom-rules"
-  | "missing-auth-credentials";
+  | "missing-auth-credentials"
+  | "genai-disabled";
 
 export interface ConfigError {
   type: ConfigErrorType;
@@ -231,6 +232,11 @@ export const createConfigError = {
   missingAuthCredentials: (): ConfigError => ({
     type: "missing-auth-credentials",
     message: "Authentication is enabled but credentials are not configured.",
+  }),
+
+  genaiDisabled: (): ConfigError => ({
+    type: "genai-disabled",
+    message: "GenAI functionality is disabled.",
   }),
 };
 
