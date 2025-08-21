@@ -179,6 +179,7 @@ export class VSCode extends BasePage {
   }
 
   public async runAnalysis() {
+    await this.window.waitForTimeout(15000);
     const analysisView = await this.getView(KAIViews.analysisView);
     const runAnalysisBtnLocator = analysisView.getByRole('button', {
       name: 'Run Analysis',
