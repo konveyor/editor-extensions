@@ -28,23 +28,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const { state } = useExtensionStateContext();
   const hasActiveDecorators = !!(state.activeDecorators && state.activeDecorators[messageToken]);
 
-  // Get status from global state ONLY for this specific message token
-  // CRITICAL: MessageTokens are not unique (path-toolCall format causes collisions)
-  // We need to find the EXACT message by comparing content AND diff to ensure uniqueness
-  const messagesForToken = state.chatMessages.filter(
+  // Get status from global state for this specific message
+  const currentMessage = state.chatMessages.find(
     (msg) =>
       msg.messageToken === messageToken &&
       msg.kind === ChatMessageType.ModifiedFile &&
-      (msg.value as any)?.path === path,
+      (msg.value as any)?.path === path &&
+      (msg.value as any)?.content === content,
   );
-
-  // If multiple messages with same token, find exact match by content AND diff
-  const currentMessage =
-    messagesForToken.length > 1
-      ? messagesForToken.find(
-          (msg) => (msg.value as any)?.content === content && (msg.value as any)?.diff === diff,
-        )
-      : messagesForToken[0];
   const globalStatus =
     currentMessage?.kind === ChatMessageType.ModifiedFile
       ? (currentMessage.value as any)?.status
@@ -69,7 +60,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const effectiveActionTaken = actionTaken;
 
   console.log(
-    `[ModifiedFileMessage] Status check - messageToken: ${messageToken}, path: ${path}, data.status: ${status}, globalStatus: ${globalStatus}, actionTaken: ${actionTaken}, effectiveActionTaken: ${effectiveActionTaken}, foundMessage: ${!!currentMessage}, totalMessagesForToken: ${messagesForToken.length}`,
+    `[ModifiedFileMessage] Status check - messageToken: ${messageToken}, path: ${path}, data.status: ${status}, globalStatus: ${globalStatus}, actionTaken: ${actionTaken}, effectiveActionTaken: ${effectiveActionTaken}, foundMessage: ${!!currentMessage}`,
   );
 
   // Update local state ONLY when global state changes for this specific message
@@ -81,7 +72,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
       );
       setActionTaken(globalStatus);
     }
-  }, [globalStatus, currentMessage, messageToken, path]);
+  }, [globalStatus, currentMessage, messageToken, path, state.chatMessages]);
 
   // Clear viewing diff state when status is finalized
   useEffect(() => {
@@ -195,7 +186,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   };
 
   // Render minimized version when any action is taken (including processing)
-  console.log("effectiveActionTakenn", effectiveActionTaken);
   if (effectiveActionTaken) {
     const canOpenInEditor = !isNew && !isDeleted;
 
