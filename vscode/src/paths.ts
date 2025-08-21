@@ -1,15 +1,14 @@
 import { relative, dirname, posix, join } from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, createWriteStream, createReadStream } from "node:fs";
 import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
 import slash from "slash";
 import winston from "winston";
 import { createHash } from "node:crypto";
-import { createWriteStream, createReadStream } from "node:fs";
-import { mkdir, chmod } from "node:fs/promises";
+import { mkdir, chmod, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { platform, arch } from "node:process";
-import * as fs from "fs-extra";
+import { existsSync } from "node:fs";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -67,16 +66,17 @@ async function ensureKaiAnalyzerBinary(
     kai: "./kai",
     ...packageJson.includedAssetPaths,
   };
+  const platformKey = `${platform}-${arch}`;
 
   // Convert to absolute paths
   const kaiDir = context.asAbsolutePath(assetPaths.kai);
   const kaiAnalyzerPath = join(
     kaiDir,
-    `${platform}-${arch}`,
+    platformKey,
     `kai-analyzer-rpc${platform === "win32" ? ".exe" : ""}`,
   );
 
-  if (fs.existsSync(kaiAnalyzerPath)) {
+  if (existsSync(kaiAnalyzerPath)) {
     return; // Binary already exists
   }
 
@@ -87,7 +87,6 @@ async function ensureKaiAnalyzerBinary(
     throw new Error("No fallback asset configuration found in package.json");
   }
 
-  const platformKey = `${platform}-${arch}`;
   const assetConfig = fallbackConfig.assets[platformKey];
 
   if (!assetConfig) {
@@ -130,6 +129,11 @@ async function ensureKaiAnalyzerBinary(
       const actualSha256 = hash.digest("hex");
 
       if (actualSha256 !== assetConfig.sha256) {
+        try {
+          await unlink(kaiAnalyzerPath);
+        } catch (err) {
+          logger.error(`Error deleting file: ${kaiAnalyzerPath}`, err);
+        }
         throw new Error(
           `SHA256 mismatch. Expected: ${assetConfig.sha256}, Actual: ${actualSha256}`,
         );
