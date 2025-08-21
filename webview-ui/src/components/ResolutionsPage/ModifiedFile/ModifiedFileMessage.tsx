@@ -1,55 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardBody, Button } from "@patternfly/react-core";
-import { ModifiedFileMessageValue, LocalChange } from "@editor-extensions/shared";
+import { ModifiedFileMessageValue, LocalChange, ChatMessageType } from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
 import ModifiedFileHeader from "./ModifiedFileHeader";
 import ModifiedFileDiffPreview from "./ModifiedFileDiffPreview";
 import ModifiedFileActions from "./ModifiedFileActions";
-import { useModifiedFileData, isLocalChange } from "./useModifiedFileData";
+import { useModifiedFileData } from "./useModifiedFileData";
 import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
 
 interface ModifiedFileMessageProps {
   data: ModifiedFileMessageValue | LocalChange;
   timestamp?: string;
-  mode?: "agent" | "non-agent";
-  onApply?: (change: LocalChange) => void;
-  onReject?: (change: LocalChange) => void;
-  onView?: (change: LocalChange) => void;
   onUserAction?: () => void;
 }
 
 export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   data,
   timestamp,
-  mode = "agent",
-  onApply,
-  onReject,
-  onView,
   onUserAction,
 }) => {
   // Use shared data normalization hook
   const normalizedData = useModifiedFileData(data);
   const { path, isNew, isDeleted, diff, status, content, messageToken, fileName } = normalizedData;
-  const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | null>(() => {
-    if (status === "applied") {
-      return "applied";
-    }
-    if (status === "rejected") {
-      return "rejected";
-    }
-    return null; // for "pending" or undefined
-  });
   const [isViewingDiff, setIsViewingDiff] = useState(false);
 
   // Get extension state to check for active decorators
   const { state } = useExtensionStateContext();
   const hasActiveDecorators = !!(state.activeDecorators && state.activeDecorators[messageToken]);
-  console.log(
-    `[ModifiedFileMessage] messageToken: ${messageToken}, hasActiveDecorators: ${hasActiveDecorators}, activeDecorators:`,
-    state.activeDecorators,
+
+  // Get status from global state as fallback
+  const currentMessage = state.chatMessages.find((msg) => msg.messageToken === messageToken);
+  const globalStatus =
+    currentMessage?.kind === ChatMessageType.ModifiedFile
+      ? (currentMessage.value as any)?.status
+      : null;
+
+  const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | "processing" | null>(
+    () => {
+      if (status === "applied" || globalStatus === "applied") {
+        return "applied";
+      }
+      if (status === "rejected" || globalStatus === "rejected") {
+        return "rejected";
+      }
+      return null; // for "pending" or undefined
+    },
   );
 
-  // Function to handle FILE_RESPONSE message posting (agent mode only)
+  // Use global state as fallback when local state is null
+  const effectiveActionTaken =
+    actionTaken ||
+    (globalStatus === "applied" ? "applied" : globalStatus === "rejected" ? "rejected" : null);
+
+  // Update local state when global state changes
+  useEffect(() => {
+    if (globalStatus === "applied" || globalStatus === "rejected") {
+      setActionTaken(globalStatus);
+    }
+  }, [globalStatus]);
+
+  // Clear viewing diff state when status is finalized
+  useEffect(() => {
+    if (effectiveActionTaken !== null && effectiveActionTaken !== "processing") {
+      setIsViewingDiff(false);
+    }
+  }, [effectiveActionTaken]);
+
+  // Function to handle FILE_RESPONSE message posting
   const postFileResponse = (
     responseId: string,
     messageToken: string,
@@ -78,81 +95,36 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     });
   };
 
-  const applyFile = (selectedContent?: string) => {
-    setActionTaken("applied");
+  const applyFileChanges = (selectedContent?: string) => {
     setIsViewingDiff(false);
+    setActionTaken("applied");
 
     // Use provided selected content or fall back to full content
     const contentToApply = selectedContent || content;
 
-    if (mode === "agent") {
-      // Agent mode: Use FILE_RESPONSE flow for direct file writing
-      postFileResponse("apply", messageToken, path, contentToApply);
-      // Trigger scroll after action in agent mode
-      onUserAction?.();
-    } else {
-      // Non-agent mode: Use callback flow with modified data
-      if (onApply && isLocalChange(data)) {
-        // Create modified LocalChange with updated content
-        const modifiedChange: LocalChange = { ...data, content: contentToApply };
-        onApply(modifiedChange);
-      }
-    }
+    // Use FILE_RESPONSE flow for standalone apply button
+    postFileResponse("apply", messageToken, path, contentToApply);
+    // Trigger scroll after action
+    onUserAction?.();
   };
 
-  const rejectFile = () => {
-    setActionTaken("rejected");
+  const rejectFileChanges = () => {
     setIsViewingDiff(false);
+    setActionTaken("rejected");
 
-    if (mode === "agent") {
-      // Agent mode: Use FILE_RESPONSE flow
-      postFileResponse("reject", messageToken, path);
-      // Trigger scroll after action in agent mode
-      onUserAction?.();
-    } else {
-      // Non-agent mode: Use callback flow
-      if (onReject && isLocalChange(data)) {
-        onReject(data);
-      }
-    }
-  };
-
-  const viewFileInVSCode = (filePath: string, fileDiff: string) => {
-    if (mode === "agent") {
-      // Agent mode: Use SHOW_MAXIMIZED_DIFF message
-      interface ShowMaximizedDiffPayload {
-        path: string;
-        content: string;
-        diff: string;
-        messageToken: string;
-      }
-      const payload: ShowMaximizedDiffPayload = {
-        path: filePath,
-        content: content,
-        diff: fileDiff,
-        messageToken: messageToken,
-      };
-      window.vscode.postMessage({
-        type: "SHOW_MAXIMIZED_DIFF",
-        payload,
-      });
-    } else {
-      // Non-agent mode: Use callback flow
-      if (onView && isLocalChange(data)) {
-        onView(data);
-      }
-    }
+    // Use FILE_RESPONSE flow for standalone reject button
+    postFileResponse("reject", messageToken, path);
+    // Trigger scroll after action
+    onUserAction?.();
   };
 
   const viewFileWithDecorations = (filePath: string, fileDiff: string) => {
-    // Prevent multiple applications
     if (isViewingDiff) {
       return;
     }
 
     setIsViewingDiff(true);
 
-    // Use the reliable vertical diff system
     interface ShowDiffWithDecoratorsPayload {
       path: string;
       content: string;
@@ -172,32 +144,20 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   };
 
   const handleContinue = () => {
-    // Mark as applied to continue the conversation flow
-    if (mode === "agent") {
-      postFileResponse("apply", messageToken, path, content);
-      // Trigger scroll after action in agent mode
-      onUserAction?.();
-    } else {
-      if (onApply && isLocalChange(data)) {
-        const modifiedChange: LocalChange = { ...data, content };
-        onApply(modifiedChange);
-      }
-    }
-    setActionTaken("applied");
-    setIsViewingDiff(false);
-  };
-
-  // Handle quick response actions
-  const handleQuickResponse = (responseId: string) => {
-    const action = responseId === "apply" ? "applied" : "rejected";
-    setActionTaken(action);
-    setIsViewingDiff(false);
-
-    // Agent mode: Use FILE_RESPONSE flow
-    const contentToSend = responseId === "apply" ? content : undefined;
-    postFileResponse(responseId, messageToken, path, contentToSend);
-    // Trigger scroll after action in agent mode
+    // Send CONTINUE_WITH_FILE_STATE message to check current file state
+    window.vscode.postMessage({
+      type: "CONTINUE_WITH_FILE_STATE",
+      payload: {
+        messageToken,
+        path,
+        content,
+      },
+    });
+    // Trigger scroll after action
     onUserAction?.();
+
+    // Keep viewing diff state until backend responds with final status
+    // This prevents the UI from reverting to action buttons prematurely
   };
 
   // Function to open file in VSCode editor
@@ -210,18 +170,22 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     });
   };
 
-  // Render minimized version when action is taken
-  if (actionTaken) {
+  // Render minimized version when any action is taken (including processing)
+  if (effectiveActionTaken) {
     const canOpenInEditor = !isNew && !isDeleted;
 
     return (
       <div className="modified-file-message">
-        <Card className={`modified-file-card modified-file-minimized status-${actionTaken}`}>
+        <Card
+          className={`modified-file-card modified-file-minimized status-${effectiveActionTaken}`}
+        >
           <CardBody className="modified-file-minimized-body">
             <div className="modified-file-minimized-content">
               <div className="modified-file-minimized-status">
-                <span className={`status-badge status-${actionTaken}`}>
-                  {actionTaken === "applied" ? "✓ Applied" : "✗ Rejected"}
+                <span className={`status-badge status-${effectiveActionTaken}`}>
+                  {effectiveActionTaken === "applied" ? "✓ Applied" 
+                   : effectiveActionTaken === "rejected" ? "✗ Rejected"
+                   : "⏳ Processing..."}
                 </span>
                 <span className="modified-file-minimized-filename">{fileName}</span>
               </div>
@@ -254,16 +218,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
           <CardBody>
             <ModifiedFileDiffPreview diff={diff} path={path} />
             <ModifiedFileActions
-              actionTaken={actionTaken}
-              mode={mode}
+              actionTaken={effectiveActionTaken}
               normalizedData={normalizedData}
-              onApply={() => applyFile()}
-              onReject={rejectFile}
-              onView={viewFileInVSCode}
+              onApply={() => applyFileChanges()}
+              onReject={rejectFileChanges}
               onViewWithDecorations={viewFileWithDecorations}
-              onQuickResponse={handleQuickResponse}
-              isFileApplied={isViewingDiff}
+              isViewingDiff={isViewingDiff}
               onContinue={handleContinue}
+              onSetActionTaken={setActionTaken}
               hasActiveDecorators={hasActiveDecorators}
             />
           </CardBody>

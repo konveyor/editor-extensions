@@ -210,161 +210,6 @@ const actions: {
     handleFileResponse(messageToken, responseId, path, content, state);
   },
 
-  CHECK_FILE_STATE: async ({ path, messageToken }, state, logger) => {
-    try {
-      const uri = vscode.Uri.file(path);
-
-      // Get the current file content
-      const currentContent = await vscode.workspace.fs.readFile(uri);
-      const currentText = currentContent.toString();
-
-      // Find the chat message with the original and suggested content
-      const fileMessage = state.data.chatMessages.find(
-        (msg) =>
-          msg.kind === ChatMessageType.ModifiedFile &&
-          msg.messageToken === messageToken &&
-          (msg.value as any).path === path,
-      );
-
-      if (!fileMessage) {
-        vscode.window.showErrorMessage(`No changes found for file: ${path}`);
-        return;
-      }
-
-      const fileValue = fileMessage.value as any;
-
-      // Get the original content from modifiedFiles state or reconstruct it
-      let originalContent = "";
-      let suggestedContent = "";
-      const modifiedFileState = state.modifiedFiles.get(path);
-
-      logger.debug(`ModifiedFileState exists: ${!!modifiedFileState}`);
-      logger.debug(
-        `ModifiedFileState has originalContent: ${!!modifiedFileState?.originalContent}`,
-      );
-
-      if (modifiedFileState?.originalContent) {
-        originalContent = modifiedFileState.originalContent;
-        suggestedContent = fileValue.content;
-        logger.debug(`Using originalContent from modifiedFiles state`);
-      } else {
-        // For VIEW_FILE flow, we need to reconstruct the baseline content
-        // The diff in the chat message was applied to some baseline to get the suggested content
-        // We need to reverse-engineer what that baseline was
-
-        logger.debug(`No originalContent in modifiedFiles, attempting to reconstruct baseline`);
-
-        try {
-          // Wrap diff reconstruction in a timeout to prevent hanging
-          const DIFF_TIMEOUT_MS = 3000; // 3 seconds timeout
-
-          const diffReconstructionPromise = (async () => {
-            // Try to reverse-apply the diff to get the baseline content
-            const { applyPatch, reversePatch } = await import("diff");
-
-            // Get the diff from the chat message
-            const diffContent = fileValue.diff;
-            if (!diffContent) {
-              throw new Error("No diff content available");
-            }
-
-            // The suggested content is what we get when we apply the diff to the baseline
-            suggestedContent = fileValue.content;
-
-            // Try to reverse the diff to get the original content
-            const reversedDiff = reversePatch(diffContent);
-            const reconstructedOriginal = applyPatch(suggestedContent, reversedDiff);
-
-            if (reconstructedOriginal !== false) {
-              originalContent = reconstructedOriginal;
-              logger.debug(`Successfully reconstructed original content from diff`);
-            } else {
-              throw new Error("Failed to reverse-apply diff");
-            }
-          })();
-
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => {
-              reject(new Error(`Diff reconstruction timed out after ${DIFF_TIMEOUT_MS}ms`));
-            }, DIFF_TIMEOUT_MS);
-          });
-
-          // Race between diff reconstruction and timeout
-          await Promise.race([diffReconstructionPromise, timeoutPromise]);
-        } catch (error) {
-          logger.debug(`Failed to reconstruct original content: ${error}`);
-
-          // Final fallback: Use simplified logic based on file save state
-          logger.debug(`Using simplified logic based on file save state`);
-
-          const doc = await vscode.workspace.openTextDocument(uri);
-          const responseId = !doc.isDirty ? "apply" : "reject";
-          const reason = !doc.isDirty ? "file was saved after viewing" : "file has unsaved changes";
-
-          logger.debug(`Simplified decision: ${responseId.toUpperCase()} - ${reason}`);
-
-          await handleFileResponse(messageToken, responseId, path, fileValue.content, state);
-
-          // File tracking removed - using full diff view approach
-
-          return; // Exit early with simplified logic
-        }
-      }
-
-      // Normalize content for comparison (handle line endings and whitespace)
-      const normalize = (text: string) => {
-        // Use the same normalization approach as myers.ts
-        return text.replace(/\r\n/g, "\n").replace(/\n$/, ""); // Remove trailing newline for comparison
-      };
-      const normalizedCurrent = normalize(currentText);
-      const normalizedOriginal = normalize(originalContent);
-      const normalizedSuggested = normalize(suggestedContent);
-
-      // Get document to check if it's been saved
-      const doc = await vscode.workspace.openTextDocument(uri);
-
-      // Add detailed logging for debugging
-      logger.debug(`=== FILE STATE CHECK DEBUG ===`);
-      logger.debug(`Path: ${path}`);
-      logger.debug(`File isDirty: ${doc.isDirty}`);
-      logger.debug(`Current content length: ${normalizedCurrent.length}`);
-      logger.debug(`Suggested content length: ${normalizedSuggested.length}`);
-      logger.debug(`Current === Suggested: ${normalizedCurrent === normalizedSuggested}`);
-      logger.debug(`Current === Original: ${normalizedCurrent === normalizedOriginal}`);
-
-      // Determine if changes were applied
-      let changesApplied = false;
-      let reason = "";
-
-      if (normalizedCurrent === normalizedSuggested) {
-        // Exact match with suggested content - definitely applied
-        changesApplied = true;
-        reason = "exact match with suggested content";
-      } else if (normalizedCurrent === normalizedOriginal) {
-        // Exact match with original content - definitely rejected
-        changesApplied = false;
-        reason = "exact match with original content";
-      } else {
-        // Content has been modified from both original and suggested
-        // In this case, if the user saved the file, we assume they want to apply their changes
-        changesApplied = !doc.isDirty;
-        reason = doc.isDirty ? "file has unsaved changes" : "file was saved with modifications";
-      }
-
-      logger.debug(`Decision: ${changesApplied ? "APPLY" : "REJECT"} - ${reason}`);
-      logger.debug(`=== END DEBUG ===`);
-
-      // Send the appropriate response
-      const responseId = changesApplied ? "apply" : "reject";
-      await handleFileResponse(messageToken, responseId, path, fileValue.content, state);
-
-      // File tracking removed - using full diff view approach
-    } catch (error) {
-      logger.error("Error handling CHECK_FILE_STATE:", error);
-      vscode.window.showErrorMessage(`Failed to check file state: ${error}`);
-    }
-  },
-
   [RUN_ANALYSIS]() {
     vscode.commands.executeCommand("konveyor.runAnalysis");
   },
@@ -402,6 +247,71 @@ const actions: {
   },
   [TOGGLE_AGENT_MODE]() {
     toggleAgentMode();
+  },
+  CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
+    try {
+      logger.info("CONTINUE_WITH_FILE_STATE called", { path, messageToken });
+
+      const uri = vscode.Uri.file(path);
+
+      // Get the current file content
+      const currentContent = await vscode.workspace.fs.readFile(uri);
+      const currentText = currentContent.toString();
+
+      // Get the original content to compare against
+      const modifiedFileState = state.modifiedFiles.get(path);
+      const originalContent = modifiedFileState?.originalContent || "";
+
+      // Simple logic: if file changed from original = accepted, if unchanged = rejected
+      const normalize = (text: string) => text.replace(/\r\n/g, "\n").replace(/\n$/, "");
+      const hasChanges = normalize(currentText) !== normalize(originalContent);
+
+      const responseId = hasChanges ? "apply" : "reject";
+      const finalContent = hasChanges ? currentText : content;
+
+      logger.debug(
+        `Continue decision: ${responseId.toUpperCase()} - ${hasChanges ? "file has changes" : "file unchanged"}`,
+      );
+      console.log("Continue decision: ", { responseId, hasChanges });
+
+      // Send to solution server and update state
+      await handleFileResponse(messageToken, responseId, path, finalContent, state);
+      logger.info(`File state continued with response: ${responseId}`, {
+        path,
+        messageToken,
+      });
+
+      // Update the chat message status
+      state.mutateData((draft) => {
+        const messageIndex = draft.chatMessages.findIndex(
+          (msg) => msg.messageToken === messageToken,
+        );
+        if (
+          messageIndex >= 0 &&
+          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
+        ) {
+          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          modifiedFileMessage.status = hasChanges ? "applied" : "rejected";
+        }
+      });
+    } catch (error) {
+      logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
+      // Fallback to reject on error
+      await handleFileResponse(messageToken, "reject", path, content, state);
+
+      state.mutateData((draft) => {
+        const messageIndex = draft.chatMessages.findIndex(
+          (msg) => msg.messageToken === messageToken,
+        );
+        if (
+          messageIndex >= 0 &&
+          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
+        ) {
+          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          modifiedFileMessage.status = "rejected";
+        }
+      });
+    }
   },
 };
 

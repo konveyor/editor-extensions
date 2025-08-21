@@ -166,6 +166,34 @@ export async function handleFileResponse(
       } catch (error) {
         logger.error("Error notifying solution server:", error);
       }
+
+      // Update the chat message status in the centralized state (for Accept/Reject All consistency)
+      state.mutateData((draft) => {
+        const messageIndex = draft.chatMessages.findIndex(
+          (msg) => msg.messageToken === messageToken,
+        );
+        if (
+          messageIndex >= 0 &&
+          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
+        ) {
+          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          modifiedFileMessage.status = "applied";
+        }
+      });
+    } else {
+      // For reject, also update the global state
+      state.mutateData((draft) => {
+        const messageIndex = draft.chatMessages.findIndex(
+          (msg) => msg.messageToken === messageToken,
+        );
+        if (
+          messageIndex >= 0 &&
+          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
+        ) {
+          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          modifiedFileMessage.status = "rejected";
+        }
+      });
     }
 
     // Trigger the pending interaction resolver which will handle queue processing

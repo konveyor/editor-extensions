@@ -6,14 +6,10 @@ import {
   ChatMessage,
   ChatMessageType,
   Incident,
-  LocalChange,
   type ToolMessageValue,
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
-import {
-  openFile,
-  viewFix,
-} from "../../hooks/actions";
+import { openFile } from "../../hooks/actions";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
@@ -36,7 +32,6 @@ const useResolutionData = (state: any) => {
     solutionData: resolution,
     isFetchingSolution = false,
     isAnalyzing,
-    isAgentMode = false,
   } = state;
 
   const isTriggeredByUser = useMemo(
@@ -53,8 +48,6 @@ const useResolutionData = (state: any) => {
       solutionState === "received" || (Array.isArray(chatMessages) && chatMessages?.length > 0)
     );
   }, [solutionState, chatMessages]);
-
-  // getCompletionStatus removed - completion status handled through chat messages now
 
   const hasResponseWithErrors = useMemo(
     () =>
@@ -173,7 +166,6 @@ const ResolutionPage: React.FC = () => {
             <ModifiedFileMessage
               data={fileData}
               timestamp={msg.timestamp}
-              mode="agent"
               onUserAction={triggerScrollOnUserAction}
             />
           </MessageWrapper>
