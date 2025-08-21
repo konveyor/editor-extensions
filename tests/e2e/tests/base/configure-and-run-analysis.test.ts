@@ -4,6 +4,7 @@ import { VSCode } from '../../pages/vscode.page';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as fs from 'fs/promises';
 import { generateRandomString } from '../../utilities/utils';
+import { extractZip } from '../../utilities/archive';
 
 test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
@@ -62,10 +63,18 @@ test.describe(`Configure extension and run analysis`, () => {
       await vscodeApp.getWindow().keyboard.press('Enter');
       await vscodeApp.waitDefault();
     }
-    const zipStat = await fs.stat(
-      pathlib.join(testRepoData['coolstore'].repoName, '.vscode', 'debug-archive.zip')
+    const zipPath = pathlib.join(
+      testRepoData['coolstore'].repoName,
+      '.vscode',
+      'debug-archive.zip'
     );
+    const zipStat = await fs.stat(zipPath);
     expect(zipStat.isFile()).toBe(true);
+    const extractedPath = pathlib.join(testRepoData['coolstore'].repoName, '.vscode');
+    extractZip(zipPath, extractedPath);
+    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
+    const logsStat = await fs.stat(logsPath);
+    expect(logsStat.isFile()).toBe(true);
   });
 
   test('delete profile', async () => {

@@ -51,6 +51,7 @@ import {
   getTraceEnabled,
   getTraceDir,
   getConfigSolutionServerAuth,
+  fileUriToPath,
 } from "./utilities/configuration";
 import { promptForCredentials } from "./utilities/auth";
 import { runPartialAnalysis } from "./analysis";
@@ -739,8 +740,9 @@ const commandsMap: (
       // add logs and write zip
       try {
         const zipArchive = new AdmZip();
+        zipArchive.addLocalFolder(fileUriToPath(state.extensionContext.logUri.fsPath), "logs"); // add logs folder
         if (traceDirFound && includeLLMTraces === "Yes") {
-          zipArchive.addLocalFolder(traceDir as string);
+          zipArchive.addLocalFolder(traceDir as string, "traces");
         }
         if (providerConfigWritten) {
           zipArchive.addLocalFile(providerConfigPath);
