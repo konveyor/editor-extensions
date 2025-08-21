@@ -28,36 +28,60 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const { state } = useExtensionStateContext();
   const hasActiveDecorators = !!(state.activeDecorators && state.activeDecorators[messageToken]);
 
-  // Get status from global state as fallback
-  const currentMessage = state.chatMessages.find((msg) => msg.messageToken === messageToken);
+  // Get status from global state ONLY for this specific message token
+  // CRITICAL: MessageTokens are not unique (path-toolCall format causes collisions)
+  // We need to find the EXACT message by comparing content AND diff to ensure uniqueness
+  const messagesForToken = state.chatMessages.filter(
+    (msg) =>
+      msg.messageToken === messageToken &&
+      msg.kind === ChatMessageType.ModifiedFile &&
+      (msg.value as any)?.path === path,
+  );
+
+  // If multiple messages with same token, find exact match by content AND diff
+  const currentMessage =
+    messagesForToken.length > 1
+      ? messagesForToken.find(
+          (msg) => (msg.value as any)?.content === content && (msg.value as any)?.diff === diff,
+        )
+      : messagesForToken[0];
   const globalStatus =
     currentMessage?.kind === ChatMessageType.ModifiedFile
       ? (currentMessage.value as any)?.status
       : null;
 
+  // Initialize with status from data or global state for THIS specific message only
   const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | "processing" | null>(
     () => {
-      if (status === "applied" || globalStatus === "applied") {
-        return "applied";
+      // Only use status if it's explicitly set for this message
+      if (status === "applied" || status === "rejected") {
+        return status;
       }
-      if (status === "rejected" || globalStatus === "rejected") {
-        return "rejected";
+      if (globalStatus === "applied" || globalStatus === "rejected") {
+        return globalStatus;
       }
-      return null; // for "pending" or undefined
+      return null; // Default to null - no action taken
     },
   );
 
-  // Use global state as fallback when local state is null
-  const effectiveActionTaken =
-    actionTaken ||
-    (globalStatus === "applied" ? "applied" : globalStatus === "rejected" ? "rejected" : null);
+  // HARD requirement: only use status if it's explicitly set for this message token
+  // Do NOT use any fallback logic that could cause premature minimization
+  const effectiveActionTaken = actionTaken;
 
-  // Update local state when global state changes
+  console.log(
+    `[ModifiedFileMessage] Status check - messageToken: ${messageToken}, path: ${path}, data.status: ${status}, globalStatus: ${globalStatus}, actionTaken: ${actionTaken}, effectiveActionTaken: ${effectiveActionTaken}, foundMessage: ${!!currentMessage}, totalMessagesForToken: ${messagesForToken.length}`,
+  );
+
+  // Update local state ONLY when global state changes for this specific message
   useEffect(() => {
-    if (globalStatus === "applied" || globalStatus === "rejected") {
+    // Only update if we found the exact message and it has a status
+    if (currentMessage && (globalStatus === "applied" || globalStatus === "rejected")) {
+      console.log(
+        `[ModifiedFileMessage] Updating actionTaken to ${globalStatus} for messageToken: ${messageToken}, path: ${path}`,
+      );
       setActionTaken(globalStatus);
     }
-  }, [globalStatus]);
+  }, [globalStatus, currentMessage, messageToken, path]);
 
   // Clear viewing diff state when status is finalized
   useEffect(() => {
@@ -171,6 +195,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   };
 
   // Render minimized version when any action is taken (including processing)
+  console.log("effectiveActionTakenn", effectiveActionTaken);
   if (effectiveActionTaken) {
     const canOpenInEditor = !isNew && !isDeleted;
 
@@ -183,9 +208,11 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
             <div className="modified-file-minimized-content">
               <div className="modified-file-minimized-status">
                 <span className={`status-badge status-${effectiveActionTaken}`}>
-                  {effectiveActionTaken === "applied" ? "✓ Applied" 
-                   : effectiveActionTaken === "rejected" ? "✗ Rejected"
-                   : "⏳ Processing..."}
+                  {effectiveActionTaken === "applied"
+                    ? "✓ Applied"
+                    : effectiveActionTaken === "rejected"
+                      ? "✗ Rejected"
+                      : "⏳ Processing..."}
                 </span>
                 <span className="modified-file-minimized-filename">{fileName}</span>
               </div>
