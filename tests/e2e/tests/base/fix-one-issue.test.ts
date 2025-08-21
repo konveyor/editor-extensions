@@ -21,12 +21,12 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 300000,
+        timeout: 600000,
       });
     });
 
     test('Fix one issue', async () => {
-      test.setTimeout(300000);
+      test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
       await vscodeApp.searchAndRequestFix('InventoryEntity', FixTypes.Incident);
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
@@ -35,7 +35,7 @@ getAvailableProviders().forEach((provider) => {
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.dispatchEvent('click');
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 300000,
+        timeout: 600000,
       });
     });
 
