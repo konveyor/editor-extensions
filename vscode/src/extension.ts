@@ -313,18 +313,6 @@ class VsCodeExtension {
         vscode.workspace.onWillSaveTextDocument(async (event) => {
           const doc = event.document;
 
-          // Handle settings.yaml configuration changes
-          if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
-            const configError = await this.setupModelProvider(paths().settingsYaml);
-            this.state.mutateData((draft) => {
-              draft.configErrors = [];
-              if (configError) {
-                draft.configErrors.push(configError);
-              }
-              updateConfigErrors(draft, paths().settingsYaml.fsPath);
-            });
-          }
-
           // Auto-accept all diff decorations BEFORE saving (if enabled)
           // This ensures the document is saved in its final state
           if (getConfigAutoAcceptOnSave() && this.state.verticalDiffManager) {
@@ -352,6 +340,22 @@ class VsCodeExtension {
                 );
               }
             }
+          }
+        }),
+      );
+
+      // Handle settings.yaml configuration changes AFTER save
+      this.listeners.push(
+        vscode.workspace.onDidSaveTextDocument(async (doc) => {
+          if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
+            const configError = await this.setupModelProvider(paths().settingsYaml);
+            this.state.mutateData((draft) => {
+              draft.configErrors = [];
+              if (configError) {
+                draft.configErrors.push(configError);
+              }
+              updateConfigErrors(draft, paths().settingsYaml.fsPath);
+            });
           }
         }),
       );
