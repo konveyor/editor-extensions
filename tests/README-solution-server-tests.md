@@ -17,6 +17,21 @@ The Solution Server change acceptance tests validate three key scenarios:
 3. **Solution Server**: Running and accessible at `http://localhost:8000`
 4. **Test Repository**: The tests use the coolstore repository for testing
 
+### Setting Up Solution Server
+
+The solution server tests require a solution server instance running at `http://localhost:8000`. For local development:
+
+1. **Using Docker** (recommended):
+   ```bash
+   # Pull and run the solution server container
+   docker run -p 8000:8000 quay.io/konveyor/solution-server:latest
+   ```
+
+2. **Manual Setup**:
+   - Follow the solution server documentation to build and run the server locally
+   - Ensure it's accessible at `http://localhost:8000`
+   - Verify the server is running: `curl http://localhost:8000/health`
+
 ## Setup Instructions
 
 ### 1. Install Dependencies
@@ -48,11 +63,27 @@ cp .env.example .env
 
 ## Running the Tests
 
+### Validate Prerequisites
+
+Before running tests, validate that all prerequisites are met:
+
+```bash
+cd tests
+npm run validate:solution-server
+```
+
+This script will check:
+- Node.js version compatibility
+- npm dependencies installation
+- Playwright browsers availability  
+- Solution server accessibility
+- Test data structure validity
+
 ### Run All Solution Server Tests
 
 ```bash
 cd tests
-npm run test -- --project=solution-server-tests
+npm run test:solution-server
 ```
 
 ### Run Specific Change Acceptance Tests
@@ -118,11 +149,30 @@ The "Modify results and accept changes" test specifically validates:
 
 ## CI Integration
 
-These tests are automatically run in the CI pipeline as part of the `solution-server-tests` project. The tests are configured to:
+These tests are integrated into the CI pipeline as part of the `solution-server-tests` project. However, they require a solution server running at `http://localhost:8000`, so they are conditionally executed in CI.
 
-- Run with a timeout of 120 seconds per test
-- Use a single worker to avoid conflicts
-- Generate traces and screenshots on failure
+### Enabling Solution Server Tests in CI
+
+The solution server tests can be enabled in CI in two ways:
+
+1. **Manual Workflow Dispatch**: 
+   - Go to the GitHub Actions tab
+   - Select "CI (repo level)" workflow  
+   - Click "Run workflow"
+   - Set "Run solution server tests" to "true"
+
+2. **Commit Message Trigger**:
+   - Include `[run-solution-server-tests]` in your commit message
+   - The tests will automatically run when the PR is built
+
+### CI Configuration
+
+The tests are configured to run with:
+- Ubuntu latest environment
+- Node.js version from `.nvmrc` 
+- Timeout of 120 seconds per test
+- Single worker to avoid conflicts
+- Automatic artifact collection on failure
 
 ## Troubleshooting
 

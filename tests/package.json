@@ -3,6 +3,8 @@
     "check": "prettier --check './**/*.{ts,js,json}'",
     "format": "prettier --write './**/*.{ts,js,json}'",
     "test": "playwright test",
+    "test:solution-server": "playwright test --project=solution-server-tests",
+    "validate:solution-server": "node scripts/validate-solution-server-tests.mjs",
     "prepare": "node .husky/install.mjs"
   },
   "name": "kai-ci",
