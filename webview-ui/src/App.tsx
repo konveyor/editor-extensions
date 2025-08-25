@@ -14,7 +14,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // Set document title based on brand
     document.title = getBrandName();
-    
+
     // Update the view when viewType changes
     setCurrentView(viewType);
   }, [viewType]);
