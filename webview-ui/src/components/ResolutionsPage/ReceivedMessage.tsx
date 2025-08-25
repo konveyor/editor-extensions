@@ -23,7 +23,7 @@ interface ReceivedMessageProps {
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   content,
   extraContent,
-  isLoading,
+  isLoading: _isLoading,
   timestamp = new Date(),
   quickResponses,
   isProcessing = false,

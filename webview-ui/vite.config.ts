@@ -12,7 +12,7 @@ export default defineConfig(() => {
   try {
     const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, "utf-8"));
     publisher = rootPackageJson.publisher?.toLowerCase() || "konveyor";
-  } catch (error) {
+  } catch {
     console.warn("Could not read root package.json, using default publisher:", publisher);
   }
 
