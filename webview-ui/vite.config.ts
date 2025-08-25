@@ -5,22 +5,34 @@ import fs from "fs";
 import path from "path";
 
 export default defineConfig(() => {
-  // Read the root package.json to get publisher info
-  const rootPackageJsonPath = path.resolve(__dirname, "../package.json");
+  // Read the VSCode extension package.json to get extension info
+  const extensionPackageJsonPath = path.resolve(__dirname, "../vscode/package.json");
+  let extensionName = "konveyor"; // default fallback
   let publisher = "konveyor"; // default fallback
 
   try {
-    const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, "utf-8"));
-    publisher = rootPackageJson.publisher?.toLowerCase() || "konveyor";
+    const extensionPackageJson = JSON.parse(fs.readFileSync(extensionPackageJsonPath, "utf-8"));
+    extensionName = extensionPackageJson.name || "konveyor";
+    publisher = extensionPackageJson.publisher?.toLowerCase() || "konveyor";
   } catch {
-    console.warn("Could not read root package.json, using default publisher:", publisher);
+    console.warn("Could not read VSCode extension package.json, using defaults:", {
+      extensionName,
+      publisher,
+    });
   }
+
+  // Determine brand based on extension name
+  const brandName =
+    extensionName === "mta"
+      ? "MTA"
+      : extensionName === "konveyor"
+        ? "Konveyor"
+        : extensionName.charAt(0).toUpperCase() + extensionName.slice(1);
 
   return {
     plugins: [react(), checker({ typescript: true })],
     define: {
-      __PUBLISHER__: JSON.stringify(publisher),
-      __BRAND_NAME__: JSON.stringify(publisher === "konveyor" ? "Konveyor" : "MTA"),
+      __EXTENSION_NAME__: JSON.stringify(extensionName),
     },
     build: {
       outDir: "build",

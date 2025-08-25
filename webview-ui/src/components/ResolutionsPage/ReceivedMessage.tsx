@@ -59,6 +59,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
 
   // Select avatar based on brand
   const selectedAvatar = isMTA() ? mtaRedAvatar : konveyorAvatar;
+  console.log("BrandName", getBrandName());
 
   return (
     <Message
