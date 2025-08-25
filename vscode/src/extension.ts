@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
-import { registerAllCommands as registerAllCommands } from "./commands";
+import { registerAllCommands as registerAllCommands, executeExtensionCommand } from "./commands";
 import { ExtensionState } from "./extensionState";
 import {
   ConfigError,
@@ -421,7 +421,7 @@ class VsCodeExtension {
         }),
       );
 
-      vscode.commands.executeCommand("konveyor.loadResultsFromDataFolder");
+      executeExtensionCommand("loadResultsFromDataFolder");
       this.state.logger.info("Extension initialized");
 
       // Setup diff status bar item

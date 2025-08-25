@@ -2,6 +2,7 @@ import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
 import { ChatMessageType } from "@editor-extensions/shared";
 import { getConfigAgentMode, getConfigAnalyzeOnSave } from "../configuration";
+import { executeExtensionCommand } from "../../commands";
 
 /**
  * Creates a new file with the specified content
@@ -159,9 +160,9 @@ export async function handleFileResponse(
       // Notify solution server of the change
       try {
         if (isDeleted) {
-          await vscode.commands.executeCommand("konveyor.changeDiscarded", path);
+          await executeExtensionCommand("changeDiscarded", path);
         } else {
-          await vscode.commands.executeCommand("konveyor.changeApplied", path, fileContent);
+          await executeExtensionCommand("changeApplied", path, fileContent);
         }
       } catch (error) {
         logger.error("Error notifying solution server:", error);
