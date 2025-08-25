@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
 import * as pathlib from "path";
 import { fileURLToPath } from "url";
-import { KONVEYOR_CONFIG_KEY } from "./constants";
+import { EXTENSION_NAME } from "./constants";
 import { AnalysisProfile, createConfigError, ExtensionData } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
-  return vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY)?.get<T>(key);
+  return vscode.workspace.getConfiguration(EXTENSION_NAME)?.get<T>(key);
 }
 
 async function updateConfigValue<T>(
@@ -13,7 +13,7 @@ async function updateConfigValue<T>(
   value: T | undefined,
   scope: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Workspace,
 ): Promise<void> {
-  await vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY).update(key, value, scope);
+  await vscode.workspace.getConfiguration(EXTENSION_NAME).update(key, value, scope);
 }
 
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
@@ -70,7 +70,7 @@ export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
 export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("kai.agentMode") ?? false;
 export const getConfigAutoAcceptOnSave = (): boolean =>
-  getConfigValue<boolean>("konveyor.diff.autoAcceptOnSave") ?? true;
+  getConfigValue<boolean>("diff.autoAcceptOnSave") ?? true;
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("kai.excludedDiagnosticSources") ?? [];
 
@@ -79,7 +79,7 @@ export const getExcludedDiagnosticSources = (): string[] =>
  * @returns A record of all configuration values.
  */
 export function getAllConfigurationValues(): Record<string, any> {
-  const config = vscode.workspace.getConfiguration(KONVEYOR_CONFIG_KEY);
+  const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
   const result: Record<string, any> = {};
   for (const key of Object.keys(config)) {
     if (!key.startsWith("inspect") && !key.startsWith("update")) {

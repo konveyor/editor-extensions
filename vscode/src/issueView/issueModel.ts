@@ -36,6 +36,7 @@ import {
 import { Immutable } from "immer";
 import * as vscode from "vscode";
 import { allIncidents } from "./transformation";
+import { executeExtensionCommand } from "../commands";
 
 export class IssuesModel {
   private _onDidChange = new vscode.EventEmitter<
@@ -195,7 +196,7 @@ export class IssuesModel {
       return;
     }
 
-    vscode.commands.executeCommand("konveyor.getSolution", enhancedIncidents);
+    executeExtensionCommand("getSolution", enhancedIncidents);
   }
 }
 
