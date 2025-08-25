@@ -3,8 +3,10 @@ import React, { useState } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import botAv from "./bot_avatar.svg?inline";
+import konveyorAvatar from "./avatarIcons/konveyor_avatar.svg?inline";
+import mtaRedAvatar from "./avatarIcons/mta_red.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
+import { getBrandName, isMTA } from "../../utils/branding";
 
 interface QuickResponseWithToken extends QuickResponse {
   messageToken: string;
@@ -22,7 +24,7 @@ interface ReceivedMessageProps {
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   content,
   extraContent,
-  isLoading,
+  isLoading: _isLoading,
   timestamp = new Date(),
   quickResponses,
   isProcessing = false,
@@ -55,12 +57,15 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
     });
   };
 
+  // Select avatar based on brand
+  const selectedAvatar = isMTA() ? mtaRedAvatar : konveyorAvatar;
+
   return (
     <Message
       timestamp={formatTimestamp(timestamp)}
-      name="Konveyor"
+      name={getBrandName()}
       role="bot"
-      avatar={botAv}
+      avatar={selectedAvatar}
       content={content}
       quickResponses={quickResponses?.map((response) => ({
         ...response,

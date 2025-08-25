@@ -11,7 +11,7 @@ import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
-import { Tooltip } from "@patternfly/react-core";
+import { getBrandName, isKonveyor } from "../utils/branding";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -84,14 +84,17 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
           <DropdownItem key="get-rag-solution" onClick={() => onGetSolution(incidents)}>
             Get solution
           </DropdownItem>
-          {scope === "incident" && incidents.length === 1 && state.isContinueInstalled && (
-            <DropdownItem
-              key="ask-continue-konveyor"
-              onClick={() => onGetSolutionWithKonveyorContext(incidents[0])}
-            >
-              Ask Continue with Konveyor Context
-            </DropdownItem>
-          )}
+          {scope === "incident" &&
+            incidents.length === 1 &&
+            state.isContinueInstalled &&
+            isKonveyor() && (
+              <DropdownItem
+                key="ask-continue-konveyor"
+                onClick={() => onGetSolutionWithKonveyorContext(incidents[0])}
+              >
+                Ask Continue with {getBrandName()} Context
+              </DropdownItem>
+            )}
         </DropdownGroup>
       </DropdownList>
     </Dropdown>
