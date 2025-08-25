@@ -1,7 +1,7 @@
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
 import { ChatMessageType } from "@editor-extensions/shared";
-import { getConfigAgentMode } from "../configuration";
+import { getConfigAgentMode, getConfigAnalyzeOnSave } from "../configuration";
 
 /**
  * Creates a new file with the specified content
@@ -137,9 +137,9 @@ export async function handleFileResponse(
           await updateExistingFile(uri, path, fileContent, state);
         }
 
-        // Trigger analysis after file changes are applied in agentic mode
+        // Trigger analysis after file changes are applied in agentic mode or when analyze on save is enabled
         // This ensures that the tasks interaction can detect new diagnostic issues
-        if (getConfigAgentMode()) {
+        if (getConfigAgentMode() || getConfigAnalyzeOnSave()) {
           try {
             await state.analyzerClient.runAnalysis([uri]);
           } catch (analysisError) {
