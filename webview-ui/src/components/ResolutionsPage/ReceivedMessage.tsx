@@ -4,7 +4,7 @@ import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import konveyorAvatar from "./avatarIcons/konveyor_avatar.svg?inline";
-import mtaRedAvatar from "./avatarIcons/mta_red.svg?inline";
+import mtaRedAvatar from "./avatarIcons/mta_rgb.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
 import { getBrandName, isMTA } from "../../utils/branding";
 
