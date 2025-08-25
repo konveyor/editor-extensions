@@ -5,6 +5,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import botAv from "./bot_avatar.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
+import { getBrandName } from "../../utils/branding";
 
 interface QuickResponseWithToken extends QuickResponse {
   messageToken: string;
@@ -58,7 +59,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   return (
     <Message
       timestamp={formatTimestamp(timestamp)}
-      name="Konveyor"
+      name={getBrandName()}
       role="bot"
       avatar={botAv}
       content={content}

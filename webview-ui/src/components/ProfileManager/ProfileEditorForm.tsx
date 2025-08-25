@@ -32,6 +32,7 @@ import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shar
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 import { buildLabelSelector } from "@editor-extensions/shared";
+import { getBrandName } from "../../utils/branding";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -267,7 +268,7 @@ export const ProfileEditorForm: React.FC<{
         <FormHelperText>
           <HelperText>
             <HelperTextItem icon={<InfoCircleIcon />}>
-              Include Konveyor&apos;s built-in migration rules
+              Include {getBrandName()}&apos;s built-in migration rules
             </HelperTextItem>
           </HelperText>
         </FormHelperText>
