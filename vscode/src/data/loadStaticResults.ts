@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { RuleSet } from "@editor-extensions/shared";
 import { loadStateFromDataFolder, readDataFiles } from "./storage";
 import { paths } from "../paths";
+import { executeExtensionCommand } from "../commands";
 
 export const loadStaticResults = async () => {
   const options: vscode.OpenDialogOptions = {
@@ -26,7 +27,7 @@ export const loadStaticResults = async () => {
 
   if (analysisResults) {
     if (filePathsCorrect(analysisResults)) {
-      vscode.commands.executeCommand("konveyor.loadRuleSets", analysisResults);
+      executeExtensionCommand("loadRuleSets", analysisResults);
       vscode.window.showInformationMessage("Successfully loaded the analysis results");
     } else {
       vscode.window.showErrorMessage("Konveyor: analysis results point to non-existing files.");
@@ -48,6 +49,6 @@ const filePathsCorrect = (ruleSets: RuleSet[]) =>
 export const loadResultsFromDataFolder = async () => {
   const [analysisResults] = await loadStateFromDataFolder();
   if (analysisResults) {
-    vscode.commands.executeCommand("konveyor.loadRuleSets", analysisResults);
+    executeExtensionCommand("loadRuleSets", analysisResults);
   }
 };

@@ -1,7 +1,7 @@
 {
-  "name": "konveyor-ai",
-  "displayName": "Konveyor AI (kai) Extension for VSCode",
-  "description": "Generative AI assisted migration and modernization tool",
+  "name": "konveyor",
+  "displayName": "Konveyor Extension for VSCode",
+  "description": "Open-source migration and modernization tool",
   "author": "Konveyor",
   "icon": "resources/konveyor-icon-color.png",
   "license": "Apache-2.0",
