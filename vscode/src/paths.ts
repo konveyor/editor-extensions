@@ -192,7 +192,12 @@ export async function ensurePaths(
   }
 
   // Ensure kai-analyzer-rpc binary exists
-  await ensureKaiAnalyzerBinary(context, logger);
+  try {
+    await ensureKaiAnalyzerBinary(context, logger);
+  } catch (error) {
+    logger.error("Failed to install kai analyzer:", error);
+    throw error;
+  }
 
   return _paths;
 }
