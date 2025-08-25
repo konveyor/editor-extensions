@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="mta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="64" fill="#2C5282" stroke="#1A365D" stroke-width="4"/>
+  
+  <!-- MTA Text -->
+  <text x="64" y="80" font-family="Arial, sans-serif" font-size="36" font-weight="bold" 
+        text-anchor="middle" fill="#FFFFFF">MTA</text>
+  
+  <!-- Migration arrows representing transformation -->
+  <g stroke="#FFFFFF" stroke-width="4" fill="none">
+    <!-- Left arrow -->
+    <path d="M 32 54 L 54 54 L 54 44 M 54 54 L 54 64" marker-end="url(#arrowhead)"/>
+    
+    <!-- Right arrow -->
+    <path d="M 74 54 L 96 54 L 96 44 M 96 54 L 96 64" marker-end="url(#arrowhead)"/>
+  </g>
+  
+  <!-- Central transformation icon -->
+  <circle cx="64" cy="54" r="16" fill="#4299E1" stroke="#FFFFFF" stroke-width="3"/>
+  <path d="M 56 54 L 72 54 M 64 38 L 64 70" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrowhead" markerWidth="12" markerHeight="8" 
+            refX="10" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#FFFFFF"/>
+    </marker>
+  </defs>
+</svg>
