@@ -13,6 +13,7 @@ import { TEST_DATA_DIR } from '../utilities/consts';
 import { BasePage } from './base.page';
 import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
+import { stubDialog } from 'electron-playwright-helpers';
 
 export class VSCode extends BasePage {
   constructor(
@@ -226,7 +227,12 @@ export class VSCode extends BasePage {
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
   }
 
-  public async createProfile(sources: string[], targets: string[], profileName?: string) {
+  public async createProfile(
+    sources: string[],
+    targets: string[],
+    profileName?: string,
+    customRulesPath?: string
+  ) {
     await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
 
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
@@ -262,6 +268,33 @@ export class VSCode extends BasePage {
         .click({ timeout: 5000 });
     }
     await this.window.keyboard.press('Escape');
+
+    // Select Custom Rules if provided
+    if (customRulesPath) {
+      console.log(`Creating profile with custom rules from: ${customRulesPath}`);
+
+      // Look for the "Select Custom Rules..." button
+      const customRulesButton = manageProfileView.getByRole('button', {
+        name: 'Select Custom Rules…',
+      });
+
+      if (await customRulesButton.isVisible()) {
+        // Stub the file dialog to return the custom rules path
+        await stubDialog(this.app, 'showOpenDialog', {
+          filePaths: [customRulesPath],
+          canceled: false,
+        });
+
+        // Click the custom rules button
+        await customRulesButton.click();
+
+        // Wait for the dialog to be processed
+        await this.window.waitForTimeout(2000);
+      }
+    }
+
+    // Return the profile name that was created
+    return nameToUse;
   }
 
   public async deleteProfile(profileName: string) {

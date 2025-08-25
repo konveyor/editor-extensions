@@ -10,6 +10,7 @@ type RepoData = Record<
     branch: string;
     sources: string[];
     targets: string[];
+    customRulesFolder?: string;
   }
 >;
 
