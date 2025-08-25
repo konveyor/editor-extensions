@@ -1,13 +1,13 @@
 {
-  "name": "konveyor-ai",
-  "displayName": "Konveyor AI (kai) Extension for VSCode",
-  "description": "Generative AI assisted migration and modernization tool",
-  "author": "Konveyor",
-  "icon": "resources/konveyor-icon-color.png",
+  "name": "mta-ai",
+  "displayName": "MTA AI Extension for VSCode",
+  "description": "Generative AI assisted migration and modernization tool for MTA",
+  "author": "MTA",
+  "icon": "resources/mta-icon.svg",
   "license": "Apache-2.0",
   "version": "0.2.0-pre.1",
   "main": "./out/extension.js",
-  "publisher": "konveyor",
+  "publisher": "mta",
   "repository": {
     "type": "git",
     "url": "https://github.com/konveyor/editor-extensions"

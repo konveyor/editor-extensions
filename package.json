@@ -2,12 +2,12 @@
   "name": "editor-extensions",
   "version": "0.2.0-pre.1",
   "private": true,
-  "displayName": "Konveyor",
-  "description": "VSCode Extension for Konveyor to assist in migrating and modernizing applications.",
+  "displayName": "MTA",
+  "description": "VSCode Extension for MTA (Migration Toolkit for Applications) to assist in migrating and modernizing applications.",
   "license": "Apache-2.0",
-  "publisher": "Konveyor",
-  "author": "Konveyor",
-  "icon": "vscode/resources/konveyor-icon-color.png",
+  "publisher": "mta",
+  "author": "MTA",
+  "icon": "vscode/resources/mta-icon.svg",
   "homepage": "https://github.com/konveyor/editor-extensions/blob/main/README.md",
   "repository": {
     "type": "git",
@@ -57,7 +57,9 @@
     "collect-assets:dev": "GITHUB_TOKEN=$(gh auth token 2>/dev/null || echo '') node ./scripts/collect-assets.js --use-workflow-artifacts --branch=main",
     "dist": "rimraf ./dist && node ./scripts/copy-dist.js",
     "package": "cd dist && vsce package",
-    "test": "npm run build && npm run test --workspaces --if-present"
+    "test": "npm run build && npm run test --workspaces --if-present",
+    "brand:konveyor": "node scripts/set-branding.js konveyor",
+    "brand:mta": "node scripts/set-branding.js mta"
   },
   "lint-staged": {
     "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",
