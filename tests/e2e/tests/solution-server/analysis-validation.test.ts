@@ -1,7 +1,7 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { Configuration } from '../../pages/configuration.page';
-import { ConfigurationOptions } from '../../enums/configuration-options.enum';
+import { solutionServerEnabled } from '../../enums/configuration-options.enum';
 import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { MCPClient } from '../../../mcp-client/mcp-client.model';
 import { FixTypes } from '../../enums/fix-types.enum';
@@ -23,7 +23,7 @@ test.describe(`Solution server analysis validations`, () => {
     mcpClient = await MCPClient.connect('http://localhost:8000');
     vsCode = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
     const config = await Configuration.open(vsCode);
-    await config.setEnabledConfiguration(ConfigurationOptions.SolutionServerEnabled, true);
+    await config.setEnabledConfiguration(solutionServerEnabled, true);
     await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
     await vsCode.createProfile(repoInfo.sources, repoInfo.targets);
     await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
