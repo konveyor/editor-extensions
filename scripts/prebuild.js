@@ -54,10 +54,14 @@ if (packageJson.contributes?.configuration?.properties) {
 
 // Transform commands
 if (packageJson.contributes?.commands) {
+  // Categories that should not be transformed by branding
+  const preservedCategories = ["diffEditor"];
+
   packageJson.contributes.commands = packageJson.contributes.commands.map((cmd) => ({
     ...cmd,
     command: cmd.command.replace(/^[^.]+\./, `${brandingStrings.commandPrefix}.`),
-    category: brandingStrings.category,
+    // Only transform category if it's not in the preserved list
+    category: preservedCategories.includes(cmd.category) ? cmd.category : brandingStrings.category,
     title: cmd.title?.replace(/Konveyor/g, brandingStrings.productName) || cmd.title,
   }));
 }
