@@ -1,24 +1,21 @@
+export const getBranding = () => __BRANDING__;
+
 export const getExtensionName = (): string => {
-  return __EXTENSION_NAME__;
+  return __BRANDING__.extensionName;
 };
 
 export const isKonveyor = (): boolean => {
-  return getExtensionName() === "konveyor";
+  return __BRANDING__.extensionName === "konveyor";
 };
 
 export const isMTA = (): boolean => {
-  return getExtensionName() === "mta";
+  return __BRANDING__.extensionName === "mta";
 };
 
 export const getBrandName = (): string => {
-  const extensionName = getExtensionName();
-  return extensionName === "mta"
-    ? "MTA"
-    : extensionName === "konveyor"
-      ? "Konveyor"
-      : extensionName.charAt(0).toUpperCase() + extensionName.slice(1);
+  return __BRANDING__.productName;
 };
 
 export const getBrandNameLowercase = (): string => {
-  return getBrandName().toLowerCase();
+  return __BRANDING__.productNameLowercase;
 };

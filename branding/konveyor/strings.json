@@ -1,0 +1,14 @@
+{
+  "productName": "Konveyor",
+  "productNameLowercase": "konveyor",
+  "extensionName": "konveyor",
+  "publisher": "konveyor",
+  "displayName": "Konveyor Extension for VSCode",
+  "description": "Open-source migration and modernization tool",
+  "author": "Konveyor",
+  "category": "Konveyor",
+  "icon": "resources/konveyor-icon-color.png",
+  "commandPrefix": "konveyor",
+  "configPrefix": "konveyor",
+  "viewPrefix": "konveyor"
+}

@@ -100,6 +100,10 @@ module.exports = (env, argv) => {
               from: "src/test/testData",
               to: "test/testData",
             },
+            {
+              from: "package.json",
+              to: "package.json",
+            },
           ],
         }),
     ].filter(Boolean),

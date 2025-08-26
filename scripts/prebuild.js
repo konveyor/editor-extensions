@@ -1,0 +1,139 @@
+#!/usr/bin/env node
+
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Determine branding from environment or default to konveyor
+const brandingName = process.env.BRANDING || "konveyor";
+const brandingPath = path.join(__dirname, `../branding/${brandingName}`);
+
+console.log(`🔄 Running prebuild script with branding: ${brandingName}`);
+
+// Read branding strings
+let brandingStrings;
+try {
+  const stringsPath = path.join(brandingPath, "strings.json");
+  brandingStrings = JSON.parse(fs.readFileSync(stringsPath, "utf8"));
+} catch (error) {
+  console.error(`❌ Could not read branding strings from ${brandingPath}:`, error);
+  process.exit(1);
+}
+
+// Read and transform package.json
+const packagePath = path.join(__dirname, "../vscode/package.json");
+const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+
+console.log(`📦 Transforming package.json for ${brandingStrings.productName}...`);
+
+// Apply core branding transformations
+Object.assign(packageJson, {
+  name: brandingStrings.extensionName,
+  displayName: brandingStrings.displayName,
+  description: brandingStrings.description,
+  publisher: brandingStrings.publisher,
+  author: brandingStrings.author,
+  icon: brandingStrings.icon,
+});
+
+// Transform configuration properties
+if (packageJson.contributes?.configuration?.properties) {
+  const props = packageJson.contributes.configuration.properties;
+  const newProps = {};
+
+  Object.keys(props).forEach((key) => {
+    const newKey = key.replace(/^[^.]+\./, `${brandingStrings.configPrefix}.`);
+    newProps[newKey] = props[key];
+  });
+
+  packageJson.contributes.configuration.properties = newProps;
+  packageJson.contributes.configuration.title = brandingStrings.productName;
+}
+
+// Transform commands
+if (packageJson.contributes?.commands) {
+  packageJson.contributes.commands = packageJson.contributes.commands.map((cmd) => ({
+    ...cmd,
+    command: cmd.command.replace(/^[^.]+\./, `${brandingStrings.commandPrefix}.`),
+    category: brandingStrings.category,
+    title: cmd.title?.replace(/Konveyor/g, brandingStrings.productName) || cmd.title,
+  }));
+}
+
+// Transform views and containers
+if (packageJson.contributes?.viewsContainers?.activitybar) {
+  packageJson.contributes.viewsContainers.activitybar =
+    packageJson.contributes.viewsContainers.activitybar.map((container) => ({
+      ...container,
+      id: brandingStrings.viewPrefix,
+      title: brandingStrings.productName,
+      icon: brandingStrings.icon,
+    }));
+}
+
+if (packageJson.contributes?.views) {
+  const newViews = {};
+  Object.keys(packageJson.contributes.views).forEach((viewKey) => {
+    newViews[brandingStrings.viewPrefix] = packageJson.contributes.views[viewKey].map((view) => ({
+      ...view,
+      id: view.id.replace(/^[^.]+\./, `${brandingStrings.viewPrefix}.`),
+      name: view.name.replace(/\b\w+/, brandingStrings.productName),
+    }));
+  });
+  packageJson.contributes.views = newViews;
+}
+
+// Transform menus
+if (packageJson.contributes?.menus) {
+  const transformMenuCommands = (menuItems) => {
+    return menuItems.map((item) => ({
+      ...item,
+      command: item.command?.replace(/^[^.]+\./, `${brandingStrings.commandPrefix}.`),
+      when: item.when
+        ?.replace(/konveyor\.issueView/g, `${brandingStrings.viewPrefix}.issueView`)
+        .replace(/konveyor(?=\s|$)/g, brandingStrings.viewPrefix),
+      submenu: item.submenu?.replace(/^konveyor\./, `${brandingStrings.viewPrefix}.`),
+    }));
+  };
+
+  const newMenus = {};
+  Object.keys(packageJson.contributes.menus).forEach((menuKey) => {
+    // Only transform menu keys that actually contain the branding prefix
+    const newMenuKey = menuKey.includes("konveyor")
+      ? menuKey.replace(/konveyor/g, brandingStrings.viewPrefix)
+      : menuKey;
+    newMenus[newMenuKey] = transformMenuCommands(packageJson.contributes.menus[menuKey]);
+  });
+  packageJson.contributes.menus = newMenus;
+}
+
+// Transform submenus
+if (packageJson.contributes?.submenus) {
+  packageJson.contributes.submenus = packageJson.contributes.submenus.map((submenu) => ({
+    ...submenu,
+    id: submenu.id.replace(/^[^.]+/, `${brandingStrings.viewPrefix}`),
+    label: `${brandingStrings.productName} Actions`,
+  }));
+}
+
+// Skip activation events transformation - not needed for MTA branding
+
+// Write the transformed package.json
+fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2));
+
+// Update constants.ts with the correct extension name
+const constantsPath = path.join(__dirname, "../vscode/src/utilities/constants.ts");
+let constantsContent = fs.readFileSync(constantsPath, "utf8");
+
+// Replace the EXTENSION_NAME export with the branding name
+const extensionNameRegex = /export const EXTENSION_NAME = [^;]+;/;
+constantsContent = constantsContent.replace(
+  extensionNameRegex,
+  `export const EXTENSION_NAME = "${brandingStrings.extensionName}";`,
+);
+
+fs.writeFileSync(constantsPath, constantsContent);
+
+console.log(`✅ ${brandingStrings.productName} branding transformations complete`);

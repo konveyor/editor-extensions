@@ -9,6 +9,7 @@ import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
 import { Logger } from "winston";
 import { ExtensionData } from "@editor-extensions/shared";
 import { Immutable } from "immer";
+import { EXTENSION_NAME } from "../../utilities/constants";
 export interface VerticalDiffCodeLens {
   start: number;
   numRed: number;
@@ -238,7 +239,7 @@ export class VerticalDiffManager {
     this.fileUriToCodeLens.delete(fileUri);
     this.refreshCodeLens();
 
-    void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", false);
+    void vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.diffVisible`, false);
 
     // Notify status change
     if (this.onDiffStatusChange) {
@@ -251,7 +252,7 @@ export class VerticalDiffManager {
    */
   async streamDiffLines(diffStream: AsyncGenerator<DiffLine>, streamId?: string) {
     this.logger.debug(`[Manager] streamDiffLines called - streamId: ${streamId}`);
-    void vscode.commands.executeCommand("setContext", "konveyor.diffVisible", true);
+    void vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.diffVisible`, true);
 
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -323,7 +324,7 @@ export class VerticalDiffManager {
       return;
     }
 
-    void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", true);
+    void vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.streamingDiff`, true);
 
     try {
       this.logger.debug("[Manager] Starting diff handler.run()");
@@ -337,7 +338,7 @@ export class VerticalDiffManager {
       this.disableDocumentChangeListener();
       throw e;
     } finally {
-      void vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
+      void vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.streamingDiff`, false);
     }
   }
 

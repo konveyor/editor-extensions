@@ -1,0 +1,14 @@
+{
+  "productName": "MTA",
+  "productNameLowercase": "mta",
+  "extensionName": "mta",
+  "publisher": "mta",
+  "displayName": "MTA Extension for VSCode",
+  "description": "Migration Toolkit for Applications - Enterprise migration and modernization tool",
+  "author": "Red Hat",
+  "category": "MTA",
+  "icon": "resources/mta-icon-color.png",
+  "commandPrefix": "mta",
+  "configPrefix": "mta",
+  "viewPrefix": "mta"
+}

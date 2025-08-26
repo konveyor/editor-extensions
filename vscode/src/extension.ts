@@ -11,6 +11,7 @@ import {
 } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
+import { EXTENSION_NAME } from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
   InMemoryCacheWithRevisions,
@@ -402,9 +403,9 @@ class VsCodeExtension {
           this.state.logger.info("Configuration modified!");
 
           if (
-            event.affectsConfiguration("konveyor.kai.demoMode") ||
-            event.affectsConfiguration("konveyor.kai.cacheDir") ||
-            event.affectsConfiguration("konveyor.genai.enabled")
+            event.affectsConfiguration(`${EXTENSION_NAME}.kai.demoMode`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.kai.cacheDir`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.genai.enabled`)
           ) {
             this.setupModelProvider(paths().settingsYaml)
               .then((configError) => {
@@ -442,7 +443,7 @@ class VsCodeExtension {
               });
           }
 
-          if (event.affectsConfiguration("konveyor.kai.agentMode")) {
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.kai.agentMode`)) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
               draft.isAgentMode = agentMode;
@@ -459,8 +460,9 @@ class VsCodeExtension {
           }
 
           if (
-            event.affectsConfiguration("konveyor.solutionServer.url") ||
-            event.affectsConfiguration("konveyor.solutionServer.auth")
+            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.url`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.enabled`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.auth`)
           ) {
             this.state.logger.info("Solution server configuration modified!");
 
@@ -520,7 +522,7 @@ class VsCodeExtension {
   private setupDiffStatusBar(): void {
     this.diffStatusBarItem.name = "Konveyor Diff Status";
     this.diffStatusBarItem.tooltip = "Click to accept/reject all diff changes";
-    this.diffStatusBarItem.command = "konveyor.showDiffActions";
+    this.diffStatusBarItem.command = `${EXTENSION_NAME}.showDiffActions`;
     this.diffStatusBarItem.hide();
 
     // Update status bar when active editor changes

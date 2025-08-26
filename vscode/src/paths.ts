@@ -9,6 +9,7 @@ import { mkdir, chmod, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
+import { EXTENSION_NAME } from "./utilities/constants";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -82,7 +83,7 @@ async function ensureKaiAnalyzerBinary(
 
   logger.info(`kai-analyzer-rpc not found at ${kaiAnalyzerPath}, downloading...`);
 
-  const fallbackConfig = packageJson["konveyor.fallbackAssets"];
+  const fallbackConfig = packageJson[`${EXTENSION_NAME}.fallbackAssets`];
   if (!fallbackConfig) {
     throw new Error("No fallback asset configuration found in package.json");
   }

@@ -5,34 +5,29 @@ import fs from "fs";
 import path from "path";
 
 export default defineConfig(() => {
-  // Read the VSCode extension package.json to get extension info
-  const extensionPackageJsonPath = path.resolve(__dirname, "../vscode/package.json");
-  let extensionName = "konveyor"; // default fallback
-  let publisher = "konveyor"; // default fallback
+  // Determine branding from environment or default to konveyor
+  const brandingName = process.env.BRANDING || "konveyor";
+  const brandingPath = path.resolve(__dirname, `../branding/${brandingName}`);
+
+  // Read branding strings
+  let brandingStrings = {
+    productName: "Konveyor",
+    productNameLowercase: "konveyor",
+    extensionName: "konveyor",
+  };
 
   try {
-    const extensionPackageJson = JSON.parse(fs.readFileSync(extensionPackageJsonPath, "utf-8"));
-    extensionName = extensionPackageJson.name || "konveyor";
-    publisher = extensionPackageJson.publisher?.toLowerCase() || "konveyor";
-  } catch {
-    console.warn("Could not read VSCode extension package.json, using defaults:", {
-      extensionName,
-      publisher,
-    });
+    const stringsPath = path.join(brandingPath, "strings.json");
+    brandingStrings = JSON.parse(fs.readFileSync(stringsPath, "utf-8"));
+  } catch (error) {
+    console.warn(`Could not read branding strings from ${brandingPath}, using defaults:`, error);
   }
-
-  // Determine brand based on extension name
-  const brandName =
-    extensionName === "mta"
-      ? "MTA"
-      : extensionName === "konveyor"
-        ? "Konveyor"
-        : extensionName.charAt(0).toUpperCase() + extensionName.slice(1);
 
   return {
     plugins: [react(), checker({ typescript: true })],
     define: {
-      __EXTENSION_NAME__: JSON.stringify(extensionName),
+      __EXTENSION_NAME__: JSON.stringify(brandingStrings.extensionName),
+      __BRANDING__: JSON.stringify(brandingStrings),
     },
     build: {
       outDir: "build",
