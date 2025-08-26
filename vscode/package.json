@@ -1,13 +1,13 @@
 {
-  "name": "mta",
-  "displayName": "MTA Extension for VSCode",
-  "description": "Migration Toolkit for Applications - Enterprise migration and modernization tool",
-  "author": "Red Hat",
-  "icon": "resources/mta-icon-color.png",
+  "name": "konveyor",
+  "displayName": "Konveyor AI (kai) Extension for VSCode",
+  "description": "Generative AI assisted migration and modernization tool",
+  "author": "Konveyor",
+  "icon": "resources/konveyor-icon-color.png",
   "license": "Apache-2.0",
   "version": "0.2.0-pre.1",
   "main": "./out/extension.js",
-  "publisher": "mta",
+  "publisher": "konveyor",
   "repository": {
     "type": "git",
     "url": "https://github.com/konveyor/editor-extensions"
@@ -48,345 +48,345 @@
     ],
     "commands": [
       {
-        "command": "mta.openProfilesPanel",
+        "command": "konveyor.openProfilesPanel",
         "title": "Manage Analysis Profile",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(settings-gear)"
       },
       {
-        "command": "mta.modelProviderSettingsOpen",
+        "command": "konveyor.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "mta.modelProviderSettingsBackupReset",
+        "command": "konveyor.modelProviderSettingsBackupReset",
         "title": "Open the default the GenAI model provider configuration file and backup the current file",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "mta.showAnalysisPanel",
-        "title": "Open MTA Analysis View",
-        "category": "MTA",
+        "command": "konveyor.showAnalysisPanel",
+        "title": "Open Konveyor Analysis View",
+        "category": "Konveyor",
         "icon": "$(book)"
       },
       {
-        "command": "mta.showResolutionPanel",
-        "title": "Open MTA Resolution View",
-        "category": "MTA",
+        "command": "konveyor.showResolutionPanel",
+        "title": "Open Konveyor Resolution View",
+        "category": "Konveyor",
         "icon": "$(beaker)"
       },
       {
-        "command": "mta.expandAllIssues",
+        "command": "konveyor.expandAllIssues",
         "title": "Expand All",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(expand-all)"
       },
       {
-        "command": "mta.expandSingleIssue",
+        "command": "konveyor.expandSingleIssue",
         "title": "Expand All",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(expand-all)"
       },
       {
-        "command": "mta.fixGroupOfIncidents",
+        "command": "konveyor.fixGroupOfIncidents",
         "title": "Resolve incidents",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(debug-console)"
       },
       {
-        "command": "mta.fixIncident",
+        "command": "konveyor.fixIncident",
         "title": "Resolve incident",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(debug-console)"
       },
       {
-        "command": "mta.openAnalysisDetails",
+        "command": "konveyor.openAnalysisDetails",
         "title": "Open Details",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(book)"
       },
       {
-        "command": "mta.overrideAnalyzerBinaries",
+        "command": "konveyor.overrideAnalyzerBinaries",
         "title": "Override Analyzer Binary",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "mta.configureCustomRules",
+        "command": "konveyor.configureCustomRules",
         "title": "Configure Custom Rules",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "mta.configureSourcesTargets",
+        "command": "konveyor.configureSourcesTargets",
         "title": "Configure Analysis Sources and Targets",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "mta.configureLabelSelector",
+        "command": "konveyor.configureLabelSelector",
         "title": "Configure Analysis LabelSelector",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "mta.startServer",
+        "command": "konveyor.startServer",
         "title": "Start Server",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(play)"
       },
       {
-        "command": "mta.stopServer",
+        "command": "konveyor.stopServer",
         "title": "Stop Server",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(stop)"
       },
       {
-        "command": "mta.restartServer",
+        "command": "konveyor.restartServer",
         "title": "Restart Server",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(restart)"
       },
       {
-        "command": "mta.restartSolutionServer",
+        "command": "konveyor.restartSolutionServer",
         "title": "Restart Solution Server",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(restart)"
       },
       {
-        "command": "mta.runAnalysis",
+        "command": "konveyor.runAnalysis",
         "title": "Run Analysis",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(play)"
       },
       {
-        "command": "mta.loadStaticResults",
+        "command": "konveyor.loadStaticResults",
         "title": "Load results from files",
-        "category": "MTA"
+        "category": "Konveyor"
       },
       {
-        "command": "mta.loadResultsFromDataFolder",
+        "command": "konveyor.loadResultsFromDataFolder",
         "title": "Reload results",
-        "category": "MTA"
+        "category": "Konveyor"
       },
       {
-        "command": "mta.cleanRuleSets",
+        "command": "konveyor.cleanRuleSets",
         "title": "Reset analysis results",
-        "category": "MTA"
+        "category": "Konveyor"
       },
       {
-        "command": "mta.loadRuleSets",
+        "command": "konveyor.loadRuleSets",
         "title": "Load analysis results",
-        "category": "MTA"
+        "category": "Konveyor"
       },
       {
-        "command": "mta.applyAll",
+        "command": "konveyor.applyAll",
         "title": "Apply All",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(check)"
       },
       {
-        "command": "mta.discardAll",
+        "command": "konveyor.discardAll",
         "title": "Discard All",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(discard)"
       },
       {
-        "command": "mta.applyFile",
+        "command": "konveyor.applyFile",
         "title": "Apply",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(check)"
       },
       {
-        "command": "mta.discardFile",
+        "command": "konveyor.discardFile",
         "title": "Discard",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(discard)"
       },
       {
-        "command": "mta.copyDiff",
-        "category": "MTA",
+        "command": "konveyor.copyDiff",
+        "category": "Konveyor",
         "title": "Copy Diff"
       },
       {
-        "command": "mta.copyPath",
-        "category": "MTA",
+        "command": "konveyor.copyPath",
+        "category": "Konveyor",
         "title": "Copy Path"
       },
       {
-        "command": "mta.diffView.next",
-        "category": "MTA",
+        "command": "konveyor.diffView.next",
+        "category": "Konveyor",
         "title": "Go to Next File"
       },
       {
-        "command": "mta.diffView.prev",
-        "category": "MTA",
+        "command": "konveyor.diffView.prev",
+        "category": "Konveyor",
         "title": "Go to Previous File"
       },
       {
-        "command": "mta.diffView.viewFix",
-        "category": "MTA",
+        "command": "konveyor.diffView.viewFix",
+        "category": "Konveyor",
         "title": "View suggested fix"
       },
       {
-        "command": "mta.diffView.applyBlockInline",
+        "command": "konveyor.diffView.applyBlockInline",
         "icon": "$(check)",
-        "category": "MTA",
+        "category": "diffEditor",
         "title": "Apply Block"
       },
       {
-        "command": "mta.diffView.applySelectionInline",
+        "command": "konveyor.diffView.applySelectionInline",
         "icon": "$(check)",
-        "category": "MTA",
+        "category": "diffEditor",
         "title": "Apply Selection"
       },
       {
-        "command": "mta.diffView.applyBlock",
+        "command": "konveyor.diffView.applyBlock",
         "icon": "$(arrow-left)",
-        "category": "MTA",
+        "category": "diffEditor",
         "title": "Apply Block"
       },
       {
-        "command": "mta.diffView.applySelection",
+        "command": "konveyor.diffView.applySelection",
         "icon": "$(arrow-left)",
-        "category": "MTA",
+        "category": "diffEditor",
         "title": "Apply Selection"
       },
       {
-        "command": "mta.generateDebugArchive",
+        "command": "konveyor.generateDebugArchive",
         "title": "Generate Debug Archive",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(bug)"
       },
       {
-        "command": "mta.configureSolutionServerCredentials",
+        "command": "konveyor.configureSolutionServerCredentials",
         "title": "Configure Solution Server Credentials",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(key)"
       },
       {
-        "command": "mta.showDiffActions",
+        "command": "konveyor.showDiffActions",
         "title": "Show Diff Actions",
-        "category": "MTA",
+        "category": "Konveyor",
         "icon": "$(diff)"
       }
     ],
     "submenus": [
       {
-        "id": "mta.submenu",
-        "label": "MTA Actions"
+        "id": "konveyor.submenu",
+        "label": "Konveyor Actions"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "mta",
-          "title": "MTA",
-          "icon": "resources/mta-icon-color.png"
+          "id": "konveyor",
+          "title": "Konveyor",
+          "icon": "resources/konveyor-icon-color.png"
         }
       ]
     },
     "views": {
-      "mta": [
+      "konveyor": [
         {
-          "id": "mta.issueView",
-          "name": "MTA Issues"
+          "id": "konveyor.issueView",
+          "name": "Konveyor Issues"
         }
       ]
     },
     "menus": {
       "view/title": [
         {
-          "command": "mta.showAnalysisPanel",
+          "command": "konveyor.showAnalysisPanel",
           "group": "navigation@1",
-          "when": "view == mta.issueView"
+          "when": "view == konveyor.issueView"
         },
         {
-          "command": "mta.showResolutionPanel",
+          "command": "konveyor.showResolutionPanel",
           "group": "navigation@2",
-          "when": "view == mta.issueView"
+          "when": "view == konveyor.issueView"
         },
         {
-          "command": "mta.expandAllIssues",
+          "command": "konveyor.expandAllIssues",
           "group": "navigation@3",
-          "when": "view == mta.issueView"
+          "when": "view == konveyor.issueView"
         }
       ],
       "view/item/context": [
         {
-          "command": "mta.fixGroupOfIncidents",
+          "command": "konveyor.fixGroupOfIncidents",
           "group": "inline@3",
-          "when": "view == mta.issueView && viewItem == incident-type-item"
+          "when": "view == konveyor.issueView && viewItem == incident-type-item"
         },
         {
-          "command": "mta.fixIncident",
+          "command": "konveyor.fixIncident",
           "group": "inline@1",
-          "when": "view == mta.issueView && viewItem == reference-item"
+          "when": "view == konveyor.issueView && viewItem == reference-item"
         },
         {
-          "command": "mta.expandSingleIssue",
+          "command": "konveyor.expandSingleIssue",
           "group": "inline@2",
-          "when": "view == mta.issueView && viewItem == incident-type-item"
+          "when": "view == konveyor.issueView && viewItem == incident-type-item"
         },
         {
-          "command": "mta.openAnalysisDetails",
+          "command": "konveyor.openAnalysisDetails",
           "group": "inline@1",
-          "when": "view == mta.issueView && viewItem == incident-type-item"
+          "when": "view == konveyor.issueView && viewItem == incident-type-item"
         }
       ],
       "explorer/context": [
         {
-          "submenu": "mta.submenu",
+          "submenu": "konveyor.submenu",
           "group": "navigation@1"
         }
       ],
-      "mta.submenu": [],
+      "konveyor.submenu": [],
       "commandPalette": [
         {
-          "command": "mta.expandSingleIssue",
+          "command": "konveyor.expandSingleIssue",
           "when": "never"
         },
         {
-          "command": "mta.loadRuleSets",
+          "command": "konveyor.loadRuleSets",
           "when": "never"
         },
         {
-          "command": "mta.applyFile",
+          "command": "konveyor.applyFile",
           "when": "never"
         },
         {
-          "command": "mta.discardFile",
+          "command": "konveyor.discardFile",
           "when": "never"
         },
         {
-          "command": "mta.copyDiff",
+          "command": "konveyor.copyDiff",
           "when": "never"
         },
         {
-          "command": "mta.copyPath",
+          "command": "konveyor.copyPath",
           "when": "never"
         },
         {
-          "command": "mta.diffView.next",
+          "command": "konveyor.diffView.next",
           "when": "never"
         },
         {
-          "command": "mta.diffView.prev",
+          "command": "konveyor.diffView.prev",
           "when": "never"
         },
         {
-          "command": "mta.diffView.viewFix",
+          "command": "konveyor.diffView.viewFix",
           "when": "never"
         }
       ]
     },
     "configuration": {
       "type": "object",
-      "title": "MTA",
+      "title": "Konveyor",
       "properties": {
-        "mta.logLevel": {
+        "konveyor.logLevel": {
           "type": "string",
           "enum": [
             "error",
@@ -402,63 +402,63 @@
           "scope": "window",
           "order": 0
         },
-        "mta.analyzerPath": {
+        "konveyor.analyzerPath": {
           "type": "string",
           "default": "",
           "description": "Path to the analyzer binary. If not set, the extension will use the bundled binary.",
           "scope": "resource",
           "order": 2
         },
-        "mta.kaiRpcServerPath": {
+        "konveyor.kaiRpcServerPath": {
           "type": "string",
           "default": "",
           "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
           "scope": "resource",
           "order": 1
         },
-        "mta.solutionServer.url": {
+        "konveyor.solutionServer.url": {
           "type": "string",
           "default": "http://localhost:8000",
           "description": "URL for the MCP solution server endpoint.",
           "scope": "window",
           "order": 3
         },
-        "mta.solutionServer.enabled": {
+        "konveyor.solutionServer.enabled": {
           "type": "boolean",
           "default": false,
           "description": "Enable the MCP solution server client.",
           "scope": "window",
           "order": 4
         },
-        "mta.solutionServer.auth": {
+        "konveyor.solutionServer.auth": {
           "type": "boolean",
           "default": false,
           "description": "Enable authentication for the solution server.",
           "scope": "window",
           "order": 5
         },
-        "mta.solutionServer.auth.realm": {
+        "konveyor.solutionServer.auth.realm": {
           "type": "string",
           "default": "tackle",
           "description": "Keycloak realm for authentication.",
           "scope": "window",
           "order": 6
         },
-        "mta.solutionServer.auth.insecure": {
+        "konveyor.solutionServer.auth.insecure": {
           "type": "boolean",
           "default": false,
           "description": "Skip SSL certificate verification for the solution server.",
           "scope": "window",
           "order": 7
         },
-        "mta.analysis.analyzeOnSave": {
+        "konveyor.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Should analysis of file be run when it is saved? (Automatically enabled when Agent Mode is active)",
           "scope": "window",
           "order": 8
         },
-        "mta.diffEditorType": {
+        "konveyor.diffEditorType": {
           "type": "string",
           "enum": [
             "diff",
@@ -469,28 +469,28 @@
           "scope": "window",
           "order": 9
         },
-        "mta.genai.enabled": {
+        "konveyor.genai.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable GenAI functionality for solution generation.",
           "scope": "window",
           "order": 10
         },
-        "mta.diff.autoAcceptOnSave": {
+        "konveyor.diff.autoAcceptOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Automatically apply diff changes when saving files.",
           "scope": "window",
           "order": 11
         },
-        "mta.kai.agentMode": {
+        "konveyor.kai.agentMode": {
           "type": "boolean",
           "default": false,
           "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
           "order": 11
         },
-        "mta.kai.excludedDiagnosticSources": {
+        "konveyor.kai.excludedDiagnosticSources": {
           "type": "array",
           "default": [
             "trunk"
@@ -499,7 +499,7 @@
           "scope": "window",
           "order": 12
         },
-        "mta.kai.getSolutionMaxPriority": {
+        "konveyor.kai.getSolutionMaxPriority": {
           "type": [
             "number",
             "null"
@@ -509,7 +509,7 @@
           "scope": "window",
           "order": 40
         },
-        "mta.kai.getSolutionMaxEffort": {
+        "konveyor.kai.getSolutionMaxEffort": {
           "type": "string",
           "enum": [
             "Low",
@@ -522,7 +522,7 @@
           "scope": "window",
           "order": 40
         },
-        "mta.kai.getSolutionMaxLLMQueries": {
+        "konveyor.kai.getSolutionMaxLLMQueries": {
           "type": [
             "number",
             "null"
@@ -533,7 +533,7 @@
           "scope": "window",
           "order": 40
         },
-        "mta.kai.cacheDir": {
+        "konveyor.kai.cacheDir": {
           "type": [
             "string",
             "null"
@@ -543,7 +543,7 @@
           "scope": "window",
           "order": 50
         },
-        "mta.kai.traceDir": {
+        "konveyor.kai.traceDir": {
           "type": [
             "string",
             "null"
@@ -553,56 +553,56 @@
           "scope": "window",
           "order": 50
         },
-        "mta.kai.traceEnabled": {
+        "konveyor.kai.traceEnabled": {
           "type": "boolean",
           "default": false,
           "description": "Whether to create traces of the communication with the model",
           "scope": "window",
           "order": 50
         },
-        "mta.debug.webview": {
+        "konveyor.debug.webview": {
           "type": "boolean",
           "default": false,
           "description": "Enable debug logging for webview message handling",
           "scope": "window",
           "order": 51
         },
-        "mta.kai.demoMode": {
+        "konveyor.kai.demoMode": {
           "type": "boolean",
           "default": false,
           "description": "Whether to run Kai in demo mode i.e. use cached LLM responses",
           "scope": "window",
           "order": 50
         },
-        "mta.analysis.incidentLimit": {
+        "konveyor.analysis.incidentLimit": {
           "type": "number",
           "default": 10000,
           "description": "Maximum number of incidents to report",
           "scope": "window",
           "order": 99
         },
-        "mta.analysis.contextLines": {
+        "konveyor.analysis.contextLines": {
           "type": "number",
           "default": 10,
           "description": "Number of lines of context to include in incident reports.",
           "scope": "window",
           "order": 99
         },
-        "mta.analysis.codeSnipLimit": {
+        "konveyor.analysis.codeSnipLimit": {
           "type": "number",
           "default": 10,
           "description": "Number of lines of code to include in incident reports.",
           "scope": "window",
           "order": 99
         },
-        "mta.analysis.analyzeKnownLibraries": {
+        "konveyor.analysis.analyzeKnownLibraries": {
           "type": "boolean",
           "default": false,
           "description": "Should the analyzer analyze known open-source libraries?",
           "scope": "window",
           "order": 99
         },
-        "mta.analysis.analyzeDependencies": {
+        "konveyor.analysis.analyzeDependencies": {
           "type": "boolean",
           "default": true,
           "description": "Should the analyzer analyze project dependencies?",
