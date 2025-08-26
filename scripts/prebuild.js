@@ -62,7 +62,8 @@ if (packageJson.contributes?.commands) {
     command: cmd.command.replace(/^[^.]+\./, `${brandingStrings.commandPrefix}.`),
     // Only transform category if it's not in the preserved list
     category: preservedCategories.includes(cmd.category) ? cmd.category : brandingStrings.category,
-    title: cmd.title?.replace(/Konveyor/g, brandingStrings.productName) || cmd.title,
+    // Handle bidirectional transformation for titles
+    title: cmd.title?.replace(/(Konveyor|MTA)/g, brandingStrings.productName) || cmd.title,
   }));
 }
 
@@ -96,18 +97,20 @@ if (packageJson.contributes?.menus) {
       ...item,
       command: item.command?.replace(/^[^.]+\./, `${brandingStrings.commandPrefix}.`),
       when: item.when
-        ?.replace(/konveyor\.issueView/g, `${brandingStrings.viewPrefix}.issueView`)
-        .replace(/konveyor(?=\s|$)/g, brandingStrings.viewPrefix),
-      submenu: item.submenu?.replace(/^konveyor\./, `${brandingStrings.viewPrefix}.`),
+        // Handle bidirectional transformation for any existing branding
+        ?.replace(/(konveyor|mta)\.issueView/g, `${brandingStrings.viewPrefix}.issueView`)
+        .replace(/(konveyor|mta)(?=\s|$)/g, brandingStrings.viewPrefix),
+      submenu: item.submenu?.replace(/^(konveyor|mta)\./, `${brandingStrings.viewPrefix}.`),
     }));
   };
 
   const newMenus = {};
   Object.keys(packageJson.contributes.menus).forEach((menuKey) => {
-    // Only transform menu keys that actually contain the branding prefix
-    const newMenuKey = menuKey.includes("konveyor")
-      ? menuKey.replace(/konveyor/g, brandingStrings.viewPrefix)
-      : menuKey;
+    // Handle bidirectional transformation for menu keys
+    const newMenuKey =
+      menuKey.includes("konveyor") || menuKey.includes("mta")
+        ? menuKey.replace(/(konveyor|mta)/g, brandingStrings.viewPrefix)
+        : menuKey;
     newMenus[newMenuKey] = transformMenuCommands(packageJson.contributes.menus[menuKey]);
   });
   packageJson.contributes.menus = newMenus;
@@ -117,7 +120,7 @@ if (packageJson.contributes?.menus) {
 if (packageJson.contributes?.submenus) {
   packageJson.contributes.submenus = packageJson.contributes.submenus.map((submenu) => ({
     ...submenu,
-    id: submenu.id.replace(/^[^.]+/, `${brandingStrings.viewPrefix}`),
+    id: submenu.id.replace(/^(konveyor|mta)/, `${brandingStrings.viewPrefix}`),
     label: `${brandingStrings.productName} Actions`,
   }));
 }
