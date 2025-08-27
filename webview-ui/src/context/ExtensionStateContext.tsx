@@ -25,6 +25,7 @@ const defaultState: ExtensionData = {
   activeProfileId: "",
   isAgentMode: false,
   activeDecorators: {},
+  solutionServerConnected: false,
 };
 
 // Safely merge window state with default state to ensure all arrays are defined

@@ -181,6 +181,7 @@ export interface ExtensionData {
   solutionServerEnabled: boolean;
   isAgentMode: boolean;
   activeDecorators?: Record<string, string>;
+  solutionServerConnected: boolean;
 }
 
 export type ConfigErrorType =
@@ -191,7 +192,8 @@ export type ConfigErrorType =
   | "provider-connection-failed"
   | "no-custom-rules"
   | "missing-auth-credentials"
-  | "genai-disabled";
+  | "genai-disabled"
+  | "solution-server-disconnected";
 
 export interface ConfigError {
   type: ConfigErrorType;
@@ -238,6 +240,12 @@ export const createConfigError = {
   genaiDisabled: (): ConfigError => ({
     type: "genai-disabled",
     message: "GenAI functionality is disabled.",
+  }),
+  solutionServerDisconnected: (): ConfigError => ({
+    type: "solution-server-disconnected",
+    message: "Solution server is not connected",
+    error:
+      "The solution server is enabled but not connected. AI-powered solution suggestions may not work properly.",
   }),
 };
 

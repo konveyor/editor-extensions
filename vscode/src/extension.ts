@@ -29,7 +29,6 @@ import {
   getConfigSolutionServerAuth,
   getConfigSolutionServerRealm,
   getConfigSolutionServerInsecure,
-  updateConfigErrors,
   getConfigAgentMode,
   getCacheDir,
   getTraceDir,
@@ -96,6 +95,7 @@ class VsCodeExtension {
         profiles: [],
         isAgentMode: getConfigAgentMode(),
         activeDecorators: {},
+        solutionServerConnected: false,
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -247,7 +247,6 @@ class VsCodeExtension {
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = activeProfileId;
-        updateConfigErrors(draft, paths().settingsYaml.fsPath);
       });
 
       this.setupModelProvider(paths().settingsYaml)
@@ -277,9 +276,46 @@ class VsCodeExtension {
 
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
-      this.state.solutionServerClient.connect().catch((error) => {
-        this.state.logger.error("Error connecting to solution server", error);
+
+      this.state.solutionServerClient
+        .connect()
+        .then(() => {
+          // Update state to reflect successful connection
+          this.state.mutateData((draft) => {
+            draft.solutionServerConnected = true;
+          });
+        })
+        .catch((error) => {
+          this.state.logger.error("Error connecting to solution server", error);
+          // Update state to reflect failed connection
+          this.state.mutateData((draft) => {
+            draft.solutionServerConnected = false;
+          });
+        });
+
+      // Connection poll to catch network issues and missed connection state changes
+      const connectionPollInterval = setInterval(async () => {
+        if (getConfigSolutionServerEnabled()) {
+          try {
+            // Try to get server capabilities to check if connection is alive
+            await this.state.solutionServerClient.getServerCapabilities();
+            // If we get here, connection is working
+            this.state.mutateData((draft) => {
+              draft.solutionServerConnected = true;
+            });
+          } catch {
+            // If we can't get capabilities, assume disconnected
+            this.state.mutateData((draft) => {
+              draft.solutionServerConnected = false;
+            });
+          }
+        }
+      }, 2000); // Check every 2 seconds to catch network issues quickly
+
+      this.listeners.push({
+        dispose: () => clearInterval(connectionPollInterval),
       });
+
       this.checkJavaExtensionInstalled();
 
       // Listen for extension changes to update Continue installation status and Java extension status
@@ -354,7 +390,6 @@ class VsCodeExtension {
               if (configError) {
                 draft.configErrors.push(configError);
               }
-              updateConfigErrors(draft, paths().settingsYaml.fsPath);
             });
           }
         }),
@@ -401,12 +436,52 @@ class VsCodeExtension {
               draft.isAgentMode = agentMode;
             });
           }
+
+          if (event.affectsConfiguration("konveyor.solutionServer.enabled")) {
+            const solutionServerEnabled = getConfigSolutionServerEnabled();
+            this.state.mutateData((draft) => {
+              draft.solutionServerEnabled = solutionServerEnabled;
+
+              // If solution server is disabled, mark as disconnected
+              if (!solutionServerEnabled) {
+                draft.solutionServerConnected = false;
+              } else {
+                // If enabled, check the actual connection status
+                try {
+                  draft.solutionServerConnected =
+                    this.state.solutionServerClient.getConnectionStatus();
+                } catch {
+                  draft.solutionServerConnected = false;
+                }
+              }
+            });
+          }
+
           if (
             event.affectsConfiguration("konveyor.solutionServer.url") ||
-            event.affectsConfiguration("konveyor.solutionServer.enabled") ||
             event.affectsConfiguration("konveyor.solutionServer.auth")
           ) {
             this.state.logger.info("Solution server configuration modified!");
+
+            // Update the enabled state immediately
+            const solutionServerEnabled = getConfigSolutionServerEnabled();
+            this.state.mutateData((draft) => {
+              draft.solutionServerEnabled = solutionServerEnabled;
+
+              // If solution server is disabled, mark as disconnected
+              if (!solutionServerEnabled) {
+                draft.solutionServerConnected = false;
+              } else {
+                // If enabled, check the actual connection status
+                try {
+                  draft.solutionServerConnected =
+                    this.state.solutionServerClient.getConnectionStatus();
+                } catch {
+                  draft.solutionServerConnected = false;
+                }
+              }
+            });
+
             vscode.window
               .showInformationMessage(
                 "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",
@@ -662,6 +737,12 @@ class VsCodeExtension {
     await this.state.solutionServerClient?.disconnect().catch((error) => {
       this.state.logger.error("Error disconnecting from solution server", error);
     });
+
+    // Update state to reflect disconnected status
+    this.state.mutateData((draft) => {
+      draft.solutionServerConnected = false;
+    });
+
     const disposables = this.listeners.splice(0, this.listeners.length);
     for (const disposable of disposables) {
       disposable.dispose();

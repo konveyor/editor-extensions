@@ -30,6 +30,11 @@ export const stopServer = (): WebviewAction<WebviewActionType, unknown> => ({
   payload: {},
 });
 
+export const restartSolutionServer = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "RESTART_SOLUTION_SERVER",
+  payload: {},
+});
+
 export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "CANCEL_SOLUTION",
   payload: {},

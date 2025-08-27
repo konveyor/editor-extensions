@@ -106,11 +106,28 @@ const commandsMap: (
       try {
         window.showInformationMessage("Restarting solution server...");
         await solutionServerClient.disconnect();
+
+        // Update state to reflect disconnected status
+        state.mutateData((draft) => {
+          draft.solutionServerConnected = false;
+        });
+
         await solutionServerClient.connect();
+
+        // Update state to reflect connected status
+        state.mutateData((draft) => {
+          draft.solutionServerConnected = true;
+        });
+
         window.showInformationMessage("Solution server restarted successfully");
       } catch (e) {
         logger.error("Could not restart the solution server", { error: e });
         window.showErrorMessage(`Failed to restart solution server: ${e}`);
+
+        // Update state to reflect failed connection
+        state.mutateData((draft) => {
+          draft.solutionServerConnected = false;
+        });
       }
     },
     "konveyor.runAnalysis": async () => {
@@ -364,7 +381,18 @@ const commandsMap: (
           );
 
           if (allDiffs.length === 0) {
-            throw new Error("No diffs found in the response");
+            // No code changes were generated - this is normal and not necessarily an error
+            logger.info("Workflow completed but no file changes were generated");
+            window.showInformationMessage(
+              "No code changes were suggested for the selected incidents.",
+            );
+
+            // Reset state and return early
+            state.mutateData((draft) => {
+              draft.solutionState = "received";
+              draft.isFetchingSolution = false;
+            });
+            return;
           }
         }
 

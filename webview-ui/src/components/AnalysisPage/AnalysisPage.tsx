@@ -3,7 +3,6 @@ import "./styles.css";
 import React, { useState, useEffect } from "react";
 import {
   Alert,
-  AlertActionLink,
   AlertGroup,
   Backdrop,
   Button,
@@ -58,6 +57,7 @@ import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
 import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 import ProgressIndicator from "../ProgressIndicator";
+import ConfigAlerts from "./ConfigAlerts";
 import { Incident } from "@editor-extensions/shared";
 
 const AnalysisPage: React.FC = () => {
@@ -77,6 +77,7 @@ const AnalysisPage: React.FC = () => {
     solutionServerEnabled,
     localChanges,
     isAgentMode,
+    solutionServerConnected,
   } = state;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -92,10 +93,16 @@ const AnalysisPage: React.FC = () => {
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (enhancedIncidents.length > 0 && solutionServerEnabled) {
+    if (enhancedIncidents.length > 0 && solutionServerEnabled && solutionServerConnected) {
       dispatch(getSuccessRate());
     }
-  }, [enhancedIncidents.length, localChanges.length, solutionServerEnabled, dispatch]);
+  }, [
+    enhancedIncidents.length,
+    localChanges.length,
+    solutionServerEnabled,
+    solutionServerConnected,
+    dispatch,
+  ]);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
@@ -204,33 +211,15 @@ const AnalysisPage: React.FC = () => {
                 </Card>
               </PageSection>
             )}
-            {rawConfigErrors.length > 0 && (
-              <PageSection padding={{ default: "noPadding" }}>
-                {rawConfigErrors.map((error, index) => (
-                  <Card
-                    isCompact
-                    style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}
-                    key={index}
-                  >
-                    <Alert
-                      variant="warning"
-                      title={error.message}
-                      actionLinks={
-                        error.type === "no-active-profile" ? (
-                          <AlertActionLink
-                            onClick={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
-                          >
-                            Manage Profiles
-                          </AlertActionLink>
-                        ) : undefined
-                      }
-                    >
-                      {error.error ?? ""}
-                    </Alert>
-                  </Card>
-                ))}
-              </PageSection>
-            )}
+            <ConfigAlerts
+              configErrors={rawConfigErrors}
+              solutionServerEnabled={solutionServerEnabled}
+              solutionServerConnected={solutionServerConnected}
+              onOpenProfileManager={() =>
+                dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
+              }
+              dispatch={dispatch}
+            />
             {selectedProfile && (
               <PageSection padding={{ default: "padding" }}>
                 <Card isCompact>
@@ -301,7 +290,6 @@ const AnalysisPage: React.FC = () => {
                 </Card>
               </PageSection>
             )}
-
             <PageSection>
               <Stack hasGutter>
                 <StackItem>

@@ -21,6 +21,7 @@ import {
   SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
+  RESTART_SOLUTION_SERVER,
   TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   WEBVIEW_READY,
@@ -241,6 +242,9 @@ const actions: {
   },
   [STOP_SERVER]() {
     vscode.commands.executeCommand("konveyor.stopServer");
+  },
+  [RESTART_SOLUTION_SERVER]() {
+    vscode.commands.executeCommand("konveyor.restartSolutionServer");
   },
   [GET_SUCCESS_RATE]() {
     vscode.commands.executeCommand("konveyor.getSuccessRate");
