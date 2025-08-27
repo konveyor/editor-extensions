@@ -88,6 +88,7 @@ const AnalysisPage: React.FC = () => {
   const hasViolations = violations.length > 0;
   const hasAnalysisResults = !!analysisResults;
   const serverRunning = serverState === "running";
+  const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
 
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
@@ -151,20 +152,22 @@ const AnalysisPage: React.FC = () => {
                             hasWarning={configInvalid}
                           />
                         </ToolbarItem>
-                        <ToolbarItem>
-                          <div>
-                            <div className="agent-mode-wrapper">
-                              <Switch
-                                id="agent-mode-switch"
-                                isChecked={isAgentMode}
-                                label="Agent Mode"
-                                onChange={(_event) => handleAgentModeToggle()}
-                                aria-label="Toggle Agent Mode"
-                                isReversed
-                              />
+                        {!isGenAIDisabled && (
+                          <ToolbarItem>
+                            <div>
+                              <div className="agent-mode-wrapper">
+                                <Switch
+                                  id="agent-mode-switch"
+                                  isChecked={isAgentMode}
+                                  label="Agent Mode"
+                                  onChange={(_event) => handleAgentModeToggle()}
+                                  aria-label="Toggle Agent Mode"
+                                  isReversed
+                                />
+                              </div>
                             </div>
-                          </div>
-                        </ToolbarItem>
+                          </ToolbarItem>
+                        )}
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}

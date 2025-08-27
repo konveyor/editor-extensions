@@ -372,10 +372,16 @@ class VsCodeExtension {
             this.setupModelProvider(paths().settingsYaml)
               .then((configError) => {
                 this.state.mutateData((draft) => {
+                  // Clear all GenAI-related config errors
+                  draft.configErrors = draft.configErrors.filter(
+                    (e) =>
+                      e.type !== "genai-disabled" &&
+                      e.type !== "provider-not-configured" &&
+                      e.type !== "provider-connection-failed",
+                  );
+
+                  // Add new config error if one exists
                   if (configError) {
-                    draft.configErrors = draft.configErrors.filter(
-                      (e) => e.type !== configError.type,
-                    );
                     draft.configErrors.push(configError);
                   }
                 });
@@ -383,14 +389,18 @@ class VsCodeExtension {
               .catch((error) => {
                 this.state.logger.error("Error setting up model provider:", error);
                 this.state.mutateData((draft) => {
-                  if (error) {
-                    const configError = createConfigError.providerConnnectionFailed();
-                    draft.configErrors = draft.configErrors.filter(
-                      (e) => e.type !== configError.type,
-                    );
-                    configError.error = error instanceof Error ? error.message : String(error);
-                    draft.configErrors.push(configError);
-                  }
+                  // Clear all GenAI-related config errors
+                  draft.configErrors = draft.configErrors.filter(
+                    (e) =>
+                      e.type !== "genai-disabled" &&
+                      e.type !== "provider-not-configured" &&
+                      e.type !== "provider-connection-failed",
+                  );
+
+                  // Add connection failed error
+                  const configError = createConfigError.providerConnnectionFailed();
+                  configError.error = error instanceof Error ? error.message : String(error);
+                  draft.configErrors.push(configError);
                 });
               });
           }
