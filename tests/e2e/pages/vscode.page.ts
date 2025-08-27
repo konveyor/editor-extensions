@@ -27,7 +27,7 @@ export class VSCode extends BasePage {
     super(app, window);
   }
 
-  public static async open(repoUrl?: string, repoDir?: string, branch?: string) {
+  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
@@ -43,14 +43,8 @@ export class VSCode extends BasePage {
         if (repoDir) {
           await cleanupRepo(repoDir);
         }
-        console.log(`Cloning repository from ${repoUrl}${branch ? ` (branch: ${branch})` : ''}`);
-
-        if (branch) {
-          execSync(`git clone -b ${branch} ${repoUrl}`);
-        } else {
-          // Clone default branch
-          execSync(`git clone ${repoUrl}`);
-        }
+        console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
+        execSync(`git clone ${repoUrl} -b ${branch}`);
       }
     } catch (error: any) {
       throw new Error('Failed to clone the repository');
@@ -352,6 +346,7 @@ export class VSCode extends BasePage {
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
+    await this.waitDefault();
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
   }
 
@@ -571,6 +566,39 @@ export class VSCode extends BasePage {
     } catch (error) {
       console.error('Error writing VSCode settings:', error);
       throw error;
+    }
+  }
+  public async waitForSolutionConfirmation(view: FrameLocator): Promise<void> {
+    const solutionButton = view.locator('button#get-solution-button');
+    const backdrop = view.locator('div.pf-v6-c-backdrop');
+
+    // Wait for both conditions to be true concurrently
+    await Promise.all([
+      // 1. Wait for the button to be enabled (color is back to default)
+      expect(solutionButton.first()).not.toBeDisabled({ timeout: 3600000 }),
+
+      // 2. Wait for the blocking overlay to disappear
+      expect(backdrop).not.toBeVisible({ timeout: 3600000 }),
+    ]);
+  }
+
+  public async searchViolationAndacceptAllSolutions(violation: string) {
+    await this.searchAndRequestFix(violation, 1);
+
+    const resolutionView = await this.getView(KAIViews.resolutionDetails);
+    const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
+
+    await this.waitDefault();
+    await expect(fixLocator.first()).toBeVisible({ timeout: 3600000 });
+
+    const fixesNumber = await fixLocator.count();
+    let fixesCounter = await fixLocator.count();
+    for (let i = 0; i < fixesNumber; i++) {
+      await expect(fixLocator.first()).toBeVisible({ timeout: 30000 });
+      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
+      await fixLocator.first().dispatchEvent('click');
+      await this.waitDefault();
+      expect(await fixLocator.count()).toEqual(--fixesCounter);
     }
   }
 }

@@ -1,4 +1,4 @@
-import fs from 'fs';
+import * as fs from 'fs';
 
 export function getFileImports(absoluteFilePath: string): string[] {
   if (!fs.existsSync(absoluteFilePath)) {
