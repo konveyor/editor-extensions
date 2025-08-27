@@ -396,7 +396,7 @@ class VsCodeExtension {
       );
 
       this.listeners.push(
-        vscode.workspace.onDidChangeConfiguration((event) => {
+        vscode.workspace.onDidChangeConfiguration(async (event) => {
           this.state.logger.info("Configuration modified!");
 
           if (
@@ -441,19 +441,8 @@ class VsCodeExtension {
             const solutionServerEnabled = getConfigSolutionServerEnabled();
             this.state.mutateData((draft) => {
               draft.solutionServerEnabled = solutionServerEnabled;
-
-              // If solution server is disabled, mark as disconnected
-              if (!solutionServerEnabled) {
-                draft.solutionServerConnected = false;
-              } else {
-                // If enabled, check the actual connection status
-                try {
-                  draft.solutionServerConnected =
-                    this.state.solutionServerClient.getConnectionStatus();
-                } catch {
-                  draft.solutionServerConnected = false;
-                }
-              }
+              // Let the connection poll handle updating the connection status
+              draft.solutionServerConnected = false;
             });
           }
 
@@ -467,19 +456,8 @@ class VsCodeExtension {
             const solutionServerEnabled = getConfigSolutionServerEnabled();
             this.state.mutateData((draft) => {
               draft.solutionServerEnabled = solutionServerEnabled;
-
-              // If solution server is disabled, mark as disconnected
-              if (!solutionServerEnabled) {
-                draft.solutionServerConnected = false;
-              } else {
-                // If enabled, check the actual connection status
-                try {
-                  draft.solutionServerConnected =
-                    this.state.solutionServerClient.getConnectionStatus();
-                } catch {
-                  draft.solutionServerConnected = false;
-                }
-              }
+              // Let the connection poll handle updating the connection status
+              draft.solutionServerConnected = false;
             });
 
             vscode.window
