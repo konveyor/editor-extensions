@@ -3,6 +3,29 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const path = require("path");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const webpack = require("webpack");
+const { execSync } = require("child_process");
+const packageJson = require("./package.json");
+
+// Get git commit SHA at build time
+function getGitSha() {
+  try {
+    return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch (error) {
+    console.warn("Could not get git SHA:", error.message);
+    return "unknown";
+  }
+}
+
+// Get short git SHA (first 7 characters)
+function getGitShaShort() {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+  } catch (error) {
+    console.warn("Could not get short git SHA:", error.message);
+    return "unknown";
+  }
+}
 
 module.exports = (env, argv) => {
   const mode = argv.mode || "none";
@@ -58,6 +81,14 @@ module.exports = (env, argv) => {
     // },
 
     plugins: [
+      new webpack.DefinePlugin({
+        __EXTENSION_NAME__: JSON.stringify(packageJson.name),
+        __EXTENSION_PUBLISHER__: JSON.stringify(packageJson.publisher),
+        __EXTENSION_VERSION__: JSON.stringify(packageJson.version),
+        __BUILD_GIT_SHA__: JSON.stringify(getGitSha()),
+        __BUILD_GIT_SHA_SHORT__: JSON.stringify(getGitShaShort()),
+        __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+      }),
       !isDev &&
         new CopyWebpackPlugin({
           patterns: [

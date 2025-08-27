@@ -154,7 +154,7 @@ const actions: {
     executeExtensionCommand("configureLabelSelector");
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, state) => {
-    executeExtensionCommand("configureCustomRules", profileId, state);
+    executeExtensionCommand("configureCustomRules", profileId);
   },
 
   [OVERRIDE_ANALYZER_BINARIES]() {

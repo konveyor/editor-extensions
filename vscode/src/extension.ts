@@ -54,6 +54,7 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
+import { BUILD_INFO, EXTENSION_ID } from "./utilities/constants";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -215,6 +216,7 @@ class VsCodeExtension {
     try {
       // Initialize vertical diff system
       this.initializeVerticalDiff();
+
       const bundled = getBundledProfiles();
       const user = getUserProfiles(this.context);
       const allProfiles = [...bundled, ...user];
@@ -694,6 +696,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   logger.info("Logger created");
+  logger.info(`Extension ${EXTENSION_ID} starting`, { buildInfo: BUILD_INFO });
 
   try {
     const paths = await ensurePaths(context, logger);
