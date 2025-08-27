@@ -78,7 +78,9 @@ export const ProfileManagerPage: React.FC = () => {
 
   const handleDeleteProfile = (id: string) => {
     dispatch({ type: "DELETE_PROFILE", payload: id });
-    setSelectedProfileId(null);
+    if (selectedProfileId === id) {
+      setSelectedProfileId(null);
+    }
   };
 
   const handleMakeActive = (id: string) => {
