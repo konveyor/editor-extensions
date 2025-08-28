@@ -21,7 +21,6 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(600000);
     const kaiFolderPath = pathlib.join(__dirname, '../../../../downloaded_assets/kai');
-    console.log(kaiFolderPath);
     if (!process.env.ANALYZER_BINARY_PATH && !fs.existsSync(kaiFolderPath)) {
       throw new Error(
         `This test requires the "ANALYZER_BINARY_PATH" environment variable to be set or the "downloaded_assets/kai" folder to exist in the project root`
@@ -30,6 +29,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
 
     binaryPath = process.env.ANALYZER_BINARY_PATH;
     if (!binaryPath || !fs.existsSync(binaryPath)) {
+      console.log('ANALYZER_BINARY_PATH env variable not set, grabbing from downloaded_assets');
       const platform = process.platform;
       const arch = process.arch;
 
@@ -50,12 +50,12 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
       if (!fs.existsSync(binaryPath)) {
         throw new Error(`Analyzer executable not found at: ${binaryPath}`);
       }
-      console.log(`Custom analyzer path found in ${binaryPath}`);
-
-      const repoInfo = testRepoData['coolstore'];
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
-      await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
     }
+
+    console.log(`Custom analyzer path found in ${binaryPath}`);
+    const repoInfo = testRepoData['coolstore'];
+    vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });
 
   // TODO (abrugaro): This test is affected by https://github.com/konveyor/editor-extensions/issues/720, enable the test once the issue fixed
