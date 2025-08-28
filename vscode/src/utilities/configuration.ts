@@ -101,6 +101,10 @@ export const toggleAgentMode = async (): Promise<void> => {
   await updateConfigValue("kai.agentMode", !currentValue, vscode.ConfigurationTarget.Workspace);
 };
 
+export const enableGenAI = async (): Promise<void> => {
+  await updateConfigValue("genai.enabled", true, vscode.ConfigurationTarget.Workspace);
+};
+
 export const updateUseDefaultRuleSets = async (value: boolean): Promise<void> => {
   await updateConfigValue(
     "analysis.useDefaultRulesets",

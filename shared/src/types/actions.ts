@@ -3,6 +3,7 @@ export const RUN_ANALYSIS = "RUN_ANALYSIS";
 export const START_SERVER = "START_SERVER";
 export const STOP_SERVER = "STOP_SERVER";
 export const RESTART_SOLUTION_SERVER = "RESTART_SOLUTION_SERVER";
+export const ENABLE_GENAI = "ENABLE_GENAI";
 export const CANCEL_SOLUTION = "CANCEL_SOLUTION";
 export const GET_SOLUTION = "GET_SOLUTION";
 export const GET_SUCCESS_RATE = "GET_SUCCESS_RATE";
@@ -30,6 +31,7 @@ export type WebviewActionType =
   | typeof START_SERVER
   | typeof STOP_SERVER
   | typeof RESTART_SOLUTION_SERVER
+  | typeof ENABLE_GENAI
   | typeof CANCEL_SOLUTION
   | typeof GET_SOLUTION
   | typeof GET_SUCCESS_RATE

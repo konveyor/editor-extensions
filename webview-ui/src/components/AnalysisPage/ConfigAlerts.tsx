@@ -1,7 +1,7 @@
 import React from "react";
 import { Alert, AlertActionLink, PageSection, Card } from "@patternfly/react-core";
 import { ConfigError } from "@editor-extensions/shared";
-import { restartSolutionServer } from "../../hooks/actions";
+import { restartSolutionServer, enableGenAI } from "../../hooks/actions";
 
 interface ConfigAlertsProps {
   configErrors: ConfigError[];
@@ -41,6 +41,10 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
                   error.type === "no-active-profile" ? (
                     <AlertActionLink onClick={onOpenProfileManager}>
                       Manage Profiles
+                    </AlertActionLink>
+                  ) : error.type === "genai-disabled" ? (
+                    <AlertActionLink onClick={() => dispatch(enableGenAI())}>
+                      Enable GenAI
                     </AlertActionLink>
                   ) : undefined
                 }

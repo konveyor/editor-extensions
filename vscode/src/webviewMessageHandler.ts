@@ -22,6 +22,7 @@ import {
   START_SERVER,
   STOP_SERVER,
   RESTART_SOLUTION_SERVER,
+  ENABLE_GENAI,
   TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   WEBVIEW_READY,
@@ -236,6 +237,9 @@ const actions: {
   },
   [RESTART_SOLUTION_SERVER]() {
     vscode.commands.executeCommand("konveyor.restartSolutionServer");
+  },
+  [ENABLE_GENAI]() {
+    executeExtensionCommand("enableGenAI");
   },
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");

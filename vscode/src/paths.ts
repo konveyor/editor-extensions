@@ -9,6 +9,7 @@ import { mkdir, chmod, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
+import { getConfigAnalyzerPath } from "./utilities/configuration";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -57,10 +58,40 @@ async function ensureDirectory(uri: vscode.Uri, ...parts: string[]): Promise<vsc
 /**
  * Downloads the kai-analyzer-rpc binary for the current platform if it doesn't exist
  */
-async function ensureKaiAnalyzerBinary(
+export async function ensureKaiAnalyzerBinary(
   context: vscode.ExtensionContext,
   logger: winston.Logger,
 ): Promise<void> {
+  // First check if user has configured a custom analyzer path
+  const userAnalyzerPath = getConfigAnalyzerPath();
+
+  if (userAnalyzerPath !== "") {
+    logger.info(`Checking user-configured analyzer path: ${userAnalyzerPath}`);
+
+    // Import checkIfExecutable dynamically to avoid circular imports
+    const { checkIfExecutable } = await import("./utilities/fileUtils");
+    const { updateAnalyzerPath } = await import("./utilities/configuration");
+
+    const isValid = await checkIfExecutable(userAnalyzerPath);
+    if (!isValid) {
+      logger.warn(
+        `Invalid analyzer path detected at startup: ${userAnalyzerPath}. Resetting to default.`,
+      );
+
+      // Reset the configuration to undefined
+      await updateAnalyzerPath(undefined);
+
+      // Show error message to user
+      vscode.window.showErrorMessage(
+        `The configured analyzer binary path is invalid: ${userAnalyzerPath}. ` +
+          `The setting has been reset to use the bundled binary.`,
+      );
+    } else {
+      logger.info(`User-configured analyzer path is valid: ${userAnalyzerPath}`);
+      return; // Use the user's valid path, no need to download bundled binary
+    }
+  }
+
   const packageJson = context.extension.packageJSON;
   const assetPaths = {
     kai: "./kai",

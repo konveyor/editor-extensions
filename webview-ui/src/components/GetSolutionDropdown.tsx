@@ -11,7 +11,6 @@ import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
-import { Tooltip } from "@patternfly/react-core";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];

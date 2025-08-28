@@ -35,6 +35,11 @@ export const restartSolutionServer = (): WebviewAction<WebviewActionType, unknow
   payload: {},
 });
 
+export const enableGenAI = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "ENABLE_GENAI",
+  payload: {},
+});
+
 export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "CANCEL_SOLUTION",
   payload: {},

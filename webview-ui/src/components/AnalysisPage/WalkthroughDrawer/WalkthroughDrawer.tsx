@@ -25,6 +25,7 @@ import { PencilAltIcon } from "@patternfly/react-icons";
 
 import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
 import { TruncatedDescription } from "../../TruncatedDescription/TruncatedDescription";
+import { enableGenAI } from "../../../hooks/actions";
 
 export function WalkthroughDrawer({
   isOpen,
@@ -47,9 +48,12 @@ export function WalkthroughDrawer({
     (error) => error.type === "provider-connection-failed",
   );
   const providerNotConfigured = state.configErrors.some(
-    (error) => error.type === "provider-not-configured" || error.type === "genai-disabled",
+    (error) => error.type === "provider-not-configured",
   );
-  const providerConfigured = !providerConnectionError && !providerNotConfigured;
+  const genaiDisabled = state.configErrors.some(
+    (error) => error.type === "genai-disabled",
+  );
+  const providerConfigured = !providerConnectionError && !providerNotConfigured && !genaiDisabled;
 
   const steps = [
     {
@@ -72,13 +76,17 @@ export function WalkthroughDrawer({
     },
     {
       id: "genai",
-      title: "Configure GenAI",
-      status: providerConfigured
-        ? "Completed"
-        : providerConnectionError
-          ? "Error connecting to the model"
-          : "Not configured",
-      description: "Enable GenAI assistance using your API key.",
+      title: genaiDisabled ? "Enable GenAI" : "Configure GenAI",
+      status: genaiDisabled
+        ? "GenAI is disabled"
+        : providerConfigured
+          ? "Completed"
+          : providerConnectionError
+            ? "Error connecting to the model"
+            : "Not configured",
+      description: genaiDisabled
+        ? "GenAI functionality is currently disabled in your settings."
+        : "Enable GenAI assistance using your API key.",
     },
   ];
 
@@ -100,6 +108,8 @@ export function WalkthroughDrawer({
       case "API key is missing":
         return "danger";
       case "Not configured":
+        return "warning";
+      case "GenAI is disabled":
         return "warning";
       default:
         return "info";
@@ -167,12 +177,21 @@ export function WalkthroughDrawer({
                     )}
                     {step.id === "genai" && (
                       <StackItem>
-                        <Button
-                          variant="link"
-                          onClick={() => dispatch({ type: "OPEN_GENAI_SETTINGS", payload: {} })}
-                        >
-                          Configure GenAI Settings
-                        </Button>
+                        {genaiDisabled ? (
+                          <Button
+                            variant="link"
+                            onClick={() => dispatch(enableGenAI())}
+                          >
+                            Enable GenAI
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="link"
+                            onClick={() => dispatch({ type: "OPEN_GENAI_SETTINGS", payload: {} })}
+                          >
+                            Configure GenAI Settings
+                          </Button>
+                        )}
                       </StackItem>
                     )}
                   </Stack>
