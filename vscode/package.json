@@ -409,13 +409,6 @@
           "scope": "resource",
           "order": 2
         },
-        "konveyor.kaiRpcServerPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the rpc-server binary. If not set, the extension will use the bundled binary.",
-          "scope": "resource",
-          "order": 1
-        },
         "konveyor.solutionServer.url": {
           "type": "string",
           "default": "http://localhost:8000",
@@ -498,40 +491,6 @@
           "description": "List of diagnostic sources to exclude from agentic workflow.",
           "scope": "window",
           "order": 12
-        },
-        "konveyor.kai.getSolutionMaxPriority": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": 0,
-          "description": "(Advanced) The maximum priority for issues to be considered by kai in a getSolution request.",
-          "scope": "window",
-          "order": 40
-        },
-        "konveyor.kai.getSolutionMaxEffort": {
-          "type": "string",
-          "enum": [
-            "Low",
-            "Medium",
-            "High",
-            "Maximum (experimental)"
-          ],
-          "default": "Low",
-          "description": "Defines the effort level for solution generation. Higher values increase processing time.",
-          "scope": "window",
-          "order": 40
-        },
-        "konveyor.kai.getSolutionMaxLLMQueries": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": null,
-          "minimum": 1,
-          "description": "(Advanced) Maximum number of LLM queries to be made per solution request (default: No limit)",
-          "scope": "window",
-          "order": 40
         },
         "konveyor.kai.cacheDir": {
           "type": [

@@ -15,7 +15,6 @@ import {
   OPEN_FILE,
   OPEN_GENAI_SETTINGS,
   OVERRIDE_ANALYZER_BINARIES,
-  OVERRIDE_RPC_SERVER_BINARIES,
   OPEN_PROFILE_MANAGER,
   RUN_ANALYSIS,
   Scope,
@@ -160,9 +159,6 @@ const actions: {
 
   [OVERRIDE_ANALYZER_BINARIES]() {
     executeExtensionCommand("overrideAnalyzerBinaries");
-  },
-  [OVERRIDE_RPC_SERVER_BINARIES]() {
-    executeExtensionCommand("overrideKaiRpcServerBinaries");
   },
   [OPEN_GENAI_SETTINGS]() {
     executeExtensionCommand("modelProviderSettingsOpen");
