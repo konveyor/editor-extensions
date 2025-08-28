@@ -12,5 +12,21 @@
     "branch": "main",
     "sources": [],
     "targets": ["openjdk17"]
+  },
+  "inventory_management": {
+    "repoUrl": "https://github.com/savitharaghunathan/inventory_management",
+    "repoName": "inventory_management",
+    "branch": "partial",
+    "sources": [],
+    "targets": ["openjdk21"],
+    "customRulesFolder": "inventory_management/rules"
+  },
+  "ehr": {
+    "repoUrl": "https://github.com/hhpatel14/ehr_viewer",
+    "repoName": "ehr_viewer",
+    "branch": "partial",
+    "sources": [],
+    "targets": ["openjdk21"],
+    "customRulesFolder": "ehr_viewer/rules"
   }
 }

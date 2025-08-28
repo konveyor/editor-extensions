@@ -41,6 +41,7 @@
     "detect-node": "^2.1.0",
     "dotenv": "^16.4.5",
     "electron": "^32.2.0",
+    "electron-playwright-helpers": "^1.8.2",
     "end-of-stream": "^1.4.4",
     "env-paths": "^2.2.1",
     "es-define-property": "^1.0.0",
