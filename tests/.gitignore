@@ -89,3 +89,5 @@ coolstore/
 test-output
 *.vsix
 test-data-dir/
+ehr_viewer/
+inventory_management/
