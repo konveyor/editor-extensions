@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "publisher": "Konveyor",
   "author": "Konveyor",
-  "icon": "vscode/resources/konveyor-icon-color.png",
+  "icon": "vscode/resources/icon.png",
   "homepage": "https://github.com/konveyor/editor-extensions/blob/main/README.md",
   "repository": {
     "type": "git",

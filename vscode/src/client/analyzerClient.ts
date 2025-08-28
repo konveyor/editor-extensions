@@ -529,7 +529,7 @@ export class AnalyzerClient {
       );
 
       if (selection === "Manage Profiles") {
-        await executeExtensionCommand("openProfilesPanel");
+        await executeExtensionCommand("openProfileManager");
       }
 
       return false;
@@ -543,7 +543,7 @@ export class AnalyzerClient {
       );
 
       if (selection === "Manage Profiles") {
-        await executeExtensionCommand("openProfilesPanel");
+        await executeExtensionCommand("openProfileManager");
       }
 
       return false;

@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { getConfigSolutionServerAuth } from "./configuration";
 import { Logger } from "winston";
 import { KeycloakCredentials } from "@editor-extensions/shared";
-const AUTH_DATA_KEY = "konveyor.solutionServer.authData";
+import { EXTENSION_NAME } from "./constants";
+const AUTH_DATA_KEY = `${EXTENSION_NAME}.solutionServer.authData`;
 
 /**
  * Prompt user for authentication credentials

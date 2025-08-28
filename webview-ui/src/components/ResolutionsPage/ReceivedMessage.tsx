@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import botAv from "./bot_avatar.svg?inline";
+import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
+import { getBrandName } from "../../utils/branding";
 
 interface QuickResponseWithToken extends QuickResponse {
   messageToken: string;
@@ -22,7 +23,7 @@ interface ReceivedMessageProps {
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   content,
   extraContent,
-  isLoading,
+  isLoading: _isLoading,
   timestamp = new Date(),
   quickResponses,
   isProcessing = false,
@@ -58,9 +59,9 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   return (
     <Message
       timestamp={formatTimestamp(timestamp)}
-      name="Konveyor"
+      name={getBrandName()}
       role="bot"
-      avatar={botAv}
+      avatar={avatar}
       content={content}
       quickResponses={quickResponses?.map((response) => ({
         ...response,

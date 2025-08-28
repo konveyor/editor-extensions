@@ -6,11 +6,15 @@ import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType } from "@editor-extensions/shared";
 import { ExtensionStateProvider } from "./context/ExtensionStateContext";
 import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
+import { getBrandName } from "./utils/branding";
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<WebviewType>(viewType);
 
   useEffect(() => {
+    // Set document title based on brand
+    document.title = getBrandName();
+
     // Update the view when viewType changes
     setCurrentView(viewType);
   }, [viewType]);

@@ -18,3 +18,6 @@ vscode/.metadata
 .vscode/*.aider*
 .vscode/settings.json
 
+# Allow PNG files in vscode/resources
+!vscode/resources/*.png
+
