@@ -8,7 +8,7 @@ import { KAIViews } from '../../enums/views.enum';
 import { getFileImports } from '../../utilities/file.utils';
 /**
  * Automates https://github.com/konveyor/kai/issues/798
- Tests that fixes applied by the LLM do not unintentionally revert .
+ * Tests that fixes applied by the LLM do not unintentionally revert .
  *
  * - Runs migration analysis and applies two specific fixes.
  * - Captures and compares import statements before and after fixes.
