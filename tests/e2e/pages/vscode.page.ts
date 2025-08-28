@@ -173,9 +173,28 @@ export class VSCode extends BasePage {
   public async startServer(): Promise<void> {
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
-    if (!(await analysisView.getByRole('button', { name: 'Stop' }).isVisible())) {
-      await analysisView.getByRole('button', { name: 'Start' }).click({ delay: 500 });
-      await analysisView.getByRole('button', { name: 'Stop' }).isEnabled({ timeout: 120000 });
+
+    try {
+      // Check if server is already running
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      const isServerRunning = await stopButton.isVisible();
+
+      if (!isServerRunning) {
+        console.log('Starting server...');
+        const startButton = analysisView.getByRole('button', { name: 'Start' });
+        await startButton.waitFor({ state: 'visible', timeout: 10000 });
+        await startButton.click({ delay: 500 });
+
+        // Wait for server to start (Stop button becomes enabled)
+        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
+        await stopButton.isEnabled({ timeout: 180000 });
+        console.log('Server started successfully');
+      } else {
+        console.log('Server is already running');
+      }
+    } catch (error) {
+      console.log('Error starting server:', error);
+      throw error;
     }
   }
 
@@ -197,15 +216,31 @@ export class VSCode extends BasePage {
   public async runAnalysis() {
     await this.window.waitForTimeout(15000);
     const analysisView = await this.getView(KAIViews.analysisView);
-    const runAnalysisBtnLocator = analysisView.getByRole('button', {
-      name: 'Run Analysis',
-    });
-    await expect(runAnalysisBtnLocator).toBeEnabled({ timeout: 600000 });
 
-    await runAnalysisBtnLocator.click();
-    await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
-      timeout: 30000,
-    });
+    try {
+      // Ensure server is running before attempting analysis
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      await expect(stopButton).toBeVisible({ timeout: 30000 });
+
+      const runAnalysisBtnLocator = analysisView.getByRole('button', {
+        name: 'Run Analysis',
+      });
+
+      console.log('Waiting for Run Analysis button to be enabled...');
+      await expect(runAnalysisBtnLocator).toBeEnabled({ timeout: 600000 });
+
+      console.log('Starting analysis...');
+      await runAnalysisBtnLocator.click();
+
+      console.log('Waiting for analysis progress indicator...');
+      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
+        timeout: 60000,
+      });
+      console.log('Analysis started successfully');
+    } catch (error) {
+      console.log('Error running analysis:', error);
+      throw error;
+    }
   }
 
   public async getView(view: KAIViews): Promise<FrameLocator> {
@@ -307,27 +342,63 @@ export class VSCode extends BasePage {
   }
 
   public async deleteProfile(profileName: string) {
-    await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
-    const manageProfileView = await this.getView(KAIViews.manageProfiles);
-    const profileList = manageProfileView.getByRole('list', {
-      name: 'Profile list',
-    });
-    await profileList.waitFor({ state: 'visible', timeout: 20000 });
-
-    const profileItems = profileList.getByRole('listitem');
     try {
-      await profileItems.filter({ hasText: profileName }).click({ timeout: 20000 });
-      await manageProfileView.getByRole('button', { name: 'Delete Profile' }).click();
+      console.log(`Attempting to delete profile: ${profileName}`);
+      await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
+      const manageProfileView = await this.getView(KAIViews.manageProfiles);
+
+      const profileList = manageProfileView.getByRole('list', {
+        name: 'Profile list',
+      });
+      await profileList.waitFor({ state: 'visible', timeout: 30000 });
+
+      const profileItems = profileList.getByRole('listitem');
+      const targetProfile = profileItems.filter({ hasText: profileName });
+
+      // Check if profile exists before attempting to delete
+      const profileCount = await targetProfile.count();
+      if (profileCount === 0) {
+        console.log(`Profile '${profileName}' not found in the list`);
+        return; // Profile doesn't exist, nothing to delete
+      }
+
+      console.log(`Found profile '${profileName}', proceeding with deletion`);
+      await targetProfile.click({ timeout: 30000 });
+
+      const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
+      await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
+      await deleteButton.click();
+
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
+      await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
       await confirmButton.click();
+
+      // Wait for profile to be removed from the list
       await manageProfileView
         .getByRole('listitem')
         .filter({ hasText: profileName })
-        .waitFor({ state: 'hidden', timeout: 10000 });
+        .waitFor({ state: 'hidden', timeout: 15000 });
+
+      console.log(`Profile '${profileName}' deleted successfully`);
     } catch (error) {
       console.log('Error deleting profile:', error);
+      // Check if the profile still exists after error
+      try {
+        const manageProfileView = await this.getView(KAIViews.manageProfiles);
+        const profileList = manageProfileView.getByRole('list', { name: 'Profile list' });
+        const profileItems = profileList.getByRole('listitem');
+        const remainingProfile = profileItems.filter({ hasText: profileName });
+        const remainingCount = await remainingProfile.count();
+
+        if (remainingCount === 0) {
+          console.log(`Profile '${profileName}' was actually deleted despite the error`);
+          return; // Profile was deleted successfully despite the error
+        }
+      } catch (checkError) {
+        console.log('Could not verify profile deletion:', checkError);
+      }
       throw error;
     }
   }
