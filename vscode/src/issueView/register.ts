@@ -4,6 +4,7 @@ import { FileItem, IncidentTypeItem, IssuesTreeDataProvider, ReferenceItem } fro
 import { Immutable } from "immer";
 import { ExtensionData, RuleSet } from "@editor-extensions/shared";
 import { expandAll, expandChildren } from "./expandCommands";
+import { executeExtensionCommand } from "../commands";
 
 export function registerIssueView({
   extensionContext: context,
@@ -55,7 +56,7 @@ export function registerIssueView({
       firstLoad = false;
       // TODO: re-implement to be explicitly part of the extension lifecycle
       // current code relies on the side effects
-      vscode.commands.executeCommand("konveyor.showAnalysisPanel");
+      executeExtensionCommand("showAnalysisPanel");
     }
   };
 }

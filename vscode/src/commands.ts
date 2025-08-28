@@ -36,6 +36,7 @@ import {
   getConfigSolutionServerAuth,
   fileUriToPath,
 } from "./utilities/configuration";
+import { EXTENSION_NAME } from "./utilities/constants";
 import { promptForCredentials } from "./utilities/auth";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
@@ -52,6 +53,14 @@ import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config"
 
 const isWindows = process.platform === "win32";
 
+/**
+ * Helper function to execute internal commands with proper extension prefix
+ * Use this for all internal command executions to ensure they work with rebranding
+ */
+export function executeExtensionCommand(commandSuffix: string, ...args: any[]): Thenable<unknown> {
+  return commands.executeCommand(`${EXTENSION_NAME}.${commandSuffix}`, ...args);
+}
+
 const commandsMap: (
   state: ExtensionState,
   logger: Logger,
@@ -59,7 +68,7 @@ const commandsMap: (
   [command: string]: (...args: any) => any;
 } = (state, logger) => {
   return {
-    "konveyor.openProfilesPanel": async () => {
+    [`${EXTENSION_NAME}.openProfilesPanel`]: async () => {
       const provider = state.webviewProviders.get("profiles");
       if (provider) {
         provider.showWebviewPanel();
@@ -67,7 +76,7 @@ const commandsMap: (
         logger.error("Profiles provider not found");
       }
     },
-    "konveyor.startServer": async () => {
+    [`${EXTENSION_NAME}.startServer`]: async () => {
       const analyzerClient = state.analyzerClient;
       if (!(await analyzerClient.canAnalyzeInteractive())) {
         return;
@@ -78,7 +87,7 @@ const commandsMap: (
         logger.error("Could not start the server", { error: e });
       }
     },
-    "konveyor.stopServer": async () => {
+    [`${EXTENSION_NAME}.stopServer`]: async () => {
       const analyzerClient = state.analyzerClient;
       try {
         await analyzerClient.stop();
@@ -86,7 +95,7 @@ const commandsMap: (
         logger.error("Could not shutdown and stop the server", { error: e });
       }
     },
-    "konveyor.restartServer": async () => {
+    [`${EXTENSION_NAME}.restartServer`]: async () => {
       const analyzerClient = state.analyzerClient;
       try {
         if (analyzerClient.isServerRunning()) {
@@ -101,19 +110,36 @@ const commandsMap: (
         logger.error("Could not restart the server", { error: e });
       }
     },
-    "konveyor.restartSolutionServer": async () => {
+    [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
       const solutionServerClient = state.solutionServerClient;
       try {
         window.showInformationMessage("Restarting solution server...");
         await solutionServerClient.disconnect();
+
+        // Update state to reflect disconnected status
+        state.mutateData((draft) => {
+          draft.solutionServerConnected = false;
+        });
+
         await solutionServerClient.connect();
+
+        // Update state to reflect connected status
+        state.mutateData((draft) => {
+          draft.solutionServerConnected = true;
+        });
+
         window.showInformationMessage("Solution server restarted successfully");
       } catch (e) {
         logger.error("Could not restart the solution server", { error: e });
         window.showErrorMessage(`Failed to restart solution server: ${e}`);
+
+        // Update state to reflect failed connection
+        state.mutateData((draft) => {
+          draft.solutionServerConnected = false;
+        });
       }
     },
-    "konveyor.runAnalysis": async () => {
+    [`${EXTENSION_NAME}.runAnalysis`]: async () => {
       logger.info("Run analysis command called");
       const analyzerClient = state.analyzerClient;
       if (!analyzerClient || !analyzerClient.canAnalyze()) {
@@ -122,7 +148,7 @@ const commandsMap: (
       }
       analyzerClient.runAnalysis();
     },
-    "konveyor.getSolution": async (incidents: EnhancedIncident[]) => {
+    [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
       if (state.data.isFetchingSolution) {
         logger.info("Solution already being fetched");
         window.showWarningMessage("Solution already being fetched");
@@ -139,7 +165,7 @@ const commandsMap: (
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });
-      await commands.executeCommand("konveyor.showResolutionPanel");
+      await executeExtensionCommand("showResolutionPanel");
 
       // Create a scope for the solution
       const scope: Scope = { incidents };
@@ -364,7 +390,18 @@ const commandsMap: (
           );
 
           if (allDiffs.length === 0) {
-            throw new Error("No diffs found in the response");
+            // No code changes were generated - this is normal and not necessarily an error
+            logger.info("Workflow completed but no file changes were generated");
+            window.showInformationMessage(
+              "No code changes were suggested for the selected incidents.",
+            );
+
+            // Reset state and return early
+            state.mutateData((draft) => {
+              draft.solutionState = "received";
+              draft.isFetchingSolution = false;
+            });
+            return;
           }
         }
 
@@ -427,7 +464,7 @@ const commandsMap: (
         );
       }
     },
-    "konveyor.getSuccessRate": async () => {
+    [`${EXTENSION_NAME}.getSuccessRate`]: async () => {
       logger.info("Getting success rate for incidents");
 
       try {
@@ -450,7 +487,7 @@ const commandsMap: (
         logger.error("Error getting success rate", { error });
       }
     },
-    "konveyor.changeApplied": async (path: string, finalContent: string) => {
+    [`${EXTENSION_NAME}.changeApplied`]: async (path: string, finalContent: string) => {
       logger.info("File change applied", { path });
 
       try {
@@ -459,7 +496,7 @@ const commandsMap: (
         logger.error("Error notifying solution server of file acceptance", { error, path });
       }
     },
-    "konveyor.resetFetchingState": async () => {
+    [`${EXTENSION_NAME}.resetFetchingState`]: async () => {
       logger.warn("Manually resetting isFetchingSolution state");
       state.mutateData((draft) => {
         draft.isFetchingSolution = false;
@@ -470,7 +507,7 @@ const commandsMap: (
       state.isWaitingForUserInteraction = false;
       window.showInformationMessage("Fetching state has been reset.");
     },
-    "konveyor.changeDiscarded": async (path: string) => {
+    [`${EXTENSION_NAME}.changeDiscarded`]: async (path: string) => {
       logger.info("File change discarded", { path });
 
       try {
@@ -479,7 +516,7 @@ const commandsMap: (
         logger.error("Error notifying solution server of file rejection", { error, path });
       }
     },
-    "konveyor.askContinue": async (incident: EnhancedIncident) => {
+    [`${EXTENSION_NAME}.askContinue`]: async (incident: EnhancedIncident) => {
       // This should be a redundant check as we shouldn't render buttons that
       // map to this command when continue is not installed.
       if (!state.data.isContinueInstalled) {
@@ -519,7 +556,7 @@ const commandsMap: (
         );
       }
     },
-    "konveyor.overrideAnalyzerBinaries": async () => {
+    [`${EXTENSION_NAME}.overrideAnalyzerBinaries`]: async () => {
       const options: OpenDialogOptions = {
         canSelectMany: false,
         openLabel: "Select Analyzer Binary",
@@ -555,40 +592,42 @@ const commandsMap: (
         window.showInformationMessage("No analyzer binary selected.");
       }
     },
-    "konveyor.modelProviderSettingsOpen": async () => {
+    [`${EXTENSION_NAME}.modelProviderSettingsOpen`]: async () => {
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },
-    "konveyor.modelProviderSettingsBackupReset": async () => {
+    [`${EXTENSION_NAME}.modelProviderSettingsBackupReset`]: async () => {
       await copySampleProviderSettings(true);
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },
-    "konveyor.configureCustomRules": async (profileId: string) => {
+    [`${EXTENSION_NAME}.configureCustomRules`]: async (profileId: string) => {
       await handleConfigureCustomRules(profileId, state);
     },
-    "konveyor.loadRuleSets": async (ruleSets: RuleSet[]) => loadRuleSets(state, ruleSets),
-    "konveyor.cleanRuleSets": () => cleanRuleSets(state),
-    "konveyor.loadStaticResults": loadStaticResults,
-    "konveyor.loadResultsFromDataFolder": loadResultsFromDataFolder,
-    "konveyor.showResolutionPanel": () => {
+    [`${EXTENSION_NAME}.loadRuleSets`]: async (ruleSets: RuleSet[]) =>
+      loadRuleSets(state, ruleSets),
+    [`${EXTENSION_NAME}.cleanRuleSets`]: () => cleanRuleSets(state),
+    [`${EXTENSION_NAME}.loadStaticResults`]: loadStaticResults,
+    [`${EXTENSION_NAME}.loadResultsFromDataFolder`]: loadResultsFromDataFolder,
+    [`${EXTENSION_NAME}.showResolutionPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
     },
-    "konveyor.showAnalysisPanel": () => {
+    [`${EXTENSION_NAME}.showAnalysisPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
     },
-    "konveyor.openAnalysisDetails": async (item: IncidentTypeItem) => {
+    [`${EXTENSION_NAME}.openAnalysisDetails`]: async (item: IncidentTypeItem) => {
       //TODO: pass the item to webview and move the focus
       logger.info("Open details for item", { item });
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
     },
-    "konveyor.fixGroupOfIncidents": fixGroupOfIncidents,
-    "konveyor.fixIncident": fixGroupOfIncidents,
-    "konveyor.partialAnalysis": async (filePaths: Uri[]) => runPartialAnalysis(state, filePaths),
-    "konveyor.generateDebugArchive": async () => {
+    [`${EXTENSION_NAME}.fixGroupOfIncidents`]: fixGroupOfIncidents,
+    [`${EXTENSION_NAME}.fixIncident`]: fixGroupOfIncidents,
+    [`${EXTENSION_NAME}.partialAnalysis`]: async (filePaths: Uri[]) =>
+      runPartialAnalysis(state, filePaths),
+    [`${EXTENSION_NAME}.generateDebugArchive`]: async () => {
       const archiveRawPath = await window.showInputBox({
         title: "Enter the path where the debug archive will be saved",
         value: pathlib.join(
@@ -732,7 +771,7 @@ const commandsMap: (
         });
       }
     },
-    "konveyor.configureSolutionServerCredentials": async () => {
+    [`${EXTENSION_NAME}.configureSolutionServerCredentials`]: async () => {
       if (!getConfigSolutionServerAuth()) {
         logger.info("Solution server authentication is disabled.");
         window.showInformationMessage(
@@ -747,11 +786,11 @@ const commandsMap: (
         return;
       }
 
-      await commands.executeCommand("konveyor.restartSolutionServer");
+      await executeExtensionCommand("restartSolutionServer");
       logger.info("Solution server credentials updated successfully.");
     },
 
-    "konveyor.showDiffWithDecorations": async (
+    [`${EXTENSION_NAME}.showDiffWithDecorations`]: async (
       filePath: string,
       diff: string,
       content: string,
@@ -808,7 +847,7 @@ const commandsMap: (
       }
     },
 
-    "konveyor.acceptDiff": async (filePath?: string) => {
+    [`${EXTENSION_NAME}.acceptDiff`]: async (filePath?: string) => {
       if (!filePath) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -831,7 +870,7 @@ const commandsMap: (
       vscode.window.showInformationMessage("Changes accepted and document saved");
     },
 
-    "konveyor.rejectDiff": async (filePath?: string) => {
+    [`${EXTENSION_NAME}.rejectDiff`]: async (filePath?: string) => {
       if (!filePath) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -854,7 +893,7 @@ const commandsMap: (
       vscode.window.showInformationMessage("Changes rejected and document saved");
     },
 
-    "konveyor.acceptVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
+    [`${EXTENSION_NAME}.acceptVerticalDiffBlock`]: async (fileUri: string, blockIndex: number) => {
       try {
         logger.info("acceptVerticalDiffBlock called", { fileUri, blockIndex });
         const filePath = vscode.Uri.parse(fileUri).fsPath;
@@ -868,7 +907,7 @@ const commandsMap: (
       }
     },
 
-    "konveyor.rejectVerticalDiffBlock": async (fileUri: string, blockIndex: number) => {
+    [`${EXTENSION_NAME}.rejectVerticalDiffBlock`]: async (fileUri: string, blockIndex: number) => {
       try {
         logger.info("rejectVerticalDiffBlock called", { fileUri, blockIndex });
         const filePath = vscode.Uri.parse(fileUri).fsPath;
@@ -882,7 +921,7 @@ const commandsMap: (
       }
     },
 
-    "konveyor.clearDiffDecorations": async (filePath?: string) => {
+    [`${EXTENSION_NAME}.clearDiffDecorations`]: async (filePath?: string) => {
       try {
         if (filePath) {
           const fileUri = vscode.Uri.file(filePath).toString();
@@ -900,7 +939,7 @@ const commandsMap: (
       }
     },
 
-    "konveyor.showDiffActions": async () => {
+    [`${EXTENSION_NAME}.showDiffActions`]: async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
@@ -943,9 +982,9 @@ const commandsMap: (
       );
 
       if (action?.value === "accept") {
-        await vscode.commands.executeCommand("konveyor.acceptDiff", filePath);
+        await executeExtensionCommand("acceptDiff", filePath);
       } else if (action?.value === "reject") {
-        await vscode.commands.executeCommand("konveyor.rejectDiff", filePath);
+        await executeExtensionCommand("rejectDiff", filePath);
       }
     },
   };

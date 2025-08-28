@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
+import { executeExtensionCommand } from "./commands";
 import {
   ADD_PROFILE,
   AnalysisProfile,
@@ -21,6 +22,7 @@ import {
   SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
+  RESTART_SOLUTION_SERVER,
   TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   WEBVIEW_READY,
@@ -141,36 +143,36 @@ const actions: {
   },
 
   [OPEN_PROFILE_MANAGER]() {
-    vscode.commands.executeCommand("konveyor.openProfilesPanel");
+    executeExtensionCommand("openProfilesPanel");
   },
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");
   },
   [CONFIGURE_SOURCES_TARGETS]() {
-    vscode.commands.executeCommand("konveyor.configureSourcesTargets");
+    executeExtensionCommand("configureSourcesTargets");
   },
   [CONFIGURE_LABEL_SELECTOR]() {
-    vscode.commands.executeCommand("konveyor.configureLabelSelector");
+    executeExtensionCommand("configureLabelSelector");
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, state) => {
-    vscode.commands.executeCommand("konveyor.configureCustomRules", profileId, state);
+    executeExtensionCommand("configureCustomRules", profileId);
   },
 
   [OVERRIDE_ANALYZER_BINARIES]() {
-    vscode.commands.executeCommand("konveyor.overrideAnalyzerBinaries");
+    executeExtensionCommand("overrideAnalyzerBinaries");
   },
   [OVERRIDE_RPC_SERVER_BINARIES]() {
-    vscode.commands.executeCommand("konveyor.overrideKaiRpcServerBinaries");
+    executeExtensionCommand("overrideKaiRpcServerBinaries");
   },
   [OPEN_GENAI_SETTINGS]() {
-    vscode.commands.executeCommand("konveyor.modelProviderSettingsOpen");
+    executeExtensionCommand("modelProviderSettingsOpen");
   },
   [GET_SOLUTION](scope: Scope) {
-    vscode.commands.executeCommand("konveyor.getSolution", scope.incidents);
-    vscode.commands.executeCommand("konveyor.showResolutionPanel");
+    executeExtensionCommand("getSolution", scope.incidents);
+    executeExtensionCommand("showResolutionPanel");
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
-    vscode.commands.executeCommand("konveyor.askContinue", incident);
+    executeExtensionCommand("askContinue", incident);
   },
   // APPLY_FILE and DISCARD_FILE removed - using unified decorator flow
   // New actions with unique names to avoid overwriting existing diff view commands
@@ -191,13 +193,7 @@ const actions: {
       logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
 
       // Execute the command to show diff with decorations using streaming approach
-      await vscode.commands.executeCommand(
-        "konveyor.showDiffWithDecorations",
-        path,
-        diff,
-        content,
-        messageToken,
-      );
+      await executeExtensionCommand("showDiffWithDecorations", path, diff, content, messageToken);
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
@@ -211,7 +207,7 @@ const actions: {
   },
 
   [RUN_ANALYSIS]() {
-    vscode.commands.executeCommand("konveyor.runAnalysis");
+    executeExtensionCommand("runAnalysis");
   },
   async [OPEN_FILE]({ file, line }) {
     const fileUri = vscode.Uri.parse(file);
@@ -237,13 +233,16 @@ const actions: {
     }
   },
   [START_SERVER]() {
-    vscode.commands.executeCommand("konveyor.startServer");
+    executeExtensionCommand("startServer");
   },
   [STOP_SERVER]() {
-    vscode.commands.executeCommand("konveyor.stopServer");
+    executeExtensionCommand("stopServer");
+  },
+  [RESTART_SOLUTION_SERVER]() {
+    vscode.commands.executeCommand("konveyor.restartSolutionServer");
   },
   [GET_SUCCESS_RATE]() {
-    vscode.commands.executeCommand("konveyor.getSuccessRate");
+    executeExtensionCommand("getSuccessRate");
   },
   [TOGGLE_AGENT_MODE]() {
     toggleAgentMode();

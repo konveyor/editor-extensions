@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
 import { downloadFile } from './download.utils';
+import { extensionId } from './utils';
 
 export function isExtensionInstalled(extension: string) {
   const installedExtensions = execSync('code --list-extensions', {
@@ -12,7 +13,7 @@ export function isExtensionInstalled(extension: string) {
 
 export async function installExtension(): Promise<void> {
   try {
-    if (isExtensionInstalled('konveyor.konveyor-ai')) {
+    if (isExtensionInstalled(extensionId)) {
       console.log(`Extension already installed`);
       return;
     }

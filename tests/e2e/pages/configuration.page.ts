@@ -1,5 +1,5 @@
 import { VSCode } from './vscode.page';
-import { ConfigurationOptions } from '../enums/configuration-options.enum';
+import { extensionId } from '../utilities/utils';
 
 export class Configuration {
   public constructor(private readonly vsCode: VSCode) {}
@@ -13,23 +13,23 @@ export class Configuration {
     // element is not an input nor has the "contenteditable" attr, so fill can't be used
     const searchInput = window.locator('div.settings-header div.suggest-input-container');
     await searchInput.click();
-    await searchInput.pressSequentially('@ext:konveyor.konveyor-ai');
+    await searchInput.pressSequentially(`@ext:${extensionId}`);
     await vsCode.waitDefault();
     return config;
   }
 
-  public async setEnabledConfiguration(configuration: ConfigurationOptions, enabled: boolean) {
+  public async setEnabledConfiguration(configuration: string, enabled: boolean) {
     const window = this.vsCode.getWindow();
     const checkbox = window.getByLabel(configuration);
     await checkbox.setChecked(enabled);
   }
 
-  public async setInputConfiguration(configuration: ConfigurationOptions, value: string) {
+  public async setInputConfiguration(configuration: string, value: string) {
     const window = this.vsCode.getWindow();
     await window.getByLabel(configuration).fill(value);
   }
 
-  public async setDropdownConfiguration(configuration: ConfigurationOptions, value: string) {
+  public async setDropdownConfiguration(configuration: string, value: string) {
     const selectLocator = this.vsCode.getWindow().locator(`select[aria-label="${configuration}"]`);
     await selectLocator.selectOption({ value });
   }

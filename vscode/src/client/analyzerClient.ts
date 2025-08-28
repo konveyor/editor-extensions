@@ -22,6 +22,7 @@ import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
 import { TaskManager } from "src/taskManager/types";
 import { Logger } from "winston";
+import { executeExtensionCommand } from "../commands";
 
 const uid = (() => {
   let counter = 0;
@@ -489,7 +490,7 @@ export class AnalyzerClient {
             });
           }
 
-          await vscode.commands.executeCommand("konveyor.loadRuleSets", ruleSets);
+          await executeExtensionCommand("loadRuleSets", ruleSets);
           this.taskManager.init();
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
@@ -528,7 +529,7 @@ export class AnalyzerClient {
       );
 
       if (selection === "Manage Profiles") {
-        await vscode.commands.executeCommand("konveyor.openProfileManager");
+        await executeExtensionCommand("openProfilesPanel");
       }
 
       return false;
@@ -542,7 +543,7 @@ export class AnalyzerClient {
       );
 
       if (selection === "Manage Profiles") {
-        await vscode.commands.executeCommand("konveyor.openProfileManager");
+        await executeExtensionCommand("openProfilesPanel");
       }
 
       return false;

@@ -77,13 +77,14 @@ export const ProfileManagerPage: React.FC = () => {
   };
 
   const handleDeleteProfile = (id: string) => {
-    window.vscode.postMessage({ type: "DELETE_PROFILE", payload: id });
-    setSelectedProfileId(null);
+    dispatch({ type: "DELETE_PROFILE", payload: id });
+    if (selectedProfileId === id) {
+      setSelectedProfileId(null);
+    }
   };
 
   const handleMakeActive = (id: string) => {
     dispatch({ type: "SET_ACTIVE_PROFILE", payload: id });
-    window.vscode.postMessage({ type: "SET_ACTIVE_PROFILE", payload: id });
   };
 
   return (

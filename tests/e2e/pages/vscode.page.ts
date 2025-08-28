@@ -13,6 +13,7 @@ import { TEST_DATA_DIR } from '../utilities/consts';
 import { BasePage } from './base.page';
 import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
+import { extensionId } from '../utilities/utils';
 
 export class VSCode extends BasePage {
   constructor(
@@ -62,7 +63,7 @@ export class VSCode extends BasePage {
     if (!process.env.VSIX_FILE_PATH && !process.env.VSIX_DOWNLOAD_URL) {
       args.push(
         `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode')}`,
-        '--enable-proposed-api=konveyor.konveyor-ai'
+        `--enable-proposed-api=${extensionId}`
       );
       console.log('Running in DEV mode...');
     }

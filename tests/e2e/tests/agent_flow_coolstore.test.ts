@@ -5,6 +5,7 @@ import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 import { getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
+import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 
 // NOTE: This is the list of providers that have cached data for the coolstore app
 // Update this list when you create cache for a new provider, you probably don't need
@@ -46,8 +47,8 @@ providers.forEach((config) => {
       test.setTimeout(3600000);
       // set demoMode and update java configuration to auto-reload
       await vscodeApp.writeOrUpdateVSCodeSettings({
-        'konveyor.kai.cacheDir': pathlib.join('.vscode', 'cache'),
-        'konveyor.kai.demoMode': true,
+        [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
+        [kaiDemoMode]: true,
         'java.configuration.updateBuildConfiguration': 'automatic',
       });
       // we need to run analysis before enabling agent mode

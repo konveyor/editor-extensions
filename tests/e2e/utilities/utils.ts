@@ -4,7 +4,11 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import type { TestInfo } from '@playwright/test';
 import { rm } from 'node:fs/promises';
-import { ProviderConfig } from '../fixtures/provider-configs.fixture';
+import process from 'process';
+
+export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
+export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
+export const extensionId = `${extensionPublisher}.${extensionName}`;
 
 // Function to get OS information
 export function getOSInfo(): string {
@@ -48,7 +52,7 @@ export async function cleanupRepo(repoDir: string) {
 
 export async function uninstallExtension() {
   try {
-    execSync('code --uninstall-extension konveyor.konveyor', {
+    execSync(`code --uninstall-extension ${extensionId}`, {
       stdio: 'inherit',
     });
   } catch (error) {
