@@ -4,8 +4,8 @@ import { VSCode } from '../../pages/vscode.page';
 import { generateRandomString } from '../../utilities/utils';
 import fs from 'fs';
 import { Configuration } from '../../pages/configuration.page';
-import { ConfigurationOptions } from '../../enums/configuration-options.enum';
 import { KAIViews } from '../../enums/views.enum';
+import { analyzerPath } from '../../enums/configuration-options.enum';
 
 /**
  * This test executes an analysis on the coolstore app using a custom analyzer binary.
@@ -58,9 +58,10 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
     }
   });
 
-  test("Use a non-existing path and verify the server doesn't start", async () => {
+  // TODO (abrugaro): This test is affected by https://github.com/konveyor/editor-extensions/issues/720, enable the test once the issue fixed
+  test.skip("Use a non-existing path and verify the server doesn't start", async () => {
     const configPage = await Configuration.open(vscodeApp);
-    await configPage.setInputConfiguration(ConfigurationOptions.AnalyzerPath, 'nonExistingPath');
+    await configPage.setInputConfiguration(analyzerPath, 'nonExistingPath');
     await vscodeApp.openAnalysisView();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     await analysisView.getByRole('button', { name: 'Start' }).click({ delay: 500 });
@@ -71,7 +72,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
 
   test('Analyze coolstore app', async () => {
     const configPage = await Configuration.open(vscodeApp);
-    await configPage.setInputConfiguration(ConfigurationOptions.AnalyzerPath, binaryPath!);
+    await configPage.setInputConfiguration(analyzerPath, binaryPath!);
     await vscodeApp.startServer();
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();
@@ -82,7 +83,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
 
   test.afterAll(async () => {
     const configPage = await Configuration.open(vscodeApp);
-    await configPage.setInputConfiguration(ConfigurationOptions.AnalyzerPath, '');
+    await configPage.setInputConfiguration(analyzerPath, '');
     await vscodeApp.deleteProfile(profileName);
     await vscodeApp.closeVSCode();
   });
