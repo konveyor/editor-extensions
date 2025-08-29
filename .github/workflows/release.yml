@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "*"
+  release:
+    types:
+      - published
 
   workflow_dispatch:
     inputs:
@@ -20,7 +23,6 @@ on:
         required: false
         type: boolean
         default: false
-
 # https://typicode.github.io/husky/how-to.html#ci-server-and-docker
 env:
   HUSKY: 0
@@ -41,6 +43,7 @@ jobs:
       max-parallel: 3
     outputs:
       tag_name: ${{ steps.determine_tag.outputs.tag_name }}
+      prerelease: ${{ steps.determine_tag.outputs.prerelease }}
 
     steps:
       - name: Checkout code
@@ -51,15 +54,32 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
-      - name: Determine the tag
+      - name: Determine the tag and prerelease
         id: determine_tag
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag_name=${{ inputs.tag_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
         shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag_name=${{ inputs.tag_name }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.prerelease }}" = "true" ]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag_name=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            if [[ "${{ github.ref_name }}" == *-* ]]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
       - name: Install dependencies, download runtime assets
         env:
@@ -109,6 +129,15 @@ jobs:
           npm run build
           npm run collect-assets -- --use-release
           npm run dist
+
+      - name: Package VSIX (pre-release)
+        if: ${{ needs.test_the_release.outputs.prerelease == 'true' }}
+        run: |
+          npm run package -- --pre-release
+
+      - name: Package VSIX (release)
+        if: ${{ needs.test_the_release.outputs.prerelease == 'false' }}
+        run: |
           npm run package
 
       - name: Upload VSIX artifact
@@ -139,7 +168,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Release Information
           Tag: __${{ needs.test_the_release.outputs.tag_name }}__
-          Pre-Release: __${{ github.event.inputs.prerelease }}__
+          Pre-Release: __${{ needs.test_the_release.outputs.prerelease }}__
           Dry run? __${{ github.event.inputs.dry-run}}__
           EOF
 
@@ -171,8 +200,46 @@ jobs:
         run: |
           mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix
 
+      - name: Release context
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "event_action=${{ github.event.action }}"
+          echo "release.tag_name=${{ github.event.release.tag_name }}"
+          echo "release.prerelease=${{ github.event.release.prerelease }}"
+          echo "ref=${{ github.ref }}"
+          echo "ref_name=${{ github.ref_name }}"
+          echo "needs.tag_name=${{ needs.test_the_release.outputs.tag_name }}"
+          echo "needs.prerelease=${{ needs.test_the_release.outputs.prerelease }}"
+          echo "repository=${{ github.repository }}"
+          echo "repository_owner=${{ github.repository_owner }}"
+
+      - name: Set up Node.js for publishing
+        if: ${{ github.repository_owner == 'konveyor' && github.event_name == 'release' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Publish to VS Code Marketplace (release)
+        if: ${{ github.event_name == 'release' && github.event.action == 'published' && needs.test_the_release.outputs.prerelease == 'false' && github.repository_owner == 'konveyor' }}
+        run: |
+          echo "Publishing ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix"
+          echo "File path: ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix"
+          echo "Tag name: ${{ needs.test_the_release.outputs.tag_name }}"
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Event name: ${{ github.event_name }}"
+          npx vsce publish --packagePath ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix --pat ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+
+      - name: Publish to VS Code Marketplace (pre-release)
+        if: ${{ github.event_name == 'release' && github.event.action == 'published' && needs.test_the_release.outputs.prerelease == 'true' && github.repository_owner == 'konveyor' }}
+        run: |
+          echo "Publishing (pre-release) ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix"
+          echo "Tag name: ${{ needs.test_the_release.outputs.tag_name }}"
+          npx vsce publish --pre-release --packagePath ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
       - name: Create Release
-        if: ${{ github.event.inputs.dry-run == 'false' }}
+        if: ${{ github.event.inputs.dry-run == 'false'}}
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ needs.test_the_release.outputs.tag_name }}

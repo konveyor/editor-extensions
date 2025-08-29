@@ -32,9 +32,6 @@
     "node": ">=22.9.0",
     "npm": "^9.5.0 || >=10.5.2"
   },
-  "enabledApiProposals": [
-    "contribDiffEditorGutterToolBarMenus"
-  ],
   "extensionDependencies": [
     "redhat.java"
   ],
