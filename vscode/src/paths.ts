@@ -211,7 +211,7 @@ export async function ensurePaths(
   _paths = {
     extResources,
     workspaceRepo: firstWorkspace.uri,
-    data: await ensureDirectory(workspaceRepoScope, "konveyor"),
+    data: await ensureDirectory(workspaceRepoScope, EXTENSION_NAME.toLowerCase()),
     settings: await ensureDirectory(settings),
     settingsYaml,
     serverCwd: await ensureDirectory(workspaceScope, "kai-rpc-server"),
