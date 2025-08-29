@@ -11,7 +11,6 @@ import {
 
 import type { ApplyState, DiffLine } from "../types";
 import type { VerticalDiffCodeLens } from "./manager";
-import { EXTENSION_NAME } from "../../utilities/constants";
 
 export interface VerticalDiffHandlerOptions {
   input?: string;
@@ -90,7 +89,7 @@ export class VerticalDiffHandler implements vscode.Disposable {
   }
 
   async clear(accept: boolean) {
-    vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.streamingDiff`, false);
+    vscode.commands.executeCommand("setContext", "konveyor.streamingDiff", false);
 
     const removedRanges = this.removedLineDecorations.ranges;
     if (accept) {

@@ -11,7 +11,6 @@ import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
-import { getBrandName } from "../utils/branding";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -89,7 +88,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
               key="ask-continue-konveyor"
               onClick={() => onGetSolutionWithKonveyorContext(incidents[0])}
             >
-              Ask Continue with {getBrandName()} Context
+              Ask Continue with Konveyor Context
             </DropdownItem>
           )}
         </DropdownGroup>

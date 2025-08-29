@@ -10,7 +10,6 @@ import { pipeline } from "node:stream/promises";
 import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
-import { EXTENSION_NAME } from "./utilities/constants";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -114,7 +113,7 @@ export async function ensureKaiAnalyzerBinary(
 
   logger.info(`kai-analyzer-rpc not found at ${kaiAnalyzerPath}, downloading...`);
 
-  const fallbackConfig = packageJson[`${EXTENSION_NAME}.fallbackAssets`];
+  const fallbackConfig = packageJson["konveyor.fallbackAssets"];
   if (!fallbackConfig) {
     throw new Error("No fallback asset configuration found in package.json");
   }

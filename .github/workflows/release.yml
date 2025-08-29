@@ -20,6 +20,11 @@ on:
         required: false
         type: boolean
         default: false
+      publish_marketplace:
+        description: "Publish to VS Code Marketplace?"
+        required: false
+        type: boolean
+        default: false
 
 # https://typicode.github.io/husky/how-to.html#ci-server-and-docker
 env:
@@ -141,6 +146,7 @@ jobs:
           Tag: __${{ needs.test_the_release.outputs.tag_name }}__
           Pre-Release: __${{ github.event.inputs.prerelease }}__
           Dry run? __${{ github.event.inputs.dry-run}}__
+          Publish to Marketplace? __${{ github.event.inputs.publish_marketplace }}__
           EOF
 
       - name: Checkout code
@@ -170,6 +176,25 @@ jobs:
       - name: Rename VSIX Packages
         run: |
           mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix
+
+      - name: Set up Node.js for publishing
+        if: ${{ github.event.inputs.prerelease == 'false' && github.event.inputs.dry-run == 'false' && github.event.inputs.publish_marketplace == 'true' && github.repository_owner == 'hhpatel14' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Publish to VS Code Marketplace
+        if: ${{ github.event.inputs.prerelease == 'false' && github.event.inputs.dry-run == 'false' && github.event.inputs.publish_marketplace == 'true' && github.repository_owner == 'hhpatel14' }}
+        run: |
+          echo "TEST MODE: Would publish ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix"
+          echo "File path: ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix"
+          echo "Tag name: ${{ needs.test_the_release.outputs.tag_name }}"
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Prerelease: ${{ github.event.inputs.prerelease }}"
+          echo "Dry run: ${{ github.event.inputs.dry-run }}"
+          echo "Publish to Marketplace: ${{ github.event.inputs.publish_marketplace }}"
+          # npx vsce publish --packagePath ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix --pat ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Create Release
         if: ${{ github.event.inputs.dry-run == 'false' }}

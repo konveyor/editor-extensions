@@ -3,7 +3,6 @@ import { ExtensionState } from "./extensionState";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import { DiagnosticSource } from "@editor-extensions/shared";
-import { EXTENSION_NAME } from "./utilities/constants";
 export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
   static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
@@ -63,7 +62,7 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
 
     const askKaiAction = new vscode.CodeAction("Ask Kai", vscode.CodeActionKind.QuickFix);
     askKaiAction.command = {
-      command: `${EXTENSION_NAME}.getSolution`,
+      command: "konveyor.getSolution",
       title: "Ask Kai",
       arguments: [[incident]],
     };
@@ -77,7 +76,7 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
       );
 
       askContinueAction.command = {
-        command: `${EXTENSION_NAME}.askContinue`,
+        command: "konveyor.askContinue",
         title: "Ask Continue with Konveyor Context",
         arguments: [incident],
       };

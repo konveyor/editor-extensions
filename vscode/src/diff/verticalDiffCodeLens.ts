@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { VerticalDiffManager } from "./vertical/manager";
-import { EXTENSION_NAME } from "../utilities/constants";
 
 export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider, vscode.Disposable {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
@@ -27,12 +26,12 @@ export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider, vs
     codeLenses.push(
       new vscode.CodeLens(topRange, {
         title: `✓ Accept All Changes (${blocks.reduce((sum, b) => sum + b.numGreen, 0)}+, ${blocks.reduce((sum, b) => sum + b.numRed, 0)}-)`,
-        command: `${EXTENSION_NAME}.acceptDiff`,
+        command: "konveyor.acceptDiff",
         arguments: [document.uri.fsPath],
       }),
       new vscode.CodeLens(topRange, {
         title: "✗ Reject All Changes",
-        command: `${EXTENSION_NAME}.rejectDiff`,
+        command: "konveyor.rejectDiff",
         arguments: [document.uri.fsPath],
       }),
     );
@@ -43,12 +42,12 @@ export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider, vs
       codeLenses.push(
         new vscode.CodeLens(range, {
           title: `✓ Accept (${block.numGreen}+, ${block.numRed}-)`,
-          command: `${EXTENSION_NAME}.acceptVerticalDiffBlock`,
+          command: "konveyor.acceptVerticalDiffBlock",
           arguments: [fileUri, index],
         }),
         new vscode.CodeLens(range, {
           title: "✗ Reject",
-          command: `${EXTENSION_NAME}.rejectVerticalDiffBlock`,
+          command: "konveyor.rejectVerticalDiffBlock",
           arguments: [fileUri, index],
         }),
       );

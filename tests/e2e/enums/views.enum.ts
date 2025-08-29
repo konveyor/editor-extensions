@@ -1,7 +1,5 @@
-import { getAnalysisViewTitle } from '../utilities/utils';
-
-export const KAIViews = {
-  manageProfiles: 'Manage Profiles',
-  resolutionDetails: 'Resolution Details',
-  analysisView: getAnalysisViewTitle(),
-} as const;
+export enum KAIViews {
+  manageProfiles = 'Manage Profiles',
+  resolutionDetails = 'Resolution Details',
+  analysisView = 'Konveyor Analysis View',
+}

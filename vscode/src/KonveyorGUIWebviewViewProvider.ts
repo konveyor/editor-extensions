@@ -17,14 +17,13 @@ import { getNonce } from "./utilities/getNonce";
 import { ExtensionData, WebviewType } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import jsesc from "jsesc";
-import { EXTENSION_NAME } from "./utilities/constants";
 
 const DEV_SERVER_ROOT = "http://localhost:5173/out/webview";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
-  public static readonly SIDEBAR_VIEW_TYPE = `${EXTENSION_NAME}.analysisView`;
-  public static readonly RESOLUTION_VIEW_TYPE = `${EXTENSION_NAME}.resolutionView`;
-  public static readonly PROFILES_VIEW_TYPE = `${EXTENSION_NAME}.profilesView`;
+  public static readonly SIDEBAR_VIEW_TYPE = "konveyor.konveyorAnalysisView";
+  public static readonly RESOLUTION_VIEW_TYPE = "konveyor.konveyorResolutionView";
+  public static readonly PROFILES_VIEW_TYPE = "konveyor.konveyorProfilesView";
 
   private static instance: KonveyorGUIWebviewViewProvider;
   private _disposables: Disposable[] = [];
@@ -61,7 +60,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         case "sidebar":
           return {
             viewType: KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
-            title: `${EXTENSION_NAME.charAt(0).toUpperCase() + EXTENSION_NAME.slice(1)} Analysis View`,
+            title: "Konveyor Analysis View",
           };
         case "resolution":
           return {

@@ -5,16 +5,15 @@ import { Immutable } from "immer";
 import { ExtensionData, RuleSet } from "@editor-extensions/shared";
 import { expandAll, expandChildren } from "./expandCommands";
 import { executeExtensionCommand } from "../commands";
-import { EXTENSION_NAME } from "../utilities/constants";
 
 export function registerIssueView({
   extensionContext: context,
   issueModel: model,
 }: ExtensionState): (data: Immutable<ExtensionData>) => void {
   const provider = new IssuesTreeDataProvider(model);
-  vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.issueView`, provider);
+  vscode.window.registerTreeDataProvider("konveyor.issueView", provider);
   const treeView = vscode.window.createTreeView<IncidentTypeItem | FileItem | ReferenceItem>(
-    `${EXTENSION_NAME}.issueView`,
+    "konveyor.issueView",
     {
       treeDataProvider: provider,
       showCollapseAll: true,
@@ -36,11 +35,9 @@ export function registerIssueView({
     }
   });
 
-  vscode.commands.registerCommand(`${EXTENSION_NAME}.expandAllIssues`, () =>
-    expandAll(model, treeView),
-  );
+  vscode.commands.registerCommand("konveyor.expandAllIssues", () => expandAll(model, treeView));
   vscode.commands.registerCommand(
-    `${EXTENSION_NAME}.expandSingleIssue`,
+    "konveyor.expandSingleIssue",
     (item: IncidentTypeItem | FileItem | ReferenceItem) => expandChildren(item, treeView),
   );
 
