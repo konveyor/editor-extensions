@@ -15,7 +15,6 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { Configuration } from '../../pages/configuration.page';
-import { ConfigurationOptions } from '../../enums/configuration-options.enum';
 import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { MCPClient } from '../../../mcp-client/mcp-client.model';
 import {
@@ -27,6 +26,7 @@ import { KAIViews } from '../../enums/views.enum';
 import * as path from 'path';
 import * as fs from 'fs';
 import { TestLogger } from '../../utilities/logger';
+import { solutionServerEnabled } from '../../enums/configuration-options.enum';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -127,7 +127,7 @@ class SolutionServerWorkflowHelper {
   private async configureSolutionServer(vsCode: VSCode, appName: string): Promise<void> {
     try {
       const config = await Configuration.open(vsCode);
-      await config.setEnabledConfiguration(ConfigurationOptions.SolutionServerEnabled, true);
+      await config.setEnabledConfiguration(solutionServerEnabled, true);
 
       await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
       await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
