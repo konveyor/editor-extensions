@@ -11,6 +11,7 @@ import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
+import AdmZip from "adm-zip";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -57,7 +58,7 @@ async function ensureDirectory(uri: vscode.Uri, ...parts: string[]): Promise<vsc
 }
 
 /**
- * Downloads the kai-analyzer-rpc binary for the current platform if it doesn't exist
+ * Downloads and extracts the kai-analyzer-rpc binary from .zip file for the current platform if it doesn't exist
  */
 export async function ensureKaiAnalyzerBinary(
   context: vscode.ExtensionContext,
@@ -76,16 +77,11 @@ export async function ensureKaiAnalyzerBinary(
     const isValid = await checkIfExecutable(userAnalyzerPath);
     if (!isValid) {
       logger.warn(
-        `Invalid analyzer path detected at startup: ${userAnalyzerPath}. Resetting to default.`,
+        `Invalid analyzer path detected at startup: ${userAnalyzerPath}. Using bundled binary.`,
       );
-
-      // Reset the configuration to undefined
-      await updateAnalyzerPath(undefined);
-
-      // Show error message to user
       vscode.window.showErrorMessage(
         `The configured analyzer binary path is invalid: ${userAnalyzerPath}. ` +
-          `The setting has been reset to use the bundled binary.`,
+          `Using bundled binary.`,
       );
     } else {
       logger.info(`User-configured analyzer path is valid: ${userAnalyzerPath}`);
@@ -98,6 +94,7 @@ export async function ensureKaiAnalyzerBinary(
     kai: "./kai",
     ...packageJson.includedAssetPaths,
   };
+
   const platformKey = `${platform}-${arch}`;
 
   // Convert to absolute paths
@@ -114,32 +111,39 @@ export async function ensureKaiAnalyzerBinary(
 
   logger.info(`kai-analyzer-rpc not found at ${kaiAnalyzerPath}, downloading...`);
 
-  const fallbackConfig = packageJson[`${EXTENSION_NAME}.fallbackAssets`];
+  const fallbackConfig = packageJson["fallbackAssets"];
   if (!fallbackConfig) {
     throw new Error("No fallback asset configuration found in package.json");
   }
 
   const assetConfig = fallbackConfig.assets[platformKey];
-
   if (!assetConfig) {
     throw new Error(`No fallback asset available for platform: ${platformKey}`);
   }
 
   const downloadUrl = `${fallbackConfig.baseUrl}${assetConfig.file}`;
+  const expectedSha256 = assetConfig.sha256;
+
+  logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
+  logger.info(`Expected SHA256: ${expectedSha256}`);
+
+  if (!expectedSha256) {
+    throw new Error("No SHA256 provided in asset configuration");
+  }
 
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: "Downloading kai-analyzer-rpc",
+      title: "Downloading Analyzer Binary",
       cancellable: false,
     },
     async (progress) => {
-      progress.report({ message: "Downloading..." });
+      progress.report({ message: "Downloading zip file..." });
 
       // Create target directory
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
 
-      // Download file
+      // Download zip file
       const response = await fetch(downloadUrl);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -149,26 +153,67 @@ export async function ensureKaiAnalyzerBinary(
         throw new Error("Response body is null");
       }
 
-      const fileStream = createWriteStream(kaiAnalyzerPath);
+      const tempZipPath = join(dirname(kaiAnalyzerPath), assetConfig.file);
+      const fileStream = createWriteStream(tempZipPath);
       await pipeline(response.body as any, fileStream);
 
       progress.report({ message: "Verifying..." });
 
       // Verify SHA256
       const hash = createHash("sha256");
-      const verifyStream = createReadStream(kaiAnalyzerPath);
+      const verifyStream = createReadStream(tempZipPath);
       await pipeline(verifyStream, hash);
       const actualSha256 = hash.digest("hex");
+      logger.info(`Actual SHA256: ${actualSha256}`);
 
-      if (actualSha256 !== assetConfig.sha256) {
+      if (actualSha256 !== expectedSha256) {
         try {
-          await unlink(kaiAnalyzerPath);
+          await unlink(tempZipPath);
         } catch (err) {
-          logger.error(`Error deleting file: ${kaiAnalyzerPath}`, err);
+          logger.error(`Error deleting file: ${tempZipPath}`, err);
         }
+        throw new Error(`SHA256 mismatch. Expected: ${expectedSha256}, Actual: ${actualSha256}`);
+      }
+
+      progress.report({ message: "Extracting..." });
+
+      // Extract zip file
+      const zip = new AdmZip(tempZipPath);
+      const zipEntries = zip.getEntries();
+
+      // Get expected binary name from asset configuration
+      const expectedBinaryName = assetConfig.binaryName;
+      if (!expectedBinaryName) {
         throw new Error(
-          `SHA256 mismatch. Expected: ${assetConfig.sha256}, Actual: ${actualSha256}`,
+          `No binary name specified in asset configuration for platform: ${platformKey}`,
         );
+      }
+
+      // Find the binary in the zip by expected name
+      const binaryEntry = zipEntries.find((entry) => {
+        const name = entry.entryName;
+        return name === expectedBinaryName || name.endsWith(`/${expectedBinaryName}`);
+      });
+
+      if (!binaryEntry) {
+        throw new Error(`Could not find ${expectedBinaryName} binary in zip file`);
+      }
+
+      // Extract the binary to the target location
+      zip.extractEntryTo(binaryEntry, dirname(kaiAnalyzerPath), false, true);
+
+      // Rename extracted file to expected name if necessary
+      const extractedPath = join(dirname(kaiAnalyzerPath), binaryEntry.entryName);
+      if (extractedPath !== kaiAnalyzerPath) {
+        const fs = await import("node:fs/promises");
+        await fs.rename(extractedPath, kaiAnalyzerPath);
+      }
+
+      // Clean up zip file
+      try {
+        await unlink(tempZipPath);
+      } catch (err) {
+        logger.warn(`Could not delete temporary zip file: ${tempZipPath}`, err);
       }
 
       // Make executable on Unix systems

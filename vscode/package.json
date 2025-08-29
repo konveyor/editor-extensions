@@ -574,31 +574,6 @@
     "openSourceLabelsFile": "../downloaded_assets/opensource-labels-file/maven.default.index",
     "rulesets": "../downloaded_assets/rulesets"
   },
-  "konveyor.fallbackAssets": {
-    "baseUrl": "https://github.com/konveyor/kai/releases/download/v0.2.0-pre.2/",
-    "assets": {
-      "linux-x64": {
-        "file": "kai-analyzer-rpc-linux-x86_64",
-        "sha256": "58d88fe81f2507974026cbc216f1e31e5596391cf422e783a6bb55e97816ee86"
-      },
-      "linux-arm64": {
-        "file": "kai-analyzer-rpc-linux-aarch64",
-        "sha256": "6d097960db24c77177f36f775c529861705e73f61eab0dff052aa9c52ce7a5b9"
-      },
-      "darwin-x64": {
-        "file": "kai-analyzer-rpc-macos-x86_64",
-        "sha256": "c6fc52b55426ee730a1290b662bffdba6a372ee50febda1938e4435e91227810"
-      },
-      "darwin-arm64": {
-        "file": "kai-analyzer-rpc-macos-arm64",
-        "sha256": "408243c994517528c7dbc7f4828ddb2c17bb51a2f21a2b73a6121f651174674a"
-      },
-      "win32-x64": {
-        "file": "kai-analyzer-rpc-windows-X64.exe",
-        "sha256": "f512bf519f529f5aad9b7a3cfba79125f8ec1a372afed01da2a1716bb76bfe78"
-      }
-    }
-  },
   "scripts": {
     "clean": "rimraf out",
     "lint": "eslint .",
