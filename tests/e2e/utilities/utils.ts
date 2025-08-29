@@ -10,6 +10,11 @@ export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
 export const extensionId = `${extensionPublisher}.${extensionName}`;
 
+// Function to get the analysis view title based on extension name
+export function getAnalysisViewTitle(): string {
+  return `${extensionName.charAt(0).toUpperCase() + extensionName.slice(1)} Analysis View`;
+}
+
 // Function to get OS information
 export function getOSInfo(): string {
   const platform: NodeJS.Platform = os.platform();

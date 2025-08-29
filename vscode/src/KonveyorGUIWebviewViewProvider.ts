@@ -61,7 +61,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         case "sidebar":
           return {
             viewType: KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
-            title: `${EXTENSION_NAME.toUpperCase()} Analysis View`,
+            title: `${EXTENSION_NAME.charAt(0).toUpperCase() + EXTENSION_NAME.slice(1)} Analysis View`,
           };
         case "resolution":
           return {
