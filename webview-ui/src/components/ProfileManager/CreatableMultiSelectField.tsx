@@ -91,6 +91,7 @@ export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps>
         ? value.filter((v) => v !== selectedVal)
         : [...value, selectedVal];
       onChange(updated);
+      setInputValue("");
     }
 
     textInputRef.current?.focus();
