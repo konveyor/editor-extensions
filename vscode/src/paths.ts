@@ -10,6 +10,7 @@ import { pipeline } from "node:stream/promises";
 import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
+import AdmZip from "adm-zip";
 
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
@@ -56,7 +57,7 @@ async function ensureDirectory(uri: vscode.Uri, ...parts: string[]): Promise<vsc
 }
 
 /**
- * Downloads the kai-analyzer-rpc binary for the current platform if it doesn't exist
+ * Downloads and extracts the kai-analyzer-rpc binary from .zip file for the current platform if it doesn't exist
  */
 export async function ensureKaiAnalyzerBinary(
   context: vscode.ExtensionContext,
@@ -97,7 +98,22 @@ export async function ensureKaiAnalyzerBinary(
     kai: "./kai",
     ...packageJson.includedAssetPaths,
   };
+
+  // Map platform/arch to the new naming convention
+  const platformMap: Record<string, string> = {
+    "linux-x64": "linux-amd64",
+    "linux-arm64": "linux-arm64",
+    "darwin-x64": "darwin-amd64",
+    "darwin-arm64": "darwin-arm64",
+    "win32-x64": "windows-amd64",
+  };
+
   const platformKey = `${platform}-${arch}`;
+  const mappedPlatform = platformMap[platformKey];
+
+  if (!mappedPlatform) {
+    throw new Error(`Unsupported platform: ${platformKey}`);
+  }
 
   // Convert to absolute paths
   const kaiDir = context.asAbsolutePath(assetPaths.kai);
@@ -113,18 +129,29 @@ export async function ensureKaiAnalyzerBinary(
 
   logger.info(`kai-analyzer-rpc not found at ${kaiAnalyzerPath}, downloading...`);
 
-  const fallbackConfig = packageJson["konveyor.fallbackAssets"];
+  const fallbackConfig = packageJson["fallbackAssets"];
   if (!fallbackConfig) {
     throw new Error("No fallback asset configuration found in package.json");
   }
 
   const assetConfig = fallbackConfig.assets[platformKey];
-
   if (!assetConfig) {
     throw new Error(`No fallback asset available for platform: ${platformKey}`);
   }
 
+  // Support both old direct file format and new .zip format
+  const isZipFile = assetConfig.file.endsWith(".zip");
   const downloadUrl = `${fallbackConfig.baseUrl}${assetConfig.file}`;
+  let sha256Url: string | undefined;
+  let expectedSha256: string;
+
+  if (assetConfig.sha256) {
+    // SHA256 is provided in the config (old format)
+    expectedSha256 = assetConfig.sha256;
+  } else {
+    // Fetch SHA256 from separate file (new format)
+    sha256Url = `${fallbackConfig.baseUrl}${assetConfig.file}.sha256`;
+  }
 
   await vscode.window.withProgress(
     {
@@ -133,7 +160,17 @@ export async function ensureKaiAnalyzerBinary(
       cancellable: false,
     },
     async (progress) => {
-      progress.report({ message: "Downloading..." });
+      // Fetch SHA256 if not provided in config
+      if (sha256Url) {
+        progress.report({ message: "Fetching SHA256..." });
+        const sha256Response = await fetch(sha256Url);
+        if (!sha256Response.ok) {
+          throw new Error(`Failed to fetch SHA256: HTTP ${sha256Response.status}`);
+        }
+        expectedSha256 = (await sha256Response.text()).trim();
+      }
+
+      progress.report({ message: isZipFile ? "Downloading zip file..." : "Downloading file..." });
 
       // Create target directory
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
@@ -148,26 +185,63 @@ export async function ensureKaiAnalyzerBinary(
         throw new Error("Response body is null");
       }
 
-      const fileStream = createWriteStream(kaiAnalyzerPath);
+      const tempFilePath = isZipFile
+        ? join(dirname(kaiAnalyzerPath), assetConfig.file)
+        : kaiAnalyzerPath;
+
+      const fileStream = createWriteStream(tempFilePath);
       await pipeline(response.body as any, fileStream);
 
       progress.report({ message: "Verifying..." });
 
       // Verify SHA256
       const hash = createHash("sha256");
-      const verifyStream = createReadStream(kaiAnalyzerPath);
+      const verifyStream = createReadStream(tempFilePath);
       await pipeline(verifyStream, hash);
       const actualSha256 = hash.digest("hex");
 
-      if (actualSha256 !== assetConfig.sha256) {
+      if (actualSha256 !== expectedSha256) {
         try {
-          await unlink(kaiAnalyzerPath);
+          await unlink(tempFilePath);
         } catch (err) {
-          logger.error(`Error deleting file: ${kaiAnalyzerPath}`, err);
+          logger.error(`Error deleting file: ${tempFilePath}`, err);
         }
-        throw new Error(
-          `SHA256 mismatch. Expected: ${assetConfig.sha256}, Actual: ${actualSha256}`,
-        );
+        throw new Error(`SHA256 mismatch. Expected: ${expectedSha256}, Actual: ${actualSha256}`);
+      }
+
+      if (isZipFile) {
+        progress.report({ message: "Extracting..." });
+
+        // Extract zip file
+        const zip = new AdmZip(tempFilePath);
+        const zipEntries = zip.getEntries();
+
+        // Find the binary in the zip (assuming it's the only executable or follows a pattern)
+        const binaryEntry = zipEntries.find((entry) => {
+          const name = entry.entryName;
+          return name.includes("kai-analyzer-rpc") && !name.endsWith("/");
+        });
+
+        if (!binaryEntry) {
+          throw new Error("Could not find kai-analyzer-rpc binary in zip file");
+        }
+
+        // Extract the binary to the target location
+        zip.extractEntryTo(binaryEntry, dirname(kaiAnalyzerPath), false, true);
+
+        // Rename extracted file to expected name if necessary
+        const extractedPath = join(dirname(kaiAnalyzerPath), binaryEntry.entryName);
+        if (extractedPath !== kaiAnalyzerPath) {
+          const fs = await import("node:fs/promises");
+          await fs.rename(extractedPath, kaiAnalyzerPath);
+        }
+
+        // Clean up zip file
+        try {
+          await unlink(tempFilePath);
+        } catch (err) {
+          logger.warn(`Could not delete temporary zip file: ${tempFilePath}`, err);
+        }
       }
 
       // Make executable on Unix systems
