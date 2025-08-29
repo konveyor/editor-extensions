@@ -229,6 +229,31 @@ class VsCodeExtension {
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
+      // Check for problematic solutionServer.auth configuration (should be an object, not boolean)
+      const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+      const authConfig = config.get("solutionServer.auth");
+      if (typeof authConfig === "boolean") {
+        this.state.logger.warn(
+          "Detected invalid configuration 'konveyor.solutionServer.auth' set to boolean. This setting should not be a boolean and can cause problems with other configuration keys.",
+        );
+        vscode.window
+          .showWarningMessage(
+            "Invalid configuration detected: 'konveyor.solutionServer.auth' is set to a boolean value (true/false). " +
+              "Please remove this setting from your VS Code settings. " +
+              "Use 'konveyor.solutionServer.auth.enabled' instead. " +
+              "This invalid setting can cause problems with other configuration options below it.",
+            "Open Settings",
+          )
+          .then((selection) => {
+            if (selection === "Open Settings") {
+              vscode.commands.executeCommand(
+                "workbench.action.openSettings",
+                "konveyor.solutionServer",
+              );
+            }
+          });
+      }
+
       // Get credentials for solution server client if solution server and auth are both enabled
       if (getConfigSolutionServerEnabled() && getConfigSolutionServerAuth()) {
         const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
