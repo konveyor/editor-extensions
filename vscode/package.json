@@ -424,25 +424,28 @@
           "order": 10
         },
         "konveyor.analysis.incidentLimit": {
-          "type": "number",
+          "type": "integer",
           "default": 10000,
           "description": "Maximum number of incidents to report",
           "scope": "window",
-          "order": 11
+          "order": 11,
+          "minimum": 1
         },
         "konveyor.analysis.contextLines": {
-          "type": "number",
+          "type": "integer",
           "default": 10,
           "description": "Number of lines of context to include in incident reports.",
           "scope": "window",
-          "order": 12
+          "order": 12,
+          "minimum": 1
         },
         "konveyor.analysis.codeSnipLimit": {
-          "type": "number",
+          "type": "integer",
           "default": 10,
           "description": "Number of lines of code to include in incident reports.",
           "scope": "window",
-          "order": 13
+          "order": 13,
+          "minimum": 1
         },
         "konveyor.analysis.analyzeKnownLibraries": {
           "type": "boolean",
@@ -518,6 +521,8 @@
         "konveyor.solutionServer.url": {
           "type": "string",
           "default": "http://localhost:8000",
+          "pattern": "^https?://.*",
+          "patternErrorMessage": "The URL must start with http:// or https://",
           "description": "URL for the MCP solution server endpoint.",
           "scope": "window",
           "order": 31
