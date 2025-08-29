@@ -423,7 +423,7 @@
           "scope": "window",
           "order": 4
         },
-        "konveyor.solutionServer.auth": {
+        "konveyor.solutionServer.auth.enabled": {
           "type": "boolean",
           "default": false,
           "description": "Enable authentication for the solution server.",

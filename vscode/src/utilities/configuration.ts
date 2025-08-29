@@ -22,7 +22,7 @@ export const getConfigSolutionServerUrl = (): string =>
 export const getConfigSolutionServerEnabled = (): boolean =>
   getConfigValue<boolean>("solutionServer.enabled") ?? false;
 export const getConfigSolutionServerAuth = (): boolean =>
-  getConfigValue<boolean>("solutionServer.auth") ?? false;
+  getConfigValue<boolean>("solutionServer.auth.enabled") ?? false;
 export const getConfigSolutionServerRealm = (): string =>
   getConfigValue<string>("solutionServer.auth.realm") || "tackle";
 export const getConfigSolutionServerInsecure = (): boolean =>
