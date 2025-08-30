@@ -299,27 +299,68 @@ class VsCodeExtension {
           });
       }
 
-      // Connection poll to catch network issues and missed connection state changes
-      const connectionPollInterval = setInterval(async () => {
-        if (getConfigSolutionServerEnabled()) {
+      // Adaptive connection polling with exponential backoff
+      let pollInterval = 10000; // Start at 10 seconds
+      let consecutiveFailures = 0;
+      let pollTimeout: NodeJS.Timeout | undefined;
+
+      const scheduleNextPoll = () => {
+        if (pollTimeout) {
+          clearTimeout(pollTimeout);
+        }
+
+        pollTimeout = setTimeout(async () => {
+          // Only poll if solution server is enabled and we should be connected
+          if (!getConfigSolutionServerEnabled()) {
+            scheduleNextPoll();
+            return;
+          }
+
           try {
-            // Try to get server capabilities to check if connection is alive
             await this.state.solutionServerClient.getServerCapabilities();
-            // If we get here, connection is working
+            // Success - reset failure count and use base interval
+            consecutiveFailures = 0;
+            pollInterval = 10000;
+
             this.state.mutateData((draft) => {
               draft.solutionServerConnected = true;
             });
           } catch {
-            // If we can't get capabilities, assume disconnected
+            // Failure - increase backoff interval
+            consecutiveFailures++;
             this.state.mutateData((draft) => {
               draft.solutionServerConnected = false;
             });
+
+            // Exponential backoff: 10s -> 30s -> 60s (max)
+            if (consecutiveFailures === 1) {
+              pollInterval = 30000;
+            } else if (consecutiveFailures >= 2) {
+              pollInterval = 60000;
+            }
           }
-        }
-      }, 2000); // Check every 2 seconds to catch network issues quickly
+
+          // Schedule next poll unless we've had too many failures
+          if (consecutiveFailures < 5) {
+            scheduleNextPoll();
+          } else {
+            // Stop polling after 5 consecutive failures - will resume on manual retry or config change
+            this.state.logger.info(
+              "Stopping connection polling after repeated failures. Will resume on demand.",
+            );
+          }
+        }, pollInterval);
+      };
+
+      // Start the adaptive polling
+      scheduleNextPoll();
 
       this.listeners.push({
-        dispose: () => clearInterval(connectionPollInterval),
+        dispose: () => {
+          if (pollTimeout) {
+            clearTimeout(pollTimeout);
+          }
+        },
       });
 
       this.checkJavaExtensionInstalled();
@@ -460,6 +501,13 @@ class VsCodeExtension {
               // Let the connection poll handle updating the connection status
               draft.solutionServerConnected = false;
             });
+
+            // Resume polling if it was stopped due to failures
+            if (solutionServerEnabled) {
+              consecutiveFailures = 0;
+              pollInterval = 10000;
+              scheduleNextPoll();
+            }
           }
 
           if (
@@ -476,6 +524,13 @@ class VsCodeExtension {
               // Let the connection poll handle updating the connection status
               draft.solutionServerConnected = false;
             });
+
+            // Resume polling if enabled and it was stopped due to failures
+            if (solutionServerEnabled) {
+              consecutiveFailures = 0;
+              pollInterval = 10000;
+              scheduleNextPoll();
+            }
 
             vscode.window
               .showInformationMessage(
