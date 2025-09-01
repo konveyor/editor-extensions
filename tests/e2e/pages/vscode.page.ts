@@ -346,7 +346,6 @@ export class VSCode extends BasePage {
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
-    await this.waitDefault();
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
   }
 
