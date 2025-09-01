@@ -59,7 +59,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
   });
 
   // TODO (abrugaro): This test is affected by https://github.com/konveyor/editor-extensions/issues/720, enable the test once the issue fixed
-  test.skip("Use a non-existing path and verify the server doesn't start", async () => {
+  test("Use a non-existing path and verify the server doesn't start", async () => {
     const configPage = await Configuration.open(vscodeApp);
     await configPage.setInputConfiguration(analyzerPath, 'nonExistingPath');
     await vscodeApp.openAnalysisView();
