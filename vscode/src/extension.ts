@@ -11,6 +11,7 @@ import {
 } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
+import { EXTENSION_NAME } from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
   InMemoryCacheWithRevisions,
@@ -20,7 +21,7 @@ import {
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
-import { ExtensionPaths, ensurePaths, paths } from "./paths";
+import { ExtensionPaths, ensurePaths, paths, ensureKaiAnalyzerBinary } from "./paths";
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
@@ -228,8 +229,8 @@ class VsCodeExtension {
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
-      // Get credentials for solution server client if auth is enabled
-      if (getConfigSolutionServerAuth()) {
+      // Get credentials for solution server client if solution server and auth are both enabled
+      if (getConfigSolutionServerEnabled() && getConfigSolutionServerAuth()) {
         const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
         if (credentials) {
           const authConfig = {
@@ -279,21 +280,24 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
-      this.state.solutionServerClient
-        .connect()
-        .then(() => {
-          // Update state to reflect successful connection
-          this.state.mutateData((draft) => {
-            draft.solutionServerConnected = true;
+      // Only attempt to connect if solution server is enabled
+      if (getConfigSolutionServerEnabled()) {
+        this.state.solutionServerClient
+          .connect()
+          .then(() => {
+            // Update state to reflect successful connection
+            this.state.mutateData((draft) => {
+              draft.solutionServerConnected = true;
+            });
+          })
+          .catch((error) => {
+            this.state.logger.error("Error connecting to solution server", error);
+            // Update state to reflect failed connection
+            this.state.mutateData((draft) => {
+              draft.solutionServerConnected = false;
+            });
           });
-        })
-        .catch((error) => {
-          this.state.logger.error("Error connecting to solution server", error);
-          // Update state to reflect failed connection
-          this.state.mutateData((draft) => {
-            draft.solutionServerConnected = false;
-          });
-        });
+      }
 
       // Connection poll to catch network issues and missed connection state changes
       const connectionPollInterval = setInterval(async () => {
@@ -402,9 +406,9 @@ class VsCodeExtension {
           this.state.logger.info("Configuration modified!");
 
           if (
-            event.affectsConfiguration("konveyor.kai.demoMode") ||
-            event.affectsConfiguration("konveyor.kai.cacheDir") ||
-            event.affectsConfiguration("konveyor.genai.enabled")
+            event.affectsConfiguration(`${EXTENSION_NAME}.kai.demoMode`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.kai.cacheDir`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.genai.enabled`)
           ) {
             this.setupModelProvider(paths().settingsYaml)
               .then((configError) => {
@@ -442,7 +446,7 @@ class VsCodeExtension {
               });
           }
 
-          if (event.affectsConfiguration("konveyor.kai.agentMode")) {
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.kai.agentMode`)) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
               draft.isAgentMode = agentMode;
@@ -459,8 +463,9 @@ class VsCodeExtension {
           }
 
           if (
-            event.affectsConfiguration("konveyor.solutionServer.url") ||
-            event.affectsConfiguration("konveyor.solutionServer.auth")
+            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.url`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.enabled`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.auth.enabled`)
           ) {
             this.state.logger.info("Solution server configuration modified!");
 
@@ -482,6 +487,37 @@ class VsCodeExtension {
                   vscode.commands.executeCommand("workbench.action.reloadWindow");
                 }
               });
+          }
+
+          if (event.affectsConfiguration("konveyor.analyzerPath")) {
+            this.state.logger.info("Analyzer path configuration modified!");
+
+            // Check if server is currently running
+            const wasServerRunning = this.state.analyzerClient.isServerRunning();
+
+            // Stop server if it's running
+            if (wasServerRunning) {
+              this.state.logger.info("Stopping analyzer server for binary path change...");
+              await this.state.analyzerClient.stop();
+            }
+
+            // Re-ensure the binary (this will validate and reset if needed)
+            await ensureKaiAnalyzerBinary(this.context, this.state.logger);
+
+            // Restart server if it was running before
+            if (wasServerRunning) {
+              this.state.logger.info("Restarting analyzer server after binary path change...");
+              try {
+                if (await this.state.analyzerClient.canAnalyzeInteractive()) {
+                  await this.state.analyzerClient.start();
+                }
+              } catch (error) {
+                this.state.logger.error("Error restarting analyzer server:", error);
+                vscode.window.showErrorMessage(
+                  `Failed to restart analyzer server after binary path change: ${error}`,
+                );
+              }
+            }
           }
         }),
       );
@@ -520,7 +556,7 @@ class VsCodeExtension {
   private setupDiffStatusBar(): void {
     this.diffStatusBarItem.name = "Konveyor Diff Status";
     this.diffStatusBarItem.tooltip = "Click to accept/reject all diff changes";
-    this.diffStatusBarItem.command = "konveyor.showDiffActions";
+    this.diffStatusBarItem.command = `${EXTENSION_NAME}.showDiffActions`;
     this.diffStatusBarItem.hide();
 
     // Update status bar when active editor changes

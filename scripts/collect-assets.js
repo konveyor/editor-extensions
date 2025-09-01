@@ -13,7 +13,7 @@ const cli = parseCli(
   {
     org: "konveyor",
     repo: "kai",
-    releaseTag: "v0.2.0-pre.1",
+    releaseTag: "v0.2.0-pre.2",
     branch: "main",
     workflow: "build-and-push-binaries.yml",
     rulesetOrg: "konveyor",

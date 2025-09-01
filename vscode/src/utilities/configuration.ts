@@ -22,7 +22,7 @@ export const getConfigSolutionServerUrl = (): string =>
 export const getConfigSolutionServerEnabled = (): boolean =>
   getConfigValue<boolean>("solutionServer.enabled") ?? false;
 export const getConfigSolutionServerAuth = (): boolean =>
-  getConfigValue<boolean>("solutionServer.auth") ?? false;
+  getConfigValue<boolean>("solutionServer.auth.enabled") ?? false;
 export const getConfigSolutionServerRealm = (): string =>
   getConfigValue<string>("solutionServer.auth.realm") || "tackle";
 export const getConfigSolutionServerInsecure = (): boolean =>
@@ -64,8 +64,6 @@ export const getTraceDir = (workspaceRoot: string | undefined): string | undefin
   getWorkspaceRelativePath(getConfigValue<string>("kai.traceDir"), workspaceRoot);
 export const getTraceEnabled = (): boolean => getConfigValue<boolean>("kai.traceEnabled") || false;
 export const getConfigKaiDemoMode = (): boolean => getConfigValue<boolean>("kai.demoMode") ?? false;
-export const getConfigMaxLLMQueries = (): number | undefined =>
-  getConfigValue<number | null>("kai.getSolutionMaxLLMQueries") ?? undefined;
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
 export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("kai.agentMode") ?? false;
@@ -102,6 +100,11 @@ export const toggleAgentMode = async (): Promise<void> => {
   const currentValue = getConfigAgentMode();
   await updateConfigValue("kai.agentMode", !currentValue, vscode.ConfigurationTarget.Workspace);
 };
+
+export const enableGenAI = async (): Promise<void> => {
+  await updateConfigValue("genai.enabled", true, vscode.ConfigurationTarget.Workspace);
+};
+
 export const updateUseDefaultRuleSets = async (value: boolean): Promise<void> => {
   await updateConfigValue(
     "analysis.useDefaultRulesets",
@@ -171,6 +174,7 @@ export const updateConfigProfiles = async (profiles: AnalysisProfile[]): Promise
 export const updateConfigActiveProfileId = async (profileId: string): Promise<void> => {
   await updateConfigValue("activeProfileId", profileId, vscode.ConfigurationTarget.Workspace);
 };
+
 export function updateActiveProfileValidity(draft: ExtensionData, assetRulesetPath: string): void {
   const active = draft.profiles.find((p) => p.id === draft.activeProfileId);
   if (!active) {

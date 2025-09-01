@@ -218,9 +218,7 @@ const AnalysisPage: React.FC = () => {
               configErrors={rawConfigErrors}
               solutionServerEnabled={solutionServerEnabled}
               solutionServerConnected={solutionServerConnected}
-              onOpenProfileManager={() =>
-                dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
-              }
+              onOpenProfileManager={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
               dispatch={dispatch}
             />
             {selectedProfile && (

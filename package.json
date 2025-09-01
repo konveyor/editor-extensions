@@ -1,13 +1,13 @@
 {
   "name": "editor-extensions",
-  "version": "0.2.0-pre.1",
+  "version": "0.2.0-pre.2",
   "private": true,
   "displayName": "Konveyor",
   "description": "VSCode Extension for Konveyor to assist in migrating and modernizing applications.",
   "license": "Apache-2.0",
   "publisher": "Konveyor",
   "author": "Konveyor",
-  "icon": "vscode/resources/konveyor-icon-color.png",
+  "icon": "vscode/resources/icon.png",
   "homepage": "https://github.com/konveyor/editor-extensions/blob/main/README.md",
   "repository": {
     "type": "git",

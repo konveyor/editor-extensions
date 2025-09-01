@@ -30,6 +30,7 @@ import {
   updateAnalyzerPath,
   getConfigAgentMode,
   getAllConfigurationValues,
+  enableGenAI,
   getWorkspaceRelativePath,
   getTraceEnabled,
   getTraceDir,
@@ -788,6 +789,17 @@ const commandsMap: (
 
       await executeExtensionCommand("restartSolutionServer");
       logger.info("Solution server credentials updated successfully.");
+    },
+
+    [`${EXTENSION_NAME}.enableGenAI`]: async () => {
+      logger.info("Enabling GenAI functionality");
+      try {
+        await enableGenAI();
+        window.showInformationMessage("GenAI functionality has been enabled.");
+      } catch (error) {
+        logger.error("Error enabling GenAI:", error);
+        window.showErrorMessage(`Failed to enable GenAI: ${error}`);
+      }
     },
 
     [`${EXTENSION_NAME}.showDiffWithDecorations`]: async (

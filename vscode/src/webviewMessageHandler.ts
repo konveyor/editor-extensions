@@ -15,7 +15,6 @@ import {
   OPEN_FILE,
   OPEN_GENAI_SETTINGS,
   OVERRIDE_ANALYZER_BINARIES,
-  OVERRIDE_RPC_SERVER_BINARIES,
   OPEN_PROFILE_MANAGER,
   RUN_ANALYSIS,
   Scope,
@@ -23,6 +22,7 @@ import {
   START_SERVER,
   STOP_SERVER,
   RESTART_SOLUTION_SERVER,
+  ENABLE_GENAI,
   TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   WEBVIEW_READY,
@@ -161,9 +161,6 @@ const actions: {
   [OVERRIDE_ANALYZER_BINARIES]() {
     executeExtensionCommand("overrideAnalyzerBinaries");
   },
-  [OVERRIDE_RPC_SERVER_BINARIES]() {
-    executeExtensionCommand("overrideKaiRpcServerBinaries");
-  },
   [OPEN_GENAI_SETTINGS]() {
     executeExtensionCommand("modelProviderSettingsOpen");
   },
@@ -240,6 +237,9 @@ const actions: {
   },
   [RESTART_SOLUTION_SERVER]() {
     vscode.commands.executeCommand("konveyor.restartSolutionServer");
+  },
+  [ENABLE_GENAI]() {
+    executeExtensionCommand("enableGenAI");
   },
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");

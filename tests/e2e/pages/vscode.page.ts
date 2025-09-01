@@ -16,6 +16,8 @@ import { FixTypes } from '../enums/fix-types.enum';
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 
+type SortOrder = 'ascending' | 'descending';
+type ListKind = 'issues' | 'files';
 export class VSCode extends BasePage {
   constructor(
     app: ElectronApplication,
@@ -173,9 +175,28 @@ export class VSCode extends BasePage {
   public async startServer(): Promise<void> {
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
-    if (!(await analysisView.getByRole('button', { name: 'Stop' }).isVisible())) {
-      await analysisView.getByRole('button', { name: 'Start' }).click({ delay: 500 });
-      await analysisView.getByRole('button', { name: 'Stop' }).isEnabled({ timeout: 120000 });
+
+    try {
+      // Check if server is already running
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      const isServerRunning = await stopButton.isVisible();
+
+      if (!isServerRunning) {
+        console.log('Starting server...');
+        const startButton = analysisView.getByRole('button', { name: 'Start' });
+        await startButton.waitFor({ state: 'visible', timeout: 10000 });
+        await startButton.click({ delay: 500 });
+
+        // Wait for server to start (Stop button becomes enabled)
+        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
+        await stopButton.isEnabled({ timeout: 180000 });
+        console.log('Server started successfully');
+      } else {
+        console.log('Server is already running');
+      }
+    } catch (error) {
+      console.log('Error starting server:', error);
+      throw error;
     }
   }
 
@@ -197,15 +218,114 @@ export class VSCode extends BasePage {
   public async runAnalysis() {
     await this.window.waitForTimeout(15000);
     const analysisView = await this.getView(KAIViews.analysisView);
-    const runAnalysisBtnLocator = analysisView.getByRole('button', {
-      name: 'Run Analysis',
-    });
-    await expect(runAnalysisBtnLocator).toBeEnabled({ timeout: 600000 });
 
-    await runAnalysisBtnLocator.click();
-    await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
-      timeout: 30000,
+    try {
+      // Ensure server is running before attempting analysis
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      await expect(stopButton).toBeVisible({ timeout: 30000 });
+
+      const runAnalysisBtnLocator = analysisView.getByRole('button', {
+        name: 'Run Analysis',
+      });
+
+      console.log('Waiting for Run Analysis button to be enabled...');
+      await expect(runAnalysisBtnLocator).toBeEnabled({ timeout: 600000 });
+
+      console.log('Starting analysis...');
+      await runAnalysisBtnLocator.click();
+
+      console.log('Waiting for analysis progress indicator...');
+      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
+        timeout: 60000,
+      });
+      console.log('Analysis started successfully');
+    } catch (error) {
+      console.log('Error running analysis:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sets the list kind (issues or files) and sort order (ascending or descending) in the analysis view.
+   * @param kind - The kind of list to display ('issues' or 'files').
+   * @param order - The sort order ('ascending' or 'descending').
+   */
+  public async setListKindAndSort(kind: ListKind, order: SortOrder): Promise<void> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    const kindButton = analysisView.getByRole('button', {
+      name: kind === 'issues' ? 'Issues' : 'Files',
     });
+
+    await expect(kindButton).toBeVisible({ timeout: 5_000 });
+    await expect(kindButton).toBeEnabled({ timeout: 3_000 });
+    await kindButton.click();
+    await expect(kindButton).toHaveAttribute('aria-pressed', 'true');
+    const sortButton = analysisView.getByRole('button', {
+      name: order === 'ascending' ? 'Sort ascending' : 'Sort descending',
+    });
+    await expect(sortButton).toBeVisible({ timeout: 3_000 });
+    await sortButton.click();
+    await expect(sortButton).toHaveAttribute('aria-pressed', 'true');
+  }
+
+  /**
+   * Retrieves the names of items (issues or files) currently listed in the analysis view.
+   * @param _ - The kind of list ('issues' or 'files').
+   * @returns A promise that resolves to an array of item names.
+   */
+  async getListNames(_: ListKind): Promise<string[]> {
+    const view = await this.getView(KAIViews.analysisView);
+    const listCards = view
+      .locator('[data-ouia-component-type="PF6/Card"]')
+      .filter({ has: view.getByRole('heading', { level: 3 }) })
+      .filter({ has: view.getByRole('button', { name: /get solution/i }) });
+    const titles = listCards.getByRole('heading', { level: 3 });
+    await expect(titles.first()).toBeVisible({ timeout: 6_000 });
+
+    const texts = await titles.allInnerTexts();
+    return texts.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  }
+
+  /**
+   * Opens the category filter dropdown in the analysis view and returns its elements.
+   * @returns An object containing the category button, menu, and options locators.
+   */
+  public async openCategory() {
+    const view = await this.getView(KAIViews.analysisView);
+    const categoryBtn = view.getByRole('button', { name: /^Category(?:\s*\d+)?$/i });
+    await categoryBtn.scrollIntoViewIfNeeded();
+
+    await categoryBtn.click();
+    await expect(categoryBtn).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
+
+    const options = view.locator(
+      '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"]'
+    );
+
+    await expect(options.first()).toBeVisible({ timeout: 6000 });
+
+    return { categoryBtn, options };
+  }
+
+  /**
+   * Selects a category by its name or RegExp in the category filter dropdown in the analysis view.
+   * @param name - The name or RegExp of the category to select.
+   */
+  public async setCategoryByName(name: string | RegExp): Promise<void> {
+    const { categoryBtn, options } = await this.openCategory();
+    const toRegex = (s: string) =>
+      new RegExp(`^\\s*${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+
+    const opt =
+      typeof name === 'string'
+        ? options.filter({ hasText: toRegex(name) }).first()
+        : options.filter({ hasText: name as RegExp }).first();
+    await expect(opt).toBeVisible({ timeout: 5000 });
+    await opt.click();
+
+    if ((await categoryBtn.getAttribute('aria-expanded')) === 'true') {
+      await categoryBtn.click();
+    }
   }
 
   public async getView(view: KAIViews): Promise<FrameLocator> {
@@ -307,27 +427,63 @@ export class VSCode extends BasePage {
   }
 
   public async deleteProfile(profileName: string) {
-    await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
-    const manageProfileView = await this.getView(KAIViews.manageProfiles);
-    const profileList = manageProfileView.getByRole('list', {
-      name: 'Profile list',
-    });
-    await profileList.waitFor({ state: 'visible', timeout: 20000 });
-
-    const profileItems = profileList.getByRole('listitem');
     try {
-      await profileItems.filter({ hasText: profileName }).click({ timeout: 20000 });
-      await manageProfileView.getByRole('button', { name: 'Delete Profile' }).click();
+      console.log(`Attempting to delete profile: ${profileName}`);
+      await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
+      const manageProfileView = await this.getView(KAIViews.manageProfiles);
+
+      const profileList = manageProfileView.getByRole('list', {
+        name: 'Profile list',
+      });
+      await profileList.waitFor({ state: 'visible', timeout: 30000 });
+
+      const profileItems = profileList.getByRole('listitem');
+      const targetProfile = profileItems.filter({ hasText: profileName });
+
+      // Check if profile exists before attempting to delete
+      const profileCount = await targetProfile.count();
+      if (profileCount === 0) {
+        console.log(`Profile '${profileName}' not found in the list`);
+        return; // Profile doesn't exist, nothing to delete
+      }
+
+      console.log(`Found profile '${profileName}', proceeding with deletion`);
+      await targetProfile.click({ timeout: 30000 });
+
+      const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
+      await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
+      await deleteButton.click();
+
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
+      await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
       await confirmButton.click();
+
+      // Wait for profile to be removed from the list
       await manageProfileView
         .getByRole('listitem')
         .filter({ hasText: profileName })
-        .waitFor({ state: 'hidden', timeout: 10000 });
+        .waitFor({ state: 'hidden', timeout: 15000 });
+
+      console.log(`Profile '${profileName}' deleted successfully`);
     } catch (error) {
       console.log('Error deleting profile:', error);
+      // Check if the profile still exists after error
+      try {
+        const manageProfileView = await this.getView(KAIViews.manageProfiles);
+        const profileList = manageProfileView.getByRole('list', { name: 'Profile list' });
+        const profileItems = profileList.getByRole('listitem');
+        const remainingProfile = profileItems.filter({ hasText: profileName });
+        const remainingCount = await remainingProfile.count();
+
+        if (remainingCount === 0) {
+          console.log(`Profile '${profileName}' was actually deleted despite the error`);
+          return; // Profile was deleted successfully despite the error
+        }
+      } catch (checkError) {
+        console.log('Could not verify profile deletion:', checkError);
+      }
       throw error;
     }
   }
