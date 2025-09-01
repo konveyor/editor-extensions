@@ -3,7 +3,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import { _electron as electron, FrameLocator } from 'playwright';
 import { ElectronApplication, expect, Page } from '@playwright/test';
-import { MIN, SEC, MAX_ISSUES_TO_FIX } from '../utilities/consts';
+import { MIN, SEC } from '../utilities/consts';
 import { createZip, extractZip } from '../utilities/archive';
 import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
 import { LeftBarItems } from '../enums/left-bar-items.enum';
@@ -588,7 +588,8 @@ export class VSCode extends BasePage {
     const window = this.getWindow();
     await expect(fixLocator.first()).toBeVisible({ timeout: 10 * MIN });
 
-    for (let i = 0; i <= MAX_ISSUES_TO_FIX; i++) {
+    let llmHasMoreSolutins = true;
+    while(llmHasMoreSolutins){
       await expect(fixLocator.first()).toBeVisible({ timeout: 5 * MIN });
       await fixLocator.first().dispatchEvent('click');
       const successNotification = window.locator('.notification-list-item', {
@@ -609,7 +610,7 @@ export class VSCode extends BasePage {
 
       const count = await lastMessageWithButton.count();
       if (count > 0) {
-        break;
+        llmHasMoreSolutins = false;
       }
     }
   }
