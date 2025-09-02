@@ -1,6 +1,6 @@
 {
   "name": "@editor-extensions/webview-ui",
-  "version": "0.2.0-pre.2",
+  "version": "0.2.0-pre.2-1",
   "private": true,
   "type": "module",
   "scripts": {
