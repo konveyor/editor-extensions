@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { _electron as electron, FrameLocator } from 'playwright';
-import { ElectronApplication, expect, Page } from '@playwright/test';
+import { ElectronApplication, expect, Locator, Page } from '@playwright/test';
 
 import { createZip, extractZip } from '../utilities/archive';
 import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
@@ -426,30 +426,41 @@ export class VSCode extends BasePage {
     return nameToUse;
   }
 
+  private async getProfileContainerByName(profileName: string, profileView: FrameLocator) {
+    const profileList = profileView.getByRole('list', {
+      name: 'Profile list',
+    });
+    await profileList.waitFor({ state: 'visible', timeout: 30000 });
+
+    const targetProfile = profileList.locator(
+      `//li[.//span[normalize-space() = "${profileName}" or normalize-space() = "${profileName} (active)"]]`
+    );
+    // Check if profile exists before attempting to delete
+    const profileCount = await targetProfile.count();
+    const count = await targetProfile.count();
+    if (count === 0) {
+      console.log(`Profile '${profileName}' not found using XPath.`);
+      return undefined;
+    }
+
+    return targetProfile;
+  }
+
+  private async clickOnProfileContainer(profileName: string, profileView: FrameLocator) {
+    const targetProfile = await this.getProfileContainerByName(profileName, profileView);
+    if (!targetProfile) {
+      throw new Error(`Profile '${profileName}' not found, cannot proceed with deletion.`);
+    }
+    console.log(`Found profile '${profileName}'`);
+    await targetProfile.click({ timeout: 30000 });
+  }
+
   public async deleteProfile(profileName: string) {
     try {
       console.log(`Attempting to delete profile: ${profileName}`);
       await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
       const manageProfileView = await this.getView(KAIViews.manageProfiles);
-
-      const profileList = manageProfileView.getByRole('list', {
-        name: 'Profile list',
-      });
-      await profileList.waitFor({ state: 'visible', timeout: 30000 });
-
-      const profileItems = profileList.getByRole('listitem');
-      const targetProfile = profileItems.filter({ hasText: profileName });
-
-      // Check if profile exists before attempting to delete
-      const profileCount = await targetProfile.count();
-      if (profileCount === 0) {
-        console.log(`Profile '${profileName}' not found in the list`);
-        return; // Profile doesn't exist, nothing to delete
-      }
-
-      console.log(`Found profile '${profileName}', proceeding with deletion`);
-      await targetProfile.click({ timeout: 30000 });
-
+      await this.clickOnProfileContainer(profileName, manageProfileView);
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
       await deleteButton.click();
@@ -459,12 +470,11 @@ export class VSCode extends BasePage {
         .getByRole('button', { name: 'Confirm' });
       await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
       await confirmButton.click();
-
+      const profileToDisappear = manageProfileView.locator(
+        `//li[.//span[normalize-space() = "${profileName}" or normalize-space() = "${profileName} (active)"]]`
+      );
       // Wait for profile to be removed from the list
-      await manageProfileView
-        .getByRole('listitem')
-        .filter({ hasText: profileName })
-        .waitFor({ state: 'hidden', timeout: 15000 });
+      await profileToDisappear.waitFor({ state: 'hidden', timeout: 15000 });
 
       console.log(`Profile '${profileName}' deleted successfully`);
     } catch (error) {
@@ -572,5 +582,66 @@ export class VSCode extends BasePage {
       console.error('Error writing VSCode settings:', error);
       throw error;
     }
+  }
+
+  public async activateProfile(profileName: string, profileView?: FrameLocator) {
+    const pageView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(profileName, pageView);
+    const deleteButton = pageView.getByRole('button', { name: 'Make Active' });
+    await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
+    await deleteButton.click();
+    const activeProfileButton = pageView.getByRole('button', { name: 'Active Profile' });
+    await this.waitDefault();
+    await expect(activeProfileButton).toBeVisible({ timeout: 30000 });
+    await expect(activeProfileButton).toBeDisabled({ timeout: 30000 });
+  }
+
+  public async doActionMenuButton(
+    profileName: string,
+    actionName: string,
+    profileView?: FrameLocator
+  ) {
+    let manageProfileView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
+    const targetProfile = await this.getProfileContainerByName(profileName, manageProfileView);
+    if (!targetProfile) {
+      throw new Error(`Could not find any profile container for "${profileName}"`);
+    }
+    expect(await targetProfile.count()).toBe(1);
+    const kebabMenuButton = targetProfile.getByLabel('Profile actions menu');
+    await kebabMenuButton.click();
+    await manageProfileView.getByRole('menuitem', { name: actionName }).click();
+    await this.waitDefault();
+    if (actionName == 'Delete') {
+      const confirmButton = manageProfileView
+        .getByRole('dialog', { name: 'Delete profile?' })
+        .getByRole('button', { name: 'Confirm' });
+      await confirmButton.click();
+    }
+  }
+
+  public async removeProfileCustomRules(profileName: string, pageView?: FrameLocator) {
+    const profileView = pageView ? pageView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(profileName, profileView);
+    const customRuleList = profileView.getByRole('list', { name: 'Custom Rules' });
+    const removeButtons = customRuleList.getByRole('button', { name: 'Remove rule' });
+    const rulesInList = await customRuleList.count();
+    for (let i = 0; i < rulesInList; i++) {
+      await removeButtons.first().click();
+    }
+    expect(await customRuleList.count()).toBe(0);
+  }
+
+  public async changeProfileName(
+    currentProfile: string,
+    newProfile: string,
+    pageView?: FrameLocator
+  ) {
+    const profileView = pageView ? pageView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(currentProfile, profileView);
+    await profileView.getByRole('textbox', { name: 'Profile Name' }).clear();
+    await profileView.getByRole('textbox', { name: 'Profile Name' }).fill(newProfile);
+    //we "confirm" the change but clicking on other textbox
+    const targetsInput = profileView.getByRole('combobox', { name: 'Type to filter' }).first();
+    await targetsInput.click({ delay: 500 });
   }
 }
