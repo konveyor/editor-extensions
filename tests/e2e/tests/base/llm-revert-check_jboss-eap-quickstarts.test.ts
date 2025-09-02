@@ -18,8 +18,7 @@ import { getFileImports } from '../../utilities/file.utils';
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier1 LLM Revertion tests | ${provider.model}`, () => {
     let vscodeApp: VSCode;
-    const randomString = generateRandomString();
-    let profileName = `llm-reversion-${randomString}`;
+    const profileName = `llm-reversion-${generateRandomString()}`;
 
     const kitchenRepoPath = 'jboss-eap-quickstarts/kitchensink';
     const memberFileUri = path.resolve(
@@ -53,9 +52,6 @@ getAvailableProviders().forEach((provider) => {
       test.setTimeout(30 * MIN);
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
-
-      console.log(new Date().toLocaleTimeString(), 'Analysis started');
-      await vscodeApp.waitDefault();
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 15 * MIN,
       });
@@ -67,7 +63,7 @@ getAvailableProviders().forEach((provider) => {
       const violation = "The package 'javax' has been replaced by 'jakarta'";
 
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchViolationAndacceptAllSolutions(violation);
+      await vscodeApp.searchViolationAndAcceptAllSolutions(violation);
       await vscodeApp.openAnalysisView();
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);
       await vscodeApp.waitForSolutionConfirmation(analysisView);
@@ -81,7 +77,7 @@ getAvailableProviders().forEach((provider) => {
         'Implicit name determination for sequences and tables associated with identifier generation has changed';
 
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchViolationAndacceptAllSolutions(violation);
+      await vscodeApp.searchViolationAndAcceptAllSolutions(violation);
       await vscodeApp.openAnalysisView();
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);
       await vscodeApp.waitForSolutionConfirmation(analysisView);

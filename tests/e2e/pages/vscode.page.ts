@@ -567,9 +567,10 @@ export class VSCode extends BasePage {
       throw error;
     }
   }
-  public async waitForSolutionConfirmation(view: FrameLocator): Promise<void> {
-    const solutionButton = view.locator('button#get-solution-button');
-    const backdrop = view.locator('div.pf-v6-c-backdrop');
+  public async waitForSolutionConfirmation(): Promise<void> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    const solutionButton = analysisView.locator('button#get-solution-button');
+    const backdrop = analysisView.locator('div.pf-v6-c-backdrop');
 
     // Wait for both conditions to be true concurrently
     await Promise.all([
@@ -584,38 +585,23 @@ export class VSCode extends BasePage {
   public async acceptAllSolutions() {
     const resolutionView = await this.getView(KAIViews.resolutionDetails);
     const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
-    const window = this.getWindow();
-    await expect(fixLocator.first()).toBeVisible({ timeout: 10 * MIN });
 
-    let llmHasMoreSolutins = true;
-    while(llmHasMoreSolutins){
-      await expect(fixLocator.first()).toBeVisible({ timeout: 5 * MIN });
+    await this.waitDefault();
+    await expect(fixLocator.first()).toBeVisible({ timeout: 3600000 });
+
+    const fixesNumber = await fixLocator.count();
+    let fixesCounter = await fixLocator.count();
+    for (let i = 0; i < fixesNumber; i++) {
+      await expect(fixLocator.first()).toBeVisible({ timeout: 30000 });
+      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.first().dispatchEvent('click');
-      const successNotification = window.locator('.notification-list-item', {
-        hasText: 'Analysis completed successfully!',
-      });
-      await expect(successNotification).toBeVisible({ timeout: 2 * MIN });
-      await successNotification.hover();
-      await successNotification
-        .getByRole('button', { name: 'Clear Notification (Delete)' })
-        .click();
-      await window.waitForTimeout(10 * SEC);
-      const openInEditorButtonLocator = resolutionView.getByRole('button', {
-        name: 'Open in Editor',
-      });
-      const lastMessageWithButton = resolutionView.locator('.message-wrapper').last().filter({
-        has: openInEditorButtonLocator,
-      });
-
-      const count = await lastMessageWithButton.count();
-      if (count > 0) {
-        llmHasMoreSolutins = false;
-      }
+      await this.waitDefault();
+      expect(await fixLocator.count()).toEqual(--fixesCounter);
     }
   }
 
-  public async searchViolationAndacceptAllSolutions(violation: string) {
-    await this.searchAndRequestFix(violation, 1);
+  public async searchViolationAndAcceptAllSolutions(violation: string) {
+    await this.searchAndRequestFix(violation, FixTypes.Issue);
     await this.acceptAllSolutions();
   }
 }
