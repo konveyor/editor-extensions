@@ -126,28 +126,13 @@ export class SolutionServerClient {
       },
     );
 
-    try {
-      const transportOptions: any = {};
-
-      if (this.authEnabled && this.bearerToken) {
-        transportOptions.requestInit = {
-          headers: {
-            Authorization: `Bearer ${this.bearerToken}`,
-          },
-        };
-        this.logger.debug("Added bearer token authentication");
-      }
-
-      this.logger.debug(`Connecting to MCP server at: ${this.serverUrl}`);
-      await this.mcpClient?.connect(
-        new StreamableHTTPClientTransport(new URL(this.serverUrl), transportOptions),
-      );
-      this.logger.info("Connected to MCP solution server");
-      this.isConnected = true;
-    } catch (error) {
-      this.logger.error("Failed to connect to MCP solution server", error);
+    // Try connection with retry logic for trailing slash
+    const success = await this.attemptConnectionWithSlashRetry();
+    if (!success) {
       await this.disconnect();
-      throw error;
+      throw new SolutionServerClientError(
+        "Failed to connect after trying with and without trailing slash",
+      );
     }
 
     try {
@@ -159,6 +144,61 @@ export class SolutionServerClient {
     } catch (error) {
       this.logger.error("Failed to initialize MCP solution server", error);
       throw error;
+    }
+  }
+
+  private async attemptConnectionWithSlashRetry(): Promise<boolean> {
+    const transportOptions: any = {};
+
+    if (this.authEnabled && this.bearerToken) {
+      transportOptions.requestInit = {
+        headers: {
+          Authorization: `Bearer ${this.bearerToken}`,
+        },
+      };
+      this.logger.debug("Added bearer token authentication");
+    }
+
+    // First attempt with original URL
+    try {
+      this.logger.debug(`Connecting to MCP server at: ${this.serverUrl}`);
+      await this.mcpClient?.connect(
+        new StreamableHTTPClientTransport(new URL(this.serverUrl), transportOptions),
+      );
+      this.logger.info("Connected to MCP solution server");
+      this.isConnected = true;
+      return true;
+    } catch (error) {
+      this.logger.warn(`Failed to connect with original URL (${this.serverUrl})`, error);
+    }
+
+    // Second attempt with trailing slash behavior toggled
+    const alternativeUrl = this.getAlternativeUrl(this.serverUrl);
+    if (alternativeUrl !== this.serverUrl) {
+      try {
+        this.logger.debug(`Retrying connection to MCP server at: ${alternativeUrl}`);
+        await this.mcpClient?.connect(
+          new StreamableHTTPClientTransport(new URL(alternativeUrl), transportOptions),
+        );
+        this.logger.info(
+          `Connected to MCP solution server using alternative URL: ${alternativeUrl}`,
+        );
+        this.isConnected = true;
+        return true;
+      } catch (error) {
+        this.logger.error(`Failed to connect with alternative URL (${alternativeUrl})`, error);
+      }
+    }
+
+    return false;
+  }
+
+  private getAlternativeUrl(url: string): string {
+    // If URL ends with trailing slash, remove it; if not, add it
+    if (url.endsWith("/")) {
+      return url.slice(0, -1);
+    } else {
+      return url + "/";
     }
   }
 
