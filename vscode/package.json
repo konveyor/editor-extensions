@@ -554,13 +554,6 @@
           "description": "Enable debug logging for webview message handling",
           "scope": "window",
           "order": 40
-        },
-        "konveyor.kai.demoMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether to run Kai in demo mode i.e. use cached LLM responses",
-          "scope": "window",
-          "order": 41
         }
       }
     },
