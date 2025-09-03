@@ -91,13 +91,7 @@ export class SolutionServerClient {
       this.sslBypassCleanup = this.applySSLBypass();
     }
 
-    if (this.authEnabled) {
-      if (!this.authConfig) {
-        throw new SolutionServerClientError(
-          "Authentication is enabled but no auth config provided",
-        );
-      }
-
+    if (this.authConfig) {
       // Always get fresh tokens on startup/connect
       try {
         if (!this.bearerToken) {
