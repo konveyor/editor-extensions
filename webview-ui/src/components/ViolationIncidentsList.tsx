@@ -65,6 +65,7 @@ const ViolationIncidentsList = ({
     groupBy: "violation" as GroupByOption,
     hasSuccessRate: false,
   });
+  console.log("filters", filters);
 
   const onCategorySelect = (
     _event: React.MouseEvent | undefined,
@@ -85,10 +86,51 @@ const ViolationIncidentsList = ({
     setFilters((prev) => ({ ...prev, groupBy }));
   };
 
+  // Centralized utility to extract success rate data from metric (handles both array and object formats)
+  const extractSuccessRateData = (successRateMetric: any) => {
+    if (!successRateMetric) {
+      return null;
+    }
+    // Server can return array format or object format, extract appropriately
+    return Array.isArray(successRateMetric) ? successRateMetric[0] : successRateMetric;
+  };
+
   // Helper function to get success rate from any incident in the group
   const getSuccessRate = (incidents: EnhancedIncident[]) => {
     // Find the first incident with success rate data
-    return incidents.find((incident) => incident.successRateMetric)?.successRateMetric;
+    const metric = incidents.find((incident) => incident.successRateMetric)?.successRateMetric;
+    return extractSuccessRateData(metric);
+  };
+
+  // Component for rendering success rate labels
+  const SuccessRateLabels = ({
+    incidents,
+    groupId,
+  }: {
+    incidents: EnhancedIncident[];
+    groupId: string;
+  }) => {
+    const successRate = getSuccessRate(incidents);
+    console.log("successRate", successRate);
+
+    if (!successRate) {
+      return null;
+    }
+
+    return (
+      <>
+        {successRate.accepted_solutions > 0 && (
+          <Label id={`${groupId}-accepted-solutions`} color="green" isCompact>
+            {successRate.accepted_solutions} accepted
+          </Label>
+        )}
+        {successRate.rejected_solutions > 0 && (
+          <Label id={`${groupId}-rejected-solutions`} color="red" isCompact>
+            {successRate.rejected_solutions} rejected
+          </Label>
+        )}
+      </>
+    );
   };
 
   const onDelete = (type: string, id: string) => {
@@ -167,12 +209,9 @@ const ViolationIncidentsList = ({
 
     if (filters.hasSuccessRate) {
       filtered = filtered.filter((incident) => {
-        if (!incident.successRateMetric) {
-          return false;
-        }
-        // Server returns array format, always extract from index 0
-        const successRate = (incident.successRateMetric as any)[0];
-        return successRate && successRate.accepted_solutions > 0;
+        const successRate = extractSuccessRateData(incident.successRateMetric);
+        console.log("Filtering incident:", incident.violationId, "successRate:", successRate);
+        return successRate && (successRate.accepted_solutions > 0 || successRate.rejected_solutions > 0);
       });
     }
 
@@ -359,31 +398,7 @@ const ViolationIncidentsList = ({
                           <Label color="blue" isCompact>
                             {group.incidents.length} incidents
                           </Label>
-                          {(() => {
-                            const successRate = getSuccessRate(group.incidents);
-                            return (
-                              <>
-                                {successRate && successRate.accepted_solutions > 0 && (
-                                  <Label
-                                    id={`${group.id}-accepted-solutions`}
-                                    color="green"
-                                    isCompact
-                                  >
-                                    {successRate.accepted_solutions} accepted
-                                  </Label>
-                                )}
-                                {successRate && successRate.rejected_solutions > 0 && (
-                                  <Label
-                                    id={`${group.id}-rejected-solutions`}
-                                    color="red"
-                                    isCompact
-                                  >
-                                    {successRate.rejected_solutions} rejected
-                                  </Label>
-                                )}
-                              </>
-                            );
-                          })()}
+                          <SuccessRateLabels incidents={group.incidents} groupId={group.id} />
                         </Flex>
                       </Content>
                     </SplitItem>
