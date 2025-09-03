@@ -67,13 +67,13 @@
       },
       {
         "command": "konveyor.showAnalysisPanel",
-        "title": "Open Konveyor Analysis View",
+        "title": "Open Analysis View",
         "category": "Konveyor",
         "icon": "$(book)"
       },
       {
         "command": "konveyor.showResolutionPanel",
-        "title": "Open Konveyor Resolution View",
+        "title": "Open Resolution View",
         "category": "Konveyor",
         "icon": "$(beaker)"
       },

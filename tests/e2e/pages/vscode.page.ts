@@ -6,7 +6,6 @@ import { ElectronApplication, expect, Page } from '@playwright/test';
 
 import { createZip, extractZip } from '../utilities/archive';
 import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
-import { LeftBarItems } from '../enums/left-bar-items.enum';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { TEST_DATA_DIR } from '../utilities/consts';
@@ -15,6 +14,8 @@ import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
+
+const COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -136,7 +137,7 @@ export class VSCode extends BasePage {
     await input.press('Enter', { delay: 500 });
   }
 
-  public async openLeftBarElement(name: LeftBarItems) {
+  public async openLeftBarElement(name: string) {
     const window = this.getWindow();
 
     const navLi = window.locator(`a[aria-label^="${name}"]`).locator('..');
@@ -148,7 +149,7 @@ export class VSCode extends BasePage {
       return;
     }
 
-    const moreButton = window.getByRole('button', { name: LeftBarItems.AdditionalViews }).first();
+    const moreButton = window.getByRole('button', { name: 'Additional Views' }).first();
     await expect(moreButton).toBeVisible();
     await moreButton.click();
 
@@ -160,16 +161,21 @@ export class VSCode extends BasePage {
   public async openAnalysisView(): Promise<void> {
     // Try using command palette first - this works reliably when extension is hidden due to too many extensions
     try {
-      await this.executeQuickCommand('Konveyor: Open Konveyor Analysis View');
+      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Open Analysis View`);
       return;
     } catch (error) {
-      // Fallback to activity bar approach
-      await this.openLeftBarElement(LeftBarItems.Konveyor);
+      console.log('Command palette approach failed:', error);
     }
 
-    await this.window.getByText('Konveyor Issues').dblclick();
-
-    await this.window.locator('a[aria-label="Open Konveyor Analysis View"]').click();
+    // Fallback to activity bar approach
+    try {
+      await this.openLeftBarElement(COMMAND_CATEGORY);
+      await this.window.getByText(`${COMMAND_CATEGORY} Issues`).dblclick();
+      await this.window.locator(`a[aria-label*="Analysis View"]`).click();
+    } catch (error) {
+      console.log('Activity bar approach failed:', error);
+      throw error;
+    }
   }
 
   public async startServer(): Promise<void> {
@@ -328,7 +334,7 @@ export class VSCode extends BasePage {
     }
   }
 
-  public async getView(view: KAIViews): Promise<FrameLocator> {
+  public async getView(view: typeof KAIViews): Promise<FrameLocator> {
     await this.window.locator(`div.tab.active[aria-label="${view}"]`).waitFor();
     await this.executeQuickCommand('View: Close Other Editors in Group');
 
@@ -348,11 +354,18 @@ export class VSCode extends BasePage {
   }
 
   public async configureGenerativeAI(config: string = DEFAULT_PROVIDER.config) {
-    await this.executeQuickCommand('Konveyor: Open the GenAI model provider configuration file');
+    await this.executeQuickCommand(
+      `${COMMAND_CATEGORY}: Open the GenAI model provider configuration file`
+    );
+
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+  }
+
+  public async findDebugArchiveCommand(): Promise<string> {
+    return `${COMMAND_CATEGORY}: Generate Debug Archive`;
   }
 
   public async createProfile(
@@ -361,7 +374,7 @@ export class VSCode extends BasePage {
     profileName?: string,
     customRulesPath?: string
   ) {
-    await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
+    await this.executeQuickCommand(`${COMMAND_CATEGORY}: Manage Analysis Profile`);
 
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
@@ -429,7 +442,7 @@ export class VSCode extends BasePage {
   public async deleteProfile(profileName: string) {
     try {
       console.log(`Attempting to delete profile: ${profileName}`);
-      await this.executeQuickCommand('Konveyor: Manage Analysis Profile');
+      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Manage Analysis Profile`);
       const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
       const profileList = manageProfileView.getByRole('list', {

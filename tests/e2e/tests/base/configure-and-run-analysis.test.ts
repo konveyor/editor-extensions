@@ -120,7 +120,9 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Generate debug archive', async ({ testRepoData }) => {
-    await vscodeApp.executeQuickCommand('Konveyor: Generate Debug Archive');
+    // Find the debug archive command dynamically
+    const debugCommand = await vscodeApp.findDebugArchiveCommand();
+    await vscodeApp.executeQuickCommand(debugCommand);
     await vscodeApp.waitDefault();
     const zipPathInput = vscodeApp
       .getWindow()
