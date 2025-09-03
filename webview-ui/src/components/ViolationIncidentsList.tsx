@@ -65,7 +65,6 @@ const ViolationIncidentsList = ({
     groupBy: "violation" as GroupByOption,
     hasSuccessRate: false,
   });
-  console.log("filters", filters);
 
   const onCategorySelect = (
     _event: React.MouseEvent | undefined,
@@ -211,7 +210,9 @@ const ViolationIncidentsList = ({
       filtered = filtered.filter((incident) => {
         const successRate = extractSuccessRateData(incident.successRateMetric);
         console.log("Filtering incident:", incident.violationId, "successRate:", successRate);
-        return successRate && (successRate.accepted_solutions > 0 || successRate.rejected_solutions > 0);
+        return (
+          successRate && (successRate.accepted_solutions > 0 || successRate.rejected_solutions > 0)
+        );
       });
     }
 
