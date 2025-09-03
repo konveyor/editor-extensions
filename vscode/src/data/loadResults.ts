@@ -6,7 +6,9 @@ import { RULE_SET_DATA_FILE_PREFIX } from "../utilities";
 
 export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: RuleSet[]) => {
   await writeDataFile(receivedRuleSets, RULE_SET_DATA_FILE_PREFIX);
-  const enhancedIncidents = enhanceIncidentsFromRuleSets(receivedRuleSets);
+  let enhancedIncidents = enhanceIncidentsFromRuleSets(receivedRuleSets);
+
+  enhancedIncidents = await state.solutionServerClient.getSuccessRate(enhancedIncidents);
 
   state.mutateData((draft) => {
     draft.ruleSets = receivedRuleSets;
