@@ -493,6 +493,8 @@ const commandsMap: (
 
       try {
         await state.solutionServerClient.acceptFile(path, finalContent);
+        // After we accept a file, we should update the success rates.
+        await executeExtensionCommand("getSuccessRate");
       } catch (error: any) {
         logger.error("Error notifying solution server of file acceptance", { error, path });
       }
