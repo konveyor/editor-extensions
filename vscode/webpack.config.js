@@ -83,8 +83,10 @@ module.exports = (env, argv) => {
     plugins: [
       new webpack.DefinePlugin({
         __EXTENSION_NAME__: JSON.stringify(packageJson.name),
+        __EXTENSION_AUTHOR__: JSON.stringify(packageJson.author),
         __EXTENSION_PUBLISHER__: JSON.stringify(packageJson.publisher),
         __EXTENSION_VERSION__: JSON.stringify(packageJson.version),
+        __EXTENSION_DISPLAY_NAME__: JSON.stringify(packageJson.displayName),
         __BUILD_GIT_SHA__: JSON.stringify(getGitSha()),
         __BUILD_GIT_SHA_SHORT__: JSON.stringify(getGitShaShort()),
         __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),

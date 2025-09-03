@@ -334,7 +334,7 @@ export class VSCode extends BasePage {
     }
   }
 
-  public async getView(view: typeof KAIViews): Promise<FrameLocator> {
+  public async getView(view: KAIViews): Promise<FrameLocator> {
     await this.window.locator(`div.tab.active[aria-label="${view}"]`).waitFor();
     await this.executeQuickCommand('View: Close Other Editors in Group');
 

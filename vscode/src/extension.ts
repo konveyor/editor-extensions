@@ -3,15 +3,15 @@ import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands, executeExtensionCommand } from "./commands";
 import { ExtensionState } from "./extensionState";
-import {
-  ConfigError,
-  createConfigError,
-  ExtensionData,
-  KONVEYOR_OUTPUT_CHANNEL_NAME,
-} from "@editor-extensions/shared";
+import { ConfigError, createConfigError, ExtensionData } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
-import { EXTENSION_NAME } from "./utilities/constants";
+import {
+  BUILD_INFO,
+  EXTENSION_DISPLAY_NAME,
+  EXTENSION_ID,
+  EXTENSION_NAME,
+} from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
   InMemoryCacheWithRevisions,
@@ -54,7 +54,6 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
-import { BUILD_INFO, EXTENSION_ID } from "./utilities/constants";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -805,7 +804,7 @@ let extension: VsCodeExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // Logger is our bae...before anything else
-  const outputChannel = vscode.window.createOutputChannel(KONVEYOR_OUTPUT_CHANNEL_NAME);
+  const outputChannel = vscode.window.createOutputChannel(EXTENSION_DISPLAY_NAME);
   const logger = winston.createLogger({
     level: getConfigLogLevel(),
     format: winston.format.combine(

@@ -333,5 +333,3 @@ export interface InputOutputCache<K, V, C, O> {
   invalidate(input: K, opts?: O): Promise<void>;
   reset(): Promise<void>;
 }
-
-export const KONVEYOR_OUTPUT_CHANNEL_NAME = "Konveyor";
