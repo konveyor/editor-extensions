@@ -68,6 +68,12 @@ export const ProfileEditorForm: React.FC<{
   const [nameValidation, setNameValidation] = useState<"default" | "error">("default");
   const [nameErrorMsg, setNameErrorMsg] = useState<string | null>(null);
 
+  const [targetsValidation, setTargetsValidation] = useState<"default" | "error">("default");
+  const [targetsErrorMsg, setTargetsErrorMsg] = useState<string | null>(null);
+
+  const [rulesValidation, setRulesValidation] = useState<"default" | "error">("default");
+  const [rulesErrorMsg, setRulesErrorMsg] = useState<string | null>(null);
+
   const { dispatch } = useExtensionStateContext();
 
   const { callback: debouncedChange, isPending: isSaving } = useDebouncedCallback(onChange, 300);
@@ -76,6 +82,10 @@ export const ProfileEditorForm: React.FC<{
     setLocalProfile(profile);
     setNameValidation("default");
     setNameErrorMsg(null);
+    setTargetsValidation("default");
+    setTargetsErrorMsg(null);
+    setRulesValidation("default");
+    setRulesErrorMsg(null);
 
     const parsedSources: string[] = [];
     const parsedTargets: string[] = [];
@@ -94,6 +104,10 @@ export const ProfileEditorForm: React.FC<{
 
     setSelectedSources(parsedSources);
     setSelectedTargets(parsedTargets);
+
+    // Validate initial state
+    validateTargets(parsedTargets);
+    validateRules(profile);
   }, [profile]);
 
   const handleInputChange = (value: string, field: keyof AnalysisProfile) => {
@@ -125,10 +139,39 @@ export const ProfileEditorForm: React.FC<{
     debouncedChange({ ...localProfile, name: trimmedName });
   };
 
+  const validateTargets = (targets: string[]) => {
+    if (targets.length === 0) {
+      setTargetsValidation("error");
+      setTargetsErrorMsg("At least one target technology is required.");
+      return false;
+    }
+    setTargetsValidation("default");
+    setTargetsErrorMsg(null);
+    return true;
+  };
+
+  const validateRules = (profile: AnalysisProfile) => {
+    const hasDefaultRules = profile.useDefaultRules;
+    const hasCustomRules = (profile.customRules?.length ?? 0) > 0;
+
+    if (!hasDefaultRules && !hasCustomRules) {
+      setRulesValidation("error");
+      setRulesErrorMsg("Enable default rules or add custom rules.");
+      return false;
+    }
+    setRulesValidation("default");
+    setRulesErrorMsg(null);
+    return true;
+  };
+
   const updateLabelSelector = (sources: string[], targets: string[]) => {
     const selector = buildLabelSelector(sources, targets);
     const updatedProfile = { ...localProfile, labelSelector: selector };
     setLocalProfile(updatedProfile);
+
+    // Validate targets
+    validateTargets(targets);
+
     debouncedChange(updatedProfile);
   };
 
@@ -185,7 +228,9 @@ export const ProfileEditorForm: React.FC<{
         </FlexItem>
       </Flex>
 
-      {nameValidation === "error" && (
+      {(nameValidation === "error" ||
+        targetsValidation === "error" ||
+        rulesValidation === "error") && (
         <FormAlert>
           <Alert
             variant="danger"
@@ -226,13 +271,23 @@ export const ProfileEditorForm: React.FC<{
           }}
           initialOptions={targetOptions}
         />
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem icon={<InfoCircleIcon />}>
-              Technologies you want to migrate to (e.g., Spring Boot, Quarkus)
-            </HelperTextItem>
-          </HelperText>
-        </FormHelperText>
+        {targetsErrorMsg ? (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                {targetsErrorMsg}
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        ) : (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem icon={<InfoCircleIcon />}>
+                Technologies you want to migrate to (e.g., Spring Boot, Quarkus)
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        )}
       </FormGroup>
 
       <FormGroup label="Source Technologies" fieldId="sources">
@@ -262,16 +317,27 @@ export const ProfileEditorForm: React.FC<{
           onChange={(_e, checked) => {
             const updated = { ...localProfile, useDefaultRules: checked };
             setLocalProfile(updated);
+            validateRules(updated);
             debouncedChange(updated);
           }}
         />
-        <FormHelperText>
-          <HelperText>
-            <HelperTextItem icon={<InfoCircleIcon />}>
-              Include {getBrandName()}&apos;s built-in migration rules
-            </HelperTextItem>
-          </HelperText>
-        </FormHelperText>
+        {rulesErrorMsg ? (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                {rulesErrorMsg}
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        ) : (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem icon={<InfoCircleIcon />}>
+                Include {getBrandName()}&apos;s built-in migration rules
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        )}
       </FormGroup>
 
       <FormGroup label="Custom Rules" fieldId="custom-rules">
@@ -313,6 +379,7 @@ export const ProfileEditorForm: React.FC<{
                     const updated = localProfile.customRules.filter((_, i) => i !== index);
                     const newProfile = { ...localProfile, customRules: updated };
                     setLocalProfile(newProfile);
+                    validateRules(newProfile);
                     debouncedChange(newProfile);
                   }}
                 >
