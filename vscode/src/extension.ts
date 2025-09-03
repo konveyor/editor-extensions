@@ -270,6 +270,9 @@ class VsCodeExtension {
             draft.configErrors.push(createConfigError.missingAuthCredentials());
           });
         }
+      } else {
+        // Clear auth config when auth is disabled to prevent realm from being passed
+        this.state.solutionServerClient.setAuthConfig(null);
       }
 
       this.state.mutateData((draft) => {
