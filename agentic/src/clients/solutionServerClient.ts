@@ -78,6 +78,13 @@ export class SolutionServerClient {
 
   public setAuthConfig(authConfig: SolutionServerAuthConfig | null): void {
     this.authConfig = authConfig;
+
+    // Clear auth tokens and timers when auth is disabled
+    if (!authConfig) {
+      this.clearTokenRefreshTimer();
+      this.bearerToken = null;
+      this.tokenExpiresAt = null;
+    }
   }
 
   public async connect(): Promise<void> {
