@@ -51,32 +51,52 @@ const DiffStatusBanner: React.FC<{
   hasActiveDecorators?: boolean;
   onSetActionTaken?: (action: "applied" | "rejected" | "processing" | null) => void;
 }> = ({ onApplyChanges, hasActiveDecorators, onSetActionTaken }) => {
-  // For DiffStatusBanner, we don't need actionTaken since we only show this when viewing diff
+  const showReviewingState = hasActiveDecorators === true || hasActiveDecorators === undefined;
+
   return (
     <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentCenter" }}>
       <FlexItem>
         <div className="diff-status-banner">
-          <Icon status="warning">
-            <ExclamationTriangleIcon color="#b98412" />
+          <Icon status={showReviewingState ? "warning" : "success"}>
+            {showReviewingState ? (
+              <ExclamationTriangleIcon color="#b98412" />
+            ) : (
+              <CheckCircleIcon color="green" />
+            )}
           </Icon>
-          <span>Reviewing changes in editor</span>
+          <span>
+            {showReviewingState
+              ? "Reviewing changes in editor."
+              : "All changes have been resolved. Press continue to resume."}
+          </span>
           <Tooltip
             content={
-              <div>
-                The file has opened in the editor to the right of this panel with inline diff
-                decorations.
-                <br />
-                <br />
-                <strong>To accept or reject changes:</strong>
-                <ul style={{ marginLeft: "20px", marginTop: "8px" }}>
-                  <li>Use the CodeLens buttons at the top of the file to Accept/Reject All</li>
-                  <li>Or use individual block buttons to accept/reject specific changes</li>
-                  <li>Changes are auto-accepted when you save the file (Ctrl/Cmd+S)</li>
-                </ul>
-                <br />
-                <strong>Important:</strong> Save your changes (Ctrl/Cmd+S) before clicking Continue
-                to preserve any edits you&apos;ve made.
-              </div>
+              showReviewingState ? (
+                <div>
+                  The file has opened in the editor to the right of this panel with inline diff
+                  decorations.
+                  <br />
+                  <br />
+                  <strong>To accept or reject changes:</strong>
+                  <ul style={{ marginLeft: "20px", marginTop: "8px" }}>
+                    <li>Use the CodeLens buttons at the top of the file to Accept/Reject All</li>
+                    <li>Or use individual block buttons to accept/reject specific changes</li>
+                    <li>Changes are auto-accepted when you save the file (Ctrl/Cmd+S)</li>
+                  </ul>
+                  <br />
+                  <strong>Important:</strong> Save your changes (Ctrl/Cmd+S) before clicking
+                  Continue to preserve any edits you&apos;ve made.
+                </div>
+              ) : (
+                <div>
+                  <strong>All changes have been resolved!</strong>
+                  <br />
+                  <br />
+                  Click <strong>Continue</strong> to resume.
+                  <br />
+                  <br />
+                </div>
+              )
             }
             position="bottom"
           >
@@ -91,7 +111,7 @@ const DiffStatusBanner: React.FC<{
               onApplyChanges();
             }}
             className="continue-button"
-            isDisabled={hasActiveDecorators}
+            isDisabled={showReviewingState}
           >
             Continue
           </Button>
