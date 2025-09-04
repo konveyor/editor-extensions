@@ -58,13 +58,17 @@ const handleUserInteractionPromise = async (
   queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
-  state.isWaitingForUserInteraction = true;
+  state.mutateData((draft) => {
+    draft.isWaitingForUserInteraction = true;
+  });
 
   await new Promise<void>((resolve) => {
     const timeout = setTimeout(() => {
       console.warn(`User interaction timeout for message ${msg.id}`);
       pendingInteractions.delete(msg.id);
-      state.isWaitingForUserInteraction = false;
+      state.mutateData((draft) => {
+        draft.isWaitingForUserInteraction = false;
+      });
       resolve();
     }, 60000);
 
@@ -134,7 +138,7 @@ export const processMessage = async (
   queueManager.enqueueMessage(msg);
 
   // Trigger queue processing if not currently processing and not waiting for user
-  if (!queueManager.isProcessingQueueActive() && !state.isWaitingForUserInteraction) {
+  if (!queueManager.isProcessingQueueActive() && !state.data.isWaitingForUserInteraction) {
     // Don't await - let it run in background
     queueManager.processQueuedMessages().catch((error) => {
       console.error("Error in background queue processing:", error);

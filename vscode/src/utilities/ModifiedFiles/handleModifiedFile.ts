@@ -27,7 +27,9 @@ export const cleanupOnError = (
   error?: any,
 ) => {
   // Reset the waiting flag
-  state.isWaitingForUserInteraction = false;
+  state.mutateData((draft) => {
+    draft.isWaitingForUserInteraction = false;
+  });
 
   // Clean up pending interactions to prevent memory leaks
   if (pendingInteractions.has(msgId)) {
@@ -161,7 +163,9 @@ export const handleModifiedFileMessage = async (
         });
       });
 
-      state.isWaitingForUserInteraction = true;
+      state.mutateData((draft) => {
+        draft.isWaitingForUserInteraction = true;
+      });
 
       // Set up the pending interaction using the same mechanism as UserInteraction messages
       // This ensures that handleFileResponse can properly trigger queue processing
@@ -203,7 +207,9 @@ export const handleModifiedFileMessage = async (
     } catch (cleanupError) {
       console.error(`Error during cleanup for ${filePath}:`, cleanupError);
       // Even if cleanup fails, ensure the waiting flag is reset
-      state.isWaitingForUserInteraction = false;
+      state.mutateData((draft) => {
+        draft.isWaitingForUserInteraction = false;
+      });
     }
   }
 };

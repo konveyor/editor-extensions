@@ -97,6 +97,7 @@ class VsCodeExtension {
         isAgentMode: getConfigAgentMode(),
         activeDecorators: {},
         solutionServerConnected: false,
+        isWaitingForUserInteraction: false,
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -142,7 +143,6 @@ class VsCodeExtension {
       mutateData,
       modifiedFiles: new Map(),
       modifiedFilesEventEmitter: new EventEmitter(),
-      isWaitingForUserInteraction: false,
       lastMessageId: "0",
       currentTaskManagerIterations: 0,
       workflowManager: {
@@ -768,7 +768,9 @@ class VsCodeExtension {
   public async dispose() {
     // Clean up pending interactions and resolver function to prevent memory leaks
     this.state.resolvePendingInteraction = undefined;
-    this.state.isWaitingForUserInteraction = false;
+    this.state.mutateData((draft) => {
+      draft.isWaitingForUserInteraction = false;
+    });
 
     // Dispose workflow manager
     if (this.state.workflowManager && this.state.workflowManager.dispose) {

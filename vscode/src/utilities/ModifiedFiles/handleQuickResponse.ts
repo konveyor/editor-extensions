@@ -68,7 +68,9 @@ export async function handleQuickResponse(
           console.warn(`No pending interaction found for messageToken: ${messageToken}`);
           // As a fallback, reset the waiting flag if no pending interaction was found
           // This should rarely happen if the architecture is working correctly
-          state.isWaitingForUserInteraction = false;
+          state.mutateData((draft) => {
+            draft.isWaitingForUserInteraction = false;
+          });
         } else {
           console.log(`Successfully resolved interaction for messageToken: ${messageToken}`);
         }
@@ -77,7 +79,9 @@ export async function handleQuickResponse(
           "resolvePendingInteraction function not available - this indicates a setup issue",
         );
         // As a fallback, reset the waiting flag
-        state.isWaitingForUserInteraction = false;
+        state.mutateData((draft) => {
+          draft.isWaitingForUserInteraction = false;
+        });
       }
     } finally {
       // Clear loading state

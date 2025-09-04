@@ -43,7 +43,6 @@ export interface ExtensionState {
   resolvePendingInteraction?: (messageId: string, response: any) => boolean;
   modifiedFiles: Map<string, ModifiedFileState>;
   modifiedFilesEventEmitter: EventEmitter;
-  isWaitingForUserInteraction: boolean;
   lastMessageId: string;
   currentTaskManagerIterations: number;
   logger: winston.Logger;

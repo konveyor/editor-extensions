@@ -209,14 +209,18 @@ export async function handleFileResponse(
         logger.warn(`No pending interaction found for messageToken: ${messageToken}`);
         // As a fallback, reset the waiting flag if no pending interaction was found
         // This should rarely happen if the architecture is working correctly
-        state.isWaitingForUserInteraction = false;
+        state.mutateData((draft) => {
+          draft.isWaitingForUserInteraction = false;
+        });
       }
     } else {
       logger.warn(
         "resolvePendingInteraction function not available - this indicates a setup issue",
       );
       // As a fallback, reset the waiting flag
-      state.isWaitingForUserInteraction = false;
+      state.mutateData((draft) => {
+        draft.isWaitingForUserInteraction = false;
+      });
     }
   } catch (error) {
     logger.error("Error handling file response:", error);

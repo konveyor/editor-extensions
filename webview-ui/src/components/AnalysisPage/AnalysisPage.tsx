@@ -78,6 +78,7 @@ const AnalysisPage: React.FC = () => {
     localChanges,
     isAgentMode,
     solutionServerConnected,
+    isWaitingForUserInteraction,
   } = state;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -344,12 +345,14 @@ const AnalysisPage: React.FC = () => {
                 </StackItem>
               </Stack>
             </PageSection>
-            {isWaitingForSolution && (
+            {(isWaitingForSolution || isWaitingForUserInteraction) && (
               <Backdrop>
                 <div style={{ textAlign: "center", paddingTop: "15rem" }}>
                   <Spinner size="lg" />
                   <Title headingLevel="h2" size="lg">
-                    Waiting for solution confirmation...
+                    {isWaitingForUserInteraction 
+                      ? "Waiting for user action..."
+                      : "Waiting for solution confirmation..."}
                   </Title>
                 </div>
               </Backdrop>

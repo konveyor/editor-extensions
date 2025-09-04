@@ -59,7 +59,7 @@ export class MessageQueueManager {
       // Only process if we're not already processing and not waiting for user
       if (
         !this.isProcessingQueue &&
-        !this.state.isWaitingForUserInteraction &&
+        !this.state.data.isWaitingForUserInteraction &&
         this.messageQueue.length > 0
       ) {
         this.processQueuedMessages().catch((error) => {
@@ -94,7 +94,7 @@ export class MessageQueueManager {
     }
 
     // Don't process if waiting for user interaction
-    if (this.state.isWaitingForUserInteraction) {
+    if (this.state.data.isWaitingForUserInteraction) {
       return;
     }
 
@@ -102,7 +102,7 @@ export class MessageQueueManager {
 
     try {
       // Process messages one at a time from the front of the queue
-      while (this.messageQueue.length > 0 && !this.state.isWaitingForUserInteraction) {
+      while (this.messageQueue.length > 0 && !this.state.data.isWaitingForUserInteraction) {
         // Take the first message from queue
         const msg = this.messageQueue.shift()!;
 
@@ -120,7 +120,7 @@ export class MessageQueueManager {
           );
 
           // If this message triggered user interaction, stop processing
-          if (this.state.isWaitingForUserInteraction) {
+          if (this.state.data.isWaitingForUserInteraction) {
             break;
           }
         } catch (error) {
@@ -172,7 +172,9 @@ export async function handleUserInteractionComplete(
   queueManager: MessageQueueManager,
 ): Promise<void> {
   // Reset the waiting flag
-  state.isWaitingForUserInteraction = false;
+  state.mutateData((draft) => {
+    draft.isWaitingForUserInteraction = false;
+  });
 
   // The background processor will automatically resume processing
   // But we can trigger immediate processing if queue has messages

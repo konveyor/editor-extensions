@@ -26,6 +26,7 @@ const defaultState: ExtensionData = {
   isAgentMode: false,
   activeDecorators: {},
   solutionServerConnected: false,
+  isWaitingForUserInteraction: false,
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
@@ -47,6 +48,7 @@ const getInitialState = (): ExtensionData => {
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         activeDecorators: windowData.activeDecorators || {},
+        isWaitingForUserInteraction: windowData.isWaitingForUserInteraction || false,
       };
     }
   } catch (error) {
@@ -83,6 +85,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         configErrors: Array.isArray(event.data.configErrors) ? event.data.configErrors : [],
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
         activeDecorators: event.data.activeDecorators || {},
+        isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
       };
       setState(safeData);
     };

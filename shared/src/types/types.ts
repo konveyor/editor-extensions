@@ -182,6 +182,7 @@ export interface ExtensionData {
   isAgentMode: boolean;
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
+  isWaitingForUserInteraction?: boolean;
 }
 
 export type ConfigErrorType =

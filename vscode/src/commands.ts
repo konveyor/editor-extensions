@@ -322,7 +322,7 @@ const commandsMap: (
 
           // Only clean up if we're not waiting for user interaction
           // This prevents clearing pending interactions while users are still deciding on file changes
-          if (!state.isWaitingForUserInteraction) {
+          if (!state.data.isWaitingForUserInteraction) {
             pendingInteractions.clear();
             state.resolvePendingInteraction = undefined;
           }
@@ -429,7 +429,7 @@ const commandsMap: (
 
         // Clean up pending interactions and resolver function after successful completion
         // Only clean up if we're not waiting for user interaction
-        if (!state.isWaitingForUserInteraction) {
+        if (!state.data.isWaitingForUserInteraction) {
           pendingInteractions.clear();
           state.resolvePendingInteraction = undefined;
 
@@ -443,7 +443,7 @@ const commandsMap: (
 
         // Clean up pending interactions and resolver function on error
         // Only clean up if we're not waiting for user interaction
-        if (!state.isWaitingForUserInteraction) {
+        if (!state.data.isWaitingForUserInteraction) {
           pendingInteractions.clear();
           state.resolvePendingInteraction = undefined;
         }
@@ -504,8 +504,8 @@ const commandsMap: (
         if (draft.solutionState === "started") {
           draft.solutionState = "failedOnSending";
         }
+        draft.isWaitingForUserInteraction = false;
       });
-      state.isWaitingForUserInteraction = false;
       window.showInformationMessage("Fetching state has been reset.");
     },
     [`${EXTENSION_NAME}.changeDiscarded`]: async (path: string) => {
