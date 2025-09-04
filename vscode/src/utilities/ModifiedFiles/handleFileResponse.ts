@@ -181,6 +181,21 @@ export async function handleFileResponse(
           modifiedFileMessage.status = "applied";
         }
       });
+    } else if (responseId === "noChanges") {
+      // For noChanges, update the global state to indicate no changes were needed
+      // No file operations or notifications needed
+      state.mutateData((draft) => {
+        const messageIndex = draft.chatMessages.findIndex(
+          (msg) => msg.messageToken === messageToken,
+        );
+        if (
+          messageIndex >= 0 &&
+          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
+        ) {
+          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          modifiedFileMessage.status = "no_changes_needed";
+        }
+      });
     } else {
       // For reject, also update the global state
       state.mutateData((draft) => {

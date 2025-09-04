@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardBody, Button } from "@patternfly/react-core";
-import { ModifiedFileMessageValue, LocalChange, ChatMessageType } from "@editor-extensions/shared";
+import {
+  ModifiedFileMessageValue,
+  LocalChange,
+  ChatMessageType,
+  isOnlyLineEndingDiff,
+  hasNoMeaningfulDiffContent,
+} from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
 import ModifiedFileHeader from "./ModifiedFileHeader";
 import ModifiedFileDiffPreview from "./ModifiedFileDiffPreview";
@@ -41,19 +47,25 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
       ? (currentMessage.value as any)?.status
       : null;
 
+  // Check if this is only line ending changes or has no meaningful diff content
+  const isOnlyLineEndingChanges = Boolean(diff && isOnlyLineEndingDiff(diff));
+  const hasNoMeaningfulChanges = Boolean(diff && hasNoMeaningfulDiffContent(diff));
+  const shouldShowNoChangesNeeded = isOnlyLineEndingChanges || hasNoMeaningfulChanges;
+
   // Initialize with status from data or global state for THIS specific message only
-  const [actionTaken, setActionTaken] = useState<"applied" | "rejected" | "processing" | null>(
-    () => {
-      // Only use status if it's explicitly set for this message
-      if (status === "applied" || status === "rejected") {
-        return status;
-      }
-      if (globalStatus === "applied" || globalStatus === "rejected") {
-        return globalStatus;
-      }
-      return null; // Default to null - no action taken
-    },
-  );
+  const [actionTaken, setActionTaken] = useState<
+    "applied" | "rejected" | "processing" | "no_changes_needed" | null
+  >(() => {
+    // Don't auto-set no_changes_needed - let user click Continue first
+    // Only use status if it's explicitly set for this message
+    if (status === "applied" || status === "rejected") {
+      return status;
+    }
+    if (globalStatus === "applied" || globalStatus === "rejected") {
+      return globalStatus;
+    }
+    return null; // Default to null - no action taken
+  });
 
   // HARD requirement: only use status if it's explicitly set for this message token
   // Do NOT use any fallback logic that could cause premature minimization
@@ -120,6 +132,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     // Use FILE_RESPONSE flow for standalone apply button
     postFileResponse("apply", messageToken, path, contentToApply);
     // Trigger scroll after action
+    onUserAction?.();
+  };
+
+  const handleNoChangesNeeded = () => {
+    setActionTaken("no_changes_needed");
+
+    // No changes needed - just resolve the waiting promise to continue flow
+    postFileResponse("noChanges", messageToken, path);
     onUserAction?.();
   };
 
@@ -202,7 +222,9 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
                     ? "✓ Applied"
                     : effectiveActionTaken === "rejected"
                       ? "✗ Rejected"
-                      : "⏳ Processing..."}
+                      : effectiveActionTaken === "no_changes_needed"
+                        ? "✓ No changes needed - code already compatible"
+                        : "⏳ Processing..."}
                 </span>
                 <span className="modified-file-minimized-filename">{fileName}</span>
               </div>
@@ -244,6 +266,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
               onContinue={handleContinue}
               onSetActionTaken={setActionTaken}
               hasActiveDecorators={hasActiveDecorators}
+              shouldShowNoChangesNeeded={shouldShowNoChangesNeeded}
+              onHandleNoChangesNeeded={handleNoChangesNeeded}
             />
           </CardBody>
         </Card>

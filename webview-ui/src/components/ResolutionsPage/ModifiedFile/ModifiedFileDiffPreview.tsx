@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import { getLanguageFromExtension } from "@editor-extensions/shared";
+import { getLanguageFromExtension, filterLineEndingOnlyChanges } from "@editor-extensions/shared";
 
 interface ModifiedFileDiffPreviewProps {
   diff: string;
@@ -19,10 +19,14 @@ export const ModifiedFileDiffPreview: React.FC<ModifiedFileDiffPreviewProps> = (
   const formatDiffForMarkdown = (diffContent: string, fileName: string) => {
     try {
       const lines = diffContent.split("\n");
+
+      // Filter out line-ending-only changes
+      const filteredLines = filterLineEndingOnlyChanges(lines);
+
       let formattedDiff = "";
       let inHunk = false;
 
-      for (const line of lines) {
+      for (const line of filteredLines) {
         if (line.startsWith("diff ")) {
           formattedDiff += "# " + line.substring(5) + "\n\n";
           continue;
@@ -44,7 +48,7 @@ export const ModifiedFileDiffPreview: React.FC<ModifiedFileDiffPreviewProps> = (
       }
 
       if (!formattedDiff) {
-        formattedDiff = `// No diff content available for ${fileName}`;
+        formattedDiff = `// No meaningful diff content available for ${fileName}`;
       }
 
       return "```diff\n" + formattedDiff + "\n```";

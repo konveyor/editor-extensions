@@ -11,19 +11,25 @@ import { NormalizedFileData } from "./useModifiedFileData";
 import "./modifiedFileActions.css";
 
 interface ModifiedFileActionsProps {
-  actionTaken: "applied" | "rejected" | "processing" | null;
+  actionTaken: "applied" | "rejected" | "processing" | "no_changes_needed" | null;
   normalizedData: NormalizedFileData;
   onApply: () => void;
   onReject: () => void;
   onViewWithDecorations?: (path: string, diff: string) => void;
   isViewingDiff?: boolean;
   onContinue?: () => void;
-  onSetActionTaken?: (action: "applied" | "rejected" | "processing" | null) => void;
+  onSetActionTaken?: (
+    action: "applied" | "rejected" | "processing" | "no_changes_needed" | null,
+  ) => void;
   hasActiveDecorators?: boolean;
+  shouldShowNoChangesNeeded?: boolean;
+  onHandleNoChangesNeeded?: () => void;
 }
 
 // Status Display Component
-const StatusDisplay: React.FC<{ status: "applied" | "rejected" | "processing" }> = ({ status }) => (
+const StatusDisplay: React.FC<{
+  status: "applied" | "rejected" | "processing" | "no_changes_needed";
+}> = ({ status }) => (
   <Flex className="modified-file-actions">
     <FlexItem>
       <span>
@@ -34,6 +40,10 @@ const StatusDisplay: React.FC<{ status: "applied" | "rejected" | "processing" }>
         ) : status === "rejected" ? (
           <>
             <TimesCircleIcon color="red" /> Changes rejected
+          </>
+        ) : status === "no_changes_needed" ? (
+          <>
+            <CheckCircleIcon color="green" /> No changes needed - code already compatible
           </>
         ) : (
           <>
@@ -101,10 +111,34 @@ const DiffStatusBanner: React.FC<{
   );
 };
 
+// No Changes Needed Actions Component
+const NoChangesNeededActions: React.FC<{
+  onHandleNoChangesNeeded: () => void;
+}> = ({ onHandleNoChangesNeeded }) => (
+  <Flex className="modified-file-actions" justifyContent={{ default: "justifyContentCenter" }}>
+    <FlexItem>
+      <div className="no-changes-info">
+        <Icon status="success">
+          <CheckCircleIcon color="#3e8635" />
+        </Icon>
+        <span>No additional changes are needed at this time. The code is already compatible.</span>
+        <Button
+          variant="link"
+          icon={<CheckCircleIcon />}
+          onClick={onHandleNoChangesNeeded}
+          className="continue-button"
+        >
+          Continue
+        </Button>
+      </div>
+    </FlexItem>
+  </Flex>
+);
+
 // Primary Action Buttons Component
 const PrimaryActionButtons: React.FC<{
   isNew: boolean;
-  actionTaken: "applied" | "rejected" | "processing" | null;
+  actionTaken: "applied" | "rejected" | "processing" | "no_changes_needed" | null;
   onViewWithDecorations?: () => void;
   onApply: () => void;
   onReject: () => void;
@@ -176,12 +210,19 @@ const ModifiedFileActions: React.FC<ModifiedFileActionsProps> = ({
   onContinue,
   onSetActionTaken,
   hasActiveDecorators,
+  shouldShowNoChangesNeeded,
+  onHandleNoChangesNeeded,
 }) => {
   const { isNew } = normalizedData;
 
   // If action already taken or processing, show status
   if (actionTaken) {
     return <StatusDisplay status={actionTaken} />;
+  }
+
+  // If no meaningful changes needed, show special handling
+  if (shouldShowNoChangesNeeded && onHandleNoChangesNeeded) {
+    return <NoChangesNeededActions onHandleNoChangesNeeded={onHandleNoChangesNeeded} />;
   }
 
   if (isViewingDiff && actionTaken === null) {

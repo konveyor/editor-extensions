@@ -81,3 +81,29 @@
 .pf-v6-c-tooltip__content {
   text-align: left !important;
 }
+
+/* No changes needed info styling */
+.no-changes-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--vscode-editor-lineHighlightBackground);
+  border: 1px solid var(--vscode-editorGutter-addedBackground);
+  border-radius: 4px;
+  width: 100%;
+}
+
+.no-changes-info .pf-c-icon {
+  color: var(--vscode-editorGutter-addedBackground);
+}
+
+.no-changes-info span {
+  font-weight: 500;
+  color: var(--vscode-editor-foreground);
+}
+
+.no-changes-info .continue-button {
+  margin-left: auto;
+  white-space: nowrap;
+}
