@@ -101,3 +101,8 @@ export const toggleAgentMode = (): WebviewAction<WebviewActionType, unknown> => 
   type: "TOGGLE_AGENT_MODE",
   payload: {},
 });
+
+export const openResolutionPanel = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OPEN_RESOLUTION_PANEL",
+  payload: {},
+});

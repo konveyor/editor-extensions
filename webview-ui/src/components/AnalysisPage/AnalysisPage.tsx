@@ -47,6 +47,7 @@ import {
   stopServer,
   getSuccessRate,
   toggleAgentMode,
+  openResolutionPanel,
 } from "../../hooks/actions";
 import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
@@ -354,6 +355,15 @@ const AnalysisPage: React.FC = () => {
                       ? "Waiting for user action..."
                       : "Waiting for solution confirmation..."}
                   </Title>
+                  {isWaitingForUserInteraction && (
+                    <Button
+                      variant="primary"
+                      onClick={() => dispatch(openResolutionPanel())}
+                      style={{ marginTop: "1rem" }}
+                    >
+                      Open Resolution Panel
+                    </Button>
+                  )}
                 </div>
               </Backdrop>
             )}

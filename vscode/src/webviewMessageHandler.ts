@@ -31,6 +31,7 @@ import {
   ScopeWithKonveyorContext,
   ExtensionData,
   createConfigError,
+  OPEN_RESOLUTION_PANEL,
 } from "@editor-extensions/shared";
 
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
@@ -246,6 +247,9 @@ const actions: {
   },
   [TOGGLE_AGENT_MODE]() {
     toggleAgentMode();
+  },
+  [OPEN_RESOLUTION_PANEL]() {
+    executeExtensionCommand("showResolutionPanel");
   },
   CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
     try {
