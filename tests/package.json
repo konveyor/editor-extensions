@@ -27,7 +27,7 @@
     "axios": "^1.8.2",
     "balanced-match": "^1.0.2",
     "boolean": "^3.2.0",
-    "brace-expansion": "^1.1.11",
+    "brace-expansion": "^1.1.12",
     "buffer-crc32": "^0.2.13",
     "cacheable-lookup": "^5.0.4",
     "cacheable-request": "^7.0.4",
