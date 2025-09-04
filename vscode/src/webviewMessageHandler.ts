@@ -43,7 +43,7 @@ import {
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
 import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
 import winston from "winston";
-import { toggleAgentMode } from "./utilities/configuration";
+import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
 
 export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
   webview.onDidReceiveMessage(async (message) => {
@@ -340,8 +340,6 @@ const defaultHandler = (
 };
 
 function updateConfigErrorsFromActiveProfile(draft: ExtensionData) {
-  const activeProfile = draft.profiles.find((p) => p.id === draft.activeProfileId);
-
   // Clear profile-related errors
   draft.configErrors = draft.configErrors.filter(
     (error) =>
@@ -350,21 +348,7 @@ function updateConfigErrorsFromActiveProfile(draft: ExtensionData) {
       error.type !== "no-custom-rules",
   );
 
-  if (!activeProfile) {
-    draft.configErrors.push(createConfigError.noActiveProfile());
-    return;
-  }
-
-  // Check label selector
-  if (!activeProfile.labelSelector?.trim()) {
-    draft.configErrors.push(createConfigError.invalidLabelSelector());
-  }
-
-  // Check custom rules when default rules are disabled
-  if (
-    !activeProfile.useDefaultRules &&
-    (!activeProfile.customRules || activeProfile.customRules.length === 0)
-  ) {
-    draft.configErrors.push(createConfigError.noCustomRules());
-  }
+  // Use the centralized updateConfigErrors function for consistency
+  // Note: settingsPath is not used in the current implementation, so we pass empty string
+  updateConfigErrors(draft, "");
 }

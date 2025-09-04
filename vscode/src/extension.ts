@@ -39,6 +39,7 @@ import {
   checkAndPromptForCredentials,
   getConfigGenAIEnabled,
   getConfigAutoAcceptOnSave,
+  updateConfigErrors,
 } from "./utilities";
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import { getUserProfiles } from "./utilities/profiles/profileService";
@@ -274,6 +275,8 @@ class VsCodeExtension {
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = activeProfileId;
+        // Initialize configuration errors after setting profiles and activeProfileId
+        this.updateConfigurationErrors(draft);
       });
 
       this.setupModelProvider(paths().settingsYaml)
@@ -619,6 +622,19 @@ class VsCodeExtension {
     if (editor && editor.document.uri.toString() === fileUri) {
       this.updateDiffStatusBar(editor);
     }
+  }
+
+  private updateConfigurationErrors(draft: ExtensionData): void {
+    // Clear profile-related errors first
+    draft.configErrors = draft.configErrors.filter(
+      (error) =>
+        error.type !== "no-active-profile" &&
+        error.type !== "invalid-label-selector" &&
+        error.type !== "no-custom-rules",
+    );
+
+    // Update with current profile errors using the existing utility function
+    updateConfigErrors(draft, this.paths.settingsYaml.fsPath);
   }
 
   private registerWebviewProvider(): void {

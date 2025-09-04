@@ -116,7 +116,7 @@ export const updateLabelSelector = async (value: string): Promise<void> => {
   await updateConfigValue("analysis.labelSelector", value, vscode.ConfigurationTarget.Workspace);
 };
 
-export function updateConfigErrors(draft: ExtensionData, settingsPath: string): void {
+export function updateConfigErrors(draft: ExtensionData, _settingsPath: string): void {
   const { activeProfileId, profiles } = draft;
   const profile = profiles.find((p) => p.id === activeProfileId);
 
