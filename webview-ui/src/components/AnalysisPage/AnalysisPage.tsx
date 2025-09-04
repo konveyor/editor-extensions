@@ -351,19 +351,17 @@ const AnalysisPage: React.FC = () => {
                 <div style={{ textAlign: "center", paddingTop: "15rem" }}>
                   <Spinner size="lg" />
                   <Title headingLevel="h2" size="lg">
-                    {isWaitingForUserInteraction 
+                    {isWaitingForUserInteraction
                       ? "Waiting for user action..."
                       : "Waiting for solution confirmation..."}
                   </Title>
-                  {isWaitingForUserInteraction && (
-                    <Button
-                      variant="primary"
-                      onClick={() => dispatch(openResolutionPanel())}
-                      style={{ marginTop: "1rem" }}
-                    >
-                      Open Resolution Panel
-                    </Button>
-                  )}
+                  <Button
+                    variant="primary"
+                    onClick={() => dispatch(openResolutionPanel())}
+                    style={{ marginTop: "1rem" }}
+                  >
+                    Open Resolution Panel
+                  </Button>
                 </div>
               </Backdrop>
             )}
