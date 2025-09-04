@@ -31,7 +31,7 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
           {configErrors.map((error, index) => (
             <Card
               isCompact
-              style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}
+              style={{ maxWidth: "600px", margin: "1rem auto 1rem auto" }}
               key={index}
             >
               <Alert
@@ -59,7 +59,7 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
       {/* Solution server connection status */}
       {solutionServerEnabled && (
         <PageSection padding={{ default: "noPadding" }}>
-          <Card isCompact style={{ maxWidth: "600px", marginTop: "1rem", margin: "0 auto" }}>
+          <Card isCompact style={{ maxWidth: "600px", margin: "1rem auto 1rem auto" }}>
             {solutionServerConnected ? null : (
               <Alert
                 variant="warning"
