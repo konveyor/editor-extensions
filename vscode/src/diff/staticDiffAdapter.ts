@@ -3,6 +3,7 @@ import { DiffLine } from "./types";
 import { VerticalDiffManager } from "./vertical/manager";
 import { parsePatch } from "diff";
 import { Logger } from "winston";
+import { isOnlyLineEndingDiff, normalizeLineEndings } from "@editor-extensions/shared";
 
 /**
  * Adapter to bridge static diffs (from ModifiedFileMessage) to Continue's vertical diff system
@@ -19,7 +20,10 @@ export class StaticDiffAdapter {
    */
   private parseUnifiedDiffToDiffLines(unifiedDiff: string, originalContent: string): DiffLine[] {
     const diffLines: DiffLine[] = [];
-    const originalLines = originalContent.split("\n");
+
+    // Normalize line endings in the original content
+    const normalizedOriginalContent = normalizeLineEndings(originalContent);
+    const originalLines = normalizedOriginalContent.split("\n");
 
     // Parse the unified diff
     const parsedDiff = parsePatch(unifiedDiff);
@@ -50,7 +54,7 @@ export class StaticDiffAdapter {
         // Process hunk lines
         for (const line of hunk.lines) {
           const lineType = line.charAt(0);
-          const lineContent = line.substring(1);
+          const lineContent = normalizeLineEndings(line.substring(1));
 
           switch (lineType) {
             case "+":
@@ -104,6 +108,12 @@ export class StaticDiffAdapter {
     messageToken: string,
   ): Promise<void> {
     try {
+      // Check if this is purely a line ending diff and skip if so
+      if (isOnlyLineEndingDiff(unifiedDiff)) {
+        this.logger.debug("[StaticDiffAdapter] Skipping line-ending-only diff for", filePath);
+        return;
+      }
+
       // Convert unified diff to DiffLine array
       const diffLines = this.parseUnifiedDiffToDiffLines(unifiedDiff, originalContent);
 
