@@ -28,20 +28,8 @@ export const getConfigSolutionServerRealm = (): string =>
 export const getConfigSolutionServerInsecure = (): boolean =>
   getConfigValue<boolean>("solutionServer.auth.insecure") ?? false;
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
-export const getConfigIncidentLimit = (): number =>
-  getConfigValue<number>("analysis.incidentLimit") || 10000;
-export const getConfigContextLines = (): number =>
-  getConfigValue<number>("analysis.contextLines") || 10;
-
-export const getConfigCodeSnipLimit = (): number =>
-  getConfigValue<number>("analysis.codeSnipLimit") || 10;
-
 export const getConfigLabelSelector = (): string =>
   getConfigValue<string>("analysis.labelSelector") || "discovery";
-export const getConfigAnalyzeKnownLibraries = (): boolean =>
-  getConfigValue<boolean>("analysis.analyzeKnownLibraries") ?? false;
-export const getConfigAnalyzeDependencies = (): boolean =>
-  getConfigValue<boolean>("analysis.analyzeDependencies") ?? true;
 export const getConfigAnalyzeOnSave = (): boolean => {
   const agentMode = getConfigAgentMode();
   const analyzeOnSave = getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
