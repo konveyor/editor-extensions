@@ -197,7 +197,14 @@ export async function handleFileResponse(
         }
       });
     } else {
-      // For reject, also update the global state
+      // For reject, notify the solution server that the change was discarded
+      try {
+        await executeExtensionCommand("changeDiscarded", path);
+      } catch (error) {
+        logger.error("Error notifying solution server of rejection:", error);
+      }
+
+      // Also update the global state
       state.mutateData((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
