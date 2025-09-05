@@ -2,7 +2,12 @@ import * as vscode from "vscode";
 import * as pathlib from "path";
 import { fileURLToPath } from "url";
 import { EXTENSION_NAME } from "./constants";
-import { AnalysisProfile, createConfigError, ExtensionData } from "@editor-extensions/shared";
+import {
+  AnalysisProfile,
+  createConfigError,
+  ExtensionData,
+  SolutionServerConfig,
+} from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(EXTENSION_NAME)?.get<T>(key);
@@ -17,16 +22,27 @@ async function updateConfigValue<T>(
 }
 
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
-export const getConfigSolutionServerUrl = (): string =>
-  getConfigValue<string>("solutionServer.url") || "http://localhost:8000";
-export const getConfigSolutionServerEnabled = (): boolean =>
-  getConfigValue<boolean>("solutionServer.enabled") ?? false;
-export const getConfigSolutionServerAuth = (): boolean =>
-  getConfigValue<boolean>("solutionServer.auth.enabled") ?? false;
-export const getConfigSolutionServerRealm = (): string =>
-  getConfigValue<string>("solutionServer.auth.realm") || "tackle";
+
+export const getConfigSolutionServer = (): SolutionServerConfig => {
+  const config = getConfigValue<Partial<SolutionServerConfig>>("solutionServer") || {};
+  return {
+    enabled: config.enabled ?? false,
+    url: config.url || "http://localhost:8000",
+    auth: {
+      enabled: config.auth?.enabled ?? false,
+      realm: config.auth?.realm || "tackle",
+      insecure: config.auth?.insecure ?? false,
+    },
+  };
+};
+
+// Legacy getters for backward compatibility - will be removed after refactoring
+export const getConfigSolutionServerUrl = (): string => getConfigSolutionServer().url;
+export const getConfigSolutionServerEnabled = (): boolean => getConfigSolutionServer().enabled;
+export const getConfigSolutionServerAuth = (): boolean => getConfigSolutionServer().auth.enabled;
+export const getConfigSolutionServerRealm = (): string => getConfigSolutionServer().auth.realm;
 export const getConfigSolutionServerInsecure = (): boolean =>
-  getConfigValue<boolean>("solutionServer.auth.insecure") ?? false;
+  getConfigSolutionServer().auth.insecure;
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigIncidentLimit = (): number =>
   getConfigValue<number>("analysis.incidentLimit") || 10000;
@@ -87,11 +103,27 @@ export function getAllConfigurationValues(): Record<string, any> {
   return result;
 }
 
+export const updateSolutionServerConfig = async (
+  config: Partial<SolutionServerConfig>,
+): Promise<void> => {
+  const currentConfig = getConfigSolutionServer();
+  const newConfig = {
+    ...currentConfig,
+    ...config,
+    auth: {
+      ...currentConfig.auth,
+      ...config.auth,
+    },
+  };
+  await updateConfigValue("solutionServer", newConfig, vscode.ConfigurationTarget.Workspace);
+};
+
+// Legacy setters for backward compatibility - will be removed after refactoring
 export const updateSolutionServerUrl = async (value: string | undefined): Promise<void> => {
-  await updateConfigValue("solutionServer.url", value, vscode.ConfigurationTarget.Workspace);
+  await updateSolutionServerConfig({ url: value || "http://localhost:8000" });
 };
 export const updateSolutionServerEnabled = async (value: boolean): Promise<void> => {
-  await updateConfigValue("solutionServer.enabled", value, vscode.ConfigurationTarget.Workspace);
+  await updateSolutionServerConfig({ enabled: value });
 };
 export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
