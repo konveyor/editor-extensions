@@ -145,8 +145,8 @@ export class AnalysisIssueFix extends BaseNode {
       const accumulated = [...state.outputAllResponses, ...nextState.outputAllResponses].reduce(
         (acc, val) => {
           return {
-            reasoning: `${acc.reasoning}\n${val.outputReasoning}`,
-            additionalInfo: `${acc.additionalInfo}\n${val.outputAdditionalInfo}`,
+            reasoning: `${acc.reasoning}\n\n\n#### Changes made in ${relative(this.workspaceDir, val.outputUpdatedFileUri ?? "")}\n\n${val.outputReasoning}`,
+            additionalInfo: `${acc.additionalInfo}\n\n\n#### Additional changes from ${relative(this.workspaceDir, val.outputUpdatedFileUri ?? "")}\n\n${val.outputAdditionalInfo}`,
             uris: val.outputUpdatedFileUri
               ? acc.uris.concat([relative(this.workspaceDir, val.outputUpdatedFileUri)])
               : acc.uris,
@@ -302,30 +302,45 @@ If you have any additional details or steps that need to be performed, put it he
     }
 
     const sys_message = new SystemMessage(
-      `You are an experienced ${state.programmingLanguage} programmer, specializing in migrating source code to ${state.migrationHint}. You are overlooking migration of a project.`,
+      `You are an experienced ${state.programmingLanguage} programmer, specializing in migrating source code to ${state.migrationHint}. Your job is to read migration notes and output only the additional changes that are still needed elsewhere in the project.`,
     );
     const human_message = new HumanMessage(
-      `During the migration to ${state.migrationHint}, we captured notes detailing changes made to existing files.\
-The notes contain a summary of changes we already made and additional changes that may be required in other files elsewhere in the project.\
-They also contain a list of files we changed.
-Your task is to carefully analyze the notes, compare them with files that are changed, understand any additional changes needed to complete the migration and provide a concise summary *solely* of the additional changes required elsewhere in the project.\
-**It is essential that your summary includes only the additional changes needed. Do not include changes already made.**\
+      `During the migration to ${state.migrationHint}, we captured notes that include:
+- A list of files we modified
+- Reasoning behind changes made to existing files
+- Additional information that may contain even more changes needed
+
+* Your task:
+Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. \
+Provide a concise summary *solely* of the additional changes required elsewhere in the project. \
+**It is essential that your summary includes only the additional changes needed. Do not include changes already made.** \
 Make sure you output all the details about the changes including any relevant code snippets and instructions.
-**Do not omit any additional changes needed.**
-If there are no additional changes needed to complete the migration, respond with text "NO-CHANGE".\
-Here is the summary: \
-${
-  state.inputAllReasoning && state.inputAllReasoning.length > 0
-    ? `### Summary of changes made\n${state.inputAllReasoning}`
-    : ""
-}
-### Additional information about changes
-${state.inputAllAdditionalInfo}
+**Do not omit any additional changes needed. Be exhaustive and specific.**
+
+* Rules:
+- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
+- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
+- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
+- If there are no additional changes needed, respond with exactly:
+NO-CHANGE: <one-sentence reason>
+
+Here is your input:
+
 ${
   state.inputAllModifiedFiles
-    ? `### List of modified files\n${state.inputAllModifiedFiles?.join("\n")}`
+    ? `### MODIFIED_FILES\n\n${state.inputAllModifiedFiles?.join("\n")}`
     : ""
 }
+
+${
+  state.inputAllReasoning && state.inputAllReasoning.length > 0
+    ? `### Summary of changes made\n\n${state.inputAllReasoning}`
+    : ""
+}
+
+### Additional information about changes
+
+${state.inputAllAdditionalInfo}
 `,
     );
 
