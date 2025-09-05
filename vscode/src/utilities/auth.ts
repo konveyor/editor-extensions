@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { getConfigSolutionServerAuth } from "./configuration";
 import { Logger } from "winston";
 import { KeycloakCredentials } from "@editor-extensions/shared";
 import { EXTENSION_NAME } from "./constants";
@@ -90,10 +89,6 @@ export async function checkAndPromptForCredentials(
   context: vscode.ExtensionContext,
   logger?: Logger,
 ): Promise<KeycloakCredentials | undefined> {
-  if (!getConfigSolutionServerAuth()) {
-    return undefined;
-  }
-
   const credentials = await getStoredCredentials(context, logger);
   if (credentials) {
     return credentials;
