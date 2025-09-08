@@ -146,7 +146,7 @@ export class DiagnosticsIssueFix extends BaseNode {
           nextState.inputDiagnosticsTasks = newTasks;
         }
       } catch (e) {
-        console.log(`Failed to wait for user response - ${e}`);
+        this.logger.error(`Failed to wait for user response - ${e}`);
       } finally {
         this.diagnosticsPromises.delete(id);
       }
@@ -279,6 +279,7 @@ Instructions for Agent B to solve Issue 3, Issue 4, etc. (mention specific issue
     );
 
     if (!response) {
+      this.logger.silly("PlanFixes returned undefined response");
       return {
         plannerOutputNominatedAgents: [],
         iterationCount: state.iterationCount,
@@ -335,6 +336,7 @@ ${
     );
 
     if (!response) {
+      this.logger.silly("FixGeneralIssues returned undefined response");
       return {
         messages: [new AIMessage(`DONE`)],
         outputModifiedFilesFromGeneralFix: [],
@@ -403,6 +405,7 @@ ${state.inputInstructionsForGeneralFix}
     );
 
     if (!response) {
+      this.logger.silly("FixJavaDependencyIssues returned undefined response");
       return {
         messages: [new AIMessage(`DONE`)],
         outputModifiedFilesFromGeneralFix: [],

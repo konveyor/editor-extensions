@@ -118,6 +118,7 @@ export async function getModelProviderFromConfig(
   try {
     let usingCachedHealthcheck = false;
     if (getConfigKaiDemoMode()) {
+      logger.info("Getting cached healthcheck");
       const cachedHealthcheck = await cache.get("capabilities", {
         cacheSubDir: "healthcheck",
       });

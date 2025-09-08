@@ -50,6 +50,8 @@ export class FileBasedResponseCache<K, V>
       this.hashFunction ? this.hashFunction(input) : this.hash(input),
       `output${opts?.outputFileExt ?? ".json"}`,
     );
+    this.logger?.silly("Getting cache", { cachePath, input });
+
     try {
       const stat = await fs.stat(cachePath);
       if (stat.isFile()) {
@@ -73,6 +75,7 @@ export class FileBasedResponseCache<K, V>
       opts?.cacheSubDir ?? "",
       this.hashFunction ? this.hashFunction(input) : this.hash(input),
     );
+    this.logger?.silly("Setting cache", { cacheBasePath, input });
 
     try {
       const inputRecordPath = pathlib.join(cacheBasePath, `input${opts?.inputFileExt ?? ".json"}`);

@@ -1,3 +1,4 @@
+import { Logger } from "winston";
 import { basename, relative } from "path";
 import {
   type AIMessage,
@@ -31,6 +32,7 @@ export class AnalysisIssueFix extends BaseNode {
     private readonly fsCache: InMemoryCacheWithRevisions<string, string>,
     private readonly workspaceDir: string,
     private readonly solutionServerClient: SolutionServerClient,
+    private readonly logger: Logger,
   ) {
     super("AnalysisIssueFix", modelProvider, tools);
 
@@ -56,6 +58,7 @@ export class AnalysisIssueFix extends BaseNode {
       inputFileContent: undefined,
       inputIncidents: [],
     };
+    this.logger.silly("AnalysisIssueFixRouter called with state", { state });
     // we have to fix the incidents if there's at least one present in state
     if (state.currentIdx < state.inputIncidentsByUris.length) {
       const nextEntry = state.inputIncidentsByUris[state.currentIdx];
@@ -70,7 +73,7 @@ export class AnalysisIssueFix extends BaseNode {
           nextState.inputFileUri = nextEntry.uri;
           nextState.inputIncidents = nextEntry.incidents;
         } catch (err) {
-          console.error("Failed to read input file", nextEntry.uri);
+          this.logger.error("Failed to read input file", nextEntry.uri);
           this.emitWorkflowMessage({
             type: KaiWorkflowMessageType.Error,
             data: String(err),
@@ -125,10 +128,10 @@ export class AnalysisIssueFix extends BaseNode {
             state.outputHints || [],
           );
         } catch (error) {
-          console.error(`Failed to create solution: ${error}`);
+          this.logger.error(`Failed to create solution: ${error}`);
         }
       } else {
-        console.error("Missing required fields for solution creation");
+        this.logger.error("Missing required fields for solution creation");
       }
 
       nextState.outputAllResponses = [
@@ -162,6 +165,7 @@ export class AnalysisIssueFix extends BaseNode {
       nextState.inputAllReasoning = accumulated.reasoning;
       nextState.inputAllModifiedFiles = accumulated.uris;
     }
+    this.logger.silly("AnalysisIssueFixRouter returning nextState", { nextState });
     return nextState;
   }
 
@@ -169,6 +173,7 @@ export class AnalysisIssueFix extends BaseNode {
   async fixAnalysisIssue(
     state: typeof AnalysisIssueFixInputState.State,
   ): Promise<typeof AnalysisIssueFixOutputState.State> {
+    this.logger.silly("AnalysisIssueFix called with state", { state });
     if (!state.inputFileUri || !state.inputFileContent || state.inputIncidents.length === 0) {
       return {
         outputUpdatedFile: undefined,
@@ -200,7 +205,7 @@ export class AnalysisIssueFix extends BaseNode {
               hints.push(hint);
             }
           } catch (error) {
-            console.warn(`Failed to get hint for ${violationKey}: ${error}`);
+            this.logger.warn(`Failed to get hint for ${violationKey}: ${error}`);
           }
         }
       }
@@ -267,6 +272,7 @@ If you have any additional details or steps that need to be performed, put it he
     );
 
     if (!response) {
+      this.logger.silly("AnalysisIssueFix returned undefined response");
       return {
         outputAdditionalInfo: undefined,
         outputUpdatedFile: undefined,

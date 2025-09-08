@@ -110,6 +110,9 @@ export class KaiInteractiveWorkflow
       options.fsCache,
       this.workspaceDir,
       options.solutionServerClient,
+      this.logger.child({
+        component: "AnalysisIssueFixNode",
+      }),
     );
     // relay events from nodes back to callers
     analysisIssueFixNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
@@ -438,21 +441,28 @@ export class KaiInteractiveWorkflow
     state: typeof DiagnosticsOrchestratorState.State,
   ): Promise<string> {
     if (state.shouldEnd) {
+      this.logger.silly("Going to END because shouldEnd is true");
       return END;
     }
     // if an agent is picked, we need to invoke it to do the next task
     if (state.currentAgent) {
       switch (state.currentAgent as AgentName) {
         case "generalFix":
+          this.logger.silly("Going to fix_general_issues because currentAgent is generalFix");
           return "fix_general_issues";
         case "javaDependency":
+          this.logger.silly("Going to fix_java_dep_issues because currentAgent is javaDependency");
           return "fix_java_dep_issues";
         default:
+          this.logger.silly(
+            "Going to orchestrate_plan_and_execution because currentAgent is default",
+          );
           return "orchestrate_plan_and_execution";
       }
     }
     // if there is a task, we need the planner to act on it
     if (state.currentTask) {
+      this.logger.silly("Going to plan_fixes because currentTask is present");
       return "plan_fixes";
     }
     return "orchestrate_plan_and_execution";
@@ -466,6 +476,7 @@ export class KaiInteractiveWorkflow
   ): (state: typeof MessagesAnnotation.State) => Promise<string> {
     return async (state: typeof MessagesAnnotation.State): Promise<string> => {
       if (!state.messages) {
+        this.logger.silly("Going to returnNode because messages is undefined");
         return returnNode;
       }
       const lastMessage = state.messages[state.messages.length - 1];
@@ -506,6 +517,8 @@ export class KaiInteractiveWorkflow
       .sort((a, b) => a.uri.localeCompare(b.uri))
       .map((item) => JSON.stringify(item))
       .join("|");
-    return createHash("sha256").update(dataString).digest("hex").substring(0, 16);
+    const hash = createHash("sha256").update(dataString).digest("hex").substring(0, 16);
+    this.logger.silly(`Created hash for input incidents: ${hash}`);
+    return hash;
   }
 }
