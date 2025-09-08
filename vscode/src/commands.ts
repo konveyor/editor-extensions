@@ -515,6 +515,7 @@ const commandsMap: (
 
       try {
         await state.solutionServerClient.rejectFile(path);
+        await executeExtensionCommand("getSuccessRate");
       } catch (error: any) {
         logger.error("Error notifying solution server of file rejection", { error, path });
       }
