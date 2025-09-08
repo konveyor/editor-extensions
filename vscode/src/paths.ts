@@ -72,7 +72,6 @@ export async function ensureKaiAnalyzerBinary(
 
     // Import checkIfExecutable dynamically to avoid circular imports
     const { checkIfExecutable } = await import("./utilities/fileUtils");
-    const { updateAnalyzerPath } = await import("./utilities/configuration");
 
     const isValid = await checkIfExecutable(userAnalyzerPath);
     if (!isValid) {

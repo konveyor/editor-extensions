@@ -74,6 +74,16 @@ export class SolutionServerClient {
     this.logger = logger.child({
       component: "SolutionServerClient",
     });
+    // Clear auth-related properties if auth is disabled
+    if (!this.authEnabled) {
+      this.realm = "";
+      this.clientId = "";
+      this.insecure = false;
+      this.bearerToken = null;
+      this.refreshToken = null;
+      this.tokenExpiresAt = null;
+      this.clearTokenRefreshTimer();
+    }
   }
 
   public updateConfig(config: SolutionServerConfig): void {
@@ -83,6 +93,16 @@ export class SolutionServerClient {
     this.insecure = config.auth.insecure;
     this.realm = config.auth.realm;
     this.clientId = `${this.realm}-ui`;
+    // Clear auth-related properties if auth is disabled
+    if (!this.authEnabled) {
+      this.realm = "";
+      this.clientId = "";
+      this.insecure = false;
+      this.bearerToken = null;
+      this.refreshToken = null;
+      this.tokenExpiresAt = null;
+      this.clearTokenRefreshTimer();
+    }
     this.logger.info("Solution server configuration updated");
   }
 
@@ -247,6 +267,10 @@ export class SolutionServerClient {
   }
 
   public async getServerCapabilities(): Promise<any> {
+    if (!this.enabled) {
+      this.logger.info("Solution server is disabled, returning incidents without success rate");
+      return;
+    }
     if (!this.mcpClient || !this.isConnected) {
       throw new SolutionServerClientError("Solution server is not connected");
     }

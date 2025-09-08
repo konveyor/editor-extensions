@@ -106,7 +106,7 @@ class VsCodeExtension {
           customRulesConfigured: false,
         },
       } as ExtensionData,
-      () => { },
+      () => {},
     );
     const getData = () => this.data;
     const setData = (data: Immutable<ExtensionData>) => {
@@ -232,9 +232,9 @@ class VsCodeExtension {
         vscode.window
           .showWarningMessage(
             "Invalid configuration detected: 'konveyor.solutionServer.auth' is set to a boolean value (true/false). " +
-            "Please remove this setting from your VS Code settings. " +
-            "Use 'konveyor.solutionServer.auth.enabled' instead. " +
-            "This invalid setting can cause problems with other configuration options below it.",
+              "Please remove this setting from your VS Code settings. " +
+              "Use 'konveyor.solutionServer.auth.enabled' instead. " +
+              "This invalid setting can cause problems with other configuration options below it.",
             "Open Settings",
           )
           .then((selection) => {
@@ -592,6 +592,11 @@ class VsCodeExtension {
   }
 
   private async connectToSolutionServer(): Promise<void> {
+    if (!getConfigSolutionServerEnabled()) {
+      this.state.logger.info("Solution server is disabled, skipping connection");
+      return;
+    }
+
     // Only attempt to connect if solution server is enabled
     let username: string = "";
     let password: string = "";
@@ -711,7 +716,7 @@ class VsCodeExtension {
       vscode.window
         .showWarningMessage(
           "The Red Hat Java Language Support extension is required for proper Java analysis. " +
-          "Please install it from the VS Code marketplace.",
+            "Please install it from the VS Code marketplace.",
           "Install Java Extension",
         )
         .then((selection) => {
@@ -725,7 +730,7 @@ class VsCodeExtension {
     if (!javaExt.isActive) {
       vscode.window.showInformationMessage(
         "The Java Language Support extension is installed but not yet active. " +
-        "Java analysis features may be limited until it's fully loaded.",
+          "Java analysis features may be limited until it's fully loaded.",
       );
     }
   }

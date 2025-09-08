@@ -36,6 +36,8 @@ import {
   getTraceDir,
   getConfigSolutionServerAuth,
   fileUriToPath,
+  updateSolutionServerConfig,
+  getConfigSolutionServer,
 } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import { promptForCredentials } from "./utilities/auth";
@@ -786,6 +788,13 @@ const commandsMap: (
         logger.info("Credential configuration cancelled.");
         return;
       }
+
+      await updateSolutionServerConfig({
+        auth: {
+          ...getConfigSolutionServer().auth,
+          ...credentials,
+        },
+      });
 
       await executeExtensionCommand("restartSolutionServer");
       logger.info("Solution server credentials updated successfully.");
