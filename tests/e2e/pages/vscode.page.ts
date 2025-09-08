@@ -5,7 +5,12 @@ import { _electron as electron, FrameLocator } from 'playwright';
 import { ElectronApplication, expect, Page } from '@playwright/test';
 import { MIN, SEC } from '../utilities/consts';
 import { createZip, extractZip } from '../utilities/archive';
-import { cleanupRepo, generateRandomString, getOSInfo } from '../utilities/utils';
+import {
+  cleanupRepo,
+  generateRandomString,
+  getOSInfo,
+  writeOrUpdateSettingsJson,
+} from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { TEST_DATA_DIR } from '../utilities/consts';
@@ -54,6 +59,11 @@ export class VSCode extends BasePage {
     if (repoDir) {
       args.push(path.resolve(repoDir));
     }
+
+    // set the log level prior to starting vscode
+    writeOrUpdateSettingsJson(path.join(repoDir ?? '', '.vscode', 'settings.json'), {
+      'konveyor.logLevel': 'silly',
+    });
 
     let executablePath = process.env.VSCODE_EXECUTABLE_PATH;
     if (!executablePath) {
@@ -328,7 +338,7 @@ export class VSCode extends BasePage {
     }
   }
 
-  public async getView(view: KAIViews): Promise<FrameLocator> {
+  public async getView(view: (typeof KAIViews)[keyof typeof KAIViews]): Promise<FrameLocator> {
     await this.window.locator(`div.tab.active[aria-label="${view}"]`).waitFor();
     await this.executeQuickCommand('View: Close Other Editors in Group');
 
@@ -555,31 +565,9 @@ export class VSCode extends BasePage {
    * @param settings - Key - value pair of settings to write or update, if a setting already exists, the new values will be merged
    */
   public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
-    try {
-      const vscodeDir = path.join(this.repoDir ?? '', '.vscode');
-      const settingsPath = path.join(vscodeDir, 'settings.json');
-      if (!fs.existsSync(vscodeDir)) {
-        fs.mkdirSync(vscodeDir, { recursive: true });
-      }
-      let existingSettings: Record<string, any> = {};
-      if (fs.existsSync(settingsPath)) {
-        try {
-          const existingContent = fs.readFileSync(settingsPath, 'utf-8');
-          existingSettings = JSON.parse(existingContent);
-        } catch (parseError) {
-          console.warn(
-            `Failed to parse existing settings.json, starting with empty settings: ${parseError}`
-          );
-          existingSettings = {};
-        }
-      }
-      const mergedSettings = { ...existingSettings, ...settings };
-      fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
-    } catch (error) {
-      console.error('Error writing VSCode settings:', error);
-      throw error;
-    }
+    writeOrUpdateSettingsJson(path.join(this.repoDir ?? '', '.vscode', 'settings.json'), settings);
   }
+
   public async waitForSolutionConfirmation(): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');

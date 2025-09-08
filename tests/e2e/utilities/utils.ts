@@ -87,3 +87,29 @@ export function generateRandomString(length: number = 8): string {
     .toString(36)
     .substring(2, 2 + length);
 }
+
+export function writeOrUpdateSettingsJson(settingsPath: string, settings: Record<string, any>) {
+  try {
+    const vscodeDir = path.dirname(settingsPath);
+    if (!fs.existsSync(vscodeDir)) {
+      fs.mkdirSync(vscodeDir, { recursive: true });
+    }
+    let existingSettings: Record<string, any> = {};
+    if (fs.existsSync(settingsPath)) {
+      try {
+        const existingContent = fs.readFileSync(settingsPath, 'utf-8');
+        existingSettings = JSON.parse(existingContent);
+      } catch (parseError) {
+        console.warn(
+          `Failed to parse existing settings.json, starting with empty settings: ${parseError}`
+        );
+        existingSettings = {};
+      }
+    }
+    const mergedSettings = { ...existingSettings, ...settings };
+    fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error writing VSCode settings:', error);
+    throw error;
+  }
+}
