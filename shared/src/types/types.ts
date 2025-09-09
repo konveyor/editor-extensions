@@ -159,6 +159,7 @@ export interface ChatMessage {
   extraContent?: React.ReactNode;
   quickResponses?: QuickResponse[];
   isCompact?: boolean;
+  selectedResponse?: string;
 }
 
 export interface ExtensionData {

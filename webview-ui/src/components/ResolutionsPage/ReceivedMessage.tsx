@@ -1,5 +1,5 @@
 import "./receivedMessage.css";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
@@ -7,8 +7,9 @@ import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
 import { getBrandName } from "../../utils/branding";
 
-interface QuickResponseWithToken extends QuickResponse {
+interface QuickResponseWithState extends QuickResponse {
   messageToken: string;
+  isSelected?: boolean;
 }
 
 interface ReceivedMessageProps {
@@ -16,7 +17,7 @@ interface ReceivedMessageProps {
   extraContent?: React.ReactNode;
   isLoading?: boolean;
   timestamp?: string | Date;
-  quickResponses?: QuickResponseWithToken[];
+  quickResponses?: QuickResponseWithState[];
   isProcessing?: boolean;
 }
 
@@ -33,7 +34,20 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   if (!content && !extraContent && !quickResponses?.length) {
     return null;
   }
-  const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
+
+  // Check if there's already a selectedResponse from the message data (restored from persistence)
+  const initialSelectedResponse =
+    quickResponses?.find((response) => response.isSelected === true)?.id || null;
+
+  const [selectedResponse, setSelectedResponse] = useState<string | null>(initialSelectedResponse);
+
+  // Update selectedResponse if initialSelectedResponse changes (e.g., when persistence data loads)
+  useEffect(() => {
+    if (initialSelectedResponse && selectedResponse !== initialSelectedResponse) {
+      setSelectedResponse(initialSelectedResponse);
+    }
+  }, [initialSelectedResponse]);
+
   const formatTimestamp = (time: string | Date): string => {
     const date = typeof time === "string" ? new Date(time) : time;
     return date.toLocaleTimeString("en-US", {

@@ -23,6 +23,14 @@ export async function handleQuickResponse(
 
       const msg = state.data.chatMessages[messageIndex];
 
+      // Update the chat message state to include the selected response
+      state.mutateData((draft) => {
+        const message = draft.chatMessages.find((m) => m.messageToken === messageToken);
+        if (message) {
+          message.selectedResponse = responseId;
+        }
+      });
+
       // Create the workflow message with proper typing
       let interactionType = responseId.startsWith("choice-") ? "choice" : "yesNo";
       let responseData: { choice: number } | { yesNo: boolean } | { tasks: any; yesNo: boolean } =

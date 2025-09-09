@@ -182,8 +182,6 @@ export async function handleFileResponse(
         }
       });
     } else if (responseId === "noChanges") {
-      // For noChanges, update the global state to indicate no changes were needed
-      // No file operations or notifications needed
       state.mutateData((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
@@ -203,8 +201,6 @@ export async function handleFileResponse(
       } catch (error) {
         logger.error("Error notifying solution server of rejection:", error);
       }
-
-      // Also update the global state
       state.mutateData((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,

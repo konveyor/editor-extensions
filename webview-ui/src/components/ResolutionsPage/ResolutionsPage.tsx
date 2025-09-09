@@ -174,6 +174,7 @@ const ResolutionPage: React.FC = () => {
 
       if (msg.kind === ChatMessageType.String) {
         const message = msg.value?.message as string;
+        const selectedResponse = msg.selectedResponse;
         return (
           <MessageWrapper key={msg.messageToken}>
             <ReceivedMessage
@@ -185,6 +186,7 @@ const ResolutionPage: React.FC = () => {
                       ...response,
                       messageToken: msg.messageToken,
                       isDisabled: response.id === "run-analysis" && isAnalyzing,
+                      isSelected: selectedResponse === response.id,
                     }))
                   : undefined
               }

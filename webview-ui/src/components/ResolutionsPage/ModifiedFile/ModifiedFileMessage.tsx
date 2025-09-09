@@ -31,7 +31,7 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const [isViewingDiff, setIsViewingDiff] = useState(false);
 
   // Get extension state to check for active decorators
-  const { state } = useExtensionStateContext();
+  const { state, dispatch } = useExtensionStateContext();
   const hasActiveDecorators = !!(state.activeDecorators && state.activeDecorators[messageToken]);
 
   // Get status from global state for this specific message
@@ -58,10 +58,14 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   >(() => {
     // Don't auto-set no_changes_needed - let user click Continue first
     // Only use status if it's explicitly set for this message
-    if (status === "applied" || status === "rejected") {
+    if (status === "applied" || status === "rejected" || status === "no_changes_needed") {
       return status;
     }
-    if (globalStatus === "applied" || globalStatus === "rejected") {
+    if (
+      globalStatus === "applied" ||
+      globalStatus === "rejected" ||
+      globalStatus === "no_changes_needed"
+    ) {
       return globalStatus;
     }
     return null; // Default to null - no action taken
@@ -78,7 +82,12 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   // Update local state ONLY when global state changes for this specific message
   useEffect(() => {
     // Only update if we found the exact message and it has a status
-    if (currentMessage && (globalStatus === "applied" || globalStatus === "rejected")) {
+    if (
+      currentMessage &&
+      (globalStatus === "applied" ||
+        globalStatus === "rejected" ||
+        globalStatus === "no_changes_needed")
+    ) {
       console.log(
         `[ModifiedFileMessage] Updating actionTaken to ${globalStatus} for messageToken: ${messageToken}, path: ${path}`,
       );

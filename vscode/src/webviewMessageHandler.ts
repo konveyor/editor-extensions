@@ -4,7 +4,6 @@ import { executeExtensionCommand } from "./commands";
 import {
   ADD_PROFILE,
   AnalysisProfile,
-  ChatMessageType,
   CONFIGURE_CUSTOM_RULES,
   CONFIGURE_LABEL_SELECTOR,
   CONFIGURE_SOURCES_TARGETS,
@@ -30,7 +29,6 @@ import {
   WebviewActionType,
   ScopeWithKonveyorContext,
   ExtensionData,
-  createConfigError,
   OPEN_RESOLUTION_PANEL,
 } from "@editor-extensions/shared";
 
@@ -277,43 +275,14 @@ const actions: {
       );
       console.log("Continue decision: ", { responseId, hasChanges });
 
-      // Send to solution server and update state
       await handleFileResponse(messageToken, responseId, path, finalContent, state);
       logger.info(`File state continued with response: ${responseId}`, {
         path,
         messageToken,
       });
-
-      // Update the chat message status
-      state.mutateData((draft) => {
-        const messageIndex = draft.chatMessages.findIndex(
-          (msg) => msg.messageToken === messageToken,
-        );
-        if (
-          messageIndex >= 0 &&
-          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
-        ) {
-          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
-          modifiedFileMessage.status = hasChanges ? "applied" : "rejected";
-        }
-      });
     } catch (error) {
       logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
-      // Fallback to reject on error
       await handleFileResponse(messageToken, "reject", path, content, state);
-
-      state.mutateData((draft) => {
-        const messageIndex = draft.chatMessages.findIndex(
-          (msg) => msg.messageToken === messageToken,
-        );
-        if (
-          messageIndex >= 0 &&
-          draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
-        ) {
-          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
-          modifiedFileMessage.status = "rejected";
-        }
-      });
     }
   },
 };
