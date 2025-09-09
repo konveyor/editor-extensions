@@ -430,14 +430,14 @@
           "scope": "window",
           "order": 20
         },
-        "konveyor.kai.agentMode": {
+        "konveyor.genai.agentMode": {
           "type": "boolean",
           "default": false,
           "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
           "order": 21
         },
-        "konveyor.kai.excludedDiagnosticSources": {
+        "konveyor.genai.excludedDiagnosticSources": {
           "type": "array",
           "default": [
             "trunk"
@@ -446,7 +446,7 @@
           "scope": "window",
           "order": 22
         },
-        "konveyor.kai.cacheDir": {
+        "konveyor.genai.cacheDir": {
           "type": [
             "string",
             "null"
@@ -456,7 +456,7 @@
           "scope": "window",
           "order": 23
         },
-        "konveyor.kai.traceDir": {
+        "konveyor.genai.traceDir": {
           "type": [
             "string",
             "null"
@@ -466,12 +466,19 @@
           "scope": "window",
           "order": 24
         },
-        "konveyor.kai.traceEnabled": {
+        "konveyor.genai.traceEnabled": {
           "type": "boolean",
           "default": false,
           "description": "Whether to create traces of the communication with the model",
           "scope": "window",
           "order": 25
+        },
+        "konveyor.genai.demoMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to run GenAI in demo mode i.e. use cached LLM responses",
+          "scope": "window",
+          "order": 26
         },
         "konveyor.solutionServer": {
           "type": "object",
@@ -520,13 +527,6 @@
           "description": "Enable debug logging for webview message handling",
           "scope": "window",
           "order": 40
-        },
-        "konveyor.kai.demoMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether to run Kai in demo mode i.e. use cached LLM responses",
-          "scope": "window",
-          "order": 41
         }
       }
     },

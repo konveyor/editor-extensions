@@ -13,6 +13,25 @@ import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import AdmZip from "adm-zip";
 
+/**
+ * Parse a sha256sum.txt file to extract the SHA256 hash for a specific filename
+ * Format: "hash  filename"
+ */
+function parseSha256Sum(sha256Content: string, targetFilename: string): string | null {
+  const lines = sha256Content.trim().split("\n");
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const hash = parts[0];
+      const filename = parts[1];
+      if (filename === targetFilename) {
+        return hash;
+      }
+    }
+  }
+  return null;
+}
+
 export interface ExtensionPaths {
   /** Directory with the extension's sample resources. */
   extResources: vscode.Uri;
@@ -121,14 +140,25 @@ export async function ensureKaiAnalyzerBinary(
   }
 
   const downloadUrl = `${fallbackConfig.baseUrl}${assetConfig.file}`;
-  const expectedSha256 = assetConfig.sha256;
+  const sha256sumUrl = `${fallbackConfig.baseUrl}${fallbackConfig.sha256sumFile}`;
 
   logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
-  logger.info(`Expected SHA256: ${expectedSha256}`);
+  logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
+
+  // Download and parse sha256sum.txt to get expected SHA
+  const sha256Response = await fetch(sha256sumUrl);
+  if (!sha256Response.ok) {
+    throw new Error(`Failed to download SHA256 checksums: HTTP ${sha256Response.status}`);
+  }
+
+  const sha256Content = await sha256Response.text();
+  const expectedSha256 = parseSha256Sum(sha256Content, assetConfig.file);
 
   if (!expectedSha256) {
-    throw new Error("No SHA256 provided in asset configuration");
+    throw new Error(`No SHA256 found for file: ${assetConfig.file}`);
   }
+
+  logger.info(`Expected SHA256: ${expectedSha256}`);
 
   await vscode.window.withProgress(
     {

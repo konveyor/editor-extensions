@@ -394,8 +394,8 @@ class VsCodeExtension {
           this.state.logger.info("Configuration modified!");
 
           if (
-            event.affectsConfiguration(`${EXTENSION_NAME}.kai.demoMode`) ||
-            event.affectsConfiguration(`${EXTENSION_NAME}.kai.cacheDir`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.genai.demoMode`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.genai.cacheDir`) ||
             event.affectsConfiguration(`${EXTENSION_NAME}.genai.enabled`)
           ) {
             this.setupModelProvider(paths().settingsYaml)
@@ -434,7 +434,7 @@ class VsCodeExtension {
               });
           }
 
-          if (event.affectsConfiguration(`${EXTENSION_NAME}.kai.agentMode`)) {
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
             const agentMode = getConfigAgentMode();
             this.state.mutateData((draft) => {
               draft.isAgentMode = agentMode;

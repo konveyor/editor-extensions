@@ -63,18 +63,21 @@ export const getConfigAnalyzeOnSave = (): boolean => {
 export const getConfigDiffEditorType = (): string =>
   getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
 export const getCacheDir = (workspaceRoot: string | undefined): string | undefined =>
-  getWorkspaceRelativePath(getConfigValue<string>("kai.cacheDir"), workspaceRoot);
+  getWorkspaceRelativePath(getConfigValue<string>("genai.cacheDir"), workspaceRoot);
 export const getTraceDir = (workspaceRoot: string | undefined): string | undefined =>
-  getWorkspaceRelativePath(getConfigValue<string>("kai.traceDir"), workspaceRoot);
-export const getTraceEnabled = (): boolean => getConfigValue<boolean>("kai.traceEnabled") || false;
-export const getConfigKaiDemoMode = (): boolean => getConfigValue<boolean>("kai.demoMode") ?? false;
+  getWorkspaceRelativePath(getConfigValue<string>("genai.traceDir"), workspaceRoot);
+export const getTraceEnabled = (): boolean =>
+  getConfigValue<boolean>("genai.traceEnabled") || false;
+export const getConfigKaiDemoMode = (): boolean =>
+  getConfigValue<boolean>("genai.demoMode") ?? false;
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
-export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("kai.agentMode") ?? false;
+export const getConfigAgentMode = (): boolean =>
+  getConfigValue<boolean>("genai.agentMode") ?? false;
 export const getConfigAutoAcceptOnSave = (): boolean =>
   getConfigValue<boolean>("diff.autoAcceptOnSave") ?? true;
 export const getExcludedDiagnosticSources = (): string[] =>
-  getConfigValue<string[]>("kai.excludedDiagnosticSources") ?? [];
+  getConfigValue<string[]>("genai.excludedDiagnosticSources") ?? [];
 
 /**
  * Get all configuration values for keys defined in the package.json file. Used in debugging.
@@ -118,7 +121,7 @@ export const updateAnalyzerPath = async (value: string | undefined): Promise<voi
 };
 export const toggleAgentMode = async (): Promise<void> => {
   const currentValue = getConfigAgentMode();
-  await updateConfigValue("kai.agentMode", !currentValue, vscode.ConfigurationTarget.Workspace);
+  await updateConfigValue("genai.agentMode", !currentValue, vscode.ConfigurationTarget.Workspace);
 };
 
 export const enableGenAI = async (): Promise<void> => {
