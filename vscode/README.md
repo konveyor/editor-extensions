@@ -1,9 +1,9 @@
 # Konveyor VSCode Extension
 
 A powerful VS Code extension for application modernization and migration
-analysis. Leverages rules based analysis engine to analyze code, identify
-modernization opportunities, and optionally use generative AI in migrating
-applications to newer platforms or architectures.
+analysis. Leverages a rule-based analysis engine to identify modernization
+opportunities and optionally uses generative AI to help migrate applications
+to newer platforms or architectures.
 
 ---
 
@@ -27,17 +27,22 @@ applications to newer platforms or architectures.
 
 ## Basic Workflow
 
-### 1. Configure AI (Optional)
+### 1. Create Analysis Profile
 
-Configure your AI provider for solution generation through the extension settings.
+- Configure analysis settings and rules
+- Set up your analysis scope and targets
 
 ### 2. Run Analysis
 
-- Start the analysis server
+- Start the server
 - Run analysis on your code
-- View results in the analysis panel
+- View results in the panel
 
-### 3. Apply Solutions
+### 3. Configure AI (Optional)
+
+To enable AI-powered solution generation, enable AI features and configure your AI provider through the extension settings.
+
+### 4. Generate Solutions
 
 - Select issues you want to fix
 - Generate AI solutions or apply manual fixes
