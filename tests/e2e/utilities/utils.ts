@@ -9,10 +9,11 @@ import process from 'process';
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
 export const extensionId = `${extensionPublisher}.${extensionName}`;
+export const extensionShortName = process.env.TEST_CATEGORY || 'Konveyor';
 
-// Function to get the analysis view title based on extension name
+// Function to get the analysis view title based on extension short name
 export function getAnalysisViewTitle(): string {
-  return `${extensionName.charAt(0).toUpperCase() + extensionName.slice(1)} Analysis View`;
+  return `${extensionShortName} Analysis View`;
 }
 
 // Function to get OS information

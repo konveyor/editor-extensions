@@ -87,6 +87,7 @@ module.exports = (env, argv) => {
         __EXTENSION_PUBLISHER__: JSON.stringify(packageJson.publisher),
         __EXTENSION_VERSION__: JSON.stringify(packageJson.version),
         __EXTENSION_DISPLAY_NAME__: JSON.stringify(packageJson.displayName),
+        __EXTENSION_SHORT_NAME__: JSON.stringify(packageJson.contributes.commands[0].category),
         __BUILD_GIT_SHA__: JSON.stringify(getGitSha()),
         __BUILD_GIT_SHA_SHORT__: JSON.stringify(getGitShaShort()),
         __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),

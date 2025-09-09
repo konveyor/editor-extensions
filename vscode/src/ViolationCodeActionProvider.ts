@@ -3,7 +3,7 @@ import { ExtensionState } from "./extensionState";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import { DiagnosticSource } from "@editor-extensions/shared";
-import { EXTENSION_NAME } from "./utilities/constants";
+import { EXTENSION_NAME, EXTENSION_SHORT_NAME } from "./utilities/constants";
 export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
   static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
@@ -61,10 +61,13 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
       return actions;
     }
 
-    const askKaiAction = new vscode.CodeAction("Ask Kai", vscode.CodeActionKind.QuickFix);
+    const askKaiAction = new vscode.CodeAction(
+      `Ask ${EXTENSION_SHORT_NAME}`,
+      vscode.CodeActionKind.QuickFix,
+    );
     askKaiAction.command = {
       command: `${EXTENSION_NAME}.getSolution`,
-      title: "Ask Kai",
+      title: `Ask ${EXTENSION_SHORT_NAME}`,
       arguments: [[incident]],
     };
     askKaiAction.diagnostics = [diagnostic];
@@ -72,13 +75,13 @@ export class ViolationCodeActionProvider implements vscode.CodeActionProvider {
 
     if (continueExt) {
       const askContinueAction = new vscode.CodeAction(
-        "Ask Continue with Konveyor Context",
+        `Ask Continue with ${EXTENSION_SHORT_NAME} Context`,
         vscode.CodeActionKind.QuickFix,
       );
 
       askContinueAction.command = {
         command: `${EXTENSION_NAME}.askContinue`,
-        title: "Ask Continue with Konveyor Context",
+        title: `Ask Continue with ${EXTENSION_SHORT_NAME} Context`,
         arguments: [incident],
       };
       askContinueAction.diagnostics = [diagnostic];

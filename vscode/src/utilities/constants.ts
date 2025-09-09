@@ -7,6 +7,7 @@ declare const __BUILD_GIT_SHA_SHORT__: string;
 declare const __BUILD_TIMESTAMP__: string;
 declare const __EXTENSION_AUTHOR__: string;
 declare const __EXTENSION_DISPLAY_NAME__: string;
+declare const __EXTENSION_SHORT_NAME__: string;
 
 export const KONVEYOR_SCHEME = "konveyorMemFs";
 export const KONVEYOR_READ_ONLY_SCHEME = "konveyorReadOnly";
@@ -21,6 +22,7 @@ export const EXTENSION_AUTHOR = __EXTENSION_AUTHOR__;
 export const EXTENSION_PUBLISHER = __EXTENSION_PUBLISHER__;
 export const EXTENSION_VERSION = __EXTENSION_VERSION__;
 export const EXTENSION_DISPLAY_NAME = __EXTENSION_DISPLAY_NAME__;
+export const EXTENSION_SHORT_NAME = __EXTENSION_SHORT_NAME__;
 export const BUILD_GIT_SHA = __BUILD_GIT_SHA__;
 export const BUILD_GIT_SHA_SHORT = __BUILD_GIT_SHA_SHORT__;
 export const BUILD_TIMESTAMP = __BUILD_TIMESTAMP__;

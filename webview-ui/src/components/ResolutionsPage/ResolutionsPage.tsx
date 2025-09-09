@@ -210,7 +210,7 @@ const ResolutionPage: React.FC = () => {
     >
       <PageSection>
         <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
-          Kai Results
+          Generative AI Results
           {isFetchingSolution && <LoadingIndicator />}
           {!isFetchingSolution && (
             <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
