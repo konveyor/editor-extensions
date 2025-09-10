@@ -3,6 +3,7 @@ import { isUriIgnored } from "../paths";
 import * as vscode from "vscode";
 import { BackoffManager } from "./backoffManager";
 import { ExtensionState } from "src/extensionState";
+import { runPartialAnalysis } from "./runAnalysis";
 
 export class BatchedAnalysisTrigger {
   private analysisBackoff: BackoffManager;
@@ -92,8 +93,7 @@ export class BatchedAnalysisTrigger {
       return;
     }
     try {
-      const response = await this.extensionState.analyzerClient.runAnalysis(changedFiles);
-      console.log("runAnalysis response", response);
+      await runPartialAnalysis(this.extensionState, changedFiles);
       for (const file of changedFiles) {
         this.analysisFileChangesQueue.delete(file);
       }
