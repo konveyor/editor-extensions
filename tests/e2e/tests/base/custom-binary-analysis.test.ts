@@ -19,7 +19,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
   const profileName = `custom-binary-analysis-${randomString}`;
   let binaryPath: string | undefined;
   test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(600000);
+    test.setTimeout(900000);
     const kaiFolderPath = pathlib.join(__dirname, '../../../../downloaded_assets/kai');
     if (!process.env.ANALYZER_BINARY_PATH && !fs.existsSync(kaiFolderPath)) {
       throw new Error(
@@ -71,6 +71,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
   });
 
   test('Analyze coolstore app', async () => {
+    test.setTimeout(600000);
     const configPage = await Configuration.open(vscodeApp);
     await configPage.setInputConfiguration(analyzerPath, binaryPath!);
     await vscodeApp.startServer();

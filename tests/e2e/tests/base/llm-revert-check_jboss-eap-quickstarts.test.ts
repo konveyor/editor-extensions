@@ -65,8 +65,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.openAnalysisView();
       await vscodeApp.searchViolationAndAcceptAllSolutions(violation);
       await vscodeApp.openAnalysisView();
-      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-      await vscodeApp.waitForSolutionConfirmation(analysisView);
+      await vscodeApp.waitForSolutionConfirmation();
 
       afterFirstFixMemberFileImports = getFileImports(memberFileUri);
     });
@@ -79,8 +78,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.openAnalysisView();
       await vscodeApp.searchViolationAndAcceptAllSolutions(violation);
       await vscodeApp.openAnalysisView();
-      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-      await vscodeApp.waitForSolutionConfirmation(analysisView);
+      await vscodeApp.waitForSolutionConfirmation();
 
       afterSecondFixMemberFileImports = getFileImports(memberFileUri);
     });
@@ -98,9 +96,6 @@ getAvailableProviders().forEach((provider) => {
     test.afterEach(async () => {
       const testName = test.info().title.replace(' ', '-');
       console.log(`Finished ${testName} at ${new Date()}`);
-      await vscodeApp.getWindow().screenshot({
-        path: `${SCREENSHOTS_FOLDER}/after-${testName}-${provider.model.replace(/[.:]/g, '-')}.png`,
-      });
     });
 
     test.afterAll(async () => {

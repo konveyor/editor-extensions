@@ -91,8 +91,8 @@ providers.forEach((config) => {
 
     test.afterAll(async () => {
       await vscodeApp.closeVSCode();
-      // Evaluation should be performed just on Linux, on CI by default and only if all tests under this suite passed
-      if (getOSInfo() === 'linux' && allOk && process.env.CI) {
+      // Evaluation should be performed just on CI by default and only if all tests under this suite passed
+      if (allOk && process.env.CI) {
         await prepareEvaluationData(config.model);
         await runEvaluation(
           path.join(TEST_OUTPUT_FOLDER, 'incidents-map.json'),

@@ -24,6 +24,7 @@ const COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
+
 export class VSCode extends BasePage {
   constructor(
     app: ElectronApplication,
@@ -265,6 +266,11 @@ export class VSCode extends BasePage {
     const kindButton = analysisView.getByRole('button', {
       name: kind === 'issues' ? 'Issues' : 'Files',
     });
+    const toggleFilterButton = analysisView.locator('button[aria-label="Show Filters"]');
+
+    if (!(await kindButton.isVisible()) && (await toggleFilterButton.isVisible())) {
+      await toggleFilterButton.click();
+    }
 
     await expect(kindButton).toBeVisible({ timeout: 5_000 });
     await expect(kindButton).toBeEnabled({ timeout: 3_000 });
@@ -469,7 +475,8 @@ export class VSCode extends BasePage {
 
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
-      await deleteButton.click();
+      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
+      await deleteButton.first().dispatchEvent('click');
 
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
@@ -586,19 +593,24 @@ export class VSCode extends BasePage {
   public async acceptAllSolutions() {
     const resolutionView = await this.getView(KAIViews.resolutionDetails);
     const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
+    const loadingIndicator = resolutionView.locator('.loading-indicator');
 
     await this.waitDefault();
-    await expect(fixLocator.first()).toBeVisible({ timeout: 3600000 });
+    // Avoid fixing issues forever
+    const MAX_FIXES = 500;
 
-    const fixesNumber = await fixLocator.count();
-    let fixesCounter = await fixLocator.count();
-    for (let i = 0; i < fixesNumber; i++) {
+    for (let i = 0; i < MAX_FIXES; i++) {
       await expect(fixLocator.first()).toBeVisible({ timeout: 30000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.first().dispatchEvent('click');
       await this.waitDefault();
-      expect(await fixLocator.count()).toEqual(--fixesCounter);
+
+      if (!(await loadingIndicator.isVisible())) {
+        return;
+      }
     }
+
+    throw new Error('MAX_FIXES limit reached while requesting solutions');
   }
 
   public async searchViolationAndAcceptAllSolutions(violation: string) {

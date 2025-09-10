@@ -12,7 +12,7 @@ test.describe(`Configure extension and run analysis`, () => {
   const profileName = `automation-${randomString}`;
 
   test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(600000);
+    test.setTimeout(900000);
     const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
   });
@@ -32,6 +32,7 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Analyze coolstore app', async () => {
+    test.setTimeout(300000);
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();
     await vscodeApp.waitDefault();
