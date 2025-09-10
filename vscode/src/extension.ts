@@ -613,7 +613,8 @@ class VsCodeExtension {
     }
 
     this.state.solutionServerClient
-      .connect(username, password)
+      .authenticate(username, password)
+      .then(() => this.state.solutionServerClient.connect())
       .then(() => {
         // Update state to reflect successful connection
         this.state.mutateData((draft) => {

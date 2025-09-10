@@ -106,7 +106,27 @@ export class SolutionServerClient {
     this.logger.info("Solution server configuration updated");
   }
 
-  public async connect(username?: string, password?: string): Promise<void> {
+  public async authenticate(username: string, password: string): Promise<void> {
+    if (!this.enabled) {
+      this.logger.info("Solution server is disabled, skipping authentication");
+      return;
+    }
+
+    if (!this.authEnabled) {
+      this.logger.info("Authentication is disabled");
+      return;
+    }
+
+    if (!username || !password) {
+      throw new SolutionServerClientError("No username or password provided");
+    }
+
+    this.username = username;
+    this.password = password;
+    this.logger.info("Credentials stored for authentication");
+  }
+
+  public async connect(): Promise<void> {
     if (!this.enabled) {
       this.logger.info("Solution server is disabled, skipping connection");
       return;
@@ -117,24 +137,24 @@ export class SolutionServerClient {
       this.sslBypassCleanup = this.applySSLBypass();
     }
 
+    // Handle authentication if required
     if (this.authEnabled) {
-      if (!username || !password) {
-        throw new SolutionServerClientError("No username or password provided");
+      // Only require credentials if we don't yet have a token
+      if (!this.bearerToken && (!this.username || !this.password)) {
+        throw new SolutionServerClientError("No credentials available. Call authenticate() first.");
       }
-      this.username = username;
-      this.password = password;
-
-      // Always get fresh tokens on startup/connect
-      try {
-        if (!this.bearerToken) {
+      // Exchange for tokens if we don't have one
+      if (!this.bearerToken) {
+        try {
           await this.exchangeForTokens();
+        } catch (error) {
+          this.logger.error("Failed to exchange for tokens", error);
+          throw error;
         }
-        this.startTokenRefreshTimer();
-      } catch (error) {
-        this.logger.error("Failed to exchange for tokens", error);
-        await this.disconnect();
-        return;
       }
+
+      // Ensure refresh timer is running (also after manual restarts)
+      this.startTokenRefreshTimer();
     }
 
     this.mcpClient = new Client(
@@ -803,11 +823,6 @@ export class SolutionServerClient {
       return;
     }
 
-    if (!this.username || !this.password) {
-      this.logger.warn("No auth config available for token refresh");
-      return;
-    }
-
     const url = new URL(this.serverUrl);
     const keycloakUrl = `${url.protocol}//${url.host}/auth`;
     const tokenUrl = `${keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
@@ -856,8 +871,7 @@ export class SolutionServerClient {
           this.logger.error("Error reconnecting to MCP solution server", error);
         }
       }
-
-      // Restart the refresh timer
+      // Always restart the refresh timer
       this.startTokenRefreshTimer();
     } catch (error) {
       this.logger.error("Token refresh failed", error);
