@@ -1,7 +1,16 @@
 import "./resolutionsPage.css";
 import React, { useMemo, useCallback } from "react";
-import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
-import { CheckCircleIcon } from "@patternfly/react-icons";
+import {
+  Page,
+  PageSection,
+  PageSidebar,
+  PageSidebarBody,
+  Title,
+  Button,
+  Flex,
+  FlexItem,
+} from "@patternfly/react-core";
+import { CheckCircleIcon, TimesIcon } from "@patternfly/react-icons";
 import {
   ChatMessage,
   ChatMessageType,
@@ -9,7 +18,7 @@ import {
   type ToolMessageValue,
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
-import { openFile } from "../../hooks/actions";
+import { openFile, cancelSolution } from "../../hooks/actions";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { SentMessage } from "./SentMessage";
 import { ReceivedMessage } from "./ReceivedMessage";
@@ -32,6 +41,7 @@ const useResolutionData = (state: any) => {
     solutionData: resolution,
     isFetchingSolution = false,
     isAnalyzing,
+    workflowState = "idle",
   } = state;
 
   const isTriggeredByUser = useMemo(
@@ -70,6 +80,7 @@ const useResolutionData = (state: any) => {
     isFetchingSolution,
     isAnalyzing,
     solutionState,
+    workflowState,
   };
 };
 
@@ -123,8 +134,14 @@ const ResolutionPage: React.FC = () => {
   const { solutionScope } = state;
 
   // Unified data hook
-  const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
-    useResolutionData(state);
+  const {
+    isTriggeredByUser,
+    hasNothingToView,
+    chatMessages,
+    isFetchingSolution,
+    isAnalyzing,
+    workflowState,
+  } = useResolutionData(state);
 
   const { messageBoxRef, triggerScrollOnUserAction } = useScrollManagement(
     chatMessages,
@@ -209,13 +226,42 @@ const ResolutionPage: React.FC = () => {
       }
     >
       <PageSection>
-        <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
-          Generative AI Results
-          {isFetchingSolution && <LoadingIndicator />}
-          {!isFetchingSolution && (
-            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+        <Flex
+          alignItems={{ default: "alignItemsCenter" }}
+          justifyContent={{ default: "justifyContentSpaceBetween" }}
+        >
+          <FlexItem>
+            <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
+              Generative AI Results
+              {isFetchingSolution && <LoadingIndicator />}
+              {workflowState === "stopping" && (
+                <span style={{ marginLeft: "10px", color: "orange" }}>Stopping...</span>
+              )}
+              {workflowState === "aborted" && (
+                <TimesIcon style={{ marginLeft: "10px", color: "red" }} />
+              )}
+              {!isFetchingSolution &&
+                workflowState !== "stopping" &&
+                workflowState !== "aborted" && (
+                  <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+                )}
+            </Title>
+          </FlexItem>
+          {(workflowState === "running" ||
+            workflowState === "starting" ||
+            workflowState === "waitingForUserInput") && (
+            <FlexItem>
+              <Button
+                variant="danger"
+                icon={<TimesIcon />}
+                onClick={() => dispatch(cancelSolution())}
+                size="sm"
+              >
+                Stop Workflow
+              </Button>
+            </FlexItem>
           )}
-        </Title>
+        </Flex>
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>

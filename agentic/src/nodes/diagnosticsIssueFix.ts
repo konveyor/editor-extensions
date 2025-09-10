@@ -68,6 +68,14 @@ export class DiagnosticsIssueFix extends BaseNode {
     promise.resolve(response);
   }
 
+  // aborts all pending diagnostics promises
+  async abortDiagnosticsPromise(): Promise<void> {
+    for (const [id, promise] of this.diagnosticsPromises) {
+      promise.reject(new Error("Workflow aborted"));
+      this.diagnosticsPromises.delete(id);
+    }
+  }
+
   // node responsible for orchestrating planning work and calling nodes - we either get diagnostics issues
   // or additional information from previous analysis nodes, if none are present, we wait for diagnostics
   // issues to be submitted by the ide

@@ -7,6 +7,7 @@ import {
   type KaiInteractiveWorkflow,
   type KaiModelProvider,
   type SolutionServerClient,
+  KaiWorkflowState,
 } from "@editor-extensions/agentic";
 import { Immutable } from "immer";
 import { IssuesModel } from "./issueView";
@@ -32,12 +33,14 @@ export interface ExtensionState {
   workflowManager: {
     workflow: KaiInteractiveWorkflow | undefined;
     isInitialized: boolean;
+    currentState: KaiWorkflowState;
     init: (config: {
       modelProvider: KaiModelProvider;
       workspaceDir: string;
       solutionServerClient?: SolutionServerClient;
     }) => Promise<void>;
     getWorkflow: () => KaiInteractiveWorkflow;
+    abort: () => Promise<void>;
     dispose: () => void;
   };
   resolvePendingInteraction?: (messageId: string, response: any) => boolean;

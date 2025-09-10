@@ -6,6 +6,7 @@ import {
   KaiInteractiveWorkflow,
   KaiWorkflowMessageType,
   KaiUserInteraction,
+  KaiWorkflowState,
 } from "@editor-extensions/agentic";
 import { flattenCurrentTasks, summarizeTasks, type TasksList } from "../../taskManager";
 import { ExtensionState } from "../../extensionState";
@@ -334,6 +335,32 @@ export const processMessageByType = async (
         queueManager,
         state.modifiedFilesEventEmitter,
       );
+      break;
+    }
+    case KaiWorkflowMessageType.WorkflowStateChanged: {
+      const stateData = msg.data;
+      state.mutateData((draft) => {
+        draft.workflowState = stateData.state;
+
+        // Update isFetchingSolution based on workflow state
+        if (
+          stateData.state === KaiWorkflowState.Running ||
+          stateData.state === KaiWorkflowState.Starting ||
+          stateData.state === KaiWorkflowState.WaitingForUserInput
+        ) {
+          draft.isFetchingSolution = true;
+        } else if (
+          stateData.state === KaiWorkflowState.Completed ||
+          stateData.state === KaiWorkflowState.Failed ||
+          stateData.state === KaiWorkflowState.Aborted ||
+          stateData.state === KaiWorkflowState.Idle
+        ) {
+          draft.isFetchingSolution = false;
+        }
+      });
+
+      // Update workflow manager state
+      state.workflowManager.currentState = stateData.state;
       break;
     }
   }

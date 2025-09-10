@@ -173,6 +173,15 @@ export interface ExtensionData {
   isStartingServer: boolean;
   isInitializingServer: boolean;
   isContinueInstalled: boolean;
+  workflowState:
+    | "idle"
+    | "starting"
+    | "running"
+    | "waitingForUserInput"
+    | "stopping"
+    | "completed"
+    | "failed"
+    | "aborted";
   isAnalysisScheduled: boolean;
   serverState: ServerState;
   solutionState: SolutionState;
