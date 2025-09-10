@@ -12,6 +12,7 @@ import {
   Violation,
 } from "@editor-extensions/shared";
 import { paths, ignoresToExcludedPaths } from "../paths";
+import { normalizeFilePath } from "../utilities/pathUtils";
 import { Extension } from "../helpers/Extension";
 import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
@@ -418,9 +419,12 @@ export class AnalyzerClient {
 
           const requestParams = {
             label_selector: activeProfile.labelSelector,
-            included_paths: filePaths?.map((uri) => uri.fsPath),
+            included_paths: filePaths?.map((uri) => normalizeFilePath(uri.fsPath)),
             reset_cache: !(filePaths && filePaths.length > 0),
-            excluded_paths: ignoresToExcludedPaths(),
+            excluded_paths: ignoresToExcludedPaths().flatMap((path) => [
+              path,
+              normalizeFilePath(path),
+            ]),
           };
           this.logger.info(
             `Sending 'analysis_engine.Analyze' request with params: ${JSON.stringify(
