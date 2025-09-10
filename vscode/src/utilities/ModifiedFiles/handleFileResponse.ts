@@ -1,8 +1,8 @@
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
 import { ChatMessageType } from "@editor-extensions/shared";
-import { getConfigAgentMode, getConfigAnalyzeOnSave } from "../configuration";
 import { executeExtensionCommand } from "../../commands";
+import { runPartialAnalysis } from "../../analysis/runAnalysis";
 
 /**
  * Creates a new file with the specified content
@@ -140,16 +140,14 @@ export async function handleFileResponse(
 
         // Trigger analysis after file changes are applied in agentic mode or when analyze on save is enabled
         // This ensures that the tasks interaction can detect new diagnostic issues
-        if (getConfigAgentMode() || getConfigAnalyzeOnSave()) {
-          try {
-            await state.analyzerClient.runAnalysis([uri]);
-          } catch (analysisError) {
-            logger.warn(
-              `Failed to trigger analysis after applying changes to ${path}:`,
-              analysisError,
-            );
-            // Don't throw here - file changes were successful, analysis failure is not critical
-          }
+        try {
+          await runPartialAnalysis(state, [uri]);
+        } catch (analysisError) {
+          logger.warn(
+            `Failed to trigger analysis after applying changes to ${path}:`,
+            analysisError,
+          );
+          // Don't throw here - file changes were successful, analysis failure is not critical
         }
       } catch (error) {
         logger.error("Error applying file changes:", error);
