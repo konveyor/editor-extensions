@@ -67,7 +67,8 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
             } else if (
               (entry.isFile() && rPattern.test(entry.name)) ||
               rPattern.test(pathlib.basename(absPath)) ||
-              rPattern.test(relPath)
+              rPattern.test(relPath) ||
+              pattern === relPath
             ) {
               result.push(relPath);
             }

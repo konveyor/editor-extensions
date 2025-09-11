@@ -44,7 +44,7 @@ describe("searchFilesTool", () => {
 
     // ISSUE-806: when a model passes a relative path as pattern, it should match
     const tc5 = await tool.invoke({
-      pattern: "src/main/java/io/example/lib/A.java",
+      pattern: pathlib.join("src", "main", "java", "io", "example", "lib", "A.java"),
     });
     const tc5_expected = pathlib.join("src", "main", "java", "io", "example", "lib", "A.java");
     expect(tc5).toBe(tc5_expected);
