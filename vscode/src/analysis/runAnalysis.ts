@@ -55,5 +55,5 @@ export const runPartialAnalysis = async (state: ExtensionState, filePaths: vscod
     vscode.window.showErrorMessage("Analyzer must be started and configured before run!");
     return;
   }
-  analyzerClient.runAnalysis(filePaths);
+  return analyzerClient.runAnalysis(filePaths);
 };
