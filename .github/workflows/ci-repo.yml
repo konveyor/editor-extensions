@@ -314,17 +314,25 @@ jobs:
           name: vsix-artifact
           path: ./dist
 
-      - name: Set vsix suffix
-        id: set_time
-        run: echo "vsix_suffix=$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Set asset suffix
+        id: set_asset_suffix
+        run: echo "asset_suffix=$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set asset path
+        id: set_asset_path
+        run: echo "asset_path=$(ls -1 ./dist/*.vsix)" >> $GITHUB_OUTPUT
+
+      - name: Set asset prefix
+        id: set_asset_prefix
+        run: echo "asset_prefix=$(ls -1 ./dist/*.vsix | awk -F '[/-]' '{ print $3 }'  )" >> $GITHUB_OUTPUT
 
       - name: Deploy release
         uses: WebFreak001/deploy-nightly@v3.2.0
         with:
-          upload_url: https://uploads.github.com/repos/konveyor/editor-extensions/releases/223723085/assets{?name,label}
-          release_id: 223723085
-          asset_path: ./dist/konveyor-ai.vsix
-          asset_name: konveyor-ai-${{ steps.set_time.outputs.vsix_suffix }}.vsix
+          upload_url: ${{ vars.CI_UPLOAD_URL }}
+          release_id: ${{ vars.CI_RELEASE_ID }}
+          asset_path: ${{ steps.set_asset_path.outputs.asset_path }}
+          asset_name: ${{ steps.set_asset_prefix.outputs.asset_prefix }}-ai-${{ steps.set_asset_suffix.outputs.asset_suffix }}.vsix
           asset_content_type: application/octet-stream
           ignore_hash: true
 
