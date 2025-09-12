@@ -78,9 +78,6 @@ body {
 
 :root {
   /* Base editor colors */
-  /* --vscode-editor-background: #1e1e1e;
-  --vscode-editor-foreground: #d4d4d4; */
-  /* Use VSCode's actual variables instead of hardcoded values */
   --vscode-editor-background: var(--vscode-editor-background);
   --vscode-editor-foreground: var(--vscode-editor-foreground);
 
