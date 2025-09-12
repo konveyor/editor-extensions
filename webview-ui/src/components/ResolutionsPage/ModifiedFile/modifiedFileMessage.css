@@ -73,6 +73,78 @@
   color: #6a737d;
 }
 
+/* Use theme-aware syntax highlighting */
+.markdown-diff .hljs {
+  background: transparent !important;
+  color: var(--syntax-fg) !important;
+}
+
+.markdown-diff .hljs-keyword,
+.markdown-diff .hljs-built_in {
+  color: var(--syntax-keyword) !important;
+}
+
+.markdown-diff .hljs-type {
+  color: var(--syntax-type) !important;
+}
+
+.markdown-diff .hljs-literal,
+.markdown-diff .hljs-number {
+  color: var(--syntax-number) !important;
+}
+
+.markdown-diff .hljs-string,
+.markdown-diff .hljs-char {
+  color: var(--syntax-string) !important;
+}
+
+.markdown-diff .hljs-operator,
+.markdown-diff .hljs-punctuation {
+  color: var(--syntax-operator) !important;
+}
+
+.markdown-diff .hljs-function,
+.markdown-diff .hljs-title {
+  color: var(--syntax-function) !important;
+}
+
+.markdown-diff .hljs-variable,
+.markdown-diff .hljs-property,
+.markdown-diff .hljs-attr {
+  color: var(--syntax-variable) !important;
+}
+
+.markdown-diff .hljs-tag,
+.markdown-diff .hljs-name {
+  color: var(--syntax-keyword) !important;
+}
+
+.markdown-diff .hljs-class,
+.markdown-diff .hljs-selector-id,
+.markdown-diff .hljs-selector-class,
+.markdown-diff .hljs-selector-attr,
+.markdown-diff .hljs-selector-pseudo {
+  color: var(--syntax-type) !important;
+}
+
+.markdown-diff .hljs-constant,
+.markdown-diff .hljs-literal {
+  color: var(--syntax-constant) !important;
+}
+
+.markdown-diff .hljs-regexp,
+.markdown-diff .hljs-attribute,
+.markdown-diff .hljs-template-variable {
+  color: var(--syntax-property) !important;
+}
+
+/* Comments should use theme-aware styling */
+.markdown-diff .hljs-comment,
+.markdown-diff .hljs-quote {
+  color: var(--syntax-comment) !important;
+  font-style: italic;
+}
+
 .modified-file-actions {
   justify-content: space-between;
   align-items: center;

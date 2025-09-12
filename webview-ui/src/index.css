@@ -78,8 +78,11 @@ body {
 
 :root {
   /* Base editor colors */
-  --vscode-editor-background: #1e1e1e;
-  --vscode-editor-foreground: #d4d4d4;
+  /* --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4; */
+  /* Use VSCode's actual variables instead of hardcoded values */
+  --vscode-editor-background: var(--vscode-editor-background);
+  --vscode-editor-foreground: var(--vscode-editor-foreground);
 
   /* Diff highlights */
   --vscode-diffEditor-insertedTextBackground: #9ccc2c33;
@@ -125,11 +128,25 @@ body {
   /* PatternFly overrides */
   --pf-v6-c-card--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-t--global--background--color--primary--default: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--floating--default: var(--vscode-editor-background) !important;
+  --pf-v6-c-button--hover--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-v6-c-content--Color: var(--vscode-editor-foreground) !important;
   --pf-v6-c-page--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-v6-c-page__main-container--BackgroundColor: var(--vscode-editor-background) !important;
   --pf-t--global--text--color--link--100: #3794ff;
   --pf-t--global--color--status--danger--100: #f48771;
+  --pf-t--global--dark--text--color--100: var(----vscode-editor-foreground) !imporant;
+  --pf-t--global--text--color--regular: var(------vscode-editor-foreground) !important;
+  --pf-t--global--text--color--subtle: var(------vscode-editor-foreground) !important;
+  --pf-t--global--text--color--disabled: var(------vscode-editor-foreground) !important;
+  --pf-v6-c-button--m-control--Color: var(------vscode-editor-foreground) !important;
+  --pf-v6-c-button--m-control--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--control--default: var(--vscode-editor-background) !important;
+  --pf-t--global--icon--color--regular: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--brand--default: var(--vscode-editor-foreground) !important;
+  --pf-t--global--icon--color--brand--default: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--brand--hover: var(--vscode-editor-foreground) !important;
+  --pf-t--global--icon--color--brand--hover: var(--vscode-editor-foreground) !important;
 
   /* PatternFly global background colors */
   --pf-global--BackgroundColor--100: #f5f5f5;
