@@ -11,7 +11,6 @@ import {
   WebviewViewResolveContext,
   ViewColumn,
   window,
-  ColorThemeKind,
 } from "vscode";
 import { getNonce } from "./utilities/getNonce";
 import { ExtensionData, WebviewType } from "@editor-extensions/shared";
@@ -146,7 +145,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     const nonce = getNonce();
 
     return `<!DOCTYPE html>
-    <html lang="en" class="${window.activeColorTheme.kind === ColorThemeKind.Dark ? "pf-v6-theme-dark" : ""}">
+    <html lang="en">
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
