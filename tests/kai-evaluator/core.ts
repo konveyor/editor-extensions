@@ -6,10 +6,16 @@ import path from 'path';
 import { downloadObject, uploadObject } from './utils/s3.utils';
 import { isBuildable } from './utils/build.utils';
 
+export interface KaiEvaluatorOptions {
+  model: string;
+  sources: string[];
+  targets: string[];
+}
+
 export async function runEvaluation(
   fileInputPath: string,
   fileOutputPath: string,
-  model = 'meta.llama3-70b-instruct-v1:0',
+  evaluatorOptions: KaiEvaluatorOptions,
   repositoryPath?: string
 ) {
   if (!fs.existsSync(fileInputPath)) {
@@ -28,7 +34,7 @@ export async function runEvaluation(
     averageEffectiveness: 0,
     averageScore: 0,
     totalFiles: dataLength,
-    model,
+    model: evaluatorOptions.model,
     evaluationModel: 'meta.llama3-70b-instruct-v1:0', // TODO take from env
     errors: [],
   };
@@ -38,9 +44,13 @@ export async function runEvaluation(
   }
 
   const start = new Date();
-  for (const file of Object.keys(data))
+  for (const file of Object.keys(data)) {
     try {
-      const res = await evaluateFile(file, data[file] as unknown as FileEvaluationInput);
+      const res = await evaluateFile(
+        file,
+        data[file] as unknown as FileEvaluationInput,
+        evaluatorOptions
+      );
       evaluationResult.fileEvaluationResults.push(res);
       evaluationResult.averageSpecificity += res.specificity;
       evaluationResult.averageCompetency += res.competency;
@@ -49,6 +59,7 @@ export async function runEvaluation(
     } catch (e) {
       evaluationResult.errors.push(`Error while evaluating file ${file}\n Reason: ${e}`);
     }
+  }
 
   const end = new Date();
   evaluationResult.evaluationTime = end.getTime() - start.getTime();
@@ -63,6 +74,7 @@ export async function runEvaluation(
     JSON.stringify(evaluationResult, null, 2),
     'utf-8'
   );
+
   console.log('Uploading results to aws...');
   const awsReport = await downloadObject('report.json');
   if (awsReport.Body) {
@@ -73,9 +85,7 @@ export async function runEvaluation(
       JSON.stringify(awsReportBody, null, 2),
       'utf-8'
     );
-    if (process.env.CI) {
-      await uploadObject(JSON.stringify(awsReportBody), 'report.json');
-    }
+    await uploadObject(JSON.stringify(awsReportBody), 'report.json');
   }
   console.log('Execution finished...');
 }

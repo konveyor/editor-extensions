@@ -3,6 +3,7 @@ import { StructuredOutputParser } from 'langchain/output_parsers';
 import { z } from 'zod';
 import { BedrockChat } from '@langchain/community/chat_models/bedrock';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { isAWSConfigured } from '../utils/s3.utils';
 
 const outputSchema = z.object({
   specificity: z.number().min(0).max(10),
@@ -15,16 +16,11 @@ const outputSchema = z.object({
 const outputParser = StructuredOutputParser.fromZodSchema(outputSchema);
 
 export async function createEvaluationChain() {
-  if (
-    !process.env.AWS_ACCESS_KEY_ID ||
-    !process.env.AWS_SECRET_ACCESS_KEY ||
-    !process.env.AWS_REGION
-  ) {
+  if (!isAWSConfigured()) {
     throw new Error(
       'Required AWS environment variables are not set: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION'
     );
   }
-
   const model = new BedrockChat({
     model: 'meta.llama3-70b-instruct-v1:0',
     region: process.env.AWS_REGION,

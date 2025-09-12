@@ -4,7 +4,7 @@ export async function uploadObject(file: string, path: string, contentType = 'ap
   if (!file || !path) {
     throw new Error('File content and path are required');
   }
-  if (!process.env.AWS_DEFAULT_REGION || !process.env.KAI_QE_S3_BUCKET_NAME) {
+  if (!isAWSConfigured() || !process.env.KAI_QE_S3_BUCKET_NAME) {
     throw new Error(
       'AWS_DEFAULT_REGION and KAI_QE_S3_BUCKET_NAME environment variables are required'
     );
@@ -21,6 +21,7 @@ export async function uploadObject(file: string, path: string, contentType = 'ap
       })
     );
   } catch (error: any) {
+    console.error(error);
     throw new Error(`Failed to upload object to S3: ${error.message}`);
   }
 }
@@ -47,4 +48,12 @@ export async function downloadObject(path: string) {
   } catch (error: any) {
     throw new Error(`Failed to download object from S3: ${error.message}`);
   }
+}
+
+export function isAWSConfigured(): boolean {
+  return (
+    !!process.env.AWS_ACCESS_KEY_ID &&
+    !!process.env.AWS_SECRET_ACCESS_KEY &&
+    !!process.env.AWS_DEFAULT_REGION
+  );
 }

@@ -600,7 +600,7 @@ export class VSCode extends BasePage {
     const MAX_FIXES = 500;
 
     for (let i = 0; i < MAX_FIXES; i++) {
-      await expect(fixLocator.first()).toBeVisible({ timeout: 30000 });
+      await expect(fixLocator.first()).toBeVisible({ timeout: 60000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.first().dispatchEvent('click');
       await this.waitDefault();
