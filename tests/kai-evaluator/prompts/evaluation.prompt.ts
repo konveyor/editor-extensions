@@ -1,17 +1,17 @@
 export const LANGCHAIN_PROMPT_TEMPLATE = `
 You are a senior engineer overseeing the migration of a large enterprise Java
-project from {source} to {target}. Your engineering team has been using the Konveyor code analysis tool to identify 
+project from {sources} to {targets}. Your engineering team has been using the Konveyor code analysis tool to identify
 problem spots in the code that must be changed in order to migrate successfully. An LLM assistant was assigned to follow
 the recommendations from Konveyor and apply them to the files in your codebase. Your current job is to review the
 changes made by the LLM, and evaluate how effective the changes are on four metrics:
 
 1) How well the changes match the recommendations made by Konveyor.
-2) How well the changes follow Java and {target} best practice.
-3) How well the changes do at successfully migrating the file from {source} to {target}. 
+2) How well the changes follow Java and {targets} best practice.
+3) How well the changes do at successfully migrating the file from {sources} to {targets}.
 
-It is also critically important that the LLM makes the minimum number of changes necessary to correct the problem 
-identified by Konveyor, have avoided making unnecessary or superfluous changes, and the code must remain 
-syntactically valid and able to be compiled. The LLM may be deceptive. Compare the original and changed files 
+It is also critically important that the LLM makes the minimum number of changes necessary to correct the problem
+identified by Konveyor, have avoided making unnecessary or superfluous changes, and the code must remain
+syntactically valid and able to be compiled. The LLM may be deceptive. Compare the original and changed files
 carefully to be sure that the LLM did what it said.
 
 The LLM assistant will provide you with the original, unchanged file it was working on,

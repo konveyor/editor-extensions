@@ -5,11 +5,15 @@ import Java from 'tree-sitter-java';
 export function isBuildable(path: string): Promise<boolean> {
   return new Promise((resolve) => {
     exec(`cd ${path} && mvn clean install`, (error, stdout, stderr) => {
-      console.log('MVN CLEAN INSTALL output: ');
-      console.log(stdout);
+      if (process.env.CI) {
+        console.log('MVN CLEAN INSTALL output: ');
+        console.log(stdout);
+      }
       if (error) {
-        console.error('MVN CLEAN INSTALL error: ');
-        console.error(stderr);
+        if (process.env.CI) {
+          console.error('MVN CLEAN INSTALL error: ');
+          console.error(stderr);
+        }
         resolve(false);
       } else {
         resolve(true);
