@@ -150,9 +150,18 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      if (state.data.isFetchingSolution) {
-        logger.info("Solution already being fetched");
-        window.showWarningMessage("Solution already being fetched");
+      // Check if a workflow is already in progress
+      const workflowState = state.workflowManager.currentState;
+      const inProgressStates = ["starting", "running", "waitingForUserInput", "stopping"];
+
+      if (state.data.isFetchingSolution || inProgressStates.includes(workflowState)) {
+        logger.info("Solution already being fetched or workflow in progress", {
+          isFetchingSolution: state.data.isFetchingSolution,
+          workflowState,
+        });
+        window.showWarningMessage(
+          "A solution is already being generated. Please wait for it to complete or stop the current workflow.",
+        );
         return;
       }
 
@@ -629,6 +638,15 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.fixGroupOfIncidents`]: fixGroupOfIncidents,
     [`${EXTENSION_NAME}.fixIncident`]: fixGroupOfIncidents,
+    [`${EXTENSION_NAME}.stopWorkflow`]: async () => {
+      try {
+        await state.workflowManager.abort();
+        window.showInformationMessage("Workflow stopped successfully");
+      } catch (error) {
+        logger.error("Failed to stop workflow:", error);
+        window.showErrorMessage("Failed to stop workflow");
+      }
+    },
     [`${EXTENSION_NAME}.partialAnalysis`]: async (filePaths: Uri[]) =>
       runPartialAnalysis(state, filePaths),
     [`${EXTENSION_NAME}.generateDebugArchive`]: async () => {

@@ -28,6 +28,27 @@ export enum KaiWorkflowMessageType {
   ToolCall,
   UserInteraction,
   Error,
+  WorkflowStateChanged,
+}
+
+export enum KaiWorkflowState {
+  Idle = "idle",
+  Starting = "starting",
+  Running = "running",
+  WaitingForUserInput = "waitingForUserInput",
+  Stopping = "stopping",
+  Completed = "completed",
+  Failed = "failed",
+  Aborted = "aborted",
+}
+
+export interface KaiWorkflowStateData {
+  state: KaiWorkflowState;
+  progress?: {
+    current: number;
+    total: number;
+    description?: string;
+  };
 }
 
 export interface KaiModifiedFile {
@@ -64,7 +85,8 @@ export type KaiWorkflowMessage =
   | BaseWorkflowMessage<KaiWorkflowMessageType.ModifiedFile, KaiModifiedFile>
   | BaseWorkflowMessage<KaiWorkflowMessageType.UserInteraction, KaiUserInteraction>
   | BaseWorkflowMessage<KaiWorkflowMessageType.ToolCall, KaiToolCall>
-  | BaseWorkflowMessage<KaiWorkflowMessageType.Error, string>;
+  | BaseWorkflowMessage<KaiWorkflowMessageType.Error, string>
+  | BaseWorkflowMessage<KaiWorkflowMessageType.WorkflowStateChanged, KaiWorkflowStateData>;
 
 export type KaiUserInteractionMessage = BaseWorkflowMessage<
   KaiWorkflowMessageType.UserInteraction,
@@ -109,6 +131,8 @@ export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkfl
   init(options: KaiWorkflowInitOptions): Promise<void>;
   run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
   resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;
+  abort(): Promise<void>;
+  getState(): KaiWorkflowState;
 }
 
 export interface KaiModelProviderInvokeCallOptions extends BaseChatModelCallOptions {
