@@ -173,15 +173,19 @@ jobs:
           npm run dist
           npm run package
 
+      - name: Set asset prefix
+        id: set_asset_prefix
+        run: echo "asset_prefix=$(ls -1 ./dist/*.vsix | awk -F '[/-]' '{ print $3 }'  )" >> $GITHUB_OUTPUT
+
       - name: Rename VSIX
         run: |
-          mv dist/*.vsix dist/konveyor-ai.vsix
+          mv dist/*.vsix dist/${{ steps.set_asset_prefix.outputs.asset_prefix }}-ai.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
           name: vsix-artifact
-          path: dist/konveyor-ai.vsix
+          path: dist/${{ steps.set_asset_prefix.outputs.asset_prefix }}-ai.vsix
 
   test-e2e:
     name: Test E2E
@@ -263,19 +267,23 @@ jobs:
           name: vsix-artifact
           path: ./dist
 
+      - name: Set VSIX path
+        id: set_vsix_path
+        run: echo "vsix_path=$(ls -1 ./dist/*.vsix)" >> $GITHUB_OUTPUT
+
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
         working-directory: ./tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+          VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_path.outputs.vsix_path }}
 
       # This is intentionally kept in a separate step to avoid passing in credentials
       - name: Run e2e tests (Linux - Offline)
         run: npx playwright test e2e/tests/agent_flow_coolstore.test.ts
         working-directory: ./tests
         env:
-          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+          VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_path.outputs.vsix_path }}
           OPENAI_API_KEY: <dummy> # this only exists to pass provider validation
 
       - name: Collect test artifacts
