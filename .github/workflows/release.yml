@@ -44,6 +44,7 @@ jobs:
     outputs:
       tag_name: ${{ steps.determine_tag.outputs.tag_name }}
       prerelease: ${{ steps.determine_tag.outputs.prerelease }}
+      marketplace_prerelease: ${{ steps.determine_tag.outputs.marketplace_prerelease }}
 
     steps:
       - name: Checkout code
@@ -65,6 +66,17 @@ jobs:
             else
               echo "prerelease=false" >> "$GITHUB_OUTPUT"
             fi
+            # Marketplace pre-release is disallowed if tag contains a hyphen
+            if [[ "${{ inputs.tag_name }}" == *-* ]]; then
+              echo "marketplace_prerelease=false" >> "$GITHUB_OUTPUT"
+            else
+              if [ "${{ inputs.prerelease }}" = "true" ]; then
+                echo "marketplace_prerelease=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "marketplace_prerelease=false" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+
           elif [ "${{ github.event_name }}" = "release" ]; then
             echo "tag_name=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
             if [ "${{ github.event.release.prerelease }}" = "true" ]; then
@@ -72,12 +84,30 @@ jobs:
             else
               echo "prerelease=false" >> "$GITHUB_OUTPUT"
             fi
+            # Marketplace pre-release is disallowed if tag contains a hyphen
+            if [[ "${{ github.event.release.tag_name }}" == *-* ]]; then
+              echo "marketplace_prerelease=false" >> "$GITHUB_OUTPUT"
+            else
+              if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+                echo "marketplace_prerelease=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "marketplace_prerelease=false" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+
           else
             echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
             if [[ "${{ github.ref_name }}" == *-* ]]; then
               echo "prerelease=true" >> "$GITHUB_OUTPUT"
             else
               echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+            # For push-on-tag, if tag has hyphen, disallow marketplace pre-release
+            if [[ "${{ github.ref_name }}" == *-* ]]; then
+              echo "marketplace_prerelease=false" >> "$GITHUB_OUTPUT"
+            else
+              # No hyphen => prerelease is false anyway for push, so this is false
+              echo "marketplace_prerelease=false" >> "$GITHUB_OUTPUT"
             fi
           fi
 
@@ -169,6 +199,7 @@ jobs:
           ## Release Information
           Tag: __${{ needs.test_the_release.outputs.tag_name }}__
           Pre-Release: __${{ needs.test_the_release.outputs.prerelease }}__
+          Marketplace Pre-Release Allowed: __${{ needs.test_the_release.outputs.marketplace_prerelease }}__
           Dry run? __${{ github.event.inputs.dry-run}}__
           EOF
 
@@ -231,13 +262,14 @@ jobs:
           npx vsce publish --packagePath ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix --pat ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Publish to VS Code Marketplace (pre-release)
-        if: ${{ github.event_name == 'release' && github.event.action == 'published' && needs.test_the_release.outputs.prerelease == 'true' && github.repository_owner == 'konveyor' }}
+        if: ${{ github.event_name == 'release' && github.event.action == 'published' && needs.test_the_release.outputs.prerelease == 'true' && needs.test_the_release.outputs.marketplace_prerelease == 'true' && github.repository_owner == 'konveyor' }}
         run: |
           echo "Publishing (pre-release) ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix"
           echo "Tag name: ${{ needs.test_the_release.outputs.tag_name }}"
           npx vsce publish --pre-release --packagePath ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+
       - name: Create Release
         if: ${{ github.event.inputs.dry-run == 'false'}}
         uses: ncipollo/release-action@v1
