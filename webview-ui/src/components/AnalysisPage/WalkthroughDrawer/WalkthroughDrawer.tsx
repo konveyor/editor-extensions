@@ -68,7 +68,7 @@ export function WalkthroughDrawer({
       status: labelSelectorValid ? "Completed" : "Not configured",
       description: "Used to target the technologies your project uses.",
       fullDescription:
-        "Used to target the technologies your project uses. Label selectors help Konveyor identify which transformation rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.",
+        "Used to target the technologies your project uses. Label selectors help Konveyor identify which analysis rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.",
     },
     {
       id: "rules",
@@ -76,7 +76,7 @@ export function WalkthroughDrawer({
       status: rulesConfigured ? "Completed" : "Not configured",
       description: "Choose between default rules and your own custom rule files.",
       fullDescription:
-        "Choose between default rules and your own custom rule files. Default rules cover common migration scenarios and best practices. Custom rules allow you to define project-specific transformation patterns, coding standards, or migration requirements tailored to your organization's needs.",
+        "Choose between default rules and your own custom rule files. Default rules cover common migration scenarios and best practices. Custom rules allow you to define project-specific analysis patterns, coding standards, or migration requirements tailored to your organization's needs.",
     },
     {
       id: "genai",
