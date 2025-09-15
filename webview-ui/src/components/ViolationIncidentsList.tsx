@@ -3,8 +3,6 @@ import {
   Toolbar,
   ToolbarItem,
   ToolbarContent,
-  ToolbarGroup,
-  ToolbarToggleGroup,
   Badge,
   MenuToggle,
   MenuToggleElement,
@@ -25,14 +23,16 @@ import {
   SplitItem,
   ToggleGroup,
   ToggleGroupItem,
+  Divider,
 } from "@patternfly/react-core";
+import "./ViolationIncidentsList.css";
 import {
   ListIcon,
   FileIcon,
   LayerGroupIcon,
   SortAmountDownIcon,
   SortAmountUpIcon,
-  FilterIcon,
+  ChartLineIcon,
 } from "@patternfly/react-icons";
 import { IncidentTableGroup } from "./IncidentTable";
 import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
@@ -60,6 +60,8 @@ const ViolationIncidentsList = ({
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isSortAscending, setIsSortAscending] = React.useState(true);
   const [isCategoryExpanded, setIsCategoryExpanded] = React.useState(false);
+  const [isSuccessRateExpanded, setIsSuccessRateExpanded] = React.useState(false);
+  const [isGroupByExpanded, setIsGroupByExpanded] = React.useState(false);
   const [filters, setFilters] = React.useState({
     category: [] as Category[],
     groupBy: "violation" as GroupByOption,
@@ -132,13 +134,6 @@ const ViolationIncidentsList = ({
     );
   };
 
-  const onDelete = (type: string, id: string) => {
-    if (type === "Category") {
-      setFilters({ ...filters, category: filters.category.filter((s) => s !== id) });
-    } else {
-      setFilters({ category: [], groupBy: "violation", hasSuccessRate: false });
-    }
-  };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _onDeleteGroup = (type: string) => {
@@ -257,7 +252,7 @@ const ViolationIncidentsList = ({
     return sortedGroups;
   }, [enhancedIncidents, searchTerm, filters, isSortAscending]);
 
-  const toggleGroupItems = (
+  const toolbarItems = (
     <React.Fragment>
       <ToolbarItem>
         <SearchInput
@@ -267,33 +262,69 @@ const ViolationIncidentsList = ({
           onClear={() => setSearchTerm("")}
         />
       </ToolbarItem>
-      <ToolbarGroup variant="filter-group">
-        <ToolbarItem>
-          <ToggleGroup aria-label="Group by options">
-            <ToggleGroupItem
+      <ToolbarItem>
+        <Select
+          aria-label="Group by"
+          toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+            <MenuToggle
+              ref={toggleRef}
+              onClick={() => setIsGroupByExpanded(!isGroupByExpanded)}
+              isExpanded={isGroupByExpanded}
+              style={{ minWidth: "120px" }}
+              icon={
+                filters.groupBy === "none" ? (
+                  <ListIcon />
+                ) : filters.groupBy === "file" ? (
+                  <FileIcon />
+                ) : (
+                  <LayerGroupIcon />
+                )
+              }
+            >
+              Group by:{" "}
+              {filters.groupBy === "none"
+                ? "None"
+                : filters.groupBy === "file"
+                  ? "Files"
+                  : "Issues"}
+            </MenuToggle>
+          )}
+          onSelect={(_event, value) => {
+            handleGroupBySelect(value as GroupByOption);
+            setIsGroupByExpanded(false);
+          }}
+          selected={filters.groupBy}
+          isOpen={isGroupByExpanded}
+          onOpenChange={(isOpen) => setIsGroupByExpanded(isOpen)}
+        >
+          <SelectList>
+            <SelectOption
+              key="none"
+              value="none"
               icon={<ListIcon />}
-              text="All"
-              buttonId="none"
-              isSelected={filters.groupBy === "none"}
-              onChange={() => handleGroupBySelect("none")}
-            />
-            <ToggleGroupItem
+              description="Show all items in a single list"
+            >
+              All
+            </SelectOption>
+            <SelectOption
+              key="file"
+              value="file"
               icon={<FileIcon />}
-              text="Files"
-              buttonId="file"
-              isSelected={filters.groupBy === "file"}
-              onChange={() => handleGroupBySelect("file")}
-            />
-            <ToggleGroupItem
+              description="Group items by source file"
+            >
+              Files
+            </SelectOption>
+            <SelectOption
+              key="violation"
+              value="violation"
               icon={<LayerGroupIcon />}
-              text="Issues"
-              buttonId="violation"
-              isSelected={filters.groupBy === "violation"}
-              onChange={() => handleGroupBySelect("violation")}
-            />
-          </ToggleGroup>
-        </ToolbarItem>
-      </ToolbarGroup>
+              description="Group items by issue type"
+            >
+              Issues
+            </SelectOption>
+          </SelectList>
+        </Select>
+      </ToolbarItem>
       <ToolbarItem>
         <Select
           aria-label="Category"
@@ -305,7 +336,7 @@ const ViolationIncidentsList = ({
               style={{ width: "140px" }}
             >
               Category
-              {filters.category.length > 0 && <Badge isRead>{filters.category.length}</Badge>}
+              {filters.category.length > 0 && <Badge >{filters.category.length}</Badge>}
             </MenuToggle>
           )}
           onSelect={onCategorySelect}
@@ -318,16 +349,49 @@ const ViolationIncidentsList = ({
       </ToolbarItem>
       {solutionServerEnabled && (
         <ToolbarItem>
-          <ToggleGroup aria-label="Success rate filter">
-            <ToggleGroupItem
-              text="Has Success Rate"
-              buttonId="has-success-rate"
-              isSelected={filters.hasSuccessRate}
-              onChange={() =>
-                setFilters((prev) => ({ ...prev, hasSuccessRate: !prev.hasSuccessRate }))
+          <Select
+            aria-label="Success Rate Filter"
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={() => setIsSuccessRateExpanded(!isSuccessRateExpanded)}
+                isExpanded={isSuccessRateExpanded}
+                style={{ minWidth: "140px" }}
+                icon={<ChartLineIcon />}
+                badge={filters.hasSuccessRate ? <Badge >Filtered</Badge> : undefined}
+              >
+                {filters.hasSuccessRate ? "With Metrics" : "All Results"}
+              </MenuToggle>
+            )}
+            onSelect={(_event, value) => {
+              if (value === "with-metrics") {
+                setFilters((prev) => ({ ...prev, hasSuccessRate: true }));
+              } else {
+                setFilters((prev) => ({ ...prev, hasSuccessRate: false }));
               }
-            />
-          </ToggleGroup>
+              setIsSuccessRateExpanded(false);
+            }}
+            selected={filters.hasSuccessRate ? "with-metrics" : "all"}
+            isOpen={isSuccessRateExpanded}
+            onOpenChange={(isOpen) => setIsSuccessRateExpanded(isOpen)}
+          >
+            <SelectList>
+              <SelectOption
+                key="all"
+                value="all"
+                description="Show all items including those without success metrics"
+              >
+                All Results
+              </SelectOption>
+              <SelectOption
+                key="with-metrics"
+                value="with-metrics"
+                description="Show only items with success rate data"
+              >
+                With Metrics Only
+              </SelectOption>
+            </SelectList>
+          </Select>
         </ToolbarItem>
       )}
       <ToolbarItem>
@@ -356,20 +420,10 @@ const ViolationIncidentsList = ({
       <StackItem>
         <Toolbar
           id="violation-incidents-toolbar"
-          className="pf-m-toggle-group-container"
-          collapseListedFiltersBreakpoint="md"
-          clearAllFilters={() => onDelete("", "")}
+          className="violation-incidents-toolbar"
         >
           <ToolbarContent>
-            <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="md">
-              {toggleGroupItems}
-            </ToolbarToggleGroup>
-            <ToolbarItem align={{ default: "alignEnd" }}>
-              <GetSolutionDropdown
-                incidents={groupedIncidents.flatMap((group) => group.incidents)}
-                scope="workspace"
-              />
-            </ToolbarItem>
+            {toolbarItems}
           </ToolbarContent>
         </Toolbar>
       </StackItem>
