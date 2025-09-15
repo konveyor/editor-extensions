@@ -79,7 +79,10 @@ export const ProfileEditorForm: React.FC<{
   const { callback: debouncedChange, isPending: isSaving } = useDebouncedCallback(onChange, 300);
 
   useEffect(() => {
-    setLocalProfile(profile);
+    // Only reset localProfile if it's a different profile to prevent overwriting pending changes
+    if (profile.id !== localProfile.id) {
+      setLocalProfile(profile);
+    }
     setNameValidation("default");
     setNameErrorMsg(null);
     setTargetsValidation("default");
