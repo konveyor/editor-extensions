@@ -88,19 +88,20 @@ providers.forEach((config) => {
           console.warn('Skipping evaluation: AWS credentials are not configured.');
           return;
         }
+
+        const repoInfo = testRepoData[getRepoName(testInfo)];
+        await prepareEvaluationData(config.model);
+        await runEvaluation(
+          path.join(TEST_OUTPUT_FOLDER, 'incidents-map.json'),
+          TEST_OUTPUT_FOLDER,
+          {
+            model: config.model,
+            sources: repoInfo.sources,
+            targets: repoInfo.targets,
+          },
+          `${TEST_OUTPUT_FOLDER}/coolstore-${config.model.replace(/[.:]/g, '-')}`
+        );
       }
-      const repoInfo = testRepoData[getRepoName(testInfo)];
-      await prepareEvaluationData(config.model);
-      await runEvaluation(
-        path.join(TEST_OUTPUT_FOLDER, 'incidents-map.json'),
-        TEST_OUTPUT_FOLDER,
-        {
-          model: config.model,
-          sources: repoInfo.sources,
-          targets: repoInfo.targets,
-        },
-        `${TEST_OUTPUT_FOLDER}/coolstore-${config.model.replace(/[.:]/g, '-')}`
-      );
     });
   });
 });

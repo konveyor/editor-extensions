@@ -16,7 +16,7 @@ const fullOutputPath = path.resolve(outputPath);
 const targets = targetsArg.split(',').map((t) => t.trim());
 const sources = sourcesArg.split(',').map((s) => s.trim());
 
-runEvaluation(fullInputPath, fullOutputPath, { targets, sources, model })
+runEvaluation(fullInputPath, fullOutputPath, { targets, sources, model: model.trim() })
   .then(() => console.log('Evaluation finished'))
   .catch((error) => {
     console.error('Evaluation failed:', error);
