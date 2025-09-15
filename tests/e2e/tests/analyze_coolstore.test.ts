@@ -17,6 +17,7 @@ providers.forEach((config) => {
     let allOk = true;
     const randomString = generateRandomString();
     let profileName = '';
+
     test.beforeAll(async ({ testRepoData }, testInfo) => {
       test.setTimeout(1600000);
       const repoName = getRepoName(testInfo);
@@ -81,26 +82,25 @@ providers.forEach((config) => {
 
     test.afterAll(async ({ testRepoData }, testInfo) => {
       await vscodeApp.closeVSCode();
-      if (!isAWSConfigured()) {
-        throw new Error(
-          "Evaluation can't be performed because AWS credentials are not configured."
-        );
-      }
       // Evaluation should be performed only if all tests under this suite passed
       if (allOk && process.env.CI) {
-        const repoInfo = testRepoData[getRepoName(testInfo)];
-        await prepareEvaluationData(config.model);
-        await runEvaluation(
-          path.join(TEST_OUTPUT_FOLDER, 'incidents-map.json'),
-          TEST_OUTPUT_FOLDER,
-          {
-            model: config.model,
-            sources: repoInfo.sources,
-            targets: repoInfo.targets,
-          },
-          `${TEST_OUTPUT_FOLDER}/coolstore-${config.model.replace(/[.:]/g, '-')}`
-        );
+        if (!isAWSConfigured()) {
+          console.warn('Skipping evaluation: AWS credentials are not configured.');
+          return;
+        }
       }
+      const repoInfo = testRepoData[getRepoName(testInfo)];
+      await prepareEvaluationData(config.model);
+      await runEvaluation(
+        path.join(TEST_OUTPUT_FOLDER, 'incidents-map.json'),
+        TEST_OUTPUT_FOLDER,
+        {
+          model: config.model,
+          sources: repoInfo.sources,
+          targets: repoInfo.targets,
+        },
+        `${TEST_OUTPUT_FOLDER}/coolstore-${config.model.replace(/[.:]/g, '-')}`
+      );
     });
   });
 });

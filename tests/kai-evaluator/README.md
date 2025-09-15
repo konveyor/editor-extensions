@@ -32,7 +32,7 @@ contains the visualizer interface.
 ## Usage
 
 ```bash
-  npx ts-node main.ts ../test-output/incidents-map.json ../test-output
+  npx ts-node main.ts ../test-output/incidents-map.json ../test-output "eap" "jakarta-ee8,jakarta-ee9" "meta.llama3-70b-instruct-v1:0"
 ```
 
 ## Expected file input format
