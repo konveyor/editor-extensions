@@ -368,3 +368,14 @@ jobs:
           done
         env:
           GH_TOKEN: ${{ github.token }}
+
+  release:
+    name: Create Release
+    needs: test-e2e
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    uses: ./.github/workflows/release.yml
+    with:
+      tag_name: ${{ github.ref_name }}
+      prerelease: ${{ contains(github.ref_name, '-') }}
+      vsix_artifact_name: "vsix-artifact"
+    secrets: inherit

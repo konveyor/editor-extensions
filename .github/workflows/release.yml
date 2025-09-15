@@ -1,78 +1,58 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI (repo level)"]
-    types:
-      - completed
-    branches:
-      - "main"
-      - "release-*"
+  workflow_call:
+    inputs:
+      tag_name:
+        description: "Tag name for the release"
+        required: true
+        type: string
+      prerelease:
+        description: "Is this a pre-release?"
+        required: true
+        type: boolean
+      vsix_artifact_name:
+        description: "Name of the VSIX artifact to download"
+        required: false
+        type: string
+        default: "vsix-artifact"
+      workflow_run_id:
+        description: "Workflow run ID to download artifacts from"
+        required: false
+        type: string
 
 env:
   HUSKY: 0
 
 jobs:
-  # Only proceed if CI workflow was successful and triggered by a tag
-  check_trigger:
-    name: Check if triggered by tag
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    outputs:
-      is_tag: ${{ steps.check_tag.outputs.is_tag }}
-      tag_name: ${{ steps.check_tag.outputs.tag_name }}
-      prerelease: ${{ steps.check_tag.outputs.prerelease }}
-    steps:
-      - name: Check if CI was triggered by tag
-        id: check_tag
-        run: |
-          # Check if the workflow_run was triggered by a tag push
-          if [[ "${{ github.event.workflow_run.head_branch }}" == v* ]]; then
-            echo "is_tag=true" >> "$GITHUB_OUTPUT"
-            echo "tag_name=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
-
-            # Determine if prerelease based on tag name
-            if [[ "${{ github.event.workflow_run.head_branch }}" == *-* ]]; then
-              echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "prerelease=false" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            echo "is_tag=false" >> "$GITHUB_OUTPUT"
-          fi
-
   generate_changelog:
     name: Generate Changelog
-    needs: check_trigger
-    if: ${{ needs.check_trigger.outputs.is_tag == 'true' }}
     uses: konveyor/release-tools/.github/workflows/generate-changelog.yml@main
     with:
-      version: ${{ needs.check_trigger.outputs.tag_name }}
+      version: ${{ inputs.tag_name }}
       prev_version: $(gh api repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
       repository: ${{ github.repository }}
-      ref: ${{ github.event.workflow_run.head_sha }}
+      ref: ${{ github.sha }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Final Release
     runs-on: ubuntu-latest
-    needs: [check_trigger, generate_changelog]
-    if: ${{ needs.check_trigger.outputs.is_tag == 'true' }}
+    needs: generate_changelog
     steps:
       - name: Add release details to the step summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Release Information
-          Tag: __${{ needs.check_trigger.outputs.tag_name }}__
-          Pre-Release: __${{ needs.check_trigger.outputs.prerelease }}__
-          Workflow Run ID: __${{ github.event.workflow_run.id }}__
+          Tag: __${{ inputs.tag_name }}__
+          Pre-Release: __${{ inputs.prerelease }}__
+          VSIX Artifact: __${{ inputs.vsix_artifact_name }}__
+          Workflow Run ID: __${{ inputs.workflow_run_id || github.run_id }}__
           EOF
 
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Download Changelog Artifact
         uses: actions/download-artifact@v4
@@ -80,21 +60,19 @@ jobs:
           name: changelog-artifact
           path: ./artifacts
 
-      - name: Download VSIX Artifact from CI run
+      - name: Download VSIX Artifact
         uses: actions/download-artifact@v4
         with:
-          name: vscode-artifact
-          path: ./artifacts/vscode-extension-linux
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./artifacts
 
       - name: Verify Downloaded Artifacts
-        run: ls -R ./artifacts
+        run: ls -R ./artifacts/
 
       - name: Find and set VSIX filename
         id: vsix_info
         run: |
-          VSIX_FILE=$(find ./artifacts/vscode-extension-linux -name "*.vsix" -type f | head -1)
+          VSIX_FILE=$(find ./artifacts -name "*.vsix" -type f | head -1)
           VSIX_NAME=$(basename "$VSIX_FILE")
           echo "vsix_path=$VSIX_FILE" >> "$GITHUB_OUTPUT"
           echo "vsix_name=$VSIX_NAME" >> "$GITHUB_OUTPUT"
@@ -106,21 +84,27 @@ jobs:
           node-version-file: ".nvmrc"
 
       - name: Publish to VS Code Marketplace
-        if: ${{ needs.check_trigger.outputs.prerelease == 'false' }}
+        if: ${{ inputs.prerelease == false }}
         run: |
           echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
-          npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --releaseNotes "./artifacts/release.md"
+          if [ -f "./artifacts/release.md" ]; then
+            echo "Publishing with changelog"
+            npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --releaseNotes "./artifacts/release.md"
+          else
+            echo "Publishing without changelog (file not found)"
+            npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}"
+          fi
         env:
           VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.check_trigger.outputs.tag_name }}
-          commit: ${{ github.event.workflow_run.head_sha }}
+          tag: ${{ inputs.tag_name }}
+          commit: ${{ github.sha }}
           bodyFile: ./artifacts/release.md
           artifacts: |
             ${{ steps.vsix_info.outputs.vsix_path }}
-          prerelease: ${{ needs.check_trigger.outputs.prerelease }}
+          prerelease: ${{ inputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
