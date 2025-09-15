@@ -482,7 +482,7 @@
         },
         "konveyor.solutionServer": {
           "type": "object",
-          "description": "Configuration for the MCP solution server",
+          "description": "Configuration for the MCP solution server. Set 'enabled: true' to enable, 'url' for server endpoint, and configure 'auth' object with 'enabled: true', 'realm' (default: tackle), and 'insecure: true' to skip SSL verification if needed.",
           "scope": "window",
           "order": 30,
           "properties": {

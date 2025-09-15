@@ -36,6 +36,7 @@ import {
   getTraceDir,
   getConfigSolutionServerAuth,
   fileUriToPath,
+  getConfigSolutionServer,
 } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import { promptForCredentials } from "./utilities/auth";
@@ -113,6 +114,12 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
       const solutionServerClient = state.solutionServerClient;
+      const config = getConfigSolutionServer();
+      if (!config.enabled) {
+        logger.info("Solution server is disabled, skipping restart");
+        return;
+      }
+
       try {
         window.showInformationMessage("Restarting solution server...");
         await solutionServerClient.disconnect();
