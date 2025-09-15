@@ -5,6 +5,8 @@ on:
     branches:
       - "main"
       - "release-*"
+    tags:
+      - "v*"
 
   pull_request:
     paths-ignore:
@@ -160,32 +162,45 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "npm"
 
-      - name: Install workspace dependencies
+      - name: Install dependencies and build
         run: |
           npm ci
+          npm run build
 
-      - name: Build the project and generate the .vsix
+      - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run build
-          npm run collect-assets -- --use-workflow-artifacts --branch=main
+          npm run collect-assets -- --use-release
+
+      - name: Set version for build
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tagged release: use tag version
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"  # Strip 'v' prefix
+            echo "Setting release version: $VERSION"
+            npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
+          else
+            # Development build: add timestamp and SHA
+            CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            SHA=$(git rev-parse --short HEAD)
+            DEV_VERSION="${CURRENT_VERSION}-dev.${TIMESTAMP}.${SHA}"
+            echo "Setting development version: $DEV_VERSION"
+            npm version "$DEV_VERSION" --workspaces --include-workspace-root --no-git-tag-version
+          fi
+
+      - name: Package extension
+        run: |
           npm run dist
           npm run package
-
-      - name: Set asset prefix
-        id: set_asset_prefix
-        run: echo "asset_prefix=$(ls -1 ./dist/*.vsix | awk -F '[/-]' '{ print $3 }'  )" >> $GITHUB_OUTPUT
-
-      - name: Rename VSIX
-        run: |
-          mv dist/*.vsix dist/${{ steps.set_asset_prefix.outputs.asset_prefix }}-ai.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
           name: vsix-artifact
-          path: dist/${{ steps.set_asset_prefix.outputs.asset_prefix }}-ai.vsix
+          path: ./dist/*.vsix
 
   test-e2e:
     name: Test E2E
@@ -307,10 +322,11 @@ jobs:
           retention-days: 7
 
   publish:
-    name: Publish Release
+    name: Publish Development Build
     runs-on: ubuntu-latest
     needs: test-e2e
-    if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
+    # Only publish development builds (not tagged releases)
+    if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) && ! startsWith(github.ref, 'refs/tags/v') }}
 
     steps:
       - name: Checkout code
@@ -322,29 +338,26 @@ jobs:
           name: vsix-artifact
           path: ./dist
 
-      - name: Set asset suffix
-        id: set_asset_suffix
-        run: echo "asset_suffix=$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Find VSIX file
+        id: find_vsix
+        run: |
+          VSIX_FILE=$(find ./dist -name "*.vsix" -type f | head -1)
+          VSIX_NAME=$(basename "$VSIX_FILE")
+          echo "vsix_path=$VSIX_FILE" >> "$GITHUB_OUTPUT"
+          echo "vsix_name=$VSIX_NAME" >> "$GITHUB_OUTPUT"
+          echo "Found VSIX: $VSIX_NAME"
 
-      - name: Set asset path
-        id: set_asset_path
-        run: echo "asset_path=$(ls -1 ./dist/*.vsix)" >> $GITHUB_OUTPUT
-
-      - name: Set asset prefix
-        id: set_asset_prefix
-        run: echo "asset_prefix=$(ls -1 ./dist/*.vsix | awk -F '[/-]' '{ print $3 }'  )" >> $GITHUB_OUTPUT
-
-      - name: Deploy release
+      - name: Deploy development build
         uses: WebFreak001/deploy-nightly@v3.2.0
         with:
           upload_url: ${{ vars.CI_UPLOAD_URL }}
           release_id: ${{ vars.CI_RELEASE_ID }}
-          asset_path: ${{ steps.set_asset_path.outputs.asset_path }}
-          asset_name: ${{ steps.set_asset_prefix.outputs.asset_prefix }}-ai-${{ steps.set_asset_suffix.outputs.asset_suffix }}.vsix
+          asset_path: ${{ steps.find_vsix.outputs.vsix_path }}
+          asset_name: ${{ steps.find_vsix.outputs.vsix_name }}
           asset_content_type: application/octet-stream
           ignore_hash: true
 
-      - name: Cleanup old assets
+      - name: Cleanup old development builds
         run: |
           c=1
           for i in $(gh release view -R konveyor/editor-extensions development-builds --json assets | jq -r .assets[].name | sort -r); do

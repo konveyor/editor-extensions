@@ -13,12 +13,11 @@ const cli = parseCli(
   {
     org: "konveyor",
     repo: "kai",
-    releaseTag: "v0.2.0-pre.2",
     branch: "main",
     workflow: "build-and-push-binaries.yml",
     rulesetOrg: "konveyor",
     rulesetRepo: "rulesets",
-    rulesetReleaseTag: "v0.7.1",
+    releaseTag: "v0.8.0-beta.4",
   },
   "release",
 );
@@ -119,7 +118,7 @@ const actions = [
 
       org: cli.rulesetOrg,
       repo: cli.rulesetRepo,
-      releaseTag: cli.rulesetReleaseTag,
+      releaseTag: cli.releaseTag,
       bearerToken,
 
       context: "{{root}}/default/generated",

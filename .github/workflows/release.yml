@@ -1,141 +1,78 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["CI (repo level)"]
+    types:
+      - completed
+    branches:
+      - "main"
+      - "release-*"
 
 env:
   HUSKY: 0
 
 jobs:
-  test_the_release:
-    name: Test the release (${{ matrix.platform }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux
-          - os: macos-latest
-            platform: macos
-          - os: windows-latest
-            platform: windows
-      max-parallel: 3
+  # Only proceed if CI workflow was successful and triggered by a tag
+  check_trigger:
+    name: Check if triggered by tag
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
-      prerelease: ${{ steps.determine_prerelease.outputs.prerelease }}
-
+      is_tag: ${{ steps.check_tag.outputs.is_tag }}
+      tag_name: ${{ steps.check_tag.outputs.tag_name }}
+      prerelease: ${{ steps.check_tag.outputs.prerelease }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Determine prerelease
-        id: determine_prerelease
-        shell: bash
+      - name: Check if CI was triggered by tag
+        id: check_tag
         run: |
-          if [[ "${{ github.ref_name }}" == *-* ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          # Check if the workflow_run was triggered by a tag push
+          if [[ "${{ github.event.workflow_run.head_branch }}" == v* ]]; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+            echo "tag_name=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+
+            # Determine if prerelease based on tag name
+            if [[ "${{ github.event.workflow_run.head_branch }}" == *-* ]]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Install dependencies, download runtime assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm ci
-          npm run collect-assets -- --use-release
-
-      # Run tests on different OSes
-      - name: Run tests (Linux)
-        if: matrix.platform == 'linux'
-        run: xvfb-run -a npm run test
-
-      - name: Run tests (macOS)
-        if: matrix.platform == 'macos'
-        run: npm test
-
-      - name: Run tests (Windows)
-        if: matrix.platform == 'windows'
-        shell: cmd
-        run: npm test
-
-  package:
-    needs: test_the_release
-    name: Generate the vsix for the release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Build the project and generate the .vsix
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm ci
-          npm run build
-          npm run collect-assets -- --use-release
-          npm run dist
-
-      - name: Package VSIX (pre-release)
-        if: ${{ needs.test_the_release.outputs.prerelease == 'true' }}
-        run: |
-          npm run package -- --pre-release
-
-      - name: Package VSIX (release)
-        if: ${{ needs.test_the_release.outputs.prerelease == 'false' }}
-        run: |
-          npm run package
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vscode-extension-${{ matrix.platform }}
-          path: ./dist/*.vsix
 
   generate_changelog:
     name: Generate Changelog
-    needs: test_the_release
+    needs: check_trigger
+    if: ${{ needs.check_trigger.outputs.is_tag == 'true' }}
     uses: konveyor/release-tools/.github/workflows/generate-changelog.yml@main
     with:
-      version: ${{ github.ref_name }}
+      version: ${{ needs.check_trigger.outputs.tag_name }}
       prev_version: $(gh api repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
       repository: ${{ github.repository }}
-      ref: ${{ github.sha }}
+      ref: ${{ github.event.workflow_run.head_sha }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Final Release
     runs-on: ubuntu-latest
-    needs: [test_the_release, package, generate_changelog]
+    needs: [check_trigger, generate_changelog]
+    if: ${{ needs.check_trigger.outputs.is_tag == 'true' }}
     steps:
       - name: Add release details to the step summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Release Information
-          Tag: __${{ github.ref_name }}__
-          Pre-Release: __${{ needs.test_the_release.outputs.prerelease }}__
+          Tag: __${{ needs.check_trigger.outputs.tag_name }}__
+          Pre-Release: __${{ needs.check_trigger.outputs.prerelease }}__
+          Workflow Run ID: __${{ github.event.workflow_run.id }}__
           EOF
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Download Changelog Artifact
         uses: actions/download-artifact@v4
@@ -143,17 +80,13 @@ jobs:
           name: changelog-artifact
           path: ./artifacts
 
-      - name: List available artifacts
-        run: |
-          curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
-
-      - name: Download Linux Artifact
+      - name: Download VSIX Artifact from CI run
         uses: actions/download-artifact@v4
         with:
-          name: vscode-extension-linux
+          name: vscode-artifact
           path: ./artifacts/vscode-extension-linux
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify Downloaded Artifacts
         run: ls -R ./artifacts
@@ -172,23 +105,22 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
-      - name: Publish to VS Code Marketplace (release)
-        if: ${{ needs.test_the_release.outputs.prerelease == 'false' }}
+      - name: Publish to VS Code Marketplace
+        if: ${{ needs.check_trigger.outputs.prerelease == 'false' }}
         run: |
-          VSIX_FILE=$()
           echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
-          npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}"
+          npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --releaseNotes "./artifacts/release.md"
         env:
           VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ github.ref_name }}
-          commit: ${{ github.sha }}
+          tag: ${{ needs.check_trigger.outputs.tag_name }}
+          commit: ${{ github.event.workflow_run.head_sha }}
           bodyFile: ./artifacts/release.md
           artifacts: |
             ${{ steps.vsix_info.outputs.vsix_path }}
-          prerelease: ${{ needs.test_the_release.outputs.prerelease }}
+          prerelease: ${{ needs.check_trigger.outputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
