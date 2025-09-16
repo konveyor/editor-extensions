@@ -86,6 +86,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
         activeDecorators: event.data.activeDecorators || {},
         isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
+        solutionServerConnected: event.data.solutionServerConnected ?? false,
       };
       setState(safeData);
     };
