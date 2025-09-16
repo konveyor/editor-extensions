@@ -288,12 +288,10 @@ export class SolutionServerClient {
 
   public async getServerCapabilities(): Promise<any> {
     if (!this.isConnected) {
-      this.logger.info("Solution server is not connected, returning empty capabilities");
-      return;
+      throw new SolutionServerClientError("Solution server is not connected");
     }
     if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning empty capabilities");
-      return;
+      throw new SolutionServerClientError("Solution server is disabled");
     }
     if (!this.mcpClient || !this.isConnected) {
       throw new SolutionServerClientError("Solution server is not connected");

@@ -303,6 +303,10 @@ class VsCodeExtension {
               draft.solutionServerConnected = false;
             });
           }
+        } else {
+          this.state.mutateData((draft) => {
+            draft.solutionServerConnected = false;
+          });
         }
       }, 2000); // Check every 2 seconds to catch network issues quickly
 
@@ -447,6 +451,9 @@ class VsCodeExtension {
             const newConfig = getConfigSolutionServer();
 
             // Update the enabled state immediately
+            this.state.logger.info(
+              `Solution server config change: enabled=${newConfig.enabled}, setting connected=false`,
+            );
             this.state.mutateData((draft) => {
               draft.solutionServerEnabled = newConfig.enabled;
               // Reset connection status
@@ -612,22 +619,29 @@ class VsCodeExtension {
       password = credentials.password;
     }
 
-    this.state.solutionServerClient
-      .authenticate(username, password)
-      .then(() => this.state.solutionServerClient.connect())
-      .then(() => {
+    try {
+      await this.state.solutionServerClient.authenticate(username, password);
+      await this.state.solutionServerClient.connect();
+
+      // Check if solution server is still enabled before setting connected status
+      if (getConfigSolutionServerEnabled()) {
         // Update state to reflect successful connection
         this.state.mutateData((draft) => {
           draft.solutionServerConnected = true;
         });
-      })
-      .catch((error) => {
-        this.state.logger.error("Error connecting to solution server", error);
-        // Update state to reflect failed connection
+      } else {
+        // Server was disabled while we were connecting
         this.state.mutateData((draft) => {
           draft.solutionServerConnected = false;
         });
+      }
+    } catch (error) {
+      this.state.logger.error("Error connecting to solution server", error);
+      // Update state to reflect failed connection
+      this.state.mutateData((draft) => {
+        draft.solutionServerConnected = false;
       });
+    }
   }
 
   private registerWebviewProvider(): void {
