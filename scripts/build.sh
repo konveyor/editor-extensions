@@ -8,6 +8,9 @@ set -e  # Exit on any error
 echo "🧹 Cleaning..."
 npm run clean
 
+echo "📦 Installing dependencies..."
+npm i
+
 echo "📦 Collecting assets for development..."
 npm run collect-assets:dev
 
