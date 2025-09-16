@@ -166,7 +166,7 @@ export class VSCode extends BasePage {
   public async openAnalysisView(): Promise<void> {
     // Try using command palette first - this works reliably when extension is hidden due to too many extensions
     try {
-      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Open Analysis View`);
+      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Open ${COMMAND_CATEGORY} Analysis View`);
       return;
     } catch (error) {
       console.log('Command palette approach failed:', error);
