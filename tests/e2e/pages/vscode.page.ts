@@ -88,12 +88,21 @@ export class VSCode extends BasePage {
     const vscodeApp = await electron.launch({
       executablePath: executablePath,
       args,
+      env: {
+        ...process.env,
+        __TEST_EXTENSION_END_TO_END__: 'true',
+      },
     });
     await vscodeApp.firstWindow();
 
     const window = await vscodeApp.firstWindow({ timeout: 60000 });
     console.log('VSCode opened');
-    return new VSCode(vscodeApp, window, repoDir);
+    const vscode = new VSCode(vscodeApp, window, repoDir);
+
+    // Wait for extension initialization in downstream environment
+    await vscode.waitForExtensionInitialization();
+
+    return vscode;
   }
 
   /**
@@ -126,6 +135,35 @@ export class VSCode extends BasePage {
       }
     } catch (error) {
       console.error('Error closing VSCode:', error);
+    }
+  }
+
+  /**
+   * Waits for the Konveyor extension to complete initialization by watching for
+   * the __EXTENSION_INITIALIZED__ info message signal.
+   */
+  public async waitForExtensionInitialization(): Promise<void> {
+    try {
+      console.log('Waiting for Konveyor extension initialization...');
+
+      // Trigger extension activation by opening the analysis view
+      // This was working before - the extension activates and opens the view
+      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Open Analysis View`);
+
+      // Now wait for the initialization signal message to appear
+      // This message is shown by the extension when __TEST_EXTENSION_END_TO_END__ env var is set
+      const initializationMessage = this.window
+        .getByRole('alert')
+        .getByText('__EXTENSION_INITIALIZED__');
+      await expect(initializationMessage).toBeVisible({ timeout: 300000 }); // 5 minute timeout for asset downloads
+
+      // Dismiss the message
+      await this.window.keyboard.press('Escape');
+      await this.window.waitForTimeout(2000); // Give VSCode a chance to process the message
+      console.log('Konveyor extension initialized successfully');
+    } catch (error) {
+      console.error('Failed to wait for extension initialization:', error);
+      throw error;
     }
   }
 
