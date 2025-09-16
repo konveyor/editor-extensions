@@ -150,6 +150,7 @@ export function parseCli(
       repo: values.repo,
       workflow: values.workflow,
       branch: values.branch,
+      releaseTag: values["release-tag"],
       ...ruleset,
     };
   }
