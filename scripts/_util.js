@@ -129,7 +129,7 @@ export function parseCli(
   const ruleset = {
     rulesetOrg: values["ruleset-org"],
     rulesetRepo: values["ruleset-repo"],
-    rulesetReleaseTag: values["ruleset-release-tag"],
+    releaseTag: values["release-tag"],
   };
 
   if (values["use-workflow-artifacts"] && values.workflow && values.pr) {
@@ -150,7 +150,6 @@ export function parseCli(
       repo: values.repo,
       workflow: values.workflow,
       branch: values.branch,
-      releaseTag: values["release-tag"],
       ...ruleset,
     };
   }
