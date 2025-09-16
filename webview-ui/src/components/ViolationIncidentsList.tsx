@@ -23,7 +23,6 @@ import {
   SplitItem,
   ToggleGroup,
   ToggleGroupItem,
-  Divider,
 } from "@patternfly/react-core";
 import "./ViolationIncidentsList.css";
 import {
@@ -133,7 +132,6 @@ const ViolationIncidentsList = ({
       </>
     );
   };
-
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _onDeleteGroup = (type: string) => {
@@ -336,7 +334,7 @@ const ViolationIncidentsList = ({
               style={{ width: "140px" }}
             >
               Category
-              {filters.category.length > 0 && <Badge >{filters.category.length}</Badge>}
+              {filters.category.length > 0 && <Badge>{filters.category.length}</Badge>}
             </MenuToggle>
           )}
           onSelect={onCategorySelect}
@@ -358,7 +356,7 @@ const ViolationIncidentsList = ({
                 isExpanded={isSuccessRateExpanded}
                 style={{ minWidth: "140px" }}
                 icon={<ChartLineIcon />}
-                badge={filters.hasSuccessRate ? <Badge >Filtered</Badge> : undefined}
+                badge={filters.hasSuccessRate ? <Badge>Filtered</Badge> : undefined}
               >
                 {filters.hasSuccessRate ? "With Metrics" : "All Results"}
               </MenuToggle>
@@ -418,13 +416,8 @@ const ViolationIncidentsList = ({
   return (
     <Stack hasGutter style={{ height: "100%", minHeight: "100vh" }}>
       <StackItem>
-        <Toolbar
-          id="violation-incidents-toolbar"
-          className="violation-incidents-toolbar"
-        >
-          <ToolbarContent>
-            {toolbarItems}
-          </ToolbarContent>
+        <Toolbar id="violation-incidents-toolbar" className="violation-incidents-toolbar">
+          <ToolbarContent>{toolbarItems}</ToolbarContent>
         </Toolbar>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: "auto" }}>
