@@ -288,7 +288,7 @@ export class SolutionServerClient {
 
   public async getServerCapabilities(): Promise<any> {
     if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning incidents without success rate");
+      this.logger.info("Solution server is disabled, returning empty capabilities");
       return;
     }
     if (!this.mcpClient || !this.isConnected) {
