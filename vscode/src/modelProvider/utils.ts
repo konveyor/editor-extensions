@@ -121,7 +121,7 @@ export function filterFields<T>(obj: T): T {
   return newObj as T;
 }
 
-function isBasePromptValueInterface(data: unknown): data is BasePromptValueInterface {
+export function isBasePromptValueInterface(data: unknown): data is BasePromptValueInterface {
   return (
     typeof data === "object" &&
     data !== null &&
