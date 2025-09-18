@@ -9,7 +9,12 @@ import { type ModelCapabilities, ParsedModelConfig } from "./types";
 import { ModelCreators } from "./modelCreator";
 import { getCacheForModelProvider } from "./utils";
 import { getTraceEnabled, getConfigKaiDemoMode } from "../utilities/configuration";
-import { BaseModelProvider, ModelProviders, runModelHealthCheck } from "./modelProvider";
+import {
+  BaseModelProvider,
+  ModelProviderOptions,
+  ModelProviders,
+  runModelHealthCheck,
+} from "./modelProvider";
 
 export async function parseModelConfig(yamlUri: Uri): Promise<ParsedModelConfig> {
   const yamlFile = await workspace.fs.readFile(yamlUri);
@@ -140,16 +145,18 @@ export async function getModelProviderFromConfig(
     throw err;
   }
 
-  if (ModelProviders[parsedConfig.config.provider]) {
-    return ModelProviders[parsedConfig.config.provider]();
-  }
-
-  return new BaseModelProvider(
+  const options: ModelProviderOptions = {
     streamingModel,
     nonStreamingModel,
     capabilities,
     logger,
     cache,
     tracer,
-  );
+  };
+
+  if (ModelProviders[parsedConfig.config.provider]) {
+    return ModelProviders[parsedConfig.config.provider](options);
+  }
+
+  return new BaseModelProvider(options);
 }
