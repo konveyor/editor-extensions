@@ -23,7 +23,7 @@ import { type InMemoryCacheWithRevisions } from "../cache";
 import { type KaiModelProvider, KaiWorkflowMessageType } from "../types";
 import { type GetBestHintResult, SolutionServerClient } from "../clients/solutionServerClient";
 
-type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
+export type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
 
 export class AnalysisIssueFix extends BaseNode {
   constructor(
@@ -436,37 +436,41 @@ export function parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): 
           ? "additionalInfo"
           : undefined;
 
+  const processBuffer = (buffer: string[], parserState: IssueFixResponseParserState): string => {
+    if (parserState === "updatedFile") {
+      // ISSUE-848: anything before and after the first and last code block separator should be omitted
+      const firstCodeBlockSeparatorIndex = buffer.findIndex((line) => line.match(/^\s*```\w*/));
+      const lastCodeBlockSeparatorIndex = buffer.findLastIndex((line) => line.match(/^\s*```\w*/));
+      return buffer
+        .slice(
+          firstCodeBlockSeparatorIndex !== -1 ? firstCodeBlockSeparatorIndex + 1 : 0,
+          lastCodeBlockSeparatorIndex !== -1 ? lastCodeBlockSeparatorIndex : buffer.length,
+        )
+        .join("\n")
+        .trim();
+    } else {
+      return buffer.join("\n").trim();
+    }
+  };
+
   let parserState: IssueFixResponseParserState | undefined = undefined;
   let buffer: string[] = [];
-  let firstCodeBlockSeparatorFound = false;
-  let secondCodeBlockSeparatorFound = false;
 
   for (const line of content.split("\n")) {
     const nextState = matcherFunc(line);
     if (nextState) {
       if (parserState && buffer.length) {
-        parsed[parserState] = buffer.join("\n").trim();
+        parsed[parserState] = processBuffer(buffer, parserState);
       }
       buffer = [];
       parserState = nextState;
-    } else if (parserState === "updatedFile") {
-      // ISSUE-848: omit everything between section header and first occurrence of ```
-      if (line.match(/```\w*/)) {
-        if (!firstCodeBlockSeparatorFound) {
-          firstCodeBlockSeparatorFound = true;
-        } else {
-          secondCodeBlockSeparatorFound = true;
-        }
-      } else if (firstCodeBlockSeparatorFound && !secondCodeBlockSeparatorFound) {
-        buffer.push(line);
-      }
     } else {
       buffer.push(line);
     }
   }
 
   if (parserState && buffer.length) {
-    parsed[parserState] = buffer.join("\n").trim();
+    parsed[parserState] = processBuffer(buffer, parserState);
   }
 
   return parsed;
