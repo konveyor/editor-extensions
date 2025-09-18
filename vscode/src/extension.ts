@@ -609,7 +609,9 @@ class VsCodeExtension {
       const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
       if (!credentials) {
         this.state.mutateData((draft) => {
-          draft.configErrors.push(createConfigError.missingAuthCredentials());
+          if (!draft.configErrors.some((error) => error.type === "missing-auth-credentials")) {
+            draft.configErrors.push(createConfigError.missingAuthCredentials());
+          }
         });
         return;
       }
