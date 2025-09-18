@@ -39,7 +39,6 @@ export class AnalysisIssueFix extends BaseNode {
     this.fixAnalysisIssue = this.fixAnalysisIssue.bind(this);
     this.summarizeHistory = this.summarizeHistory.bind(this);
     this.fixAnalysisIssueRouter = this.fixAnalysisIssueRouter.bind(this);
-    this.parseAnalysisFixResponse = this.parseAnalysisFixResponse.bind(this);
     this.summarizeAdditionalInformation = this.summarizeAdditionalInformation.bind(this);
   }
 
@@ -283,7 +282,7 @@ If you have any additional details or steps that need to be performed, put it he
       };
     }
 
-    const { additionalInfo, reasoning, updatedFile } = this.parseAnalysisFixResponse(response);
+    const { additionalInfo, reasoning, updatedFile } = parseAnalysisFixResponse(response);
 
     return {
       outputReasoning: reasoning,
@@ -418,44 +417,57 @@ ${state.inputAllReasoning}`,
       iterationCount: state.iterationCount + 2, // since these steps happen in parallel, we increment by 2
     };
   }
+}
 
-  private parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): {
+export function parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): {
+  [key in IssueFixResponseParserState]: string;
+} {
+  const parsed: {
     [key in IssueFixResponseParserState]: string;
-  } {
-    const parsed: {
-      [key in IssueFixResponseParserState]: string;
-    } = { updatedFile: "", additionalInfo: "", reasoning: "" };
-    const content = typeof response.content === "string" ? response.content : "";
+  } = { updatedFile: "", additionalInfo: "", reasoning: "" };
+  const content = typeof response.content === "string" ? response.content : "";
 
-    const matcherFunc = (line: string): IssueFixResponseParserState | undefined =>
-      line.match(/(#|\*)* *[R|r]easoning/)
-        ? "reasoning"
-        : line.match(/(#|\*)* *[U|u]pdated *[F|f]ile/)
-          ? "updatedFile"
-          : line.match(/(#|\*)* *[A|a]dditional *[I|i]nformation/)
-            ? "additionalInfo"
-            : undefined;
+  const matcherFunc = (line: string): IssueFixResponseParserState | undefined =>
+    line.match(/(#|\*)* *[R|r]easoning/)
+      ? "reasoning"
+      : line.match(/(#|\*)* *[U|u]pdated *[F|f]ile/)
+        ? "updatedFile"
+        : line.match(/(#|\*)* *[A|a]dditional *[I|i]nformation/)
+          ? "additionalInfo"
+          : undefined;
 
-    let parserState: IssueFixResponseParserState | undefined = undefined;
-    let buffer: string[] = [];
+  let parserState: IssueFixResponseParserState | undefined = undefined;
+  let buffer: string[] = [];
+  let firstCodeBlockSeparatorFound = false;
+  let secondCodeBlockSeparatorFound = false;
 
-    for (const line of content.split("\n")) {
-      const nextState = matcherFunc(line);
-      if (nextState) {
-        if (parserState && buffer.length) {
-          parsed[parserState] = buffer.join("\n").trim();
+  for (const line of content.split("\n")) {
+    const nextState = matcherFunc(line);
+    if (nextState) {
+      if (parserState && buffer.length) {
+        parsed[parserState] = buffer.join("\n").trim();
+      }
+      buffer = [];
+      parserState = nextState;
+    } else if (parserState === "updatedFile") {
+      // ISSUE-848: omit everything between section header and first occurrence of ```
+      if (line.match(/```\w*/)) {
+        if (!firstCodeBlockSeparatorFound) {
+          firstCodeBlockSeparatorFound = true;
+        } else {
+          secondCodeBlockSeparatorFound = true;
         }
-        buffer = [];
-        parserState = nextState;
-      } else if (parserState !== "updatedFile" || !line.match(/```\w*/)) {
+      } else if (firstCodeBlockSeparatorFound && !secondCodeBlockSeparatorFound) {
         buffer.push(line);
       }
+    } else {
+      buffer.push(line);
     }
-
-    if (parserState && buffer.length) {
-      parsed[parserState] = buffer.join("\n").trim();
-    }
-
-    return parsed;
   }
+
+  if (parserState && buffer.length) {
+    parsed[parserState] = buffer.join("\n").trim();
+  }
+
+  return parsed;
 }
