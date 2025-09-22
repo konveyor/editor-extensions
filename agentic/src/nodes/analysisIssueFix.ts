@@ -23,7 +23,7 @@ import { type InMemoryCacheWithRevisions } from "../cache";
 import { type KaiModelProvider, KaiWorkflowMessageType } from "../types";
 import { type GetBestHintResult, SolutionServerClient } from "../clients/solutionServerClient";
 
-type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
+export type IssueFixResponseParserState = "reasoning" | "updatedFile" | "additionalInfo";
 
 export class AnalysisIssueFix extends BaseNode {
   constructor(
@@ -39,7 +39,6 @@ export class AnalysisIssueFix extends BaseNode {
     this.fixAnalysisIssue = this.fixAnalysisIssue.bind(this);
     this.summarizeHistory = this.summarizeHistory.bind(this);
     this.fixAnalysisIssueRouter = this.fixAnalysisIssueRouter.bind(this);
-    this.parseAnalysisFixResponse = this.parseAnalysisFixResponse.bind(this);
     this.summarizeAdditionalInformation = this.summarizeAdditionalInformation.bind(this);
   }
 
@@ -283,7 +282,7 @@ If you have any additional details or steps that need to be performed, put it he
       };
     }
 
-    const { additionalInfo, reasoning, updatedFile } = this.parseAnalysisFixResponse(response);
+    const { additionalInfo, reasoning, updatedFile } = parseAnalysisFixResponse(response);
 
     return {
       outputReasoning: reasoning,
@@ -418,44 +417,61 @@ ${state.inputAllReasoning}`,
       iterationCount: state.iterationCount + 2, // since these steps happen in parallel, we increment by 2
     };
   }
+}
 
-  private parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): {
+export function parseAnalysisFixResponse(response: AIMessage | AIMessageChunk): {
+  [key in IssueFixResponseParserState]: string;
+} {
+  const parsed: {
     [key in IssueFixResponseParserState]: string;
-  } {
-    const parsed: {
-      [key in IssueFixResponseParserState]: string;
-    } = { updatedFile: "", additionalInfo: "", reasoning: "" };
-    const content = typeof response.content === "string" ? response.content : "";
+  } = { updatedFile: "", additionalInfo: "", reasoning: "" };
+  const content = typeof response.content === "string" ? response.content : "";
 
-    const matcherFunc = (line: string): IssueFixResponseParserState | undefined =>
-      line.match(/(#|\*)* *[R|r]easoning/)
-        ? "reasoning"
-        : line.match(/(#|\*)* *[U|u]pdated *[F|f]ile/)
-          ? "updatedFile"
-          : line.match(/(#|\*)* *[A|a]dditional *[I|i]nformation/)
-            ? "additionalInfo"
-            : undefined;
+  const matcherFunc = (line: string): IssueFixResponseParserState | undefined =>
+    line.match(/(#|\*)* *[R|r]easoning/)
+      ? "reasoning"
+      : line.match(/(#|\*)* *[U|u]pdated *[F|f]ile/)
+        ? "updatedFile"
+        : line.match(/(#|\*)* *[A|a]dditional *[I|i]nformation/)
+          ? "additionalInfo"
+          : undefined;
 
-    let parserState: IssueFixResponseParserState | undefined = undefined;
-    let buffer: string[] = [];
+  const processBuffer = (buffer: string[], parserState: IssueFixResponseParserState): string => {
+    if (parserState === "updatedFile") {
+      // ISSUE-848: anything before and after the first and last code block separator should be omitted
+      const firstCodeBlockSeparatorIndex = buffer.findIndex((line) => line.match(/^\s*```\w*/));
+      const lastCodeBlockSeparatorIndex = buffer.findLastIndex((line) => line.match(/^\s*```\w*/));
+      return buffer
+        .slice(
+          firstCodeBlockSeparatorIndex !== -1 ? firstCodeBlockSeparatorIndex + 1 : 0,
+          lastCodeBlockSeparatorIndex !== -1 ? lastCodeBlockSeparatorIndex : buffer.length,
+        )
+        .join("\n")
+        .trim();
+    } else {
+      return buffer.join("\n").trim();
+    }
+  };
 
-    for (const line of content.split("\n")) {
-      const nextState = matcherFunc(line);
-      if (nextState) {
-        if (parserState && buffer.length) {
-          parsed[parserState] = buffer.join("\n").trim();
-        }
-        buffer = [];
-        parserState = nextState;
-      } else if (parserState !== "updatedFile" || !line.match(/```\w*/)) {
-        buffer.push(line);
+  let parserState: IssueFixResponseParserState | undefined = undefined;
+  let buffer: string[] = [];
+
+  for (const line of content.split("\n")) {
+    const nextState = matcherFunc(line);
+    if (nextState) {
+      if (parserState && buffer.length) {
+        parsed[parserState] = processBuffer(buffer, parserState);
       }
+      buffer = [];
+      parserState = nextState;
+    } else {
+      buffer.push(line);
     }
-
-    if (parserState && buffer.length) {
-      parsed[parserState] = buffer.join("\n").trim();
-    }
-
-    return parsed;
   }
+
+  if (parserState && buffer.length) {
+    parsed[parserState] = processBuffer(buffer, parserState);
+  }
+
+  return parsed;
 }
