@@ -1,6 +1,6 @@
 {
   "name": "editor-extensions",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "displayName": "Konveyor",
   "description": "VSCode Extension for Konveyor to assist in migrating and modernizing applications.",

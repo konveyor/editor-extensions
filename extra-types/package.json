@@ -1,6 +1,6 @@
 {
   "name": "@types/extra-types",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript definitions useful for our project",
   "main": "",
   "types": "index.d.ts",
