@@ -389,7 +389,7 @@ export class BedrockModelProvider extends BaseModelProvider {
     const optionsWithoutCacheKey = {
       ...originalOptions,
     } as Partial<KaiModelProviderInvokeCallOptions>;
-    delete (optionsWithoutCacheKey as any).cacheKey;
+    delete optionsWithoutCacheKey.cacheKey;
 
     const messages: BaseMessage[] = languageModelInputToMessages(input);
     const cache = this.cache;
