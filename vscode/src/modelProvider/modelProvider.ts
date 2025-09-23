@@ -314,8 +314,8 @@ export class BedrockModelProvider extends BaseModelProvider {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult) {
-        return cachedResult as AIMessageChunk;
+      if (cachedResult instanceof AIMessageChunk) {
+        return cachedResult;
       }
     }
 
