@@ -5,7 +5,7 @@
   "author": "Konveyor",
   "icon": "resources/icon.png",
   "license": "Apache-2.0",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "main": "./out/extension.js",
   "publisher": "konveyor",
   "repository": {
