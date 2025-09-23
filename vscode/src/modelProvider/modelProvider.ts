@@ -354,11 +354,16 @@ export class BedrockModelProvider extends BaseModelProvider {
     let response = await runnable.invoke(messages, options);
 
     let maxTokensReached = hitMaxTokens(response);
-    while (maxTokensReached) {
-      this.logger.silly("Max tokens reached during invoke, continuing generation");
+    let attempts = 10;
+    while (maxTokensReached && attempts > 0) {
+      this.logger.silly(
+        "Max tokens reached during invoke, continuing generation, attempts left: ",
+        attempts,
+      );
       const newResponse = await runnable.invoke([...messages, response], options);
       response = response.concat(newResponse);
       maxTokensReached = hitMaxTokens(newResponse);
+      attempts--;
     }
 
     if (options && options.cacheKey) {
@@ -408,7 +413,9 @@ export class BedrockModelProvider extends BaseModelProvider {
     const optionsWithoutCacheKey = {
       ...originalOptions,
     } as Partial<KaiModelProviderInvokeCallOptions>;
-    delete optionsWithoutCacheKey.cacheKey;
+    if ("cacheKey" in optionsWithoutCacheKey) {
+      delete optionsWithoutCacheKey.cacheKey;
+    }
 
     const messages: BaseMessage[] = languageModelInputToMessages(input);
     const cache = this.cache;
@@ -419,9 +426,10 @@ export class BedrockModelProvider extends BaseModelProvider {
       async start(controller) {
         let accumulatedResponse: AIMessageChunk | undefined;
         let continueStreaming = true;
+        let attempts = 10;
         let currentInput: any = messages;
         try {
-          while (continueStreaming) {
+          while (continueStreaming && attempts > 0) {
             const streamOnce = await runnable.stream(currentInput, optionsWithoutCacheKey);
             for await (const chunk of streamOnce) {
               if (!accumulatedResponse) {
@@ -432,7 +440,11 @@ export class BedrockModelProvider extends BaseModelProvider {
               controller.enqueue(chunk);
             }
             if (hitMaxTokens(accumulatedResponse)) {
-              logger.silly("Max tokens reached during streaming, continuing generation");
+              attempts--;
+              logger.silly(
+                "Max tokens reached during streaming, continuing generation, attempts left: ",
+                attempts,
+              );
               currentInput = [
                 ...messages,
                 accumulatedResponse,
