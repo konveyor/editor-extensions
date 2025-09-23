@@ -153,6 +153,14 @@ export class VSCode extends BasePage {
     try {
       console.log('Waiting for Konveyor extension initialization...');
 
+      const javaReadySelector = this.getWindow().getByRole('button', { name: 'Java: Ready' });
+
+      await javaReadySelector.waitFor({ timeout: 120000 });
+      // Sometimes the java ready status is displayed for a few seconds before starting to load again
+      // This checks that the state is kept for a few seconds before continuing
+      await this.waitDefault();
+      await javaReadySelector.waitFor({ timeout: 1200000 });
+
       // Trigger extension activation by opening the analysis view
       // This was working before - the extension activates and opens the view
       await this.executeQuickCommand(`${COMMAND_CATEGORY}: Open Analysis View`);
