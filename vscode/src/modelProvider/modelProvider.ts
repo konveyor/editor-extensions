@@ -12,7 +12,7 @@ import { type BaseLanguageModelInput } from "@langchain/core/language_models/bas
 import {
   SystemMessage,
   HumanMessage,
-  type AIMessageChunk,
+  AIMessageChunk,
   type BaseMessage,
   isBaseMessage,
 } from "@langchain/core/messages";
@@ -103,8 +103,8 @@ export class BaseModelProvider implements KaiModelProvider {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult) {
-        return cachedResult as AIMessageChunk;
+      if (cachedResult instanceof AIMessageChunk) {
+        return cachedResult;
       }
     }
 
@@ -142,10 +142,10 @@ export class BaseModelProvider implements KaiModelProvider {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult) {
+      if (cachedResult instanceof AIMessageChunk) {
         return new ReadableStream({
           start(controller) {
-            controller.enqueue(cachedResult as AIMessageChunk);
+            controller.enqueue(cachedResult);
             controller.close();
           },
         }) as IterableReadableStream<any>;
@@ -306,6 +306,25 @@ export class BedrockModelProvider extends BaseModelProvider {
     super(options);
   }
 
+  bindTools(
+    tools: BindToolsInput[],
+    kwargs?: Partial<KaiModelProviderInvokeCallOptions>,
+  ): KaiModelProvider {
+    if (!this.capabilities.supportsTools || !this.nonStreamingModel.bindTools) {
+      throw new Error("This model does not support tool calling");
+    }
+    return new BedrockModelProvider({
+      streamingModel: this.streamingModel,
+      nonStreamingModel: this.nonStreamingModel,
+      capabilities: this.capabilities,
+      logger: this.logger,
+      cache: this.cache,
+      tracer: this.tracer,
+      tools,
+      toolKwargs: kwargs,
+    });
+  }
+
   async invoke(
     input: BaseLanguageModelInput,
     options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
@@ -364,10 +383,10 @@ export class BedrockModelProvider extends BaseModelProvider {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult) {
+      if (cachedResult instanceof AIMessageChunk) {
         return new ReadableStream({
           start(controller) {
-            controller.enqueue(cachedResult as AIMessageChunk);
+            controller.enqueue(cachedResult);
             controller.close();
           },
         }) as IterableReadableStream<any>;
