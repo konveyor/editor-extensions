@@ -72,6 +72,8 @@ export class BaseModelProvider implements KaiModelProvider {
     this.logger = options.logger;
     this.cache = options.cache;
     this.tracer = options.tracer;
+    this.tools = options.tools;
+    this.toolKwargs = options.toolKwargs;
   }
 
   bindTools(
