@@ -34,7 +34,12 @@ export class VSCode extends BasePage {
     super(app, window);
   }
 
-  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
+  public static async open(
+    repoUrl?: string,
+    repoDir?: string,
+    branch = 'main',
+    waitForInitialization = true
+  ) {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
@@ -99,8 +104,10 @@ export class VSCode extends BasePage {
     console.log('VSCode opened');
     const vscode = new VSCode(vscodeApp, window, repoDir);
 
-    // Wait for extension initialization in downstream environment
-    await vscode.waitForExtensionInitialization();
+    if (waitForInitialization) {
+      // Wait for extension initialization in downstream environment
+      await vscode.waitForExtensionInitialization();
+    }
 
     return vscode;
   }
@@ -117,7 +124,7 @@ export class VSCode extends BasePage {
         await installExtension();
       }
 
-      return repoUrl ? VSCode.open(repoUrl, repoDir, branch) : VSCode.open();
+      return repoUrl ? VSCode.open(repoUrl, repoDir, branch, false) : VSCode.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
       throw error;
