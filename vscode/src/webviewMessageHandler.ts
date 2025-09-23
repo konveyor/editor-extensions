@@ -4,6 +4,7 @@ import { executeExtensionCommand } from "./commands";
 import {
   ADD_PROFILE,
   AnalysisProfile,
+  CANCEL_SOLUTION,
   CONFIGURE_CUSTOM_RULES,
   CONFIGURE_LABEL_SELECTOR,
   CONFIGURE_SOURCES_TARGETS,
@@ -239,6 +240,15 @@ const actions: {
   },
   [ENABLE_GENAI]() {
     executeExtensionCommand("enableGenAI");
+  },
+  [CANCEL_SOLUTION]: async (_payload: any, _state: ExtensionState, logger: winston.Logger) => {
+    logger.info("CANCEL_SOLUTION action triggered");
+    try {
+      await executeExtensionCommand("stopWorkflow");
+    } catch (error) {
+      logger.error("Failed to stop workflow:", error);
+      vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
+    }
   },
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");

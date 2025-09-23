@@ -48,6 +48,7 @@ import {
   getSuccessRate,
   toggleAgentMode,
   openResolutionPanel,
+  cancelSolution,
 } from "../../hooks/actions";
 import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
@@ -80,6 +81,7 @@ const AnalysisPage: React.FC = () => {
     isAgentMode,
     solutionServerConnected,
     isWaitingForUserInteraction,
+    workflowState,
   } = state;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -346,25 +348,45 @@ const AnalysisPage: React.FC = () => {
                 </StackItem>
               </Stack>
             </PageSection>
-            {(isWaitingForSolution || isWaitingForUserInteraction) && (
-              <Backdrop>
-                <div style={{ textAlign: "center", paddingTop: "15rem" }}>
-                  <Spinner size="lg" />
-                  <Title headingLevel="h2" size="lg">
-                    {isWaitingForUserInteraction
-                      ? "Waiting for user action..."
-                      : "Waiting for solution confirmation..."}
-                  </Title>
-                  <Button
-                    variant="primary"
-                    onClick={() => dispatch(openResolutionPanel())}
-                    style={{ marginTop: "1rem" }}
-                  >
-                    Open Resolution Panel
-                  </Button>
-                </div>
-              </Backdrop>
-            )}
+            {(isWaitingForSolution || isWaitingForUserInteraction) &&
+              workflowState !== "aborted" && (
+                <Backdrop>
+                  <div style={{ textAlign: "center", paddingTop: "15rem" }}>
+                    <Spinner size="lg" />
+                    <Title headingLevel="h2" size="lg">
+                      {isWaitingForUserInteraction
+                        ? "Waiting for user action..."
+                        : workflowState === "stopping"
+                        ? "Stopping workflow..."
+                        : "Waiting for solution confirmation..."}
+                    </Title>
+                    <div
+                      style={{
+                        marginTop: "1rem",
+                        display: "flex",
+                        gap: "1rem",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Button variant="primary" onClick={() => dispatch(openResolutionPanel())}>
+                        Open Resolution Panel
+                      </Button>
+                      {(workflowState === "running" ||
+                        workflowState === "starting" ||
+                        workflowState === "waitingForUserInput" ||
+                        workflowState === "stopping") && (
+                        <Button
+                          variant="danger"
+                          onClick={() => dispatch(cancelSolution())}
+                          isDisabled={workflowState === "stopping"}
+                        >
+                          {workflowState === "stopping" ? "Stopping..." : "Stop Workflow"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Backdrop>
+              )}
           </Page>
         </DrawerContentBody>
       </DrawerContent>
