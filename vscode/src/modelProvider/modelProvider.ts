@@ -15,6 +15,7 @@ import {
   AIMessageChunk,
   type BaseMessage,
   isBaseMessage,
+  AIMessage,
 } from "@langchain/core/messages";
 import {
   FileBasedResponseCache,
@@ -98,12 +99,12 @@ export class BaseModelProvider implements KaiModelProvider {
   async invoke(
     input: BaseLanguageModelInput,
     options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
-  ): Promise<AIMessageChunk> {
+  ): Promise<AIMessage> {
     if (options && options.cacheKey) {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult instanceof AIMessageChunk) {
+      if (cachedResult) {
         return cachedResult;
       }
     }
@@ -142,7 +143,7 @@ export class BaseModelProvider implements KaiModelProvider {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult instanceof AIMessageChunk) {
+      if (cachedResult) {
         return new ReadableStream({
           start(controller) {
             controller.enqueue(cachedResult);
@@ -328,12 +329,12 @@ export class BedrockModelProvider extends BaseModelProvider {
   async invoke(
     input: BaseLanguageModelInput,
     options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
-  ): Promise<AIMessageChunk> {
+  ): Promise<AIMessage> {
     if (options && options.cacheKey) {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult instanceof AIMessageChunk) {
+      if (cachedResult) {
         return cachedResult;
       }
     }
@@ -388,7 +389,7 @@ export class BedrockModelProvider extends BaseModelProvider {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
-      if (cachedResult instanceof AIMessageChunk) {
+      if (cachedResult) {
         return new ReadableStream({
           start(controller) {
             controller.enqueue(cachedResult);
