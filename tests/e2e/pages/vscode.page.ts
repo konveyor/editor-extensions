@@ -237,7 +237,6 @@ export class VSCode extends BasePage {
   }
 
   public async startServer(): Promise<void> {
-    await this.window.waitForTimeout(300000);
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
 
