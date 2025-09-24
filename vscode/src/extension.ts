@@ -470,6 +470,16 @@ class VsCodeExtension {
             }
           }
 
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.logLevel`)) {
+            this.state.logger.info("Log level configuration modified!");
+            const newLogLevel = getConfigLogLevel();
+            this.state.logger.level = newLogLevel;
+            for (const transport of this.state.logger.transports) {
+              transport.level = newLogLevel;
+            }
+            this.state.logger.info(`Log level changed to ${newLogLevel}`);
+          }
+
           if (event.affectsConfiguration("konveyor.analyzerPath")) {
             this.state.logger.info("Analyzer path configuration modified!");
 
