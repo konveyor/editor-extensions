@@ -32,7 +32,7 @@ export const ProfileList: React.FC<{
   onDuplicate: (profile: AnalysisProfile) => void;
 }> = ({ profiles, selected, active, onSelect, onCreate, onDelete, onMakeActive, onDuplicate }) => {
   const [openDropdownProfileId, setOpenDropdownProfileId] = React.useState<string | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [profileToDelete, setProfileToDelete] = React.useState<AnalysisProfile | null>(null);
 
   return (
     <Flex direction={{ default: "column" }} spaceItems={{ default: "spaceItemsMd" }}>
@@ -123,9 +123,12 @@ export const ProfileList: React.FC<{
                         >
                           Duplicate
                         </DropdownItem>
-                        <DropdownItem
+                       <DropdownItem
                           key="delete"
-                          onClick={() => setIsDeleteDialogOpen(true)}
+                          onClick={() => {
+                            setProfileToDelete(profile);
+                            setIsOpen(false);
+                          }}
                           isDisabled={profile.readOnly}
                         >
                           Delete
@@ -134,20 +137,22 @@ export const ProfileList: React.FC<{
                     </Dropdown>
                   </DataListAction>
                 </DataListItemRow>
-                <ConfirmDialog
-                  isOpen={isDeleteDialogOpen}
-                  title="Delete profile?"
-                  message={`Are you sure you want to delete the profile "${profile.name}"? This action cannot be undone.`}
-                  confirmButtonText="Delete"
-                  onConfirm={() => {
-                    setIsDeleteDialogOpen(false);
-                    onDelete(profile.id);
-                  }}
-                  onCancel={() => setIsDeleteDialogOpen(false)}
-                />
               </DataListItem>
             );
           })}
+          <ConfirmDialog
+            isOpen={profileToDelete !== null}
+            title="Delete profile?"
+            message={`Are you sure you want to delete the profile "${profileToDelete?.name}"? This action cannot be undone.`}
+            confirmButtonText="Delete"
+            onConfirm={() => {
+              if (profileToDelete) {
+                onDelete(profileToDelete.id);
+              }
+              setProfileToDelete(null);
+            }}
+            onCancel={() => setProfileToDelete(null)}
+          />
         </DataList>
       </FlexItem>
     </Flex>
