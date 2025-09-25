@@ -49,10 +49,7 @@ export async function installExtension(): Promise<void> {
       );
     }
 
-    // Build command with --force flag only when VSIX is explicitly provided
-    const hasExplicitVsix = process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL;
-    const forceFlag = hasExplicitVsix ? ' --force' : '';
-    const installCommand = `code --install-extension "${extensionPath}"${forceFlag}`;
+    const installCommand = `code --install-extension "${extensionPath}"`;
 
     execSync(installCommand, {
       stdio: 'inherit',
