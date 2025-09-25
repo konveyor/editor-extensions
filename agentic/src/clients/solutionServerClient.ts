@@ -190,19 +190,16 @@ export class SolutionServerClient {
       );
     }
 
-    const wasRefreshingTokens = this.isRefreshingTokens;
     try {
-      this.isRefreshingTokens = false;
-      const { tools, resources } = await this.getServerCapabilities();
-      this.logger.info(`Available tools: ${tools.map((t: any) => t.name).join(", ")}`);
-      this.logger.info(`Available resources: ${resources.map((r: any) => r.name).join(", ")}`);
+      const { tools } = await this.mcpClient.listTools();
+      const { resources } = await this.mcpClient.listResources();
+      this.logger.info(`Available tools: ${tools.map((t: Tool) => t.name).join(", ")}`);
+      this.logger.info(`Available resources: ${resources.map((r: Resource) => r.name).join(", ")}`);
 
       this.logger.info("MCP solution server initialized successfully");
     } catch (error) {
       this.logger.error("Failed to initialize MCP solution server", error);
       throw error;
-    } finally {
-      this.isRefreshingTokens = wasRefreshingTokens;
     }
   }
 
@@ -846,10 +843,16 @@ export class SolutionServerClient {
       return;
     }
 
+    if (this.isRefreshingTokens) {
+      this.logger.debug("Token refresh already in progress");
+      return;
+    }
+
     // Retry configuration - local constants
     const maxRefreshRetries = 3;
     const baseRetryDelayMs = 1000; // Start with 1 second
-
+    // Cancel any pending timers to avoid overlapping refreshes
+    this.clearTokenRefreshTimer();
     this.isRefreshingTokens = true;
     const url = new URL(this.serverUrl);
     const keycloakUrl = `${url.protocol}//${url.host}/auth`;
