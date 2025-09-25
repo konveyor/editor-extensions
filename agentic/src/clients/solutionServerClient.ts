@@ -6,6 +6,12 @@ import {
   SolutionServerConfig,
 } from "@editor-extensions/shared";
 import { Logger } from "winston";
+import { Resource, Tool } from "@modelcontextprotocol/sdk/types.js";
+
+export interface SolutionServerCapabilities {
+  tools: Tool[];
+  resources: Resource[];
+}
 
 export interface SolutionFile {
   uri: string;
@@ -293,17 +299,23 @@ export class SolutionServerClient {
     return this.currentClientId;
   }
 
-  public async getServerCapabilities(): Promise<any> {
+  public async getServerCapabilities(): Promise<SolutionServerCapabilities> {
     if (!this.enabled) {
       this.logger.info("Solution server is disabled, returning empty capabilities");
-      return;
+      return {
+        tools: [],
+        resources: [],
+      };
     }
     if (!this.mcpClient || !this.isConnected) {
       throw new SolutionServerClientError("Solution server is not connected");
     }
     if (this.isRefreshingTokens) {
       this.logger.info("Solution server is refreshing tokens, returning empty capabilities");
-      return;
+      return {
+        tools: [],
+        resources: [],
+      };
     }
 
     try {
