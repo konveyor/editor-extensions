@@ -26,10 +26,6 @@ providers.forEach((config) => {
       vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
-      const javaReadySelector = vscodeApp.getWindow().getByRole('button', { name: 'Java: Ready' });
-      await javaReadySelector.waitFor({ timeout: 120000 });
-      await vscodeApp.getWindow().waitForTimeout(300000);
-      await javaReadySelector.waitFor({ timeout: 1200000 });
       await vscodeApp.startServer();
     });
 
