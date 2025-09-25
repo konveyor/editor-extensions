@@ -1,6 +1,6 @@
 {
   "import": "tsx",
   "require": "global-jsdom/register",
-  "extension": ["ts"],
-  "spec": "src/**/*.test.ts"
+  "extension": ["ts", "tsx"],
+  "spec": "src/**/*.test.{ts,tsx}"
 }
