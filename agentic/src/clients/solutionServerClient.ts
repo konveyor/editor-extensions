@@ -62,6 +62,8 @@ export class SolutionServerClient {
   private logger: Logger;
   private sslBypassCleanup: (() => void) | null = null;
 
+  private isRefreshingTokens: boolean = false;
+
   constructor(config: SolutionServerConfig, logger: Logger) {
     this.enabled = config.enabled;
     this.serverUrl = config.url;
@@ -181,7 +183,9 @@ export class SolutionServerClient {
       );
     }
 
+    const wasRefreshingTokens = this.isRefreshingTokens;
     try {
+      this.isRefreshingTokens = false;
       const { tools, resources } = await this.getServerCapabilities();
       this.logger.info(`Available tools: ${tools.map((t: any) => t.name).join(", ")}`);
       this.logger.info(`Available resources: ${resources.map((r: any) => r.name).join(", ")}`);
@@ -190,6 +194,8 @@ export class SolutionServerClient {
     } catch (error) {
       this.logger.error("Failed to initialize MCP solution server", error);
       throw error;
+    } finally {
+      this.isRefreshingTokens = wasRefreshingTokens;
     }
   }
 
@@ -293,6 +299,10 @@ export class SolutionServerClient {
     }
     if (!this.mcpClient || !this.isConnected) {
       throw new SolutionServerClientError("Solution server is not connected");
+    }
+    if (this.isRefreshingTokens) {
+      this.logger.info("Solution server is refreshing tokens, returning empty capabilities");
+      return;
     }
 
     try {
@@ -823,6 +833,7 @@ export class SolutionServerClient {
       return;
     }
 
+    this.isRefreshingTokens = true;
     const url = new URL(this.serverUrl);
     const keycloakUrl = `${url.protocol}//${url.host}/auth`;
     const tokenUrl = `${keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
@@ -876,6 +887,8 @@ export class SolutionServerClient {
     } catch (error) {
       this.logger.error("Token refresh failed", error);
       // For now, just log the error as requested
+    } finally {
+      this.isRefreshingTokens = false;
     }
   }
 
