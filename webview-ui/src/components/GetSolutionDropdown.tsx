@@ -58,6 +58,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
               key="split-action-primary"
               onClick={() => onGetSolution(incidents)}
               aria-label="Get solution"
+              data-scope={scope}
             >
               <WrenchIcon />
             </MenuToggleAction>,

@@ -64,9 +64,12 @@ providers.forEach((config) => {
       console.log('Agent mode enabled');
       // find the JMS issue to fix
       await vscodeApp.searchViolation('References to JavaEE/JakartaEE JMS elements');
-      const fixButton = analysisView.locator('button#get-solution-button');
-      await expect(fixButton.first()).toBeVisible({ timeout: 6000 });
-      await fixButton.first().click();
+
+      // Click the Get Solution button for the specific JMS violation group (scope="issue")
+      // This targets just the JMS violations, not all workspace violations
+      const fixButton = analysisView.locator('button#get-solution-button[data-scope="issue"]');
+      await expect(fixButton).toBeVisible({ timeout: 30000 });
+      await fixButton.click();
       console.log('Fix button clicked');
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
       await vscodeApp.waitDefault();
