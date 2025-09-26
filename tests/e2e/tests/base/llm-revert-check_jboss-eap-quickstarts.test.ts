@@ -34,7 +34,7 @@ getAvailableProviders().forEach((provider) => {
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
 
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch, false);
       await vscodeApp.closeVSCode();
       // Only analyzing kitchensink to save time vs. full jboss repo
       vscodeApp = await VSCode.open(undefined, kitchenRepoPath, undefined);
