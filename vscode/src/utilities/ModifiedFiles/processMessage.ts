@@ -202,10 +202,15 @@ export const processMessageByType = async (
       const interaction = msg.data as KaiUserInteraction;
       switch (interaction.type) {
         case "modifiedFile": {
-          // Skip handling here - modifiedFile interactions are already handled by
-          // handleModifiedFileMessage when processing the ModifiedFile message.
-          // That handler sets up the pending interaction and shows the UI.
-          // We don't need to do anything here to avoid duplicate interaction setup.
+          // Set up the pending interaction for modifiedFile type
+          // This allows handleFileResponse to properly resolve the workflow interaction
+          try {
+            await handleUserInteractionPromise(msg, state, queueManager, pendingInteractions);
+          } catch (error) {
+            console.error("Error handling modifiedFile interaction:", error);
+            msg.data.response = { yesNo: false };
+            await workflow.resolveUserInteraction(msg);
+          }
           break;
         }
         case "yesNo": {
