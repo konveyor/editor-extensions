@@ -160,29 +160,27 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
   };
 
   private async handleModifiedFile(path: string, content: string): Promise<boolean> {
+    const id = `res-modified-file-${Date.now()}`;
     this.emitWorkflowMessage({
       type: KaiWorkflowMessageType.ModifiedFile,
-      id: `res-modified-file-${Date.now()}`,
+      id: id,
       data: {
         content: content,
         path: path,
+        userInteraction: {
+          type: "modifiedFile",
+          systemMessage: {
+            yesNo: "Accept/reject?",
+          },
+        },
       },
     });
-    const id = `req-tasks-${Date.now()}`;
     // wait for accept / reject
     const promise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
       this.modifiedFilePromises.set(id, {
         resolve,
         reject,
       });
-    });
-    this.emitWorkflowMessage({
-      id,
-      type: KaiWorkflowMessageType.UserInteraction,
-      data: {
-        type: "modifiedFile",
-        systemMessage: {},
-      },
     });
     try {
       const response = await promise;

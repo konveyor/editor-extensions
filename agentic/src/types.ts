@@ -29,6 +29,7 @@ export enum KaiWorkflowMessageType {
 export interface KaiModifiedFile {
   path: string;
   content: string;
+  userInteraction?: KaiUserInteraction;
 }
 
 export interface KaiToolCall {
