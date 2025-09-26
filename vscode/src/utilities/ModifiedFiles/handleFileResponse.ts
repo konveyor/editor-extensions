@@ -3,6 +3,11 @@ import * as vscode from "vscode";
 import { ChatMessageType } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+import {
+  KaiWorkflowMessage,
+  KaiWorkflowMessageType,
+  KaiUserInteraction,
+} from "@editor-extensions/agentic";
 
 /**
  * Creates a new file with the specified content
@@ -211,6 +216,30 @@ export async function handleFileResponse(
           modifiedFileMessage.status = "rejected";
         }
       });
+    }
+
+    // Resolve the workflow interaction for modifiedFile type
+    // This is needed to complete the promise-based flow in the agentic workflow
+    const workflow = state.workflowManager?.getWorkflow();
+    if (workflow) {
+      const workflowMessage: KaiWorkflowMessage = {
+        id: messageToken,
+        type: KaiWorkflowMessageType.UserInteraction,
+        data: {
+          type: "modifiedFile",
+          systemMessage: {},
+          response: {
+            yesNo: responseId === "apply",
+          },
+        } as KaiUserInteraction,
+      };
+
+      try {
+        await workflow.resolveUserInteraction(workflowMessage);
+        logger.debug(`Resolved workflow interaction for modifiedFile: ${messageToken}`);
+      } catch (error) {
+        logger.error("Error resolving workflow interaction:", error);
+      }
     }
 
     // Trigger the pending interaction resolver which will handle queue processing
