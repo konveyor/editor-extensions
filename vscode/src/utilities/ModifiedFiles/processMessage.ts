@@ -72,7 +72,7 @@ const handleUserInteractionPromise = async (
       resolve();
     }, 60000);
 
-    pendingInteractions.set(msg.id, async (response: any) => {
+    pendingInteractions.set(msg.id, async (_response: any) => {
       clearTimeout(timeout);
 
       await handleUserInteractionComplete(state, queueManager);
@@ -202,17 +202,10 @@ export const processMessageByType = async (
       const interaction = msg.data as KaiUserInteraction;
       switch (interaction.type) {
         case "modifiedFile": {
-          const workflow = state.workflowManager.getWorkflow();
-          // TODO (pgaikwad): handle this promise from quick response handler
-          await workflow?.resolveUserInteraction({
-            ...msg,
-            data: {
-              ...msg.data,
-              response: {
-                yesNo: fakeModifiedFileHandler(),
-              },
-            },
-          });
+          // Skip handling here - modifiedFile interactions are already handled by
+          // handleModifiedFileMessage when processing the ModifiedFile message.
+          // That handler sets up the pending interaction and shows the UI.
+          // We don't need to do anything here to avoid duplicate interaction setup.
           break;
         }
         case "yesNo": {
@@ -352,13 +345,3 @@ export const processMessageByType = async (
     }
   }
 };
-
-const alternateHandler = (): (() => boolean) => {
-  let current = true;
-  return (): boolean => {
-    current = !current;
-    return current;
-  };
-};
-
-const fakeModifiedFileHandler: () => boolean = alternateHandler();
