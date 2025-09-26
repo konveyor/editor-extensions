@@ -201,18 +201,6 @@ export const processMessageByType = async (
     case KaiWorkflowMessageType.UserInteraction: {
       const interaction = msg.data as KaiUserInteraction;
       switch (interaction.type) {
-        case "modifiedFile": {
-          // Set up the pending interaction for modifiedFile type
-          // This allows handleFileResponse to properly resolve the workflow interaction
-          try {
-            await handleUserInteractionPromise(msg, state, queueManager, pendingInteractions);
-          } catch (error) {
-            console.error("Error handling modifiedFile interaction:", error);
-            msg.data.response = { yesNo: false };
-            await workflow.resolveUserInteraction(msg);
-          }
-          break;
-        }
         case "yesNo": {
           try {
             // Get the message from the interaction
