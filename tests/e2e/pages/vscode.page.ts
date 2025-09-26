@@ -56,9 +56,10 @@ export class VSCode extends BasePage {
           await cleanupRepo(repoDir);
         }
         console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
-        execSync(`git clone ${repoUrl} -b ${branch}`);
+        execSync(`git clone ${repoUrl} -b ${branch}`, { stdio: 'pipe' });
       }
     } catch (error: any) {
+      console.error(error);
       throw new Error('Failed to clone the repository');
     }
 
