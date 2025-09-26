@@ -5,7 +5,7 @@ import { KAIViews } from './e2e/enums/views.enum';
 
 async function globalSetup() {
   console.log('Running global setup...');
-  const vscodeApp = await VSCode.init('https://github.com/konveyor-ecosystem/coolstore', 'coolstore');
+  let vscodeApp = await VSCode.init('https://github.com/konveyor-ecosystem/coolstore', 'coolstore');
 
   if (!isExtensionInstalled('redhat.java')) {
     throw new Error(
@@ -26,8 +26,15 @@ async function globalSetup() {
   await javaReadySelector.waitFor({ timeout: 1200000 });
 
   await vscodeApp.openAnalysisView();
+
+  await vscodeApp.closeVSCode();
+
   console.log('Completed global setup.');
   if (getOSInfo() === 'windows' && process.env.CI) {
+    const vscodeApp = await VSCode.open(
+      'https://github.com/konveyor-ecosystem/coolstore',
+      'coolstore'
+    );
     await vscodeApp.createProfile([], ['openjdk17'], generateRandomString());
     await vscodeApp.configureGenerativeAI();
     await vscodeApp.openAnalysisView();
@@ -37,8 +44,8 @@ async function globalSetup() {
     await startButton.waitFor({ state: 'visible', timeout: 10000 });
     await startButton.click({ delay: 500 });
     await vscodeApp.getWindow().waitForTimeout(60000);
+    await vscodeApp.closeVSCode();
   }
-  await vscodeApp.closeVSCode();
 }
 
 export default globalSetup;
