@@ -24,7 +24,7 @@ interface ToolMessageProps {
 const getHumanReadableToolName = (toolName: string): string => {
   const toolNameMap: Record<string, string> = {
     // File operations
-    writeFile: "Writing file",
+    writeFile: "Suggesting file changes",
     readFile: "Reading file",
     searchFiles: "Searching files",
     listFiles: "Listing files",

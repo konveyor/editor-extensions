@@ -33,6 +33,7 @@ export enum KaiWorkflowMessageType {
 export interface KaiModifiedFile {
   path: string;
   content: string;
+  userInteraction?: KaiUserInteraction;
 }
 
 export interface KaiToolCall {
@@ -43,7 +44,7 @@ export interface KaiToolCall {
 }
 
 export interface KaiUserInteraction {
-  type: "yesNo" | "choice" | "tasks";
+  type: "yesNo" | "choice" | "tasks" | "modifiedFile";
   systemMessage: {
     yesNo?: string;
     choice?: string[];
