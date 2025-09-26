@@ -22,8 +22,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
-    "build": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --clean",
-    "dev": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --watch"
+    "build": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --clean --sourcemap",
+    "dev": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --watch --sourcemap"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
