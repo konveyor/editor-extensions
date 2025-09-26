@@ -201,6 +201,20 @@ export const processMessageByType = async (
     case KaiWorkflowMessageType.UserInteraction: {
       const interaction = msg.data as KaiUserInteraction;
       switch (interaction.type) {
+        case "modifiedFile": {
+          const workflow = state.workflowManager.getWorkflow();
+          // TODO (pgaikwad): handle this promise from quick response handler
+          await workflow?.resolveUserInteraction({
+            ...msg,
+            data: {
+              ...msg.data,
+              response: {
+                yesNo: fakeModifiedFileHandler(),
+              },
+            },
+          });
+          break;
+        }
         case "yesNo": {
           try {
             // Get the message from the interaction
@@ -338,3 +352,13 @@ export const processMessageByType = async (
     }
   }
 };
+
+const alternateHandler = (): (() => boolean) => {
+  let current = true;
+  return (): boolean => {
+    current = !current;
+    return current;
+  };
+};
+
+const fakeModifiedFileHandler: () => boolean = alternateHandler();
