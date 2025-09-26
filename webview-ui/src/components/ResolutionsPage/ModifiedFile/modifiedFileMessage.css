@@ -244,19 +244,6 @@
   background-color: var(--pf-global--BackgroundColor--dark-200);
 }
 
-/* Icon visibility improvements for dark theme - PatternFly v6 */
-.vscode-dark .pf-v6-c-button svg,
-.vscode-dark .pf-v6-c-button .pf-v6-c-button__icon svg {
-  color: var(--vscode-editor-foreground) !important;
-  fill: var(--vscode-editor-foreground) !important;
-}
-
-.vscode-dark .pf-v6-c-button:hover svg,
-.vscode-dark .pf-v6-c-button:hover .pf-v6-c-button__icon svg {
-  color: var(--vscode-editor-foreground) !important;
-  fill: var(--vscode-editor-foreground) !important;
-}
-
 /* Target PatternFly v6 icons specifically */
 .vscode-dark .pf-v6-c-button .pf-v6-c-button__icon {
   color: var(--vscode-editor-foreground) !important;
