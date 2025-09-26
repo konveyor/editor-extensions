@@ -35,7 +35,7 @@ export interface NormalizedFileData {
   isNew: boolean;
   isDeleted: boolean;
   diff: string;
-  status: "applied" | "rejected" | null;
+  status: "applied" | "rejected" | "no_changes_needed" | null;
   content: string;
   messageToken: string;
   quickResponses?: Array<{ id: string; content: string }>;
@@ -55,7 +55,7 @@ export const useModifiedFileData = (
         isNew: data.isNew || false,
         isDeleted: data.isDeleted || false,
         diff: data.diff || "",
-        status: (data.status as "applied" | "rejected" | null) || null,
+        status: (data.status as "applied" | "rejected" | "no_changes_needed" | null) || null,
         content: data.content || "",
         messageToken: data.messageToken || "",
         quickResponses:
@@ -65,18 +65,6 @@ export const useModifiedFileData = (
             ? data.quickResponses
             : undefined,
         originalContent: data.originalContent || "",
-      };
-    } else if (isLocalChange(data)) {
-      normalized = {
-        path: getPathFromOriginalUri(data.originalUri),
-        isNew: false,
-        isDeleted: false,
-        diff: data.diff || "",
-        status: getStatusFromState(data.state),
-        content: data.content || "",
-        messageToken: data.messageToken || "",
-        quickResponses: undefined,
-        originalContent: "",
       };
     } else {
       // Fallback for unknown data types
