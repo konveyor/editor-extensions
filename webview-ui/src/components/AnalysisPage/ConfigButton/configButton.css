@@ -18,13 +18,9 @@
   right: -8px;
   color: var(--pf-t--global--icon--color--status--warning--default);
   font-size: 14px;
-  background: var(--pf-global--BackgroundColor--100);
-  border-radius: 50%;
   padding: 2px;
-  box-shadow: 0 0 0 2px var(--pf-global--BackgroundColor--100);
-  transition: color 0.2s ease-in-out;
 }
 
 .config-button:hover .config-button__warning-icon {
-  color: var(pf-t--global--icon--color--status--warning--default);
+  color: var(--pf-t--global--icon--color--status--warning--default);
 }
