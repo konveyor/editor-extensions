@@ -1,11 +1,11 @@
 import { VSCode } from './e2e/pages/vscode.page';
-import { getOSInfo } from './e2e/utilities/utils';
+import { generateRandomString, getOSInfo } from './e2e/utilities/utils';
 import { isExtensionInstalled } from './e2e/utilities/vscode-commands.utils';
 import { KAIViews } from './e2e/enums/views.enum';
 
 async function globalSetup() {
   console.log('Running global setup...');
-  let vscodeApp = await VSCode.init('https://github.com/konveyor-ecosystem/coolstore', 'coolstore');
+  const vscodeApp = await VSCode.init('https://github.com/konveyor-ecosystem/coolstore', 'coolstore');
 
   if (!isExtensionInstalled('redhat.java')) {
     throw new Error(
@@ -26,22 +26,19 @@ async function globalSetup() {
   await javaReadySelector.waitFor({ timeout: 1200000 });
 
   await vscodeApp.openAnalysisView();
-
   console.log('Completed global setup.');
-  await vscodeApp.closeVSCode();
-
   if (getOSInfo() === 'windows' && process.env.CI) {
-    vscodeApp = await VSCode.open('https://github.com/konveyor-ecosystem/coolstore', 'coolstore');
+    await vscodeApp.createProfile([], ['openjdk17'], generateRandomString());
+    await vscodeApp.configureGenerativeAI();
     await vscodeApp.openAnalysisView();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-
-    console.log('clicking on start server from globalsetup...');
+    console.log('Starting server...');
     const startButton = analysisView.getByRole('button', { name: 'Start' });
     await startButton.waitFor({ state: 'visible', timeout: 10000 });
     await startButton.click({ delay: 500 });
     await vscodeApp.getWindow().waitForTimeout(60000);
-    await vscodeApp.closeVSCode();
   }
+  await vscodeApp.closeVSCode();
 }
 
 export default globalSetup;
