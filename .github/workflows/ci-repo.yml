@@ -180,7 +180,7 @@ jobs:
             VERSION="${{ github.ref_name }}"
             VERSION="${VERSION#v}"  # Strip 'v' prefix
             echo "Setting release version: $VERSION"
-            npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
+            npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
           else
             # Development build: add timestamp and SHA
             CURRENT_VERSION=$(npm pkg get version | tr -d '"')
