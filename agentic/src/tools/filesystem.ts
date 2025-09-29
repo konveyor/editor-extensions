@@ -49,9 +49,21 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       return;
     }
     const { data } = response;
-    if (!data.response || data.response.yesNo === undefined) {
-      promise.reject(Error(`Invalid response from user`));
+
+    // For modifiedFile type, if there's no response field, it means no user interaction
+    // was required, so we should resolve as accepted (true)
+    if (!data.response) {
+      // No user interaction required, treat as accepted
+      promise.resolve(response);
+      return;
     }
+
+    // If there is a response, validate it has the expected structure
+    if (data.response.yesNo === undefined) {
+      promise.reject(Error(`Invalid response from user`));
+      return;
+    }
+
     promise.resolve(response);
   }
 
@@ -188,7 +200,13 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
     });
     try {
       const response = await promise;
-      if (response.data.response?.yesNo) {
+      // If there's no response field, it means no user interaction was required
+      // so we should treat it as accepted (true)
+      if (!response.data.response) {
+        return true;
+      }
+      // If there is a response, check the yesNo value
+      if (response.data.response.yesNo) {
         return response.data.response.yesNo;
       }
     } catch {

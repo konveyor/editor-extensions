@@ -155,6 +155,7 @@ export const handleModifiedFileMessage = async (
             isDeleted: isDeleted,
             diff: diff,
             messageToken: msg.id, // Add message token to value for reference
+            userInteraction: msg.data.userInteraction,
           },
           quickResponses: [
             { id: "apply", content: "Apply" },
