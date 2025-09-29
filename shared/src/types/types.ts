@@ -108,6 +108,7 @@ export interface ChatMessage {
   quickResponses?: QuickResponse[];
   isCompact?: boolean;
   selectedResponse?: string;
+  userInteraction?: any;
 }
 
 export interface ExtensionData {
