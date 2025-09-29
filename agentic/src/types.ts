@@ -1,8 +1,4 @@
-import {
-  type AIMessageChunk,
-  type AIMessage,
-  type BaseMessageChunk,
-} from "@langchain/core/messages";
+import { type AIMessageChunk, type AIMessage, type BaseMessage } from "@langchain/core/messages";
 import {
   type BaseChatModelCallOptions,
   type BindToolsInput,
@@ -123,7 +119,7 @@ export interface KaiModelProviderInvokeCallOptions extends BaseChatModelCallOpti
  */
 export interface KaiModelProvider<
   InvokeCallOptions extends KaiModelProviderInvokeCallOptions = KaiModelProviderInvokeCallOptions,
-  OutputMessageType extends BaseMessageChunk = AIMessageChunk,
+  OutputMessageType extends BaseMessage = AIMessage,
   RunInput = any,
   RunOutput = any,
   StreamCallOptions extends RunnableConfig = RunnableConfig,

@@ -12,8 +12,10 @@ import { type BaseLanguageModelInput } from "@langchain/core/language_models/bas
 import {
   SystemMessage,
   HumanMessage,
-  type AIMessageChunk,
+  AIMessageChunk,
   type BaseMessage,
+  isBaseMessage,
+  AIMessage,
 } from "@langchain/core/messages";
 import {
   FileBasedResponseCache,
@@ -22,9 +24,24 @@ import {
 } from "@editor-extensions/agentic";
 
 import { type ModelCapabilities } from "./types";
+import { isBasePromptValueInterface } from "./utils";
+
+export interface ModelProviderOptions {
+  streamingModel: BaseChatModel;
+  nonStreamingModel: BaseChatModel;
+  capabilities: ModelCapabilities;
+  logger: winston.Logger;
+  cache: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>;
+  // we use the cache as a tracer but with different directory and serializer/deserializer
+  tracer: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>;
+  tools?: BindToolsInput[] | undefined;
+  toolKwargs?: Partial<KaiModelProviderInvokeCallOptions> | undefined;
+}
 
 // If there are special cases for a model provider, we will add them here
-export const ModelProviders: Record<string, () => KaiModelProvider> = {};
+export const ModelProviders: Record<string, (options: ModelProviderOptions) => KaiModelProvider> = {
+  ChatBedrock: (options) => new BedrockModelProvider(options),
+};
 
 /**
  * Base model provider class used for providers that do not require any special handling of invoke or stream.
@@ -40,17 +57,25 @@ export const ModelProviders: Record<string, () => KaiModelProvider> = {};
  * @param toolKwargs - The tool kwargs to use
  */
 export class BaseModelProvider implements KaiModelProvider {
-  constructor(
-    private readonly streamingModel: BaseChatModel,
-    private readonly nonStreamingModel: BaseChatModel,
-    private readonly capabilities: ModelCapabilities,
-    private readonly logger: winston.Logger,
-    private readonly cache: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>,
-    // we use the cache as a tracer but with different directory and serializer/deserializer
-    private readonly tracer: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>,
-    private readonly tools: BindToolsInput[] | undefined = undefined,
-    private readonly toolKwargs: Partial<KaiModelProviderInvokeCallOptions> | undefined = undefined,
-  ) {}
+  protected readonly streamingModel: BaseChatModel;
+  protected readonly nonStreamingModel: BaseChatModel;
+  protected readonly capabilities: ModelCapabilities;
+  protected readonly logger: winston.Logger;
+  protected readonly cache: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>;
+  protected readonly tracer: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>;
+  protected readonly tools: BindToolsInput[] | undefined;
+  protected readonly toolKwargs: Partial<KaiModelProviderInvokeCallOptions> | undefined;
+
+  constructor(options: ModelProviderOptions) {
+    this.streamingModel = options.streamingModel;
+    this.nonStreamingModel = options.nonStreamingModel;
+    this.capabilities = options.capabilities;
+    this.logger = options.logger;
+    this.cache = options.cache;
+    this.tracer = options.tracer;
+    this.tools = options.tools;
+    this.toolKwargs = options.toolKwargs;
+  }
 
   bindTools(
     tools: BindToolsInput[],
@@ -59,28 +84,28 @@ export class BaseModelProvider implements KaiModelProvider {
     if (!this.capabilities.supportsTools || !this.nonStreamingModel.bindTools) {
       throw new Error("This model does not support tool calling");
     }
-    return new BaseModelProvider(
-      this.streamingModel,
-      this.nonStreamingModel,
-      this.capabilities,
-      this.logger,
-      this.cache,
-      this.tracer,
+    return new BaseModelProvider({
+      streamingModel: this.streamingModel,
+      nonStreamingModel: this.nonStreamingModel,
+      capabilities: this.capabilities,
+      logger: this.logger,
+      cache: this.cache,
+      tracer: this.tracer,
       tools,
-      kwargs,
-    );
+      toolKwargs: kwargs,
+    });
   }
 
   async invoke(
     input: BaseLanguageModelInput,
     options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
-  ): Promise<AIMessageChunk> {
+  ): Promise<AIMessage> {
     if (options && options.cacheKey) {
       const cachedResult = await this.cache.get(input, {
         cacheSubDir: options.cacheKey,
       });
       if (cachedResult) {
-        return cachedResult as AIMessageChunk;
+        return cachedResult;
       }
     }
 
@@ -121,7 +146,7 @@ export class BaseModelProvider implements KaiModelProvider {
       if (cachedResult) {
         return new ReadableStream({
           start(controller) {
-            controller.enqueue(cachedResult as AIMessageChunk);
+            controller.enqueue(cachedResult);
             controller.close();
           },
         }) as IterableReadableStream<any>;
@@ -163,7 +188,7 @@ export class BaseModelProvider implements KaiModelProvider {
             }
             controller.enqueue(chunk);
           }
-          if (accumulatedResponse && options.cacheKey) {
+          if (accumulatedResponse && options && options.cacheKey) {
             await cache.set(input, accumulatedResponse, {
               cacheSubDir: options.cacheKey,
             });
@@ -272,4 +297,221 @@ export async function runModelHealthCheck(
   await nonStreamingModel.invoke("a");
 
   return response;
+}
+
+/**
+ * Bedrock specific model provider to handle output token limits
+ */
+export class BedrockModelProvider extends BaseModelProvider {
+  constructor(options: ModelProviderOptions) {
+    super(options);
+  }
+
+  bindTools(
+    tools: BindToolsInput[],
+    kwargs?: Partial<KaiModelProviderInvokeCallOptions>,
+  ): KaiModelProvider {
+    if (!this.capabilities.supportsTools || !this.nonStreamingModel.bindTools) {
+      throw new Error("This model does not support tool calling");
+    }
+    return new BedrockModelProvider({
+      streamingModel: this.streamingModel,
+      nonStreamingModel: this.nonStreamingModel,
+      capabilities: this.capabilities,
+      logger: this.logger,
+      cache: this.cache,
+      tracer: this.tracer,
+      tools,
+      toolKwargs: kwargs,
+    });
+  }
+
+  async invoke(
+    input: BaseLanguageModelInput,
+    options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
+  ): Promise<AIMessage> {
+    if (options && options.cacheKey) {
+      const cachedResult = await this.cache.get(input, {
+        cacheSubDir: options.cacheKey,
+      });
+      if (cachedResult) {
+        return cachedResult;
+      }
+    }
+
+    let runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions> =
+      this.nonStreamingModel;
+    if (
+      this.capabilities.supportsTools &&
+      this.tools &&
+      this.tools.length &&
+      this.nonStreamingModel.bindTools
+    ) {
+      runnable = this.nonStreamingModel.bindTools(this.tools, this.toolKwargs);
+    }
+
+    const messages: BaseMessage[] = languageModelInputToMessages(input);
+
+    let response = await runnable.invoke(messages, options);
+
+    let maxTokensReached = hitMaxTokens(response);
+    let attempts = 10;
+    while (maxTokensReached && attempts > 0) {
+      this.logger.silly(
+        "Max tokens reached during invoke, continuing generation, attempts left: ",
+        attempts,
+      );
+      const newResponse = await runnable.invoke([...messages, response], options);
+      response = response.concat(newResponse);
+      maxTokensReached = hitMaxTokens(newResponse);
+      attempts--;
+    }
+
+    if (options && options.cacheKey) {
+      this.cache.set(input, response, {
+        cacheSubDir: options.cacheKey,
+      });
+      this.tracer.set(input, response, {
+        cacheSubDir: options.cacheKey,
+        inputFileExt: "",
+        outputFileExt: "",
+      });
+    }
+
+    return response;
+  }
+
+  async stream(
+    input: any,
+    options?: Partial<KaiModelProviderInvokeCallOptions> | undefined,
+  ): Promise<IterableReadableStream<any>> {
+    if (options && options.cacheKey) {
+      const cachedResult = await this.cache.get(input, {
+        cacheSubDir: options.cacheKey,
+      });
+      if (cachedResult) {
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(cachedResult);
+            controller.close();
+          },
+        }) as IterableReadableStream<any>;
+      }
+    }
+
+    let runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions> =
+      this.streamingModel;
+    if (
+      this.capabilities.supportsTools &&
+      this.tools &&
+      this.tools.length &&
+      this.streamingModel.bindTools
+    ) {
+      runnable = this.streamingModel.bindTools(this.tools, this.toolKwargs);
+    }
+
+    const originalOptions = options ?? {};
+    const optionsWithoutCacheKey = {
+      ...originalOptions,
+    } as Partial<KaiModelProviderInvokeCallOptions>;
+    if ("cacheKey" in optionsWithoutCacheKey) {
+      delete optionsWithoutCacheKey.cacheKey;
+    }
+
+    const messages: BaseMessage[] = languageModelInputToMessages(input);
+    const cache = this.cache;
+    const tracer = this.tracer;
+    const logger = this.logger;
+
+    return new ReadableStream({
+      async start(controller) {
+        let accumulatedResponse: AIMessageChunk | undefined;
+        let continueStreaming = true;
+        let attempts = 10;
+        let currentInput: any = messages;
+        try {
+          while (continueStreaming && attempts > 0) {
+            const streamOnce = await runnable.stream(currentInput, optionsWithoutCacheKey);
+            for await (const chunk of streamOnce) {
+              if (!accumulatedResponse) {
+                accumulatedResponse = chunk;
+              } else {
+                accumulatedResponse = accumulatedResponse.concat(chunk);
+              }
+              controller.enqueue(chunk);
+            }
+            if (hitMaxTokens(accumulatedResponse)) {
+              attempts--;
+              logger.silly(
+                "Max tokens reached during streaming, continuing generation, attempts left: ",
+                attempts,
+              );
+              currentInput = [
+                ...messages,
+                accumulatedResponse,
+                new HumanMessage("Continue. Do not repeat."),
+              ];
+              continueStreaming = true;
+            } else {
+              continueStreaming = false;
+            }
+          }
+          if (accumulatedResponse && originalOptions.cacheKey) {
+            await cache.set(input, accumulatedResponse, {
+              cacheSubDir: originalOptions.cacheKey,
+            });
+            await tracer.set(input, accumulatedResponse, {
+              cacheSubDir: originalOptions.cacheKey,
+              inputFileExt: "",
+              outputFileExt: "",
+            });
+          }
+          controller.close();
+        } catch (error) {
+          logger.error(`Error streaming: ${error}`);
+          controller.error(error);
+        }
+      },
+    }) as IterableReadableStream<any>;
+  }
+}
+
+function hitMaxTokens(chunk: AIMessageChunk | undefined): boolean {
+  if (!chunk) {
+    return false;
+  }
+  const extractStopReason = (data: Record<string, any>) => {
+    return (
+      data &&
+      ("messageStop" in data
+        ? "stopReason" in data.messageStop
+          ? data.messageStop.stopReason
+          : undefined
+        : undefined)
+    );
+  };
+  return (
+    extractStopReason(chunk.response_metadata) === "max_tokens" ||
+    extractStopReason(chunk.additional_kwargs) === "max_tokens"
+  );
+}
+
+function languageModelInputToMessages(input: BaseLanguageModelInput): BaseMessage[] {
+  let messages: BaseMessage[];
+  if (typeof input === "string") {
+    messages = [new HumanMessage(input)];
+  } else if (isBasePromptValueInterface(input)) {
+    messages = input.toChatMessages();
+  } else if (Array.isArray(input)) {
+    messages = input
+      .map((item) => {
+        if (isBaseMessage(item)) {
+          return item;
+        }
+      })
+      .filter(Boolean);
+  } else {
+    messages = input;
+  }
+  return messages;
 }
