@@ -44,11 +44,15 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
   }
 
   public resolveModifiedFilePromise(response: KaiUserInteractionMessage) {
-    if (response.data.response?.yesNo) {
-      this.modifiedFilePromises.get(response.id)?.resolve(response);
-    } else {
-      this.modifiedFilePromises.get(response.id)?.reject(Error(`Invalid response from user`));
+    const promise = this.modifiedFilePromises.get(response.id);
+    if (!promise) {
+      return;
     }
+    const { data } = response;
+    if (!data.response || data.response.yesNo === undefined) {
+      promise.reject(Error(`Invalid response from user`));
+    }
+    promise.resolve(response);
   }
 
   public all(): DynamicStructuredTool[] {
