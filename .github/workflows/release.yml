@@ -89,7 +89,7 @@ jobs:
           echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
           if [ -f "./artifacts/release.md" ]; then
             echo "Publishing with changelog"
-            npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --releaseNotes "./artifacts/release.md"
+            npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --changelog-path "./artifacts/release.md"
           else
             echo "Publishing without changelog (file not found)"
             npx vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}"
