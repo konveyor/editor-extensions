@@ -40,6 +40,7 @@ export interface ExtensionState {
     getWorkflow: () => KaiInteractiveWorkflow;
     dispose: () => void;
   };
+  workflowDisposalPending?: boolean;
   resolvePendingInteraction?: (messageId: string, response: any) => boolean;
   modifiedFiles: Map<string, ModifiedFileState>;
   modifiedFilesEventEmitter: EventEmitter;
