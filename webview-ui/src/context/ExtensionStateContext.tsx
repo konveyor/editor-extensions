@@ -12,7 +12,6 @@ const defaultState: ExtensionData = {
   isInitializingServer: false,
   isAnalysisScheduled: false,
   isContinueInstalled: false,
-  solutionData: undefined,
   serverState: "initial",
   solutionScope: undefined,
   workspaceRoot: "/",

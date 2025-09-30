@@ -28,7 +28,6 @@ const useResolutionData = (state: any) => {
     chatMessages = [],
     solutionState = "none",
     solutionScope,
-    solutionData: resolution,
     isFetchingSolution = false,
     isAnalyzing,
   } = state;
@@ -49,13 +48,8 @@ const useResolutionData = (state: any) => {
   }, [solutionState, chatMessages]);
 
   const hasResponseWithErrors = useMemo(
-    () =>
-      solutionState === "received" &&
-      resolution !== undefined &&
-      resolution !== null &&
-      Array.isArray(resolution.encountered_errors) &&
-      resolution.encountered_errors?.length > 0,
-    [solutionState, resolution],
+    () => false, // No longer tracking solution response errors
+    [solutionState],
   );
 
   return {
@@ -63,7 +57,6 @@ const useResolutionData = (state: any) => {
     hasNothingToView,
     hasContent,
     hasResponseWithErrors,
-    resolution,
     chatMessages,
     isFetchingSolution,
     isAnalyzing,
