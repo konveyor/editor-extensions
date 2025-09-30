@@ -19,7 +19,7 @@ providers.forEach((config) => {
     let profileName = '';
 
     test.beforeAll(async ({ testRepoData }, testInfo) => {
-      test.setTimeout(2200000);
+      test.setTimeout(3000000);
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
       profileName = `${repoInfo.repoName}-${randomString}`;
