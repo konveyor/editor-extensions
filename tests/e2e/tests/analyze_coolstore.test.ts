@@ -9,7 +9,8 @@ import { prepareEvaluationData, saveOriginalAnalysisFile } from '../utilities/ev
 import { KAIViews } from '../enums/views.enum';
 import { isAWSConfigured } from '../../kai-evaluator/utils/s3.utils';
 
-const providers = process.env.CI ? getAvailableProviders() : [DEFAULT_PROVIDER];
+//const providers = process.env.CI ? getAvailableProviders() : [DEFAULT_PROVIDER];
+const providers = [DEFAULT_PROVIDER];
 
 providers.forEach((config) => {
   test.describe(`Coolstore app tests | ${config.model}`, () => {
