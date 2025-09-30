@@ -61,7 +61,7 @@ export const PARASOL_PROVIDER: ProviderConfig = {
   ].join('\n'),
 };
 
-export const DEFAULT_PROVIDER = AWS_PROVIDER;
+export const DEFAULT_PROVIDER = OPENAI_GPT4OMINI_PROVIDER;
 
 export const providerConfigs: ProviderConfig[] = [
   //PARASOL_PROVIDER,
