@@ -1,11 +1,6 @@
 import { useMemo } from "react";
 import { ModifiedFileMessageValue } from "@editor-extensions/shared";
 
-// Helper functions to check data types
-const isModifiedFileMessageValue = (data: any): data is ModifiedFileMessageValue => {
-  return "path" in data && typeof data.path === "string";
-};
-
 export interface NormalizedFileData {
   path: string;
   isNew: boolean;
@@ -48,6 +43,3 @@ export const useModifiedFileData = (data: ModifiedFileMessageValue): NormalizedF
     };
   }, [data]);
 };
-
-// Export helper functions for reuse
-export { isModifiedFileMessageValue };
