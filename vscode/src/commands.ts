@@ -15,13 +15,7 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import {
-  EnhancedIncident,
-  RuleSet,
-  Scope,
-  ChatMessageType,
-  GetSolutionResult,
-} from "@editor-extensions/shared";
+import { EnhancedIncident, RuleSet, Scope, ChatMessageType } from "@editor-extensions/shared";
 import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
@@ -415,14 +409,6 @@ const commandsMap: (
 
         // Reset the cache after all processing is complete
         state.kaiFsCache.reset();
-
-        // Create a solution response with properly structured changes
-        const solutionResponse: GetSolutionResult = {
-          changes: allDiffs,
-          encountered_errors: [],
-          scope: { incidents },
-          clientId: clientId,
-        };
 
         // Update the state - solution fetching is complete
         state.mutateData((draft) => {

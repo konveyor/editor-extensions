@@ -5,8 +5,6 @@ import {
   ADD_PROFILE,
   AnalysisProfile,
   CONFIGURE_CUSTOM_RULES,
-  CONFIGURE_LABEL_SELECTOR,
-  CONFIGURE_SOURCES_TARGETS,
   DELETE_PROFILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
@@ -147,13 +145,7 @@ const actions: {
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");
   },
-  [CONFIGURE_SOURCES_TARGETS]() {
-    executeExtensionCommand("configureSourcesTargets");
-  },
-  [CONFIGURE_LABEL_SELECTOR]() {
-    executeExtensionCommand("configureLabelSelector");
-  },
-  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, state) => {
+  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
   },
 
