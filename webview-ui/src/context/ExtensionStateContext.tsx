@@ -5,7 +5,6 @@ import { sendVscodeMessage as dispatch } from "../utils/vscodeMessaging";
 const defaultState: ExtensionData = {
   ruleSets: [],
   enhancedIncidents: [],
-  resolutionPanelData: undefined,
   isAnalyzing: false,
   isFetchingSolution: false,
   isStartingServer: false,

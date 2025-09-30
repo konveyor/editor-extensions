@@ -114,7 +114,6 @@ export interface ExtensionData {
   workspaceRoot: string;
   ruleSets: RuleSet[];
   enhancedIncidents: EnhancedIncident[];
-  resolutionPanelData: any;
   isAnalyzing: boolean;
   isFetchingSolution: boolean;
   isStartingServer: boolean;
