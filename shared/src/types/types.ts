@@ -315,7 +315,7 @@ export type ModifiedFileMessageValue = {
   diff: string;
   messageToken?: string;
   quickResponses?: QuickResponse[];
-  userInteraction: KaiUserInteraction;
+  userInteraction?: KaiUserInteraction;
 };
 export interface KaiUserInteraction {
   type: "yesNo" | "choice" | "tasks" | "modifiedFile";
