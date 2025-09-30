@@ -163,6 +163,15 @@ const commandsMap: (
         return;
       }
 
+      // Check if model provider is not initialized
+      if (!state.modelProvider) {
+        logger.info("Model provider not initialized, cannot get solution");
+        window.showErrorMessage(
+          "Model provider is not configured. Please check your provider settings.",
+        );
+        return;
+      }
+
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });
@@ -190,13 +199,6 @@ const commandsMap: (
       let workflow: any;
 
       try {
-        // Get the model provider configuration from settings YAML
-        if (!state.modelProvider) {
-          throw new Error(
-            "Chat model is not initialized. Please check your model provider settings.",
-          );
-        }
-
         // Get the profile name from the incidents
         const profileName = incidents[0]?.activeProfileName;
         if (!profileName) {
