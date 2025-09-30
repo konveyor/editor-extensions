@@ -1,10 +1,9 @@
 import * as vscode from "vscode";
 import fs from "fs";
 
-import { RuleSet, Solution } from "@editor-extensions/shared";
+import { RuleSet } from "@editor-extensions/shared";
 import {
   isAnalysis,
-  isSolution,
   MERGED_RULE_SET_DATA_FILE_PREFIX,
   RULE_SET_DATA_FILE_PREFIX,
   SOLUTION_DATA_FILE_PREFIX,
@@ -54,7 +53,7 @@ export const deleteAllDataFilesByPrefix = async (prefix: string) => {
 };
 
 export async function writeDataFile(
-  content: Immutable<RuleSet[]> | Solution,
+  content: Immutable<RuleSet[]>,
   prefix: string,
   format: "json" = "json",
 ) {
@@ -77,12 +76,10 @@ export async function writeDataFile(
   deleteOldestDataFiles(prefix, MAX_FILES);
 }
 
-export const loadStateFromDataFolder = async (): Promise<
-  [RuleSet[] | undefined, Solution | undefined]
-> => {
+export const loadStateFromDataFolder = async (): Promise<RuleSet[] | undefined> => {
   const dataFolder = paths().data;
   if (!dataFolder) {
-    return [undefined, undefined];
+    return undefined;
   }
 
   const [fullAnalysisFiles, mergedAnalysisFiles, solutionFiles] = await Promise.all([
@@ -93,30 +90,23 @@ export const loadStateFromDataFolder = async (): Promise<
 
   const [newestFullAnalysis] = fullAnalysisFiles.reverse();
   const [newestMergedAnalysis] = mergedAnalysisFiles.reverse();
-  const [newestSolution] = solutionFiles.reverse();
   const newestAnalysis = newestMergedAnalysis || newestFullAnalysis;
-  const uris = [newestAnalysis, newestSolution]
-    .filter(Boolean)
-    .map(([name]) => vscode.Uri.joinPath(dataFolder, name));
+  const uris = newestAnalysis ? [vscode.Uri.joinPath(dataFolder, newestAnalysis[0])] : [];
   return readDataFiles(uris);
 };
 
-export const readDataFiles = async (
-  uris: vscode.Uri[],
-): Promise<[RuleSet[] | undefined, Solution | undefined]> => {
+export const readDataFiles = async (uris: vscode.Uri[]): Promise<RuleSet[] | undefined> => {
   let analysisResults = undefined;
-  let solution = undefined;
   for (const uri of uris) {
-    if (!uri || (analysisResults && solution)) {
+    if (!uri || analysisResults) {
       break;
     }
     const fileContent = await fs.promises.readFile(uri.fsPath, { encoding: "utf8" });
     const parsed = JSON.parse(fileContent);
-    solution = !solution && isSolution(parsed) ? parsed : solution;
     analysisResults =
       !analysisResults && Array.isArray(parsed) && parsed.every((item) => isAnalysis(item))
         ? parsed
         : analysisResults;
   }
-  return [analysisResults, solution];
+  return analysisResults;
 };

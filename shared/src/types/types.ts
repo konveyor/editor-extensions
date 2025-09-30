@@ -75,43 +75,6 @@ export interface RuleSet {
   skipped?: string[];
 }
 
-export interface GetSolutionParams {
-  file_path: string;
-  incidents: Incident[];
-}
-export interface Change {
-  // relative file path before the change, may be empty if file was created in this change
-  original: string;
-  // relative file path after the change, may be empty if file was deleted in this change
-  modified: string;
-  // diff in unified format - tested with git diffs
-  diff: string;
-  // solution server id
-  solutionId?: number;
-}
-
-export interface GetSolutionResult {
-  encountered_errors: string[];
-  changes: Change[];
-  scope: Scope;
-  clientId: string;
-}
-
-export interface ResolutionMessage {
-  type: string;
-  solution: Solution;
-  violation: Violation;
-  incident: Incident;
-  isRelevantSolution: boolean;
-}
-
-export interface SolutionResponse {
-  diff: string;
-  encountered_errors: string[];
-  modified_files: string[];
-  clientId: string;
-}
-
 export interface Scope {
   incidents: EnhancedIncident[];
 }
@@ -119,8 +82,6 @@ export interface Scope {
 export interface ScopeWithKonveyorContext {
   incident: EnhancedIncident;
 }
-
-export type Solution = GetSolutionResult | SolutionResponse;
 
 export enum ChatMessageType {
   String = "SimpleChatMessage",
@@ -162,7 +123,6 @@ export interface ExtensionData {
   isAnalysisScheduled: boolean;
   serverState: ServerState;
   solutionState: SolutionState;
-  solutionData?: Solution;
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   configErrors: ConfigError[];
