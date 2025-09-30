@@ -117,18 +117,6 @@
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.configureSourcesTargets",
-        "title": "Configure Analysis Sources and Targets",
-        "category": "Konveyor",
-        "icon": "$(gear)"
-      },
-      {
-        "command": "konveyor.configureLabelSelector",
-        "title": "Configure Analysis LabelSelector",
-        "category": "Konveyor",
-        "icon": "$(gear)"
-      },
-      {
         "command": "konveyor.startServer",
         "title": "Start Server",
         "category": "Konveyor",
