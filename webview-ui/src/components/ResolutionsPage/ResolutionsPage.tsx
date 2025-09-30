@@ -26,7 +26,6 @@ import { useScrollManagement } from "../../hooks/useScrollManagement";
 const useResolutionData = (state: any) => {
   const {
     chatMessages = [],
-    localChanges = [],
     solutionState = "none",
     solutionScope,
     solutionData: resolution,
@@ -66,7 +65,6 @@ const useResolutionData = (state: any) => {
     hasResponseWithErrors,
     resolution,
     chatMessages,
-    localChanges,
     isFetchingSolution,
     isAnalyzing,
     solutionState,

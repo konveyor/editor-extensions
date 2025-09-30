@@ -1,7 +1,6 @@
 import {
   EnhancedIncident,
   ExtensionData,
-  LocalChange,
   Scope,
   ScopeWithKonveyorContext,
   WebviewAction,
@@ -67,10 +66,6 @@ export const openFile = (
   payload: { file, line },
 });
 
-export const viewFix = (change: LocalChange): WebviewAction<WebviewActionType, LocalChange> => ({
-  type: "VIEW_FIX",
-  payload: change,
-});
 
 export const overrideAnalyzerBinaries = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "OVERRIDE_ANALYZER_BINARIES",

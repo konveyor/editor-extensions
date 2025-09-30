@@ -74,7 +74,6 @@ class VsCodeExtension {
     );
     this.data = produce(
       {
-        localChanges: [],
         ruleSets: [],
         enhancedIncidents: [],
         resolutionPanelData: undefined,

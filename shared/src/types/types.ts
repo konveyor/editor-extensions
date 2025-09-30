@@ -1,5 +1,3 @@
-import { Uri } from "vscode";
-
 export type WebviewType = "sidebar" | "resolution" | "profiles";
 
 export interface Incident {
@@ -99,17 +97,6 @@ export interface GetSolutionResult {
   clientId: string;
 }
 
-export interface LocalChange {
-  modifiedUri: Uri;
-  originalUri: Uri;
-  diff: string;
-  state: "pending" | "applied" | "discarded";
-  solutionId?: number;
-  clientId: string;
-  content?: string;
-  messageToken?: string;
-}
-
 export interface ResolutionMessage {
   type: string;
   solution: Solution;
@@ -164,7 +151,6 @@ export interface ChatMessage {
 
 export interface ExtensionData {
   workspaceRoot: string;
-  localChanges: LocalChange[];
   ruleSets: RuleSet[];
   enhancedIncidents: EnhancedIncident[];
   resolutionPanelData: any;

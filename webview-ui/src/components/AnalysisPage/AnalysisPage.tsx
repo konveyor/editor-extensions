@@ -77,7 +77,6 @@ const AnalysisPage: React.FC = () => {
     activeProfileId,
     serverState,
     solutionServerEnabled,
-    localChanges,
     isAgentMode,
     solutionServerConnected,
     isWaitingForUserInteraction,
@@ -100,13 +99,7 @@ const AnalysisPage: React.FC = () => {
     if (enhancedIncidents.length > 0 && solutionServerEnabled && solutionServerConnected) {
       dispatch(getSuccessRate());
     }
-  }, [
-    enhancedIncidents.length,
-    localChanges.length,
-    solutionServerEnabled,
-    solutionServerConnected,
-    dispatch,
-  ]);
+  }, [enhancedIncidents.length, solutionServerEnabled, solutionServerConnected, dispatch]);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);

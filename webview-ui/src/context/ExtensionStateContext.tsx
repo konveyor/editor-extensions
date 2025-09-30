@@ -3,7 +3,6 @@ import { ExtensionData, WebviewAction, WebviewActionType } from "@editor-extensi
 import { sendVscodeMessage as dispatch } from "../utils/vscodeMessaging";
 
 const defaultState: ExtensionData = {
-  localChanges: [],
   ruleSets: [],
   enhancedIncidents: [],
   resolutionPanelData: undefined,
@@ -39,7 +38,6 @@ const getInitialState = (): ExtensionData => {
       return {
         ...defaultState,
         ...windowData,
-        localChanges: Array.isArray(windowData.localChanges) ? windowData.localChanges : [],
         ruleSets: Array.isArray(windowData.ruleSets) ? windowData.ruleSets : [],
         enhancedIncidents: Array.isArray(windowData.enhancedIncidents)
           ? windowData.enhancedIncidents
@@ -76,7 +74,6 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
       const safeData: ExtensionData = {
         ...defaultState,
         ...event.data,
-        localChanges: Array.isArray(event.data.localChanges) ? event.data.localChanges : [],
         ruleSets: Array.isArray(event.data.ruleSets) ? event.data.ruleSets : [],
         enhancedIncidents: Array.isArray(event.data.enhancedIncidents)
           ? event.data.enhancedIncidents
