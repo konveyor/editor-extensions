@@ -756,6 +756,7 @@ class VsCodeExtension {
         this.state.workflowManager.dispose
       ) {
         this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
       }
       return createConfigError.genaiDisabled();
     }
@@ -773,6 +774,7 @@ class VsCodeExtension {
         this.state.workflowManager.dispose
       ) {
         this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
       }
 
       const configError = createConfigError.providerNotConfigured();
@@ -797,10 +799,12 @@ class VsCodeExtension {
       ) {
         this.state.logger.info("Disposing workflow manager - provider configuration changed");
         this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
       } else if (hadPreviousProvider && this.state.data.isFetchingSolution) {
         this.state.logger.info(
           "Provider updated but workflow disposal deferred - solution in progress",
         );
+        this.state.workflowDisposalPending = true;
         vscode.window.showInformationMessage(
           "Model provider updated. The new provider will be used for the next solution.",
         );
@@ -817,6 +821,7 @@ class VsCodeExtension {
         this.state.workflowManager.dispose
       ) {
         this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
       }
 
       const configError = createConfigError.providerConnnectionFailed();

@@ -63,6 +63,17 @@ export function executeExtensionCommand(commandSuffix: string, ...args: any[]): 
   return commands.executeCommand(`${EXTENSION_NAME}.${commandSuffix}`, ...args);
 }
 
+/**
+ * Helper function to execute deferred workflow disposal after solution completes
+ */
+function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
+  if (state.workflowDisposalPending && state.workflowManager && state.workflowManager.dispose) {
+    logger.info("Executing deferred workflow disposal after solution completion");
+    state.workflowManager.dispose();
+    state.workflowDisposalPending = false;
+  }
+}
+
 const commandsMap: (
   state: ExtensionState,
   logger: Logger,
@@ -277,6 +288,7 @@ const commandsMap: (
               draft.solutionState = "failedOnSending";
             }
           });
+          executeDeferredWorkflowDisposal(state, logger);
         });
 
         try {
@@ -310,6 +322,7 @@ const commandsMap: (
               draft.solutionState = "failedOnSending";
             }
           });
+          executeDeferredWorkflowDisposal(state, logger);
         } finally {
           // Clear the stuck interaction monitoring
 
@@ -323,6 +336,7 @@ const commandsMap: (
             draft.isAnalyzing = false;
             draft.isAnalysisScheduled = false;
           });
+          executeDeferredWorkflowDisposal(state, logger);
 
           // Clean up queue manager
           if (queueManager) {
@@ -411,6 +425,7 @@ const commandsMap: (
               draft.solutionState = "received";
               draft.isFetchingSolution = false;
             });
+            executeDeferredWorkflowDisposal(state, logger);
             return;
           }
         }
@@ -432,6 +447,7 @@ const commandsMap: (
           draft.isFetchingSolution = false;
           // File changes are handled through ModifiedFile messages in both agent and non-agent modes
         });
+        executeDeferredWorkflowDisposal(state, logger);
 
         // In non-agent mode, file changes are already handled through ModifiedFile messages
         // No need to load solution into the old diff view
@@ -468,6 +484,7 @@ const commandsMap: (
             timestamp: new Date().toISOString(),
           });
         });
+        executeDeferredWorkflowDisposal(state, logger);
 
         window.showErrorMessage(
           `Failed to generate solution: ${error instanceof Error ? error.message : String(error)}`,
@@ -517,6 +534,7 @@ const commandsMap: (
         }
         draft.isWaitingForUserInteraction = false;
       });
+      executeDeferredWorkflowDisposal(state, logger);
       window.showInformationMessage("Fetching state has been reset.");
     },
     [`${EXTENSION_NAME}.changeDiscarded`]: async (path: string) => {
