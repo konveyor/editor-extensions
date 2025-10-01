@@ -41,8 +41,11 @@ import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse
 import winston from "winston";
 import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
 
-export function setupWebviewMessageListener(webview: vscode.Webview, state: ExtensionState) {
-  webview.onDidReceiveMessage(async (message) => {
+export function setupWebviewMessageListener(
+  webview: vscode.Webview,
+  state: ExtensionState,
+): vscode.Disposable {
+  return webview.onDidReceiveMessage(async (message) => {
     const logger = state.logger.child({
       component: "webviewMessageHandler",
     });

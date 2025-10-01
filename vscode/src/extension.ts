@@ -958,6 +958,9 @@ export async function deactivate(): Promise<void> {
       extension.state.staticDiffAdapter = undefined;
     }
 
+    // Clean up any active webview panels
+    KonveyorGUIWebviewViewProvider.disposeAllPanels();
+
     // Clean up the main extension
     await extension?.dispose();
   } catch (error) {
