@@ -65,20 +65,9 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
                 aria-label="Get solution"
                 data-scope={scope}
               >
-                <div style={{ position: "relative", display: "inline-block" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <WrenchIcon />
-                  <ExclamationTriangleIcon
-                    style={{
-                      position: "absolute",
-                      top: "-2px",
-                      right: "-2px",
-                      fontSize: "0.75rem",
-                      color: "#f0ab00",
-                      backgroundColor: "white",
-                      borderRadius: "50%",
-                      padding: "1px",
-                    }}
-                  />
+                  <span style={{ fontSize: "0.875rem", color: "#6a6e73" }}>AI</span>
                 </div>
               </MenuToggleAction>
             </Tooltip>,
