@@ -55,16 +55,19 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
     if (!data.response) {
       // No user interaction required, treat as accepted
       promise.resolve(response);
+      this.modifiedFilePromises.delete(response.id);
       return;
     }
 
     // If there is a response, validate it has the expected structure
     if (data.response.yesNo === undefined) {
       promise.reject(Error(`Invalid response from user`));
+      this.modifiedFilePromises.delete(response.id);
       return;
     }
 
     promise.resolve(response);
+    this.modifiedFilePromises.delete(response.id);
   }
 
   public all(): DynamicStructuredTool[] {
