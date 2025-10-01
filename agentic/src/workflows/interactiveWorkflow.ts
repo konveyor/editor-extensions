@@ -15,6 +15,7 @@ import {
   type KaiWorkflowMessage,
   type KaiWorkflowResponse,
   KaiWorkflowMessageType,
+  KaiWorkflowState,
 } from "../types";
 import {
   SummarizeAdditionalInfoOutputState,
@@ -82,6 +83,8 @@ export class KaiInteractiveWorkflow
   private userInteractionPromises: Map<string, PendingUserInteraction>;
   private readonly logger: Logger;
   private workspaceDir: string;
+  private abortController: AbortController;
+  private currentState: KaiWorkflowState;
 
   constructor(logger: Logger) {
     super();
@@ -93,10 +96,29 @@ export class KaiInteractiveWorkflow
       component: "KaiInteractiveWorkflow",
     });
     this.workspaceDir = "";
+    this.abortController = new AbortController();
+    this.currentState = KaiWorkflowState.Idle;
 
     this.runToolsEdgeFunction = this.runToolsEdgeFunction.bind(this);
     this.analysisIssueFixRouterEdge = this.analysisIssueFixRouterEdge.bind(this);
     this.diagnosticsOrchestratorEdge = this.diagnosticsOrchestratorEdge.bind(this);
+  }
+
+  private emitStateChange(
+    newState: KaiWorkflowState,
+    progress?: { current: number; total: number; description?: string },
+  ): void {
+    if (this.currentState !== newState) {
+      this.currentState = newState;
+      this.emitWorkflowMessage({
+        id: `state-${Date.now()}`,
+        type: KaiWorkflowMessageType.WorkflowStateChanged,
+        data: {
+          state: newState,
+          progress,
+        },
+      });
+    }
   }
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
@@ -213,6 +235,10 @@ export class KaiInteractiveWorkflow
       throw new Error(`Workflow must be inited before it can be run`);
     }
 
+    // Reset abort controller for new run
+    this.abortController = new AbortController();
+    this.emitStateChange(KaiWorkflowState.Starting);
+
     const incidentsByUris: Array<{ uri: string; incidents: EnhancedIncident[] }> =
       input.incidents
         ?.reduce(
@@ -270,89 +296,153 @@ export class KaiInteractiveWorkflow
       modified_files: [],
     };
 
-    // first run the analysis fix workflow
-    const analysisFixOutputState: typeof AnalysisWorkflowOutputState.State =
-      await this.analysisFixWorkflow.invoke(graphInput, {
-        recursionLimit: incidentsByUris.length * 2 + 10,
+    try {
+      this.emitStateChange(KaiWorkflowState.Running, {
+        current: 1,
+        total: 3,
+        description: "Running analysis workflow",
       });
 
-    let shouldAddressAdditionalInfo = false;
-    // if there is any additional information spit by analysis workflow, capture that
-    const additionalInformation: string = analysisFixOutputState.summarizedAdditionalInfo;
-    if (
-      input.enableAgentMode &&
-      additionalInformation.length > 0 &&
-      !additionalInformation.includes("NO-CHANGE")
-    ) {
-      // wait for user confirmation
-      const id = `req-${Date.now()}`;
-      const userConfirmationPromise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
-        this.userInteractionPromises.set(id, {
-          resolve,
-          reject,
-        });
-      });
-      this.emitWorkflowMessage({
-        id,
-        type: KaiWorkflowMessageType.UserInteraction,
-        data: {
-          type: "yesNo",
-          systemMessage: {
-            yesNo: "I found more changes to address. Do you want me to continue fixing them?",
-          },
-        },
-      });
-      try {
-        const response = await userConfirmationPromise;
-        if (response.data.response && (response.data.response.yesNo ?? false)) {
-          shouldAddressAdditionalInfo = true;
-        }
-      } catch (e) {
-        this.logger.error(`Failed to wait for user response`, e);
-      } finally {
-        this.userInteractionPromises.delete(id);
+      // Check for abort signal before starting
+      if (this.abortController.signal.aborted) {
+        throw new Error("Workflow aborted");
       }
+
+      // first run the analysis fix workflow
+      const analysisFixOutputState: typeof AnalysisWorkflowOutputState.State =
+        await this.analysisFixWorkflow.invoke(graphInput, {
+          recursionLimit: incidentsByUris.length * 2 + 10,
+          signal: this.abortController.signal,
+        });
+
+      // Check for abort signal after analysis workflow
+      if (this.abortController.signal.aborted) {
+        throw new Error("Workflow aborted");
+      }
+
+      this.emitStateChange(KaiWorkflowState.Running, {
+        current: 2,
+        total: 3,
+        description: "Processing results",
+      });
+
+      let shouldAddressAdditionalInfo = false;
+      // if there is any additional information spit by analysis workflow, capture that
+      const additionalInformation: string = analysisFixOutputState.summarizedAdditionalInfo;
+      if (
+        input.enableAgentMode &&
+        additionalInformation.length > 0 &&
+        !additionalInformation.includes("NO-CHANGE")
+      ) {
+        this.emitStateChange(KaiWorkflowState.WaitingForUserInput);
+
+        // wait for user confirmation
+        const id = `req-${Date.now()}`;
+        const userConfirmationPromise = new Promise<KaiUserInteractionMessage>(
+          (resolve, reject) => {
+            this.userInteractionPromises.set(id, {
+              resolve,
+              reject,
+            });
+
+            // Listen for abort signal
+            this.abortController.signal.addEventListener("abort", () => {
+              reject(new Error("Workflow aborted"));
+            });
+          },
+        );
+        this.emitWorkflowMessage({
+          id,
+          type: KaiWorkflowMessageType.UserInteraction,
+          data: {
+            type: "yesNo",
+            systemMessage: {
+              yesNo: "I found more changes to address. Do you want me to continue fixing them?",
+            },
+          },
+        });
+        try {
+          const response = await userConfirmationPromise;
+          if (response.data.response && (response.data.response.yesNo ?? false)) {
+            shouldAddressAdditionalInfo = true;
+          }
+        } catch (e) {
+          if (this.abortController.signal.aborted) {
+            throw new Error("Workflow aborted");
+          }
+          this.logger.error(`Failed to wait for user response`, e);
+        } finally {
+          this.userInteractionPromises.delete(id);
+          this.emitStateChange(KaiWorkflowState.Running);
+        }
+      }
+
+      // run the interactive workflow for further issues
+      const interactiveWorkflowInput: typeof DiagnosticsOrchestratorState.State = {
+        inputSummarizedAdditionalInfo:
+          (input.enableAgentMode ?? false) && shouldAddressAdditionalInfo
+            ? additionalInformation
+            : undefined,
+        migrationHint: input.migrationHint,
+        programmingLanguage: input.programmingLanguage,
+        plannerInputAgents: ["generalFix", "javaDependency"],
+        plannerInputBackground: analysisFixOutputState.summarizedHistory,
+        enableDiagnosticsFixes: input.enableAgentMode ?? false,
+        cacheSubDir,
+        // internal fields
+        inputDiagnosticsTasks: undefined,
+        currentAgent: undefined,
+        currentTask: undefined,
+        inputInstructionsForGeneralFix: undefined,
+        inputUrisForGeneralFix: undefined,
+        messages: [],
+        outputModifiedFilesFromGeneralFix: undefined,
+        plannerOutputNominatedAgents: undefined,
+        plannerInputTasks: undefined,
+        shouldEnd: false,
+        iterationCount: analysisFixOutputState.iterationCount,
+      };
+
+      this.emitStateChange(KaiWorkflowState.Running, {
+        current: 3,
+        total: 3,
+        description: "Running interactive workflow",
+      });
+
+      // Check for abort signal before interactive workflow
+      if (this.abortController.signal.aborted) {
+        throw new Error("Workflow aborted");
+      }
+
+      await this.followUpInteractiveWorkflow?.invoke(interactiveWorkflowInput, {
+        // each state change is one iteration, keeping this really high
+        // users can ask to stop at any point. fixing analysis issues in a file
+        // followed by adding a dependency to the pom is roughly 10 iterations if
+        // the agent can find the pom file in the first attempt
+        recursionLimit: 3000,
+        signal: this.abortController.signal,
+      });
+
+      // Check for abort signal after interactive workflow
+      if (this.abortController.signal.aborted) {
+        throw new Error("Workflow aborted");
+      }
+
+      this.emitWorkflowMessage({
+        id: "interactive_workflow_done",
+        type: KaiWorkflowMessageType.LLMResponseChunk,
+        data: new AIMessageChunk("Done addressing all issues. Goodbye!"),
+      });
+
+      this.emitStateChange(KaiWorkflowState.Completed);
+    } catch (error) {
+      if (this.abortController.signal.aborted || (error as Error).message.includes("aborted")) {
+        this.emitStateChange(KaiWorkflowState.Aborted);
+      } else {
+        this.emitStateChange(KaiWorkflowState.Failed);
+      }
+      throw error;
     }
-
-    // run the interactive workflow for further issues
-    const interactiveWorkflowInput: typeof DiagnosticsOrchestratorState.State = {
-      inputSummarizedAdditionalInfo:
-        (input.enableAgentMode ?? false) && shouldAddressAdditionalInfo
-          ? additionalInformation
-          : undefined,
-      migrationHint: input.migrationHint,
-      programmingLanguage: input.programmingLanguage,
-      plannerInputAgents: ["generalFix", "javaDependency"],
-      plannerInputBackground: analysisFixOutputState.summarizedHistory,
-      enableDiagnosticsFixes: input.enableAgentMode ?? false,
-      cacheSubDir,
-      // internal fields
-      inputDiagnosticsTasks: undefined,
-      currentAgent: undefined,
-      currentTask: undefined,
-      inputInstructionsForGeneralFix: undefined,
-      inputUrisForGeneralFix: undefined,
-      messages: [],
-      outputModifiedFilesFromGeneralFix: undefined,
-      plannerOutputNominatedAgents: undefined,
-      plannerInputTasks: undefined,
-      shouldEnd: false,
-      iterationCount: analysisFixOutputState.iterationCount,
-    };
-
-    await this.followUpInteractiveWorkflow?.invoke(interactiveWorkflowInput, {
-      // each state change is one iteration, keeping this really high
-      // users can ask to stop at any point. fixing analysis issues in a file
-      // followed by adding a dependency to the pom is roughly 10 iterations if
-      // the agent can find the pom file in the first attempt
-      recursionLimit: 3000,
-    });
-
-    this.emitWorkflowMessage({
-      id: "interactive_workflow_done",
-      type: KaiWorkflowMessageType.LLMResponseChunk,
-      data: new AIMessageChunk("Done addressing all issues. Goodbye!"),
-    });
 
     return runResponse;
   }
@@ -520,5 +610,30 @@ export class KaiInteractiveWorkflow
     const hash = createHash("sha256").update(dataString).digest("hex").substring(0, 16);
     this.logger.silly(`Created hash for input incidents: ${hash}`);
     return hash;
+  }
+
+  async abort(): Promise<void> {
+    this.logger.info("Aborting workflow...");
+    this.emitStateChange(KaiWorkflowState.Stopping);
+
+    // Abort the current controller
+    this.abortController.abort();
+
+    // Reject all pending user interactions
+    for (const [id, promise] of this.userInteractionPromises) {
+      promise.reject(new Error("Workflow aborted"));
+      this.userInteractionPromises.delete(id);
+    }
+
+    // Abort any diagnostics promises
+    if (this.diagnosticsNodes) {
+      await this.diagnosticsNodes.abortDiagnosticsPromise();
+    }
+
+    this.emitStateChange(KaiWorkflowState.Aborted);
+  }
+
+  getState(): KaiWorkflowState {
+    return this.currentState;
   }
 }

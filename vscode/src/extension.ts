@@ -17,6 +17,7 @@ import {
   InMemoryCacheWithRevisions,
   SolutionServerClient,
   FileBasedResponseCache,
+  KaiWorkflowState,
 } from "@editor-extensions/agentic";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
@@ -84,6 +85,7 @@ class VsCodeExtension {
         isInitializingServer: false,
         isAnalysisScheduled: false,
         isContinueInstalled: false,
+        workflowState: "idle",
         solutionData: undefined,
         serverState: "initial",
         solutionScope: undefined,
@@ -142,6 +144,7 @@ class VsCodeExtension {
       workflowManager: {
         workflow: undefined,
         isInitialized: false,
+        currentState: KaiWorkflowState.Idle,
         init: async (config) => {
           if (this.state.workflowManager.isInitialized) {
             return;
@@ -177,6 +180,12 @@ class VsCodeExtension {
             throw new Error("Workflow not initialized");
           }
           return this.state.workflowManager.workflow;
+        },
+        abort: async () => {
+          if (this.state.workflowManager.workflow) {
+            await this.state.workflowManager.workflow.abort();
+            this.state.workflowManager.currentState = KaiWorkflowState.Aborted;
+          }
         },
         dispose: () => {
           try {

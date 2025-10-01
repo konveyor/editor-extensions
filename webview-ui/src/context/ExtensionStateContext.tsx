@@ -27,6 +27,7 @@ const defaultState: ExtensionData = {
   activeDecorators: {},
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
+  workflowState: "idle",
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
