@@ -11,7 +11,7 @@ import {
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
-import { EllipsisVIcon, WrenchIcon, ExclamationTriangleIcon } from "@patternfly/react-icons";
+import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
 import { getBrandName } from "../utils/branding";
 
 type GetSolutionDropdownProps = {
