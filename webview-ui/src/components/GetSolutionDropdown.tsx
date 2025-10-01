@@ -6,11 +6,12 @@ import {
   DropdownItem,
   MenuToggle,
   MenuToggleAction,
+  Tooltip,
 } from "@patternfly/react-core";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
-import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
+import { EllipsisVIcon, WrenchIcon, ExclamationTriangleIcon } from "@patternfly/react-icons";
 import { getBrandName } from "../utils/branding";
 
 type GetSolutionDropdownProps = {
@@ -53,15 +54,34 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
           variant="plain"
           isDisabled={isButtonDisabled}
           splitButtonItems={[
-            <MenuToggleAction
-              id="get-solution-button"
-              key="split-action-primary"
-              onClick={() => onGetSolution(incidents)}
-              aria-label="Get solution"
-              data-scope={scope}
+            <Tooltip
+              key="split-action-primary-tooltip"
+              content="Always review AI generated content prior to use."
             >
-              <WrenchIcon />
-            </MenuToggleAction>,
+              <MenuToggleAction
+                id="get-solution-button"
+                key="split-action-primary"
+                onClick={() => onGetSolution(incidents)}
+                aria-label="Get solution"
+                data-scope={scope}
+              >
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <WrenchIcon />
+                  <ExclamationTriangleIcon
+                    style={{
+                      position: "absolute",
+                      top: "-2px",
+                      right: "-2px",
+                      fontSize: "0.75rem",
+                      color: "#f0ab00",
+                      backgroundColor: "white",
+                      borderRadius: "50%",
+                      padding: "1px",
+                    }}
+                  />
+                </div>
+              </MenuToggleAction>
+            </Tooltip>,
           ]}
           onClick={() => setIsOpen(!isOpen)}
           isExpanded={isOpen}

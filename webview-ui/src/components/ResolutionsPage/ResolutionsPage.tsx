@@ -16,7 +16,14 @@ import { ReceivedMessage } from "./ReceivedMessage";
 import { ToolMessage } from "./ToolMessage";
 import { ModifiedFileMessage } from "./ModifiedFile";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
+import {
+  Chatbot,
+  ChatbotContent,
+  ChatbotDisplayMode,
+  ChatbotFootnote,
+  ChatbotFooter,
+  MessageBox,
+} from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
 import { MessageWrapper } from "./MessageWrapper";
@@ -240,6 +247,9 @@ const ResolutionPage: React.FC = () => {
             {renderChatMessages()}
           </MessageBox>
         </ChatbotContent>
+        <ChatbotFooter>
+          <ChatbotFootnote label="Always review AI generated content prior to use." />
+        </ChatbotFooter>
       </Chatbot>
     </Page>
   );
