@@ -248,7 +248,10 @@ const ResolutionPage: React.FC = () => {
           </MessageBox>
         </ChatbotContent>
         <ChatbotFooter>
-          <ChatbotFootnote label="Always review AI generated content prior to use." />
+          <ChatbotFootnote
+            className="footnote"
+            label="Always review AI generated content prior to use."
+          />
         </ChatbotFooter>
       </Chatbot>
     </Page>
