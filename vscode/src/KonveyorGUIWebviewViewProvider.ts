@@ -61,6 +61,20 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       // Panel already exists, just reveal it and update our reference
       existingPanel.reveal(ViewColumn.One);
       this._panel = existingPanel;
+
+      // IMPORTANT: Set up message listeners for this provider instance
+      // This ensures messages are handled by the correct provider
+      this._setWebviewMessageListener(this._panel.webview);
+
+      // Add disposal handler for this instance
+      const disposalHandler = this._panel.onDidDispose(() => {
+        // Clean up this instance's state when panel is disposed
+        this._panel = undefined;
+        this._isWebviewReady = false;
+        this._isPanelReady = false;
+      });
+      this._disposables.push(disposalHandler);
+
       return;
     }
 
@@ -124,6 +138,18 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       // Use the existing panel
       existingPanel.reveal(ViewColumn.One);
       this._panel = existingPanel;
+
+      // Set up message listeners for this provider instance
+      this._setWebviewMessageListener(this._panel.webview);
+
+      // Add disposal handler for this instance
+      const disposalHandler = this._panel.onDidDispose(() => {
+        this._panel = undefined;
+        this._isWebviewReady = false;
+        this._isPanelReady = false;
+      });
+      this._disposables.push(disposalHandler);
+
       return;
     }
 
