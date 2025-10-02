@@ -251,6 +251,11 @@ const ResolutionPage: React.FC = () => {
           <ChatbotFootnote
             className="footnote"
             label="Always review AI generated content prior to use."
+            popover={{
+              title: "Verify information",
+              description:
+                "AI is experimental and can make mistakes. We cannot guarantee that all information provided by AI is up to date or without error. You should always verify responses using reliable sources, especially for crucial information and decision making.",
+            }}
           />
         </ChatbotFooter>
       </Chatbot>
