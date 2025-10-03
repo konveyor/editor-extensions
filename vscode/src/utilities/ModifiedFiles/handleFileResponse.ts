@@ -1,8 +1,9 @@
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
-import { ChatMessageType } from "@editor-extensions/shared";
+import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+import { KaiWorkflowMessageType, KaiUserInteraction } from "@editor-extensions/agentic";
 
 /**
  * Creates a new file with the specified content
@@ -116,14 +117,14 @@ export async function handleFileResponse(
         (msg) =>
           msg.kind === ChatMessageType.ModifiedFile &&
           msg.messageToken === messageToken &&
-          (msg.value as any).path === path,
+          (msg.value as ModifiedFileMessageValue).path === path,
       );
 
       if (!fileMessage) {
         throw new Error(`No changes found for file: ${path}`);
       }
 
-      const fileValue = fileMessage.value as any;
+      const fileValue = fileMessage.value as ModifiedFileMessageValue;
       const isNew = fileValue.isNew;
       const isDeleted = fileValue.isDeleted;
 
@@ -175,7 +176,8 @@ export async function handleFileResponse(
           messageIndex >= 0 &&
           draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
         ) {
-          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          const modifiedFileMessage = draft.chatMessages[messageIndex]
+            .value as ModifiedFileMessageValue;
           modifiedFileMessage.status = "applied";
         }
       });
@@ -188,7 +190,8 @@ export async function handleFileResponse(
           messageIndex >= 0 &&
           draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
         ) {
-          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          const modifiedFileMessage = draft.chatMessages[messageIndex]
+            .value as ModifiedFileMessageValue;
           modifiedFileMessage.status = "no_changes_needed";
         }
       });
@@ -207,14 +210,54 @@ export async function handleFileResponse(
           messageIndex >= 0 &&
           draft.chatMessages[messageIndex].kind === ChatMessageType.ModifiedFile
         ) {
-          const modifiedFileMessage = draft.chatMessages[messageIndex].value as any;
+          const modifiedFileMessage = draft.chatMessages[messageIndex]
+            .value as ModifiedFileMessageValue;
           modifiedFileMessage.status = "rejected";
         }
       });
     }
 
-    // Trigger the pending interaction resolver which will handle queue processing
-    // and reset isWaitingForUserInteraction through the centralized handleUserInteractionComplete
+    const fileMessage = state.data.chatMessages.find(
+      (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
+    );
+
+    logger.debug(`[handleFileResponse] Found fileMessage for token ${messageToken}:`, {
+      found: !!fileMessage,
+      value: fileMessage?.value,
+    });
+
+    const fileMessageValue = fileMessage ? (fileMessage.value as ModifiedFileMessageValue) : null;
+    const hasUserInteraction = fileMessageValue?.userInteraction;
+
+    // Resolve the workflow interaction for modifiedFile type
+    // This is needed to complete the promise-based flow in the agentic workflow
+    const workflow = state.workflowManager?.getWorkflow();
+    if (workflow) {
+      try {
+        // Build the data object conditionally
+        const interactionData: KaiUserInteraction = {
+          type: "modifiedFile",
+          systemMessage: {},
+        };
+
+        // Only add response field if there's user interaction
+        if (hasUserInteraction) {
+          interactionData.response = {
+            yesNo: responseId === "apply",
+          };
+        }
+
+        await workflow.resolveUserInteraction({
+          id: messageToken || fileMessageValue?.messageToken || "",
+          type: KaiWorkflowMessageType.UserInteraction,
+          data: interactionData,
+        });
+      } catch (error) {
+        logger.error("Error resolving workflow interaction:", error);
+      }
+    }
+
+    // Also resolve the pending interaction with the UserInteraction ID
     if (state.resolvePendingInteraction) {
       const resolved = state.resolvePendingInteraction(messageToken, {
         responseId: responseId,
@@ -222,22 +265,16 @@ export async function handleFileResponse(
       });
 
       if (!resolved) {
-        logger.warn(`No pending interaction found for messageToken: ${messageToken}`);
-        // As a fallback, reset the waiting flag if no pending interaction was found
-        // This should rarely happen if the architecture is working correctly
-        state.mutateData((draft) => {
-          draft.isWaitingForUserInteraction = false;
-        });
+        logger.debug(`No pending interaction found for UserInteraction ID: ${messageToken}`);
       }
-    } else {
-      logger.warn(
-        "resolvePendingInteraction function not available - this indicates a setup issue",
-      );
-      // As a fallback, reset the waiting flag
-      state.mutateData((draft) => {
-        draft.isWaitingForUserInteraction = false;
-      });
     }
+
+    if (!fileMessageValue) {
+      logger.warn(`Could not find UserInteraction ID for ModifiedFile message: ${messageToken}`);
+    }
+
+    // The pending interaction for ModifiedFile ID is no longer created since we only
+    // create pending interactions for UserInteraction messages now
   } catch (error) {
     logger.error("Error handling file response:", error);
     vscode.window.showErrorMessage(`Failed to handle file response: ${error}`);

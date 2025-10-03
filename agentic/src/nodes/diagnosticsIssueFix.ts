@@ -306,6 +306,7 @@ You have access to a set of tools to search for files, read a file and write to 
 Work on one file at a time. **Completely address changes in one file before moving onto to next file.**\
 Explain you rationale while you make changes to files.\
 When you're done addressing all the changes or there are no additional changes, briefly summarize changes you made.\
+**User may or may not accept the changes you make. If rejected, do not take any action.**\
 `,
     );
 
@@ -377,7 +378,8 @@ You will also be given detailed instructions on how to fix the issues.\
 - You have access to a set of tools to search for files, read a file and write to a file.\
 - You also have access to specific tools that will help you determine which dependency to add.\
 - If the given issue cannot be solved by adding, modifying, updating or deleting dependencies, do not take any action.\
-- Explain your rationale as you make changes.\
+- Explain your rationale as you make changes.
+- User may or may not accept the changes you make. If rejected, do not take any action.\
 
 ${
   state.inputUrisForGeneralFix && state.inputUrisForGeneralFix.length > 0
