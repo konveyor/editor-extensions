@@ -24,7 +24,7 @@ test.describe(`Configure extension and run analysis`, () => {
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
   });
 
-  test('Create Profile and Set Sources and targets', async ({}) => {
+  test('Create Profile and Set Sources and targets', async () => {
     await vscodeApp.waitDefault();
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });
@@ -107,7 +107,7 @@ test.describe(`Configure extension and run analysis`, () => {
     expect(totalNumberOfIssues).toBe(baseline);
   });
 
-  test('Generate debug archive', async ({}) => {
+  test('Generate debug archive', async () => {
     // Find the debug archive command dynamically
     const debugCommand = await vscodeApp.findDebugArchiveCommand();
     await vscodeApp.executeQuickCommand(debugCommand);
