@@ -1,5 +1,5 @@
 import "./resolutionsPage.css";
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { CheckCircleIcon } from "@patternfly/react-icons";
 import {
@@ -113,6 +113,9 @@ const ResolutionPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
   const { solutionScope } = state;
 
+  // Track which messages have had their quick responses selected
+  const [respondedMessageTokens, setRespondedMessageTokens] = useState<Set<string>>(new Set());
+
   // Unified data hook
   const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
     useResolutionData(state);
@@ -126,6 +129,11 @@ const ResolutionPage: React.FC = () => {
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
+  // Handle quick response selection
+  const handleQuickResponse = useCallback((messageToken: string) => {
+    setRespondedMessageTokens((prev) => new Set([...prev, messageToken]));
+  }, []);
+
   // Render chat messages
   const renderChatMessages = useCallback(() => {
     if (!Array.isArray(chatMessages) || chatMessages?.length === 0) {
@@ -136,6 +144,9 @@ const ResolutionPage: React.FC = () => {
       if (!msg) {
         return null;
       }
+
+      // Check if this specific message has been responded to
+      const isMessageResponded = respondedMessageTokens.has(msg.messageToken);
 
       if (msg.kind === ChatMessageType.Tool) {
         const { toolName, toolStatus } = msg.value as ToolMessageValue;
@@ -163,14 +174,65 @@ const ResolutionPage: React.FC = () => {
         );
       }
 
-      if (msg.kind === ChatMessageType.String) {
+      if (msg.kind === ChatMessageType.Diagnostic) {
         const message = msg.value?.message as string;
-        const selectedResponse = msg.selectedResponse;
+        const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
+
+        // Determine if we have Yes/No quick responses and create an appropriate question
+        const hasYesNoResponses =
+          Array.isArray(msg.quickResponses) &&
+          msg.quickResponses.some((response) => response.id === "yes" || response.id === "no");
+
+        const question = hasYesNoResponses
+          ? "Would you like me to fix the selected issues?"
+          : undefined;
+
         return (
           <MessageWrapper key={msg.messageToken}>
             <ReceivedMessage
               timestamp={msg.timestamp}
               content={message}
+              diagnosticSummary={diagnosticSummary}
+              question={question}
+              isMessageResponded={isMessageResponded}
+              onQuickResponse={() => handleQuickResponse(msg.messageToken)}
+              quickResponses={
+                Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                  ? msg.quickResponses.map((response) => ({
+                      ...response,
+                      messageToken: msg.messageToken,
+                      isDisabled: response.id === "run-analysis" && isAnalyzing,
+                    }))
+                  : undefined
+              }
+            />
+          </MessageWrapper>
+        );
+      }
+
+      if (msg.kind === ChatMessageType.String) {
+        const message = msg.value?.message as string;
+        const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
+        const selectedResponse = msg.selectedResponse;
+
+        // Determine if we have Yes/No quick responses and create an appropriate question
+        const hasYesNoResponses =
+          Array.isArray(msg.quickResponses) &&
+          msg.quickResponses.some((response) => response.id === "yes" || response.id === "no");
+
+        const question = hasYesNoResponses
+          ? "Would you like me to fix the selected issues?"
+          : undefined;
+
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ReceivedMessage
+              timestamp={msg.timestamp}
+              content={message}
+              diagnosticSummary={diagnosticSummary}
+              question={question}
+              isMessageResponded={isMessageResponded}
+              onQuickResponse={() => handleQuickResponse(msg.messageToken)}
               quickResponses={
                 Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
                   ? msg.quickResponses.map((response) => ({
@@ -188,7 +250,13 @@ const ResolutionPage: React.FC = () => {
 
       return null;
     });
-  }, [chatMessages, isFetchingSolution, isAnalyzing, triggerScrollOnUserAction]);
+  }, [
+    chatMessages,
+    respondedMessageTokens,
+    handleQuickResponse,
+    isAnalyzing,
+    triggerScrollOnUserAction,
+  ]);
 
   return (
     <Page

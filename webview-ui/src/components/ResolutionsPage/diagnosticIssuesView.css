@@ -1,0 +1,356 @@
+.diagnostic-issues-view {
+  margin: 1rem 0;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  background: var(--vscode-editor-background);
+}
+
+.diagnostic-issues-view.processing {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.diagnostic-issues-view.processing .diagnostic-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.diagnostic-issues-view.processing input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.diagnostic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-sideBar-background);
+}
+
+.diagnostic-header h3 {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.diagnostic-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.diagnostic-action-btn {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 4px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.diagnostic-action-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.diagnostic-files {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.diagnostic-file {
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.diagnostic-file:last-child {
+  border-bottom: none;
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--vscode-editor-background);
+  cursor: pointer;
+}
+
+.file-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.file-toggle-btn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.75rem;
+  width: 16px;
+  height: 16px;
+  justify-content: center;
+}
+
+.toggle-icon {
+  font-size: 0.75rem;
+  color: var(--vscode-descriptionForeground);
+  transition: transform 0.2s ease;
+}
+
+.filename-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.875rem;
+  text-align: left;
+  flex: 1;
+}
+
+.filename-btn:hover .filename {
+  color: var(--vscode-textLink-activeForeground);
+}
+
+.filename {
+  font-weight: 500;
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.filename:hover {
+  color: var(--vscode-textLink-activeForeground);
+}
+
+.issue-count {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.8rem;
+}
+
+.file-view-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-view-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.file-issues {
+  padding: 0.5rem 1rem 1rem 2rem;
+  background: var(--vscode-editor-background);
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.issue-item {
+  margin-bottom: 0.5rem;
+}
+
+.issue-item:last-child {
+  margin-bottom: 0;
+}
+
+.issue-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.issue-checkbox input[type="checkbox"] {
+  margin: 0;
+  margin-top: 0.125rem;
+}
+
+.issue-message {
+  color: var(--vscode-foreground);
+  word-break: break-word;
+}
+
+.selection-summary {
+  padding: 0.75rem 1rem;
+  background: var(--vscode-notifications-background);
+  border-top: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.selected-issues-details {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+.selected-file {
+  margin-bottom: 0.25rem;
+}
+
+.diagnostic-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-sideBar-background);
+}
+
+.question-text {
+  margin-bottom: 0.75rem;
+  color: var(--vscode-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.quick-responses {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.quick-response-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--vscode-button-border);
+  border-radius: 4px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
+}
+
+.quick-response-btn:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.quick-response-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.quick-response-btn.selected {
+  background: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-button-hoverBorder);
+}
+
+.file-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  flex: 1;
+}
+
+.file-checkbox input[type="checkbox"] {
+  margin: 0;
+  margin-top: 0.125rem;
+}
+
+/* Combined diagnostic message styling */
+.diagnostic-message-combined {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.diagnostic-message-combined .diagnostic-issues-view {
+  margin: 0;
+}
+
+.diagnostic-question-section {
+  position: relative;
+  padding-top: 0.5rem;
+}
+
+.diagnostic-question {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  padding: 0.75rem;
+  background: var(--vscode-notifications-background);
+  border-radius: 6px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+/* Visual connector between diagnostic view and question */
+.diagnostic-question-section::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 0.5rem;
+  background: var(--vscode-panel-border);
+  opacity: 0.5;
+}
+
+/* Diagnostic content wrapper for messages without quick responses */
+.diagnostic-content-wrapper {
+  margin-top: 0.75rem;
+}
+
+.diagnostic-content-wrapper .diagnostic-issues-view {
+  margin: 0;
+}
+
+/* Ensure diagnostic view within message has proper styling */
+.pf-chatbot__message .diagnostic-issues-view {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+
+/* Remove extra spacing when diagnostic is inside message content */
+.pf-chatbot__message-text .diagnostic-issues-view {
+  margin: 0;
+}
+
+/* Style for Fix All button - make it visually distinct */
+.pf-chatbot__message-actions-quick-responses {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Add separator before Fix All button */
+.pf-chatbot__message-actions-quick-responses button:last-child::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 1.5rem;
+  background: var(--vscode-panel-border);
+  opacity: 0.5;
+}
+
+.pf-chatbot__message-actions-quick-responses button:last-child {
+  position: relative;
+  margin-left: 0.75rem;
+  font-weight: 600;
+}

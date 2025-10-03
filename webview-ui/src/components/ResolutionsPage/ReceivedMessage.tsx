@@ -1,10 +1,12 @@
 import "./receivedMessage.css";
 import React, { useState, useEffect } from "react";
 import { Message } from "@patternfly/chatbot";
+import { QuickResponse, DiagnosticSummary } from "@editor-extensions/shared";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
-import { QuickResponse } from "../../../../shared/src/types/types";
+import DiagnosticMessage from "./DiagnosticMessage";
+import { quickResponse } from "../../hooks/actions";
 import { getBrandName } from "../../utils/branding";
 
 interface QuickResponseWithState extends QuickResponse {
@@ -19,22 +21,24 @@ interface ReceivedMessageProps {
   timestamp?: string | Date;
   quickResponses?: QuickResponseWithState[];
   isProcessing?: boolean;
+  isMessageResponded?: boolean;
+  diagnosticSummary?: DiagnosticSummary;
+  question?: string; // Optional question to provide context for Yes/No buttons
+  onQuickResponse?: () => void; // Callback when a quick response is selected
 }
 
 export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
   content,
   extraContent,
-  isLoading: _isLoading,
+  isLoading,
   timestamp = new Date(),
   quickResponses,
-  isProcessing = false,
+  isProcessing,
+  isMessageResponded = false,
+  diagnosticSummary,
+  question,
+  onQuickResponse,
 }) => {
-  // Don't render anything if there's no content and no extra content
-  // This prevents "phantom" blank messages from appearing
-  if (!content && !extraContent && !quickResponses?.length) {
-    return null;
-  }
-
   // Check if there's already a selectedResponse from the message data (restored from persistence)
   const initialSelectedResponse =
     quickResponses?.find((response) => response.isSelected === true)?.id || null;
@@ -48,6 +52,28 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
     }
   }, [initialSelectedResponse]);
 
+  // If we have diagnostic summary, use the DiagnosticMessage component
+  if (diagnosticSummary) {
+    return (
+      <DiagnosticMessage
+        content={content}
+        extraContent={extraContent}
+        isLoading={isLoading}
+        timestamp={timestamp}
+        quickResponses={quickResponses}
+        isMessageResponded={isMessageResponded}
+        diagnosticSummary={diagnosticSummary}
+        question={question}
+        onQuickResponse={onQuickResponse}
+      />
+    );
+  }
+
+  // Don't render anything if there's no content and no extra content
+  // This prevents "phantom" blank messages from appearing
+  if (!content && !extraContent && !quickResponses?.length) {
+    return null;
+  }
   const formatTimestamp = (time: string | Date): string => {
     const date = typeof time === "string" ? new Date(time) : time;
     return date.toLocaleTimeString("en-US", {
@@ -61,13 +87,18 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
     // Update state to reflect selected response
     // Note: Consider using React.memo or other optimization techniques if flickering persists
     setSelectedResponse(responseId);
-    window.vscode.postMessage({
-      type: "QUICK_RESPONSE",
-      payload: {
+
+    // Notify parent that a quick response was selected
+    if (onQuickResponse) {
+      onQuickResponse();
+    }
+
+    window.vscode.postMessage(
+      quickResponse({
         responseId,
         messageToken,
-      },
-    });
+      }),
+    );
   };
 
   return (
@@ -76,13 +107,13 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = ({
       name={getBrandName()}
       role="bot"
       avatar={avatar}
-      content={content}
+      content={content || ""} // Ensure content is never undefined
       quickResponses={quickResponses?.map((response) => ({
         ...response,
         onClick: () => {
           handleQuickResponse(response.id, response.messageToken);
         },
-        isDisabled: response.isDisabled || isProcessing || selectedResponse !== null,
+        isDisabled: response.isDisabled || isProcessing || isMessageResponded || selectedResponse !== null,
         content: response.content,
       }))}
       extraContent={
