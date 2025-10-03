@@ -318,20 +318,11 @@ export class VSCode extends BasePage {
   public async setListKindAndSort(kind: ListKind, order: SortOrder): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
 
-    // Handle the Group by dropdown
-    const groupByButton = analysisView.getByRole('button', { name: /Group by/i });
-    await expect(groupByButton).toBeVisible({ timeout: 5_000 });
-    await groupByButton.click();
-    await expect(groupByButton).toHaveAttribute('aria-expanded', 'true');
-
     // Select the appropriate option from the dropdown
     const optionName = kind === 'issues' ? 'Issues' : 'Files';
-    const option = analysisView.getByRole('option', { name: optionName });
+    const option = analysisView.getByRole('button', { name: optionName });
     await expect(option).toBeVisible({ timeout: 3_000 });
     await option.click();
-
-    // Wait for dropdown to close
-    await expect(groupByButton).toHaveAttribute('aria-expanded', 'false');
 
     // Handle the sort toggle buttons
     const sortButton = analysisView.getByRole('button', {
