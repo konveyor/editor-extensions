@@ -39,7 +39,6 @@ import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
-import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
@@ -205,9 +204,6 @@ const commandsMap: (
           return;
         }
 
-        // Create array to store all diffs
-        const allDiffs: { original: string; modified: string; diff: string }[] = [];
-
         // Set the state to indicate we're fetching a solution
 
         await state.workflowManager.init({
@@ -340,72 +336,7 @@ const commandsMap: (
         }
 
         // In agentic mode, file changes are handled through ModifiedFile messages
-        // In non-agentic mode, we need to process diffs from modified files
-        if (!agentMode) {
-          // Wait for all file processing to complete
-          await Promise.all(modifiedFilesPromises);
-
-          // Event-driven approach - wait for modifiedFiles to be populated
-          // This handles cases where message processing might still be ongoing
-          if (state.modifiedFiles.size === 0) {
-            await new Promise<void>((resolve) => {
-              const timeout = setTimeout(() => {
-                resolve();
-              }, 5000); // 5 seconds max timeout
-
-              const onFileAdded = () => {
-                clearTimeout(timeout);
-                state.modifiedFilesEventEmitter.removeListener("modifiedFileAdded", onFileAdded);
-                resolve();
-              };
-
-              state.modifiedFilesEventEmitter.once("modifiedFileAdded", onFileAdded);
-            });
-          }
-
-          // Process diffs from modified files
-          await Promise.all(
-            Array.from(state.modifiedFiles.entries()).map(async ([path, fileState]) => {
-              const { originalContent, modifiedContent } = fileState;
-              const uri = Uri.file(path);
-              const relativePath = workspace.asRelativePath(uri);
-              try {
-                if (!originalContent) {
-                  const diff = createTwoFilesPatch("", relativePath, "", modifiedContent);
-                  allDiffs.push({
-                    diff,
-                    modified: relativePath,
-                    original: "",
-                  });
-                } else {
-                  const diff = createPatch(relativePath, originalContent, modifiedContent);
-                  allDiffs.push({
-                    diff,
-                    modified: relativePath,
-                    original: relativePath,
-                  });
-                }
-              } catch (err) {
-                logger.error(`Error in processing diff for ${relativePath} - ${err}`);
-              }
-            }),
-          );
-
-          if (allDiffs.length === 0) {
-            // No code changes were generated - this is normal and not necessarily an error
-            logger.info("Workflow completed but no file changes were generated");
-            window.showInformationMessage(
-              "No code changes were suggested for the selected incidents.",
-            );
-
-            // Reset state and return early
-            state.mutateData((draft) => {
-              draft.solutionState = "received";
-              draft.isFetchingSolution = false;
-            });
-            return;
-          }
-        }
+        // In non-agentic mode, file changes are also handled through ModifiedFile messages
 
         // Reset the cache after all processing is complete
         state.kaiFsCache.reset();
@@ -416,9 +347,6 @@ const commandsMap: (
           draft.isFetchingSolution = false;
           // File changes are handled through ModifiedFile messages in both agent and non-agent modes
         });
-
-        // In non-agent mode, file changes are already handled through ModifiedFile messages
-        // No need to load solution into the old diff view
 
         // Clean up pending interactions and resolver function after successful completion
         // Only clean up if we're not waiting for user interaction

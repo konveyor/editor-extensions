@@ -1,19 +1,10 @@
 import {
   EnhancedIncident,
-  ExtensionData,
-  LocalChange,
   Scope,
   ScopeWithKonveyorContext,
   WebviewAction,
   WebviewActionType,
 } from "@editor-extensions/shared";
-
-export const setExtensionData = (
-  data: ExtensionData,
-): WebviewAction<WebviewActionType, ExtensionData> => ({
-  type: "SET_STATE",
-  payload: data,
-});
 
 export const runAnalysis = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "RUN_ANALYSIS",
@@ -40,11 +31,6 @@ export const enableGenAI = (): WebviewAction<WebviewActionType, unknown> => ({
   payload: {},
 });
 
-export const cancelSolution = (): WebviewAction<WebviewActionType, unknown> => ({
-  type: "CANCEL_SOLUTION",
-  payload: {},
-});
-
 export const getSolution = (
   incidents: EnhancedIncident[],
 ): WebviewAction<WebviewActionType, Scope> => ({
@@ -65,21 +51,6 @@ export const openFile = (
 ): WebviewAction<WebviewActionType, { file: string; line: number }> => ({
   type: "OPEN_FILE",
   payload: { file, line },
-});
-
-export const viewFix = (change: LocalChange): WebviewAction<WebviewActionType, LocalChange> => ({
-  type: "VIEW_FIX",
-  payload: change,
-});
-
-export const overrideAnalyzerBinaries = (): WebviewAction<WebviewActionType, unknown> => ({
-  type: "OVERRIDE_ANALYZER_BINARIES",
-  payload: {},
-});
-
-export const configureModelProviderSettings = (): WebviewAction<WebviewActionType, unknown> => ({
-  type: "OPEN_GENAI_SETTINGS",
-  payload: {},
 });
 
 export const getSuccessRate = (): WebviewAction<WebviewActionType, unknown> => ({

@@ -162,20 +162,6 @@ const actions: {
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     executeExtensionCommand("askContinue", incident);
   },
-  // APPLY_FILE and DISCARD_FILE removed - using unified decorator flow
-  // New actions with unique names to avoid overwriting existing diff view commands
-  REJECT_FILE: async ({ path }, _state, logger) => {
-    try {
-      // For rejecting changes, we don't need to do anything since we're not
-      // directly modifying the real file until the user applies changes
-      vscode.window.showInformationMessage(
-        `Changes rejected for ${vscode.workspace.asRelativePath(vscode.Uri.file(path))}`,
-      );
-    } catch (error) {
-      logger.error("Error handling NEW_REJECT_FILE:", error);
-      vscode.window.showErrorMessage(`Failed to reject changes: ${error}`);
-    }
-  },
   SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
     try {
       logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });

@@ -74,17 +74,14 @@ class VsCodeExtension {
     );
     this.data = produce(
       {
-        localChanges: [],
         ruleSets: [],
         enhancedIncidents: [],
-        resolutionPanelData: undefined,
         isAnalyzing: false,
         isFetchingSolution: false,
         isStartingServer: false,
         isInitializingServer: false,
         isAnalysisScheduled: false,
         isContinueInstalled: false,
-        solutionData: undefined,
         serverState: "initial",
         solutionScope: undefined,
         workspaceRoot: paths.workspaceRepo.toString(true),

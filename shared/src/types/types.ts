@@ -1,5 +1,3 @@
-import { Uri } from "vscode";
-
 export type WebviewType = "sidebar" | "resolution" | "profiles";
 
 export interface Incident {
@@ -77,54 +75,6 @@ export interface RuleSet {
   skipped?: string[];
 }
 
-export interface GetSolutionParams {
-  file_path: string;
-  incidents: Incident[];
-}
-export interface Change {
-  // relative file path before the change, may be empty if file was created in this change
-  original: string;
-  // relative file path after the change, may be empty if file was deleted in this change
-  modified: string;
-  // diff in unified format - tested with git diffs
-  diff: string;
-  // solution server id
-  solutionId?: number;
-}
-
-export interface GetSolutionResult {
-  encountered_errors: string[];
-  changes: Change[];
-  scope: Scope;
-  clientId: string;
-}
-
-export interface LocalChange {
-  modifiedUri: Uri;
-  originalUri: Uri;
-  diff: string;
-  state: "pending" | "applied" | "discarded";
-  solutionId?: number;
-  clientId: string;
-  content?: string;
-  messageToken?: string;
-}
-
-export interface ResolutionMessage {
-  type: string;
-  solution: Solution;
-  violation: Violation;
-  incident: Incident;
-  isRelevantSolution: boolean;
-}
-
-export interface SolutionResponse {
-  diff: string;
-  encountered_errors: string[];
-  modified_files: string[];
-  clientId: string;
-}
-
 export interface Scope {
   incidents: EnhancedIncident[];
 }
@@ -132,8 +82,6 @@ export interface Scope {
 export interface ScopeWithKonveyorContext {
   incident: EnhancedIncident;
 }
-
-export type Solution = GetSolutionResult | SolutionResponse;
 
 export enum ChatMessageType {
   String = "SimpleChatMessage",
@@ -164,10 +112,8 @@ export interface ChatMessage {
 
 export interface ExtensionData {
   workspaceRoot: string;
-  localChanges: LocalChange[];
   ruleSets: RuleSet[];
   enhancedIncidents: EnhancedIncident[];
-  resolutionPanelData: any;
   isAnalyzing: boolean;
   isFetchingSolution: boolean;
   isStartingServer: boolean;
@@ -176,7 +122,6 @@ export interface ExtensionData {
   isAnalysisScheduled: boolean;
   serverState: ServerState;
   solutionState: SolutionState;
-  solutionData?: Solution;
   solutionScope?: Scope;
   chatMessages: ChatMessage[];
   configErrors: ConfigError[];
