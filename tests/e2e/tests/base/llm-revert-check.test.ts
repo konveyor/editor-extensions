@@ -1,11 +1,10 @@
-import { expect, test } from '../../fixtures/test-repo-fixture';
+import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { SCREENSHOTS_FOLDER, MIN } from '../../utilities/consts';
+import { MIN } from '../../utilities/consts';
 import { getAvailableProviders } from '../../fixtures/provider-configs.fixture';
-import { getRepoName, generateRandomString } from '../../utilities/utils';
+import { generateRandomString } from '../../utilities/utils';
 
 import path from 'path';
-import { KAIViews } from '../../enums/views.enum';
 import { getFileImports } from '../../utilities/file.utils';
 /**
  * Automates https://github.com/konveyor/kai/issues/798
@@ -19,7 +18,7 @@ getAvailableProviders().forEach((provider) => {
   test.describe(`@tier1 LLM Revertion tests | ${provider.model}`, () => {
     let vscodeApp: VSCode;
     const profileName = `llm-reversion-${generateRandomString()}`;
-
+    let repoInfo: RepoData[string];
     const kitchenRepoPath = 'jboss-eap-quickstarts/kitchensink';
     const memberFileUri = path.resolve(
       kitchenRepoPath,
@@ -29,11 +28,9 @@ getAvailableProviders().forEach((provider) => {
     let afterFirstFixMemberFileImports: string[];
     let afterSecondFixMemberFileImports: string[];
 
-    test.beforeAll(async ({ testRepoData }, testInfo) => {
+    test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(15 * MIN);
-      const repoName = getRepoName(testInfo);
-      const repoInfo = testRepoData[repoName];
-
+      repoInfo = testRepoData['jboss-eap-quickstarts'];
       vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch, false);
       await vscodeApp.closeVSCode();
       // Only analyzing kitchensink to save time vs. full jboss repo

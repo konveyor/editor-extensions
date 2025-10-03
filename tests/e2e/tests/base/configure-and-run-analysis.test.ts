@@ -1,5 +1,5 @@
 import * as pathlib from 'path';
-import { expect, test } from '../../fixtures/test-repo-fixture';
+import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as fs from 'fs/promises';
@@ -10,16 +10,22 @@ test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `automation-${randomString}`;
+  let repoInfo: RepoData[string];
+
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  const isAscending = (arr: string[]) =>
+    arr.every((v, i, a) => i === 0 || collator.compare(a[i - 1], v) <= 0);
+
+  const CATEGORY_NAMES = ['Potential', 'Optional', 'Mandatory'] as const;
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(900000);
-    const repoInfo = testRepoData['coolstore'];
+    repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
   });
 
-  test('Create Profile and Set Sources and targets', async ({ testRepoData }) => {
+  test('Create Profile and Set Sources and targets', async () => {
     await vscodeApp.waitDefault();
-    const repoInfo = testRepoData['coolstore'];
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });
 
@@ -41,14 +47,6 @@ test.describe(`Configure extension and run analysis`, () => {
     });
   });
 
-  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
-  const isAscending = (arr: string[]) =>
-    arr.every((v, i, a) => i === 0 || collator.compare(a[i - 1], v) <= 0);
-
-  /**
-   * Checks that the issues list is sorted correctly in both ascending and descending order.
-   * Verifies that the descending order is not ascending, and ascending order is sorted.
-   */
   test('Set list kind and sort (Issues ascending and descending)', async () => {
     await vscodeApp.setListKindAndSort('issues', 'ascending');
     const namesAscending = await vscodeApp.getListNames('issues');
@@ -60,10 +58,6 @@ test.describe(`Configure extension and run analysis`, () => {
     expect(namesDescending).toEqual([...namesAscending].reverse());
   });
 
-  /**
-   * Checks that the files list is sorted correctly in both ascending and descending order.
-   * Also validates that all file names look valid.
-   */
   test('Set list kind and sort (Files ascending and descending)', async () => {
     await vscodeApp.setListKindAndSort('files', 'ascending');
     const filesAscending = await vscodeApp.getListNames('files');
@@ -75,11 +69,6 @@ test.describe(`Configure extension and run analysis`, () => {
     expect(filesDescending).toEqual([...filesAscending].reverse());
   });
 
-  /**
-   * Tests the search functionality for files.
-   * Searches for a specific file, checks that only one result is shown,
-   * then clears the search and checks that multiple files are shown again.
-   */
   test('Files: search narrows to one; clearing expands again', async () => {
     await vscodeApp.setListKindAndSort('files', 'ascending');
     const all = await vscodeApp.getListNames('files');
@@ -94,8 +83,6 @@ test.describe(`Configure extension and run analysis`, () => {
     const names2 = await vscodeApp.getListNames('files');
     expect(names2.length).toBeGreaterThan(1);
   });
-
-  const CATEGORY_NAMES = ['Potential', 'Optional', 'Mandatory'] as const;
 
   /**
    * Ensures that filtering issues by category never results in more issues than the baseline (unfiltered) count.
@@ -120,7 +107,7 @@ test.describe(`Configure extension and run analysis`, () => {
     expect(totalNumberOfIssues).toBe(baseline);
   });
 
-  test('Generate debug archive', async ({ testRepoData }) => {
+  test('Generate debug archive', async () => {
     // Find the debug archive command dynamically
     const debugCommand = await vscodeApp.findDebugArchiveCommand();
     await vscodeApp.executeQuickCommand(debugCommand);
@@ -145,14 +132,10 @@ test.describe(`Configure extension and run analysis`, () => {
       await vscodeApp.getWindow().keyboard.press('Enter');
       await vscodeApp.waitDefault();
     }
-    const zipPath = pathlib.join(
-      testRepoData['coolstore'].repoName,
-      '.vscode',
-      'debug-archive.zip'
-    );
+    const zipPath = pathlib.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
     const zipStat = await fs.stat(zipPath);
     expect(zipStat.isFile()).toBe(true);
-    const extractedPath = pathlib.join(testRepoData['coolstore'].repoName, '.vscode');
+    const extractedPath = pathlib.join(repoInfo.repoName, '.vscode');
     extractZip(zipPath, extractedPath);
     const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
     const logsStat = await fs.stat(logsPath);

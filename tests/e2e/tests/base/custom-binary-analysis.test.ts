@@ -1,5 +1,5 @@
 import * as pathlib from 'path';
-import { expect, test } from '../../fixtures/test-repo-fixture';
+import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { generateRandomString } from '../../utilities/utils';
 import fs from 'fs';
@@ -18,8 +18,11 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
   const randomString = generateRandomString();
   const profileName = `custom-binary-analysis-${randomString}`;
   let binaryPath: string | undefined;
+  let repoInfo: RepoData[string];
+
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(900000);
+    repoInfo = testRepoData['coolstore'];
     const kaiFolderPath = pathlib.join(__dirname, '../../../../downloaded_assets/kai');
     if (!process.env.ANALYZER_BINARY_PATH && !fs.existsSync(kaiFolderPath)) {
       throw new Error(
@@ -53,7 +56,6 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
     }
 
     console.log(`Custom analyzer path found in ${binaryPath}`);
-    const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });

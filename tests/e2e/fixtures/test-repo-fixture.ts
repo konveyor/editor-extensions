@@ -2,7 +2,7 @@ import { test as base } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
-type RepoData = Record<
+export type RepoData = Record<
   string,
   {
     repoUrl: string;
