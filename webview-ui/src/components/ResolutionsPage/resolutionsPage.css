@@ -117,3 +117,6 @@
     opacity: 1 !important;
   }
 }
+.footnote small {
+  font-size: 14px;
+}

@@ -16,7 +16,14 @@ import { ReceivedMessage } from "./ReceivedMessage";
 import { ToolMessage } from "./ToolMessage";
 import { ModifiedFileMessage } from "./ModifiedFile";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
+import {
+  Chatbot,
+  ChatbotContent,
+  ChatbotDisplayMode,
+  ChatbotFootnote,
+  ChatbotFooter,
+  MessageBox,
+} from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
 import { MessageWrapper } from "./MessageWrapper";
@@ -231,6 +238,17 @@ const ResolutionPage: React.FC = () => {
             {renderChatMessages()}
           </MessageBox>
         </ChatbotContent>
+        <ChatbotFooter>
+          <ChatbotFootnote
+            className="footnote"
+            label="Always review AI generated content prior to use."
+            popover={{
+              title: "Verify information",
+              description:
+                "AI is experimental and can make mistakes. We cannot guarantee that all information provided by AI is up to date or without error. You should always verify responses using reliable sources, especially for crucial information and decision making.",
+            }}
+          />
+        </ChatbotFooter>
       </Chatbot>
     </Page>
   );

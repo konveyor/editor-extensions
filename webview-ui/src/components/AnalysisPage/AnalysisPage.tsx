@@ -86,6 +86,7 @@ const AnalysisPage: React.FC = () => {
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isGenAIAlertDismissed, setIsGenAIAlertDismissed] = useState(false);
 
   const violations = useViolations(analysisResults);
   const hasViolations = violations.length > 0;
@@ -217,6 +218,24 @@ const AnalysisPage: React.FC = () => {
               onOpenProfileManager={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
               dispatch={dispatch}
             />
+            {!isGenAIDisabled && !isGenAIAlertDismissed && (
+              <PageSection padding={{ default: "noPadding" }}>
+                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
+                  <Alert
+                    variant="info"
+                    title="Generative AI is enabled"
+                    actionClose={
+                      <Button variant="link" onClick={() => setIsGenAIAlertDismissed(true)}>
+                        Close
+                      </Button>
+                    }
+                  >
+                    This feature uses AI technology. Do not include any personal information or
+                    other sensitive information in your input.
+                  </Alert>
+                </Card>
+              </PageSection>
+            )}
             {selectedProfile && (
               <PageSection padding={{ default: "padding" }}>
                 <Card isCompact>
