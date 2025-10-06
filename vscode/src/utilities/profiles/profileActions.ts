@@ -29,6 +29,9 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
     customRules: Array.from(new Set([...(profile.customRules ?? []), ...customRules])),
   };
 
+  // Check if this is the active profile
+  const isActiveProfile = state.data.activeProfileId === profileId;
+
   const userProfiles = getUserProfiles(state.extensionContext).map((p) =>
     p.id === updated.id ? updated : p,
   );
@@ -42,4 +45,16 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
   });
 
   window.showInformationMessage(`Updated custom rules for "${updated.name}"`);
+
+  // Stop the analyzer server if we modified the active profile's custom rules
+  // This ensures the custom rules changes take effect on next analysis
+  if (isActiveProfile && state.analyzerClient.isServerRunning()) {
+    state.logger.info(
+      "Custom rules updated for active profile, stopping analyzer server to apply changes",
+    );
+    await state.analyzerClient.stop();
+    window.showInformationMessage(
+      "Custom rules updated. Analyzer server stopped. Please restart the server to apply changes.",
+    );
+  }
 }

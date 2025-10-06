@@ -80,7 +80,7 @@ export const ProfileEditorForm: React.FC<{
 
   useEffect(() => {
     // Only reset localProfile if it's a different profile to prevent overwriting pending changes
-    if (profile.id !== localProfile.id) {
+    if (profile.id !== localProfile.id || profile.customRules !== localProfile.customRules) {
       setLocalProfile(profile);
     }
     setNameValidation("default");

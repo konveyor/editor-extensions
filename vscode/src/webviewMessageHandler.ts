@@ -115,6 +115,10 @@ const actions: {
     saveUserProfiles(state.extensionContext, userProfiles);
 
     const fullProfiles = [...getBundledProfiles(), ...userProfiles];
+
+    // Check if we're updating the active profile
+    const isActiveProfile = state.data.activeProfileId === originalId;
+
     state.mutateData((draft) => {
       draft.profiles = fullProfiles;
 
@@ -123,6 +127,16 @@ const actions: {
       }
       updateConfigErrorsFromActiveProfile(draft);
     });
+
+    // Stop the analyzer server if active profile was updated
+    // This ensures custom rules changes take effect on next analysis
+    if (isActiveProfile && state.analyzerClient.isServerRunning()) {
+      state.logger.info("Active profile updated, stopping analyzer server to apply changes");
+      await state.analyzerClient.stop();
+      vscode.window.showInformationMessage(
+        "Profile updated. Analyzer server stopped. Please restart the server to apply custom rule changes.",
+      );
+    }
   },
 
   [SET_ACTIVE_PROFILE]: async (profileId: string, state) => {
@@ -132,11 +146,25 @@ const actions: {
       vscode.window.showErrorMessage(`Cannot set active profile. Profile not found.`);
       return;
     }
+
+    // Check if profile is actually changing
+    const isProfileChanging = state.data.activeProfileId !== profileId;
+
     setActiveProfileId(profileId, state);
     state.mutateData((draft) => {
       draft.activeProfileId = profileId;
       updateConfigErrorsFromActiveProfile(draft);
     });
+
+    // Stop the analyzer server when switching profiles
+    // This ensures the new profile's custom rules are applied on next analysis
+    if (isProfileChanging && state.analyzerClient.isServerRunning()) {
+      state.logger.info(`Active profile changed to ${profileId}, stopping analyzer server`);
+      await state.analyzerClient.stop();
+      vscode.window.showInformationMessage(
+        "Profile changed. Start the server to apply the new profile's custom rules.",
+      );
+    }
   },
 
   [OPEN_PROFILE_MANAGER]() {
