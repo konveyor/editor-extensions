@@ -49,6 +49,9 @@ export interface TokenResponse {
   refresh_token?: string;
 }
 
+const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
+const REAUTH_DELAY_MS = 5000; // Delay before re-authentication attempt
+
 export class SolutionServerClient {
   private mcpClient: Client | null = null;
   private enabled: boolean;
@@ -825,7 +828,7 @@ export class SolutionServerClient {
 
       this.bearerToken = tokenResponse.access_token;
       this.refreshToken = tokenResponse.refresh_token || null;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - 30000; // 30 second buffer
+      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
     } catch (error) {
       this.logger.error("Token exchange failed", error);
       if (error instanceof SolutionServerClientError) {
@@ -891,7 +894,7 @@ export class SolutionServerClient {
 
       this.bearerToken = tokenResponse.access_token;
       this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - 30000; // 30 second buffer
+      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
 
       if (this.isConnected) {
         this.logger.info("Reconnecting to MCP solution server");
@@ -933,9 +936,37 @@ export class SolutionServerClient {
           `Token refresh failed permanently: ${isRetryable ? "max retries exceeded" : "non-retryable error"}`,
         );
 
-        // Still schedule a timer for the next normal refresh cycle
-        // This gives the system a chance to recover later
-        this.startTokenRefreshTimer();
+        // Clear the refresh timer to break any potential retry loops
+        this.clearTokenRefreshTimer();
+
+        // Clear the invalid tokens
+        this.bearerToken = null;
+        this.refreshToken = null;
+        this.tokenExpiresAt = null;
+
+        // Attempt full re-authentication if credentials are available
+        if (this.username && this.password) {
+          this.logger.info(
+            `Attempting full re-authentication after permanent refresh failure in ${REAUTH_DELAY_MS}ms`,
+          );
+          this.refreshTimer = setTimeout(() => {
+            this.exchangeForTokens()
+              .then(async () => {
+                this.logger.info("Re-authentication successful, reconnecting...");
+                if (this.isConnected) {
+                  await this.disconnect();
+                }
+                await this.connect();
+              })
+              .catch((error) => {
+                this.logger.error("Re-authentication failed after token refresh failure", error);
+              });
+          }, REAUTH_DELAY_MS);
+        } else {
+          this.logger.error(
+            "Cannot recover from token refresh failure: no credentials available for re-authentication",
+          );
+        }
       }
     } finally {
       this.isRefreshingTokens = false;
