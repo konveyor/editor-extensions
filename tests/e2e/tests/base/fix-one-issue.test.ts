@@ -1,4 +1,4 @@
-import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
+import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { getAvailableProviders } from '../../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../../utilities/utils';
@@ -9,11 +9,10 @@ getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
     let vscodeApp: VSCode;
     const profileName = `fix-single-issue-${generateRandomString()}`;
-    let repoInfo: RepoData[string];
 
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(600000);
-      repoInfo = testRepoData['coolstore'];
+      const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);

@@ -18,6 +18,8 @@ async function globalSetup() {
   }
   const javaReadySelector = vscodeApp.getWindow().getByRole('button', { name: 'Java: Ready' });
   await javaReadySelector.waitFor({ timeout: 120000 });
+  // Sometimes the java ready status is displayed for a few seconds before starting to load again
+  // This checks that the state is kept for a few seconds before continuing
   await vscodeApp.waitDefault();
   await javaReadySelector.waitFor({ timeout: 1200000 });
   await vscodeApp.openAnalysisView();
