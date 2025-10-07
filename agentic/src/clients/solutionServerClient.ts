@@ -6,6 +6,12 @@ import {
   SolutionServerConfig,
 } from "@editor-extensions/shared";
 import { Logger } from "winston";
+import { Resource, Tool } from "@modelcontextprotocol/sdk/types.js";
+
+export interface SolutionServerCapabilities {
+  tools: Tool[];
+  resources: Resource[];
+}
 
 export interface SolutionFile {
   uri: string;
@@ -43,6 +49,9 @@ export interface TokenResponse {
   refresh_token?: string;
 }
 
+const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
+const REAUTH_DELAY_MS = 5000; // Delay before re-authentication attempt
+
 export class SolutionServerClient {
   private mcpClient: Client | null = null;
   private enabled: boolean;
@@ -61,6 +70,9 @@ export class SolutionServerClient {
   private currentClientId: string = "";
   private logger: Logger;
   private sslBypassCleanup: (() => void) | null = null;
+
+  private isRefreshingTokens: boolean = false;
+  private refreshRetryCount: number = 0;
 
   constructor(config: SolutionServerConfig, logger: Logger) {
     this.enabled = config.enabled;
@@ -182,9 +194,10 @@ export class SolutionServerClient {
     }
 
     try {
-      const { tools, resources } = await this.getServerCapabilities();
-      this.logger.info(`Available tools: ${tools.map((t: any) => t.name).join(", ")}`);
-      this.logger.info(`Available resources: ${resources.map((r: any) => r.name).join(", ")}`);
+      const { tools } = await this.mcpClient.listTools();
+      const { resources } = await this.mcpClient.listResources();
+      this.logger.info(`Available tools: ${tools.map((t: Tool) => t.name).join(", ")}`);
+      this.logger.info(`Available resources: ${resources.map((r: Resource) => r.name).join(", ")}`);
 
       this.logger.info("MCP solution server initialized successfully");
     } catch (error) {
@@ -286,13 +299,23 @@ export class SolutionServerClient {
     return this.currentClientId;
   }
 
-  public async getServerCapabilities(): Promise<any> {
+  public async getServerCapabilities(): Promise<SolutionServerCapabilities> {
     if (!this.enabled) {
       this.logger.info("Solution server is disabled, returning empty capabilities");
-      return;
+      return {
+        tools: [],
+        resources: [],
+      };
     }
     if (!this.mcpClient || !this.isConnected) {
       throw new SolutionServerClientError("Solution server is not connected");
+    }
+    if (this.isRefreshingTokens) {
+      this.logger.info("Solution server is refreshing tokens, returning empty capabilities");
+      return {
+        tools: [],
+        resources: [],
+      };
     }
 
     try {
@@ -805,7 +828,7 @@ export class SolutionServerClient {
 
       this.bearerToken = tokenResponse.access_token;
       this.refreshToken = tokenResponse.refresh_token || null;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - 30000; // 30 second buffer
+      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
     } catch (error) {
       this.logger.error("Token exchange failed", error);
       if (error instanceof SolutionServerClientError) {
@@ -823,6 +846,17 @@ export class SolutionServerClient {
       return;
     }
 
+    if (this.isRefreshingTokens) {
+      this.logger.debug("Token refresh already in progress");
+      return;
+    }
+
+    // Retry configuration - local constants
+    const maxRefreshRetries = 3;
+    const baseRetryDelayMs = 1000; // Start with 1 second
+    // Cancel any pending timers to avoid overlapping refreshes
+    this.clearTokenRefreshTimer();
+    this.isRefreshingTokens = true;
     const url = new URL(this.serverUrl);
     const keycloakUrl = `${url.protocol}//${url.host}/auth`;
     const tokenUrl = `${keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
@@ -860,7 +894,7 @@ export class SolutionServerClient {
 
       this.bearerToken = tokenResponse.access_token;
       this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - 30000; // 30 second buffer
+      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
 
       if (this.isConnected) {
         this.logger.info("Reconnecting to MCP solution server");
@@ -871,11 +905,71 @@ export class SolutionServerClient {
           this.logger.error("Error reconnecting to MCP solution server", error);
         }
       }
-      // Always restart the refresh timer
+
+      // Success case - reset retry counter and start normal timer
+      this.refreshRetryCount = 0;
       this.startTokenRefreshTimer();
     } catch (error) {
       this.logger.error("Token refresh failed", error);
-      // For now, just log the error as requested
+
+      // Determine if error is retryable
+      const isRetryable = this.isRetryableRefreshError(error);
+
+      if (isRetryable && this.refreshRetryCount < maxRefreshRetries) {
+        this.refreshRetryCount++;
+        const delayMs = baseRetryDelayMs * Math.pow(2, this.refreshRetryCount - 1);
+
+        this.logger.warn(
+          `Token refresh failed (attempt ${this.refreshRetryCount}/${maxRefreshRetries}), retrying in ${delayMs}ms`,
+        );
+
+        // Schedule retry with exponential backoff
+        this.refreshTimer = setTimeout(() => {
+          this.refreshTokens().catch((error) => {
+            this.logger.error("Retry token refresh failed", error);
+          });
+        }, delayMs);
+      } else {
+        // Non-retryable error or max retries exceeded
+        this.refreshRetryCount = 0;
+        this.logger.error(
+          `Token refresh failed permanently: ${isRetryable ? "max retries exceeded" : "non-retryable error"}`,
+        );
+
+        // Clear the refresh timer to break any potential retry loops
+        this.clearTokenRefreshTimer();
+
+        // Clear the invalid tokens
+        this.bearerToken = null;
+        this.refreshToken = null;
+        this.tokenExpiresAt = null;
+
+        // Attempt full re-authentication if credentials are available
+        if (this.username && this.password) {
+          this.logger.info(
+            `Attempting full re-authentication after permanent refresh failure in ${REAUTH_DELAY_MS}ms`,
+          );
+          this.refreshTimer = setTimeout(() => {
+            this.exchangeForTokens()
+              .then(async () => {
+                this.logger.info("Re-authentication successful, reconnecting...");
+                if (this.isConnected) {
+                  await this.disconnect();
+                }
+                await this.connect();
+              })
+              .catch((error) => {
+                this.logger.error("Re-authentication failed after token refresh failure", error);
+              });
+          }, REAUTH_DELAY_MS);
+        } else {
+          this.logger.error(
+            "Cannot recover from token refresh failure: no credentials available for re-authentication",
+          );
+        }
+      }
+    } finally {
+      this.isRefreshingTokens = false;
     }
   }
 
@@ -911,6 +1005,24 @@ export class SolutionServerClient {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
     }
+  }
+
+  private isRetryableRefreshError(error: any): boolean {
+    if (error instanceof SolutionServerClientError) {
+      // Check if it's an HTTP 400/401 (bad/expired refresh token)
+      const message = error.message.toLowerCase();
+      if (
+        message.includes("400") ||
+        message.includes("401") ||
+        message.includes("invalid_grant") ||
+        message.includes("unauthorized")
+      ) {
+        return false; // Non-retryable - token is likely permanently invalid
+      }
+    }
+
+    // Network errors, 5xx server errors, timeouts are retryable
+    return true;
   }
 
   /**
