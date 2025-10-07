@@ -677,4 +677,13 @@ export class VSCode extends BasePage {
     await this.searchAndRequestFix(violation, FixTypes.Issue);
     await this.acceptAllSolutions();
   }
+
+  /**
+   * Enables or disables the Generative AI feature in VSCode for the current workspace.
+   * @param enabled - `true` to enable GenAI, `false` to disable it.
+   */
+  public async setGenerativeAIEnabled(enabled: boolean): Promise<void> {
+    const genAISettingKey = 'konveyor.genai.enabled';
+    await this.writeOrUpdateVSCodeSettings({ [genAISettingKey]: enabled });
+  }
 }

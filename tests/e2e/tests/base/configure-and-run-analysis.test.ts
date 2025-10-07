@@ -5,6 +5,7 @@ import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as fs from 'fs/promises';
 import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
+import { KAIViews } from '../../enums/views.enum';
 
 test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
@@ -45,6 +46,24 @@ test.describe(`Configure extension and run analysis`, () => {
     await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
       timeout: 400000,
     });
+  });
+
+  test('Disable and enable Generative AI', async () => {
+    await vscodeApp.setGenerativeAIEnabled(false); // disable
+    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+    const solutionButton = analysisView.locator('button#get-solution-button');
+    await expect(analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })).toBeVisible();
+    await expect(analysisView.getByRole('button', { name: 'Enable GenAI' })).toBeVisible();
+    await expect(analysisView.getByText('Agent Mode')).not.toBeVisible();
+    await expect(solutionButton.first()).not.toBeVisible({ timeout: 36000 });
+
+    await vscodeApp.setGenerativeAIEnabled(true); // enable
+    await expect(
+      analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })
+    ).not.toBeVisible();
+    await expect(analysisView.getByRole('button', { name: 'Enable GenAI' })).not.toBeVisible();
+    await expect(analysisView.getByText('Agent Mode')).toBeVisible();
+    await expect(solutionButton.first()).toBeVisible({ timeout: 36000 });
   });
 
   test('Set list kind and sort (Issues ascending and descending)', async () => {
