@@ -21,7 +21,6 @@ import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
 import { MessageWrapper } from "./MessageWrapper";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
-
 // Unified hook for both modes
 const useResolutionData = (state: any) => {
   const {
