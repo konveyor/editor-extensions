@@ -32,9 +32,9 @@ export class AnalysisIssueFix extends BaseNode {
     private readonly fsCache: InMemoryCacheWithRevisions<string, string>,
     private readonly workspaceDir: string,
     private readonly solutionServerClient: SolutionServerClient,
-    private readonly logger: Logger,
+    logger: Logger,
   ) {
-    super("AnalysisIssueFix", modelProvider, tools);
+    super("AnalysisIssueFix", modelProvider, tools, logger);
 
     this.fixAnalysisIssue = this.fixAnalysisIssue.bind(this);
     this.summarizeHistory = this.summarizeHistory.bind(this);

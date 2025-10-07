@@ -175,7 +175,7 @@ export class BaseModelProvider implements KaiModelProvider {
           }
           controller.close();
         } catch (error) {
-          logger.error(`Error streaming: ${error}`);
+          logger.error("Error streaming", { error });
           controller.error(error);
         }
       },
