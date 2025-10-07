@@ -1,11 +1,6 @@
 import { useMemo } from "react";
 import { ModifiedFileMessageValue } from "@editor-extensions/shared";
 
-// Helper functions to check data types
-const isModifiedFileMessageValue = (data: any): data is ModifiedFileMessageValue => {
-  return "path" in data && typeof data.path === "string";
-};
-
 export interface NormalizedFileData {
   path: string;
   isNew: boolean;
@@ -21,45 +16,21 @@ export interface NormalizedFileData {
 
 export const useModifiedFileData = (data: ModifiedFileMessageValue): NormalizedFileData => {
   return useMemo(() => {
-    let normalized: Omit<NormalizedFileData, "fileName">;
-
-    if (isModifiedFileMessageValue(data)) {
-      normalized = {
-        path: data.path,
-        isNew: data.isNew || false,
-        isDeleted: data.isDeleted || false,
-        diff: data.diff || "",
-        status: (data.status as "applied" | "rejected" | "no_changes_needed" | null) || null,
-        content: data.content || "",
-        messageToken: data.messageToken || "",
-        quickResponses:
-          data.quickResponses &&
-          Array.isArray(data.quickResponses) &&
-          data.quickResponses.length > 0
-            ? data.quickResponses
-            : undefined,
-        originalContent: data.originalContent || "",
-      };
-    } else {
-      // Fallback for unknown data types
-      normalized = {
-        path: "",
-        isNew: false,
-        isDeleted: false,
-        diff: "",
-        status: null,
-        content: "",
-        messageToken: "",
-        quickResponses: undefined,
-        originalContent: "",
-      };
-    }
+    const normalized = {
+      path: data.path,
+      isNew: data.isNew,
+      isDeleted: data.isDeleted || false,
+      diff: data.diff,
+      status: data.status || null,
+      content: data.content,
+      messageToken: data.messageToken || "",
+      quickResponses:
+        data.quickResponses && data.quickResponses.length > 0 ? data.quickResponses : undefined,
+      originalContent: data.originalContent || "",
+    };
 
     // Generate fileName from path
-    const fileName =
-      normalized.path && typeof normalized.path === "string" && normalized.path.trim() !== ""
-        ? normalized.path.split("/").pop() || normalized.path
-        : "Unnamed File";
+    const fileName = data.path.split("/").pop() || data.path || "Unnamed File";
 
     return {
       ...normalized,
