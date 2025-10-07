@@ -1,6 +1,32 @@
 import React, { useState, useCallback } from "react";
-import "./diagnosticIssuesView.css";
 import { DiagnosticIssue, DiagnosticSummary } from "@editor-extensions/shared";
+import { Table, Thead, Tr, Th, Tbody, Td, TreeRowWrapper, TdProps } from "@patternfly/react-table";
+import {
+  Button,
+  Flex,
+  FlexItem,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+  EmptyState,
+  EmptyStateBody,
+  Title,
+} from "@patternfly/react-core";
+import FileIcon from "@patternfly/react-icons/dist/esm/icons/file-icon";
+import FolderIcon from "@patternfly/react-icons/dist/esm/icons/folder-icon";
+import FolderOpenIcon from "@patternfly/react-icons/dist/esm/icons/folder-open-icon";
+import ExclamationTriangleIcon from "@patternfly/react-icons/dist/esm/icons/exclamation-triangle-icon";
+
+interface DiagnosticTreeNode {
+  id: string;
+  name: string;
+  type: "file" | "issue";
+  message?: string;
+  uri?: string;
+  file?: string;
+  children?: DiagnosticTreeNode[];
+  issue?: DiagnosticIssue;
+}
 
 interface DiagnosticIssuesViewProps {
   diagnosticSummary: DiagnosticSummary;
@@ -14,12 +40,29 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   isMessageResponded = false,
 }) => {
   const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
-  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [expandedNodeIds, setExpandedNodeIds] = useState<string[]>([]);
+
+  // Convert diagnostic data to tree structure
+  const treeData: DiagnosticTreeNode[] = React.useMemo(() => {
+    return Object.entries(diagnosticSummary.issuesByFile).map(([filename, issues]) => ({
+      id: `file-${filename}`,
+      name: filename,
+      type: "file" as const,
+      file: filename,
+      uri: issues[0]?.uri,
+      children: issues.map((issue) => ({
+        id: issue.id,
+        name: issue.message,
+        type: "issue" as const,
+        message: issue.message,
+        issue: issue,
+      })),
+    }));
+  }, [diagnosticSummary]);
 
   // Common function to update selected issues and notify parent
   const updateSelectedIssues = useCallback(
     (newSelected: Set<string>) => {
-      // Don't allow selection changes when message has been responded to
       if (isMessageResponded) {
         return;
       }
@@ -35,53 +78,7 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
     [diagnosticSummary, onIssueSelectionChange, isMessageResponded],
   );
 
-  const handleIssueToggle = useCallback(
-    (issueId: string) => {
-      // Don't allow selection changes when message has been responded to
-      if (isMessageResponded) {
-        return;
-      }
-
-      const newSelected = new Set(selectedIssues);
-      if (newSelected.has(issueId)) {
-        newSelected.delete(issueId);
-      } else {
-        newSelected.add(issueId);
-      }
-      updateSelectedIssues(newSelected);
-    },
-    [selectedIssues, updateSelectedIssues, isMessageResponded],
-  );
-
-  const handleFileToggle = useCallback(
-    (filename: string) => {
-      const newExpanded = new Set(expandedFiles);
-      if (newExpanded.has(filename)) {
-        newExpanded.delete(filename);
-      } else {
-        newExpanded.add(filename);
-      }
-      setExpandedFiles(newExpanded);
-    },
-    [expandedFiles],
-  );
-
-  const handleFileClick = useCallback((filename: string, issues: DiagnosticIssue[]) => {
-    // Open the file directly in VSCode
-    const firstIssue = issues[0];
-    if (firstIssue) {
-      window.vscode.postMessage({
-        type: "OPEN_FILE",
-        payload: {
-          file: firstIssue.uri,
-          line: 1, // Default to line 1, could be enhanced to find the specific line with the issue
-        },
-      });
-    }
-  }, []);
-
   const handleSelectAll = useCallback(() => {
-    // Don't allow selection changes when message has been responded to
     if (isMessageResponded) {
       return;
     }
@@ -92,7 +89,6 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   }, [diagnosticSummary, updateSelectedIssues, isMessageResponded]);
 
   const handleSelectNone = useCallback(() => {
-    // Don't allow selection changes when message has been responded to
     if (isMessageResponded) {
       return;
     }
@@ -100,119 +96,263 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
     updateSelectedIssues(new Set());
   }, [updateSelectedIssues, isMessageResponded]);
 
+  const handleFileClick = useCallback((uri: string) => {
+    window.vscode.postMessage({
+      type: "OPEN_FILE",
+      payload: {
+        file: uri,
+        line: 1,
+      },
+    });
+  }, []);
+
+  // Get all descendants of a node
+  const getDescendants = (node: DiagnosticTreeNode): DiagnosticTreeNode[] => {
+    if (!node.children || !node.children.length) {
+      return node.type === "issue" ? [node] : [];
+    } else {
+      let descendants: DiagnosticTreeNode[] = [];
+      node.children.forEach((child) => {
+        if (child.type === "issue") {
+          descendants.push(child);
+        }
+        descendants = [...descendants, ...getDescendants(child)];
+      });
+      return descendants;
+    }
+  };
+
+  // Check if all/some descendants are selected
+  const areAllDescendantsSelected = (node: DiagnosticTreeNode) => {
+    const descendants = getDescendants(node);
+    return descendants.length > 0 && descendants.every((n) => selectedIssues.has(n.id));
+  };
+
+  const areSomeDescendantsSelected = (node: DiagnosticTreeNode) =>
+    getDescendants(node).some((n) => selectedIssues.has(n.id));
+
+  const isNodeChecked = (node: DiagnosticTreeNode): boolean | null => {
+    if (node.type === "issue") {
+      return selectedIssues.has(node.id);
+    }
+
+    if (areAllDescendantsSelected(node)) {
+      return true;
+    }
+    if (areSomeDescendantsSelected(node)) {
+      return null;
+    }
+    return false;
+  };
+
+  // Render tree rows recursively
+  const renderRows = (
+    [node, ...remainingNodes]: DiagnosticTreeNode[],
+    level = 1,
+    posinset = 1,
+    rowIndex = 0,
+    isHidden = false,
+  ): React.ReactNode[] => {
+    if (!node) {
+      return [];
+    }
+
+    const isExpanded = expandedNodeIds.includes(node.id);
+    const isChecked = isNodeChecked(node);
+    let icon = node.type === "issue" ? <ExclamationTriangleIcon /> : <FileIcon />;
+
+    if (node.type === "file" && node.children) {
+      icon = isExpanded ? <FolderOpenIcon /> : <FolderIcon />;
+    }
+
+    const treeRow: TdProps["treeRow"] = {
+      onCollapse: () => {
+        if (node.type === "file") {
+          setExpandedNodeIds((prevExpanded) => {
+            const otherExpandedNodeIds = prevExpanded.filter((id) => id !== node.id);
+            return isExpanded ? otherExpandedNodeIds : [...otherExpandedNodeIds, node.id];
+          });
+        }
+      },
+      onCheckChange: (_event: any, isChecking: boolean) => {
+        if (isMessageResponded) {
+          return;
+        }
+
+        if (node.type === "issue") {
+          const newSelected = new Set(selectedIssues);
+          if (isChecking) {
+            newSelected.add(node.id);
+          } else {
+            newSelected.delete(node.id);
+          }
+          updateSelectedIssues(newSelected);
+        } else if (node.type === "file") {
+          const descendants = getDescendants(node);
+          const nodeIds = descendants.map((n) => n.id);
+          const newSelected = new Set(selectedIssues);
+
+          if (!isChecking) {
+            nodeIds.forEach((id) => newSelected.delete(id));
+          } else {
+            nodeIds.forEach((id) => newSelected.add(id));
+          }
+          updateSelectedIssues(newSelected);
+        }
+      },
+      rowIndex,
+      props: {
+        isExpanded,
+        isHidden,
+        "aria-level": level,
+        "aria-posinset": posinset,
+        "aria-setsize": node.children ? node.children.length : 0,
+        isChecked,
+        checkboxId: `checkbox_${node.id}`,
+        icon,
+      },
+    };
+
+    const childRows =
+      node.children && node.children.length
+        ? renderRows(node.children, level + 1, 1, rowIndex + 1, !isExpanded || isHidden)
+        : [];
+
+    return [
+      <TreeRowWrapper key={node.id} row={{ props: treeRow?.props }}>
+        <Td dataLabel="Name" treeRow={treeRow}>
+          {node.type === "file" ? (
+            <Button
+              variant="link"
+              isInline
+              onClick={() => node.uri && handleFileClick(node.uri)}
+              isDisabled={!node.uri}
+            >
+              {node.name}
+            </Button>
+          ) : (
+            node.name
+          )}
+        </Td>
+        <Td dataLabel="Type">
+          {node.type === "file" ? `${node.children?.length || 0} issues` : "Issue"}
+        </Td>
+      </TreeRowWrapper>,
+      ...childRows,
+      ...renderRows(remainingNodes, level, posinset + 1, rowIndex + 1 + childRows.length, isHidden),
+    ];
+  };
+
+  const selectedCount = selectedIssues.size;
+  const selectedFiles = Object.entries(diagnosticSummary.issuesByFile).filter(([, issues]) =>
+    issues.some((issue) => selectedIssues.has(issue.id)),
+  ).length;
+
+  // Render empty state
+  const emptyState = (
+    <EmptyState variant="sm">
+      <Title headingLevel="h4" size="lg">
+        No diagnostic issues found
+      </Title>
+      <EmptyStateBody>No diagnostic issues were found in the current workspace.</EmptyStateBody>
+    </EmptyState>
+  );
+
+  // Calculate if all issues are selected
+  const allIssuesCount = Object.values(diagnosticSummary.issuesByFile).flat().length;
+  const areAllSelected = selectedCount === allIssuesCount && allIssuesCount > 0;
+  const areSomeSelected = selectedCount > 0 && selectedCount < allIssuesCount;
+
   return (
-    <div className={`diagnostic-issues-view ${isMessageResponded ? "processing" : ""}`}>
-      <div className="diagnostic-header">
-        <h3>Diagnostic Issues ({diagnosticSummary.totalIssues} total)</h3>
-        <div className="diagnostic-actions">
-          <button
-            className="diagnostic-action-btn"
-            onClick={handleSelectAll}
-            disabled={isMessageResponded}
-          >
-            Select All
-          </button>
-          <button
-            className="diagnostic-action-btn"
-            onClick={handleSelectNone}
-            disabled={isMessageResponded}
-          >
-            Select None
-          </button>
-        </div>
-      </div>
-
-      <div className="diagnostic-files">
-        {Object.entries(diagnosticSummary.issuesByFile).map(([filename, issues]) => (
-          <div key={filename} className="diagnostic-file">
-            <div className="file-header">
-              <div className="file-info">
-                <button
-                  className="file-toggle-btn"
-                  onClick={() => handleFileToggle(filename)}
-                  aria-expanded={expandedFiles.has(filename)}
-                >
-                  <span className="toggle-icon">{expandedFiles.has(filename) ? "▼" : "▶"}</span>
-                </button>
-                <label className="file-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={issues.every((issue) => selectedIssues.has(issue.id))}
-                    onChange={() => {
-                      // Don't allow selection changes when message has been responded to
-                      if (isMessageResponded) {
-                        return;
-                      }
-
-                      const allSelected = issues.every((issue) => selectedIssues.has(issue.id));
-                      const newSelected = new Set(selectedIssues);
-
-                      if (allSelected) {
-                        // Deselect all issues in this file
-                        issues.forEach((issue) => newSelected.delete(issue.id));
-                      } else {
-                        // Select all issues in this file
-                        issues.forEach((issue) => newSelected.add(issue.id));
-                      }
-
-                      updateSelectedIssues(newSelected);
-                    }}
-                    disabled={isMessageResponded}
-                  />
-                  <button
-                    className="filename-btn"
-                    onClick={() => handleFileClick(filename, issues)}
-                    title="Open file in editor"
-                  >
-                    <span className="filename">{filename}</span>
-                    <span className="issue-count">({issues.length} issues)</span>
-                  </button>
+    <div className={isMessageResponded ? "pf-m-disabled" : ""}>
+      <Toolbar>
+        <ToolbarContent>
+          <ToolbarItem>
+            <Title headingLevel="h2" size="lg">
+              Diagnostic Issues
+            </Title>
+          </ToolbarItem>
+          <ToolbarItem variant="separator" />
+          <ToolbarItem>
+            <Flex
+              spaceItems={{ default: "spaceItemsSm" }}
+              alignItems={{ default: "alignItemsCenter" }}
+            >
+              <FlexItem>
+                <input
+                  type="checkbox"
+                  id="select-all-checkbox"
+                  name="select-all"
+                  aria-label="Select all issues"
+                  checked={areAllSelected}
+                  ref={(input) => {
+                    if (input) {
+                      input.indeterminate = areSomeSelected;
+                    }
+                  }}
+                  onChange={() => {
+                    if (areAllSelected || areSomeSelected) {
+                      handleSelectNone();
+                    } else {
+                      handleSelectAll();
+                    }
+                  }}
+                  disabled={isMessageResponded || allIssuesCount === 0}
+                />
+              </FlexItem>
+              <FlexItem>
+                <label htmlFor="select-all-checkbox">
+                  {selectedCount === 0
+                    ? `${allIssuesCount} ${allIssuesCount === 1 ? "issue" : "issues"} available`
+                    : `${selectedCount} of ${allIssuesCount} selected`}
                 </label>
-              </div>
-              <button
-                className="file-view-btn"
-                onClick={() => handleFileToggle(filename)}
-                title="View all issues in this file"
-              >
-                View All
-              </button>
+              </FlexItem>
+              {selectedCount > 0 && (
+                <FlexItem>
+                  <Button
+                    variant="link"
+                    isInline
+                    onClick={handleSelectNone}
+                    isDisabled={isMessageResponded}
+                  >
+                    Clear selection
+                  </Button>
+                </FlexItem>
+              )}
+            </Flex>
+          </ToolbarItem>
+        </ToolbarContent>
+      </Toolbar>
+
+      {allIssuesCount === 0 ? (
+        emptyState
+      ) : (
+        <>
+          <Table isTreeTable aria-label="Diagnostic issues tree table" variant="compact">
+            <Thead>
+              <Tr>
+                <Th width={70}>File / Issue</Th>
+                <Th width={30}>Type</Th>
+              </Tr>
+            </Thead>
+            <Tbody>{renderRows(treeData)}</Tbody>
+          </Table>
+
+          {selectedCount > 0 && (
+            <div
+              style={{
+                marginTop: "var(--pf-global--spacer--md)",
+                marginBottom: "var(--pf-global--spacer--md)",
+                textAlign: "center",
+              }}
+            >
+              <small>
+                {selectedCount} issue{selectedCount !== 1 ? "s" : ""} selected across{" "}
+                {selectedFiles} file{selectedFiles !== 1 ? "s" : ""}
+              </small>
             </div>
-
-            {expandedFiles.has(filename) && (
-              <div className="file-issues">
-                {issues.map((issue) => (
-                  <div key={issue.id} className="issue-item">
-                    <label className="issue-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={selectedIssues.has(issue.id)}
-                        onChange={() => handleIssueToggle(issue.id)}
-                        disabled={isMessageResponded}
-                      />
-                      <span className="issue-message">{issue.message}</span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {selectedIssues.size > 0 && (
-        <div className="selection-summary">
-          {(() => {
-            const selectedFiles = Object.entries(diagnosticSummary.issuesByFile).filter(
-              ([filename, issues]) => issues.some((issue) => selectedIssues.has(issue.id)),
-            );
-            return (
-              <div>
-                {selectedIssues.size} issue{selectedIssues.size !== 1 ? "s" : ""} selected across{" "}
-                {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""}
-              </div>
-            );
-          })()}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
