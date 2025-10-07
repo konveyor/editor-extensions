@@ -754,8 +754,20 @@ class VsCodeExtension {
   }
 
   private async setupModelProvider(settingsPath: vscode.Uri): Promise<ConfigError | undefined> {
+    const hadPreviousProvider = this.state.modelProvider !== undefined;
+
     // Check if GenAI is disabled via settings
     if (!getConfigGenAIEnabled()) {
+      this.state.modelProvider = undefined;
+      // Only dispose workflow if not fetching solution
+      if (
+        !this.state.data.isFetchingSolution &&
+        this.state.workflowManager &&
+        this.state.workflowManager.dispose
+      ) {
+        this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
+      }
       return createConfigError.genaiDisabled();
     }
 
@@ -764,11 +776,22 @@ class VsCodeExtension {
       modelConfig = await parseModelConfig(settingsPath);
     } catch (err) {
       this.state.logger.error("Error getting model config:", err);
+      this.state.modelProvider = undefined;
+      // Only dispose workflow if not fetching solution
+      if (
+        !this.state.data.isFetchingSolution &&
+        this.state.workflowManager &&
+        this.state.workflowManager.dispose
+      ) {
+        this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
+      }
 
       const configError = createConfigError.providerNotConfigured();
       configError.error = err instanceof Error ? err.message : String(err);
       return configError;
     }
+
     try {
       this.state.modelProvider = await getModelProviderFromConfig(
         modelConfig,
@@ -776,8 +799,40 @@ class VsCodeExtension {
         getConfigKaiDemoMode() ? getCacheDir(this.data.workspaceRoot) : undefined,
         getTraceEnabled() ? getTraceDir(this.data.workspaceRoot) : undefined,
       );
+
+      // Dispose workflow if we're changing an existing provider and not currently fetching
+      if (
+        hadPreviousProvider &&
+        !this.state.data.isFetchingSolution &&
+        this.state.workflowManager &&
+        this.state.workflowManager.dispose
+      ) {
+        this.state.logger.info("Disposing workflow manager - provider configuration changed");
+        this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
+      } else if (hadPreviousProvider && this.state.data.isFetchingSolution) {
+        this.state.logger.info(
+          "Provider updated but workflow disposal deferred - solution in progress",
+        );
+        this.state.workflowDisposalPending = true;
+        vscode.window.showInformationMessage(
+          "Model provider updated. The new provider will be used for the next solution.",
+        );
+      }
+
+      return undefined;
     } catch (err) {
       this.state.logger.error("Error running model health check:", err);
+      this.state.modelProvider = undefined;
+      // Only dispose workflow if not fetching solution
+      if (
+        !this.state.data.isFetchingSolution &&
+        this.state.workflowManager &&
+        this.state.workflowManager.dispose
+      ) {
+        this.state.workflowManager.dispose();
+        this.state.workflowDisposalPending = false;
+      }
 
       const configError = createConfigError.providerConnnectionFailed();
       configError.error =
@@ -788,7 +843,6 @@ class VsCodeExtension {
           : String(err);
       return configError;
     }
-    return undefined;
   }
 
   public async dispose() {

@@ -57,6 +57,17 @@ export function executeExtensionCommand(commandSuffix: string, ...args: any[]): 
   return commands.executeCommand(`${EXTENSION_NAME}.${commandSuffix}`, ...args);
 }
 
+/**
+ * Helper function to execute deferred workflow disposal after solution completes
+ */
+function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
+  if (state.workflowDisposalPending && state.workflowManager && state.workflowManager.dispose) {
+    logger.info("Executing deferred workflow disposal after solution completion");
+    state.workflowManager.dispose();
+    state.workflowDisposalPending = false;
+  }
+}
+
 const commandsMap: (
   state: ExtensionState,
   logger: Logger,
@@ -164,6 +175,15 @@ const commandsMap: (
         return;
       }
 
+      // Check if model provider is not initialized
+      if (!state.modelProvider) {
+        logger.info("Model provider not initialized, cannot get solution");
+        window.showErrorMessage(
+          "Model provider is not configured. Please check your provider settings.",
+        );
+        return;
+      }
+
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });
@@ -191,13 +211,6 @@ const commandsMap: (
       let workflow: any;
 
       try {
-        // Get the model provider configuration from settings YAML
-        if (!state.modelProvider) {
-          throw new Error(
-            "Chat model is not initialized. Please check your model provider settings.",
-          );
-        }
-
         // Get the profile name from the incidents
         const profileName = incidents[0]?.activeProfileName;
         if (!profileName) {
@@ -269,6 +282,7 @@ const commandsMap: (
               draft.solutionState = "failedOnSending";
             }
           });
+          executeDeferredWorkflowDisposal(state, logger);
         });
 
         try {
@@ -302,6 +316,7 @@ const commandsMap: (
               draft.solutionState = "failedOnSending";
             }
           });
+          executeDeferredWorkflowDisposal(state, logger);
         } finally {
           // Clear the stuck interaction monitoring
 
@@ -315,6 +330,7 @@ const commandsMap: (
             draft.isAnalyzing = false;
             draft.isAnalysisScheduled = false;
           });
+          executeDeferredWorkflowDisposal(state, logger);
 
           // Clean up queue manager
           if (queueManager) {
@@ -416,6 +432,7 @@ const commandsMap: (
           draft.isFetchingSolution = false;
           // File changes are handled through ModifiedFile messages in both agent and non-agent modes
         });
+        executeDeferredWorkflowDisposal(state, logger);
 
         // In non-agent mode, file changes are already handled through ModifiedFile messages
         // No need to load solution into the old diff view
@@ -452,6 +469,7 @@ const commandsMap: (
             timestamp: new Date().toISOString(),
           });
         });
+        executeDeferredWorkflowDisposal(state, logger);
 
         window.showErrorMessage(
           `Failed to generate solution: ${error instanceof Error ? error.message : String(error)}`,
@@ -501,6 +519,7 @@ const commandsMap: (
         }
         draft.isWaitingForUserInteraction = false;
       });
+      executeDeferredWorkflowDisposal(state, logger);
       window.showInformationMessage("Fetching state has been reset.");
     },
     [`${EXTENSION_NAME}.changeDiscarded`]: async (path: string) => {
