@@ -4,9 +4,13 @@ import { Logger } from "winston";
 import { promises as fs } from "fs";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
-import { KaiWorkflowMessageType } from "../types";
 import { InMemoryCacheWithRevisions } from "../cache";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
+import {
+  KaiUserInteractionMessage,
+  KaiWorkflowMessageType,
+  PendingUserInteraction,
+} from "../types";
 
 function errorToString(err: unknown): string {
   if (err instanceof Error) {
@@ -21,6 +25,7 @@ function errorToString(err: unknown): string {
  */
 export class FileSystemTools extends KaiWorkflowEventEmitter {
   private logger: Logger;
+  private modifiedFilePromises: Map<string, PendingUserInteraction>;
 
   constructor(
     private readonly workspaceDir: string,
@@ -35,6 +40,31 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
     this.logger = logger.child({
       component: "FileSystemTools",
     });
+    this.modifiedFilePromises = new Map<string, PendingUserInteraction>();
+  }
+
+  public resolveModifiedFilePromise(response: KaiUserInteractionMessage) {
+    const promise = this.modifiedFilePromises.get(response.id);
+    if (!promise) {
+      return;
+    }
+    const { data } = response;
+
+    // For modifiedFile type, if there's no response field, it means no user interaction
+    // was required, so we should resolve as accepted (true)
+    if (!data.response) {
+      // No user interaction required, treat as accepted
+      promise.resolve(response);
+      return;
+    }
+
+    // If there is a response, validate it has the expected structure
+    if (data.response.yesNo === undefined) {
+      promise.reject(Error(`Invalid response from user`));
+      return;
+    }
+
+    promise.resolve(response);
   }
 
   public all(): DynamicStructuredTool[] {
@@ -119,7 +149,8 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
   private writeFileTool = (workspaceDir: string): DynamicStructuredTool => {
     return new DynamicStructuredTool({
       name: "writeFile",
-      description: "Writes content to a file, creates file and subdirectories if they don't exist",
+      description:
+        "Writes content to a file, creates file and subdirectories if they don't exist. (User may reject the changes you make to the file)",
       schema: z.object({
         path: z.string().describe("Relative path to the file"),
         content: z.string().describe("Content to write"),
@@ -131,14 +162,10 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           await fs.mkdir(baseDir, { recursive: true });
           // only write to cache and send event
           await this.fsCache.set(absPath, content);
-          this.emitWorkflowMessage({
-            type: KaiWorkflowMessageType.ModifiedFile,
-            id: `${absPath}-toolCall`,
-            data: {
-              content: content,
-              path: absPath,
-            },
-          });
+          const accepted = await this.handleModifiedFile(absPath, content);
+          if (!accepted) {
+            throw new Error("File changes were rejected by the user.");
+          }
           return "File wrote successfully!";
         } catch (err) {
           this.logger.error(`Failed to write to file ${path}`, err);
@@ -147,4 +174,44 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
       },
     });
   };
+
+  private async handleModifiedFile(path: string, content: string): Promise<boolean> {
+    const id = `res-modified-file-${Date.now()}`;
+    this.emitWorkflowMessage({
+      type: KaiWorkflowMessageType.ModifiedFile,
+      id: id,
+      data: {
+        content: content,
+        path: path,
+        userInteraction: {
+          type: "modifiedFile",
+          systemMessage: {
+            yesNo: "Accept/reject?",
+          },
+        },
+      },
+    });
+    // wait for accept / reject
+    const promise = new Promise<KaiUserInteractionMessage>((resolve, reject) => {
+      this.modifiedFilePromises.set(id, {
+        resolve,
+        reject,
+      });
+    });
+    try {
+      const response = await promise;
+      // If there's no response field, it means no user interaction was required
+      // so we should treat it as accepted (true)
+      if (!response.data.response) {
+        return true;
+      }
+      // If there is a response, check the yesNo value
+      if (response.data.response.yesNo) {
+        return response.data.response.yesNo;
+      }
+    } catch {
+      return false;
+    }
+    return false;
+  }
 }

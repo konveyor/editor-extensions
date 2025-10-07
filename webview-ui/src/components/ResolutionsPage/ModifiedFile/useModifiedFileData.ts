@@ -6,7 +6,7 @@ export interface NormalizedFileData {
   isNew: boolean;
   isDeleted: boolean;
   diff: string;
-  status: "applied" | "rejected" | null;
+  status: "applied" | "rejected" | "no_changes_needed" | null;
   content: string;
   messageToken: string;
   quickResponses?: Array<{ id: string; content: string }>;
@@ -16,26 +16,21 @@ export interface NormalizedFileData {
 
 export const useModifiedFileData = (data: ModifiedFileMessageValue): NormalizedFileData => {
   return useMemo(() => {
-    const normalized: Omit<NormalizedFileData, "fileName"> = {
+    const normalized = {
       path: data.path,
-      isNew: data.isNew || false,
+      isNew: data.isNew,
       isDeleted: data.isDeleted || false,
-      diff: data.diff || "",
-      status: (data.status as "applied" | "rejected" | null) || null,
-      content: data.content || "",
+      diff: data.diff,
+      status: data.status || null,
+      content: data.content,
       messageToken: data.messageToken || "",
       quickResponses:
-        data.quickResponses && Array.isArray(data.quickResponses) && data.quickResponses.length > 0
-          ? data.quickResponses
-          : undefined,
+        data.quickResponses && data.quickResponses.length > 0 ? data.quickResponses : undefined,
       originalContent: data.originalContent || "",
     };
 
     // Generate fileName from path
-    const fileName =
-      normalized.path && typeof normalized.path === "string" && normalized.path.trim() !== ""
-        ? normalized.path.split("/").pop() || normalized.path
-        : "Unnamed File";
+    const fileName = data.path.split("/").pop() || data.path || "Unnamed File";
 
     return {
       ...normalized,

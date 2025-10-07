@@ -108,6 +108,7 @@ export interface ChatMessage {
   quickResponses?: QuickResponse[];
   isCompact?: boolean;
   selectedResponse?: string;
+  userInteraction?: any;
 }
 
 export interface ExtensionData {
@@ -251,7 +252,7 @@ export type ToolMessageValue = { toolName: string; toolStatus: string };
 
 export type ModifiedFileMessageValue = {
   path: string;
-  status?: "applied" | "rejected";
+  status?: "applied" | "rejected" | "no_changes_needed";
   content: string;
   originalContent?: string; // Original file content from ModifiedFileState
   isNew: boolean;
@@ -259,7 +260,23 @@ export type ModifiedFileMessageValue = {
   diff: string;
   messageToken?: string;
   quickResponses?: QuickResponse[];
+  userInteraction?: KaiUserInteraction;
 };
+export interface KaiUserInteraction {
+  type: "yesNo" | "choice" | "tasks" | "modifiedFile";
+  systemMessage: {
+    yesNo?: string;
+    choice?: string[];
+  };
+  response?: {
+    yesNo?: boolean;
+    choice?: number;
+    tasks?: {
+      uri: string;
+      task: string;
+    }[];
+  };
+}
 
 export interface ModifiedFileState {
   // if a file is newly created, original content can be undefined
