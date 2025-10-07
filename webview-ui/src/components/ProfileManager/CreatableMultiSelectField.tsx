@@ -21,6 +21,7 @@ interface CreatableMultiSelectFieldProps {
   initialOptions: string[];
   placeholder?: string;
   fieldId: string;
+  isDisabled?: boolean;
 }
 
 export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps> = ({
@@ -29,6 +30,7 @@ export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps>
   initialOptions,
   placeholder = "Select or create item",
   fieldId,
+  isDisabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -136,6 +138,7 @@ export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps>
       innerRef={toggleRef}
       isExpanded={isOpen}
       isFullWidth
+      isDisabled={isDisabled}
     >
       <TextInputGroup isPlain>
         <TextInputGroupMain
