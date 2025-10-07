@@ -742,6 +742,31 @@ class VsCodeExtension {
       return;
     }
 
+    // Check version compatibility - versions > 1.45.0 have breaking changes
+    const version = javaExt.packageJSON?.version;
+    if (version) {
+      const versionParts = version.split(".").map(Number);
+      const major = versionParts[0] || 0;
+      const minor = versionParts[1] || 0;
+      const isIncompatible = major > 1 || (major === 1 && minor > 45);
+
+      if (isIncompatible) {
+        this.state.logger.error(`Incompatible Java extension version: ${version}`);
+        vscode.window
+          .showErrorMessage(
+            `Red Hat Java Language Support version ${version} is incompatible. ` +
+              `Please downgrade to version 1.45.0 or earlier. Versions above 1.45.0 contain breaking changes that prevent proper Java analysis.`,
+            "Show Extensions",
+          )
+          .then((selection) => {
+            if (selection === "Show Extensions") {
+              vscode.commands.executeCommand("workbench.extensions.search", "redhat.java");
+            }
+          });
+        return;
+      }
+    }
+
     if (!javaExt.isActive) {
       vscode.window.showInformationMessage(
         "The Java Language Support extension is installed but not yet active. " +
