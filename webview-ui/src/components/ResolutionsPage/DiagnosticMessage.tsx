@@ -6,7 +6,6 @@ import rehypeSanitize from "rehype-sanitize";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import DiagnosticIssuesView from "./DiagnosticIssuesView";
 import { quickResponse } from "../../hooks/actions";
-import "./diagnosticIssuesView.css";
 
 interface QuickResponseWithToken extends QuickResponse {
   messageToken: string;
