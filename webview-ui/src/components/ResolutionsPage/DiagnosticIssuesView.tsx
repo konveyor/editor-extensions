@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { DiagnosticIssue, DiagnosticSummary } from "@editor-extensions/shared";
-import { Table, Thead, Tr, Th, Tbody, Td, TreeRowWrapper, TdProps } from "@patternfly/react-table";
+import { Table, Thead, Tr, Th, Tbody, Td, ExpandableRowContent } from "@patternfly/react-table";
 import {
   Button,
   Flex,
@@ -11,22 +11,10 @@ import {
   EmptyState,
   EmptyStateBody,
   Title,
+  Checkbox,
 } from "@patternfly/react-core";
 import FileIcon from "@patternfly/react-icons/dist/esm/icons/file-icon";
-import FolderIcon from "@patternfly/react-icons/dist/esm/icons/folder-icon";
-import FolderOpenIcon from "@patternfly/react-icons/dist/esm/icons/folder-open-icon";
 import ExclamationTriangleIcon from "@patternfly/react-icons/dist/esm/icons/exclamation-triangle-icon";
-
-interface DiagnosticTreeNode {
-  id: string;
-  name: string;
-  type: "file" | "issue";
-  message?: string;
-  uri?: string;
-  file?: string;
-  children?: DiagnosticTreeNode[];
-  issue?: DiagnosticIssue;
-}
 
 interface DiagnosticIssuesViewProps {
   diagnosticSummary: DiagnosticSummary;
@@ -40,25 +28,7 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
   isMessageResponded = false,
 }) => {
   const [selectedIssues, setSelectedIssues] = useState<Set<string>>(new Set());
-  const [expandedNodeIds, setExpandedNodeIds] = useState<string[]>([]);
-
-  // Convert diagnostic data to tree structure
-  const treeData: DiagnosticTreeNode[] = React.useMemo(() => {
-    return Object.entries(diagnosticSummary.issuesByFile).map(([filename, issues]) => ({
-      id: `file-${filename}`,
-      name: filename,
-      type: "file" as const,
-      file: filename,
-      uri: issues[0]?.uri,
-      children: issues.map((issue) => ({
-        id: issue.id,
-        name: issue.message,
-        type: "issue" as const,
-        message: issue.message,
-        issue: issue,
-      })),
-    }));
-  }, [diagnosticSummary]);
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 
   // Common function to update selected issues and notify parent
   const updateSelectedIssues = useCallback(
@@ -106,141 +76,63 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
     });
   }, []);
 
-  // Get all descendants of a node
-  const getDescendants = (node: DiagnosticTreeNode): DiagnosticTreeNode[] => {
-    if (!node.children || !node.children.length) {
-      return node.type === "issue" ? [node] : [];
-    } else {
-      let descendants: DiagnosticTreeNode[] = [];
-      node.children.forEach((child) => {
-        if (child.type === "issue") {
-          descendants.push(child);
-        }
-        descendants = [...descendants, ...getDescendants(child)];
-      });
-      return descendants;
-    }
+  const toggleFileExpansion = useCallback((filename: string) => {
+    setExpandedFiles((prev) => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(filename)) {
+        newExpanded.delete(filename);
+      } else {
+        newExpanded.add(filename);
+      }
+      return newExpanded;
+    });
+  }, []);
+
+  const handleFileCheckChange = useCallback(
+    (filename: string, issues: DiagnosticIssue[]) => {
+      if (isMessageResponded) {
+        return;
+      }
+
+      const fileIssueIds = issues.map((issue) => issue.id);
+      const allSelected = fileIssueIds.every((id) => selectedIssues.has(id));
+
+      const newSelected = new Set(selectedIssues);
+      if (allSelected) {
+        fileIssueIds.forEach((id) => newSelected.delete(id));
+      } else {
+        fileIssueIds.forEach((id) => newSelected.add(id));
+      }
+
+      updateSelectedIssues(newSelected);
+    },
+    [selectedIssues, updateSelectedIssues, isMessageResponded],
+  );
+
+  const handleIssueCheckChange = useCallback(
+    (issueId: string) => {
+      if (isMessageResponded) {
+        return;
+      }
+
+      const newSelected = new Set(selectedIssues);
+      if (newSelected.has(issueId)) {
+        newSelected.delete(issueId);
+      } else {
+        newSelected.add(issueId);
+      }
+      updateSelectedIssues(newSelected);
+    },
+    [selectedIssues, updateSelectedIssues, isMessageResponded],
+  );
+
+  // Check if all issues in a file are selected
+  const areAllFileIssuesSelected = (issues: DiagnosticIssue[]) => {
+    return issues.every((issue) => selectedIssues.has(issue.id));
   };
 
-  // Check if all/some descendants are selected
-  const areAllDescendantsSelected = (node: DiagnosticTreeNode) => {
-    const descendants = getDescendants(node);
-    return descendants.length > 0 && descendants.every((n) => selectedIssues.has(n.id));
-  };
-
-  const areSomeDescendantsSelected = (node: DiagnosticTreeNode) =>
-    getDescendants(node).some((n) => selectedIssues.has(n.id));
-
-  const isNodeChecked = (node: DiagnosticTreeNode): boolean | null => {
-    if (node.type === "issue") {
-      return selectedIssues.has(node.id);
-    }
-
-    if (areAllDescendantsSelected(node)) {
-      return true;
-    }
-    if (areSomeDescendantsSelected(node)) {
-      return null;
-    }
-    return false;
-  };
-
-  // Render tree rows recursively
-  const renderRows = (
-    [node, ...remainingNodes]: DiagnosticTreeNode[],
-    level = 1,
-    posinset = 1,
-    rowIndex = 0,
-    isHidden = false,
-  ): React.ReactNode[] => {
-    if (!node) {
-      return [];
-    }
-
-    const isExpanded = expandedNodeIds.includes(node.id);
-    const isChecked = isNodeChecked(node);
-    let icon = node.type === "issue" ? <ExclamationTriangleIcon /> : <FileIcon />;
-
-    if (node.type === "file" && node.children) {
-      icon = isExpanded ? <FolderOpenIcon /> : <FolderIcon />;
-    }
-
-    const treeRow: TdProps["treeRow"] = {
-      onCollapse: () => {
-        if (node.type === "file") {
-          setExpandedNodeIds((prevExpanded) => {
-            const otherExpandedNodeIds = prevExpanded.filter((id) => id !== node.id);
-            return isExpanded ? otherExpandedNodeIds : [...otherExpandedNodeIds, node.id];
-          });
-        }
-      },
-      onCheckChange: (_event: any, isChecking: boolean) => {
-        if (isMessageResponded) {
-          return;
-        }
-
-        if (node.type === "issue") {
-          const newSelected = new Set(selectedIssues);
-          if (isChecking) {
-            newSelected.add(node.id);
-          } else {
-            newSelected.delete(node.id);
-          }
-          updateSelectedIssues(newSelected);
-        } else if (node.type === "file") {
-          const descendants = getDescendants(node);
-          const nodeIds = descendants.map((n) => n.id);
-          const newSelected = new Set(selectedIssues);
-
-          if (!isChecking) {
-            nodeIds.forEach((id) => newSelected.delete(id));
-          } else {
-            nodeIds.forEach((id) => newSelected.add(id));
-          }
-          updateSelectedIssues(newSelected);
-        }
-      },
-      rowIndex,
-      props: {
-        isExpanded,
-        isHidden,
-        "aria-level": level,
-        "aria-posinset": posinset,
-        "aria-setsize": node.children ? node.children.length : 0,
-        isChecked,
-        checkboxId: `checkbox_${node.id}`,
-        icon,
-      },
-    };
-
-    const childRows =
-      node.children && node.children.length
-        ? renderRows(node.children, level + 1, 1, rowIndex + 1, !isExpanded || isHidden)
-        : [];
-
-    return [
-      <TreeRowWrapper key={node.id} row={{ props: treeRow?.props }}>
-        <Td dataLabel="Name" treeRow={treeRow}>
-          {node.type === "file" ? (
-            <Button
-              variant="link"
-              isInline
-              onClick={() => node.uri && handleFileClick(node.uri)}
-              isDisabled={!node.uri}
-            >
-              {node.name}
-            </Button>
-          ) : (
-            node.name
-          )}
-        </Td>
-        <Td dataLabel="Type">
-          {node.type === "file" ? `${node.children?.length || 0} issues` : "Issue"}
-        </Td>
-      </TreeRowWrapper>,
-      ...childRows,
-      ...renderRows(remainingNodes, level, posinset + 1, rowIndex + 1 + childRows.length, isHidden),
-    ];
+  const areSomeFileIssuesSelected = (issues: DiagnosticIssue[]) => {
+    return issues.some((issue) => selectedIssues.has(issue.id));
   };
 
   const selectedCount = selectedIssues.size;
@@ -328,14 +220,101 @@ export const DiagnosticIssuesView: React.FC<DiagnosticIssuesViewProps> = ({
         emptyState
       ) : (
         <>
-          <Table isTreeTable aria-label="Diagnostic issues tree table" variant="compact">
+          <Table aria-label="Diagnostic issues table" variant="compact">
             <Thead>
               <Tr>
-                <Th width={70}>File / Issue</Th>
-                <Th width={30}>Type</Th>
+                <Th width={10}></Th>
+                <Th width={10}></Th>
+                <Th width={60}>File / Issue</Th>
+                <Th width={30}>Count</Th>
               </Tr>
             </Thead>
-            <Tbody>{renderRows(treeData)}</Tbody>
+            <Tbody>
+              {Object.entries(diagnosticSummary.issuesByFile).map(([filename, issues]) => {
+                const isExpanded = expandedFiles.has(filename);
+                const allSelected = areAllFileIssuesSelected(issues);
+                const someSelected = areSomeFileIssuesSelected(issues);
+
+                return (
+                  <React.Fragment key={filename}>
+                    <Tr>
+                      <Td
+                        expand={{
+                          rowIndex: 0,
+                          isExpanded,
+                          onToggle: () => toggleFileExpansion(filename),
+                        }}
+                      />
+                      <Td>
+                        <Checkbox
+                          id={`file-checkbox-${filename}`}
+                          isChecked={someSelected ? null : allSelected}
+                          onChange={() => handleFileCheckChange(filename, issues)}
+                          isDisabled={isMessageResponded}
+                        />
+                      </Td>
+                      <Td>
+                        <Flex
+                          alignItems={{ default: "alignItemsCenter" }}
+                          spaceItems={{ default: "spaceItemsSm" }}
+                        >
+                          <FlexItem>
+                            <FileIcon />
+                          </FlexItem>
+                          <FlexItem>
+                            <Button
+                              variant="link"
+                              isInline
+                              onClick={() => issues[0]?.uri && handleFileClick(issues[0].uri)}
+                            >
+                              {filename}
+                            </Button>
+                          </FlexItem>
+                        </Flex>
+                      </Td>
+                      <Td>{issues.length} issues</Td>
+                    </Tr>
+                    {isExpanded && (
+                      <Tr isExpanded>
+                        <Td colSpan={4} noPadding>
+                          <ExpandableRowContent>
+                            <Table variant="compact" borders={false}>
+                              <Tbody>
+                                {issues.map((issue) => (
+                                  <Tr key={issue.id}>
+                                    <Td width={10}></Td>
+                                    <Td width={10}>
+                                      <Checkbox
+                                        id={`issue-checkbox-${issue.id}`}
+                                        isChecked={selectedIssues.has(issue.id)}
+                                        onChange={() => handleIssueCheckChange(issue.id)}
+                                        isDisabled={isMessageResponded}
+                                      />
+                                    </Td>
+                                    <Td>
+                                      <Flex
+                                        alignItems={{ default: "alignItemsCenter" }}
+                                        spaceItems={{ default: "spaceItemsSm" }}
+                                      >
+                                        <FlexItem>
+                                          <ExclamationTriangleIcon color="var(--pf-global--warning-color--100)" />
+                                        </FlexItem>
+                                        <FlexItem>{issue.message}</FlexItem>
+                                      </Flex>
+                                    </Td>
+                                    <Td></Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </ExpandableRowContent>
+                        </Td>
+                      </Tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </Tbody>
           </Table>
 
           {selectedCount > 0 && (
