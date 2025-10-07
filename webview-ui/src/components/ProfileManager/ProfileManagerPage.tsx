@@ -17,7 +17,7 @@ import { AnalysisProfile } from "../../../../shared/dist/types";
 
 export const ProfileManagerPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
-  const { profiles, activeProfileId } = state;
+  const { profiles, activeProfileId, isAnalyzing } = state;
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     activeProfileId ?? profiles[0]?.id ?? null,
   );
@@ -106,6 +106,7 @@ export const ProfileManagerPage: React.FC = () => {
               onDelete={handleDeleteProfile}
               onMakeActive={handleMakeActive}
               onDuplicate={handleDuplicateProfile}
+              isDisabled={isAnalyzing}
             />
           </SplitItem>
           <SplitItem isFilled style={{ flex: "1 1 auto" }}>
@@ -117,6 +118,7 @@ export const ProfileManagerPage: React.FC = () => {
                 onChange={handleProfileChange}
                 onDelete={handleDeleteProfile}
                 onMakeActive={handleMakeActive}
+                isDisabled={isAnalyzing}
               />
             ) : (
               <Bullseye>

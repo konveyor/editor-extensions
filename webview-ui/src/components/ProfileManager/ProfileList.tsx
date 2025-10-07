@@ -30,14 +30,25 @@ export const ProfileList: React.FC<{
   onMakeActive: (id: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (profile: AnalysisProfile) => void;
-}> = ({ profiles, selected, active, onSelect, onCreate, onDelete, onMakeActive, onDuplicate }) => {
+  isDisabled?: boolean;
+}> = ({
+  profiles,
+  selected,
+  active,
+  onSelect,
+  onCreate,
+  onDelete,
+  onMakeActive,
+  onDuplicate,
+  isDisabled = false,
+}) => {
   const [openDropdownProfileId, setOpenDropdownProfileId] = React.useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   return (
     <Flex direction={{ default: "column" }} spaceItems={{ default: "spaceItemsMd" }}>
       <FlexItem>
-        <Button variant="primary" onClick={onCreate} isBlock>
+        <Button variant="primary" onClick={onCreate} isBlock isDisabled={isDisabled}>
           + New Profile
         </Button>
       </FlexItem>
@@ -105,11 +116,13 @@ export const ProfileList: React.FC<{
                         <DropdownItem
                           key="make-active"
                           onClick={() => onMakeActive(profile.id)}
-                          isDisabled={active === profile.id}
+                          isDisabled={active === profile.id || isDisabled}
                           description={
                             active === profile.id
                               ? "This profile is already active. No action needed."
-                              : ""
+                              : isDisabled
+                                ? "Profile operations are blocked during analysis or solution generation."
+                                : ""
                           }
                         >
                           {active === profile.id ? "Active" : "Make Active"}
@@ -120,13 +133,14 @@ export const ProfileList: React.FC<{
                             onDuplicate(profile);
                             setIsOpen(false);
                           }}
+                          isDisabled={isDisabled}
                         >
                           Duplicate
                         </DropdownItem>
                         <DropdownItem
                           key="delete"
                           onClick={() => setIsDeleteDialogOpen(true)}
-                          isDisabled={profile.readOnly}
+                          isDisabled={profile.readOnly || isDisabled}
                         >
                           Delete
                         </DropdownItem>
