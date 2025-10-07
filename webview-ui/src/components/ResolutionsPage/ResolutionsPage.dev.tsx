@@ -1,73 +1,325 @@
 /**
- * Development version of ResolutionsPage with test diagnostic injection.
- * 
- * USAGE:
- * Instead of importing ResolutionPage directly, use this in development:
- * 
- * // In your parent component that renders ResolutionPage:
- * import ResolutionPage from "./ResolutionsPage.dev"; // for development
- * // import ResolutionPage from "./ResolutionsPage"; // for production
- * 
- * This keeps all test code completely separate from production code.
+ * Development version of ResolutionsPage with test message injection.
+ *
+ * This file duplicates the ResolutionPage logic but adds the ability to inject
+ * test messages. This duplication is intentional to keep production code clean.
  */
 
-import React, { useState, useCallback, useMemo } from "react";
-import { ChatMessage } from "@editor-extensions/shared";
-import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import "./resolutionsPage.css";
+import React, { useMemo, useCallback, useState } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { CheckCircleIcon } from "@patternfly/react-icons";
+import {
+  ChatMessage,
+  ChatMessageType,
+  Incident,
+  type ToolMessageValue,
+  type ModifiedFileMessageValue,
+} from "@editor-extensions/shared";
+import { openFile } from "../../hooks/actions";
+import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
+import { SentMessage } from "./SentMessage";
+import { ReceivedMessage } from "./ReceivedMessage";
+import { ToolMessage } from "./ToolMessage";
+import { ModifiedFileMessage } from "./ModifiedFile";
+import { useExtensionStateContext } from "../../context/ExtensionStateContext";
 import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
+import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
+import { MessageWrapper } from "./MessageWrapper";
+import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { TestDiagnosticInjector } from "./TestDiagnosticInjector";
 
-// Import the original component to reuse most of its logic
-import ResolutionPage from "./ResolutionsPage";
+// Reuse the same hooks from the original ResolutionPage
+const useResolutionData = (state: any) => {
+  const {
+    chatMessages = [],
+    solutionState = "none",
+    solutionScope,
+    isFetchingSolution = false,
+    isAnalyzing,
+  } = state;
 
-// We'll need to duplicate some of the ResolutionPage logic here to inject test messages
-// This is intentional to keep the production code completely clean
+  const isTriggeredByUser = useMemo(
+    () => Array.isArray(solutionScope?.incidents) && solutionScope?.incidents?.length > 0,
+    [solutionScope?.incidents],
+  );
+
+  const hasNothingToView = useMemo(() => {
+    return solutionState === "none" && (!Array.isArray(chatMessages) || chatMessages?.length === 0);
+  }, [solutionState, chatMessages]);
+
+  const hasContent = useMemo(() => {
+    return (
+      solutionState === "received" || (Array.isArray(chatMessages) && chatMessages?.length > 0)
+    );
+  }, [solutionState, chatMessages]);
+
+  const hasResponseWithErrors = useMemo(() => false, [solutionState]);
+
+  return {
+    isTriggeredByUser,
+    hasNothingToView,
+    hasContent,
+    hasResponseWithErrors,
+    chatMessages,
+    isFetchingSolution,
+    isAnalyzing,
+    solutionState,
+  };
+};
+
+// Component for rendering user request messages
+const UserRequestMessages: React.FC<{
+  solutionScope: any;
+  onIncidentClick: (incident: Incident) => void;
+  isReadOnly: boolean;
+}> = ({ solutionScope, onIncidentClick, isReadOnly }) => {
+  const USER_REQUEST_MESSAGES: ChatMessage[] = [
+    {
+      kind: ChatMessageType.String,
+      value: { message: "Here is the scope of what I would like you to fix:" },
+      messageToken: "1",
+      timestamp: new Date().toISOString(),
+      extraContent: (
+        <ChatCard color="yellow">
+          <IncidentTableGroup
+            onIncidentSelect={onIncidentClick}
+            incidents={solutionScope?.incidents || []}
+            isReadOnly={isReadOnly}
+          />
+        </ChatCard>
+      ),
+    },
+    {
+      kind: ChatMessageType.String,
+      value: { message: "Please provide resolution for this issue." },
+      messageToken: "2",
+      timestamp: new Date().toISOString(),
+    },
+  ];
+
+  return (
+    <>
+      {USER_REQUEST_MESSAGES.map((msg) => (
+        <MessageWrapper key={msg.messageToken}>
+          <SentMessage
+            timestamp={msg.timestamp}
+            content={msg.value.message as string}
+            extraContent={msg.extraContent}
+          />
+        </MessageWrapper>
+      ))}
+    </>
+  );
+};
 
 const ResolutionPageDev: React.FC = () => {
-  const { state } = useExtensionStateContext();
+  const { state, dispatch } = useExtensionStateContext();
+  const { solutionScope } = state;
+
+  // Track which messages have had their quick responses selected
+  const [respondedMessageTokens, setRespondedMessageTokens] = useState<Set<string>>(new Set());
+
+  // TEST FUNCTIONALITY: Track injected test messages
   const [testMessages, setTestMessages] = useState<ChatMessage[]>([]);
 
+  // Unified data hook
+  const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
+    useResolutionData(state);
+
+  // DEVELOPMENT: Merge real messages with test messages
+  const allMessages = useMemo(() => {
+    return [...(chatMessages || []), ...testMessages];
+  }, [chatMessages, testMessages]);
+
+  const { messageBoxRef, triggerScrollOnUserAction } = useScrollManagement(
+    allMessages,
+    isFetchingSolution,
+  );
+
+  // Event handlers
+  const handleIncidentClick = (incident: Incident) =>
+    dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
+
+  // Handle quick response selection
+  const handleQuickResponse = useCallback((messageToken: string) => {
+    setRespondedMessageTokens((prev) => new Set([...prev, messageToken]));
+  }, []);
+
+  // DEVELOPMENT: Handle injecting test messages
   const handleInjectTestMessage = useCallback((message: ChatMessage) => {
     setTestMessages((prev) => [...prev, message]);
   }, []);
 
-  // If we have test messages, we need to render a modified version
-  // Otherwise, just render the original
-  if (testMessages.length === 0) {
-    return (
-      <>
-        <ResolutionPage />
-        <TestDiagnosticInjector onInjectMessage={handleInjectTestMessage} />
-      </>
-    );
-  }
+  // Render chat messages (using allMessages instead of chatMessages)
+  const renderChatMessages = useCallback(() => {
+    if (!Array.isArray(allMessages) || allMessages?.length === 0) {
+      return null;
+    }
 
-  // When we have test messages, we need to manually merge them with the state
-  // This requires us to re-implement the component with modified state
-  // This duplication is intentional to keep production code clean
-  
-  // For now, let's just render a message indicating this needs implementation
+    return allMessages.map((msg) => {
+      if (!msg) {
+        return null;
+      }
+
+      // Check if this specific message has been responded to
+      const isMessageResponded = respondedMessageTokens.has(msg.messageToken);
+
+      if (msg.kind === ChatMessageType.Tool) {
+        const { toolName, toolStatus } = msg.value as ToolMessageValue;
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ToolMessage
+              toolName={toolName}
+              status={toolStatus as "succeeded" | "failed" | "running"}
+              timestamp={msg.timestamp}
+            />
+          </MessageWrapper>
+        );
+      }
+
+      if (msg.kind === ChatMessageType.ModifiedFile) {
+        const fileData = msg.value as ModifiedFileMessageValue;
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ModifiedFileMessage
+              data={fileData}
+              timestamp={msg.timestamp}
+              onUserAction={triggerScrollOnUserAction}
+            />
+          </MessageWrapper>
+        );
+      }
+
+      if (msg.kind === ChatMessageType.Diagnostic) {
+        const message = msg.value?.message as string;
+        const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
+
+        // Determine if we have Yes/No quick responses and create an appropriate question
+        const hasYesNoResponses =
+          Array.isArray(msg.quickResponses) &&
+          msg.quickResponses.some((response) => response.id === "yes" || response.id === "no");
+
+        const question = hasYesNoResponses
+          ? "Would you like me to fix the selected issues?"
+          : undefined;
+
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ReceivedMessage
+              timestamp={msg.timestamp}
+              content={message}
+              diagnosticSummary={diagnosticSummary}
+              question={question}
+              isMessageResponded={isMessageResponded}
+              onQuickResponse={() => handleQuickResponse(msg.messageToken)}
+              quickResponses={
+                Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                  ? msg.quickResponses.map((response) => ({
+                      ...response,
+                      messageToken: msg.messageToken,
+                      isDisabled: response.id === "run-analysis" && isAnalyzing,
+                    }))
+                  : undefined
+              }
+            />
+          </MessageWrapper>
+        );
+      }
+
+      if (msg.kind === ChatMessageType.String) {
+        const message = msg.value?.message as string;
+        const diagnosticSummary = (msg.value as any)?.diagnosticSummary;
+        const selectedResponse = msg.selectedResponse;
+
+        // Determine if we have Yes/No quick responses and create an appropriate question
+        const hasYesNoResponses =
+          Array.isArray(msg.quickResponses) &&
+          msg.quickResponses.some((response) => response.id === "yes" || response.id === "no");
+
+        const question = hasYesNoResponses
+          ? "Would you like me to fix the selected issues?"
+          : undefined;
+
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ReceivedMessage
+              timestamp={msg.timestamp}
+              content={message}
+              diagnosticSummary={diagnosticSummary}
+              question={question}
+              isMessageResponded={isMessageResponded}
+              onQuickResponse={() => handleQuickResponse(msg.messageToken)}
+              quickResponses={
+                Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                  ? msg.quickResponses.map((response) => ({
+                      ...response,
+                      messageToken: msg.messageToken,
+                      isDisabled: response.id === "run-analysis" && isAnalyzing,
+                      isSelected: selectedResponse === response.id,
+                    }))
+                  : undefined
+              }
+            />
+          </MessageWrapper>
+        );
+      }
+
+      return null;
+    });
+  }, [
+    allMessages,
+    respondedMessageTokens,
+    handleQuickResponse,
+    isAnalyzing,
+    triggerScrollOnUserAction,
+  ]);
+
   return (
-    <Page className="resolutions-page">
+    <Page
+      className="resolutions-page"
+      sidebar={
+        <PageSidebar isSidebarOpen={false}>
+          <PageSidebarBody />
+        </PageSidebar>
+      }
+    >
       <PageSection>
-        <Title headingLevel="h1" size="2xl">
-          Development Mode - Test Messages Active
+        <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
+          Generative AI Results
+          {isFetchingSolution && <LoadingIndicator />}
+          {!isFetchingSolution && (
+            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+          )}
         </Title>
-        <p>
-          To fully implement test message injection without polluting production code,
-          you would need to duplicate the ResolutionPage component logic here and
-          modify the chatMessages array to include test messages.
-        </p>
-        <p>
-          Alternatively, consider using a different testing approach such as:
-          - Mock data in your development server
-          - Browser DevTools to inject messages
-          - Separate test harness application
-        </p>
       </PageSection>
+      <Chatbot displayMode={ChatbotDisplayMode.embedded}>
+        <ChatbotContent>
+          <MessageBox ref={messageBoxRef} style={{ paddingBottom: "2rem" }}>
+            {/* User request messages - shown in both modes when triggered by user */}
+            {isTriggeredByUser && (
+              <UserRequestMessages
+                solutionScope={solutionScope}
+                onIncidentClick={handleIncidentClick}
+                isReadOnly={true}
+              />
+            )}
+
+            {/* No content to view */}
+            {hasNothingToView && allMessages.length === 0 && (
+              <MessageWrapper>
+                <ReceivedMessage content="No resolutions available." />
+              </MessageWrapper>
+            )}
+
+            {/* Render all content */}
+            {renderChatMessages()}
+          </MessageBox>
+        </ChatbotContent>
+      </Chatbot>
+
+      {/* TEST INJECTOR - Only in development */}
       <TestDiagnosticInjector onInjectMessage={handleInjectTestMessage} />
     </Page>
   );
