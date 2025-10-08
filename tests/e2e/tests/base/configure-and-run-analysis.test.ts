@@ -1,9 +1,9 @@
-import * as path from 'path';
-import * as fs from 'fs/promises';
+import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
-import { extensionShortName, generateRandomString } from '../../utilities/utils';
+import * as fs from 'fs/promises';
+import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
 import { KAIViews } from '../../enums/views.enum';
 
@@ -137,7 +137,7 @@ test.describe(`Configure extension and run analysis`, () => {
       .getWindow()
       .getByPlaceholder('Enter the path where the debug archive will be saved');
     expect(await zipPathInput.count()).toEqual(1);
-    await zipPathInput.fill(path.join('.vscode', 'debug-archive.zip'));
+    await zipPathInput.fill(pathlib.join('.vscode', 'debug-archive.zip'));
     await vscodeApp.getWindow().keyboard.press('Enter');
     await vscodeApp.waitDefault();
     const redactProviderConfigInput = vscodeApp
@@ -153,12 +153,12 @@ test.describe(`Configure extension and run analysis`, () => {
       await vscodeApp.getWindow().keyboard.press('Enter');
       await vscodeApp.waitDefault();
     }
-    const zipPath = path.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
+    const zipPath = pathlib.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
     const zipStat = await fs.stat(zipPath);
     expect(zipStat.isFile()).toBe(true);
-    const extractedPath = path.join(repoInfo.repoName, '.vscode');
+    const extractedPath = pathlib.join(repoInfo.repoName, '.vscode');
     extractZip(zipPath, extractedPath);
-    const logsPath = path.join(extractedPath, 'logs', 'extension.log');
+    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
     const logsStat = await fs.stat(logsPath);
     expect(logsStat.isFile()).toBe(true);
   });
