@@ -50,9 +50,7 @@ export function WalkthroughDrawer({
   const providerNotConfigured = state.configErrors.some(
     (error) => error.type === "provider-not-configured",
   );
-  const genaiDisabled = state.configErrors.some(
-    (error) => error.type === "genai-disabled",
-  );
+  const genaiDisabled = state.configErrors.some((error) => error.type === "genai-disabled");
   const providerConfigured = !providerConnectionError && !providerNotConfigured && !genaiDisabled;
 
   const steps = [
@@ -61,18 +59,24 @@ export function WalkthroughDrawer({
       title: "Select Profile",
       status: profile ? "Completed" : "Not configured",
       description: "Choose a profile for your analysis setup.",
+      fullDescription:
+        "Choose a profile for your analysis setup. Profiles define the scope of your analysis by specifying which technologies to target and which rules to apply. You can create multiple profiles for different types of projects or analysis scenarios.",
     },
     {
       id: "label-selector",
       title: "Configure Label Selector",
       status: labelSelectorValid ? "Completed" : "Not configured",
       description: "Used to target the technologies your project uses.",
+      fullDescription:
+        "Used to target the technologies your project uses. Label selectors help Konveyor identify which analysis rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.",
     },
     {
       id: "rules",
       title: "Set Rules",
       status: rulesConfigured ? "Completed" : "Not configured",
       description: "Choose between default rules and your own custom rule files.",
+      fullDescription:
+        "Choose between default rules and your own custom rule files. Default rules cover common migration scenarios and best practices. Custom rules allow you to define project-specific analysis patterns, coding standards, or migration requirements tailored to your organization's needs.",
     },
     {
       id: "genai",
@@ -87,6 +91,9 @@ export function WalkthroughDrawer({
       description: genaiDisabled
         ? "GenAI functionality is currently disabled in your settings."
         : "Enable GenAI assistance using your API key.",
+      fullDescription: genaiDisabled
+        ? "GenAI functionality is currently disabled in your settings. When enabled, GenAI provides intelligent code suggestions, automated refactoring recommendations, and contextual explanations for migration issues. This feature enhances the analysis experience by offering AI-powered insights."
+        : "Enable GenAI assistance using your API key. Configure your preferred AI provider (OpenAI, Azure OpenAI, or other compatible services) to unlock intelligent code analysis, automated suggestions, and enhanced migration recommendations powered by large language models.",
     },
   ];
 
@@ -161,7 +168,7 @@ export function WalkthroughDrawer({
                     <StackItem>
                       <TruncatedDescription
                         shortText={step.description}
-                        fullText={step.description}
+                        fullText={step.fullDescription}
                       />
                     </StackItem>
                     {step.id !== "genai" && (
@@ -178,10 +185,7 @@ export function WalkthroughDrawer({
                     {step.id === "genai" && (
                       <StackItem>
                         {genaiDisabled ? (
-                          <Button
-                            variant="link"
-                            onClick={() => dispatch(enableGenAI())}
-                          >
+                          <Button variant="link" onClick={() => dispatch(enableGenAI())}>
                             Enable GenAI
                           </Button>
                         ) : (

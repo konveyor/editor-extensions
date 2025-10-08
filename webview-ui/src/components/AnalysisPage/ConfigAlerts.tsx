@@ -19,7 +19,11 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
   dispatch,
 }) => {
   // Don't render anything if there are no alerts to show
-  if (configErrors.length === 0 && !solutionServerEnabled) {
+  // Show alerts if: config errors exist OR (solution server enabled AND disconnected)
+  const shouldShowAlerts =
+    configErrors.length > 0 || (solutionServerEnabled && !solutionServerConnected);
+
+  if (!shouldShowAlerts) {
     return null;
   }
 

@@ -59,6 +59,7 @@ import ViolationIncidentsList from "../ViolationIncidentsList";
 import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
 import ProgressIndicator from "../ProgressIndicator";
 import ConfigAlerts from "./ConfigAlerts";
+import GetSolutionDropdown from "../GetSolutionDropdown";
 import { Incident } from "@editor-extensions/shared";
 
 const AnalysisPage: React.FC = () => {
@@ -76,7 +77,6 @@ const AnalysisPage: React.FC = () => {
     activeProfileId,
     serverState,
     solutionServerEnabled,
-    localChanges,
     isAgentMode,
     solutionServerConnected,
     isWaitingForUserInteraction,
@@ -99,13 +99,7 @@ const AnalysisPage: React.FC = () => {
     if (enhancedIncidents.length > 0 && solutionServerEnabled && solutionServerConnected) {
       dispatch(getSuccessRate());
     }
-  }, [
-    enhancedIncidents.length,
-    localChanges.length,
-    solutionServerEnabled,
-    solutionServerConnected,
-    dispatch,
-  ]);
+  }, [enhancedIncidents.length, solutionServerEnabled, solutionServerConnected, dispatch]);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
@@ -297,7 +291,22 @@ const AnalysisPage: React.FC = () => {
               <Stack hasGutter>
                 <StackItem>
                   <Card>
-                    <CardHeader>
+                    <CardHeader
+                      actions={
+                        hasViolations && !isAnalyzing
+                          ? {
+                              actions: [
+                                <GetSolutionDropdown
+                                  key="get-solution-workspace"
+                                  incidents={enhancedIncidents}
+                                  scope="workspace"
+                                />,
+                              ],
+                              hasNoOffset: true,
+                            }
+                          : undefined
+                      }
+                    >
                       <Flex className="header-layout">
                         <FlexItem>
                           <CardTitle>Analysis Results</CardTitle>

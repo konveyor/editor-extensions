@@ -1,8 +1,4 @@
-import {
-  type AIMessageChunk,
-  type AIMessage,
-  type BaseMessageChunk,
-} from "@langchain/core/messages";
+import { type AIMessageChunk, type AIMessage, type BaseMessage } from "@langchain/core/messages";
 import {
   type BaseChatModelCallOptions,
   type BindToolsInput,
@@ -33,6 +29,7 @@ export enum KaiWorkflowMessageType {
 export interface KaiModifiedFile {
   path: string;
   content: string;
+  userInteraction?: KaiUserInteraction;
 }
 
 export interface KaiToolCall {
@@ -43,7 +40,7 @@ export interface KaiToolCall {
 }
 
 export interface KaiUserInteraction {
-  type: "yesNo" | "choice" | "tasks";
+  type: "yesNo" | "choice" | "tasks" | "modifiedFile";
   systemMessage: {
     yesNo?: string;
     choice?: string[];
@@ -123,7 +120,7 @@ export interface KaiModelProviderInvokeCallOptions extends BaseChatModelCallOpti
  */
 export interface KaiModelProvider<
   InvokeCallOptions extends KaiModelProviderInvokeCallOptions = KaiModelProviderInvokeCallOptions,
-  OutputMessageType extends BaseMessageChunk = AIMessageChunk,
+  OutputMessageType extends BaseMessage = AIMessage,
   RunInput = any,
   RunOutput = any,
   StreamCallOptions extends RunnableConfig = RunnableConfig,

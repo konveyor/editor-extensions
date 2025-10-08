@@ -17,7 +17,7 @@ import { AnalysisProfile } from "../../../../shared/dist/types";
 
 export const ProfileManagerPage: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
-  const { profiles, activeProfileId } = state;
+  const { profiles, activeProfileId, isAnalyzing } = state;
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     activeProfileId ?? profiles[0]?.id ?? null,
   );
@@ -39,7 +39,7 @@ export const ProfileManagerPage: React.FC = () => {
     }
   };
 
-  const handleDupelicateProfile = (profile: AnalysisProfile) => {
+  const handleDuplicateProfile = (profile: AnalysisProfile) => {
     const baseName = profile.name;
     let index = 1;
     let newName = baseName;
@@ -52,8 +52,7 @@ export const ProfileManagerPage: React.FC = () => {
       name: newName,
     };
     dispatch({ type: "ADD_PROFILE", payload: newProfile });
-    setSelectedProfileId(newProfile.id); // <- Keep this
-    window.vscode.postMessage({ type: "ADD_PROFILE", payload: newProfile });
+    setSelectedProfileId(newProfile.id);
   };
 
   const handleCreateProfile = () => {
@@ -106,7 +105,8 @@ export const ProfileManagerPage: React.FC = () => {
               onCreate={handleCreateProfile}
               onDelete={handleDeleteProfile}
               onMakeActive={handleMakeActive}
-              onDuplicate={handleDupelicateProfile}
+              onDuplicate={handleDuplicateProfile}
+              isDisabled={isAnalyzing}
             />
           </SplitItem>
           <SplitItem isFilled style={{ flex: "1 1 auto" }}>
@@ -118,6 +118,7 @@ export const ProfileManagerPage: React.FC = () => {
                 onChange={handleProfileChange}
                 onDelete={handleDeleteProfile}
                 onMakeActive={handleMakeActive}
+                isDisabled={isAnalyzing}
               />
             ) : (
               <Bullseye>

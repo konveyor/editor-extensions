@@ -1,4 +1,5 @@
 import { LLMProviders } from '../enums/llm-providers.enum';
+import { isAWSConfigured } from '../../kai-evaluator/utils/s3.utils';
 
 export interface ProviderConfig {
   model: string;
@@ -74,11 +75,7 @@ export function getAvailableProviders(): ProviderConfig[] {
     providers.push(OPENAI_GPT4OMINI_PROVIDER);
   }
 
-  if (
-    process.env.AWS_ACCESS_KEY_ID &&
-    process.env.AWS_SECRET_ACCESS_KEY &&
-    process.env.AWS_DEFAULT_REGION
-  ) {
+  if (isAWSConfigured()) {
     providers.push(AWS_PROVIDER);
   }
 

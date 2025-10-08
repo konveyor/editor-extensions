@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 import { cwdToProjectRoot } from "./_util.js";
 import copy from "./_copy.js";
+import fs from "fs";
 
 cwdToProjectRoot();
 
@@ -20,13 +21,15 @@ await copy({
        */
       transform: (contents) => {
         const packageJson = JSON.parse(contents.toString());
+        const originalIncludedKai = packageJson.includedAssetPaths?.kai !== undefined;
+
         packageJson.dependencies = undefined;
         packageJson.devDependencies = undefined;
         packageJson["lint-staged"] = undefined;
         packageJson.contributes.javaExtensions = ["./assets/jdtls-bundles/bundle.jar"];
 
         packageJson.includedAssetPaths = {
-          kai: "./assets/kai",
+          ...(originalIncludedKai && { kai: "./assets/kai" }),
           jdtls: "./assets/jdtls",
           jdtlsBundles: "./assets/jdtls-bundles",
           fernFlowerPath: "./assets/fernflower/fernflower.jar",
@@ -97,12 +100,20 @@ await copy({
       dest: "dist/assets/opensource-labels-file",
     },
 
-    // seed assets - kai binaries
-    {
-      context: "downloaded_assets/kai",
-      src: ["*/kai*", "!**/*.zip"],
-      dest: "dist/assets/kai",
-    },
+    // seed assets - kai binaries (conditional based on original package.json)
+    ...((() => {
+      // Read original package.json to check if kai should be included
+      const originalPackage = JSON.parse(fs.readFileSync("vscode/package.json", "utf8"));
+      return originalPackage.includedAssetPaths?.kai !== undefined;
+    })()
+      ? [
+          {
+            context: "downloaded_assets/kai",
+            src: ["*/kai*", "!**/*.zip"],
+            dest: "dist/assets/kai",
+          },
+        ]
+      : []),
 
     // include the collect-assets metadata
     {

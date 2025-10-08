@@ -5,8 +5,6 @@ import {
   ADD_PROFILE,
   AnalysisProfile,
   CONFIGURE_CUSTOM_RULES,
-  CONFIGURE_LABEL_SELECTOR,
-  CONFIGURE_SOURCES_TARGETS,
   DELETE_PROFILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
@@ -117,6 +115,10 @@ const actions: {
     saveUserProfiles(state.extensionContext, userProfiles);
 
     const fullProfiles = [...getBundledProfiles(), ...userProfiles];
+
+    // Check if we're updating the active profile
+    const isActiveProfile = state.data.activeProfileId === originalId;
+
     state.mutateData((draft) => {
       draft.profiles = fullProfiles;
 
@@ -125,6 +127,16 @@ const actions: {
       }
       updateConfigErrorsFromActiveProfile(draft);
     });
+
+    // Stop the analyzer server if active profile was updated
+    // This ensures custom rules changes take effect on next analysis
+    if (isActiveProfile && state.analyzerClient.isServerRunning()) {
+      state.logger.info("Active profile updated, stopping analyzer server to apply changes");
+      await state.analyzerClient.stop();
+      vscode.window.showInformationMessage(
+        "Profile updated. Analyzer server stopped. Please restart the server to apply custom rule changes.",
+      );
+    }
   },
 
   [SET_ACTIVE_PROFILE]: async (profileId: string, state) => {
@@ -134,11 +146,25 @@ const actions: {
       vscode.window.showErrorMessage(`Cannot set active profile. Profile not found.`);
       return;
     }
+
+    // Check if profile is actually changing
+    const isProfileChanging = state.data.activeProfileId !== profileId;
+
     setActiveProfileId(profileId, state);
     state.mutateData((draft) => {
       draft.activeProfileId = profileId;
       updateConfigErrorsFromActiveProfile(draft);
     });
+
+    // Stop the analyzer server when switching profiles
+    // This ensures the new profile's custom rules are applied on next analysis
+    if (isProfileChanging && state.analyzerClient.isServerRunning()) {
+      state.logger.info(`Active profile changed to ${profileId}, stopping analyzer server`);
+      await state.analyzerClient.stop();
+      vscode.window.showInformationMessage(
+        "Profile changed. Start the server to apply the new profile's custom rules.",
+      );
+    }
   },
 
   [OPEN_PROFILE_MANAGER]() {
@@ -147,13 +173,7 @@ const actions: {
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");
   },
-  [CONFIGURE_SOURCES_TARGETS]() {
-    executeExtensionCommand("configureSourcesTargets");
-  },
-  [CONFIGURE_LABEL_SELECTOR]() {
-    executeExtensionCommand("configureLabelSelector");
-  },
-  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, state) => {
+  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
   },
 
@@ -169,20 +189,6 @@ const actions: {
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     executeExtensionCommand("askContinue", incident);
-  },
-  // APPLY_FILE and DISCARD_FILE removed - using unified decorator flow
-  // New actions with unique names to avoid overwriting existing diff view commands
-  REJECT_FILE: async ({ path }, _state, logger) => {
-    try {
-      // For rejecting changes, we don't need to do anything since we're not
-      // directly modifying the real file until the user applies changes
-      vscode.window.showInformationMessage(
-        `Changes rejected for ${vscode.workspace.asRelativePath(vscode.Uri.file(path))}`,
-      );
-    } catch (error) {
-      logger.error("Error handling NEW_REJECT_FILE:", error);
-      vscode.window.showErrorMessage(`Failed to reject changes: ${error}`);
-    }
   },
   SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
     try {

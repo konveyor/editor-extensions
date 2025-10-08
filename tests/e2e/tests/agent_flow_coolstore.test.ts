@@ -6,6 +6,7 @@ import { getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
+import * as VSCodeFactory from '../utilities/vscode.factory';
 
 // NOTE: This is the list of providers that have cached data for the coolstore app
 // Update this list when you create cache for a new provider, you probably don't need
@@ -22,7 +23,7 @@ providers.forEach((config) => {
       test.setTimeout(1600000);
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       try {
         await vscodeApp.deleteProfile(profileName);
       } catch {
@@ -31,7 +32,7 @@ providers.forEach((config) => {
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
-      await vscodeApp.ensureLLMCache();
+      await vscodeApp.ensureLLMCache(false);
     });
 
     test.beforeEach(async () => {
@@ -64,9 +65,12 @@ providers.forEach((config) => {
       console.log('Agent mode enabled');
       // find the JMS issue to fix
       await vscodeApp.searchViolation('References to JavaEE/JakartaEE JMS elements');
-      const fixButton = analysisView.locator('button#get-solution-button');
-      await expect(fixButton.first()).toBeVisible({ timeout: 6000 });
-      await fixButton.first().click();
+
+      // Click the Get Solution button for the specific JMS violation group (scope="issue")
+      // This targets just the JMS violations, not all workspace violations
+      const fixButton = analysisView.locator('button#get-solution-button[data-scope="issue"]');
+      await expect(fixButton).toBeVisible({ timeout: 30000 });
+      await fixButton.click();
       console.log('Fix button clicked');
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
       await vscodeApp.waitDefault();

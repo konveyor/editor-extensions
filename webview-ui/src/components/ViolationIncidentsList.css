@@ -1,0 +1,86 @@
+/* Responsive toolbar adjustments for ViolationIncidentsList */
+.violation-incidents-toolbar .pf-v6-c-toolbar__content {
+  /* Allow toolbar items to wrap naturally */
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  row-gap: 0.75rem;
+}
+
+/* Ensure proper item sizing for wrapping */
+.violation-incidents-toolbar .pf-v6-c-toolbar__item {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Search input should take more space when available */
+.violation-incidents-toolbar .pf-v6-c-toolbar__item:has(.pf-v6-c-search-input) {
+  flex: 1 1 300px;
+  min-width: 200px;
+}
+
+/* Adjust toolbar items for smaller screens */
+@media (max-width: 768px) {
+  /* Keep sort buttons consistent size */
+  .violation-incidents-toolbar .pf-v6-c-toggle-group__button {
+    padding: 0.375rem 0.5rem;
+    font-size: 1rem !important; /* Maintain icon size */
+    line-height: 1.5 !important;
+  }
+
+  /* Ensure icons don't shrink */
+  .violation-incidents-toolbar .pf-v6-c-toggle-group__button svg {
+    width: 1em !important;
+    height: 1em !important;
+  }
+
+  /* Ensure search input is responsive */
+  .violation-incidents-toolbar .pf-v6-c-search-input {
+    min-width: 150px;
+  }
+
+  /* Make dropdowns more compact */
+  .violation-incidents-toolbar .pf-v6-c-menu-toggle {
+    font-size: 0.875rem;
+    min-width: 100px;
+  }
+
+  /* Reduce gap on smaller screens */
+  .violation-incidents-toolbar .pf-v6-c-toolbar__content {
+    gap: 0.375rem;
+    row-gap: 0.5rem;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 576px) {
+  /* Keep sort buttons same size even on mobile */
+  .violation-incidents-toolbar .pf-v6-c-toggle-group__button {
+    padding: 0.25rem 0.375rem;
+    font-size: 1rem !important; /* Maintain icon size */
+    line-height: 1.5 !important;
+  }
+
+  /* Ensure icons don't shrink on mobile */
+  .violation-incidents-toolbar .pf-v6-c-toggle-group__button svg {
+    width: 1em !important;
+    height: 1em !important;
+  }
+
+  /* Smaller dropdowns */
+  .violation-incidents-toolbar .pf-v6-c-menu-toggle {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.5rem;
+    min-width: 90px;
+  }
+
+  /* Search takes full width on mobile */
+  .violation-incidents-toolbar .pf-v6-c-toolbar__item:has(.pf-v6-c-search-input) {
+    flex: 1 1 100%;
+  }
+
+  /* Minimal gaps */
+  .violation-incidents-toolbar .pf-v6-c-toolbar__content {
+    gap: 0.25rem;
+    row-gap: 0.375rem;
+  }
+}

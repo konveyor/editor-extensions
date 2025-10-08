@@ -60,8 +60,6 @@ export const getConfigAnalyzeOnSave = (): boolean => {
 
   return analyzeOnSave;
 };
-export const getConfigDiffEditorType = (): string =>
-  getConfigValue<"diff" | "merge">("diffEditorType") || "diff";
 export const getCacheDir = (workspaceRoot: string | undefined): string | undefined =>
   getWorkspaceRelativePath(getConfigValue<string>("genai.cacheDir"), workspaceRoot);
 export const getTraceDir = (workspaceRoot: string | undefined): string | undefined =>

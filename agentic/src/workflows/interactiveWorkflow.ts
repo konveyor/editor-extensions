@@ -82,6 +82,7 @@ export class KaiInteractiveWorkflow
   private userInteractionPromises: Map<string, PendingUserInteraction>;
   private readonly logger: Logger;
   private workspaceDir: string;
+  private fsTools: FileSystemTools | undefined;
 
   constructor(logger: Logger) {
     super();
@@ -93,6 +94,7 @@ export class KaiInteractiveWorkflow
       component: "KaiInteractiveWorkflow",
     });
     this.workspaceDir = "";
+    this.fsTools = undefined;
 
     this.runToolsEdgeFunction = this.runToolsEdgeFunction.bind(this);
     this.analysisIssueFixRouterEdge = this.analysisIssueFixRouterEdge.bind(this);
@@ -101,12 +103,12 @@ export class KaiInteractiveWorkflow
 
   async init(options: KaiWorkflowInitOptions): Promise<void> {
     this.workspaceDir = fileUriToPath(options.workspaceDir);
-    const fsTools = new FileSystemTools(this.workspaceDir, options.fsCache, this.logger);
+    this.fsTools = new FileSystemTools(this.workspaceDir, options.fsCache, this.logger);
     const depTools = new JavaDependencyTools(options.toolCache, this.logger);
 
     const analysisIssueFixNodes = new AnalysisIssueFix(
       options.modelProvider,
-      fsTools.all(),
+      this.fsTools.all(),
       options.fsCache,
       this.workspaceDir,
       options.solutionServerClient,
@@ -118,13 +120,13 @@ export class KaiInteractiveWorkflow
     analysisIssueFixNodes.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);
     });
-    fsTools.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+    this.fsTools.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
       this.emitWorkflowMessage(msg);
     });
 
     this.diagnosticsNodes = new DiagnosticsIssueFix(
       options.modelProvider,
-      fsTools.all(),
+      this.fsTools.all(),
       depTools.all(),
       this.workspaceDir,
       this.logger.child({
@@ -364,6 +366,13 @@ export class KaiInteractiveWorkflow
       response.data.type === "tasks"
     ) {
       await this.diagnosticsNodes?.resolveDiagnosticsPromise(response);
+      return;
+    }
+    if (
+      response.type === KaiWorkflowMessageType.UserInteraction &&
+      response.data.type === "modifiedFile"
+    ) {
+      this.fsTools?.resolveModifiedFilePromise(response);
       return;
     }
     const promise = this.userInteractionPromises.get(response.id);

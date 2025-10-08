@@ -1,133 +1,32 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { execSync } from 'child_process';
-import { _electron as electron, FrameLocator } from 'playwright';
-import { ElectronApplication, expect, Page } from '@playwright/test';
-import { MIN, SEC } from '../utilities/consts';
-import { createZip, extractZip } from '../utilities/archive';
-import {
-  cleanupRepo,
-  generateRandomString,
-  getOSInfo,
-  writeOrUpdateSettingsJson,
-} from '../utilities/utils';
+import { FrameLocator } from 'playwright';
+import { expect, Page } from '@playwright/test';
+import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
-import { TEST_DATA_DIR } from '../utilities/consts';
-import { BasePage } from './base.page';
-import { installExtension } from '../utilities/vscode-commands.utils';
 import { FixTypes } from '../enums/fix-types.enum';
-import { stubDialog } from 'electron-playwright-helpers';
-import { extensionId } from '../utilities/utils';
-
-const COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
 
-export class VSCode extends BasePage {
-  constructor(
-    app: ElectronApplication,
-    window: Page,
-    private readonly repoDir?: string
-  ) {
-    super(app, window);
-  }
-
-  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
-    /**
-     * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
-     * so Playwright doesn't detect that the process has finished
-     */
-    const args = [
-      '--disable-workspace-trust',
-      '--skip-welcome',
-      `--user-data-dir=${TEST_DATA_DIR}`,
-    ];
-
-    try {
-      if (repoUrl) {
-        if (repoDir) {
-          await cleanupRepo(repoDir);
-        }
-        console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
-        execSync(`git clone ${repoUrl} -b ${branch}`);
-      }
-    } catch (error: any) {
-      throw new Error('Failed to clone the repository');
-    }
-
-    if (repoDir) {
-      args.push(path.resolve(repoDir));
-    }
-
-    // set the log level prior to starting vscode
-    writeOrUpdateSettingsJson(path.join(repoDir ?? '', '.vscode', 'settings.json'), {
-      'konveyor.logLevel': 'silly',
-    });
-
-    let executablePath = process.env.VSCODE_EXECUTABLE_PATH;
-    if (!executablePath) {
-      if (getOSInfo() === 'linux') {
-        executablePath = '/usr/share/code/code';
-      } else {
-        throw new Error('VSCODE_EXECUTABLE_PATH env variable not provided');
-      }
-    }
-
-    if (!process.env.VSIX_FILE_PATH && !process.env.VSIX_DOWNLOAD_URL) {
-      args.push(
-        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode')}`,
-        `--enable-proposed-api=${extensionId}`
-      );
-      console.log('Running in DEV mode...');
-    }
-
-    console.log(`Code command: ${executablePath} ${args.join(' ')}`);
-
-    const vscodeApp = await electron.launch({
-      executablePath: executablePath,
-      args,
-    });
-    await vscodeApp.firstWindow();
-
-    const window = await vscodeApp.firstWindow({ timeout: 60000 });
-    console.log('VSCode opened');
-    return new VSCode(vscodeApp, window, repoDir);
-  }
+export abstract class VSCode {
+  protected repoDir?: string;
+  protected abstract window: Page;
+  public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
 
   /**
-   * launches VSCode with KAI plugin installed and repoUrl app opened.
-   * @param repoUrl
-   * @param repoDir path to repo
-   * @param branch optional branch to clone from
+   * Unzips all test data into workspace .vscode/ directory, deletes the zip files if cleanup is true
    */
-  public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
-    try {
-      if (process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL) {
-        await installExtension();
-      }
-
-      return repoUrl ? VSCode.open(repoUrl, repoDir, branch) : VSCode.open();
-    } catch (error) {
-      console.error('Error launching VSCode:', error);
-      throw error;
-    }
-  }
-
+  public abstract ensureLLMCache(cleanup: boolean): Promise<void>;
+  public abstract updateLLMCache(): Promise<void>;
   /**
-   * Closes the VSCode instance.
+   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
+   * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
    */
-  public async closeVSCode(): Promise<void> {
-    try {
-      if (this.app) {
-        await this.app.close();
-        console.log('VSCode closed successfully.');
-      }
-    } catch (error) {
-      console.error('Error closing VSCode:', error);
-    }
-  }
+  public abstract writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void>;
+  protected abstract selectCustomRules(customRulesPath: string): Promise<void>;
+  public abstract closeVSCode(): Promise<void>;
+  public abstract pasteContent(content: string): void;
+  public abstract getWindow(): Page;
 
   public async executeQuickCommand(command: string) {
     await this.waitDefault();
@@ -166,7 +65,7 @@ export class VSCode extends BasePage {
   public async openAnalysisView(): Promise<void> {
     // Try using command palette first - this works reliably when extension is hidden due to too many extensions
     try {
-      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Open Analysis View`);
+      await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Analysis View`);
       return;
     } catch (error) {
       console.log('Command palette approach failed:', error);
@@ -174,8 +73,8 @@ export class VSCode extends BasePage {
 
     // Fallback to activity bar approach
     try {
-      await this.openLeftBarElement(COMMAND_CATEGORY);
-      await this.window.getByText(`${COMMAND_CATEGORY} Issues`).dblclick();
+      await this.openLeftBarElement(VSCode.COMMAND_CATEGORY);
+      await this.window.getByText(`${VSCode.COMMAND_CATEGORY} Issues`).dblclick();
       await this.window.locator(`a[aria-label*="Analysis View"]`).click();
     } catch (error) {
       console.log('Activity bar approach failed:', error);
@@ -365,7 +264,7 @@ export class VSCode extends BasePage {
 
   public async configureGenerativeAI(config: string = DEFAULT_PROVIDER.config) {
     await this.executeQuickCommand(
-      `${COMMAND_CATEGORY}: Open the GenAI model provider configuration file`
+      `${VSCode.COMMAND_CATEGORY}: Open the GenAI model provider configuration file`
     );
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
@@ -375,7 +274,7 @@ export class VSCode extends BasePage {
   }
 
   public async findDebugArchiveCommand(): Promise<string> {
-    return `${COMMAND_CATEGORY}: Generate Debug Archive`;
+    return `${VSCode.COMMAND_CATEGORY}: Generate Debug Archive`;
   }
 
   public async createProfile(
@@ -384,7 +283,7 @@ export class VSCode extends BasePage {
     profileName?: string,
     customRulesPath?: string
   ) {
-    await this.executeQuickCommand(`${COMMAND_CATEGORY}: Manage Analysis Profile`);
+    await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
 
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
@@ -418,33 +317,8 @@ export class VSCode extends BasePage {
     }
     await this.window.keyboard.press('Escape');
 
-    // Select Custom Rules if provided
     if (customRulesPath) {
-      console.log(`Creating profile with custom rules from: ${customRulesPath}`);
-
-      const customRulesButton = manageProfileView.getByRole('button', {
-        name: 'Select Custom Rules…',
-      });
-
-      if (await customRulesButton.isVisible()) {
-        await stubDialog(this.app, 'showOpenDialog', {
-          filePaths: [customRulesPath],
-          canceled: false,
-        });
-
-        await customRulesButton.click();
-
-        const folderName = path.basename(customRulesPath);
-        console.log(
-          `Waiting for custom rules label with folder name: "${folderName}" from path: "${customRulesPath}"`
-        );
-
-        const customRulesLabel = manageProfileView
-          .locator('[class*="label"], [class*="Label"]')
-          .filter({ hasText: folderName });
-        await expect(customRulesLabel.first()).toBeVisible({ timeout: 30000 });
-        console.log(`Custom rules label for "${folderName}" is now visible`);
-      }
+      await this.selectCustomRules(customRulesPath);
     }
     return nameToUse;
   }
@@ -452,7 +326,7 @@ export class VSCode extends BasePage {
   public async deleteProfile(profileName: string) {
     try {
       console.log(`Attempting to delete profile: ${profileName}`);
-      await this.executeQuickCommand(`${COMMAND_CATEGORY}: Manage Analysis Profile`);
+      await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
       const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
       const profileList = manageProfileView.getByRole('list', {
@@ -519,60 +393,9 @@ export class VSCode extends BasePage {
     await analysisView.locator('button#get-solution-button').nth(fixType).click();
   }
 
-  /**
-   * Unzips all test data into workspace .vscode/ directory, deletes the zip files if cleanup is true
-   */
-  public async ensureLLMCache(cleanup: boolean = false): Promise<void> {
-    try {
-      const wspacePath = this.llmCachePaths().workspacePath;
-      const storedPath = this.llmCachePaths().storedPath;
-      if (cleanup) {
-        if (fs.existsSync(wspacePath)) {
-          fs.rmSync(wspacePath, { recursive: true, force: true });
-        }
-        return;
-      }
-      if (!fs.existsSync(wspacePath)) {
-        fs.mkdirSync(wspacePath, { recursive: true });
-      }
-      if (!fs.existsSync(storedPath)) {
-        return;
-      }
-      // move stored zip to workspace
-      extractZip(storedPath, wspacePath);
-    } catch (error) {
-      console.error('Error unzipping test data:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Copies all newly generated LLM cache data into a zip file in the repo, merges with the existing data
-   * This will be used when we want to generate a new cache data
-   */
-  public async updateLLMCache() {
-    const newCacheZip = path.join(path.dirname(this.llmCachePaths().storedPath), 'new.zip');
-    createZip(this.llmCachePaths().workspacePath, newCacheZip);
-    fs.renameSync(newCacheZip, this.llmCachePaths().storedPath);
-    fs.renameSync(`${newCacheZip}.metadata`, `${this.llmCachePaths().storedPath}.metadata`);
-  }
-
-  private llmCachePaths(): {
-    storedPath: string; // this is where the data is checked-in in the repo
-    workspacePath: string; // this is where a workspace is expecting to find cached data
-  } {
-    return {
-      storedPath: path.join(__dirname, '..', '..', 'data', 'llm_cache.zip'),
-      workspacePath: path.join(this.repoDir ?? '', '.vscode', 'cache'),
-    };
-  }
-
-  /**
-   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
-   * @param settings - Key - value pair of settings to write or update, if a setting already exists, the new values will be merged
-   */
-  public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
-    writeOrUpdateSettingsJson(path.join(this.repoDir ?? '', '.vscode', 'settings.json'), settings);
+  public async searchViolationAndAcceptAllSolutions(violation: string) {
+    await this.searchAndRequestFix(violation, FixTypes.Issue);
+    await this.acceptAllSolutions();
   }
 
   public async waitForSolutionConfirmation(): Promise<void> {
@@ -613,8 +436,7 @@ export class VSCode extends BasePage {
     throw new Error('MAX_FIXES limit reached while requesting solutions');
   }
 
-  public async searchViolationAndAcceptAllSolutions(violation: string) {
-    await this.searchAndRequestFix(violation, FixTypes.Issue);
-    await this.acceptAllSolutions();
+  public async waitDefault() {
+    await this.window.waitForTimeout(process.env.CI ? 5000 : 3000);
   }
 }

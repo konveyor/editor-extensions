@@ -6,6 +6,7 @@ import fs from 'fs';
 import { Configuration } from '../../pages/configuration.page';
 import { KAIViews } from '../../enums/views.enum';
 import { analyzerPath } from '../../enums/configuration-options.enum';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 /**
  * This test executes an analysis on the coolstore app using a custom analyzer binary.
@@ -54,7 +55,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
 
     console.log(`Custom analyzer path found in ${binaryPath}`);
     const repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });
 

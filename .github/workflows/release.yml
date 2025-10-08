@@ -1,128 +1,35 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "*"
-
-  workflow_dispatch:
+  workflow_call:
     inputs:
       tag_name:
-        description: "Enter Tag for the release"
+        description: "Tag name for the release"
         required: true
+        type: string
       prerelease:
         description: "Is this a pre-release?"
         required: true
         type: boolean
-        default: false
-      dry-run:
-        description: "Should this be a dry run of the release?"
+      vsix_artifact_name:
+        description: "Name of the VSIX artifact to download"
         required: false
-        type: boolean
-        default: false
+        type: string
+        default: "vsix-artifact"
+      workflow_run_id:
+        description: "Workflow run ID to download artifacts from"
+        required: false
+        type: string
 
-# https://typicode.github.io/husky/how-to.html#ci-server-and-docker
 env:
   HUSKY: 0
 
 jobs:
-  test_the_release:
-    name: Test the release (${{ matrix.platform }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux
-          - os: macos-latest
-            platform: macos
-          - os: windows-latest
-            platform: windows
-      max-parallel: 3
-    outputs:
-      tag_name: ${{ steps.determine_tag.outputs.tag_name }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Determine the tag
-        id: determine_tag
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag_name=${{ inputs.tag_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
-
-      - name: Install dependencies, download runtime assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm ci
-          npm run collect-assets -- --use-release
-
-      # Run tests on different OSes
-      - name: Run tests (Linux)
-        if: matrix.platform == 'linux'
-        run: xvfb-run -a npm run test
-
-      - name: Run tests (macOS)
-        if: matrix.platform == 'macos'
-        run: npm test
-
-      - name: Run tests (Windows)
-        if: matrix.platform == 'windows'
-        shell: cmd
-        run: npm test
-
-  package:
-    needs: test_the_release
-    name: Generate the vsix for the release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-
-      - name: Build the project and generate the .vsix
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm ci
-          npm run build
-          npm run collect-assets -- --use-release
-          npm run dist
-          npm run package
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vscode-extension-${{ matrix.platform }}
-          path: ./dist/*.vsix
-
   generate_changelog:
     name: Generate Changelog
-    needs: test_the_release
     uses: konveyor/release-tools/.github/workflows/generate-changelog.yml@main
     with:
-      version: ${{ needs.test_the_release.outputs.tag_name }}
+      version: ${{ inputs.tag_name }}
       prev_version: $(gh api repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
       repository: ${{ github.repository }}
       ref: ${{ github.sha }}
@@ -132,15 +39,16 @@ jobs:
   release:
     name: Final Release
     runs-on: ubuntu-latest
-    needs: [test_the_release, package, generate_changelog]
+    needs: generate_changelog
     steps:
       - name: Add release details to the step summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Release Information
-          Tag: __${{ needs.test_the_release.outputs.tag_name }}__
-          Pre-Release: __${{ github.event.inputs.prerelease }}__
-          Dry run? __${{ github.event.inputs.dry-run}}__
+          Tag: __${{ inputs.tag_name }}__
+          Pre-Release: __${{ inputs.prerelease }}__
+          VSIX Artifact: __${{ inputs.vsix_artifact_name }}__
+          Workflow Run ID: __${{ inputs.workflow_run_id || github.run_id }}__
           EOF
 
       - name: Checkout code
@@ -152,34 +60,51 @@ jobs:
           name: changelog-artifact
           path: ./artifacts
 
-      - name: List available artifacts
-        run: |
-          curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
-
-      - name: Download Linux Artifact
+      - name: Download VSIX Artifact
         uses: actions/download-artifact@v4
         with:
-          name: vscode-extension-linux
-          path: ./artifacts/vscode-extension-linux
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./artifacts
 
       - name: Verify Downloaded Artifacts
-        run: ls -R ./artifacts
+        run: ls -R ./artifacts/
 
-      - name: Rename VSIX Packages
+      - name: Find and set VSIX filename
+        id: vsix_info
         run: |
-          mv ./artifacts/vscode-extension-linux/*.vsix ./artifacts/konveyor-${{ needs.test_the_release.outputs.tag_name }}.vsix
+          VSIX_FILE=$(find ./artifacts -name "*.vsix" -type f | head -1)
+          VSIX_NAME=$(basename "$VSIX_FILE")
+          echo "vsix_path=$VSIX_FILE" >> "$GITHUB_OUTPUT"
+          echo "vsix_name=$VSIX_NAME" >> "$GITHUB_OUTPUT"
+          echo "Found VSIX: $VSIX_NAME at $VSIX_FILE"
+
+      - name: Set up Node.js for publishing
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Publish to VS Code Marketplace
+        if: ${{ inputs.prerelease == false }}
+        run: |
+          echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
+          if [ -f "./artifacts/release.md" ]; then
+            echo "Publishing with changelog"
+            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --changelog-path "./artifacts/release.md"
+          else
+            echo "Publishing without changelog (file not found)"
+            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}"
+          fi
+        env:
+          VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Create Release
-        if: ${{ github.event.inputs.dry-run == 'false' }}
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.test_the_release.outputs.tag_name }}
+          tag: ${{ inputs.tag_name }}
           commit: ${{ github.sha }}
           bodyFile: ./artifacts/release.md
           artifacts: |
-            ./artifacts/konveyor-*.vsix
-          prerelease: ${{ github.event.inputs.prerelease }}
+            ${{ steps.vsix_info.outputs.vsix_path }}
+          prerelease: ${{ inputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

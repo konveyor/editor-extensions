@@ -18,20 +18,18 @@ export const loadStaticResults = async () => {
     return;
   }
 
-  const [analysisResults, solution] = await readDataFiles(uris);
+  const analysisResults = await readDataFiles(uris);
 
-  if (!analysisResults && !solution) {
+  if (!analysisResults) {
     vscode.window.showErrorMessage("Konveyor: failed to load data from selected file(s).");
     return;
   }
 
-  if (analysisResults) {
-    if (filePathsCorrect(analysisResults)) {
-      executeExtensionCommand("loadRuleSets", analysisResults);
-      vscode.window.showInformationMessage("Successfully loaded the analysis results");
-    } else {
-      vscode.window.showErrorMessage("Konveyor: analysis results point to non-existing files.");
-    }
+  if (filePathsCorrect(analysisResults)) {
+    executeExtensionCommand("loadRuleSets", analysisResults);
+    vscode.window.showInformationMessage("Successfully loaded the analysis results");
+  } else {
+    vscode.window.showErrorMessage("Konveyor: analysis results point to non-existing files.");
   }
 };
 
@@ -47,7 +45,7 @@ const filePathsCorrect = (ruleSets: RuleSet[]) =>
     );
 
 export const loadResultsFromDataFolder = async () => {
-  const [analysisResults] = await loadStateFromDataFolder();
+  const analysisResults = await loadStateFromDataFolder();
   if (analysisResults) {
     executeExtensionCommand("loadRuleSets", analysisResults);
   }

@@ -15,13 +15,7 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import {
-  EnhancedIncident,
-  RuleSet,
-  Scope,
-  ChatMessageType,
-  GetSolutionResult,
-} from "@editor-extensions/shared";
+import { EnhancedIncident, RuleSet, Scope, ChatMessageType } from "@editor-extensions/shared";
 import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
@@ -36,6 +30,7 @@ import {
   getTraceDir,
   getConfigSolutionServerAuth,
   fileUriToPath,
+  getConfigSolutionServer,
 } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import { promptForCredentials } from "./utilities/auth";
@@ -44,7 +39,6 @@ import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
-import { createPatch, createTwoFilesPatch } from "diff";
 import { v4 as uuidv4 } from "uuid";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
@@ -60,6 +54,17 @@ const isWindows = process.platform === "win32";
  */
 export function executeExtensionCommand(commandSuffix: string, ...args: any[]): Thenable<unknown> {
   return commands.executeCommand(`${EXTENSION_NAME}.${commandSuffix}`, ...args);
+}
+
+/**
+ * Helper function to execute deferred workflow disposal after solution completes
+ */
+function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
+  if (state.workflowDisposalPending && state.workflowManager && state.workflowManager.dispose) {
+    logger.info("Executing deferred workflow disposal after solution completion");
+    state.workflowManager.dispose();
+    state.workflowDisposalPending = false;
+  }
 }
 
 const commandsMap: (
@@ -113,6 +118,12 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
       const solutionServerClient = state.solutionServerClient;
+      const config = getConfigSolutionServer();
+      if (!config.enabled) {
+        logger.info("Solution server is disabled, skipping restart");
+        return;
+      }
+
       try {
         window.showInformationMessage("Restarting solution server...");
         await solutionServerClient.disconnect();
@@ -163,6 +174,15 @@ const commandsMap: (
         return;
       }
 
+      // Check if model provider is not initialized
+      if (!state.modelProvider) {
+        logger.info("Model provider not initialized, cannot get solution");
+        window.showErrorMessage(
+          "Model provider is not configured. Please check your provider settings.",
+        );
+        return;
+      }
+
       // Read agent mode from configuration instead of parameter
       const agentMode = getConfigAgentMode();
       logger.info("Get solution command called", { incidents, agentMode });
@@ -190,22 +210,12 @@ const commandsMap: (
       let workflow: any;
 
       try {
-        // Get the model provider configuration from settings YAML
-        if (!state.modelProvider) {
-          throw new Error(
-            "Chat model is not initialized. Please check your model provider settings.",
-          );
-        }
-
         // Get the profile name from the incidents
         const profileName = incidents[0]?.activeProfileName;
         if (!profileName) {
           window.showErrorMessage("No profile name found in incidents");
           return;
         }
-
-        // Create array to store all diffs
-        const allDiffs: { original: string; modified: string; diff: string }[] = [];
 
         // Set the state to indicate we're fetching a solution
 
@@ -268,6 +278,7 @@ const commandsMap: (
               draft.solutionState = "failedOnSending";
             }
           });
+          executeDeferredWorkflowDisposal(state, logger);
         });
 
         try {
@@ -301,6 +312,7 @@ const commandsMap: (
               draft.solutionState = "failedOnSending";
             }
           });
+          executeDeferredWorkflowDisposal(state, logger);
         } finally {
           // Clear the stuck interaction monitoring
 
@@ -314,6 +326,7 @@ const commandsMap: (
             draft.isAnalyzing = false;
             draft.isAnalysisScheduled = false;
           });
+          executeDeferredWorkflowDisposal(state, logger);
 
           // Clean up queue manager
           if (queueManager) {
@@ -339,83 +352,10 @@ const commandsMap: (
         }
 
         // In agentic mode, file changes are handled through ModifiedFile messages
-        // In non-agentic mode, we need to process diffs from modified files
-        if (!agentMode) {
-          // Wait for all file processing to complete
-          await Promise.all(modifiedFilesPromises);
-
-          // Event-driven approach - wait for modifiedFiles to be populated
-          // This handles cases where message processing might still be ongoing
-          if (state.modifiedFiles.size === 0) {
-            await new Promise<void>((resolve) => {
-              const timeout = setTimeout(() => {
-                resolve();
-              }, 5000); // 5 seconds max timeout
-
-              const onFileAdded = () => {
-                clearTimeout(timeout);
-                state.modifiedFilesEventEmitter.removeListener("modifiedFileAdded", onFileAdded);
-                resolve();
-              };
-
-              state.modifiedFilesEventEmitter.once("modifiedFileAdded", onFileAdded);
-            });
-          }
-
-          // Process diffs from modified files
-          await Promise.all(
-            Array.from(state.modifiedFiles.entries()).map(async ([path, fileState]) => {
-              const { originalContent, modifiedContent } = fileState;
-              const uri = Uri.file(path);
-              const relativePath = workspace.asRelativePath(uri);
-              try {
-                if (!originalContent) {
-                  const diff = createTwoFilesPatch("", relativePath, "", modifiedContent);
-                  allDiffs.push({
-                    diff,
-                    modified: relativePath,
-                    original: "",
-                  });
-                } else {
-                  const diff = createPatch(relativePath, originalContent, modifiedContent);
-                  allDiffs.push({
-                    diff,
-                    modified: relativePath,
-                    original: relativePath,
-                  });
-                }
-              } catch (err) {
-                logger.error(`Error in processing diff for ${relativePath} - ${err}`);
-              }
-            }),
-          );
-
-          if (allDiffs.length === 0) {
-            // No code changes were generated - this is normal and not necessarily an error
-            logger.info("Workflow completed but no file changes were generated");
-            window.showInformationMessage(
-              "No code changes were suggested for the selected incidents.",
-            );
-
-            // Reset state and return early
-            state.mutateData((draft) => {
-              draft.solutionState = "received";
-              draft.isFetchingSolution = false;
-            });
-            return;
-          }
-        }
+        // In non-agentic mode, file changes are also handled through ModifiedFile messages
 
         // Reset the cache after all processing is complete
         state.kaiFsCache.reset();
-
-        // Create a solution response with properly structured changes
-        const solutionResponse: GetSolutionResult = {
-          changes: allDiffs,
-          encountered_errors: [],
-          scope: { incidents },
-          clientId: clientId,
-        };
 
         // Update the state - solution fetching is complete
         state.mutateData((draft) => {
@@ -423,9 +363,7 @@ const commandsMap: (
           draft.isFetchingSolution = false;
           // File changes are handled through ModifiedFile messages in both agent and non-agent modes
         });
-
-        // In non-agent mode, file changes are already handled through ModifiedFile messages
-        // No need to load solution into the old diff view
+        executeDeferredWorkflowDisposal(state, logger);
 
         // Clean up pending interactions and resolver function after successful completion
         // Only clean up if we're not waiting for user interaction
@@ -459,6 +397,7 @@ const commandsMap: (
             timestamp: new Date().toISOString(),
           });
         });
+        executeDeferredWorkflowDisposal(state, logger);
 
         window.showErrorMessage(
           `Failed to generate solution: ${error instanceof Error ? error.message : String(error)}`,
@@ -508,6 +447,7 @@ const commandsMap: (
         }
         draft.isWaitingForUserInteraction = false;
       });
+      executeDeferredWorkflowDisposal(state, logger);
       window.showInformationMessage("Fetching state has been reset.");
     },
     [`${EXTENSION_NAME}.changeDiscarded`]: async (path: string) => {

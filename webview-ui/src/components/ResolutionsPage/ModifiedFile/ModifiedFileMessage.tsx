@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Card, CardBody, Button } from "@patternfly/react-core";
 import {
   ModifiedFileMessageValue,
-  LocalChange,
   ChatMessageType,
   isOnlyLineEndingDiff,
   hasNoMeaningfulDiffContent,
@@ -15,7 +14,7 @@ import { useModifiedFileData } from "./useModifiedFileData";
 import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
 
 interface ModifiedFileMessageProps {
-  data: ModifiedFileMessageValue | LocalChange;
+  data: ModifiedFileMessageValue;
   timestamp?: string;
   onUserAction?: () => void;
 }

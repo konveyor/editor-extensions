@@ -5,6 +5,8 @@ on:
     branches:
       - "main"
       - "release-*"
+    tags:
+      - "v*"
 
   pull_request:
     paths-ignore:
@@ -160,28 +162,45 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "npm"
 
-      - name: Install workspace dependencies
+      - name: Install dependencies and build
         run: |
           npm ci
+          npm run build
 
-      - name: Build the project and generate the .vsix
+      - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run build
-          npm run collect-assets -- --use-workflow-artifacts --branch=main
+          npm run collect-assets -- --use-release
+
+      - name: Set version for build
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Tagged release: use tag version
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"  # Strip 'v' prefix
+            echo "Setting release version: $VERSION"
+            npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
+          else
+            # Development build: add timestamp and SHA
+            CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            SHA=$(git rev-parse --short HEAD)
+            DEV_VERSION="${CURRENT_VERSION}-dev.${TIMESTAMP}.${SHA}"
+            echo "Setting development version: $DEV_VERSION"
+            npm version "$DEV_VERSION" --workspaces --include-workspace-root --no-git-tag-version
+          fi
+
+      - name: Package extension
+        run: |
           npm run dist
           npm run package
-
-      - name: Rename VSIX
-        run: |
-          mv dist/*.vsix dist/konveyor-ai.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
           name: vsix-artifact
-          path: dist/konveyor-ai.vsix
+          path: ./dist/*.vsix
 
   test-e2e:
     name: Test E2E
@@ -263,19 +282,23 @@ jobs:
           name: vsix-artifact
           path: ./dist
 
+      - name: Set VSIX path
+        id: set_vsix_path
+        run: echo "vsix_path=$(ls -1 ./dist/*.vsix)" >> $GITHUB_OUTPUT
+
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
         working-directory: ./tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+          VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_path.outputs.vsix_path }}
 
       # This is intentionally kept in a separate step to avoid passing in credentials
       - name: Run e2e tests (Linux - Offline)
         run: npx playwright test e2e/tests/agent_flow_coolstore.test.ts
         working-directory: ./tests
         env:
-          VSIX_FILE_PATH: ${{ github.workspace }}/dist/konveyor-ai.vsix
+          VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_path.outputs.vsix_path }}
           OPENAI_API_KEY: <dummy> # this only exists to pass provider validation
 
       - name: Collect test artifacts
@@ -299,10 +322,11 @@ jobs:
           retention-days: 7
 
   publish:
-    name: Publish Release
+    name: Publish Development Build
     runs-on: ubuntu-latest
     needs: test-e2e
-    if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) }}
+    # Only publish development builds (not tagged releases)
+    if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) && ! startsWith(github.ref, 'refs/tags/v') }}
 
     steps:
       - name: Checkout code
@@ -314,21 +338,26 @@ jobs:
           name: vsix-artifact
           path: ./dist
 
-      - name: Set vsix suffix
-        id: set_time
-        run: echo "vsix_suffix=$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Find VSIX file
+        id: find_vsix
+        run: |
+          VSIX_FILE=$(find ./dist -name "*.vsix" -type f | head -1)
+          VSIX_NAME=$(basename "$VSIX_FILE")
+          echo "vsix_path=$VSIX_FILE" >> "$GITHUB_OUTPUT"
+          echo "vsix_name=$VSIX_NAME" >> "$GITHUB_OUTPUT"
+          echo "Found VSIX: $VSIX_NAME"
 
-      - name: Deploy release
+      - name: Deploy development build
         uses: WebFreak001/deploy-nightly@v3.2.0
         with:
-          upload_url: https://uploads.github.com/repos/konveyor/editor-extensions/releases/223723085/assets{?name,label}
-          release_id: 223723085
-          asset_path: ./dist/konveyor-ai.vsix
-          asset_name: konveyor-ai-${{ steps.set_time.outputs.vsix_suffix }}.vsix
+          upload_url: ${{ vars.CI_UPLOAD_URL }}
+          release_id: ${{ vars.CI_RELEASE_ID }}
+          asset_path: ${{ steps.find_vsix.outputs.vsix_path }}
+          asset_name: ${{ steps.find_vsix.outputs.vsix_name }}
           asset_content_type: application/octet-stream
           ignore_hash: true
 
-      - name: Cleanup old assets
+      - name: Cleanup old development builds
         run: |
           c=1
           for i in $(gh release view -R konveyor/editor-extensions development-builds --json assets | jq -r .assets[].name | sort -r); do
@@ -339,3 +368,14 @@ jobs:
           done
         env:
           GH_TOKEN: ${{ github.token }}
+
+  release:
+    name: Create Release
+    needs: test-e2e
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    uses: ./.github/workflows/release.yml
+    with:
+      tag_name: ${{ github.ref_name }}
+      prerelease: ${{ contains(github.ref_name, '-') }}
+      vsix_artifact_name: "vsix-artifact"
+    secrets: inherit

@@ -13,10 +13,16 @@
       ],
 
       "cwd": "${workspaceFolder}/vscode",
-      "outFiles": ["${workspaceFolder}/vscode/out/**/*.js"],
+      "outFiles": [
+        "${workspaceFolder}/vscode/out/**/*.js",
+        "${workspaceFolder}/agentic/dist/**/*.js",
+        "${workspaceFolder}/shared/dist/**/*.js"
+      ],
       "sourceMaps": true,
       "resolveSourceMapLocations": [
         "${workspaceFolder}/vscode/out/**",
+        "${workspaceFolder}/agentic/dist/**",
+        "${workspaceFolder}/shared/dist/**",
         "!**/node_modules/**"
       ],
 
@@ -30,7 +36,18 @@
         "--extensionDevelopmentPath=${workspaceFolder}/vscode",
         "--extensionTestsPath=${workspaceFolder}/vscode/out/test/suite/index"
       ],
-      "outFiles": ["${workspaceFolder}/vscode/out/test/**/*.js"],
+      "outFiles": [
+        "${workspaceFolder}/vscode/out/test/**/*.js",
+        "${workspaceFolder}/agentic/dist/**/*.js",
+        "${workspaceFolder}/shared/dist/**/*.js"
+      ],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/vscode/out/**",
+        "${workspaceFolder}/agentic/dist/**",
+        "${workspaceFolder}/shared/dist/**",
+        "!**/node_modules/**"
+      ],
       "preLaunchTask": "npm: test-watch - vscode"
     },
     {

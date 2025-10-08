@@ -2,10 +2,12 @@ import { createEvaluationChain } from '../chains/evaluation.chain';
 import { FileEvaluationResult } from '../model/evaluation-result.model';
 import { FileEvaluationInput } from '../model/evaluation-input.model';
 import { isSyntaxValid } from '../utils/build.utils';
+import { KaiEvaluatorOptions } from '../core';
 
 export async function evaluateFile(
   file: string,
-  input: FileEvaluationInput
+  input: FileEvaluationInput,
+  evaluatorOptions: KaiEvaluatorOptions
 ): Promise<FileEvaluationResult> {
   const chain = await createEvaluationChain();
 
@@ -18,11 +20,10 @@ export async function evaluateFile(
 
   const query = `Original content: \n\`\`\`\n${input.originalContent}\n\`\`\`\n Incidents: ${incidentDescriptions}\n UpdatedContent: \n\`\`\`\n${input.updatedContent}\n\`\`\``;
 
-  // TODO support multiple targets and fetch them from a different place
   const evalResult = await chain.invoke({
     query,
-    source: 'java-ee',
-    target: 'quarkus',
+    sources: evaluatorOptions.sources.join(', '),
+    targets: evaluatorOptions.targets.join(', '),
   });
 
   return {

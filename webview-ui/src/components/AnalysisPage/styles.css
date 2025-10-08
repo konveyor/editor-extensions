@@ -18,9 +18,4 @@
 }
 
 .agent-mode-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 8px 0px;
 }
