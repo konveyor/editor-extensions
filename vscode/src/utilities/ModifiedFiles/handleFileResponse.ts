@@ -231,9 +231,11 @@ export async function handleFileResponse(
 
     // Resolve the workflow interaction for modifiedFile type
     // This is needed to complete the promise-based flow in the agentic workflow
-    const workflow = state.workflowManager?.getWorkflow();
-    if (workflow) {
+    // Only attempt to access workflow if it's initialized (agent mode)
+    if (state.workflowManager?.isInitialized) {
       try {
+        const workflow = state.workflowManager.getWorkflow();
+
         // Build the data object conditionally
         const interactionData: KaiUserInteraction = {
           type: "modifiedFile",
