@@ -52,6 +52,18 @@ export const openFile = (
   type: "OPEN_FILE",
   payload: { file, line },
 });
+export interface QuickResponsePayload {
+  responseId: string;
+  messageToken: string;
+  selectedIssues?: string[];
+}
+
+export const quickResponse = (
+  payload: QuickResponsePayload,
+): WebviewAction<WebviewActionType, QuickResponsePayload> => ({
+  type: "QUICK_RESPONSE",
+  payload,
+});
 
 export const getSuccessRate = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "GET_SUCCESS_RATE",

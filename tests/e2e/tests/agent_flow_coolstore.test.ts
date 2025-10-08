@@ -95,16 +95,28 @@ providers.forEach((config) => {
           done = true;
           break;
         }
-        // either a Yes/No button or 'Accept all changes' button will be visible throughout the flow
-        const yesButton = resolutionView.locator('button').filter({ hasText: 'Yes' });
+        // either a Yes/No button, Fix All button, or 'Accept all changes' button will be visible throughout the flow
+        const enabledYesButton = resolutionView
+          .locator('button:enabled')
+          .filter({ hasText: 'Yes' });
+        const disabledYesButton = resolutionView
+          .locator('button:disabled')
+          .filter({ hasText: 'Yes' });
+        const enabledFixAllButton = resolutionView
+          .locator('button:enabled')
+          .filter({ hasText: /Fix All/ });
         const acceptChangesLocator = resolutionView.locator(
           'button[aria-label="Accept all changes"]'
         );
-        const yesButtonCount = await yesButton.count();
-        if (yesButtonCount > lastYesButtonCount) {
-          lastYesButtonCount = yesButtonCount;
+
+        const enabledYesButtonCount = await enabledYesButton.count();
+        const disabledYesButtonCount = await disabledYesButton.count();
+        const enabledFixAllButtonCount = await enabledFixAllButton.count();
+
+        if (enabledYesButtonCount > 0 && enabledYesButtonCount > lastYesButtonCount) {
+          lastYesButtonCount = enabledYesButtonCount;
           await vscodeApp.waitDefault();
-          await yesButton.last().click();
+          await enabledYesButton.last().click();
           console.log('Yes button clicked');
           await vscodeApp.getWindow().screenshot({
             path: pathlib.join(
@@ -112,6 +124,18 @@ providers.forEach((config) => {
               'agentic_flow_coolstore',
               `${config.model.replace(/[.:]/g, '-')}`,
               `${1000 - maxIterations}-yesNo.png`
+            ),
+          });
+        } else if (disabledYesButtonCount > 0 && enabledFixAllButtonCount > 0) {
+          await vscodeApp.waitDefault();
+          await enabledFixAllButton.last().click();
+          console.log('Fix All button clicked (yes button was disabled)');
+          await vscodeApp.getWindow().screenshot({
+            path: pathlib.join(
+              SCREENSHOTS_FOLDER,
+              'agentic_flow_coolstore',
+              `${config.model.replace(/[.:]/g, '-')}`,
+              `${1000 - maxIterations}-fixAll.png`
             ),
           });
         } else if ((await acceptChangesLocator.count()) > 0) {

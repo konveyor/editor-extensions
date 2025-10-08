@@ -1,3 +1,10 @@
+/**
+ * Development version of ResolutionsPage with test message injection.
+ *
+ * This file duplicates the ResolutionPage logic but adds the ability to inject
+ * test messages. This duplication is intentional to keep production code clean.
+ */
+
 import "./resolutionsPage.css";
 import React, { useMemo, useCallback, useState } from "react";
 import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
@@ -16,19 +23,14 @@ import { ReceivedMessage } from "./ReceivedMessage";
 import { ToolMessage } from "./ToolMessage";
 import { ModifiedFileMessage } from "./ModifiedFile";
 import { useExtensionStateContext } from "../../context/ExtensionStateContext";
-import {
-  Chatbot,
-  ChatbotContent,
-  ChatbotDisplayMode,
-  ChatbotFootnote,
-  ChatbotFooter,
-  MessageBox,
-} from "@patternfly/chatbot";
+import { Chatbot, ChatbotContent, ChatbotDisplayMode, MessageBox } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
 import LoadingIndicator from "./LoadingIndicator";
 import { MessageWrapper } from "./MessageWrapper";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
-// Unified hook for both modes
+import { TestDiagnosticInjector } from "./TestDiagnosticInjector";
+
+// Reuse the same hooks from the original ResolutionPage
 const useResolutionData = (state: any) => {
   const {
     chatMessages = [],
@@ -53,10 +55,7 @@ const useResolutionData = (state: any) => {
     );
   }, [solutionState, chatMessages]);
 
-  const hasResponseWithErrors = useMemo(
-    () => false, // No longer tracking solution response errors
-    [solutionState],
-  );
+  const hasResponseWithErrors = useMemo(() => false, [solutionState]);
 
   return {
     isTriggeredByUser,
@@ -115,19 +114,27 @@ const UserRequestMessages: React.FC<{
   );
 };
 
-const ResolutionPage: React.FC = () => {
+const ResolutionPageDev: React.FC = () => {
   const { state, dispatch } = useExtensionStateContext();
   const { solutionScope } = state;
 
   // Track which messages have had their quick responses selected
   const [respondedMessageTokens, setRespondedMessageTokens] = useState<Set<string>>(new Set());
 
+  // TEST FUNCTIONALITY: Track injected test messages
+  const [testMessages, setTestMessages] = useState<ChatMessage[]>([]);
+
   // Unified data hook
   const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
     useResolutionData(state);
 
+  // DEVELOPMENT: Merge real messages with test messages
+  const allMessages = useMemo(() => {
+    return [...(chatMessages || []), ...testMessages];
+  }, [chatMessages, testMessages]);
+
   const { messageBoxRef, triggerScrollOnUserAction } = useScrollManagement(
-    chatMessages,
+    allMessages,
     isFetchingSolution,
   );
 
@@ -140,13 +147,18 @@ const ResolutionPage: React.FC = () => {
     setRespondedMessageTokens((prev) => new Set([...prev, messageToken]));
   }, []);
 
-  // Render chat messages
+  // DEVELOPMENT: Handle injecting test messages
+  const handleInjectTestMessage = useCallback((message: ChatMessage) => {
+    setTestMessages((prev) => [...prev, message]);
+  }, []);
+
+  // Render chat messages (using allMessages instead of chatMessages)
   const renderChatMessages = useCallback(() => {
-    if (!Array.isArray(chatMessages) || chatMessages?.length === 0) {
+    if (!Array.isArray(allMessages) || allMessages?.length === 0) {
       return null;
     }
 
-    return chatMessages.map((msg) => {
+    return allMessages.map((msg) => {
       if (!msg) {
         return null;
       }
@@ -257,7 +269,7 @@ const ResolutionPage: React.FC = () => {
       return null;
     });
   }, [
-    chatMessages,
+    allMessages,
     respondedMessageTokens,
     handleQuickResponse,
     isAnalyzing,
@@ -295,7 +307,7 @@ const ResolutionPage: React.FC = () => {
             )}
 
             {/* No content to view */}
-            {hasNothingToView && (
+            {hasNothingToView && allMessages.length === 0 && (
               <MessageWrapper>
                 <ReceivedMessage content="No resolutions available." />
               </MessageWrapper>
@@ -305,20 +317,12 @@ const ResolutionPage: React.FC = () => {
             {renderChatMessages()}
           </MessageBox>
         </ChatbotContent>
-        <ChatbotFooter>
-          <ChatbotFootnote
-            className="footnote"
-            label="Always review AI generated content prior to use."
-            popover={{
-              title: "Verify information",
-              description:
-                "AI is experimental and can make mistakes. We cannot guarantee that all information provided by AI is up to date or without error. You should always verify responses using reliable sources, especially for crucial information and decision making.",
-            }}
-          />
-        </ChatbotFooter>
       </Chatbot>
+
+      {/* TEST INJECTOR - Only in development */}
+      <TestDiagnosticInjector onInjectMessage={handleInjectTestMessage} />
     </Page>
   );
 };
 
-export default ResolutionPage;
+export default ResolutionPageDev;
