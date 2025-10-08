@@ -294,17 +294,17 @@ export class AnalyzerClient {
     analyzerRpcServer.stderr.on("data", (data) => {
       const asString: string = data.toString().trimEnd();
       this.logger.error(`${asString}`);
-      // Collect stderr for potential Java error detection
+      // Collect stderr for potential Java/Maven error detection
       stderrBuffer += asString + "\n";
     });
 
-    // Handle exit event with Java error detection
+    // Handle exit event with Java/Maven error detection
     analyzerRpcServer.on("exit", (code, signal) => {
       this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);
 
       if (code) {
         // Check if it's the specific Java error
-        if (stderrBuffer.toLowerCase().includes("java is not installed or not on the path")) {
+        if (stderrBuffer.toLowerCase().includes("java is not installed")) {
           // Show user-friendly Java error with action button
           vscode.window
             .showErrorMessage(
@@ -318,6 +318,23 @@ export class AnalyzerClient {
                 vscode.env.openExternal(
                   vscode.Uri.parse("https://developers.redhat.com/products/openjdk/download"),
                 );
+              }
+            });
+        } else if (stderrBuffer.toLowerCase().includes("maven is not installed")) {
+          // Show user-friendly Maven error with action button
+          vscode.window
+            .showErrorMessage(
+              "Maven is required for the analyzer server but was not found. " +
+                "Please install Maven (version 3.6 or later) and ensure the 'mvn' " +
+                "command is available in your system PATH.",
+              "Install Maven",
+              "Maven Setup Guide",
+            )
+            .then((selection) => {
+              if (selection === "Install Maven") {
+                vscode.env.openExternal(vscode.Uri.parse("https://maven.apache.org/download.cgi"));
+              } else if (selection === "Maven Setup Guide") {
+                vscode.env.openExternal(vscode.Uri.parse("https://maven.apache.org/install.html"));
               }
             });
         } else {
