@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Logger } from "winston";
 import zodToJsonSchema from "zod-to-json-schema";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import {
@@ -26,6 +27,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     private readonly name: string,
     protected readonly modelProvider: KaiModelProvider,
     private readonly tools: DynamicStructuredTool[],
+    protected readonly logger: Logger,
   ) {
     super();
 
@@ -116,7 +118,7 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         await runnable.stream(processedInput, options),
       );
     } catch (err) {
-      console.error("Error callling stream()", err);
+      this.logger.error("Error callling stream()", { error: err });
       if (emitResponseChunks) {
         this.emitWorkflowMessage({
           id: messageId,

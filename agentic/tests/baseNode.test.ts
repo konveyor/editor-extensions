@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { createLogger, format } from "winston";
+import { Console } from "winston/lib/winston/transports";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
@@ -14,7 +16,12 @@ class TestNode extends BaseNode {
     tools: DynamicStructuredTool[],
     private readonly enableTools: boolean = true,
   ) {
-    super("test", modelProvider, tools);
+    super(
+      "test",
+      modelProvider,
+      tools,
+      createLogger({ level: "error", format: format.simple(), transports: [new Console()] }),
+    );
 
     this.invoke = this.invoke.bind(this);
   }

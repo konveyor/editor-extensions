@@ -42,9 +42,9 @@ export class DiagnosticsIssueFix extends BaseNode {
     fsTools: DynamicStructuredTool[],
     dependencyTools: DynamicStructuredTool[],
     private readonly workspaceDir: string,
-    private readonly logger: Logger,
+    logger: Logger,
   ) {
-    super("DiagnosticsIssueFix", modelProvider, [...fsTools, ...dependencyTools]);
+    super("DiagnosticsIssueFix", modelProvider, [...fsTools, ...dependencyTools], logger);
     this.diagnosticsPromises = new Map<string, PendingUserInteraction>();
 
     this.planFixes = this.planFixes.bind(this);
