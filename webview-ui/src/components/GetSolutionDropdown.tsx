@@ -6,6 +6,7 @@ import {
   DropdownItem,
   MenuToggle,
   MenuToggleAction,
+  Tooltip,
 } from "@patternfly/react-core";
 import { EnhancedIncident } from "@editor-extensions/shared";
 import { useExtensionStateContext } from "../context/ExtensionStateContext";
@@ -53,15 +54,23 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
           variant="plain"
           isDisabled={isButtonDisabled}
           splitButtonItems={[
-            <MenuToggleAction
-              id="get-solution-button"
-              key="split-action-primary"
-              onClick={() => onGetSolution(incidents)}
-              aria-label="Get solution"
-              data-scope={scope}
+            <Tooltip
+              key="split-action-primary-tooltip"
+              content="Always review AI generated content prior to use."
             >
-              <WrenchIcon />
-            </MenuToggleAction>,
+              <MenuToggleAction
+                id="get-solution-button"
+                key="split-action-primary"
+                onClick={() => onGetSolution(incidents)}
+                aria-label="Get solution"
+                data-scope={scope}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <WrenchIcon />
+                  <span style={{ fontSize: "0.875rem", color: "#6a6e73" }}>AI</span>
+                </div>
+              </MenuToggleAction>
+            </Tooltip>,
           ]}
           onClick={() => setIsOpen(!isOpen)}
           isExpanded={isOpen}
