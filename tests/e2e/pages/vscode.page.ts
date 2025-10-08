@@ -1,6 +1,6 @@
 import { FrameLocator } from 'playwright';
 import { expect, Page } from '@playwright/test';
-import { generateRandomString, getOSInfo } from '../utilities/utils';
+import { extensionName, generateRandomString, getOSInfo } from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
@@ -438,5 +438,14 @@ export abstract class VSCode {
 
   public async waitDefault() {
     await this.window.waitForTimeout(process.env.CI ? 5000 : 3000);
+  }
+
+  /**
+   * Enables or disables the Generative AI feature in VSCode for the current workspace.
+   * @param enabled - `true` to enable GenAI, `false` to disable it.
+   */
+  public async setGenerativeAIEnabled(enabled: boolean): Promise<void> {
+    const genAISettingKey = `${extensionName}.genai.enabled`;
+    await this.writeOrUpdateVSCodeSettings({ [genAISettingKey]: enabled });
   }
 }
