@@ -1,9 +1,9 @@
-import * as pathlib from 'path';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
-import * as fs from 'fs/promises';
-import { generateRandomString } from '../../utilities/utils';
+import { extensionShortName, generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
 import { KAIViews } from '../../enums/views.enum';
 
@@ -49,7 +49,8 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Disable and enable Generative AI', async () => {
-    await vscodeApp.setGenerativeAIEnabled(false); // disable
+    await vscodeApp.setGenerativeAIEnabled(false); // disable and verify in settings.json
+    await vscodeApp.waitDefault();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');
     await expect(analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })).toBeVisible();
@@ -58,6 +59,7 @@ test.describe(`Configure extension and run analysis`, () => {
     await expect(solutionButton.first()).not.toBeVisible({ timeout: 36000 });
 
     await vscodeApp.setGenerativeAIEnabled(true); // enable
+    await vscodeApp.waitDefault();
     await expect(
       analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })
     ).not.toBeVisible();
@@ -135,7 +137,7 @@ test.describe(`Configure extension and run analysis`, () => {
       .getWindow()
       .getByPlaceholder('Enter the path where the debug archive will be saved');
     expect(await zipPathInput.count()).toEqual(1);
-    await zipPathInput.fill(pathlib.join('.vscode', 'debug-archive.zip'));
+    await zipPathInput.fill(path.join('.vscode', 'debug-archive.zip'));
     await vscodeApp.getWindow().keyboard.press('Enter');
     await vscodeApp.waitDefault();
     const redactProviderConfigInput = vscodeApp
@@ -151,12 +153,12 @@ test.describe(`Configure extension and run analysis`, () => {
       await vscodeApp.getWindow().keyboard.press('Enter');
       await vscodeApp.waitDefault();
     }
-    const zipPath = pathlib.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
+    const zipPath = path.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
     const zipStat = await fs.stat(zipPath);
     expect(zipStat.isFile()).toBe(true);
-    const extractedPath = pathlib.join(repoInfo.repoName, '.vscode');
+    const extractedPath = path.join(repoInfo.repoName, '.vscode');
     extractZip(zipPath, extractedPath);
-    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
+    const logsPath = path.join(extractedPath, 'logs', 'extension.log');
     const logsStat = await fs.stat(logsPath);
     expect(logsStat.isFile()).toBe(true);
   });

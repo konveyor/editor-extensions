@@ -7,6 +7,7 @@ import { MIN, SEC } from '../utilities/consts';
 import { createZip, extractZip } from '../utilities/archive';
 import {
   cleanupRepo,
+  extensionName,
   generateRandomString,
   getOSInfo,
   writeOrUpdateSettingsJson,
@@ -683,7 +684,7 @@ export class VSCode extends BasePage {
    * @param enabled - `true` to enable GenAI, `false` to disable it.
    */
   public async setGenerativeAIEnabled(enabled: boolean): Promise<void> {
-    const genAISettingKey = 'konveyor.genai.enabled';
+    const genAISettingKey = `${extensionName}.genai.enabled`;
     await this.writeOrUpdateVSCodeSettings({ [genAISettingKey]: enabled });
   }
 }
