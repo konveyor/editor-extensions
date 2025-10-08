@@ -87,15 +87,28 @@ jobs:
         if: ${{ inputs.prerelease == false }}
         run: |
           echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
+          npx @vscode/vsce --version
           if [ -f "./artifacts/release.md" ]; then
             echo "Publishing with changelog"
-            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --changelog-path "./artifacts/release.md"
+            npx  @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --changelog-path "./artifacts/release.md"
           else
             echo "Publishing without changelog (file not found)"
-            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}"
+            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" 
           fi
         env:
           VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+
+      - name: Publish to Open-vsx registery
+        if: ${{ inputs.prerelease == false }}
+        run: |
+          echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
+          if [ -f "./artifacts/release.md" ]; then
+            echo "Publishing with changelog"
+            npx ovsx publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --changelog-path "./artifacts/release.md" --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
+          else
+            echo "Publishing to  Open-vsx registery"
+            npx ovsx publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
+          fi
 
       - name: Create Release
         uses: ncipollo/release-action@v1
