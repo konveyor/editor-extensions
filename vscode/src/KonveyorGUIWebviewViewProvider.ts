@@ -42,8 +42,8 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   private _isPanelReady: boolean = false;
   private _isWebviewReady: boolean = false;
   private _messageQueue: any[] = [];
-  private _webviewMessageListenerDisposable?: Disposable;
-  private _setupWebviewMessageListenerDisposable?: Disposable;
+  private _webviewReadyListenerDisposable?: Disposable; // Listener for WEBVIEW_READY message
+  private _commandMessageListenerDisposable?: Disposable; // Listener for all other webview commands
 
   constructor(
     private readonly _extensionState: ExtensionState,
@@ -306,23 +306,24 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
 
   private _setWebviewMessageListener(webview: Webview) {
     // Dispose previous listeners if they exist to prevent duplicates
-    if (this._webviewMessageListenerDisposable) {
-      this._webviewMessageListenerDisposable.dispose();
-      this._webviewMessageListenerDisposable = undefined;
+    if (this._webviewReadyListenerDisposable) {
+      this._webviewReadyListenerDisposable.dispose();
+      this._webviewReadyListenerDisposable = undefined;
     }
-    if (this._setupWebviewMessageListenerDisposable) {
-      this._setupWebviewMessageListenerDisposable.dispose();
-      this._setupWebviewMessageListenerDisposable = undefined;
+    if (this._commandMessageListenerDisposable) {
+      this._commandMessageListenerDisposable.dispose();
+      this._commandMessageListenerDisposable = undefined;
     }
 
-    // Store the disposable from setupWebviewMessageListener
-    this._setupWebviewMessageListenerDisposable = setupWebviewMessageListener(
+    // Set up the main message handler that processes all webview actions
+    // (RUN_ANALYSIS, GET_SOLUTION, OPEN_FILE, etc.) except WEBVIEW_READY
+    this._commandMessageListenerDisposable = setupWebviewMessageListener(
       webview,
       this._extensionState,
     );
 
-    // Store the new listener disposable separately so we can dispose it later
-    this._webviewMessageListenerDisposable = webview.onDidReceiveMessage((message) => {
+    // Set up ready listener specifically for the WEBVIEW_READY message
+    this._webviewReadyListenerDisposable = webview.onDidReceiveMessage((message) => {
       if (message.type === "WEBVIEW_READY") {
         this._isWebviewReady = true;
         this._isPanelReady = true;
@@ -341,13 +342,13 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     this._isPanelReady = false;
 
     // Dispose webview message listeners if they exist
-    if (this._webviewMessageListenerDisposable) {
-      this._webviewMessageListenerDisposable.dispose();
-      this._webviewMessageListenerDisposable = undefined;
+    if (this._webviewReadyListenerDisposable) {
+      this._webviewReadyListenerDisposable.dispose();
+      this._webviewReadyListenerDisposable = undefined;
     }
-    if (this._setupWebviewMessageListenerDisposable) {
-      this._setupWebviewMessageListenerDisposable.dispose();
-      this._setupWebviewMessageListenerDisposable = undefined;
+    if (this._commandMessageListenerDisposable) {
+      this._commandMessageListenerDisposable.dispose();
+      this._commandMessageListenerDisposable = undefined;
     }
   }
   private sendMessage(message: any, webview: Webview) {
