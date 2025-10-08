@@ -8,6 +8,7 @@ import { runEvaluation } from '../../kai-evaluator/core';
 import { prepareEvaluationData, saveOriginalAnalysisFile } from '../utilities/evaluation.utils';
 import { KAIViews } from '../enums/views.enum';
 import { isAWSConfigured } from '../../kai-evaluator/utils/s3.utils';
+import * as VSCodeFactory from '../utilities/vscode.factory';
 
 const providers = process.env.CI ? getAvailableProviders() : [DEFAULT_PROVIDER];
 
@@ -23,7 +24,7 @@ providers.forEach((config) => {
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
       profileName = `${repoInfo.repoName}-${randomString}`;
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
