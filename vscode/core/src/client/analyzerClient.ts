@@ -111,29 +111,6 @@ export class AnalyzerClient {
 
     const pipeName = rpc.generateRandomPipeName();
     const [analyzerRpcServer, analyzerPid] = this.startAnalysisServer(pipeName);
-    analyzerRpcServer.on("exit", (code, signal) => {
-      this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);
-      if (code) {
-        vscode.window.showErrorMessage(
-          `Analyzer RPC server failed. Status code: ${code}. Please see the output channel for details.`,
-        );
-      }
-      this.fireServerStateChange("stopped");
-      this.analyzerRpcServer = null;
-    });
-    analyzerRpcServer.on("close", (code, signal) => {
-      this.logger.info(`Analyzer RPC server closed [signal: ${signal}, code: ${code}]`);
-      this.fireServerStateChange("stopped");
-      this.analyzerRpcServer = null;
-    });
-    analyzerRpcServer.on("error", (err) => {
-      this.logger.error("Analyzer RPC server error", err);
-      this.fireServerStateChange("startFailed");
-      this.analyzerRpcServer = null;
-      vscode.window.showErrorMessage(
-        `Analyzer RPC server failed - ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
     this.analyzerRpcServer = analyzerRpcServer;
     this.logger.info(`Analyzer RPC server started successfully [pid: ${analyzerPid}]`);
 
@@ -311,9 +288,63 @@ export class AnalyzerClient {
       },
     );
 
+    // Buffer to collect stderr for error analysis
+    let stderrBuffer = "";
+
     analyzerRpcServer.stderr.on("data", (data) => {
       const asString: string = data.toString().trimEnd();
       this.logger.error(`${asString}`);
+      // Collect stderr for potential Java error detection
+      stderrBuffer += asString + "\n";
+    });
+
+    // Handle exit event with Java error detection
+    analyzerRpcServer.on("exit", (code, signal) => {
+      this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);
+
+      if (code) {
+        // Check if it's the specific Java error
+        if (stderrBuffer.toLowerCase().includes("java is not installed or not on the path")) {
+          // Show user-friendly Java error with action button
+          vscode.window
+            .showErrorMessage(
+              "Java runtime is required for the analyzer server but was not found. " +
+                "Please install Red Hat OpenJDK (JDK 11 or later) and ensure the 'java' " +
+                "command is available in your system PATH.",
+              "Install Red Hat OpenJDK",
+            )
+            .then((selection) => {
+              if (selection === "Install Red Hat OpenJDK") {
+                vscode.env.openExternal(
+                  vscode.Uri.parse("https://developers.redhat.com/products/openjdk/download"),
+                );
+              }
+            });
+        } else {
+          // Show generic error as before
+          vscode.window.showErrorMessage(
+            `Analyzer RPC server failed. Status code: ${code}. Please see the output channel for details.`,
+          );
+        }
+      }
+
+      this.fireServerStateChange("stopped");
+      this.analyzerRpcServer = null;
+    });
+
+    analyzerRpcServer.on("close", (code, signal) => {
+      this.logger.info(`Analyzer RPC server closed [signal: ${signal}, code: ${code}]`);
+      this.fireServerStateChange("stopped");
+      this.analyzerRpcServer = null;
+    });
+
+    analyzerRpcServer.on("error", (err) => {
+      this.logger.error("Analyzer RPC server error", err);
+      this.fireServerStateChange("startFailed");
+      this.analyzerRpcServer = null;
+      vscode.window.showErrorMessage(
+        `Analyzer RPC server failed - ${err instanceof Error ? err.message : String(err)}`,
+      );
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
