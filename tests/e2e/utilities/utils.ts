@@ -5,6 +5,9 @@ import * as path from 'path';
 import type { TestInfo } from '@playwright/test';
 import { rm } from 'node:fs/promises';
 import process from 'process';
+import { expect } from '@playwright/test';
+import type { VSCode } from '../pages/vscode.page';
+import { SCREENSHOTS_FOLDER } from './consts';
 
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
@@ -113,4 +116,50 @@ export function writeOrUpdateSettingsJson(settingsPath: string, settings: Record
     console.error('Error writing VSCode settings:', error);
     throw error;
   }
+}
+
+/**
+ * Verifies that the analysis view is in a clean, interactive state after test completion.
+ * This includes navigating back to the analysis view, checking for no loading elements,
+ * verifying the analysis table is visible, and taking a final screenshot.
+ *
+ * @param vscodeApp - The VSCode instance
+ * @param screenshotPath - Path for the final screenshot
+ * @param logPrefix - Prefix for console log messages (e.g., "Agent flow" or "Non-agent flow")
+ */
+export async function verifyAnalysisViewCleanState(
+  vscodeApp: VSCode,
+  screenshotPath: string,
+  logPrefix: string = 'Test'
+): Promise<void> {
+  // Navigate back to the analysis view to verify the table is shown properly
+  await vscodeApp.openAnalysisView();
+  console.log(`${logPrefix}: Navigated back to analysis view`);
+
+  // Import KAIViews locally to avoid circular dependency
+  const { KAIViews } = await import('../enums/views.enum');
+
+  // Verify that the analysis table is visible and there are no loading elements
+  const returnedAnalysisView = await vscodeApp.getView(KAIViews.analysisView);
+
+  // Wait for any loading to complete - check for backdrop, spinners, and waiting messages
+  const backdrop = returnedAnalysisView.locator('.pf-v6-c-backdrop');
+  const spinner = returnedAnalysisView.locator('.pf-v6-c-spinner');
+  const waitingText = returnedAnalysisView.getByText('Waiting for user action...');
+
+  await expect(backdrop).not.toBeVisible({ timeout: 30000 });
+  await expect(spinner).not.toBeVisible({ timeout: 30000 });
+  await expect(waitingText).not.toBeVisible({ timeout: 30000 });
+  console.log(
+    `${logPrefix}: Verified no backdrop overlay, spinners, or waiting messages are present`
+  );
+
+  // Verify that the analysis table/results are visible
+  const analysisTable = returnedAnalysisView.locator('[data-ouia-component-type="PF6/Card"]');
+  await expect(analysisTable.first()).toBeVisible({ timeout: 30000 });
+  console.log(`${logPrefix}: Verified analysis table is visible`);
+
+  // Take final screenshot showing the analysis view with table displayed
+  await vscodeApp.getWindow().screenshot({ path: screenshotPath });
+  console.log(`${logPrefix}: Final screenshot saved to ${screenshotPath}`);
 }

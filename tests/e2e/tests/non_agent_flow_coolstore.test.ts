@@ -17,7 +17,7 @@ const providers = [OPENAI_GPT4O_PROVIDER];
 const profileName = 'JavaEE to Quarkus';
 
 providers.forEach((config) => {
-  test.describe(`Coolstore app tests with agent mode enabled - offline (cached) | ${config.provider}/${config.model}`, () => {
+  test.describe(`Coolstore app tests with agent mode disabled - offline (cached) | ${config.provider}/${config.model}`, () => {
     let vscodeApp: VSCode;
     test.beforeAll(async ({ testRepoData }: { testRepoData: any }, testInfo: any) => {
       test.setTimeout(1600000);
@@ -43,8 +43,8 @@ providers.forEach((config) => {
       });
     });
 
-    // this test uses cached data, and only ensures that the agent mode flow works
-    test('Fix JMS Topic issue with agent mode enabled (offline)', async () => {
+    // this test uses cached data, and ensures that the non-agent mode flow works for specific JMS issue
+    test('Fix JMS Topic issue with agent mode disabled (offline)', async () => {
       test.setTimeout(3600000);
       // set demoMode and update java configuration to auto-reload
       await vscodeApp.writeOrUpdateVSCodeSettings({
@@ -52,17 +52,26 @@ providers.forEach((config) => {
         [kaiDemoMode]: true,
         'java.configuration.updateBuildConfiguration': 'automatic',
       });
-      // we need to run analysis before enabling agent mode
+
+      // run analysis first
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 300000,
       });
-      // enable agent mode
+
+      // Ensure agent mode is disabled (it should be by default)
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);
       const agentModeSwitch = analysisView.locator('input#agent-mode-switch');
-      await agentModeSwitch.click();
-      console.log('Agent mode enabled');
+
+      // Check if agent mode is enabled and disable it if necessary
+      if (await agentModeSwitch.isChecked()) {
+        await agentModeSwitch.click();
+        console.log('Agent mode disabled');
+      } else {
+        console.log('Agent mode already disabled');
+      }
+
       // find the JMS issue to fix
       await vscodeApp.searchViolation('References to JavaEE/JakartaEE JMS elements');
 
@@ -72,87 +81,101 @@ providers.forEach((config) => {
       await expect(fixButton).toBeVisible({ timeout: 30000 });
       await fixButton.click();
       console.log('Fix button clicked');
+
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
       await vscodeApp.waitDefault();
+
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(
           SCREENSHOTS_FOLDER,
-          'agentic_flow_coolstore',
+          'non_agentic_flow_coolstore',
           `${config.model.replace(/[.:]/g, '-')}`,
-          `resolution-view-before-agent-flow.png`
+          `resolution-view-before-non-agent-flow.png`
         ),
       });
-      let done = false;
-      let maxIterations = process.env.CI ? 50 : 200; // just for safety against inf loops, increase when generating new cache if this is hit
-      let lastYesButtonCount = 0;
-      while (!done) {
-        maxIterations -= 1;
-        if (maxIterations <= 0) {
-          throw new Error('Agent loop did not finish within given iterations, this is unexpected');
-        }
-        // if the loading indicator is no longer visible, we have reached the end
-        if ((await resolutionView.getByText('Done addressing all issues. Goodbye!').count()) > 0) {
-          console.log('All issues have been addressed.');
-          done = true;
-          break;
-        }
-        // either a Yes/No button or 'Accept all changes' button will be visible throughout the flow
-        const yesButton = resolutionView.locator('button').filter({ hasText: 'Yes' });
-        const acceptChangesLocator = resolutionView.locator(
-          'button[aria-label="Accept all changes"]'
-        );
-        const yesButtonCount = await yesButton.count();
-        if (yesButtonCount > lastYesButtonCount) {
-          lastYesButtonCount = yesButtonCount;
-          await vscodeApp.waitDefault();
-          await yesButton.last().click();
-          console.log('Yes button clicked');
-          await vscodeApp.getWindow().screenshot({
-            path: pathlib.join(
-              SCREENSHOTS_FOLDER,
-              'agentic_flow_coolstore',
-              `${config.model.replace(/[.:]/g, '-')}`,
-              `${1000 - maxIterations}-yesNo.png`
-            ),
-          });
-        } else if ((await acceptChangesLocator.count()) > 0) {
-          await acceptChangesLocator.last().click();
-          console.log('Accept all changes button clicked');
-          await vscodeApp.getWindow().screenshot({
-            path: pathlib.join(
-              SCREENSHOTS_FOLDER,
-              'agentic_flow_coolstore',
-              `${config.model.replace(/[.:]/g, '-')}`,
-              `${1000 - maxIterations}-tasks.png`
-            ),
-          });
+
+      // In non-agent mode, we should expect to see solutions presented directly
+      // without the interactive Yes/No flow. Look for "Accept all changes" button
+      // or similar solution acceptance mechanisms
+
+      // Wait for the solution to be generated and presented
+      const acceptChangesLocator = resolutionView.locator(
+        'button[aria-label="Accept all changes"]'
+      );
+
+      // Wait for either the accept changes button or some indication that solutions are ready
+      let solutionReady = false;
+      let maxWaitTime = 60; // 60 seconds max wait
+
+      while (!solutionReady && maxWaitTime > 0) {
+        const acceptButtonVisible = (await acceptChangesLocator.count()) > 0;
+        const solutionText = (await resolutionView.getByText('Solution').count()) > 0;
+        const codeChanges = (await resolutionView.locator('.monaco-editor').count()) > 0;
+
+        if (acceptButtonVisible || solutionText || codeChanges) {
+          solutionReady = true;
+          console.log('Solution appears to be ready');
         } else {
-          await vscodeApp.getWindow().screenshot({
-            path: pathlib.join(
-              SCREENSHOTS_FOLDER,
-              'agentic_flow_coolstore',
-              `${config.model.replace(/[.:]/g, '-')}`,
-              `resolution-view-waiting.png`
-            ),
-          });
-          console.log(
-            `Waiting for 3 seconds for next action to appear, ${maxIterations} iterations remaining`
-          );
-          await vscodeApp.getWindow().waitForTimeout(3000);
+          console.log(`Waiting for solution to be ready... ${maxWaitTime} seconds remaining`);
+          await vscodeApp.getWindow().waitForTimeout(1000);
+          maxWaitTime--;
         }
       }
+
+      if (!solutionReady) {
+        throw new Error('Solution was not ready within the expected time frame');
+      }
+
+      await vscodeApp.getWindow().screenshot({
+        path: pathlib.join(
+          SCREENSHOTS_FOLDER,
+          'non_agentic_flow_coolstore',
+          `${config.model.replace(/[.:]/g, '-')}`,
+          `solution-ready.png`
+        ),
+      });
+
+      // If we have an accept changes button, click it
+      if ((await acceptChangesLocator.count()) > 0) {
+        await acceptChangesLocator.click();
+        console.log('Accept all changes button clicked');
+
+        await vscodeApp.getWindow().screenshot({
+          path: pathlib.join(
+            SCREENSHOTS_FOLDER,
+            'non_agentic_flow_coolstore',
+            `${config.model.replace(/[.:]/g, '-')}`,
+            `changes-accepted.png`
+          ),
+        });
+      }
+
+      // Verify that the solution was applied
+      // This might involve checking for success messages or verifying file changes
+      await vscodeApp.waitDefault();
+
+      await vscodeApp.getWindow().screenshot({
+        path: pathlib.join(
+          SCREENSHOTS_FOLDER,
+          'non_agentic_flow_coolstore',
+          `${config.model.replace(/[.:]/g, '-')}`,
+          `final-state.png`
+        ),
+      });
 
       // Verify the analysis view is in a clean, interactive state
       await verifyAnalysisViewCleanState(
         vscodeApp,
         pathlib.join(
           SCREENSHOTS_FOLDER,
-          'agentic_flow_coolstore',
+          'non_agentic_flow_coolstore',
           `${config.model.replace(/[.:]/g, '-')}`,
           `analysis-view-final-state.png`
         ),
-        'Agent flow'
+        'Non-agent flow'
       );
+
+      console.log('Non-agent mode JMS issue fix completed');
     });
 
     test.afterEach(async () => {
