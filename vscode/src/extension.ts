@@ -503,23 +503,29 @@ class VsCodeExtension {
               draft.solutionServerConnected = false;
             });
 
-            // Resume polling if enabled and it was stopped due to failures
+            // Update the client configuration
+            this.state.solutionServerClient.updateConfig(newConfig);
+
+            // Disconnect if currently connected to apply new settings
+            if (this.state.data.solutionServerConnected) {
+              try {
+                await this.state.solutionServerClient.disconnect();
+                this.state.logger.info(
+                  "Disconnected from solution server for configuration update",
+                );
+              } catch (error) {
+                this.state.logger.error("Error disconnecting from solution server:", error);
+              }
+            }
+
+            // Resume polling if enabled - it will handle reconnection with new config
             if (newConfig.enabled) {
               consecutiveFailures = 0;
               pollInterval = 10000;
               scheduleNextPoll(withJitter(pollInterval));
-            }
 
-            vscode.window
-              .showInformationMessage(
-                "Solution server configuration has changed. Please restart the Konveyor extension for changes to take effect.",
-                "Restart Now",
-              )
-              .then((selection) => {
-                if (selection === "Restart Now") {
-                  vscode.commands.executeCommand("workbench.action.reloadWindow");
-                }
-              });
+              // Auth credentials will be prompted on next connection attempt if needed
+            }
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.logLevel`)) {
