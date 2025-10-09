@@ -7,7 +7,6 @@ import { rm } from 'node:fs/promises';
 import process from 'process';
 import { expect } from '@playwright/test';
 import type { VSCode } from '../pages/vscode.page';
-import { KAIViews } from '../enums/views.enum';
 import { SCREENSHOTS_FOLDER } from './consts';
 
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
@@ -136,6 +135,9 @@ export async function verifyAnalysisViewCleanState(
   // Navigate back to the analysis view to verify the table is shown properly
   await vscodeApp.openAnalysisView();
   console.log(`${logPrefix}: Navigated back to analysis view`);
+
+  // Import KAIViews locally to avoid circular dependency
+  const { KAIViews } = await import('../enums/views.enum');
 
   // Verify that the analysis table is visible and there are no loading elements
   const returnedAnalysisView = await vscodeApp.getView(KAIViews.analysisView);
