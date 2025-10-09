@@ -6,6 +6,7 @@ import { getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
+import { verifyAnalysisViewCleanState } from '../utilities/utils';
 
 // NOTE: This is the list of providers that have cached data for the coolstore app
 // Update this list when you create cache for a new provider, you probably don't need
@@ -140,6 +141,18 @@ providers.forEach((config) => {
           await vscodeApp.getWindow().waitForTimeout(3000);
         }
       }
+
+      // Verify the analysis view is in a clean, interactive state
+      await verifyAnalysisViewCleanState(
+        vscodeApp,
+        pathlib.join(
+          SCREENSHOTS_FOLDER,
+          'agentic_flow_coolstore',
+          `${config.model.replace(/[.:]/g, '-')}`,
+          `analysis-view-final-state.png`
+        ),
+        'Agent flow'
+      );
     });
 
     test.afterEach(async () => {
