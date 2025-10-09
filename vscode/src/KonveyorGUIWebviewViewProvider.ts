@@ -25,13 +25,25 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly RESOLUTION_VIEW_TYPE = `${EXTENSION_NAME}.resolutionView`;
   public static readonly PROFILES_VIEW_TYPE = `${EXTENSION_NAME}.profilesView`;
 
-  private static instance: KonveyorGUIWebviewViewProvider;
-  private _disposables: Disposable[] = [];
+  private static activePanels: Map<string, WebviewPanel> = new Map();
+
+  public static disposeAllPanels(): void {
+    KonveyorGUIWebviewViewProvider.activePanels.forEach((panel) => {
+      try {
+        panel.dispose();
+      } catch (error) {
+        console.error("Error disposing webview panel:", error);
+      }
+    });
+    KonveyorGUIWebviewViewProvider.activePanels.clear();
+  }
   private _panel?: WebviewPanel;
   private _view?: WebviewView;
   private _isPanelReady: boolean = false;
   private _isWebviewReady: boolean = false;
   private _messageQueue: any[] = [];
+  private _webviewReadyListenerDisposable?: Disposable; // Listener for WEBVIEW_READY message
+  private _commandMessageListenerDisposable?: Disposable; // Listener for all other webview commands
 
   constructor(
     private readonly _extensionState: ExtensionState,
@@ -52,6 +64,31 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
   public createWebviewPanel(): void {
     if (this._panel) {
+      return;
+    }
+
+    // Check if a panel for this viewType already exists
+    const existingPanel = KonveyorGUIWebviewViewProvider.activePanels.get(this._viewType);
+    if (existingPanel) {
+      // Panel already exists, just reveal it and update our reference
+      existingPanel.reveal(ViewColumn.One);
+      this._panel = existingPanel;
+
+      // IMPORTANT: Set up message listeners for this provider instance
+      // This ensures messages are handled by the correct provider
+      this._setWebviewMessageListener(this._panel.webview);
+
+      // Panel was already initialized; mark it ready and flush queued messages
+      this._isPanelReady = true;
+      this._isWebviewReady = true;
+      while (this._messageQueue.length > 0) {
+        const queuedMessage = this._messageQueue.shift();
+        this.sendMessage(queuedMessage, this._panel.webview);
+      }
+
+      // Do not add a disposal handler here - the panel already has one from creation
+      // that will remove it from activePanels when disposed
+
       return;
     }
 
@@ -88,35 +125,53 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       },
     );
 
+    // Track this panel in the static map
+    KonveyorGUIWebviewViewProvider.activePanels.set(this._viewType, this._panel);
+
     this.initializeWebview(this._panel.webview, this._extensionState.data);
 
     this._panel.onDidDispose(() => {
-      this.handleViewClosed();
+      // Remove from the static map when disposed
+      KonveyorGUIWebviewViewProvider.activePanels.delete(this._viewType);
       this._panel = undefined;
       this._isWebviewReady = false;
       this._isPanelReady = false;
     });
   }
 
-  private handleViewClosed(): void {
-    // Assuming the analysis webview is tracked and can be accessed via the ExtensionState or similar
-    // const sidebarProvider = this._extensionState.webviewProviders.get("sidebar");
-    // if (sidebarProvider?.webview && sidebarProvider._isWebviewReady) {
-    // sidebarProvider.webview.postMessage({
-    //   type: "solutionConfirmation",
-    //   data: { confirmed: true, solution: null },
-    // });
-    // } else {
-    // console.error("Analysis webview is not ready or not available.");
-    // }
-  }
-
   public showWebviewPanel(): void {
+    // Check if we already have a panel reference
     if (this._panel) {
       this._panel.reveal(ViewColumn.One);
-    } else {
-      this.createWebviewPanel();
+      return;
     }
+
+    // Check if another instance has created a panel for this viewType
+    const existingPanel = KonveyorGUIWebviewViewProvider.activePanels.get(this._viewType);
+    if (existingPanel) {
+      // Use the existing panel
+      existingPanel.reveal(ViewColumn.One);
+      this._panel = existingPanel;
+
+      // Set up message listeners for this provider instance
+      this._setWebviewMessageListener(this._panel.webview);
+
+      // Panel was already initialized; mark it ready and flush queued messages
+      this._isPanelReady = true;
+      this._isWebviewReady = true;
+      while (this._messageQueue.length > 0) {
+        const queuedMessage = this._messageQueue.shift();
+        this.sendMessage(queuedMessage, this._panel.webview);
+      }
+
+      // Do not add a disposal handler here - the panel already has one from creation
+      // that will remove it from activePanels when disposed
+
+      return;
+    }
+
+    // No panel exists, create a new one
+    this.createWebviewPanel();
   }
 
   private initializeWebview(webview: Webview, data: Immutable<ExtensionData>): void {
@@ -250,30 +305,50 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   }
 
   private _setWebviewMessageListener(webview: Webview) {
-    setupWebviewMessageListener(webview, this._extensionState);
+    // Dispose previous listeners if they exist to prevent duplicates
+    if (this._webviewReadyListenerDisposable) {
+      this._webviewReadyListenerDisposable.dispose();
+      this._webviewReadyListenerDisposable = undefined;
+    }
+    if (this._commandMessageListenerDisposable) {
+      this._commandMessageListenerDisposable.dispose();
+      this._commandMessageListenerDisposable = undefined;
+    }
 
-    webview.onDidReceiveMessage(
-      (message) => {
-        if (message.type === "WEBVIEW_READY") {
-          this._isWebviewReady = true;
-          this._isPanelReady = true;
-          while (this._messageQueue.length > 0) {
-            const queuedMessage = this._messageQueue.shift();
-            this.sendMessage(queuedMessage, webview);
-          }
-        }
-      },
-      undefined,
-      this._disposables,
+    // Set up the main message handler that processes all webview actions
+    // (RUN_ANALYSIS, GET_SOLUTION, OPEN_FILE, etc.) except WEBVIEW_READY
+    this._commandMessageListenerDisposable = setupWebviewMessageListener(
+      webview,
+      this._extensionState,
     );
+
+    // Set up ready listener specifically for the WEBVIEW_READY message
+    this._webviewReadyListenerDisposable = webview.onDidReceiveMessage((message) => {
+      if (message.type === "WEBVIEW_READY") {
+        this._isWebviewReady = true;
+        this._isPanelReady = true;
+        while (this._messageQueue.length > 0) {
+          const queuedMessage = this._messageQueue.shift();
+          this.sendMessage(queuedMessage, webview);
+        }
+      }
+    });
   }
 
   public dispose() {
-    while (this._disposables.length) {
-      const disposable = this._disposables.pop();
-      if (disposable) {
-        disposable.dispose();
-      }
+    // Clear instance state
+    this._panel = undefined;
+    this._isWebviewReady = false;
+    this._isPanelReady = false;
+
+    // Dispose webview message listeners if they exist
+    if (this._webviewReadyListenerDisposable) {
+      this._webviewReadyListenerDisposable.dispose();
+      this._webviewReadyListenerDisposable = undefined;
+    }
+    if (this._commandMessageListenerDisposable) {
+      this._commandMessageListenerDisposable.dispose();
+      this._commandMessageListenerDisposable = undefined;
     }
   }
   private sendMessage(message: any, webview: Webview) {
