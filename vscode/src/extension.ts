@@ -488,13 +488,13 @@ class VsCodeExtension {
             });
           }
 
-          if (
-            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.url`) ||
-            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.enabled`) ||
-            event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.auth`)
-          ) {
-            this.state.logger.info("Solution server configuration modified!");
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer`)) {
             const newConfig = getConfigSolutionServer();
+            this.state.logger.info("Solution server configuration modified!", {
+              enabled: newConfig.enabled,
+              url: newConfig.url,
+              authEnabled: newConfig.auth.enabled,
+            });
 
             // Update the enabled state immediately
             this.state.mutateData((draft) => {
