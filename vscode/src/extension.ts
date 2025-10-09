@@ -290,7 +290,7 @@ class VsCodeExtension {
       let pollTimeout: NodeJS.Timeout | undefined;
 
       const withJitter = (ms: number) => Math.round(ms * (0.9 + Math.random() * 0.2));
-      const scheduleNextPoll = (delay = pollInterval) => {
+      const scheduleNextPoll = (delay: number = pollInterval) => {
         if (pollTimeout) {
           clearTimeout(pollTimeout);
         }
@@ -488,22 +488,6 @@ class VsCodeExtension {
             });
           }
 
-          if (event.affectsConfiguration("konveyor.solutionServer.enabled")) {
-            const solutionServerEnabled = getConfigSolutionServerEnabled();
-            this.state.mutateData((draft) => {
-              draft.solutionServerEnabled = solutionServerEnabled;
-              // Let the connection poll handle updating the connection status
-              draft.solutionServerConnected = false;
-            });
-
-            // Resume polling if it was stopped due to failures
-            if (solutionServerEnabled) {
-              consecutiveFailures = 0;
-              pollInterval = 10000;
-              scheduleNextPoll(withJitter(pollInterval));
-            }
-          }
-
           if (
             event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.url`) ||
             event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer.enabled`) ||
@@ -515,7 +499,7 @@ class VsCodeExtension {
             // Update the enabled state immediately
             this.state.mutateData((draft) => {
               draft.solutionServerEnabled = newConfig.enabled;
-              // Reset connection status
+              // Reset connection status - let the connection poll handle updating it
               draft.solutionServerConnected = false;
             });
 
