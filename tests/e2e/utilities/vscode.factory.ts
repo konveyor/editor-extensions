@@ -11,7 +11,6 @@ export async function open(
   if (process.env.WEB_ENV) {
     return VSCodeWeb.open(repoUrl, repoDir, branch);
   }
-
   return VSCodeDesktop.open(repoUrl, repoDir, branch, waitForInitialization);
 }
 
@@ -19,6 +18,5 @@ export async function init(repoUrl?: string, repoDir?: string, branch?: string):
   if (process.env.WEB_ENV) {
     return VSCodeWeb.init(repoUrl, repoDir, branch);
   }
-  console.log('b');
   return VSCodeDesktop.init(repoUrl, repoDir, branch);
 }

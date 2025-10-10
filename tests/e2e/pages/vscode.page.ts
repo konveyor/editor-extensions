@@ -25,7 +25,7 @@ export abstract class VSCode {
   public abstract writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void>;
   protected abstract selectCustomRules(customRulesPath: string): Promise<void>;
   public abstract closeVSCode(): Promise<void>;
-  public abstract pasteContent(content: string): void;
+  public abstract pasteContent(content: string): Promise<void>;
   public abstract getWindow(): Page;
 
   public async executeQuickCommand(command: string) {
@@ -162,19 +162,20 @@ export abstract class VSCode {
    */
   public async setListKindAndSort(kind: ListKind, order: SortOrder): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
-    const kindButton = analysisView.getByRole('button', {
-      name: kind === 'issues' ? 'Issues' : 'Files',
-    });
-    const toggleFilterButton = analysisView.locator('button[aria-label="Show Filters"]');
+    const groupByDropdownFilter = analysisView.locator('#group-by-filter-dropdown');
+    const kindButton = analysisView.locator(
+      `#group-by-${kind === 'issues' ? 'violation' : 'file'}-filter`
+    );
 
-    if (!(await kindButton.isVisible()) && (await toggleFilterButton.isVisible())) {
-      await toggleFilterButton.click();
-    }
-
+    await expect(groupByDropdownFilter).toBeVisible({ timeout: 5_000 });
+    await expect(groupByDropdownFilter).toBeEnabled({ timeout: 3_000 });
+    await groupByDropdownFilter.click();
     await expect(kindButton).toBeVisible({ timeout: 5_000 });
     await expect(kindButton).toBeEnabled({ timeout: 3_000 });
     await kindButton.click();
-    await expect(kindButton).toHaveAttribute('aria-pressed', 'true');
+    await groupByDropdownFilter.click();
+    await expect(kindButton).toHaveAttribute('aria-selected', 'true');
+
     const sortButton = analysisView.getByRole('button', {
       name: order === 'ascending' ? 'Sort ascending' : 'Sort descending',
     });

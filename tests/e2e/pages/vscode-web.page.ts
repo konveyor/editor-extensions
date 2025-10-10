@@ -93,13 +93,28 @@ export class VSCodeWeb extends VSCode {
   }
 
   public async closeVSCode(): Promise<void> {
-    // TODO implement
-    return new Promise<void>((resolve) => {});
+    try {
+      if (!this.window) {
+        return;
+      }
+      const ctx = this.window.context();
+      if (!this.window.isClosed()) {
+        await this.window.close({ runBeforeUnload: true });
+      }
+
+      await ctx.close();
+      const browser = ctx.browser();
+      if (browser) {
+        await browser.close();
+      }
+    } catch (e) {
+      console.warn('VSCodeWeb.closeVSCode: ignoring error during close', e);
+    }
   }
 
   protected async selectCustomRules(customRulesPath: string) {
     // TODO implementc
-    return new Promise<void>((resolve) => {});
+    throw new Error('VSCodeWeb.selectCustomRules is not implemented for WEB_ENV yet');
   }
 
   /**
