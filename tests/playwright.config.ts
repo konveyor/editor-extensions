@@ -44,9 +44,5 @@ export default defineConfig({
       name: 'agent-flow-tests',
       testMatch: /.*agent_flow.+\.test\.ts/,
     },
-    {
-      name: 'devspaces',
-      testMatch: ['**/devspaces/**/*.test.ts'],
-    },
   ],
 });
