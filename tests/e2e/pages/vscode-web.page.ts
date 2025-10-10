@@ -6,6 +6,7 @@ import { createZip, extractZip } from '../utilities/archive';
 import { VSCode } from './vscode.page';
 import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
+import { BrowserContext } from 'playwright-core';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -23,13 +24,21 @@ export class VSCodeWeb extends VSCode {
       storageState: './web-state.json',
     });
     const page = await context.newPage();
-    await page.goto(`${process.env.WEB_BASE_URL}/dashboard/`);
-    await page.waitForSelector('tbody tr');
+    await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
+    await page.getByRole('heading', { name: 'Workspaces', exact: true }).waitFor();
+
+    let newPage;
     const repoRow = page.locator('tbody tr', { hasText: repoDir });
-    const [newPage] = await Promise.all([
-      context.waitForEvent('page'),
-      repoRow.getByRole('button', { name: 'Open' }).first().click(),
-    ]);
+    // Creates a new workspace or reuses one that already exists for the same repository
+    if (!(await repoRow.isVisible())) {
+      newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
+    } else {
+      [newPage] = await Promise.all([
+        context.waitForEvent('page'),
+        repoRow.getByRole('button', { name: 'Open' }).first().click(),
+      ]);
+    }
+
     await newPage.waitForLoadState();
     await page.close();
     await newPage
@@ -67,7 +76,7 @@ export class VSCodeWeb extends VSCode {
     }
     const context = await browser.newContext(contextOptions);
     const page = await context.newPage();
-    await page.goto(`${process.env.WEB_BASE_URL}/dashboard/`);
+    await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (!(await loginButton.isVisible())) {
       await page.close();
@@ -179,5 +188,27 @@ export class VSCodeWeb extends VSCode {
       throw new Error('VSCode window is not initialized.');
     }
     return this.window;
+  }
+
+  private static async createWorkspace(
+    ctx: BrowserContext,
+    page: Page,
+    repoUrl?: string,
+    branch = 'main'
+  ) {
+    if (!repoUrl) {
+      throw new Error('Repo URL is missing for creating a new workspace');
+    }
+    await page.getByRole('button', { name: 'Add Workspace' }).click();
+    await page.locator('#git-repo-url').fill(repoUrl);
+    await page.locator('#accordion-item-git-repo-options').click();
+    await page.getByPlaceholder('Enter the branch of the Git Repository').fill(branch);
+    await page.locator('#create-and-open-button').click();
+    const [newPage] = await Promise.all([
+      ctx.waitForEvent('page'),
+      await page.getByRole('button', { name: 'Continue' }).click(),
+    ]);
+
+    return newPage;
   }
 }
