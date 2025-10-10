@@ -1,13 +1,15 @@
-import { VSCode } from './e2e/pages/vscode.page';
 import { generateRandomString, getOSInfo } from './e2e/utilities/utils';
 import { isExtensionInstalled } from './e2e/utilities/vscode-commands.utils';
 import { KAIViews } from './e2e/enums/views.enum';
+import * as VSCodeFactory from './e2e/utilities/vscode.factory';
 
 async function globalSetup() {
   const repoUrl = process.env.TEST_REPO_URL ?? 'https://github.com/konveyor-ecosystem/coolstore';
   const repoName = process.env.TEST_REPO_NAME ?? 'coolstore';
   console.log('Running global setup...');
-  let vscodeApp = await VSCode.init(repoUrl, repoName);
+  const vscodeApp = await VSCodeFactory.init(repoUrl, repoName);
+
+  // TODO (abrugaro) move to vscode classes
   if (!isExtensionInstalled('redhat.java')) {
     throw new Error(
       'Required extension `redhat.java` was not found. It should have been installed automatically as a dependency'
@@ -27,7 +29,7 @@ async function globalSetup() {
   console.log('Completed global setup.');
 
   if (getOSInfo() === 'windows' && process.env.CI) {
-    const vscodeApp = await VSCode.open(repoUrl, repoName);
+    const vscodeApp = await VSCodeFactory.open(repoUrl, repoName);
     await vscodeApp.createProfile([], ['openjdk17'], generateRandomString());
     await vscodeApp.configureGenerativeAI();
     await vscodeApp.openAnalysisView();

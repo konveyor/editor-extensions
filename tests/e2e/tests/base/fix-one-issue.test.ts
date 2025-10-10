@@ -4,6 +4,7 @@ import { getAvailableProviders } from '../../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -13,7 +14,7 @@ getAvailableProviders().forEach((provider) => {
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(600000);
       const repoInfo = testRepoData['coolstore'];
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);

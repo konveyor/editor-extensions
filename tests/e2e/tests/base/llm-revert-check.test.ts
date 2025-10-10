@@ -6,6 +6,7 @@ import { generateRandomString } from '../../utilities/utils';
 
 import path from 'path';
 import { getFileImports } from '../../utilities/file.utils';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 /**
  * Automates https://github.com/konveyor/kai/issues/798
  * Tests that fixes applied by the LLM do not unintentionally revert .
@@ -31,10 +32,16 @@ getAvailableProviders().forEach((provider) => {
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(15 * MIN);
       repoInfo = testRepoData['jboss-eap-quickstarts'];
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch, false);
+      vscodeApp = await VSCodeFactory.open(
+        repoInfo.repoUrl,
+        repoInfo.repoName,
+        repoInfo.branch,
+        false
+      );
       await vscodeApp.closeVSCode();
       // Only analyzing kitchensink to save time vs. full jboss repo
-      vscodeApp = await VSCode.open(undefined, kitchenRepoPath, undefined);
+      // TODO (abrugaro) handle opening a subfolder in web environment
+      vscodeApp = await VSCodeFactory.open(undefined, kitchenRepoPath, undefined);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
       await vscodeApp.startServer();

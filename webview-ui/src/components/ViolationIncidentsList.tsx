@@ -265,6 +265,7 @@ const ViolationIncidentsList = ({
           aria-label="Group by"
           toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
             <MenuToggle
+              id="group-by-filter-dropdown"
               ref={toggleRef}
               onClick={() => setIsGroupByExpanded(!isGroupByExpanded)}
               isExpanded={isGroupByExpanded}
@@ -297,6 +298,7 @@ const ViolationIncidentsList = ({
         >
           <SelectList>
             <SelectOption
+              id="group-by-all-filter"
               key="none"
               value="none"
               icon={<ListIcon />}
@@ -305,6 +307,7 @@ const ViolationIncidentsList = ({
               All
             </SelectOption>
             <SelectOption
+              id="group-by-file-filter"
               key="file"
               value="file"
               icon={<FileIcon />}
@@ -313,6 +316,7 @@ const ViolationIncidentsList = ({
               Files
             </SelectOption>
             <SelectOption
+              id="group-by-violation-filter"
               key="violation"
               value="violation"
               icon={<LayerGroupIcon />}

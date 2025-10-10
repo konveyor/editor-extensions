@@ -27,6 +27,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { TestLogger } from '../../utilities/logger';
 import { solutionServerEnabled } from '../../enums/configuration-options.enum';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -78,7 +79,7 @@ class SolutionServerWorkflowHelper {
     let vsCode: VSCode | undefined;
 
     try {
-      vsCode = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       this.logger.debug(`VSCode opened for ${appName}`);
 
       if (!vsCode) throw new Error('VSCode not initialized');

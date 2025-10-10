@@ -10,6 +10,7 @@ import {
   BestHintResponse,
   SuccessRateResponse,
 } from '../../../mcp-client/mcp-client-responses.model';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 test.describe(`Solution server analysis validations`, () => {
   let vsCode: VSCode;
@@ -21,7 +22,7 @@ test.describe(`Solution server analysis validations`, () => {
     const repoInfo = testRepoData['coolstore'];
     test.setTimeout(600000);
     mcpClient = await MCPClient.connect('http://localhost:8000');
-    vsCode = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+    vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
     const config = await Configuration.open(vsCode);
     await config.setEnabledConfiguration(solutionServerEnabled, true);
     await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
