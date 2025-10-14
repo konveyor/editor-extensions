@@ -73,12 +73,33 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
   let diff: string;
 
   if (isNew) {
-    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent);
+    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent, undefined, undefined, {
+      ignoreNewlineAtEof: true,
+    });
   } else if (isDeleted) {
-    diff = createTwoFilesPatch(filePath, "", fileState.originalContent as string, "");
+    diff = createTwoFilesPatch(
+      filePath,
+      "",
+      fileState.originalContent as string,
+      "",
+      undefined,
+      undefined,
+      {
+        ignoreNewlineAtEof: true,
+      },
+    );
   } else {
     try {
-      diff = createPatch(filePath, fileState.originalContent as string, fileState.modifiedContent);
+      diff = createPatch(
+        filePath,
+        fileState.originalContent as string,
+        fileState.modifiedContent,
+        undefined,
+        undefined,
+        {
+          ignoreNewlineAtEof: true,
+        },
+      );
     } catch (diffErr) {
       diff = `// Error creating diff for ${filePath}`;
     }
