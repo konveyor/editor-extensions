@@ -18,6 +18,7 @@
     "clean": "rimraf dist",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
+    "test": "jest",
     "prebuild": "npm run clean",
     "build": "vite build",
     "dev": "vite build --watch"
@@ -25,5 +26,10 @@
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
     "*.json": "prettier --write"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.2"
   }
 }
