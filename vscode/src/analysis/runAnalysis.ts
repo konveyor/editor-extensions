@@ -8,7 +8,7 @@ import { BatchedAnalysisTrigger } from "./batchedAnalysisTrigger";
 export const registerAnalysisTrigger = (
   disposables: vscode.Disposable[],
   state: ExtensionState,
-) => {
+): BatchedAnalysisTrigger => {
   const batchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
 
   vscode.workspace.onDidRenameFiles(
@@ -43,6 +43,8 @@ export const registerAnalysisTrigger = (
     undefined,
     disposables,
   );
+
+  return batchedAnalysisTrigger;
 };
 
 export const runPartialAnalysis = async (state: ExtensionState, filePaths: vscode.Uri[]) => {
