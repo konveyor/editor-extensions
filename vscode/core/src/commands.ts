@@ -153,6 +153,13 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.runAnalysis`]: async () => {
       logger.info("Run analysis command called");
+
+      // Cancel any pending automatic analysis to avoid duplicate runs
+      if (state.batchedAnalysisTrigger) {
+        logger.info("Canceling pending automatic analysis");
+        state.batchedAnalysisTrigger.cancelPendingAnalysis();
+      }
+
       const analyzerClient = state.analyzerClient;
       if (!analyzerClient || !analyzerClient.canAnalyze()) {
         window.showErrorMessage("Analyzer must be started and configured before run!");
