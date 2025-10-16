@@ -73,7 +73,7 @@ export const getConfigGenAIEnabled = (): boolean =>
 export const getConfigAgentMode = (): boolean =>
   getConfigValue<boolean>("genai.agentMode") ?? false;
 export const getConfigAutoAcceptOnSave = (): boolean =>
-  getConfigValue<boolean>("diff.autoAcceptOnSave") ?? true;
+  getConfigValue<boolean>("diff.autoAcceptOnSave") ?? false;
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("genai.excludedDiagnosticSources") ?? [];
 
