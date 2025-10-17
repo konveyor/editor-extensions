@@ -294,7 +294,7 @@
         },
         "konveyor.diff.autoAcceptOnSave": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Automatically apply diff changes when saving files.",
           "scope": "window",
           "order": 3
