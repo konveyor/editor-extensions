@@ -334,7 +334,7 @@ class VsCodeExtension {
         }),
       );
 
-      registerAnalysisTrigger(this.listeners, this.state);
+      this.state.batchedAnalysisTrigger = registerAnalysisTrigger(this.listeners, this.state);
 
       this.listeners.push(
         vscode.workspace.onWillSaveTextDocument(async (event) => {
@@ -880,6 +880,15 @@ class VsCodeExtension {
         this.state.workflowManager.dispose();
       } catch (error) {
         this.state.logger.error("Error disposing workflow manager:", error);
+      }
+    }
+
+    // Dispose batched analysis trigger
+    if (this.state.batchedAnalysisTrigger) {
+      try {
+        this.state.batchedAnalysisTrigger.dispose();
+      } catch (error) {
+        this.state.logger.error("Error disposing batched analysis trigger:", error);
       }
     }
 

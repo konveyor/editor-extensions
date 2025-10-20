@@ -102,6 +102,24 @@ export class BatchedAnalysisTrigger {
     }
   }
 
+  /**
+   * Cancel any pending automatic analysis that's been scheduled but not yet started.
+   * This should be called when a manual analysis is triggered to avoid duplicate runs.
+   */
+  public cancelPendingAnalysis() {
+    // Clear the analysis queue
+    this.analysisFileChangesQueue.clear();
+
+    // Clear the scheduled analysis callback
+    this.analysisBackoff.dispose();
+    this.analysisBackoff = new BackoffManager(3000, 30000, 10000);
+
+    // Reset the analysis scheduled flag
+    this.extensionState.mutateData((draft) => {
+      draft.isAnalysisScheduled = false;
+    });
+  }
+
   dispose() {
     this.analysisBackoff.dispose();
     this.notifyFileChangesBackoff.dispose();
