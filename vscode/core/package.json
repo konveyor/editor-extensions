@@ -40,7 +40,7 @@
   ],
   "contributes": {
     "javaExtensions": [
-      "../downloaded_assets/jdtls-bundles/bundle.jar"
+      "../../downloaded_assets/jdtls-bundles/bundle.jar"
     ],
     "commands": [
       {
@@ -416,12 +416,12 @@
     "keybindings": []
   },
   "includedAssetPaths": {
-    "kai": "../downloaded_assets/kai",
-    "fernFlowerPath": "../assets/fernflower/fernflower.jar",
-    "jdtls": "../downloaded_assets/jdt.ls-1.38.0",
-    "jdtlsBundles": "../downloaded_assets/jdtls-bundles",
-    "openSourceLabelsFile": "../downloaded_assets/opensource-labels-file/maven.default.index",
-    "rulesets": "../downloaded_assets/rulesets"
+    "kai": "../../downloaded_assets/kai",
+    "fernFlowerPath": "../../assets/fernflower/fernflower.jar",
+    "jdtls": "../../downloaded_assets/jdt.ls-1.38.0",
+    "jdtlsBundles": "../../downloaded_assets/jdtls-bundles",
+    "openSourceLabelsFile": "../../downloaded_assets/opensource-labels-file/maven.default.index",
+    "rulesets": "../../downloaded_assets/rulesets"
   },
   "scripts": {
     "clean": "rimraf out",

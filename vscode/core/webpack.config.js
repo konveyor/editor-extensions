@@ -96,7 +96,7 @@ module.exports = (env, argv) => {
         new CopyWebpackPlugin({
           patterns: [
             {
-              from: path.resolve(__dirname, "../webview-ui/build"),
+              from: path.resolve(__dirname, "../../webview-ui/build"),
               to: path.resolve(__dirname, "out/webview"),
             },
             {

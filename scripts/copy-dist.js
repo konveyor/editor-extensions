@@ -10,7 +10,7 @@ await copy({
   verbose: true,
   targets: [
     {
-      src: "vscode/package.json",
+      src: "vscode/core/package.json",
       dest: "dist/",
 
       /**
@@ -57,7 +57,7 @@ await copy({
 
     // files from vscode's build, excluding tests and test data
     {
-      context: "vscode",
+      context: "vscode/core",
       src: [
         ".vscodeignore",
         "LICENSE.md",
@@ -103,7 +103,7 @@ await copy({
     // seed assets - kai binaries (conditional based on original package.json)
     ...((() => {
       // Read original package.json to check if kai should be included
-      const originalPackage = JSON.parse(fs.readFileSync("vscode/package.json", "utf8"));
+      const originalPackage = JSON.parse(fs.readFileSync("vscode/core/package.json", "utf8"));
       return originalPackage.includedAssetPaths?.kai !== undefined;
     })()
       ? [

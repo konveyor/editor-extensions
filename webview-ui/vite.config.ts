@@ -6,7 +6,7 @@ import path from "path";
 
 export default defineConfig(() => {
   // Read package.json to get extension info
-  const packagePath = path.resolve(__dirname, "../vscode/package.json");
+  const packagePath = path.resolve(__dirname, "../vscode/core/package.json");
   const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
 
   // Use package.json values directly
