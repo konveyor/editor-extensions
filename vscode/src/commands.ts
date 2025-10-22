@@ -156,7 +156,12 @@ const commandsMap: (
 
       // Cancel any pending automatic analysis to avoid duplicate runs
       if (state.batchedAnalysisTrigger) {
-        logger.info("Canceling pending automatic analysis");
+        const hasPendingWork = state.batchedAnalysisTrigger.hasPendingWork();
+        if (hasPendingWork) {
+          logger.info("Canceling pending automatic analysis");
+        } else {
+          logger.debug("No pending automatic analysis to cancel");
+        }
         state.batchedAnalysisTrigger.cancelPendingAnalysis();
       }
 

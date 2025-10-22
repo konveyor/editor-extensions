@@ -384,6 +384,15 @@ export class AnalyzerClient {
    * Will only run if the sever state is: `running`
    */
   public async runAnalysis(filePaths?: vscode.Uri[]): Promise<void> {
+    // Prevent concurrent analysis runs
+    if (this.analysisState) {
+      this.logger.warn("Analysis already in progress, ignoring new request");
+      vscode.window.showWarningMessage(
+        "Analysis is already running. Please wait for it to complete.",
+      );
+      return;
+    }
+
     if (this.serverState !== "running" || !this.analyzerRpcConnection) {
       this.logger.warn("kai rpc server is not running, skipping runAnalysis.");
       return;
