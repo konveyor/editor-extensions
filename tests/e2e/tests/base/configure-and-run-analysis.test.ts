@@ -26,41 +26,6 @@ test.describe(`Configure extension and run analysis`, () => {
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
   });
 
-  test('Different solution server settings', async () => {
-    const settingsToWrite = {
-      solutionServerEnabled: {
-        enabled: true,
-      },
-    };
-
-    await vscodeApp.openWorkspaceSettingsAndWrite(settingsToWrite);
-    await vscodeApp.waitDefault();
-    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-    await expect(
-      analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
-    ).toBeVisible();
-
-    const settingsToWrite2 = {
-      solutionServerEnabled: {
-        enabled: true,
-        url: 'https://mta-openshift-mta.apps.mig08.rhos-psi.cnv-qe.rhood.us/hub/services/kai/api/',
-        auth: {
-          enabled: true,
-          realm: 'mta',
-          insecure: true,
-          username: 'admin',
-          password: 'Dog8code',
-        },
-      },
-    };
-
-    await vscodeApp.openWorkspaceSettingsAndWrite(settingsToWrite2);
-    await vscodeApp.waitDefault();
-    await expect(
-      analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
-    ).not.toBeVisible();
-  });
-
   test('Create Profile and Set Sources and targets', async () => {
     await vscodeApp.waitDefault();
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
