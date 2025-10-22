@@ -6,6 +6,7 @@ import * as fs from 'fs/promises';
 import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
 import { KAIViews } from '../../enums/views.enum';
+import { genAISettingKey } from '../../enums/configuration-options.enum';
 
 test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
@@ -23,6 +24,41 @@ test.describe(`Configure extension and run analysis`, () => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+  });
+
+  test('Different solution server settings', async () => {
+    const settingsToWrite = {
+      solutionServerEnabled: {
+        enabled: true,
+      },
+    };
+
+    await vscodeApp.openWorkspaceSettingsAndWrite(settingsToWrite);
+    await vscodeApp.waitDefault();
+    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+    await expect(
+      analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
+    ).toBeVisible();
+
+    const settingsToWrite2 = {
+      solutionServerEnabled: {
+        enabled: true,
+        url: 'https://mta-openshift-mta.apps.mig08.rhos-psi.cnv-qe.rhood.us/hub/services/kai/api/',
+        auth: {
+          enabled: true,
+          realm: 'mta',
+          insecure: true,
+          username: 'admin',
+          password: 'Dog8code',
+        },
+      },
+    };
+
+    await vscodeApp.openWorkspaceSettingsAndWrite(settingsToWrite2);
+    await vscodeApp.waitDefault();
+    await expect(
+      analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
+    ).not.toBeVisible();
   });
 
   test('Create Profile and Set Sources and targets', async () => {
@@ -49,7 +85,7 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Disable and enable Generative AI', async () => {
-    await vscodeApp.setGenerativeAIEnabled(false); // disable and verify in settings.json
+    await vscodeApp.openWorkspaceSettingsAndWrite(genAISettingKey, false); // disable
     await vscodeApp.waitDefault();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');
@@ -58,7 +94,7 @@ test.describe(`Configure extension and run analysis`, () => {
     await expect(analysisView.getByText('Agent Mode')).not.toBeVisible();
     await expect(solutionButton.first()).not.toBeVisible({ timeout: 36000 });
 
-    await vscodeApp.setGenerativeAIEnabled(true); // enable
+    await vscodeApp.openWorkspaceSettingsAndWrite(genAISettingKey, true); // enable
     await vscodeApp.waitDefault();
     await expect(
       analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })

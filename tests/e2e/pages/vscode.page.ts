@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { _electron as electron, FrameLocator } from 'playwright';
-import { ElectronApplication, expect, Page } from '@playwright/test';
+import { ElectronApplication, expect, Page, Locator } from '@playwright/test';
 import { MIN, SEC } from '../utilities/consts';
 import { createZip, extractZip } from '../utilities/archive';
 import {
@@ -190,10 +190,9 @@ export class VSCode extends BasePage {
     await this.window.keyboard.press(`${modifier}+Shift+P`, { delay: 500 });
     const input = this.window.getByPlaceholder('Type the name of a command to run.');
     await input.fill(`>${command}`);
-    await expect(
-      this.window.locator(`a.label-name span.highlight >> text="${command}"`)
-    ).toBeVisible();
-
+    await expect(this.window.locator('a').filter({ hasText: command })).toBeVisible({
+      timeout: 5000,
+    });
     await input.press('Enter', { delay: 500 });
   }
 
@@ -680,11 +679,68 @@ export class VSCode extends BasePage {
   }
 
   /**
-   * Enables or disables the Generative AI feature in VSCode for the current workspace.
-   * @param enabled - `true` to enable GenAI, `false` to disable it.
+   * Opens the workspace settings file in VSCode and writes new settings.
+   * Supports updating a single key/value pair or merging multiple settings at once.
+   * @param keyOrObject - Either a settings key (string) or an object containing multiple settings.
+   * @param value - The value to set when a single key is provided.
    */
-  public async setGenerativeAIEnabled(enabled: boolean): Promise<void> {
-    const genAISettingKey = `${extensionName}.genai.enabled`;
-    await this.writeOrUpdateVSCodeSettings({ [genAISettingKey]: enabled });
+  public async openWorkspaceSettingsAndWrite(
+    keyOrObject: string | Record<string, any>,
+    value?: any
+  ): Promise<void> {
+    await this.executeQuickCommand('Preferences: Open Workspace Settings (JSON)');
+
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    const editor = this.window.locator('.monaco-editor .view-lines');
+    await editor.click();
+    await this.window.waitForTimeout(200);
+
+    // --- Read current content ---
+    let editorContent = '';
+    try {
+      editorContent = await editor.innerText();
+    } catch {
+      editorContent = '{}';
+    }
+
+    // --- Parse settings safely ---
+    let settings: Record<string, any> = {};
+    try {
+      settings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
+    } catch {
+      settings = {};
+    }
+
+    // --- Merge updates ---
+    const deepMerge = (target: any, source: any): any => {
+      for (const key of Object.keys(source)) {
+        if (source[key] instanceof Object && key in target && target[key] instanceof Object) {
+          deepMerge(target[key], source[key]);
+        } else {
+          target[key] = source[key];
+        }
+      }
+      return target;
+    };
+
+    if (typeof keyOrObject === 'string') {
+      settings[keyOrObject] = value;
+    } else {
+      settings = deepMerge(settings, keyOrObject);
+    }
+
+    const newContent = JSON.stringify(settings, null, 2);
+
+    // --- Replace file content and save ---
+    await editor.click();
+    await this.window.keyboard.press(`${modifier}+a`);
+    await this.window.waitForTimeout(100);
+    await this.window.keyboard.press('Backspace');
+    await this.window.waitForTimeout(100);
+    await this.pasteContent(newContent);
+
+    await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    await this.window.waitForTimeout(300);
+    await this.window.keyboard.press(`${modifier}+w`);
   }
 }
