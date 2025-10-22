@@ -103,6 +103,19 @@ export class BatchedAnalysisTrigger {
   }
 
   /**
+   * Check if there are pending file changes or scheduled analysis
+   */
+  public hasPendingWork(): boolean {
+    return (
+      this.analysisFileChangesQueue.size > 0 ||
+      this.notifyFileChangesQueue.size > 0 ||
+      this.extensionState.data.isAnalysisScheduled ||
+      this.analysisBackoff.isRunningCallback() ||
+      this.notifyFileChangesBackoff.isRunningCallback()
+    );
+  }
+
+  /**
    * Cancel any pending automatic analysis that's been scheduled but not yet started.
    * This should be called when a manual analysis is triggered to avoid duplicate runs.
    */
