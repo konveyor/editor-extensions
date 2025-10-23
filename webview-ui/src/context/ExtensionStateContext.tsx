@@ -67,20 +67,30 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<ExtensionData>(windowState);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent<ExtensionData>) => {
-      // Ensure incoming data has all required array properties
+    const handleMessage = (event: MessageEvent<ExtensionData | { type: string; chatMessages: any[]; timestamp: string }>) => {
+      // Handle selective chat message updates
+      if ('type' in event.data && event.data.type === 'CHAT_MESSAGES_UPDATE') {
+        setState(prevState => ({
+          ...prevState,
+          chatMessages: Array.isArray(event.data.chatMessages) ? event.data.chatMessages : prevState.chatMessages,
+        }));
+        return;
+      }
+
+      // Handle full state updates (for non-chat changes)
+      const data = event.data as ExtensionData;
       const safeData: ExtensionData = {
         ...defaultState,
-        ...event.data,
-        ruleSets: Array.isArray(event.data.ruleSets) ? event.data.ruleSets : [],
-        enhancedIncidents: Array.isArray(event.data.enhancedIncidents)
-          ? event.data.enhancedIncidents
+        ...data,
+        ruleSets: Array.isArray(data.ruleSets) ? data.ruleSets : [],
+        enhancedIncidents: Array.isArray(data.enhancedIncidents)
+          ? data.enhancedIncidents
           : [],
-        chatMessages: Array.isArray(event.data.chatMessages) ? event.data.chatMessages : [],
-        configErrors: Array.isArray(event.data.configErrors) ? event.data.configErrors : [],
-        profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
-        activeDecorators: event.data.activeDecorators || {},
-        isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
+        chatMessages: Array.isArray(data.chatMessages) ? data.chatMessages : [],
+        configErrors: Array.isArray(data.configErrors) ? data.configErrors : [],
+        profiles: Array.isArray(data.profiles) ? data.profiles : [],
+        activeDecorators: data.activeDecorators || {},
+        isWaitingForUserInteraction: data.isWaitingForUserInteraction || false,
       };
       setState(safeData);
     };

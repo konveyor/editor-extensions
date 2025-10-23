@@ -161,7 +161,7 @@ export const processMessageByType = async (
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat
-      state.mutateData((draft) => {
+      state.mutateChatMessages((draft) => {
         const toolName = msg.data.name || "unnamed tool";
         const toolStatus = msg.data.status;
         // Check if the most recent message is a tool message with the same name
@@ -292,7 +292,7 @@ export const processMessageByType = async (
 
       if (msg.id !== state.lastMessageId) {
         // This is a new message - create a new chat message
-        state.mutateData((draft) => {
+        state.mutateChatMessages((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
@@ -305,7 +305,7 @@ export const processMessageByType = async (
         state.lastMessageId = msg.id;
       } else {
         // This is a continuation of the current message - append to it
-        state.mutateData((draft) => {
+        state.mutateChatMessages((draft) => {
           if (draft.chatMessages.length > 0) {
             draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
           } else {
