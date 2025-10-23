@@ -8,6 +8,7 @@ import { createZip, extractZip } from '../utilities/archive';
 import {
   cleanupRepo,
   extensionName,
+  extensionShortName,
   generateRandomString,
   getOSInfo,
   writeOrUpdateSettingsJson,
@@ -749,5 +750,28 @@ export class VSCode extends BasePage {
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
     await this.window.waitForTimeout(300);
     await this.window.keyboard.press(`${modifier}+w`);
+  }
+
+  /**
+   * Opens the Konveyor command to configure Solution Server credentials,
+   * then types username and password into the respective input fields.
+   * @param username - Username for solution server
+   * @param password - Password for solution server
+   */
+  public async configureSolutionServerCredentials(
+    username: string,
+    password: string
+  ): Promise<void> {
+    await this.executeQuickCommand(`${extensionShortName}: Configure Solution Server Credentials`);
+
+    const usernameInput = this.window.getByRole('textbox', { name: 'input' });
+    await expect(usernameInput).toBeVisible({ timeout: 5000 });
+    await usernameInput.fill(username);
+    await usernameInput.press('Enter');
+
+    const passwordInput = this.window.getByRole('textbox', { name: 'input' });
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await passwordInput.fill(password);
+    await passwordInput.press('Enter');
   }
 }

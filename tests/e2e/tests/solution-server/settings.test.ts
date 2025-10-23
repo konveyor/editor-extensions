@@ -62,8 +62,6 @@ const buildSettings = (config: SolutionServerConfig) => ({
       enabled: config.authInIDE,
       insecure: config.insecure,
       realm: config.realm ?? SOLUTION_SERVER_REALM,
-      username: SOLUTION_SERVER_USERNAME,
-      password: SOLUTION_SERVER_PASSWORD,
     },
   },
 });
@@ -77,6 +75,12 @@ test.describe(`Configure Solution Server settings`, () => {
     repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
     await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
+    await vscodeApp.openWorkspaceSettingsAndWrite(buildSettings(solutionServerConfigs[0]));
+    await vscodeApp.waitDefault();
+    await vscodeApp.configureSolutionServerCredentials(
+      SOLUTION_SERVER_USERNAME,
+      SOLUTION_SERVER_PASSWORD
+    );
     await vscodeApp.startServer();
   });
 
