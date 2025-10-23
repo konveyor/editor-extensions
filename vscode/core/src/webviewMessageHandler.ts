@@ -28,6 +28,7 @@ import {
   ScopeWithKonveyorContext,
   ExtensionData,
   OPEN_RESOLUTION_PANEL,
+  CLEAR_LLM_ERRORS,
 } from "@editor-extensions/shared";
 
 import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
@@ -257,6 +258,11 @@ const actions: {
   },
   [OPEN_RESOLUTION_PANEL]() {
     executeExtensionCommand("showResolutionPanel");
+  },
+  [CLEAR_LLM_ERRORS](_, state: ExtensionState) {
+    state.mutateData((draft) => {
+      draft.llmErrors = [];
+    });
   },
   CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
     try {
