@@ -6,21 +6,21 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/vscode",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/core",
         "--enable-proposed-api=konveyor.konveyor-ai",
         "--verbose"
 
       ],
 
-      "cwd": "${workspaceFolder}/vscode",
+      "cwd": "${workspaceFolder}/vscode/core",
       "outFiles": [
-        "${workspaceFolder}/vscode/out/**/*.js",
+        "${workspaceFolder}/vscode/core/out/**/*.js",
         "${workspaceFolder}/agentic/dist/**/*.js",
         "${workspaceFolder}/shared/dist/**/*.js"
       ],
       "sourceMaps": true,
       "resolveSourceMapLocations": [
-        "${workspaceFolder}/vscode/out/**",
+        "${workspaceFolder}/vscode/core/out/**",
         "${workspaceFolder}/agentic/dist/**",
         "${workspaceFolder}/shared/dist/**",
         "!**/node_modules/**"
@@ -33,17 +33,17 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/vscode",
-        "--extensionTestsPath=${workspaceFolder}/vscode/out/test/suite/index"
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/core",
+        "--extensionTestsPath=${workspaceFolder}/vscode/core/out/test/suite/index"
       ],
       "outFiles": [
-        "${workspaceFolder}/vscode/out/test/**/*.js",
+        "${workspaceFolder}/vscode/core/out/test/**/*.js",
         "${workspaceFolder}/agentic/dist/**/*.js",
         "${workspaceFolder}/shared/dist/**/*.js"
       ],
       "sourceMaps": true,
       "resolveSourceMapLocations": [
-        "${workspaceFolder}/vscode/out/**",
+        "${workspaceFolder}/vscode/core/out/**",
         "${workspaceFolder}/agentic/dist/**",
         "${workspaceFolder}/shared/dist/**",
         "!**/node_modules/**"
