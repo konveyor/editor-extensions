@@ -24,6 +24,7 @@ const defaultState: ExtensionData = {
   activeDecorators: {},
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
+  llmErrors: [],
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
@@ -43,6 +44,7 @@ const getInitialState = (): ExtensionData => {
         chatMessages: Array.isArray(windowData.chatMessages) ? windowData.chatMessages : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
+        llmErrors: Array.isArray(windowData.llmErrors) ? windowData.llmErrors : [],
         activeDecorators: windowData.activeDecorators || {},
         isWaitingForUserInteraction: windowData.isWaitingForUserInteraction || false,
       };
@@ -79,6 +81,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         chatMessages: Array.isArray(event.data.chatMessages) ? event.data.chatMessages : [],
         configErrors: Array.isArray(event.data.configErrors) ? event.data.configErrors : [],
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
+        llmErrors: Array.isArray(event.data.llmErrors) ? event.data.llmErrors : [],
         activeDecorators: event.data.activeDecorators || {},
         isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
       };

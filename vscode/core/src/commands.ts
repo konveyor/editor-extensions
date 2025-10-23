@@ -217,6 +217,7 @@ const commandsMap: (
         draft.solutionState = "started";
         draft.solutionScope = scope;
         draft.chatMessages = []; // Clear previous chat messages
+        draft.llmErrors = []; // Clear previous LLM errors
         draft.activeDecorators = {};
       });
 
@@ -234,12 +235,31 @@ const commandsMap: (
 
         // Set the state to indicate we're fetching a solution
 
-        await state.workflowManager.init({
-          modelProvider: state.modelProvider,
-          workspaceDir: state.data.workspaceRoot,
-          solutionServerClient: state.solutionServerClient,
-        });
-        logger.debug("Agent initialized");
+        try {
+          await state.workflowManager.init({
+            modelProvider: state.modelProvider,
+            workspaceDir: state.data.workspaceRoot,
+            solutionServerClient: state.solutionServerClient,
+          });
+          logger.debug("Agent initialized");
+        } catch (initError) {
+          logger.error("Failed to initialize workflow", initError);
+          const errorMessage = initError instanceof Error ? initError.message : String(initError);
+
+          state.mutateData((draft) => {
+            draft.isFetchingSolution = false;
+            draft.solutionState = "failedOnSending";
+            draft.chatMessages.push({
+              messageToken: `m${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: { message: `Workflow initialization failed: ${errorMessage}` },
+              timestamp: new Date().toISOString(),
+            });
+          });
+          executeDeferredWorkflowDisposal(state, logger);
+          window.showErrorMessage(`Failed to initialize workflow: ${errorMessage}`);
+          return;
+        }
 
         // Get the workflow instance
         workflow = state.workflowManager.getWorkflow();
@@ -285,15 +305,10 @@ const commandsMap: (
         });
 
         // Add error event listener to catch workflow errors
+        // These are handled by the workflow message processor
         workflow.on("error", (error: any) => {
           logger.error("Workflow error:", error);
-          state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
-              draft.solutionState = "failedOnSending";
-            }
-          });
-          executeDeferredWorkflowDisposal(state, logger);
+          // State updates will be handled by the Error message type in processMessage
         });
 
         try {
@@ -320,8 +335,18 @@ const commandsMap: (
           logger.error(`Error in running the agent - ${err}`);
           logger.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
 
+          const errorMessage = err instanceof Error ? err.message : String(err);
+
           // Ensure isFetchingSolution is reset on any error
           state.mutateData((draft) => {
+            // Add to chat messages for visibility
+            draft.chatMessages.push({
+              messageToken: `m${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: { message: `Error: ${errorMessage}` },
+              timestamp: new Date().toISOString(),
+            });
+
             draft.isFetchingSolution = false;
             if (draft.solutionState === "started") {
               draft.solutionState = "failedOnSending";
