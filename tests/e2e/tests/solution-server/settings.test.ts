@@ -76,7 +76,7 @@ test.describe(`Configure Solution Server settings`, () => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
-    // await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
     await vscodeApp.startServer();
   });
 
