@@ -10,7 +10,7 @@ const SOLUTION_SERVER_USERNAME = process.env.SOLUTION_SERVER_USERNAME ?? 'admin'
 const SOLUTION_SERVER_PASSWORD = process.env.SOLUTION_SERVER_PASSWORD ?? 'Dog8code';
 
 if (!SOLUTION_SERVER_URL) {
-  throw new Error('solutionServerUrl environment variable is required');
+  throw new Error('SOLUTION_SERVER_URL environment variable is required');
 }
 
 type SolutionServerConfig = {
@@ -45,7 +45,7 @@ const solutionServerConfigs: SolutionServerConfig[] = [
     shouldConnect: false,
   },
   {
-    name: 'Realm missing',
+    name: 'Empty Realm string',
     ssEnabled: true,
     authInIDE: true,
     insecure: true,
@@ -76,7 +76,7 @@ test.describe(`Configure Solution Server settings`, () => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
-    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
+    // await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
     await vscodeApp.startServer();
   });
 

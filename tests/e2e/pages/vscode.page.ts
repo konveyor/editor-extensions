@@ -691,7 +691,8 @@ export class VSCode extends BasePage {
     await this.executeQuickCommand('Preferences: Open Workspace Settings (JSON)');
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
-    const editor = this.window.locator('.monaco-editor .view-lines');
+    const editor = this.window.locator('.monaco-editor .view-lines').first();
+    await expect(editor).toBeVisible({ timeout: 10000 });
     await editor.click();
     await this.window.waitForTimeout(200);
 
