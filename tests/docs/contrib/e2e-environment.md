@@ -77,6 +77,10 @@ Additionally, you can directly pass the env variables.
 
 | TEST_REPO_URL   | (Optional) Default is <https://github.com/konveyor-ecosystem/coolstore> |
 | TEST_REPO_NAME  | (Optional) Default is `coolstore` |
+| SOLUTION_SERVER_URL   | URL of the Solution Server instance |
+| SOLUTION_SERVER_REALM  | Authentication realm for Solution Server|
+| SOLUTION_SERVER_USERNAME   | Username for Solution Server authentication |
+| SOLUTION_SERVER_PASSWORD  | Password for Solution Server authentication |
                                                                                    |
 
 ## Running Tests

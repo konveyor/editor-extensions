@@ -190,9 +190,9 @@ export class VSCode extends BasePage {
     await this.window.keyboard.press(`${modifier}+Shift+P`, { delay: 500 });
     const input = this.window.getByPlaceholder('Type the name of a command to run.');
     await input.fill(`>${command}`);
-    await expect(this.window.locator('a').filter({ hasText: command })).toBeVisible({
-      timeout: 5000,
-    });
+    await expect(
+      this.window.locator(`a.label-name span.highlight >> text="${command}"`)
+    ).toBeVisible();
     await input.press('Enter', { delay: 500 });
   }
 
@@ -714,7 +714,13 @@ export class VSCode extends BasePage {
     // --- Merge updates ---
     const deepMerge = (target: any, source: any): any => {
       for (const key of Object.keys(source)) {
-        if (source[key] instanceof Object && key in target && target[key] instanceof Object) {
+        if (
+          source[key] instanceof Object &&
+          !Array.isArray(source[key]) &&
+          key in target &&
+          target[key] instanceof Object &&
+          !Array.isArray(target[key])
+        ) {
           deepMerge(target[key], source[key]);
         } else {
           target[key] = source[key];

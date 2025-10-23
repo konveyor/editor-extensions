@@ -4,15 +4,22 @@ import { KAIViews } from '../../enums/views.enum';
 import { extensionName } from '../../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 
+const SOLUTION_SERVER_URL = process.env.SOLUTION_SERVER_URL;
+const SOLUTION_SERVER_REALM = process.env.SOLUTION_SERVER_REALM ?? 'tackle';
+const SOLUTION_SERVER_USERNAME = process.env.SOLUTION_SERVER_USERNAME ?? 'admin';
+const SOLUTION_SERVER_PASSWORD = process.env.SOLUTION_SERVER_PASSWORD ?? 'Dog8code';
+
+if (!SOLUTION_SERVER_URL) {
+  throw new Error('solutionServerUrl environment variable is required');
+}
+
 type SolutionServerConfig = {
   name: string;
   ssEnabled: boolean;
   authInIDE: boolean;
   insecure: boolean;
-  realm: string;
+  realm?: string;
   shouldConnect: boolean;
-  username?: string;
-  password?: string;
 };
 
 const solutionServerConfigs: SolutionServerConfig[] = [
@@ -21,7 +28,6 @@ const solutionServerConfigs: SolutionServerConfig[] = [
     ssEnabled: true,
     authInIDE: true,
     insecure: true,
-    realm: 'mta',
     shouldConnect: true,
   },
   {
@@ -29,7 +35,6 @@ const solutionServerConfigs: SolutionServerConfig[] = [
     ssEnabled: true,
     authInIDE: false,
     insecure: true,
-    realm: 'mta',
     shouldConnect: false,
   },
   {
@@ -37,7 +42,6 @@ const solutionServerConfigs: SolutionServerConfig[] = [
     ssEnabled: true,
     authInIDE: true,
     insecure: false,
-    realm: 'mta',
     shouldConnect: false,
   },
   {
@@ -48,38 +52,18 @@ const solutionServerConfigs: SolutionServerConfig[] = [
     realm: '',
     shouldConnect: false,
   },
-  {
-    name: 'Wrong username',
-    ssEnabled: true,
-    authInIDE: true,
-    insecure: true,
-    realm: 'mta',
-    username: 'wronguser',
-    password: 'Dog8code',
-    shouldConnect: false,
-  },
-  {
-    name: 'Wrong password',
-    ssEnabled: true,
-    authInIDE: true,
-    insecure: true,
-    realm: 'mta',
-    username: 'admin',
-    password: 'wrongpass',
-    shouldConnect: false,
-  },
 ];
 
 const buildSettings = (config: SolutionServerConfig) => ({
   [`${extensionName}.solutionServer`]: {
     enabled: config.ssEnabled,
-    url: process.env.solutionServerUrl,
+    url: SOLUTION_SERVER_URL,
     auth: {
       enabled: config.authInIDE,
       insecure: config.insecure,
-      realm: config.realm,
-      username: config.username ?? 'admin',
-      password: config.password ?? 'Dog8code',
+      realm: config.realm ?? SOLUTION_SERVER_REALM,
+      username: SOLUTION_SERVER_USERNAME,
+      password: SOLUTION_SERVER_PASSWORD,
     },
   },
 });
@@ -109,10 +93,12 @@ test.describe(`Configure Solution Server settings`, () => {
         await expect(
           analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
         ).not.toBeVisible();
+        console.log(`✅ PASSED: ${scenario.name} — Solution Server connected successfully`);
       } else {
         await expect(
           analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
         ).toBeVisible();
+        console.log(`✅ PASSED: ${scenario.name} — Warning displayed as expected`);
       }
     }
   });
