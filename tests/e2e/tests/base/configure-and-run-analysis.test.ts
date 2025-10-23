@@ -7,6 +7,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
 import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 test.describe(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
@@ -23,7 +24,7 @@ test.describe(`Configure extension and run analysis`, () => {
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
   });
 
   test('Create Profile and Set Sources and targets', async () => {
