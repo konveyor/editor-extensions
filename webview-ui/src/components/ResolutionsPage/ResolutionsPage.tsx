@@ -124,9 +124,16 @@ const ResolutionPage: React.FC = () => {
   const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
     useResolutionData(state);
 
+  // Show processing state while:
+  // - Fetching solution from LLM
+  // - Processing queued messages (in non-agent mode)
+  // - Waiting for user interaction
+  const isProcessing =
+    isFetchingSolution || state.isProcessingQueuedMessages || state.isWaitingForUserInteraction;
+
   const { messageBoxRef, triggerScrollOnUserAction } = useScrollManagement(
     chatMessages,
-    isFetchingSolution,
+    isProcessing,
   );
 
   // Event handlers
@@ -209,10 +216,8 @@ const ResolutionPage: React.FC = () => {
       <PageSection>
         <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
           Generative AI Results
-          {isFetchingSolution && <LoadingIndicator />}
-          {!isFetchingSolution && (
-            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
-          )}
+          {isProcessing && <LoadingIndicator />}
+          {!isProcessing && <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />}
         </Title>
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>

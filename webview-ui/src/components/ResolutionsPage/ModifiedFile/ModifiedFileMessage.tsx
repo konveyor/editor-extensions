@@ -74,10 +74,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   // Do NOT use any fallback logic that could cause premature minimization
   const effectiveActionTaken = actionTaken;
 
-  console.log(
-    `[ModifiedFileMessage] Status check - messageToken: ${messageToken}, path: ${path}, data.status: ${status}, globalStatus: ${globalStatus}, actionTaken: ${actionTaken}, effectiveActionTaken: ${effectiveActionTaken}, foundMessage: ${!!currentMessage}`,
-  );
-
   // Update local state ONLY when global state changes for this specific message
   useEffect(() => {
     // Only update if we found the exact message and it has a status
@@ -87,9 +83,6 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
         globalStatus === "rejected" ||
         globalStatus === "no_changes_needed")
     ) {
-      console.log(
-        `[ModifiedFileMessage] Updating actionTaken to ${globalStatus} for messageToken: ${messageToken}, path: ${path}`,
-      );
       setActionTaken(globalStatus);
     }
   }, [globalStatus, currentMessage, messageToken, path, state.chatMessages]);

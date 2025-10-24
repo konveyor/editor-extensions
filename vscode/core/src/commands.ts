@@ -15,14 +15,9 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import { EnhancedIncident, RuleSet, Scope, ChatMessageType } from "@editor-extensions/shared";
-import {
-  type KaiWorkflowMessage,
-  type KaiInteractiveWorkflowInput,
-} from "@editor-extensions/agentic";
+import { EnhancedIncident, RuleSet } from "@editor-extensions/shared";
 import {
   updateAnalyzerPath,
-  getConfigAgentMode,
   getAllConfigurationValues,
   enableGenAI,
   getWorkspaceRelativePath,
@@ -39,12 +34,10 @@ import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
-import { v4 as uuidv4 } from "uuid";
-import { processMessage } from "./utilities/ModifiedFiles/processMessage";
-import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
+import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
 
 const isWindows = process.platform === "win32";
 
@@ -59,7 +52,7 @@ export function executeExtensionCommand(commandSuffix: string, ...args: any[]): 
 /**
  * Helper function to execute deferred workflow disposal after solution completes
  */
-function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
+export function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
   if (state.workflowDisposalPending && state.workflowManager && state.workflowManager.dispose) {
     logger.info("Executing deferred workflow disposal after solution completion");
     state.workflowManager.dispose();
@@ -176,248 +169,8 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      if (state.data.isFetchingSolution) {
-        logger.info("Solution already being fetched");
-        window.showWarningMessage("Solution already being fetched");
-        return;
-      }
-
-      // Check if GenAI is disabled
-      if (state.data.configErrors.some((e) => e.type === "genai-disabled")) {
-        logger.info("GenAI disabled, cannot get solution");
-        window.showErrorMessage("GenAI functionality is disabled.");
-        return;
-      }
-
-      // Check if model provider is not initialized
-      if (!state.modelProvider) {
-        logger.info("Model provider not initialized, cannot get solution");
-        window.showErrorMessage(
-          "Model provider is not configured. Please check your provider settings.",
-        );
-        return;
-      }
-
-      // Read agent mode from configuration instead of parameter
-      const agentMode = getConfigAgentMode();
-      logger.info("Get solution command called", { incidents, agentMode });
-      await executeExtensionCommand("showResolutionPanel");
-
-      // Create a scope for the solution
-      const scope: Scope = { incidents };
-
-      const clientId = uuidv4();
-      state.solutionServerClient.setClientId(clientId);
-      logger.debug("Client ID set", { clientId });
-
-      // Update the state to indicate we're starting to fetch a solution
-      // Clear previous data to prevent stale content from showing
-      state.mutateData((draft) => {
-        draft.isFetchingSolution = true;
-        draft.solutionState = "started";
-        draft.solutionScope = scope;
-        draft.chatMessages = []; // Clear previous chat messages
-        draft.activeDecorators = {};
-      });
-
-      // Declare variables outside try block for proper cleanup access
-      const pendingInteractions = new Map<string, (response: any) => void>();
-      let workflow: any;
-
-      try {
-        // Get the profile name from the incidents
-        const profileName = incidents[0]?.activeProfileName;
-        if (!profileName) {
-          window.showErrorMessage("No profile name found in incidents");
-          return;
-        }
-
-        // Set the state to indicate we're fetching a solution
-
-        await state.workflowManager.init({
-          modelProvider: state.modelProvider,
-          workspaceDir: state.data.workspaceRoot,
-          solutionServerClient: state.solutionServerClient,
-        });
-        logger.debug("Agent initialized");
-
-        // Get the workflow instance
-        workflow = state.workflowManager.getWorkflow();
-        // Track processed message tokens to prevent duplicates
-        const processedTokens = new Set<string>();
-
-        // Clear any existing modified files state at the start of a new solution
-        state.modifiedFiles.clear();
-        const modifiedFilesPromises: Array<Promise<void>> = [];
-        // Queue to store messages that arrive while waiting for user interaction
-
-        // Create the queue manager for centralized queue processing
-        const queueManager = new MessageQueueManager(
-          state,
-          workflow,
-          modifiedFilesPromises,
-          processedTokens,
-          pendingInteractions,
-        );
-
-        // Store the resolver function in the state so webview handler can access it
-        state.resolvePendingInteraction = (messageId: string, response: any) => {
-          const resolver = pendingInteractions.get(messageId);
-          if (resolver) {
-            try {
-              pendingInteractions.delete(messageId);
-              resolver(response);
-              return true;
-            } catch (error) {
-              logger.error(`Error executing resolver for messageId: ${messageId}:`, error);
-              return false;
-            }
-          } else {
-            return false;
-          }
-        };
-
-        // Set up the event listener to use our message processing function
-
-        workflow.removeAllListeners();
-        workflow.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-          await processMessage(msg, state, queueManager);
-        });
-
-        // Add error event listener to catch workflow errors
-        workflow.on("error", (error: any) => {
-          logger.error("Workflow error:", error);
-          state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
-              draft.solutionState = "failedOnSending";
-            }
-          });
-          executeDeferredWorkflowDisposal(state, logger);
-        });
-
-        try {
-          const input: KaiInteractiveWorkflowInput = {
-            incidents,
-            migrationHint: profileName,
-            programmingLanguage: "Java",
-            enableAgentMode: agentMode,
-          };
-
-          await workflow.run(input);
-
-          // Wait for all message processing to complete before proceeding
-          // This is critical for non-agentic mode where ModifiedFile messages
-          // are processed asynchronously during the workflow
-          if (!agentMode) {
-            // Give a short delay to ensure all async message processing completes
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            // Wait for any remaining promises in the modifiedFilesPromises array
-            await Promise.all(modifiedFilesPromises);
-          }
-        } catch (err) {
-          logger.error(`Error in running the agent - ${err}`);
-          logger.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
-
-          // Ensure isFetchingSolution is reset on any error
-          state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
-              draft.solutionState = "failedOnSending";
-            }
-          });
-          executeDeferredWorkflowDisposal(state, logger);
-        } finally {
-          // Clear the stuck interaction monitoring
-
-          // Ensure isFetchingSolution is reset even if workflow fails unexpectedly
-          state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
-              draft.solutionState = "failedOnSending";
-            }
-            // Also ensure analysis flags are reset to prevent stuck tasks interactions
-            draft.isAnalyzing = false;
-            draft.isAnalysisScheduled = false;
-          });
-          executeDeferredWorkflowDisposal(state, logger);
-
-          // Clean up queue manager
-          if (queueManager) {
-            queueManager.dispose();
-          }
-
-          // Only clean up if we're not waiting for user interaction
-          // This prevents clearing pending interactions while users are still deciding on file changes
-          if (!state.data.isWaitingForUserInteraction) {
-            pendingInteractions.clear();
-            state.resolvePendingInteraction = undefined;
-          }
-
-          // Clean up workflow resources
-          if (workflow) {
-            workflow.removeAllListeners();
-          }
-
-          // Dispose of workflow manager if it has pending resources
-          if (state.workflowManager && state.workflowManager.dispose) {
-            state.workflowManager.dispose();
-          }
-        }
-
-        // In agentic mode, file changes are handled through ModifiedFile messages
-        // In non-agentic mode, file changes are also handled through ModifiedFile messages
-
-        // Reset the cache after all processing is complete
-        state.kaiFsCache.reset();
-
-        // Update the state - solution fetching is complete
-        state.mutateData((draft) => {
-          draft.solutionState = "received";
-          draft.isFetchingSolution = false;
-          // File changes are handled through ModifiedFile messages in both agent and non-agent modes
-        });
-        executeDeferredWorkflowDisposal(state, logger);
-
-        // Clean up pending interactions and resolver function after successful completion
-        // Only clean up if we're not waiting for user interaction
-        if (!state.data.isWaitingForUserInteraction) {
-          pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
-
-          // Reset solution state
-          state.mutateData((draft) => {
-            draft.solutionState = "none";
-          });
-        }
-      } catch (error: any) {
-        logger.error("Error in getSolution", { error });
-
-        // Clean up pending interactions and resolver function on error
-        // Only clean up if we're not waiting for user interaction
-        if (!state.data.isWaitingForUserInteraction) {
-          pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
-        }
-
-        // Update the state to indicate an error
-        state.mutateData((draft) => {
-          draft.solutionState = "failedOnSending";
-          draft.isFetchingSolution = false;
-          draft.chatMessages.push({
-            messageToken: `m${Date.now()}`,
-            kind: ChatMessageType.String,
-            value: { message: `Error: ${error instanceof Error ? error.message : String(error)}` },
-            timestamp: new Date().toISOString(),
-          });
-        });
-        executeDeferredWorkflowDisposal(state, logger);
-
-        window.showErrorMessage(
-          `Failed to generate solution: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
+      await orchestrator.run();
     },
     [`${EXTENSION_NAME}.getSuccessRate`]: async () => {
       logger.info("Getting success rate for incidents");

@@ -383,14 +383,18 @@ const AnalysisPage: React.FC = () => {
                 </StackItem>
               </Stack>
             </PageSection>
-            {(isWaitingForSolution || isWaitingForUserInteraction) && (
+            {(isWaitingForSolution ||
+              isWaitingForUserInteraction ||
+              state.isProcessingQueuedMessages) && (
               <Backdrop>
                 <div style={{ textAlign: "center", paddingTop: "15rem" }}>
                   <Spinner size="lg" />
                   <Title headingLevel="h2" size="lg">
                     {isWaitingForUserInteraction
                       ? "Waiting for user action..."
-                      : "Waiting for solution confirmation..."}
+                      : state.isProcessingQueuedMessages
+                        ? "Processing solution..."
+                        : "Waiting for solution confirmation..."}
                   </Title>
                   <Button
                     variant="primary"
