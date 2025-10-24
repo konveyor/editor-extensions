@@ -116,7 +116,6 @@ export class VSCodeWeb extends VSCode {
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (!(await loginButton.isVisible())) {
-      console.log('a');
       await page.close();
       return VSCodeWeb.open(repoUrl, repoDir, branch);
     }
