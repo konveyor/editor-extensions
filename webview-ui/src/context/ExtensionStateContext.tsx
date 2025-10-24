@@ -24,6 +24,7 @@ const defaultState: ExtensionData = {
   activeDecorators: {},
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
+  isProcessingQueuedMessages: false,
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
@@ -45,6 +46,7 @@ const getInitialState = (): ExtensionData => {
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         activeDecorators: windowData.activeDecorators || {},
         isWaitingForUserInteraction: windowData.isWaitingForUserInteraction || false,
+        isProcessingQueuedMessages: windowData.isProcessingQueuedMessages || false,
       };
     }
   } catch (error) {
@@ -81,7 +83,20 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
         activeDecorators: event.data.activeDecorators || {},
         isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
+        isProcessingQueuedMessages: event.data.isProcessingQueuedMessages || false,
       };
+
+      // Log state updates that clear chat messages or reset waiting flag
+      if (safeData.chatMessages.length === 0 && state.chatMessages.length > 0) {
+        console.log("[Webview] Chat messages cleared by extension", {
+          previousCount: state.chatMessages.length,
+          newCount: 0,
+        });
+      }
+      if (!safeData.isWaitingForUserInteraction && state.isWaitingForUserInteraction) {
+        console.log("[Webview] isWaitingForUserInteraction reset by extension");
+      }
+
       setState(safeData);
     };
     window.addEventListener("message", handleMessage);
@@ -89,7 +104,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, []);
+  }, [state.chatMessages.length, state.isWaitingForUserInteraction]);
 
   return (
     <ExtensionStateContext.Provider value={{ state, dispatch }}>

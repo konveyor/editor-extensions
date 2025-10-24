@@ -98,16 +98,46 @@ export async function handleFileResponse(
   content: string | undefined,
   state: ExtensionState,
 ): Promise<void> {
+  console.log(
+    `[handleFileResponse] CALLED for messageToken: ${messageToken}, responseId: ${responseId}, path: ${path}`,
+  );
+
   const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });
   try {
+    console.log(
+      `[handleFileResponse] hasPendingInteraction: ${state.pendingInteractionsMap?.has(messageToken) ?? false}`,
+    );
+    console.log(
+      `[handleFileResponse] totalPendingInteractions: ${state.pendingInteractionsMap?.size ?? 0}`,
+    );
+    console.log(
+      `[handleFileResponse] hasResolvePendingInteraction: ${!!state.resolvePendingInteraction}`,
+    );
+
+    logger.info(`handleFileResponse called`, {
+      messageToken,
+      responseId,
+      path,
+      hasPendingInteraction: state.pendingInteractionsMap?.has(messageToken) ?? false,
+      totalPendingInteractions: state.pendingInteractionsMap?.size ?? 0,
+    });
+
     const messageIndex = state.data.chatMessages.findIndex(
       (msg) => msg.messageToken === messageToken,
     );
 
     if (messageIndex === -1) {
-      state.logger
-        .child({ component: "handleFileResponse.handleFileResponse" })
-        .error("Message token not found:", messageToken);
+      logger.error("Message token not found in chatMessages:", {
+        messageToken,
+        totalChatMessages: state.data.chatMessages.length,
+        chatMessageTokens: state.data.chatMessages.map((m) => m.messageToken),
+      });
+
+      // This might be a stale interaction - clean it up
+      if (state.resolvePendingInteraction) {
+        logger.warn("Attempting to resolve stale pending interaction");
+        state.resolvePendingInteraction(messageToken, { responseId, path });
+      }
       return;
     }
 

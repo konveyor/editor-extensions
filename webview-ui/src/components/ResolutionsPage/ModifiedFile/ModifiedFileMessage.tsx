@@ -137,6 +137,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
     // Use provided selected content or fall back to full content
     const contentToApply = selectedContent || content;
 
+    console.log(`[ModifiedFileMessage] Apply clicked for messageToken: ${messageToken}, path: ${path}`);
+
     // Use FILE_RESPONSE flow for standalone apply button
     postFileResponse("apply", messageToken, path, contentToApply);
     // Trigger scroll after action
@@ -154,6 +156,8 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = ({
   const rejectFileChanges = () => {
     setIsViewingDiff(false);
     setActionTaken("rejected");
+
+    console.log(`[ModifiedFileMessage] Reject clicked for messageToken: ${messageToken}, path: ${path}`);
 
     // Use FILE_RESPONSE flow for standalone reject button
     postFileResponse("reject", messageToken, path);

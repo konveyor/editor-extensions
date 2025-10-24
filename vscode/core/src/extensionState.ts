@@ -15,6 +15,7 @@ import { EventEmitter } from "events";
 import winston from "winston";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
+import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -50,4 +51,6 @@ export interface ExtensionState {
   modelProvider: KaiModelProvider | undefined;
   verticalDiffManager?: VerticalDiffManager;
   staticDiffAdapter?: StaticDiffAdapter;
+  currentQueueManager?: MessageQueueManager;
+  pendingInteractionsMap?: Map<string, (response: any) => void>;
 }
