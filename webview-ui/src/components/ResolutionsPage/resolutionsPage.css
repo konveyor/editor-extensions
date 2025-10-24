@@ -117,6 +117,58 @@
     opacity: 1 !important;
   }
 }
+/* Chatbot footer - make it sticky at bottom to prevent jitter */
+.resolutions-page .pf-chatbot__footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--pf-t--global--background--color--100);
+  z-index: 100;
+  border-top: 1px solid var(--pf-t--global--border--color--100);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  /* Ensure smooth transitions */
+  transition: box-shadow 0.2s ease;
+  /* Prevent layout shift */
+  contain: layout;
+  will-change: transform;
+}
+
+/* VS Code theme support for footer */
+.resolutions-page .pf-chatbot__footer {
+  background-color: var(--vscode-editor-background);
+  border-top: 1px solid var(--vscode-panel-border, #3c3f41);
+}
+
+.vscode-light .resolutions-page .pf-chatbot__footer {
+  background-color: var(--vscode-sideBar-background, #f3f3f3);
+}
+
+/* Ensure MessageBox has padding at bottom for the sticky footer */
+.resolutions-page .pf-chatbot__message-box {
+  /* 
+   * Footer height calculation:
+   * - BatchReviewExpandable (collapsed): ~48px
+   * - ChatbotFootnote: ~40px  
+   * - Footer padding/margins: ~20px
+   * - Extra buffer for smooth scrolling: ~32px
+   * Total: ~140px
+   *
+   * Note: When BatchReviewExpandable expands (up to 50vh), 
+   * the sticky positioning keeps it in view without requiring additional padding.
+   */
+  padding-bottom: 140px !important; /* Space for footer + buffer for smooth scroll */
+  /* Enable smooth scrolling */
+  scroll-behavior: smooth;
+}
+
+/* Improve scroll performance for the message box */
+.resolutions-page .pf-chatbot__messagebox {
+  /* GPU acceleration for smoother scrolling */
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+}
+
 .footnote small {
   font-size: 14px;
 }

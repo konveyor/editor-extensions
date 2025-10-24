@@ -30,17 +30,19 @@ export class VerticalDiffManager {
 
   private readonly logger: Logger;
   private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>;
-  private readonly mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  private readonly mutateDecorators: (
+    recipe: (draft: ExtensionData) => void,
+  ) => Immutable<ExtensionData>;
 
   constructor(
     private readonly fileEditor: FileEditor,
     extensionState: ExtensionState,
   ) {
     // Destructure the properties we need from extensionState
-    const { logger, kaiFsCache, mutateData } = extensionState;
+    const { logger, kaiFsCache, mutateDecorators } = extensionState;
     this.logger = logger;
     this.kaiFsCache = kaiFsCache;
-    this.mutateData = mutateData;
+    this.mutateDecorators = mutateDecorators;
 
     this.userChangeListener = undefined;
   }
@@ -209,7 +211,7 @@ export class VerticalDiffManager {
     // Get the streamId for this file to clear activeDecorators
     const streamId = this.fileUriToStreamId.get(fileUri);
     if (streamId) {
-      this.mutateData((draft: any) => {
+      this.mutateDecorators((draft) => {
         if (draft.activeDecorators && draft.activeDecorators[streamId]) {
           delete draft.activeDecorators[streamId];
           this.logger.info(
@@ -297,12 +299,12 @@ export class VerticalDiffManager {
 
         // Clear activeDecorators when all decorators are resolved
         if ((status === "closed" || numDiffs === 0) && streamId) {
-          this.mutateData((draft: any) => {
+          this.mutateDecorators((draft) => {
             if (draft.activeDecorators && draft.activeDecorators[streamId]) {
               delete draft.activeDecorators[streamId];
-              this.logger.debug(`[Manager] Cleared activeDecorators for streamId: ${streamId}`);
             }
           });
+          this.logger.debug(`[Manager] Cleared activeDecorators for streamId: ${streamId}`);
 
           // Auto-save the document when all decorators are resolved
           // This provides the same behavior as "Apply All Changes" but for manual decoration clearing

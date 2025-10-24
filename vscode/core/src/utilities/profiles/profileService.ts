@@ -26,7 +26,7 @@ export async function saveProfilesAndActiveId(
 ) {
   await context.globalState.update(USER_PROFILE_KEY, userProfiles);
   await context.workspaceState.update("activeProfileId", activeId);
-  state.mutateData((draft) => {
+  state.mutateProfiles((draft) => {
     draft.profiles = [...getBundledProfiles(), ...userProfiles];
     draft.activeProfileId = activeId;
   });
@@ -34,7 +34,7 @@ export async function saveProfilesAndActiveId(
 
 export async function setActiveProfileId(profileId: string, state: ExtensionState): Promise<void> {
   await state.extensionContext.workspaceState.update(ACTIVE_PROFILE_KEY, profileId);
-  state.mutateData((draft) => {
+  state.mutateProfiles((draft) => {
     draft.activeProfileId = profileId;
   });
 }
@@ -95,7 +95,7 @@ export function updateActiveProfile(
   state: ExtensionState,
   updateFn: (profile: AnalysisProfile) => AnalysisProfile,
 ): void {
-  state.mutateData((draft) => {
+  state.mutateProfiles((draft) => {
     const idx = draft.profiles.findIndex((p) => p.id === draft.activeProfileId);
     if (idx !== -1) {
       draft.profiles[idx] = updateFn(draft.profiles[idx]);
