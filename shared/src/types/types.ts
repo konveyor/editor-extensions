@@ -89,6 +89,7 @@ export enum ChatMessageType {
   JSON = "JsonChatMessage",
   Tool = "ToolChatMessage",
   ModifiedFile = "ModifiedFileChatMessage",
+  BatchReview = "BatchReviewChatMessage",
 }
 
 export interface QuickResponse {
@@ -109,6 +110,16 @@ export interface ChatMessage {
   isCompact?: boolean;
   selectedResponse?: string;
   userInteraction?: any;
+}
+
+export interface PendingBatchReviewFile {
+  messageToken: string;
+  path: string;
+  diff: string;
+  content: string;
+  originalContent?: string;
+  isNew: boolean;
+  isDeleted: boolean;
 }
 
 export interface ExtensionData {
@@ -134,6 +145,8 @@ export interface ExtensionData {
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
+  isProcessingQueuedMessages?: boolean;
+  pendingBatchReview?: PendingBatchReviewFile[];
 }
 
 export type ConfigErrorType =
@@ -330,6 +343,7 @@ export type ModifiedFileMessageValue = {
   messageToken?: string;
   quickResponses?: QuickResponse[];
   userInteraction?: KaiUserInteraction;
+  readOnly?: boolean; // If true, don't show Apply/Reject buttons (just context)
 };
 export interface KaiUserInteraction {
   type: "yesNo" | "choice" | "tasks" | "modifiedFile";

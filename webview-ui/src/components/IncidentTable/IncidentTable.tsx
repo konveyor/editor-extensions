@@ -5,7 +5,7 @@ import { EnhancedIncident } from "@editor-extensions/shared";
 import { Table, Thead, Tr, Th, Tbody, Td, TableText } from "@patternfly/react-table";
 import Markdown from "react-markdown";
 import { getIncidentRelativePath } from "../../utils/incident";
-import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { useExtensionStore } from "../../store/store";
 import GetSolutionDropdown from "../GetSolutionDropdown";
 
 export interface IncidentTableProps {
@@ -21,7 +21,8 @@ export const IncidentTable: FC<IncidentTableProps> = ({
   isReadOnly = false,
   onIncidentSelect,
 }) => {
-  const { state } = useExtensionStateContext();
+  // ✅ Only subscribe to workspaceRoot - component won't re-render for other state changes
+  const workspaceRoot = useExtensionStore((state) => state.workspaceRoot);
   const uniqueId = (incident: EnhancedIncident) => `${incident.uri}-${incident.lineNumber}`;
 
   // Helper function to get success rate from any incident in the group
@@ -102,7 +103,7 @@ export const IncidentTable: FC<IncidentTableProps> = ({
                           onClick={() => onIncidentSelect(it)}
                         >
                           <b>
-                            {getIncidentRelativePath(it, state.workspaceRoot)}:{it.lineNumber}
+                            {getIncidentRelativePath(it, workspaceRoot)}:{it.lineNumber}
                           </b>
                         </Button>
                       </TableText>

@@ -84,9 +84,17 @@ const actions: {
     const updatedAllProfiles = await getAllProfiles(state.extensionContext);
     setActiveProfileId(profile.id, state);
 
-    state.mutateData((draft) => {
+    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateData)
+    await state.extensionContext.workspaceState.update("activeProfileId", profile.id);
+
+    // Use mutateProfiles to broadcast profile updates to webview
+    state.mutateProfiles((draft) => {
       draft.profiles = updatedAllProfiles;
       draft.activeProfileId = profile.id;
+    });
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
@@ -109,13 +117,27 @@ const actions: {
     saveUserProfiles(state.extensionContext, filtered);
 
     const fullProfiles = await getAllProfiles(state.extensionContext);
-    state.mutateData((draft) => {
-      draft.profiles = fullProfiles;
+    const currentActiveProfileId = state.data.activeProfileId;
 
-      if (draft.activeProfileId === profileId) {
-        draft.activeProfileId = fullProfiles[0]?.id ?? "";
-        state.extensionContext.workspaceState.update("activeProfileId", draft.activeProfileId);
-      }
+    // Update active profile if the deleted profile was active
+    if (currentActiveProfileId === profileId) {
+      const newActiveProfileId = fullProfiles[0]?.id ?? "";
+      state.extensionContext.workspaceState.update("activeProfileId", newActiveProfileId);
+
+      // Broadcast profile update with new active profile
+      state.mutateProfiles((draft) => {
+        draft.profiles = fullProfiles;
+        draft.activeProfileId = newActiveProfileId;
+      });
+    } else {
+      // Just update profiles list
+      state.mutateProfiles((draft) => {
+        draft.profiles = fullProfiles;
+      });
+    }
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
@@ -149,14 +171,19 @@ const actions: {
     const fullProfiles = await getAllProfiles(state.extensionContext);
 
     // Check if we're updating the active profile
-    const isActiveProfile = state.data.activeProfileId === originalId;
+    const currentActiveProfileId = state.data.activeProfileId;
+    const isActiveProfile = currentActiveProfileId === originalId;
 
-    state.mutateData((draft) => {
+    // Update profiles and active profile ID if necessary
+    state.mutateProfiles((draft) => {
       draft.profiles = fullProfiles;
-
-      if (draft.activeProfileId === originalId) {
+      if (currentActiveProfileId === originalId) {
         draft.activeProfileId = updatedProfile.id;
       }
+    });
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
 
@@ -180,11 +207,19 @@ const actions: {
     }
 
     // Check if profile is actually changing
-    const isProfileChanging = state.data.activeProfileId !== profileId;
+    const currentActiveProfileId = state.data.activeProfileId;
+    const isProfileChanging = currentActiveProfileId !== profileId;
 
-    setActiveProfileId(profileId, state);
-    state.mutateData((draft) => {
+    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateData)
+    await state.extensionContext.workspaceState.update("activeProfileId", profileId);
+
+    // Broadcast active profile change to webview
+    state.mutateProfiles((draft) => {
       draft.activeProfileId = profileId;
+    });
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
 
@@ -230,14 +265,45 @@ const actions: {
       await executeExtensionCommand("showDiffWithDecorations", path, diff, content, messageToken);
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
+
+      // Clear the processing state for this file on error
+      // This prevents the UI from getting stuck in "Processing changes..."
+      state.mutateSolutionWorkflow((draft) => {
+        // Clear from pendingBatchReview if there's an error
+        if (draft.pendingBatchReview) {
+          const fileIndex = draft.pendingBatchReview.findIndex(
+            (file) => file.messageToken === messageToken,
+          );
+          if (fileIndex !== -1) {
+            // Mark as error rather than removing, so user can retry
+            logger.info(`Marking file as error in pendingBatchReview: ${path}`);
+          }
+        }
+      });
+
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
     }
   },
   QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
     handleQuickResponse(messageToken, responseId, state);
   },
-  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state) => {
-    handleFileResponse(messageToken, responseId, path, content, state);
+  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state, logger) => {
+    await handleFileResponse(messageToken, responseId, path, content, state);
+
+    // Remove from pendingBatchReview after processing individual file
+    state.mutateSolutionWorkflow((draft) => {
+      if (draft.pendingBatchReview) {
+        draft.pendingBatchReview = draft.pendingBatchReview.filter(
+          (file) => file.messageToken !== messageToken,
+        );
+        logger.info(`Removed file from pendingBatchReview: ${path}`, {
+          remaining: draft.pendingBatchReview.length,
+        });
+      }
+    });
+
+    // Check if batch review is complete
+    checkBatchReviewComplete(state, logger);
   },
 
   [RUN_ANALYSIS]() {
@@ -314,15 +380,141 @@ const actions: {
       console.log("Continue decision: ", { responseId, hasChanges });
 
       await handleFileResponse(messageToken, responseId, path, finalContent, state);
+
+      // Remove from pendingBatchReview after processing
+      state.mutateSolutionWorkflow((draft) => {
+        if (draft.pendingBatchReview) {
+          draft.pendingBatchReview = draft.pendingBatchReview.filter(
+            (file) => file.messageToken !== messageToken,
+          );
+        }
+      });
+
       logger.info(`File state continued with response: ${responseId}`, {
         path,
         messageToken,
       });
+
+      // Check if workflow cleanup should happen
+      checkBatchReviewComplete(state, logger);
     } catch (error) {
       logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
       await handleFileResponse(messageToken, "reject", path, content, state);
     }
   },
+
+  BATCH_APPLY_ALL: async ({ files }, state, logger) => {
+    try {
+      logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
+      console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
+
+      // Set processing flag at the start
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = true;
+      });
+
+      // Process files one by one and remove from pendingBatchReview as we go
+      for (const file of files) {
+        logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
+        await handleFileResponse(file.messageToken, "apply", file.path, file.content, state);
+
+        // Remove this file from pendingBatchReview immediately for real-time progress
+        state.mutateSolutionWorkflow((draft) => {
+          if (draft.pendingBatchReview) {
+            draft.pendingBatchReview = draft.pendingBatchReview.filter(
+              (f) => f.messageToken !== file.messageToken,
+            );
+            logger.info(
+              `BATCH_APPLY_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
+            );
+          }
+        });
+      }
+
+      // Reset processing flag
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = false;
+      });
+
+      logger.info(`BATCH_APPLY_ALL: Successfully applied ${files.length} files`);
+      console.log(`[BATCH_APPLY_ALL] Successfully completed`);
+
+      // Check if workflow cleanup should happen
+      checkBatchReviewComplete(state, logger);
+    } catch (error) {
+      logger.error("Error in BATCH_APPLY_ALL:", error);
+      console.error("[BATCH_APPLY_ALL] Error:", error);
+
+      // Reset processing flag on error
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = false;
+      });
+    }
+  },
+
+  BATCH_REJECT_ALL: async ({ files }, state, logger) => {
+    try {
+      logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
+      console.log(`[BATCH_REJECT_ALL] Processing ${files.length} files`);
+
+      // Set processing flag at the start
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = true;
+      });
+
+      // Process files one by one and remove from pendingBatchReview as we go
+      for (const file of files) {
+        logger.info(`BATCH_REJECT_ALL: Rejecting file ${file.path}`);
+        await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
+
+        // Remove this file from pendingBatchReview immediately for real-time progress
+        state.mutateSolutionWorkflow((draft) => {
+          if (draft.pendingBatchReview) {
+            draft.pendingBatchReview = draft.pendingBatchReview.filter(
+              (f) => f.messageToken !== file.messageToken,
+            );
+            logger.info(
+              `BATCH_REJECT_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
+            );
+          }
+        });
+      }
+
+      // Reset processing flag
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = false;
+      });
+
+      logger.info(`BATCH_REJECT_ALL: Successfully rejected ${files.length} files`);
+      console.log(`[BATCH_REJECT_ALL] Successfully completed`);
+
+      // Check if workflow cleanup should happen
+      checkBatchReviewComplete(state, logger);
+    } catch (error) {
+      logger.error("Error in BATCH_REJECT_ALL:", error);
+      console.error("[BATCH_REJECT_ALL] Error:", error);
+
+      // Reset processing flag on error
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = false;
+      });
+    }
+  },
+};
+
+// Helper function to check if batch review is complete
+const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger) => {
+  const hasPendingBatchReview =
+    state.data.pendingBatchReview && state.data.pendingBatchReview.length > 0;
+
+  if (!hasPendingBatchReview) {
+    logger.info("Batch review complete");
+
+    // Clear any remaining state
+    state.mutateSolutionWorkflow((draft) => {
+      draft.pendingBatchReview = [];
+    });
+  }
 };
 
 export const messageHandler = async (

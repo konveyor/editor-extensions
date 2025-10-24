@@ -10,14 +10,17 @@ import {
   PageSidebar,
   PageSidebarBody,
 } from "@patternfly/react-core";
-import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { useExtensionStore } from "../../store/store";
+import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { ProfileList } from "./ProfileList";
 import { ProfileEditorForm } from "./ProfileEditorForm";
 import { AnalysisProfile } from "../../../../shared/dist/types";
 
 export const ProfileManagerPage: React.FC = () => {
-  const { state, dispatch } = useExtensionStateContext();
-  const { profiles, activeProfileId, isAnalyzing } = state;
+  // ✅ Selective subscriptions
+  const profiles = useExtensionStore((state) => state.profiles);
+  const activeProfileId = useExtensionStore((state) => state.activeProfileId);
+  const isAnalyzing = useExtensionStore((state) => state.isAnalyzing);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     activeProfileId ?? profiles[0]?.id ?? null,
   );
