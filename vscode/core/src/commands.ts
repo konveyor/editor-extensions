@@ -233,6 +233,39 @@ const commandsMap: (
 
         // Clear any existing modified files state at the start of a new solution
         state.modifiedFiles.clear();
+
+        // CRITICAL: Reset waiting flag and clear stale state from previous sessions
+        // This prevents stuck interactions from previous runs
+        state.mutateData((draft) => {
+          draft.isWaitingForUserInteraction = false;
+          // Clear chat messages from previous solution attempts
+          // This also triggers a state update to the webview, ensuring old messages are cleared
+          draft.chatMessages = [];
+        });
+
+        logger.info("Cleared stale state", {
+          isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+          chatMessagesLength: state.data.chatMessages.length,
+        });
+
+        // Clean up any stale queue manager and pending interactions from previous runs
+        if (state.currentQueueManager) {
+          logger.warn("Cleaning up stale queue manager from previous run");
+          state.currentQueueManager.dispose();
+          state.currentQueueManager = undefined;
+        }
+        if (state.pendingInteractionsMap && state.pendingInteractionsMap.size > 0) {
+          logger.warn(
+            `Cleaning up ${state.pendingInteractionsMap.size} stale pending interactions from previous run`,
+          );
+          state.pendingInteractionsMap.clear();
+          state.pendingInteractionsMap = undefined;
+        }
+        if (state.resolvePendingInteraction) {
+          logger.warn("Cleaning up stale resolvePendingInteraction from previous run");
+          state.resolvePendingInteraction = undefined;
+        }
+
         const modifiedFilesPromises: Array<Promise<void>> = [];
         // Queue to store messages that arrive while waiting for user interaction
 
@@ -245,19 +278,76 @@ const commandsMap: (
           pendingInteractions,
         );
 
+        // Store the queue manager and pending interactions in state for cleanup later
+        state.currentQueueManager = queueManager;
+        state.pendingInteractionsMap = pendingInteractions;
+
         // Store the resolver function in the state so webview handler can access it
         state.resolvePendingInteraction = (messageId: string, response: any) => {
+          console.log(`[resolvePendingInteraction] Called for messageId: ${messageId}`);
+          console.log(
+            `[resolvePendingInteraction] Total pending interactions: ${pendingInteractions.size}`,
+          );
+          console.log(
+            `[resolvePendingInteraction] Pending interaction IDs: ${Array.from(pendingInteractions.keys()).join(", ")}`,
+          );
+
           const resolver = pendingInteractions.get(messageId);
           if (resolver) {
+            console.log(
+              `[resolvePendingInteraction] Resolver FOUND for ${messageId}, executing...`,
+            );
             try {
               pendingInteractions.delete(messageId);
               resolver(response);
+
+              console.log(`[resolvePendingInteraction] Resolver executed successfully`);
+              console.log(
+                `[resolvePendingInteraction] Remaining pending interactions: ${pendingInteractions.size}`,
+              );
+
+              // If this was the last pending interaction, we're no longer waiting,
+              // AND the queue is empty, then cleanup
+              const queueLength = state.currentQueueManager?.getQueueLength() ?? 0;
+              if (
+                pendingInteractions.size === 0 &&
+                !state.data.isWaitingForUserInteraction &&
+                queueLength === 0
+              ) {
+                logger.info(
+                  "Last pending interaction resolved and queue empty, cleaning up queue manager",
+                );
+
+                // Reset all processing flags now that everything is truly complete
+                state.mutateData((draft) => {
+                  draft.isFetchingSolution = false;
+                  draft.solutionState = "received";
+                  draft.isProcessingQueuedMessages = false;
+                });
+
+                if (state.currentQueueManager) {
+                  state.currentQueueManager.dispose();
+                  state.currentQueueManager = undefined;
+                }
+                state.pendingInteractionsMap = undefined;
+                state.resolvePendingInteraction = undefined;
+              } else if (pendingInteractions.size === 0 && queueLength > 0) {
+                logger.info(
+                  `Pending interactions cleared but ${queueLength} messages still in queue - NOT cleaning up yet`,
+                );
+              }
               return true;
             } catch (error) {
               logger.error(`Error executing resolver for messageId: ${messageId}:`, error);
               return false;
             }
           } else {
+            console.error(
+              `[resolvePendingInteraction] Resolver NOT FOUND for messageId: ${messageId}`,
+            );
+            console.error(
+              `[resolvePendingInteraction] Available resolvers: ${Array.from(pendingInteractions.keys()).join(", ")}`,
+            );
             return false;
           }
         };
@@ -291,19 +381,51 @@ const commandsMap: (
 
           await workflow.run(input);
 
-          // Wait for all message processing to complete before proceeding
-          // This is critical for non-agentic mode where ModifiedFile messages
-          // are processed asynchronously during the workflow
-          if (!agentMode) {
-            // Give a short delay to ensure all async message processing completes
-            await new Promise((resolve) => setTimeout(resolve, 100));
+          logger.info("Workflow.run() completed", {
+            agentMode,
+            pendingInteractionsCount: pendingInteractions.size,
+            queueLength: queueManager.getQueueLength(),
+            isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+          });
 
+          // Set flag to indicate we're processing queued messages
+          if (!agentMode && queueManager.getQueueLength() > 0) {
+            state.mutateData((draft) => {
+              draft.isProcessingQueuedMessages = true;
+            });
+          }
+
+          // In agent mode, wait for all file processing to complete
+          // In non-agent mode, DO NOT wait here as modifiedFilesPromises contain
+          // pending user interaction promises that won't resolve until users respond
+          if (agentMode) {
+            // Give a short delay to ensure all async message processing completes
+            // await new Promise((resolve) => setTimeout(resolve, 100));
             // Wait for any remaining promises in the modifiedFilesPromises array
-            await Promise.all(modifiedFilesPromises);
+            // await Promise.all(modifiedFilesPromises);
+          } else {
+            // In non-agent mode, just give a brief delay to ensure messages are queued
+            // The queue manager will process them and wait for user interactions
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            logger.info("After delay in non-agent mode", {
+              pendingInteractionsCount: pendingInteractions.size,
+              queueLength: queueManager.getQueueLength(),
+              isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+              chatMessagesCount: state.data.chatMessages.length,
+            });
           }
         } catch (err) {
-          logger.error(`Error in running the agent - ${err}`);
-          logger.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          const isStringLengthError = errorMessage.includes("Invalid string length");
+
+          logger.error(`Error in running the agent - ${errorMessage}`);
+          if (!isStringLengthError) {
+            logger.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
+          } else {
+            logger.error(
+              "Invalid string length error - likely due to logging large/circular objects in workflow",
+            );
+          }
 
           // Ensure isFetchingSolution is reset on any error
           state.mutateData((draft) => {
@@ -311,15 +433,65 @@ const commandsMap: (
             if (draft.solutionState === "started") {
               draft.solutionState = "failedOnSending";
             }
+            // If we hit a string length error, also reset waiting flag
+            // as messages may have been queued but workflow failed
+            if (isStringLengthError) {
+              draft.isWaitingForUserInteraction = false;
+            }
           });
+
+          // Add error message to chat
+          state.mutateData((draft) => {
+            draft.chatMessages.push({
+              messageToken: `error-${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: {
+                message: isStringLengthError
+                  ? "Error: Workflow failed due to internal logging issue. This typically happens with large analysis runs. Please try with fewer incidents at once."
+                  : `Error: ${errorMessage}`,
+              },
+              timestamp: new Date().toISOString(),
+            });
+          });
+
+          // Clean up queue manager if string length error
+          if (isStringLengthError && queueManager) {
+            logger.info("Disposing queue manager due to workflow error");
+            queueManager.dispose();
+          }
+
           executeDeferredWorkflowDisposal(state, logger);
         } finally {
+          logger.info("Entering finally block", {
+            pendingInteractionsCount: pendingInteractions.size,
+            queueLength: queueManager?.getQueueLength(),
+            isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+          });
+
           // Clear the stuck interaction monitoring
 
-          // Ensure isFetchingSolution is reset even if workflow fails unexpectedly
+          // In non-agent mode, keep isFetchingSolution true if there are messages in the queue
+          // This ensures the UI shows loading state while messages are being processed
+          const hasQueuedMessages = queueManager && queueManager.getQueueLength() > 0;
+
+          console.log(
+            `[finally] hasQueuedMessages: ${hasQueuedMessages}, queueLength: ${queueManager?.getQueueLength()}, agentMode: ${agentMode}`,
+          );
+
           state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
+            // Only reset isFetchingSolution if queue is empty (or we're in agent mode)
+            if (!hasQueuedMessages || agentMode) {
+              console.log(`[finally] Setting isFetchingSolution = false`);
+              draft.isFetchingSolution = false;
+            } else {
+              console.log(
+                `[finally] Keeping isFetchingSolution=true because ${queueManager?.getQueueLength()} messages still in queue`,
+              );
+              logger.info(
+                `Keeping isFetchingSolution=true because ${queueManager?.getQueueLength()} messages still in queue`,
+              );
+            }
+            if (draft.solutionState === "started" && !hasQueuedMessages) {
               draft.solutionState = "failedOnSending";
             }
             // Also ensure analysis flags are reset to prevent stuck tasks interactions
@@ -328,16 +500,35 @@ const commandsMap: (
           });
           executeDeferredWorkflowDisposal(state, logger);
 
-          // Clean up queue manager
-          if (queueManager) {
+          // Clean up queue manager ONLY if we're not waiting for user interaction
+          // In non-agent mode, the queue manager needs to stay alive to process user responses
+          if (queueManager && !state.data.isWaitingForUserInteraction) {
+            logger.info("Disposing queue manager (no pending user interactions)");
             queueManager.dispose();
+          } else if (queueManager) {
+            logger.info("Keeping queue manager alive - waiting for user interactions", {
+              queueLength: queueManager.getQueueLength(),
+              pendingInteractionsCount: pendingInteractions.size,
+            });
           }
 
-          // Only clean up if we're not waiting for user interaction
-          // This prevents clearing pending interactions while users are still deciding on file changes
-          if (!state.data.isWaitingForUserInteraction) {
+          // Only clean up if we're not waiting for user interaction AND queue is empty
+          // This prevents clearing while messages are still being processed
+          const stillHasQueuedMessages = queueManager && queueManager.getQueueLength() > 0;
+          if (!state.data.isWaitingForUserInteraction && !stillHasQueuedMessages) {
+            logger.info("Cleaning up pending interactions and resolver (queue empty)");
             pendingInteractions.clear();
             state.resolvePendingInteraction = undefined;
+            state.pendingInteractionsMap = undefined;
+            state.currentQueueManager = undefined;
+          } else {
+            // If we're waiting for user interaction or queue has messages, defer cleanup
+            logger.info("Workflow complete but deferring cleanup", {
+              isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+              queueLength: queueManager?.getQueueLength() ?? 0,
+              pendingInteractionsCount: pendingInteractions.size,
+              chatMessagesCount: state.data.chatMessages.length,
+            });
           }
 
           // Clean up workflow resources
@@ -365,26 +556,24 @@ const commandsMap: (
         });
         executeDeferredWorkflowDisposal(state, logger);
 
-        // Clean up pending interactions and resolver function after successful completion
-        // Only clean up if we're not waiting for user interaction
-        if (!state.data.isWaitingForUserInteraction) {
-          pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
-
-          // Reset solution state
-          state.mutateData((draft) => {
-            draft.solutionState = "none";
-          });
-        }
+        // DON'T clean up pendingInteractions here!
+        // In non-agent mode, messages are still being processed asynchronously through the queue
+        // The cleanup will happen automatically when the last interaction is resolved
+        // (see the resolvePendingInteraction function above)
+        logger.info("Workflow completed, pending interactions will be cleaned up when resolved", {
+          pendingInteractionsCount: pendingInteractions.size,
+          isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+        });
       } catch (error: any) {
         logger.error("Error in getSolution", { error });
 
-        // Clean up pending interactions and resolver function on error
-        // Only clean up if we're not waiting for user interaction
-        if (!state.data.isWaitingForUserInteraction) {
-          pendingInteractions.clear();
-          state.resolvePendingInteraction = undefined;
-        }
+        // DON'T clean up pendingInteractions even on error
+        // Let the automatic cleanup in resolvePendingInteraction handle it
+        // to avoid clearing interactions that are still in use
+        logger.warn("Error occurred, pending interactions will auto-cleanup when resolved", {
+          pendingInteractionsCount: pendingInteractions.size,
+          isWaitingForUserInteraction: state.data.isWaitingForUserInteraction,
+        });
 
         // Update the state to indicate an error
         state.mutateData((draft) => {

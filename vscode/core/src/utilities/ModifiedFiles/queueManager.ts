@@ -32,6 +32,9 @@ export class MessageQueueManager {
    */
   enqueueMessage(message: KaiWorkflowMessage): void {
     this.messageQueue.push(message);
+    this.logger.debug(
+      `Message enqueued: ${message.type}, id: ${message.id}, queue length: ${this.messageQueue.length}`,
+    );
   }
 
   /**
@@ -86,18 +89,22 @@ export class MessageQueueManager {
   async processQueuedMessages(): Promise<void> {
     // Prevent concurrent queue processing
     if (this.isProcessingQueue) {
+      this.logger.debug("Already processing queue, skipping");
       return;
     }
 
     if (this.messageQueue.length === 0) {
+      this.logger.debug("Queue is empty, nothing to process");
       return;
     }
 
     // Don't process if waiting for user interaction
     if (this.state.data.isWaitingForUserInteraction) {
+      this.logger.debug("Waiting for user interaction, skipping queue processing");
       return;
     }
 
+    this.logger.info(`Starting queue processing, ${this.messageQueue.length} messages in queue`);
     this.isProcessingQueue = true;
 
     try {
@@ -105,6 +112,9 @@ export class MessageQueueManager {
       while (this.messageQueue.length > 0 && !this.state.data.isWaitingForUserInteraction) {
         // Take the first message from queue
         const msg = this.messageQueue.shift()!;
+        this.logger.info(
+          `Processing message: ${msg.type}, id: ${msg.id}, remaining in queue: ${this.messageQueue.length}`,
+        );
 
         try {
           // Call the core processing logic directly
@@ -121,6 +131,9 @@ export class MessageQueueManager {
 
           // If this message triggered user interaction, stop processing
           if (this.state.data.isWaitingForUserInteraction) {
+            this.logger.info(
+              `Message ${msg.id} triggered user interaction, stopping queue processing`,
+            );
             break;
           }
         } catch (error) {
@@ -128,6 +141,8 @@ export class MessageQueueManager {
           // Continue processing other messages even if one fails
         }
       }
+
+      this.logger.info(`Queue processing complete, ${this.messageQueue.length} messages remaining`);
     } catch (error) {
       this.logger.error("Error in queue processing:", error);
 
@@ -171,19 +186,37 @@ export async function handleUserInteractionComplete(
   state: ExtensionState,
   queueManager: MessageQueueManager,
 ): Promise<void> {
-  // Reset the waiting flag
+  console.log("[handleUserInteractionComplete] Called");
+  console.log(`[handleUserInteractionComplete] Queue length: ${queueManager.getQueueLength()}`);
+  console.log(
+    `[handleUserInteractionComplete] Current isWaitingForUserInteraction: ${state.data.isWaitingForUserInteraction}`,
+  );
+
+  // CRITICAL: Always reset the waiting flag to allow queue processing to continue
+  // Must set to false to unblock the queue processor
   state.mutateData((draft) => {
     draft.isWaitingForUserInteraction = false;
   });
 
+  console.log(
+    "[handleUserInteractionComplete] Reset isWaitingForUserInteraction to false (temporarily to allow queue processing)",
+  );
+
   // The background processor will automatically resume processing
   // But we can trigger immediate processing if queue has messages
   if (queueManager.getQueueLength() > 0) {
+    console.log(
+      `[handleUserInteractionComplete] Resuming queue processing for ${queueManager.getQueueLength()} remaining messages`,
+    );
     // Don't await - let background processor handle it
     queueManager.processQueuedMessages().catch((error) => {
       state.logger
         .child({ component: "MessageQueueManager.handleUserInteractionComplete" })
         .error("Error resuming queue processing:", error);
     });
+  } else {
+    console.log(
+      "[handleUserInteractionComplete] No messages in queue to process - interaction complete",
+    );
   }
 }

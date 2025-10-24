@@ -43,7 +43,7 @@ module.exports = (env, argv) => {
       path: path.resolve(__dirname, "out"),
       filename: "[name].js",
       libraryTarget: "commonjs2",
-      // devtoolModuleFilenameTemplate: "../[resource-path]",
+      devtoolModuleFilenameTemplate: "../[resource-path]",
     },
     externals: {
       vscode: "commonjs vscode",
@@ -60,12 +60,14 @@ module.exports = (env, argv) => {
           use: [
             {
               loader: "ts-loader",
-              // options: {
-              //   compilerOptions: {
-              //     sourceMap: "true",
-              //     transpileOnly: false,
-              //   },
-              // },
+              options: {
+                compilerOptions: {
+                  sourceMap: true,
+                  // inlineSourceMap: false,
+                  // inlineSources: false,
+                },
+                transpileOnly: false,
+              },
             },
           ],
         },
@@ -76,9 +78,11 @@ module.exports = (env, argv) => {
       level: "log",
     },
 
-    // optimization: {
-    //   splitChunks: false,
-    // },
+    optimization: {
+      splitChunks: false,
+      // Disable mangling for better debugging
+      minimize: !isDev,
+    },
 
     plugins: [
       new webpack.DefinePlugin({
