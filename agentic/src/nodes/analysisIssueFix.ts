@@ -57,7 +57,12 @@ export class AnalysisIssueFix extends BaseNode {
       inputFileContent: undefined,
       inputIncidents: [],
     };
-    this.logger.silly("AnalysisIssueFixRouter called with state", { state });
+    this.logger.silly("AnalysisIssueFixRouter called", {
+      currentIdx: state.currentIdx,
+      totalIncidents: state.inputIncidentsByUris.length,
+      hasInputFileContent: !!state.inputFileContent,
+      inputIncidentsCount: state.inputIncidents.length,
+    });
     // we have to fix the incidents if there's at least one present in state
     if (state.currentIdx < state.inputIncidentsByUris.length) {
       const nextEntry = state.inputIncidentsByUris[state.currentIdx];
@@ -164,7 +169,12 @@ export class AnalysisIssueFix extends BaseNode {
       nextState.inputAllReasoning = accumulated.reasoning;
       nextState.inputAllModifiedFiles = accumulated.uris;
     }
-    this.logger.silly("AnalysisIssueFixRouter returning nextState", { nextState });
+    this.logger.silly("AnalysisIssueFixRouter returning", {
+      hasInputFileContent: !!nextState.inputFileContent,
+      hasInputFileUri: !!nextState.inputFileUri,
+      inputIncidentsCount: nextState.inputIncidents.length,
+      currentIdx: nextState.currentIdx,
+    });
     return nextState;
   }
 
@@ -172,7 +182,12 @@ export class AnalysisIssueFix extends BaseNode {
   async fixAnalysisIssue(
     state: typeof AnalysisIssueFixInputState.State,
   ): Promise<typeof AnalysisIssueFixOutputState.State> {
-    this.logger.silly("AnalysisIssueFix called with state", { state });
+    this.logger.silly("AnalysisIssueFix called", {
+      hasInputFileUri: !!state.inputFileUri,
+      hasInputFileContent: !!state.inputFileContent,
+      inputIncidentsCount: state.inputIncidents.length,
+      iterationCount: state.iterationCount,
+    });
     if (!state.inputFileUri || !state.inputFileContent || state.inputIncidents.length === 0) {
       return {
         outputUpdatedFile: undefined,
