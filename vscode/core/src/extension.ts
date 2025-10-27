@@ -496,6 +496,9 @@ class VsCodeExtension {
               authEnabled: newConfig.auth.enabled,
             });
 
+            // Capture current connection state before mutating
+            const wasConnected = this.state.data.solutionServerConnected;
+
             // Update the enabled state immediately
             this.state.mutateData((draft) => {
               draft.solutionServerEnabled = newConfig.enabled;
@@ -507,7 +510,7 @@ class VsCodeExtension {
             this.state.solutionServerClient.updateConfig(newConfig);
 
             // Disconnect if currently connected to apply new settings
-            if (this.state.data.solutionServerConnected) {
+            if (wasConnected) {
               try {
                 await this.state.solutionServerClient.disconnect();
                 this.state.logger.info(
