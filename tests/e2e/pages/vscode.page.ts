@@ -452,6 +452,9 @@ export abstract class VSCode {
   }
 
   public async executeTerminalCommand(command: string, expectedOutput?: string): Promise<void> {
+    if (!this.repoDir || !this.branch) {
+      throw new Error('executeTerminalCommand requires repoDir and branch to be set');
+    }
     if (!(await this.window.getByRole('tab', { name: 'Terminal' }).isVisible())) {
       await this.executeQuickCommand(`View: Toggle Terminal`);
     }

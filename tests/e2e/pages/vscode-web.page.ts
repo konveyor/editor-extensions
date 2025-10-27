@@ -240,7 +240,7 @@ export class VSCodeWeb extends VSCode {
     await page.locator('#git-repo-url').fill(repoUrl);
     await page.locator('#accordion-item-git-repo-options').click();
     await page.getByPlaceholder('Enter the branch of the Git Repository').fill(branch);
-    const newPage = ctx.waitForEvent('page');
+    const newPagePromise = ctx.waitForEvent('page');
     await page.locator('#create-and-open-button').click();
     const continueBtn = page.getByRole('button', { name: 'Continue' });
     if (await continueBtn.isVisible()) {
@@ -248,7 +248,7 @@ export class VSCodeWeb extends VSCode {
       await continueBtn.click();
     }
 
-    return await newPage;
+    return await newPagePromise;
   }
 
   private async installExtension(): Promise<void> {
