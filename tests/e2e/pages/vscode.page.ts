@@ -442,6 +442,30 @@ export abstract class VSCode {
     await this.window.waitForTimeout(process.env.CI ? 5000 : 3000);
   }
 
+  public async openConfiguration() {
+    // Navigate to the analysis view page
+    const analysisView = await this.getView(KAIViews.analysisView);
+    // Click the button matching the given locator
+    await analysisView.locator('button[aria-label="Configuration"]').first().click();
+  }
+
+  /**
+   * Waits for the GenAI configuration card to display the status 'Completed'.
+   * Uses the unique heading 'Configure GenAI' to scope to the correct card.
+   */
+  public async waitForGenAIConfigurationCompleted(): Promise<void> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+
+    // Locate the card header containing the Configure GenAI title.
+    const genaiCard = analysisView.locator('.pf-v6-c-card__header:has-text("Configure GenAI")');
+
+    // Find the status label text within this card header.
+    const completedLabel = genaiCard.getByText('Completed', { exact: true });
+
+    // Wait for the label to be visible with a reasonable timeout.
+    await expect(completedLabel).toBeVisible({ timeout: 30000 });
+  }
+
   /**
    * Opens the workspace settings file in VSCode and writes new settings.
    * Supports updating a single key/value pair or merging multiple settings at once.
