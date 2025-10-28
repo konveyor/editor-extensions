@@ -158,6 +158,21 @@ const commandsMap: (
         window.showErrorMessage("Analyzer must be started and configured before run!");
         return;
       }
+
+      // Check if analysis is already running
+      if (state.data.isAnalyzing) {
+        window.showWarningMessage("Analysis is already running. Please wait for it to complete.");
+        return;
+      }
+
+      // Check if analysis is already scheduled
+      if (state.data.isAnalysisScheduled) {
+        window.showInformationMessage(
+          "Analysis is already scheduled. It will run shortly after pending file changes are processed.",
+        );
+        return;
+      }
+
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
