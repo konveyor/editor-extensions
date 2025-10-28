@@ -15,13 +15,7 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import {
-  EnhancedIncident,
-  RuleSet,
-  Scope,
-  ChatMessageType,
-  createLLMError,
-} from "@editor-extensions/shared";
+import { EnhancedIncident, RuleSet, Scope, ChatMessageType } from "@editor-extensions/shared";
 import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
@@ -992,63 +986,6 @@ const commandsMap: (
       } else if (action?.value === "reject") {
         await executeExtensionCommand("rejectDiff", filePath);
       }
-    },
-
-    // Test command for simulating LLM errors (development only)
-    [`${EXTENSION_NAME}.testLLMError`]: async () => {
-      const errorType = await vscode.window.showQuickPick(
-        [
-          { label: "Timeout Error", value: "timeout" },
-          { label: "Rate Limit Error", value: "rateLimit" },
-          { label: "Context Limit Error", value: "contextLimit" },
-          { label: "Parse Error", value: "parse" },
-          { label: "Request Failed", value: "request" },
-          { label: "Unknown Error", value: "unknown" },
-        ],
-        {
-          placeHolder: "Select the type of LLM error to simulate",
-        },
-      );
-
-      if (!errorType) {
-        return;
-      }
-
-      // Simulate different LLM errors
-      let llmError;
-      switch (errorType.value) {
-        case "timeout":
-          llmError = createLLMError.llmTimeout();
-          break;
-        case "rateLimit":
-          llmError = createLLMError.llmRateLimit();
-          break;
-        case "contextLimit":
-          llmError = createLLMError.llmContextLimit();
-          break;
-        case "parse":
-          llmError = createLLMError.llmResponseParseFailed("Invalid JSON response from model");
-          break;
-        case "request":
-          llmError = createLLMError.llmRequestFailed("Connection refused to model API endpoint");
-          break;
-        case "unknown":
-        default:
-          llmError = createLLMError.llmUnknownError(
-            "An unexpected error occurred during model invocation",
-          );
-          break;
-      }
-
-      // Add the error to state
-      state.mutateData((draft) => {
-        draft.llmErrors.push(llmError);
-      });
-
-      logger.info(`Simulated LLM error: ${errorType.label}`);
-      vscode.window.showInformationMessage(
-        `Simulated ${errorType.label} - Check the Analysis or Resolution panel`,
-      );
     },
   };
 };
