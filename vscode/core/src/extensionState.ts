@@ -25,6 +25,7 @@ export interface ExtensionState {
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
   mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateChatMessages: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   profiles?: AnalysisProfile[];
   activeProfileId?: string;
   kaiFsCache: InMemoryCacheWithRevisions<string, string>;

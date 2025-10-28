@@ -116,6 +116,25 @@ class VsCodeExtension {
       return data;
     };
 
+    // Selective state mutator for chat messages only
+    const mutateChatMessages = (
+      recipe: (draft: ExtensionData) => void,
+    ): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      setData(data);
+
+      // Send only chat messages to webview instead of full state
+      this.state.webviewProviders.forEach((provider) => {
+        provider.sendMessageToWebview({
+          type: "CHAT_MESSAGES_UPDATE",
+          chatMessages: data.chatMessages,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
     const taskManager = new DiagnosticTaskManager(getExcludedDiagnosticSources());
 
     this.state = {
@@ -132,6 +151,7 @@ class VsCodeExtension {
         return getData();
       },
       mutateData,
+      mutateChatMessages,
       modifiedFiles: new Map(),
       modifiedFilesEventEmitter: new EventEmitter(),
       lastMessageId: "0",

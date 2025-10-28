@@ -111,7 +111,7 @@ const ViolationIncidentsList = ({
     groupId: string;
   }) => {
     const successRate = getSuccessRate(incidents);
-    console.log("successRate", successRate);
+    // Removed console.log for performance
 
     if (!successRate) {
       return null;
@@ -202,7 +202,7 @@ const ViolationIncidentsList = ({
     if (filters.hasSuccessRate) {
       filtered = filtered.filter((incident) => {
         const successRate = extractSuccessRateData(incident.successRateMetric);
-        console.log("Filtering incident:", incident.violationId, "successRate:", successRate);
+        // Removed console.log for performance
         return (
           successRate && (successRate.accepted_solutions > 0 || successRate.rejected_solutions > 0)
         );
