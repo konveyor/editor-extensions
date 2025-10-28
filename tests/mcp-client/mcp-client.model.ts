@@ -2,62 +2,78 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { z } from 'zod';
 import { BestHintResponse, SuccessRateResponse } from './mcp-client-responses.model';
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+interface TokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+}
+
+const TOKEN_EXPIRY_BUFFER_MS = 30000;
 
 export class MCPClient {
   private readonly url: string;
-  private transport: StreamableHTTPClientTransport;
+  private transport?: StreamableHTTPClientTransport;
   private client?: Client;
-  private token?: string;
+  private bearerToken: string | null = null;
+  private refreshToken: string | null = null;
+  private tokenExpiresAt: number | null = null;
+  private refreshTimer: NodeJS.Timeout | null = null;
 
-  constructor(url: string, bearerToken?: string) {
+  constructor(url: string) {
     this.url = url;
-    this.token = bearerToken;
-    const headers: Record<string, string> = {};
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+
+    // Allow self-signed certificates for local/dev environments
+    if (process.env.SOLUTION_SERVER_INSECURE === 'true') {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     }
+  }
+
+  public static async connect(url?: string) {
+    const fullUrl = url || process.env.SOLUTION_SERVER_URL!;
+    const mcpClient = new MCPClient(fullUrl);
+    await mcpClient.initialize();
+    return mcpClient;
+  }
+
+  private async initialize(): Promise<void> {
+    const isLocal = process.env.SOLUTION_SERVER_LOCAL === 'true';
+
+    if (isLocal) {
+      this.bearerToken = process.env.LOCAL_MCP_TOKEN || 'local-mcp-token';
+    } else {
+      await this.authenticateFromEnv();
+    }
+
+    const headers: Record<string, string> = {};
+    if (this.bearerToken) headers['Authorization'] = `Bearer ${this.bearerToken}`;
 
     this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
-      requestInit: {
-        headers,
-      },
+      requestInit: { headers },
     });
+
+    this.client = new Client(
+      { name: 'authenticated-mcp-client', version: '1.0.0' },
+      { capabilities: { tools: {}, resources: {} } }
+    );
+
+    await this.client.connect(this.transport);
+
+    if (!isLocal) this.startTokenRefreshTimer();
   }
 
-  private async refreshToken(): Promise<void> {
-    try {
-      const newToken = await MCPClient.exchangeForTokens();
-      this.token = newToken;
-
-      this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
-        requestInit: {
-          headers: { Authorization: `Bearer ${newToken}` },
-        },
-      });
-      await this.client?.connect(this.transport);
-
-      console.log('✅ Token refreshed successfully');
-    } catch (err) {
-      console.error('Failed to refresh token:', err);
-    }
-  }
-
-  private static async exchangeForTokens(): Promise<string> {
-    const serverUrl = process.env.SOLUTION_SERVER_URL!;
-    const realm = process.env.SOLUTION_SERVER_REALM!;
-    const username = process.env.SOLUTION_SERVER_USERNAME!;
-    const password = process.env.SOLUTION_SERVER_PASSWORD!;
-
-    const url = new URL(serverUrl);
-    const keycloakUrl = `${url.protocol}//${url.host}/auth`;
-    const tokenUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`;
+  private async authenticateFromEnv(): Promise<void> {
+    const username = process.env.SOLUTION_SERVER_USERNAME;
+    const password = process.env.SOLUTION_SERVER_PASSWORD;
+    const realm = process.env.SOLUTION_SERVER_REALM;
+    const url = new URL(this.url);
+    const tokenUrl = `${url.protocol}//${url.host}/auth/realms/${realm}/protocol/openid-connect/token`;
 
     const params = new URLSearchParams();
     params.append('grant_type', 'password');
     params.append('client_id', `${realm}-ui`);
-    params.append('username', username);
-    params.append('password', password);
+    params.append('username', username || '');
+    params.append('password', password || '');
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -69,42 +85,62 @@ export class MCPClient {
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Auth failed ${response.status}: ${text.slice(0, 200)}`);
+      const msg = await response.text();
+      throw new Error(`Authentication failed: ${response.status} ${msg}`);
     }
 
-    const { access_token } = await response.json();
-    return access_token;
+    const tokenData = (await response.json()) as TokenResponse;
+    this.bearerToken = tokenData.access_token;
+    this.refreshToken = tokenData.refresh_token || null;
+    this.tokenExpiresAt = Date.now() + tokenData.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
   }
 
-  public static async connect(url: string, bearerToken?: string) {
-    let token: string | undefined;
-    if (!url.includes('localhost')) {
-      token = await MCPClient.exchangeForTokens();
-    }
-    const mcpClient = new MCPClient(url, token);
-    mcpClient.client = new Client(
-      {
-        name: 'testing-mcp-client',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-          resources: {},
-        },
-      }
-    );
+  private startTokenRefreshTimer(): void {
+    if (!this.tokenExpiresAt || !this.refreshToken) return;
+    const timeUntilRefresh = this.tokenExpiresAt - Date.now();
+    this.refreshTimer = setTimeout(() => this.refreshTokenFlow(), Math.max(0, timeUntilRefresh));
+  }
+
+  private async refreshTokenFlow(): Promise<void> {
+    const realm = process.env.SOLUTION_SERVER_REALM;
+    const url = new URL(this.url);
+    const tokenUrl = `${url.protocol}//${url.host}/auth/realms/${realm}/protocol/openid-connect/token`;
+
+    const params = new URLSearchParams();
+    params.append('grant_type', 'refresh_token');
+    params.append('client_id', `${realm}-ui`);
+    params.append('refresh_token', this.refreshToken!);
 
     try {
-      await mcpClient.client.connect(mcpClient.transport);
-      console.log('Connected successfully to Solution Server');
-      setInterval(() => {
-        mcpClient.refreshToken().catch((e) => console.error('Token refresh failed:', e));
-      }, 50_000);
-      return mcpClient;
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: params,
+      });
+
+      if (!response.ok) throw new Error(`Token refresh failed (${response.status})`);
+
+      const tokenData = (await response.json()) as TokenResponse;
+      this.bearerToken = tokenData.access_token;
+      this.refreshToken = tokenData.refresh_token || this.refreshToken;
+      this.tokenExpiresAt = Date.now() + tokenData.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+
+      if (this.client && this.transport) {
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${this.bearerToken}`,
+        };
+        this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
+          requestInit: { headers },
+        });
+        await this.client.connect(this.transport);
+      }
+
+      this.startTokenRefreshTimer();
     } catch (error) {
-      throw new Error(`Failed to connect to the MCP server: ${(error as Error).message}`);
+      console.error('Token refresh error:', error);
     }
   }
 
