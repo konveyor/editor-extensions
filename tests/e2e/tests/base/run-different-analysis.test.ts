@@ -26,33 +26,30 @@ test.describe('Run analysis for different repositories', () => {
           await vscodeApp.waitForGenAIConfigurationCompleted();
         });
 
-        await test.step('Start KAI server', async () => {
-          await vscodeApp.startServer();
-        });
-
         await test.step('Create profile', async () => {
           await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
         });
 
-        await test.step('Run analysis', async () => {
-          await vscodeApp.runAnalysis();
-          await expect(vscodeApp.getWindow().getByText(/^Analysis completed$/)).toBeVisible({
-            timeout: 400_000,
-          });
+        await test.step('Start KAI server', async () => {
+          await vscodeApp.startServer();
         });
 
-        await test.step('Verify findings exist', async () => {
-          const count = await expect.poll(
-            async () => {
-              const items = await vscodeApp.getListNames('issues');
-              return items.length;
-            },
-            { timeout: 60_000, intervals: [1000, 2000, 4000] }
-          );
-          expect(count).toBeGreaterThan(0);
+        await test.step('Run analysis', async () => {
+          await vscodeApp.runAnalysis();
+          await vscodeApp.waitForAnalysisCompleted();
+        });
+
+        await test.step('Verify issues and incidents counts', async () => {
+          expect(repoInfo.issuesCount).not.toBeUndefined();
+          expect(repoInfo.incidentsCount).not.toBeUndefined();
+
+          const issuesCount = await vscodeApp.getIssuesCount();
+          const incidentsCount = await vscodeApp.getIncidentsCount();
+
+          expect(issuesCount).toBe(repoInfo.issuesCount);
+          expect(incidentsCount).toBe(repoInfo.incidentsCount);
         });
       } finally {
-        // Cleanup should run even if a previous step failed
         try {
           await vscodeApp.deleteProfile(profileName);
         } catch (e) {

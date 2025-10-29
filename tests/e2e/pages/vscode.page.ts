@@ -126,14 +126,27 @@ export abstract class VSCode {
     await toggleFilterButton.click();
   }
 
+  /**
+   * Checks if the server is running by verifying the presence of the "Running" label
+   * inside the unique ".server-status-wrapper" element.
+   * @returns {Promise<boolean>} Whether the server is running or not
+   */
+  public async isServerRunning(): Promise<boolean> {
+    await this.openAnalysisView();
+    const analysisView = await this.getView(KAIViews.analysisView);
+    const serverStatusWrapper = analysisView.locator('.server-status-wrapper');
+    const runningLabel = serverStatusWrapper.getByText('Running', { exact: true });
+    return await runningLabel.isVisible({ timeout: 5000 }).catch(() => false);
+  }
+
   public async runAnalysis() {
     await this.window.waitForTimeout(15000);
+    await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
 
     try {
       // Ensure server is running before attempting analysis
-      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-      await expect(stopButton).toBeVisible({ timeout: 30000 });
+      await this.isServerRunning();
 
       const runAnalysisBtnLocator = analysisView.getByRole('button', {
         name: 'Run Analysis',
@@ -154,6 +167,13 @@ export abstract class VSCode {
       console.log('Error running analysis:', error);
       throw error;
     }
+  }
+
+  public async waitForAnalysisCompleted(): Promise<void> {
+    const notificationLocator = this.window.locator('.notification-list-item-message span', {
+      hasText: 'Analysis completed successfully!',
+    });
+    await expect(notificationLocator).toBeVisible({ timeout: 10 * 60 * 1000 }); // up to 10 minutes
   }
 
   /**
@@ -443,27 +463,26 @@ export abstract class VSCode {
   }
 
   public async openConfiguration() {
-    // Navigate to the analysis view page
     const analysisView = await this.getView(KAIViews.analysisView);
-    // Click the button matching the given locator
     await analysisView.locator('button[aria-label="Configuration"]').first().click();
   }
 
-  /**
-   * Waits for the GenAI configuration card to display the status 'Completed'.
-   * Uses the unique heading 'Configure GenAI' to scope to the correct card.
-   */
-  public async waitForGenAIConfigurationCompleted(): Promise<void> {
+  public async closeConfiguration(): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
+    const closeButton = analysisView.locator('button[aria-label="Close drawer panel"]');
+    await expect(closeButton).toBeVisible({ timeout: 5000 });
+    await closeButton.click();
+    await expect(closeButton).not.toBeVisible({ timeout: 5000 });
+  }
 
-    // Locate the card header containing the Configure GenAI title.
+  public async waitForGenAIConfigurationCompleted(): Promise<void> {
+    await this.openAnalysisView();
+    const analysisView = await this.getView(KAIViews.analysisView);
+    await this.openConfiguration();
     const genaiCard = analysisView.locator('.pf-v6-c-card__header:has-text("Configure GenAI")');
-
-    // Find the status label text within this card header.
     const completedLabel = genaiCard.getByText('Completed', { exact: true });
-
-    // Wait for the label to be visible with a reasonable timeout.
     await expect(completedLabel).toBeVisible({ timeout: 30000 });
+    await this.closeConfiguration();
   }
 
   /**
@@ -560,5 +579,21 @@ export abstract class VSCode {
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill(password);
     await passwordInput.press('Enter');
+  }
+
+  public async getIssuesCount(): Promise<number> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    const issuesCount = analysisView.locator('.violations-count h4.violations-title');
+    const issuesText = await issuesCount.textContent();
+    const issuesMatch = issuesText?.match(/Total Issues:\s*(\d+)/i);
+    return Number(issuesMatch?.[1]);
+  }
+
+  public async getIncidentsCount(): Promise<number> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    const incidentsCount = analysisView.locator('.violations-count small.violations-subtitle');
+    const incidentsText = await incidentsCount.textContent();
+    const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents found\)/i);
+    return Number(incidentsMatch?.[1].replace(/,/g, ''));
   }
 }

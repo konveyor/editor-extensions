@@ -4,14 +4,18 @@
     "repoName": "coolstore",
     "branch": "main",
     "sources": [],
-    "targets": ["cloud-readiness", "jakarta-ee", "jakarta-ee8", "jakarta-ee9", "quarkus"]
+    "targets": ["cloud-readiness", "jakarta-ee", "jakarta-ee8", "jakarta-ee9", "quarkus"],
+    "issuesCount": 32,
+    "incidentsCount": 151
   },
   "migrationEx": {
     "repoUrl": "https://github.com/konveyor-ecosystem/migrationex",
     "repoName": "migrationex",
     "branch": "main",
     "sources": [],
-    "targets": ["openjdk17"]
+    "targets": ["openjdk17"],
+    "issuesCount": 1,
+    "incidentsCount": 1
   },
   "inventory_management": {
     "repoUrl": "https://github.com/savitharaghunathan/inventory_management",
@@ -19,7 +23,9 @@
     "branch": "partial",
     "sources": [],
     "targets": ["openjdk21"],
-    "customRulesFolder": "inventory_management/rules"
+    "customRulesFolder": "inventory_management/rules",
+    "issuesCount": 1,
+    "incidentsCount": 2
   },
   "ehr": {
     "repoUrl": "https://github.com/hhpatel14/ehr_viewer",
@@ -27,7 +33,9 @@
     "branch": "partial",
     "sources": [],
     "targets": ["openjdk21"],
-    "customRulesFolder": "ehr_viewer/rules"
+    "customRulesFolder": "ehr_viewer/rules",
+    "issuesCount": 1,
+    "incidentsCount": 2
   },
   "jboss-eap-quickstarts": {
     "repoUrl": "https://github.com/jboss-developer/jboss-eap-quickstarts",
