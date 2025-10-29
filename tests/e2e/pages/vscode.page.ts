@@ -380,7 +380,7 @@ export abstract class VSCode {
       }
 
       console.log(`Found profile '${profileName}', proceeding with deletion`);
-      await targetProfile.click({ timeout: 30000 });
+      await targetProfile.click({ timeout: 60000 });
 
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
@@ -608,5 +608,105 @@ export abstract class VSCode {
     const incidentsText = await incidentsCount.textContent();
     const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents?\s+found\)/i);
     return Number(incidentsMatch?.[1].replace(/,/g, ''));
+  }
+  
+  private async getProfileContainerByName(profileName: string, profileView: FrameLocator) {
+    const profileList = profileView.getByRole('list', {
+      name: 'Profile list',
+    });
+    await profileList.waitFor({ state: 'visible', timeout: 30000 });
+
+    const targetProfile = profileList.locator(
+      `//li[.//span[normalize-space() = "${profileName}" or normalize-space() = "${profileName} (active)"]]`
+    );
+    // Check if profile exists before attempting to delete
+    const profileCount = await targetProfile.count();
+    const count = await targetProfile.count();
+    if (count === 0) {
+      console.log(`Profile '${profileName}' not found using XPath.`);
+      return undefined;
+    }
+
+    return targetProfile;
+  }
+
+  public async clickOnProfileContainer(profileName: string, profileView: FrameLocator) {
+    const targetProfile = await this.getProfileContainerByName(profileName, profileView);
+    if (!targetProfile) {
+      throw new Error(`Profile '${profileName}' not found, cannot proceed with deletion.`);
+    }
+    console.log(`Found profile '${profileName}'`);
+    await targetProfile.click({ timeout: 60000 });
+  }
+
+  public async activateProfile(profileName: string, profileView?: FrameLocator) {
+    const pageView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(profileName, pageView);
+    const deleteButton = pageView.getByRole('button', { name: 'Make Active' });
+    await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
+    await deleteButton.click();
+    const activeProfileButton = pageView.getByRole('button', { name: 'Active Profile' });
+    await expect(activeProfileButton).toBeVisible({ timeout: 30000 });
+    await expect(activeProfileButton).toBeDisabled({ timeout: 30000 });
+  }
+
+  public async doMenuButtonAction(
+    profileName: string,
+    actionName: string,
+    profileView?: FrameLocator
+  ) {
+    let manageProfileView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
+    const targetProfile = await this.getProfileContainerByName(profileName, manageProfileView);
+    if (!targetProfile) {
+      throw new Error(`Could not find any profile container for "${profileName}"`);
+    }
+    expect(await targetProfile.count()).toBe(1);
+    const kebabMenuButton = targetProfile.getByLabel('Profile actions menu');
+    await kebabMenuButton.click();
+    await manageProfileView.getByRole('menuitem', { name: actionName }).click();
+    await this.waitDefault();
+    if (actionName == 'Delete') {
+      const confirmButton = manageProfileView
+        .getByRole('dialog', { name: 'Delete profile?' })
+        .getByRole('button', { name: 'Confirm' });
+      await confirmButton.click();
+    }
+  }
+
+  public async removeProfileCustomRules(profileName: string, pageView?: FrameLocator) {
+    const profileView = pageView ? pageView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(profileName, profileView);
+    const customRuleList = profileView.getByRole('list', { name: 'Custom Rules' });
+    const removeButtons = customRuleList.getByRole('button', { name: 'Remove rule' });
+    const rulesInList = await removeButtons.count();
+    for (let i = 0; i < rulesInList; i++) {
+      await removeButtons.first().click();
+    }
+    expect(await customRuleList.count()).toBe(0);
+  }
+
+  public async changeProfileName(
+    currentProfile: string,
+    newProfile: string,
+    pageView?: FrameLocator
+  ) {
+    const profileView = pageView ? pageView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(currentProfile, profileView);
+    await profileView.getByRole('textbox', { name: 'Profile Name' }).clear();
+    await profileView.getByRole('textbox', { name: 'Profile Name' }).fill(newProfile);
+    //we "confirm" the change but clicking on other textbox
+    const targetsInput = profileView.getByRole('combobox', { name: 'Type to filter' }).first();
+    await targetsInput.click({ delay: 500 });
+  }
+
+  public async getCurrActiveProfile() {
+    const view = await this.getView(KAIViews.manageProfiles);
+    const activeProfileLocator = view.locator('span:has(em:text-is("(active)"))');
+    const fullText = await activeProfileLocator.textContent();
+    if (fullText == null) {
+      throw new Error('No active profile found');
+    }
+    const profileName = fullText.replace('(active)', '').trim();
+    return profileName;
   }
 }
