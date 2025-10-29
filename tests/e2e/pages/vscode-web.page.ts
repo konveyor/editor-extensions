@@ -11,24 +11,37 @@ import { BrowserContext } from 'playwright-core';
 export class VSCodeWeb extends VSCode {
   protected window: Page;
 
-  constructor(window: Page, repoDir?: string) {
+  constructor(window: Page, repoDir?: string, branch = 'main') {
     super();
     this.window = window;
     this.repoDir = repoDir;
+    this.branch = branch;
   }
 
   public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
     const browser = await chromium.launch();
+    if (!existsSync('./web-state.json')) {
+      return VSCodeWeb.init(repoUrl, repoDir, branch);
+    }
+
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       storageState: './web-state.json',
     });
+
     const page = await context.newPage();
+
+    const loginButton = page.getByRole('button', { name: 'Log in' }).first();
+    if (await loginButton.isVisible()) {
+      throw new Error('User is not logged in.');
+    }
+
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
     await page.getByRole('heading', { name: 'Workspaces', exact: true }).waitFor();
 
     let newPage;
     const repoRow = page.locator('tbody tr', { hasText: repoDir });
+
     // Creates a new workspace or reuses one that already exists for the same repository
     if (!(await repoRow.isVisible())) {
       newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
@@ -39,22 +52,41 @@ export class VSCodeWeb extends VSCode {
       ]);
     }
 
+    const vscode = new VSCodeWeb(newPage, repoDir, branch);
     await newPage.waitForLoadState();
     await page.close();
     await newPage
       .getByRole('button', { name: 'Yes, I trust the authors' })
-      .click({ timeout: 120000 });
-    // TODO (abrugaro): Remove this and replace for an assertion
-    await newPage.waitForTimeout(120000);
-    await newPage
-      .getByLabel('Restricted Mode is intended')
-      .getByRole('button', { name: 'Manage' })
-      .first()
-      .click({ timeout: 60000 });
+      .click({ timeout: 300_000 });
+    await expect(
+      newPage.locator('h2').filter({ hasText: 'Get Started with VS Code for' })
+    ).toBeVisible();
+
+    await expect(newPage.getByText('Waiting metrics...')).toBeVisible({ timeout: 300_000 });
+    await expect(newPage.getByText('Waiting metrics...')).not.toBeVisible({ timeout: 300_000 });
+
+    await newPage.waitForTimeout(30_000);
+    await vscode.executeQuickCommand('Workspaces: Manage Workspace Trust');
     await newPage.getByRole('button', { name: 'Trust', exact: true }).first().click();
+
+    // Resets the workspace so it can be reused
+    await vscode.executeTerminalCommand(
+      `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
+    );
+
+    const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
+    if (!(await navLi.isVisible())) {
+      await vscode.installExtension();
+    }
+
+    await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 60_000 });
+    const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
+    if (await javaLightSelector.isVisible()) {
+      await javaLightSelector.click();
+    }
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
-    await javaReadySelector.waitFor({ timeout: 120000 });
-    return new VSCodeWeb(newPage, repoDir);
+    await javaReadySelector.waitFor({ timeout: 120_000 });
+    return vscode;
   }
 
   /**
@@ -64,9 +96,14 @@ export class VSCodeWeb extends VSCode {
    * @param branch optional branch to clone from
    */
   public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
-    if (!process.env.WEB_BASE_URL || !process.env.WEB_LOGIN || !process.env.WEB_PASSWORD) {
+    if (
+      !process.env.WEB_BASE_URL ||
+      !process.env.WEB_LOGIN ||
+      !process.env.WEB_PASSWORD ||
+      !process.env.VSIX_DOWNLOAD_URL
+    ) {
       throw new Error(
-        'The following environment variables are required for running tests in web mode: WEB_BASE_URL, WEB_LOGIN, WEB PASSWORD'
+        'The following environment variables are required for running tests in web mode: WEB_BASE_URL, WEB_LOGIN, WEB PASSWORD, VSIX_DOWNLOAD_URL'
       );
     }
     const browser = await chromium.launch();
@@ -195,20 +232,46 @@ export class VSCodeWeb extends VSCode {
     page: Page,
     repoUrl?: string,
     branch = 'main'
-  ) {
+  ): Promise<Page> {
     if (!repoUrl) {
       throw new Error('Repo URL is missing for creating a new workspace');
     }
-    await page.getByRole('button', { name: 'Add Workspace' }).click();
+    await page.getByRole('link', { name: 'Create Workspace' }).click();
     await page.locator('#git-repo-url').fill(repoUrl);
     await page.locator('#accordion-item-git-repo-options').click();
     await page.getByPlaceholder('Enter the branch of the Git Repository').fill(branch);
+    const newPagePromise = ctx.waitForEvent('page');
     await page.locator('#create-and-open-button').click();
-    const [newPage] = await Promise.all([
-      ctx.waitForEvent('page'),
-      await page.getByRole('button', { name: 'Continue' }).click(),
-    ]);
+    const continueBtn = page.getByRole('button', { name: 'Continue' });
+    if (await continueBtn.isVisible()) {
+      // Asking for source trust the first time a new remote repository domain is used
+      await continueBtn.click();
+    }
 
-    return newPage;
+    return await newPagePromise;
+  }
+
+  private async installExtension(): Promise<void> {
+    // https://github.com/microsoft/playwright/issues/8850#issuecomment-3250011388
+    // TODO (abrugaro) explore ways for installing the extension from a local file
+    await this.executeTerminalCommand(
+      `clear && wget ${process.env.VSIX_DOWNLOAD_URL} -O ../extension.vsix`,
+      '‘../extension.vsix’ saved'
+    );
+    await this.executeQuickCommand(`Extensions: Install from VSIX...`);
+    const pathInput = this.window.locator('.quick-input-box input');
+    await expect(pathInput).toHaveValue('/home/user/');
+    await pathInput.fill('/projects/extension.vsix');
+    await expect(
+      this.window.locator('.quick-input-list-entry').filter({ hasText: 'extension.vsix' })
+    ).toBeVisible();
+    await this.window.getByRole('button', { name: 'Install' }).click();
+    await this.executeQuickCommand(`View: Toggle Terminal`);
+    await expect(
+      this.window.getByText('Completed installing extension.', { exact: true })
+    ).toBeVisible({ timeout: 300_000 });
+    await expect(
+      this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
+    ).toBeVisible({ timeout: 300_000 });
   }
 }

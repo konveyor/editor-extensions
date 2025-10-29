@@ -7,7 +7,7 @@ import { createZip, extractZip } from '../utilities/archive';
 import { cleanupRepo, getOSInfo, writeOrUpdateSettingsJson } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { TEST_DATA_DIR } from '../utilities/consts';
-import { installExtension } from '../utilities/vscode-commands.utils';
+import { installExtension, isExtensionInstalled } from '../utilities/vscode-commands.utils';
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
@@ -116,6 +116,12 @@ export class VSCodeDesktop extends VSCode {
     try {
       if (process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL) {
         await installExtension();
+      }
+
+      if (!isExtensionInstalled('redhat.java')) {
+        throw new Error(
+          'Required extension `redhat.java` was not found. It should have been installed automatically as a dependency'
+        );
       }
 
       return repoUrl ? VSCodeDesktop.open(repoUrl, repoDir, branch, false) : VSCodeDesktop.open();

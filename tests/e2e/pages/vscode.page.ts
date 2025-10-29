@@ -10,6 +10,7 @@ type ListKind = 'issues' | 'files';
 
 export abstract class VSCode {
   protected repoDir?: string;
+  protected branch?: string;
   protected abstract window: Page;
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
 
@@ -579,6 +580,22 @@ export abstract class VSCode {
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill(password);
     await passwordInput.press('Enter');
+  }
+
+  public async executeTerminalCommand(command: string, expectedOutput?: string): Promise<void> {
+    if (!this.repoDir || !this.branch) {
+      throw new Error('executeTerminalCommand requires repoDir and branch to be set');
+    }
+    if (!(await this.window.getByRole('tab', { name: 'Terminal' }).isVisible())) {
+      await this.executeQuickCommand(`View: Toggle Terminal`);
+    }
+    await expect(this.window.getByText(`${this.repoDir} (${this.branch})`).last()).toBeVisible();
+    await this.window.keyboard.type(command);
+    await this.window.keyboard.press('Enter');
+    if (expectedOutput) {
+      await expect(this.window.getByText(expectedOutput)).toBeVisible();
+    }
+    await this.executeQuickCommand(`View: Toggle Terminal`);
   }
 
   public async getIssuesCount(): Promise<number> {

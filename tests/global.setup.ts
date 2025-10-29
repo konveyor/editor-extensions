@@ -1,5 +1,4 @@
 import { generateRandomString, getOSInfo } from './e2e/utilities/utils';
-import { isExtensionInstalled } from './e2e/utilities/vscode-commands.utils';
 import { KAIViews } from './e2e/enums/views.enum';
 import * as VSCodeFactory from './e2e/utilities/vscode.factory';
 
@@ -9,12 +8,6 @@ async function globalSetup() {
   console.log('Running global setup...');
   const vscodeApp = await VSCodeFactory.init(repoUrl, repoName);
 
-  // TODO (abrugaro) move to vscode classes
-  if (!isExtensionInstalled('redhat.java')) {
-    throw new Error(
-      'Required extension `redhat.java` was not found. It should have been installed automatically as a dependency'
-    );
-  }
   if (getOSInfo() === 'windows' && process.env.CI) {
     await vscodeApp.getWindow().waitForTimeout(60000);
   }
