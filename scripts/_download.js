@@ -300,6 +300,7 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
   branch,
   pr,
   workflow,
+  workflowRunId: providedWorkflowRunId,
   bearerToken,
   artifacts,
 }) {
@@ -318,7 +319,11 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
     workflow,
   };
 
-  if (pr) {
+  if (providedWorkflowRunId) {
+    console.group(
+      `Download workflow artifacts, GitHub repo: ${yellow(`${org}/${repo}`)}, workflow run ID: ${yellow(providedWorkflowRunId)}`,
+    );
+  } else if (pr) {
     metadata.pr = pr;
     console.group(
       `Download workflow artifacts, GitHub repo: ${yellow(`${org}/${repo}`)}, PR: ${yellow(`#${pr}`)}, workflow: ${yellow(workflow)}`,
@@ -334,9 +339,21 @@ export async function downloadWorkflowArtifactsAndExtractAssets({
     await fs.ensureDir(targetDirectory);
 
     // Figure out the source workflow artifacts
-    const { workflowRunId, workflowRunUrl, headSha } = pr
-      ? await fetchFirstSuccessfulRunForPr(octokit, pr, workflow)
-      : await fetchFirstSuccessfulRun(octokit, branch, workflow);
+    let workflowRunId, workflowRunUrl, headSha;
+
+    if (providedWorkflowRunId) {
+      // Use the provided workflow run ID directly
+      workflowRunId = providedWorkflowRunId;
+      workflowRunUrl = `https://github.com/${org}/${repo}/actions/runs/${workflowRunId}`;
+      headSha = "hardcoded-run";
+    } else {
+      const result = pr
+        ? await fetchFirstSuccessfulRunForPr(octokit, pr, workflow)
+        : await fetchFirstSuccessfulRun(octokit, branch, workflow);
+      workflowRunId = result.workflowRunId;
+      workflowRunUrl = result.workflowRunUrl;
+      headSha = result.headSha;
+    }
 
     if (!workflowRunId) {
       throw new Error("No successful workflow runs found.");

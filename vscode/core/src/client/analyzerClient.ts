@@ -24,16 +24,12 @@ import { FileChange } from "./types";
 import { TaskManager } from "src/taskManager/types";
 import { Logger } from "winston";
 import { executeExtensionCommand } from "../commands";
+import { ProviderRegistry } from "../api";
 
-const uid = (() => {
-  let counter = 0;
-  return (prefix: string = "") => `${prefix}${counter++}`;
-})();
-
-export class WorksapceCommandParams {
-  public command: string | undefined;
-  public arguments: any[] | undefined;
-}
+// const uid = (() => {
+//   let counter = 0;
+//   return (prefix: string = "") => `${prefix}${counter++}`;
+// })();
 
 export class AnalyzerClient {
   private assetPaths: AssetPaths;
@@ -46,6 +42,7 @@ export class AnalyzerClient {
     private getExtStateData: () => Immutable<ExtensionData>,
     private readonly taskManager: TaskManager,
     private readonly logger: Logger,
+    private readonly providerRegistry: ProviderRegistry,
   ) {
     this.assetPaths = buildAssetPaths(extContext);
     this.taskManager = taskManager;
@@ -106,6 +103,16 @@ export class AnalyzerClient {
     }
 
     this.logger.info("Starting kai analyzer rpc");
+
+    // Log registered providers
+    const providers = this.providerRegistry.getProviders();
+    this.logger.info(`Found ${providers.length} registered language provider(s)`, {
+      providers: providers.map((p) => ({
+        name: p.name,
+        providerConfig: p.providerConfig,
+      })),
+    });
+
     this.fireServerStateChange("starting");
     const startTime = performance.now();
 
@@ -191,62 +198,12 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.onUnhandledNotification((e) => {
       this.logger.warn(`Unhandled notification: ${e.method}`);
     });
-    this.analyzerRpcConnection.onRequest(
-      "workspace/executeCommand",
-      async (params: WorksapceCommandParams) => {
-        this.logger.debug(`Executing workspace command`, {
-          command: params.command,
-          arguments: JSON.stringify(params.arguments),
-        });
-
-        try {
-          const result = await vscode.commands.executeCommand(
-            "java.execute.workspaceCommand",
-            params.command,
-            params.arguments![0],
-          );
-
-          this.logger.debug(`Command execution result: ${JSON.stringify(result)}`);
-          return result;
-        } catch (error) {
-          this.logger.error(`[Java] Command execution error`, error);
-        }
-      },
-    );
     this.analyzerRpcConnection.onError((e) => {
       this.logger.error("RPC connection error", e);
     });
     this.analyzerRpcConnection.listen();
     this.analyzerRpcConnection.sendNotification("start", { type: "start" });
-    await this.runHealthCheck();
     this.logger.info(`startAnalyzer took ${performance.now() - startTime}ms`);
-  }
-
-  protected async runHealthCheck(): Promise<void> {
-    if (!this.analyzerRpcConnection) {
-      this.logger.warn("Analyzer RPC connection is not established");
-      return;
-    }
-    try {
-      const healthcheckResult = await vscode.commands.executeCommand(
-        "java.execute.workspaceCommand",
-        "java.project.getAll",
-      );
-      this.logger.info(
-        `Java Language Server Healthcheck result: ${JSON.stringify(healthcheckResult)}`,
-      );
-      if (
-        healthcheckResult === undefined ||
-        !Array.isArray(healthcheckResult) ||
-        healthcheckResult.length < 1
-      ) {
-        vscode.window.showErrorMessage(
-          "It appears that the Java Language Server is not running or the project configuration is not set up correctly. Analysis results may be degraded.",
-        );
-      }
-    } catch (error) {
-      this.logger.error("Error running Java Language Server healthcheck", error);
-    }
   }
 
   protected async getSocket(pipeName: string): Promise<Socket> {
@@ -288,28 +245,46 @@ export class AnalyzerClient {
     const analyzerPath = this.getAnalyzerPath();
     const serverEnv = this.getKaiRpcServerEnv();
     const analyzerLspRulesPaths = this.getRulesetsPath().join(",");
-    const location = paths().workspaceRepo.fsPath;
     const logs = path.join(paths().serverLogs.fsPath, "analyzer.log");
     this.logger.info(`server cwd: ${paths().serverCwd.fsPath}`);
     this.logger.info(`analysis server path: ${analyzerPath}`);
 
-    const analyzerRpcServer = spawn(
-      analyzerPath,
-      [
-        "-pipePath",
-        pipeName,
-        "-rules",
-        analyzerLspRulesPaths,
-        "-source-directory",
-        location,
-        "-log-file",
-        logs,
-      ],
-      {
-        cwd: paths().serverCwd.fsPath,
-        env: serverEnv,
-      },
-    );
+    // Collect provider configs from registered providers
+    const providers = this.providerRegistry.getProviders();
+    const providerConfigs = providers.map((p) => p.providerConfig);
+
+    this.logger.info(`Starting analyzer with ${providerConfigs.length} provider config(s)`, {
+      providerConfigs,
+    });
+
+    // Write provider configs to temp JSON file
+    const providerConfigPath = path.join(paths().serverLogs.fsPath, "provider-config.json");
+    fs.writeFileSync(providerConfigPath, JSON.stringify(providerConfigs, null, 2), "utf-8");
+
+    this.logger.info(`Wrote provider config to ${providerConfigPath}`);
+
+    const args = [
+      "-server-pipe",
+      pipeName,
+      "-rules",
+      analyzerLspRulesPaths,
+      "-log-file",
+      logs,
+      "-verbosity",
+      "-4",
+    ];
+
+    // Add provider-config if we have providers
+    if (providerConfigs.length > 0) {
+      args.push("-provider-config", providerConfigPath);
+    }
+
+    this.logger.info(`Starting kai-analyzer-rpc with args: ${args.join(" ")}`);
+
+    const analyzerRpcServer = spawn(analyzerPath, args, {
+      cwd: paths().serverCwd.fsPath,
+      env: serverEnv,
+    });
 
     analyzerRpcServer.stderr.on("data", (data) => {
       const asString: string = data.toString().trimEnd();
@@ -509,9 +484,21 @@ export class AnalyzerClient {
           this.taskManager.init();
           progress.report({ message: "Results processed!" });
           vscode.window.showInformationMessage("Analysis completed successfully!");
+
+          // Emit analysis complete event to registered providers
+          this.providerRegistry.emitAnalysisComplete({
+            success: true,
+            incidentCount: summary.incidentCount,
+          });
         } catch (err: any) {
           this.logger.error("Error during analysis", err);
           vscode.window.showErrorMessage("Analysis failed. See the output channel for details.");
+
+          // Emit analysis failure event to registered providers
+          this.providerRegistry.emitAnalysisComplete({
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
         this.fireAnalysisStateChange(false);
       },

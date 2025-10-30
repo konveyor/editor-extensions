@@ -17,7 +17,7 @@ export function isExtensionInstalled(extension: string) {
  * - Whether the extension is already installed (skip if no VSIX)
  */
 function shouldInstallExtension(): boolean {
-  const hasExplicitVsix = process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL;
+  const hasExplicitVsix = process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL;
 
   // Always install when VSIX is explicitly provided
   if (hasExplicitVsix) {
@@ -35,26 +35,37 @@ export async function installExtension(): Promise<void> {
       return;
     }
 
-    let extensionPath = '';
-    if (process.env.VSIX_FILE_PATH && fs.existsSync(process.env.VSIX_FILE_PATH)) {
-      console.log(`Installing VSIX from ${process.env.VSIX_FILE_PATH}`);
-      extensionPath = process.env.VSIX_FILE_PATH;
-    } else if (process.env.VSIX_DOWNLOAD_URL) {
-      console.log(`Downloading VSIX from ${process.env.VSIX_DOWNLOAD_URL}`);
-      extensionPath = 'extension.vsix';
-      await downloadFile(process.env.VSIX_DOWNLOAD_URL, extensionPath);
+    // Install konveyor core extension
+    let coreExtensionPath = '';
+    if (process.env.CORE_VSIX_FILE_PATH && fs.existsSync(process.env.CORE_VSIX_FILE_PATH)) {
+      console.log(`Installing core VSIX from ${process.env.CORE_VSIX_FILE_PATH}`);
+      coreExtensionPath = process.env.CORE_VSIX_FILE_PATH;
+    } else if (process.env.CORE_VSIX_DOWNLOAD_URL) {
+      console.log(`Downloading VSIX from ${process.env.CORE_VSIX_DOWNLOAD_URL}`);
+      coreExtensionPath = 'extension.vsix';
+      await downloadFile(process.env.CORE_VSIX_DOWNLOAD_URL, coreExtensionPath);
     } else {
       throw new Error(
-        `Extension installation failed: No valid VSIX file path or download URL available: ${extensionPath}`
+        `Extension installation failed: No valid core VSIX file path or download URL available`
       );
     }
 
-    const installCommand = `code --install-extension "${extensionPath}"`;
+    execSync(`code --install-extension "${coreExtensionPath}" --force`, { stdio: 'inherit' });
+    console.log('Konveyor core extension installed/updated successfully.');
 
-    execSync(installCommand, {
-      stdio: 'inherit',
-    });
-    console.log('Extension installed/updated successfully.');
+    // Verify core extension is actually installed
+    if (!isExtensionInstalled('konveyor.konveyor')) {
+      throw new Error('Core extension (konveyor.konveyor) was not installed successfully');
+    }
+
+    // Install konveyor-java extension if path provided
+    if (process.env.JAVA_VSIX_FILE_PATH && fs.existsSync(process.env.JAVA_VSIX_FILE_PATH)) {
+      console.log(`Installing Konveyor Java VSIX from ${process.env.JAVA_VSIX_FILE_PATH}`);
+      execSync(`code --install-extension "${process.env.JAVA_VSIX_FILE_PATH}" --force`, {
+        stdio: 'inherit',
+      });
+      console.log('Java extension installed/updated successfully.');
+    }
   } catch (error) {
     console.error('Error installing the VSIX extension:', error);
     throw error;

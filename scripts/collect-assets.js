@@ -4,7 +4,7 @@ import { join } from "path";
 import { cwdToProjectRoot, ensureDirs, parseCli } from "./_util.js";
 import {
   downloadAndExtractGitHubReleaseSourceCode,
-  downloadGitHubReleaseAssets,
+  // downloadGitHubReleaseAssets,
   downloadWorkflowArtifactsAndExtractAssets,
 } from "./_download.js";
 import { unpackAssets } from "./_unpack.js";
@@ -31,51 +31,82 @@ const [DOWNLOAD_CACHE, DOWNLOAD_DIR] = await ensureDirs(["downloaded_cache", "do
 const { useWorkflow, useRelease, org, repo, releaseTag, branch, pr, workflow } = cli;
 const bearerToken = process.env.GITHUB_TOKEN ?? undefined;
 
+// TODO(djzager): This is just to make it so the linter doesn't complain about the variables being unused
+console.log("useWorkflow:", useWorkflow);
+console.log("useRelease:", useRelease);
+console.log("org:", org);
+console.log("repo:", repo);
+console.log("releaseTag:", releaseTag);
+console.log("branch:", branch);
+console.log("pr:", pr);
+console.log("workflow:", workflow);
+
 const actions = [
+  // TODO(djzager): UNNCOMMENT THIS when https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
+  // is merged AND a release is created with the binaries
   // If from a release, download the release asset zips
-  useRelease &&
-    (async () => ({
-      id: "download release assets",
-      meta: await downloadGitHubReleaseAssets({
-        targetDirectory: join(DOWNLOAD_CACHE, "assets"),
-        org,
-        repo,
-        releaseTag,
-        bearerToken,
+  // useRelease &&
+  //   (async () => ({
+  //     id: "download release assets",
+  //     meta: await downloadGitHubReleaseAssets({
+  //       targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+  //       org,
+  //       repo,
+  //       releaseTag,
+  //       bearerToken,
 
-        assets: [
-          { name: "kai-rpc-server.linux-x86_64.zip" },
-          { name: "kai-rpc-server.linux-aarch64.zip" },
-          { name: "kai-rpc-server.macos-x86_64.zip" },
-          { name: "kai-rpc-server.macos-arm64.zip" },
-          { name: "kai-rpc-server.windows-X64.zip" },
-        ],
-      }),
-    })),
+  //       assets: [
+  //         { name: "kai-rpc-server.linux-x86_64.zip" },
+  //         { name: "kai-rpc-server.linux-aarch64.zip" },
+  //         { name: "kai-rpc-server.macos-x86_64.zip" },
+  //         { name: "kai-rpc-server.macos-arm64.zip" },
+  //         { name: "kai-rpc-server.windows-X64.zip" },
+  //       ],
+  //     }),
+  //   })),
 
-  // If from a workflow, download the artifacts and unpack
-  useWorkflow &&
-    (async () => ({
-      id: "download workflow artifacts and extract assets",
-      meta: await downloadWorkflowArtifactsAndExtractAssets({
-        downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
-        targetDirectory: join(DOWNLOAD_CACHE, "assets"),
-        org,
-        repo,
-        branch,
-        pr,
-        workflow,
-        bearerToken,
+  // // If from a workflow, download the artifacts and unpack
+  // useWorkflow &&
+  //   (async () => ({
+  //     id: "download workflow artifacts and extract assets",
+  //     meta: await downloadWorkflowArtifactsAndExtractAssets({
+  //       downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
+  //       targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+  //       org,
+  //       repo,
+  //       branch,
+  //       pr,
+  //       workflow,
+  //       bearerToken,
 
-        artifacts: [
-          { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
-        ],
-      }),
-    })),
+  //       artifacts: [
+  //         { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
+  //         { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
+  //         { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
+  //         { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
+  //         { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
+  //       ],
+  //     }),
+  //   })),
+  async () => ({
+    id: "download kai release assets",
+    meta: await downloadWorkflowArtifactsAndExtractAssets({
+      downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
+      targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+      org,
+      repo,
+      workflowRunId: "18910655281", // https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
+      bearerToken,
+
+      artifacts: [
+        { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
+        { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
+        { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
+        { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
+        { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
+      ],
+    }),
+  }),
 
   // Extract Kai binaries from the downloaded workflows artifact or release assets
   async () => ({
@@ -136,6 +167,148 @@ const actions = [
 
       globs: ["*.jar"],
       assets: [{ name: "kai-rpc-server.linux-x86_64.zip" }],
+    }),
+  }),
+
+  // Download java-external-provider binaries from analyzer-lsp release
+  // useRelease &&
+  //   (async () => ({
+  //     id: "download java-external-provider release assets",
+  //     meta: await downloadGitHubReleaseAssets({
+  //       targetDirectory: join(DOWNLOAD_CACHE, "java-provider-assets"),
+  //       org: cli.org,
+  //       repo: "analyzer-lsp",
+  //       releaseTag: cli.releaseTag,
+  //       bearerToken,
+  //
+  //       assets: [
+  //         { name: "java-external-provider_linux_amd64.tar.gz" },
+  //         { name: "java-external-provider_linux_arm64.tar.gz" },
+  //         { name: "java-external-provider_darwin_amd64.tar.gz" },
+  //         { name: "java-external-provider_darwin_arm64.tar.gz" },
+  //         { name: "java-external-provider_windows_amd64.zip" },
+  //       ],
+  //     }),
+  //   })),
+
+  // Download java-external-provider from analyzer-lsp workflow artifacts
+  // useWorkflow &&
+  // when a release exists with the binaries, use the release assets
+  async () => ({
+    id: "download external-provider workflow artifacts",
+    meta: await downloadWorkflowArtifactsAndExtractAssets({
+      downloadDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-artifacts"),
+      targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      org: org,
+      repo: "analyzer-lsp",
+      branch: "main", // TODO(djzager): UNNCOMMENT THIS when https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
+      // is merged AND a release is created with the binaries
+      pr: pr,
+      workflow: "pr-testing.yml",
+      bearerToken,
+
+      artifacts: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          contents: ["analyzer-lsp-binaries.*.zip"],
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          contents: ["analyzer-lsp-binaries.*.zip"],
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          contents: ["analyzer-lsp-binaries.*.zip"],
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          contents: ["analyzer-lsp-binaries.*.zip"],
+        },
+        {
+          name: "analyzer-lsp-binaries.windows-amd64.zip",
+          contents: ["analyzer-lsp-binaries.*.zip"],
+        },
+      ],
+    }),
+  }),
+
+  // Extract java-external-provider binaries to platform-specific directories (same as kai pattern)
+  async () => ({
+    id: "java-external-provider binaries",
+    meta: await unpackAssets({
+      title: "java-external-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "java-external-provider", `${platform}-${arch}`),
+
+      globs: ["java-external-provider*"],
+      assets: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
+
+  // Extract generic-external-provider binaries to platform-specific directories (same as kai pattern)
+  async () => ({
+    id: "generic-external-provider binaries",
+    meta: await unpackAssets({
+      title: "generic-external-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "generic-external-provider", `${platform}-${arch}`),
+
+      globs: ["generic-external-provider*"],
+      assets: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
     }),
   }),
 ];

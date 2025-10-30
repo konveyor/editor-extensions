@@ -104,10 +104,10 @@ export class VSCodeWeb extends VSCode {
       !process.env.WEB_BASE_URL ||
       !process.env.WEB_LOGIN ||
       !process.env.WEB_PASSWORD ||
-      !process.env.VSIX_DOWNLOAD_URL
+      !process.env.CORE_VSIX_DOWNLOAD_URL
     ) {
       throw new Error(
-        'The following environment variables are required for running tests in web mode: WEB_BASE_URL, WEB_LOGIN, WEB PASSWORD, VSIX_DOWNLOAD_URL'
+        'The following environment variables are required for running tests in web mode: WEB_BASE_URL, WEB_LOGIN, WEB PASSWORD, CORE_VSIX_DOWNLOAD_URL'
       );
     }
     const browser = await chromium.launch();

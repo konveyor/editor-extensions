@@ -25,9 +25,9 @@ async function main() {
     throw new Error('No .vsix asset found in release');
   }
 
-  const envContent = `\nVSIX_DOWNLOAD_URL=${asset.browser_download_url}\n`;
+  const envContent = `\nCORE_VSIX_DOWNLOAD_URL=${asset.browser_download_url}\n`;
   appendFileSync('.env', envContent);
-  console.log('Generated .env with latest VSIX url');
+  console.log('Generated .env with latest core VSIX url');
 }
 
 main().catch((err) => {

@@ -2,30 +2,32 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Extension",
+      "name": "Run Core + Java Extensions",
       "type": "extensionHost",
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/core",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/java",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/javascript",
         "--enable-proposed-api=konveyor.konveyor-ai",
         "--verbose"
-
       ],
-
       "cwd": "${workspaceFolder}/vscode/core",
       "outFiles": [
         "${workspaceFolder}/vscode/core/out/**/*.js",
+        "${workspaceFolder}/vscode/java/out/**/*.js",
+        "${workspaceFolder}/vscode/javascript/out/**/*.js",
         "${workspaceFolder}/agentic/dist/**/*.js",
         "${workspaceFolder}/shared/dist/**/*.js"
       ],
       "sourceMaps": true,
       "resolveSourceMapLocations": [
         "${workspaceFolder}/vscode/core/out/**",
+        "${workspaceFolder}/vscode/java/out/**",
         "${workspaceFolder}/agentic/dist/**",
         "${workspaceFolder}/shared/dist/**",
         "!**/node_modules/**"
       ],
-
       "preLaunchTask": "dev-without-shared"
     },
     {

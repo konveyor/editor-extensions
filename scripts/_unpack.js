@@ -112,7 +112,20 @@ export async function unpackAsset({ sourceFile, context, globs, targetDirectory,
   console.group(bold("Unpacking:"), yellow(sourceFile));
   console.log("Destination:", targetDirectory);
   try {
-    meta = await unpackZip({ sourceFile, context, globs, targetDirectory });
+    // Read file header to detect actual file type (GitHub artifacts are always wrapped in ZIP)
+    const buffer = await fs.readFile(sourceFile, { encoding: null, flag: "r" });
+    const isProbablyZip = buffer[0] === 0x50 && buffer[1] === 0x4b; // PK zip signature
+    const isProbablyGzip = buffer[0] === 0x1f && buffer[1] === 0x8b; // gzip signature
+
+    // Use appropriate unpacker based on actual file content, not just extension
+    if (
+      isProbablyGzip ||
+      (!isProbablyZip && (sourceFile.endsWith(".tar.gz") || sourceFile.endsWith(".tgz")))
+    ) {
+      meta = await unpackTarGz({ sourceFile, globs, targetDirectory });
+    } else {
+      meta = await unpackZip({ sourceFile, context, globs, targetDirectory });
+    }
     console.log(`Extracted ${green(meta.fileSet.length)} items`);
 
     if (chmod) {

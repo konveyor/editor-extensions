@@ -5,13 +5,24 @@ import fs from "fs";
 
 cwdToProjectRoot();
 
-// Copy files to `dist/`
+// Read extension metadata from package.json files to get extension names
+const corePackage = JSON.parse(fs.readFileSync("vscode/core/package.json", "utf8"));
+const javaPackage = JSON.parse(fs.readFileSync("vscode/java/package.json", "utf8"));
+const jsPackage = JSON.parse(fs.readFileSync("vscode/javascript/package.json", "utf8"));
+
+const CORE_EXTENSION_NAME = corePackage.name; // e.g., "konveyor" or "migration-toolkit-runtimes"
+const JAVA_EXTENSION_NAME = javaPackage.name; // e.g., "konveyor-java" or "migration-toolkit-runtimes-java"
+const JS_EXTENSION_NAME = jsPackage.name; // e.g., "konveyor-javascript" or "migration-toolkit-runtimes-javascript"
+
+console.log(`Building dist for ${CORE_EXTENSION_NAME} (core) extension...`);
+
+// Copy files to `dist/{core-extension-name}/`
 await copy({
   verbose: true,
   targets: [
     {
       src: "vscode/core/package.json",
-      dest: "dist/",
+      dest: `dist/${CORE_EXTENSION_NAME}/`,
 
       /**
        * package.json needs some changes when packaging in `dist/`
@@ -26,13 +37,9 @@ await copy({
         packageJson.dependencies = undefined;
         packageJson.devDependencies = undefined;
         packageJson["lint-staged"] = undefined;
-        packageJson.contributes.javaExtensions = ["./assets/jdtls-bundles/bundle.jar"];
 
         packageJson.includedAssetPaths = {
           ...(originalIncludedKai && { kai: "./assets/kai" }),
-          jdtls: "./assets/jdtls",
-          jdtlsBundles: "./assets/jdtls-bundles",
-          fernFlowerPath: "./assets/fernflower/fernflower.jar",
           openSourceLabelsFile: "./assets/opensource-labels-file/maven.default.index",
           rulesets: "./assets/rulesets",
         };
@@ -70,47 +77,36 @@ await copy({
         "!out/**/*.test{.js,.ts,.d.ts}",
         "resources/**/*",
       ],
-      dest: "dist/",
+      dest: `dist/${CORE_EXTENSION_NAME}/`,
     },
 
     // files from webview-ui's build
     {
       src: "webview-ui/build/",
-      dest: "dist/out/webview/",
+      dest: `dist/${CORE_EXTENSION_NAME}/out/webview/`,
     },
 
     // seed assets - rulesets
     {
       context: "downloaded_assets/rulesets",
       src: ["**/*"],
-      dest: "dist/assets/rulesets",
-    },
-
-    // seed assets - jdtls bundles
-    {
-      context: "downloaded_assets/jdtls-bundles",
-      src: ["**/*.jar"],
-      dest: "dist/assets/jdtls-bundles",
+      dest: `dist/${CORE_EXTENSION_NAME}/assets/rulesets`,
     },
 
     // seed assets - opensource-labels-file
     {
       context: "downloaded_assets/opensource-labels-file",
       src: ["*"],
-      dest: "dist/assets/opensource-labels-file",
+      dest: `dist/${CORE_EXTENSION_NAME}/assets/opensource-labels-file`,
     },
 
     // seed assets - kai binaries (conditional based on original package.json)
-    ...((() => {
-      // Read original package.json to check if kai should be included
-      const originalPackage = JSON.parse(fs.readFileSync("vscode/core/package.json", "utf8"));
-      return originalPackage.includedAssetPaths?.kai !== undefined;
-    })()
+    ...(corePackage.includedAssetPaths?.kai !== undefined
       ? [
           {
             context: "downloaded_assets/kai",
             src: ["*/kai*", "!**/*.zip"],
-            dest: "dist/assets/kai",
+            dest: `dist/${CORE_EXTENSION_NAME}/assets/kai`,
           },
         ]
       : []),
@@ -119,7 +115,127 @@ await copy({
     {
       context: "downloaded_assets",
       src: "collect-assets-meta.json",
-      dest: "dist/assets",
+      dest: `dist/${CORE_EXTENSION_NAME}/assets`,
     },
   ],
 });
+
+console.log(`Building dist for ${JAVA_EXTENSION_NAME} extension...`);
+
+// Copy files to `dist/{java-extension-name}/`
+await copy({
+  verbose: true,
+  targets: [
+    {
+      src: "vscode/java/package.json",
+      dest: `dist/${JAVA_EXTENSION_NAME}/`,
+      transform: (contents) => {
+        const packageJson = JSON.parse(contents.toString());
+
+        packageJson.dependencies = undefined;
+        packageJson.devDependencies = undefined;
+        packageJson["lint-staged"] = undefined;
+
+        // Fix icon path from ../resources/icon.png to resources/icon.png
+        if (packageJson.icon && packageJson.icon.startsWith("../")) {
+          packageJson.icon = packageJson.icon.replace("../", "");
+        }
+
+        packageJson.includedAssetPaths = {
+          javaExternalProvider: "./assets/java-external-provider",
+        };
+
+        packageJson.contributes.javaExtensions = ["./assets/jdtls-bundles/bundle.jar"];
+
+        return JSON.stringify(packageJson, null, 2);
+      },
+    },
+
+    // files from vscode/java build
+    {
+      context: "vscode/java",
+      src: [
+        ".vscodeignore",
+        "LICENSE.md",
+        "README.md",
+        "out/**/*",
+        "!out/test",
+        "!out/**/*.test{.js,.ts,.d.ts}",
+        "resources/**/*",
+      ],
+      dest: `dist/${JAVA_EXTENSION_NAME}/`,
+    },
+
+    // seed assets - java-external-provider binaries
+    {
+      context: "downloaded_assets/java-external-provider",
+      src: ["*/java-external-provider*"],
+      dest: `dist/${JAVA_EXTENSION_NAME}/assets/java-external-provider`,
+    },
+
+    // seed assets - jdtls bundles (needed by java extension)
+    {
+      context: "downloaded_assets/jdtls-bundles",
+      src: ["**/*.jar"],
+      dest: `dist/${JAVA_EXTENSION_NAME}/assets/jdtls-bundles`,
+    },
+  ],
+});
+
+console.log(`Building dist for ${JS_EXTENSION_NAME} extension...`);
+
+// Copy files to `dist/{js-extension-name}/`
+await copy({
+  verbose: true,
+  targets: [
+    {
+      src: "vscode/javascript/package.json",
+      dest: `dist/${JS_EXTENSION_NAME}/`,
+      transform: (contents) => {
+        const packageJson = JSON.parse(contents.toString());
+
+        packageJson.dependencies = undefined;
+        packageJson.devDependencies = undefined;
+        packageJson["lint-staged"] = undefined;
+
+        // Fix icon path from ../resources/icon.png to resources/icon.png
+        if (packageJson.icon && packageJson.icon.startsWith("../")) {
+          packageJson.icon = packageJson.icon.replace("../", "");
+        }
+
+        packageJson.includedAssetPaths = {
+          genericExternalProvider: "./assets/generic-external-provider",
+        };
+
+        return JSON.stringify(packageJson, null, 2);
+      },
+    },
+
+    // files from vscode/javascript build
+    {
+      context: "vscode/javascript",
+      src: [
+        ".vscodeignore",
+        "LICENSE.md",
+        "README.md",
+        "out/**/*",
+        "!out/test",
+        "!out/**/*.test{.js,.ts,.d.ts}",
+        "resources/**/*",
+      ],
+      dest: `dist/${JS_EXTENSION_NAME}/`,
+    },
+
+    // seed assets - generic-external-provider binaries
+    {
+      context: "downloaded_assets/generic-external-provider",
+      src: ["*/generic-external-provider*"],
+      dest: `dist/${JS_EXTENSION_NAME}/assets/generic-external-provider`,
+    },
+  ],
+});
+
+console.log("\nAll extensions built successfully!");
+console.log(`  - dist/${CORE_EXTENSION_NAME}/`);
+console.log(`  - dist/${JAVA_EXTENSION_NAME}/`);
+console.log(`  - dist/${JS_EXTENSION_NAME}/`);

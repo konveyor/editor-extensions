@@ -70,7 +70,7 @@ export class VSCodeDesktop extends VSCode {
       }
     }
 
-    if (!process.env.VSIX_FILE_PATH && !process.env.VSIX_DOWNLOAD_URL) {
+    if (!process.env.CORE_VSIX_FILE_PATH && !process.env.CORE_VSIX_DOWNLOAD_URL) {
       args.push(
         `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode')}`,
         `--enable-proposed-api=${extensionId}`
@@ -114,7 +114,7 @@ export class VSCodeDesktop extends VSCode {
    */
   public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
     try {
-      if (process.env.VSIX_FILE_PATH || process.env.VSIX_DOWNLOAD_URL) {
+      if (process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL) {
         await installExtension();
       }
 

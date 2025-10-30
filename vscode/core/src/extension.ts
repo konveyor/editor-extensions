@@ -53,6 +53,8 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
+import { ProviderRegistry, createCoreApi } from "./api";
+import { KonveyorCoreApi } from "@editor-extensions/shared";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -66,6 +68,7 @@ class VsCodeExtension {
     public readonly paths: ExtensionPaths,
     public readonly context: vscode.ExtensionContext,
     logger: winston.Logger,
+    private readonly providerRegistry: ProviderRegistry,
   ) {
     const solutionServerConfig = getConfigSolutionServer();
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
@@ -119,7 +122,14 @@ class VsCodeExtension {
     const taskManager = new DiagnosticTaskManager(getExcludedDiagnosticSources());
 
     this.state = {
-      analyzerClient: new AnalyzerClient(context, mutateData, getData, taskManager, logger),
+      analyzerClient: new AnalyzerClient(
+        context,
+        mutateData,
+        getData,
+        taskManager,
+        logger,
+        providerRegistry,
+      ),
       solutionServerClient: new SolutionServerClient(solutionServerConfig, logger),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
@@ -357,13 +367,10 @@ class VsCodeExtension {
         },
       });
 
-      this.checkJavaExtensionInstalled();
-
-      // Listen for extension changes to update Continue installation status and Java extension status
+      // Listen for extension changes to update Continue installation status
       this.listeners.push(
         vscode.extensions.onDidChange(() => {
           this.checkContinueInstalled();
-          this.checkJavaExtensionInstalled();
         }),
       );
 
@@ -789,56 +796,6 @@ class VsCodeExtension {
     });
   }
 
-  private checkJavaExtensionInstalled(): void {
-    const javaExt = vscode.extensions.getExtension("redhat.java");
-    if (!javaExt) {
-      vscode.window
-        .showWarningMessage(
-          "The Red Hat Java Language Support extension is required for proper Java analysis. " +
-            "Please install it from the VS Code marketplace.",
-          "Install Java Extension",
-        )
-        .then((selection) => {
-          if (selection === "Install Java Extension") {
-            vscode.commands.executeCommand("workbench.extensions.search", "redhat.java");
-          }
-        });
-      return;
-    }
-
-    // Check version compatibility - versions > 1.45.0 have breaking changes
-    const version = javaExt.packageJSON?.version;
-    if (version) {
-      const versionParts = version.split(".").map(Number);
-      const major = versionParts[0] || 0;
-      const minor = versionParts[1] || 0;
-      const isIncompatible = major > 1 || (major === 1 && minor > 45);
-
-      if (isIncompatible) {
-        this.state.logger.error(`Incompatible Java extension version: ${version}`);
-        vscode.window
-          .showErrorMessage(
-            `Red Hat Java Language Support version ${version} is incompatible. ` +
-              `Please downgrade to version 1.45.0 or earlier. Versions above 1.45.0 contain breaking changes that prevent proper Java analysis.`,
-            "Show Extensions",
-          )
-          .then((selection) => {
-            if (selection === "Show Extensions") {
-              vscode.commands.executeCommand("workbench.extensions.search", "redhat.java");
-            }
-          });
-        return;
-      }
-    }
-
-    if (!javaExt.isActive) {
-      vscode.window.showInformationMessage(
-        "The Java Language Support extension is installed but not yet active. " +
-          "Java analysis features may be limited until it's fully loaded.",
-      );
-    }
-  }
-
   private async setupModelProvider(settingsPath: vscode.Uri): Promise<ConfigError | undefined> {
     const hadPreviousProvider = this.state.modelProvider !== undefined;
 
@@ -968,8 +925,9 @@ class VsCodeExtension {
 }
 
 let extension: VsCodeExtension | undefined;
+let providerRegistry: ProviderRegistry | undefined;
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<KonveyorCoreApi> {
   // Logger is our bae...before anything else
   const outputChannel = vscode.window.createOutputChannel(EXTENSION_DISPLAY_NAME);
   const logger = winston.createLogger({
@@ -998,11 +956,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const paths = await ensurePaths(context, logger);
     await copySampleProviderSettings();
 
-    extension = new VsCodeExtension(paths, context, logger);
+    // Create provider registry
+    providerRegistry = new ProviderRegistry(logger);
+    context.subscriptions.push(providerRegistry);
+
+    extension = new VsCodeExtension(paths, context, logger, providerRegistry);
     await extension.initialize();
+
+    // Create and return the API for language extensions
+    const api = createCoreApi(providerRegistry);
+    logger.info("Core extension API created and ready for language extensions");
+    return api;
   } catch (error) {
     await extension?.dispose();
     extension = undefined;
+    providerRegistry?.dispose();
+    providerRegistry = undefined;
     logger.error("Failed to activate Konveyor extension", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate

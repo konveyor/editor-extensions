@@ -1,0 +1,63 @@
+{
+  "folders": [
+    {
+      "name": "Root",
+      "path": ".",
+    },
+    {
+      "name": "Core Extension",
+      "path": "vscode/core",
+    },
+    {
+      "name": "Java Extension",
+      "path": "vscode/java",
+    },
+    {
+      "name": "Javascript Extension",
+      "path": "vscode/javascript",
+    },
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/out": true,
+      "**/dist": true,
+    },
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run Both Extensions",
+        "type": "extensionHost",
+        "request": "launch",
+        "args": [
+          "--extensionDevelopmentPath=${workspaceFolder:Core Extension}",
+          "--extensionDevelopmentPath=${workspaceFolder:Java Extension}",
+          "--verbose",
+        ],
+        "outFiles": [
+          "${workspaceFolder:Core Extension}/out/**/*.js",
+          "${workspaceFolder:Java Extension}/out/**/*.js",
+          "${workspaceFolder:Root}/agentic/dist/**/*.js",
+          "${workspaceFolder:Root}/shared/dist/**/*.js",
+        ],
+        "preLaunchTask": "Build Extensions",
+      },
+    ],
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build Extensions",
+        "type": "shell",
+        "command": "npm run build -w vscode/core && npm run build -w vscode/java && npm run build -w vscode/javascript",
+        "options": {
+          "cwd": "${workspaceFolder:Root}",
+        },
+        "problemMatcher": [],
+      },
+    ],
+  },
+}
