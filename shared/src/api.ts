@@ -38,17 +38,6 @@ export interface ProviderConfig {
 }
 
 /**
- * Metadata about a provider's supported migration bundles
- */
-export interface BundleMetadata {
-  /** Supported source technologies (e.g., ["eap6", "eap7", "jakarta-ee"]) */
-  sources: string[];
-
-  /** Supported target technologies (e.g., ["eap8", "quarkus", "springboot"]) */
-  targets: string[];
-}
-
-/**
  * Registration information for a language provider extension
  */
 export interface ProviderRegistration {
@@ -57,12 +46,6 @@ export interface ProviderRegistration {
 
   /** Provider configuration for kai-analyzer-rpc */
   providerConfig: ProviderConfig;
-
-  /** Function to retrieve bundle metadata (sources and targets) */
-  getBundleMetadata: () => BundleMetadata;
-
-  /** File extensions this provider supports (e.g., [".java", ".jar", ".war"]) */
-  supportsFileExtensions: string[];
 
   /** Paths to provider-specific rulesets */
   rulesetsPaths: string[];

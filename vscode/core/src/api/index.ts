@@ -16,7 +16,6 @@ export class ProviderRegistry {
    */
   registerProvider(config: ProviderRegistration): vscode.Disposable {
     this.logger.info(`Registering provider: ${config.name}`, {
-      supportsFileExtensions: config.supportsFileExtensions,
       rulesetsPaths: config.rulesetsPaths,
     });
 
