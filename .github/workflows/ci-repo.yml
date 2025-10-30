@@ -13,6 +13,7 @@ on:
       - "docs/**"
     branches:
       - "main"
+      - "feature/distributed-language-extensions"
       - "release-*"
 
   workflow_dispatch:

@@ -31,17 +31,11 @@
     "node": ">=22.9.0",
     "npm": "^9.5.0 || >=10.5.2"
   },
-  "extensionDependencies": [
-    "redhat.java"
-  ],
   "activationEvents": [
     "onFileSystem:konveyorMemFs",
     "onFileSystem:konveyorReadOnly"
   ],
   "contributes": {
-    "javaExtensions": [
-      "../../downloaded_assets/jdtls-bundles/bundle.jar"
-    ],
     "commands": [
       {
         "command": "konveyor.openProfilesPanel",
