@@ -8,7 +8,6 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 const testReposPath = pathlib.join(__dirname, '../../fixtures/test-repos.json');
 const testReposData: RepoData = JSON.parse(readFileSync(testReposPath, 'utf-8'));
 
-// Single test suite for all repositories
 test.describe('Run analysis for different repositories', () => {
   const entries = Object.entries(testReposData) as [keyof RepoData, RepoData[keyof RepoData]][];
 
@@ -17,8 +16,7 @@ test.describe('Run analysis for different repositories', () => {
       test.setTimeout(900000);
       const profileName = `${String(repoKey)} analysis`;
 
-      // Ensure per-worker VS Code isolation inside the factory (user-data-dir/extensions-dir)
-      const vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
+      const vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
 
       try {
         await test.step('Configure Generative AI', async () => {

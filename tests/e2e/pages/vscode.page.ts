@@ -610,7 +610,7 @@ export abstract class VSCode {
     const analysisView = await this.getView(KAIViews.analysisView);
     const incidentsCount = analysisView.locator('.violations-count small.violations-subtitle');
     const incidentsText = await incidentsCount.textContent();
-    const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents found\)/i);
+    const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents?\s+found\)/i);
     return Number(incidentsMatch?.[1].replace(/,/g, ''));
   }
 }
