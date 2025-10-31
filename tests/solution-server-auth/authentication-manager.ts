@@ -126,6 +126,7 @@ export class AuthenticationManager {
         if (this.onTokenRefresh) {
           await this.onTokenRefresh(this.bearerToken!);
         }
+        this.startAutoRefresh();
       } else {
         console.error('Token refresh error:', error);
       }
