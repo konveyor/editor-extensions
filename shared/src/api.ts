@@ -6,12 +6,16 @@
 /**
  * Initialization configuration for a provider instance
  */
+// subset of https://github.com/konveyor/analyzer-lsp/blob/55a9f5fcb3bc0eb3429969c48db2d5b1524c8fdd/provider/provider.go#L123-L159
 export interface ProviderInitConfig {
   /** Workspace location to analyze */
   location: string;
 
   /** Analysis mode (e.g., "source-only", "full-with-deps") */
   analysisMode: string;
+
+  /** Provider-specific configuration */
+  providerSpecificConfig?: Record<string, unknown>;
 
   /** Named pipe/socket path for LSP proxy communication (JSON-RPC) */
   pipeName: string;
