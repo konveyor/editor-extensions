@@ -182,12 +182,6 @@
         "title": "Show Diff Actions",
         "category": "Konveyor",
         "icon": "$(diff)"
-      },
-      {
-        "command": "konveyor.testLLMError",
-        "title": "Test LLM Error",
-        "category": "Konveyor",
-        "icon": "$(testing-error-icon)"
       }
     ],
     "submenus": [

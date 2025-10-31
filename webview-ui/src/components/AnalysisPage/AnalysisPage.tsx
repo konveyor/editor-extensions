@@ -216,13 +216,13 @@ const AnalysisPage: React.FC = () => {
             )}
             <ConfigAlerts
               configErrors={rawConfigErrors}
-              llmErrors={rawLLMErrors.filter(error => !dismissedLLMErrors.has(error.timestamp))}
+              llmErrors={rawLLMErrors.filter((error) => !dismissedLLMErrors.has(error.timestamp))}
               solutionServerEnabled={solutionServerEnabled}
               solutionServerConnected={solutionServerConnected}
               onOpenProfileManager={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
               dispatch={dispatch}
               onDismissLLMError={(timestamp) => {
-                setDismissedLLMErrors(prev => new Set([...prev, timestamp]));
+                setDismissedLLMErrors((prev) => new Set([...prev, timestamp]));
               }}
             />
             {!isGenAIDisabled && !isGenAIAlertDismissed && (
