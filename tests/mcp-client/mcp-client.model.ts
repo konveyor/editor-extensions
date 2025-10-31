@@ -9,19 +9,17 @@ export class MCPClient {
   private readonly url: string;
   private transport?: StreamableHTTPClientTransport;
   private client?: Client;
-  private authManager!: AuthenticationManager;
+  private authManager: AuthenticationManager;
 
-  constructor(url: string, authManager?: AuthenticationManager) {
+  constructor(url: string, authManager: AuthenticationManager) {
     this.url = url;
-    if (authManager) {
-      this.authManager = authManager;
-    }
+    this.authManager = authManager;
   }
 
   public static async connect(url?: string): Promise<MCPClient> {
     const config = validateSolutionServerConfig(url);
     const fullUrl = url || config.url;
-    const mcpClient = new MCPClient(fullUrl);
+    let mcpClient: MCPClient;
 
     const authManager = new AuthenticationManager(
       fullUrl,
@@ -34,7 +32,7 @@ export class MCPClient {
       }
     );
 
-    mcpClient.authManager = authManager;
+    mcpClient = new MCPClient(fullUrl, authManager);
     await mcpClient.initialize();
     return mcpClient;
   }
@@ -65,19 +63,17 @@ export class MCPClient {
   }
 
   private async reconnectWithNewToken(token: string): Promise<void> {
-    if (this.client && this.transport) {
-      await this.transport.close();
-
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      };
-
-      this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
-        requestInit: { headers },
-      });
-
-      await this.client.connect(this.transport);
+    if (!this.client || !this.transport) {
+      throw new Error('Cannot reconnect: client or transport not initialized');
     }
+    await this.transport.close();
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+    };
+    this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
+      requestInit: { headers },
+    });
+    await this.client.connect(this.transport);
   }
 
   public async getBestHint(rulesetName: string, violationName: string): Promise<BestHintResponse> {
@@ -183,6 +179,11 @@ export class MCPClient {
 
   public dispose(): void {
     this.authManager.dispose();
+
+    if (this.transport) {
+      this.transport.close().catch((err) => console.error('Error closing transport:', err));
+    }
+
     this.client = undefined;
     this.transport = undefined;
   }
