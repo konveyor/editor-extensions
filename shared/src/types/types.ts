@@ -133,6 +133,7 @@ export interface ExtensionData {
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
+  isProcessingQueuedMessages?: boolean;
 }
 
 export type ConfigErrorType =

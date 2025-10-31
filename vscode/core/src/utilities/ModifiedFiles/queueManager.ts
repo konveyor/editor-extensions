@@ -12,6 +12,7 @@ export class MessageQueueManager {
   private isProcessingQueue = false;
   private processingTimer: NodeJS.Timeout | null = null;
   private logger: Logger;
+  private onDrainCallback?: () => void;
 
   constructor(
     private state: ExtensionState,
@@ -28,10 +29,20 @@ export class MessageQueueManager {
   }
 
   /**
+   * Register a callback to be invoked when the queue drains (becomes empty)
+   */
+  onDrain(callback: () => void): void {
+    this.onDrainCallback = callback;
+  }
+
+  /**
    * Adds a message to the queue
    */
   enqueueMessage(message: KaiWorkflowMessage): void {
     this.messageQueue.push(message);
+    this.logger.debug(
+      `Message enqueued: ${message.type}, id: ${message.id}, queue length: ${this.messageQueue.length}`,
+    );
   }
 
   /**
@@ -86,18 +97,22 @@ export class MessageQueueManager {
   async processQueuedMessages(): Promise<void> {
     // Prevent concurrent queue processing
     if (this.isProcessingQueue) {
+      this.logger.debug("Already processing queue, skipping");
       return;
     }
 
     if (this.messageQueue.length === 0) {
+      this.logger.debug("Queue is empty, nothing to process");
       return;
     }
 
     // Don't process if waiting for user interaction
     if (this.state.data.isWaitingForUserInteraction) {
+      this.logger.debug("Waiting for user interaction, skipping queue processing");
       return;
     }
 
+    this.logger.info(`Starting queue processing, ${this.messageQueue.length} messages in queue`);
     this.isProcessingQueue = true;
 
     try {
@@ -105,6 +120,9 @@ export class MessageQueueManager {
       while (this.messageQueue.length > 0 && !this.state.data.isWaitingForUserInteraction) {
         // Take the first message from queue
         const msg = this.messageQueue.shift()!;
+        this.logger.info(
+          `Processing message: ${msg.type}, id: ${msg.id}, remaining in queue: ${this.messageQueue.length}`,
+        );
 
         try {
           // Call the core processing logic directly
@@ -121,6 +139,9 @@ export class MessageQueueManager {
 
           // If this message triggered user interaction, stop processing
           if (this.state.data.isWaitingForUserInteraction) {
+            this.logger.info(
+              `Message ${msg.id} triggered user interaction, stopping queue processing`,
+            );
             break;
           }
         } catch (error) {
@@ -128,6 +149,8 @@ export class MessageQueueManager {
           // Continue processing other messages even if one fails
         }
       }
+
+      this.logger.info(`Queue processing complete, ${this.messageQueue.length} messages remaining`);
     } catch (error) {
       this.logger.error("Error in queue processing:", error);
 
@@ -144,6 +167,17 @@ export class MessageQueueManager {
       });
     } finally {
       this.isProcessingQueue = false;
+
+      // If queue is now empty and we have a drain callback, invoke it
+      // This allows the orchestrator to check if cleanup should happen
+      if (this.messageQueue.length === 0 && this.onDrainCallback) {
+        this.logger.debug("Queue drained, invoking onDrain callback");
+        try {
+          this.onDrainCallback();
+        } catch (error) {
+          this.logger.error("Error in onDrain callback:", error);
+        }
+      }
     }
   }
 
@@ -171,7 +205,8 @@ export async function handleUserInteractionComplete(
   state: ExtensionState,
   queueManager: MessageQueueManager,
 ): Promise<void> {
-  // Reset the waiting flag
+  // CRITICAL: Always reset the waiting flag to allow queue processing to continue
+  // Must set to false to unblock the queue processor
   state.mutateData((draft) => {
     draft.isWaitingForUserInteraction = false;
   });

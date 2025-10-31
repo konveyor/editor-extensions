@@ -24,6 +24,7 @@ const defaultState: ExtensionData = {
   activeDecorators: {},
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
+  isProcessingQueuedMessages: false,
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
@@ -45,6 +46,7 @@ const getInitialState = (): ExtensionData => {
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         activeDecorators: windowData.activeDecorators || {},
         isWaitingForUserInteraction: windowData.isWaitingForUserInteraction || false,
+        isProcessingQueuedMessages: windowData.isProcessingQueuedMessages || false,
       };
     }
   } catch (error) {
@@ -81,7 +83,9 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         profiles: Array.isArray(event.data.profiles) ? event.data.profiles : [],
         activeDecorators: event.data.activeDecorators || {},
         isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
+        isProcessingQueuedMessages: event.data.isProcessingQueuedMessages || false,
       };
+
       setState(safeData);
     };
     window.addEventListener("message", handleMessage);
