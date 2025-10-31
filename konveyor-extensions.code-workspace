@@ -12,6 +12,10 @@
       "name": "Java Extension",
       "path": "vscode/java",
     },
+    {
+      "name": "Javascript Extension",
+      "path": "vscode/javascript",
+    },
   ],
   "settings": {
     "files.exclude": {
@@ -48,7 +52,7 @@
       {
         "label": "Build Extensions",
         "type": "shell",
-        "command": "npm run build -w vscode/core && npm run build -w vscode/java",
+        "command": "npm run build -w vscode/core && npm run build -w vscode/java && npm run build -w vscode/javascript",
         "options": {
           "cwd": "${workspaceFolder:Root}",
         },
