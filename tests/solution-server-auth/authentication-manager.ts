@@ -1,3 +1,5 @@
+import {generateRandomString} from '../e2e/utilities/utils'
+
 interface TokenResponse {
   access_token: string;
   refresh_token?: string;
@@ -47,7 +49,7 @@ export class AuthenticationManager {
    */
   public async authenticate(): Promise<void> {
     if (this.isLocal) {
-      this.bearerToken = process.env.LOCAL_MCP_TOKEN || 'local-mcp-token';
+      this.bearerToken = this.bearerToken || generateRandomString();
       return;
     }
 

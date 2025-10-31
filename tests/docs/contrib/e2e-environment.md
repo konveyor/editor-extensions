@@ -84,8 +84,6 @@ Additionally, you can directly pass the env variables.
 | SOLUTION_SERVER_REALM  | Authentication realm for Solution Server|
 | SOLUTION_SERVER_USERNAME   | Username for Solution Server authentication |
 | SOLUTION_SERVER_PASSWORD  | Password for Solution Server authentication |
-| SOLUTION_SERVER_LOCAL | (Optional, boolean) When set to `true`, the tests will use a mock local Solution Server and bypass authentication using `LOCAL_MCP_TOKEN`. |
-| LOCAL_MCP_TOKEN | (Required if `SOLUTION_SERVER_LOCAL` is true) The mock bearer token used for local development. |
 | SOLUTION_SERVER_INSECURE | (Optional, boolean) When set to `true`, disables TLS certificate validation (use only for local or test environments). |
 
 ## Running Tests
