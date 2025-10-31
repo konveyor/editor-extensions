@@ -24,6 +24,7 @@ const defaultState: ExtensionData = {
   activeDecorators: {},
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
+  llmErrors: [],
 };
 
 // Safely merge window state with default state to ensure all arrays are defined

@@ -74,6 +74,7 @@ const AnalysisPage: React.FC = () => {
     ruleSets: analysisResults,
     enhancedIncidents,
     configErrors: rawConfigErrors,
+    llmErrors: rawLLMErrors = [],
     profiles,
     activeProfileId,
     serverState,
@@ -88,6 +89,7 @@ const AnalysisPage: React.FC = () => {
   const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isGenAIAlertDismissed, setIsGenAIAlertDismissed] = useState(false);
+  const [dismissedLLMErrors, setDismissedLLMErrors] = useState<Set<string>>(new Set());
 
   const violations = useViolations(analysisResults);
   const hasViolations = violations.length > 0;
@@ -214,10 +216,14 @@ const AnalysisPage: React.FC = () => {
             )}
             <ConfigAlerts
               configErrors={rawConfigErrors}
+              llmErrors={rawLLMErrors.filter((error) => !dismissedLLMErrors.has(error.timestamp))}
               solutionServerEnabled={solutionServerEnabled}
               solutionServerConnected={solutionServerConnected}
               onOpenProfileManager={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
               dispatch={dispatch}
+              onDismissLLMError={(timestamp) => {
+                setDismissedLLMErrors((prev) => new Set([...prev, timestamp]));
+              }}
             />
             {!isGenAIDisabled && !isGenAIAlertDismissed && (
               <PageSection padding={{ default: "noPadding" }}>

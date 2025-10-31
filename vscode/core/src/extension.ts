@@ -89,6 +89,7 @@ class VsCodeExtension {
         solutionState: "none",
         solutionServerEnabled: solutionServerConfig.enabled, // should we pass the full config object?
         configErrors: [],
+        llmErrors: [],
         activeProfileId: "",
         profiles: [],
         isAgentMode: getConfigAgentMode(),
