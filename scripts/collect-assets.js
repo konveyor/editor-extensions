@@ -195,10 +195,10 @@ const actions = [
   // useWorkflow &&
   // when a release exists with the binaries, use the release assets
   async () => ({
-    id: "download java-external-provider workflow artifacts",
+    id: "download external-provider workflow artifacts",
     meta: await downloadWorkflowArtifactsAndExtractAssets({
-      downloadDirectory: join(DOWNLOAD_CACHE, "java-provider-artifacts"),
-      targetDirectory: join(DOWNLOAD_CACHE, "java-provider-assets"),
+      downloadDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-artifacts"),
+      targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       org: org,
       repo: "analyzer-lsp",
       branch: "main", // TODO(djzager): UNNCOMMENT THIS when https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
@@ -237,11 +237,51 @@ const actions = [
     id: "java-external-provider binaries",
     meta: await unpackAssets({
       title: "java-external-provider binary",
-      sourceDirectory: join(DOWNLOAD_CACHE, "java-provider-assets"),
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
         join(DOWNLOAD_DIR, "java-external-provider", `${platform}-${arch}`),
 
       globs: ["java-external-provider*"],
+      assets: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
+
+  // Extract generic-external-provider binaries to platform-specific directories (same as kai pattern)
+  async () => ({
+    id: "generic-external-provider binaries",
+    meta: await unpackAssets({
+      title: "generic-external-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "generic-external-provider", `${platform}-${arch}`),
+
+      globs: ["generic-external-provider*"],
       assets: [
         {
           name: "analyzer-lsp-binaries.linux-amd64.zip",
