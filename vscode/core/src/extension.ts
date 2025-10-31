@@ -306,7 +306,7 @@ class VsCodeExtension {
           }
 
           try {
-            await this.state.solutionServerClient.getServerCapabilities();
+            await this.state.solutionServerClient.getServerCapabilities(true);
             // Success - reset failure count and use base interval
             if (consecutiveFailures > 0) {
               this.state.logger.info(
