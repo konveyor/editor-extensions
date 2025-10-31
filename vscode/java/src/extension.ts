@@ -165,12 +165,6 @@ export async function activate(context: vscode.ExtensionContext) {
       ],
       contextLines: 10,
     },
-    getBundleMetadata: () => ({
-      // These are example values - should be loaded from actual ruleset metadata
-      sources: ["eap6", "eap7", "jakarta-ee", "springboot"],
-      targets: ["eap8", "quarkus", "springboot"],
-    }),
-    supportsFileExtensions: [".java", ".jar", ".war"],
     rulesetsPaths: [
       // In Phase 1, rulesets are still in core extension
       // Will be moved to java extension in later phase

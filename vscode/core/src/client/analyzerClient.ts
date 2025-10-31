@@ -109,8 +109,7 @@ export class AnalyzerClient {
     this.logger.info(`Found ${providers.length} registered language provider(s)`, {
       providers: providers.map((p) => ({
         name: p.name,
-        supportsFileExtensions: p.supportsFileExtensions,
-        bundleMetadata: p.getBundleMetadata(),
+        providerConfig: p.providerConfig,
       })),
     });
 
