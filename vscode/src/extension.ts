@@ -284,27 +284,77 @@ class VsCodeExtension {
         await this.connectToSolutionServer();
       }
 
-      // Connection poll to catch network issues and missed connection state changes
-      const connectionPollInterval = setInterval(async () => {
-        if (getConfigSolutionServerEnabled()) {
+      // Adaptive connection polling with exponential backoff
+      let pollInterval = 10000; // Start at 10 seconds
+      let consecutiveFailures = 0;
+      let pollTimeout: NodeJS.Timeout | undefined;
+
+      const withJitter = (ms: number) => Math.round(ms * (0.9 + Math.random() * 0.2));
+      const scheduleNextPoll = (delay: number = pollInterval) => {
+        if (pollTimeout) {
+          clearTimeout(pollTimeout);
+        }
+
+        pollTimeout = setTimeout(async () => {
+          // Only poll if solution server is enabled and we should be connected
+          if (!getConfigSolutionServerEnabled()) {
+            // Pause; config change handlers will resume when re-enabled
+            this.state.mutateData((draft) => {
+              draft.solutionServerConnected = false;
+            });
+            return;
+          }
+
           try {
-            // Try to get server capabilities to check if connection is alive
             await this.state.solutionServerClient.getServerCapabilities();
-            // If we get here, connection is working
+            // Success - reset failure count and use base interval
+            if (consecutiveFailures > 0) {
+              this.state.logger.info(
+                "Solution server connectivity restored; resuming 10s polling.",
+              );
+            }
+            consecutiveFailures = 0;
+            pollInterval = 10000;
+
             this.state.mutateData((draft) => {
               draft.solutionServerConnected = true;
             });
           } catch {
-            // If we can't get capabilities, assume disconnected
+            // Failure - increase backoff interval
+            consecutiveFailures++;
             this.state.mutateData((draft) => {
               draft.solutionServerConnected = false;
             });
+
+            // Exponential backoff: 10s -> 30s -> 60s (max)
+            if (consecutiveFailures === 1) {
+              pollInterval = 30000;
+            } else if (consecutiveFailures >= 2) {
+              pollInterval = 60000;
+            }
           }
-        }
-      }, 2000); // Check every 2 seconds to catch network issues quickly
+
+          // Schedule next poll unless we've had too many failures
+          if (consecutiveFailures < 5) {
+            scheduleNextPoll(withJitter(pollInterval));
+          } else {
+            // Stop polling after 5 consecutive failures - will resume on manual retry or config change
+            this.state.logger.info(
+              "Stopping connection polling after repeated failures. Will resume on demand.",
+            );
+          }
+        }, delay);
+      };
+
+      // Start the adaptive polling
+      scheduleNextPoll(withJitter(pollInterval));
 
       this.listeners.push({
-        dispose: () => clearInterval(connectionPollInterval),
+        dispose: () => {
+          if (pollTimeout) {
+            clearTimeout(pollTimeout);
+          }
+        },
       });
 
       this.checkJavaExtensionInstalled();
@@ -438,32 +488,46 @@ class VsCodeExtension {
             });
           }
 
-          // Handle solution server configuration changes with auto-restart
           if (event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer`)) {
-            this.state.logger.info("Solution server configuration modified!");
             const newConfig = getConfigSolutionServer();
+            this.state.logger.info("Solution server configuration modified!", {
+              enabled: newConfig.enabled,
+              url: newConfig.url,
+              authEnabled: newConfig.auth.enabled,
+            });
+
+            // Capture current connection state before mutating
+            const wasConnected = this.state.data.solutionServerConnected;
 
             // Update the enabled state immediately
             this.state.mutateData((draft) => {
               draft.solutionServerEnabled = newConfig.enabled;
-              // Reset connection status
+              // Reset connection status - let the connection poll handle updating it
               draft.solutionServerConnected = false;
             });
 
-            // Disconnect and reconnect with new configuration
-            try {
-              await this.state.solutionServerClient.disconnect();
-              this.state.logger.info(
-                "Disconnected from solution server due to configuration change",
-              );
+            // Update the client configuration
+            this.state.solutionServerClient.updateConfig(newConfig);
 
-              // Update client configuration
-              this.state.solutionServerClient.updateConfig(newConfig);
+            // Disconnect if currently connected to apply new settings
+            if (wasConnected) {
+              try {
+                await this.state.solutionServerClient.disconnect();
+                this.state.logger.info(
+                  "Disconnected from solution server for configuration update",
+                );
+              } catch (error) {
+                this.state.logger.error("Error disconnecting from solution server:", error);
+              }
+            }
 
-              // Reconnect with new configuration
-              await this.connectToSolutionServer();
-            } catch (error) {
-              this.state.logger.error("Error handling solution server configuration change", error);
+            // Resume polling if enabled - it will handle reconnection with new config
+            if (newConfig.enabled) {
+              consecutiveFailures = 0;
+              pollInterval = 10000;
+              scheduleNextPoll(withJitter(pollInterval));
+
+              // Auth credentials will be prompted on next connection attempt if needed
             }
           }
 
