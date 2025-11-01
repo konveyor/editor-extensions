@@ -11,6 +11,8 @@ export type RepoData = Record<
     sources: string[];
     targets: string[];
     customRulesFolder?: string;
+    issuesCount: number;
+    incidentsCount: number;
   }
 >;
 
