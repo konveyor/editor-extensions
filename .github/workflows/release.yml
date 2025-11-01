@@ -15,7 +15,7 @@ on:
         description: "Name of the VSIX artifact to download"
         required: false
         type: string
-        default: "vsix-artifact"
+        default: "vsix-artifacts"
       workflow_run_id:
         description: "Workflow run ID to download artifacts from"
         required: false
@@ -69,14 +69,17 @@ jobs:
       - name: Verify Downloaded Artifacts
         run: ls -R ./artifacts/
 
-      - name: Find and set VSIX filename
+      - name: Find and set VSIX filenames
         id: vsix_info
         run: |
-          VSIX_FILE=$(find ./artifacts -name "*.vsix" -type f | head -1)
-          VSIX_NAME=$(basename "$VSIX_FILE")
-          echo "vsix_path=$VSIX_FILE" >> "$GITHUB_OUTPUT"
-          echo "vsix_name=$VSIX_NAME" >> "$GITHUB_OUTPUT"
-          echo "Found VSIX: $VSIX_NAME at $VSIX_FILE"
+          VSIX_FILES=$(find ./artifacts -name "*.vsix" -type f)
+          echo "Found VSIX files:"
+          echo "$VSIX_FILES"
+
+          # Store all VSIX paths for GitHub release
+          echo "vsix_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$VSIX_FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js for publishing
         uses: actions/setup-node@v4
@@ -86,14 +89,16 @@ jobs:
       - name: Publish to VS Code Marketplace
         if: ${{ inputs.prerelease == false }}
         run: |
-          echo "Publishing ${{ steps.vsix_info.outputs.vsix_path }}"
-          if [ -f "./artifacts/release.md" ]; then
-            echo "Publishing with changelog"
-            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --changelog-path "./artifacts/release.md"
-          else
-            echo "Publishing without changelog (file not found)"
-            npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}"
-          fi
+          for vsix in ./artifacts/*.vsix; do
+            echo "Publishing $vsix"
+            if [ -f "./artifacts/release.md" ]; then
+              echo "Publishing with changelog"
+              npx @vscode/vsce publish --packagePath "$vsix" --changelog-path "./artifacts/release.md"
+            else
+              echo "Publishing without changelog (file not found)"
+              npx @vscode/vsce publish --packagePath "$vsix"
+            fi
+          done
         env:
           VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
@@ -103,8 +108,7 @@ jobs:
           tag: ${{ inputs.tag_name }}
           commit: ${{ github.sha }}
           bodyFile: ./artifacts/release.md
-          artifacts: |
-            ${{ steps.vsix_info.outputs.vsix_path }}
+          artifacts: "./artifacts/*.vsix"
           prerelease: ${{ inputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

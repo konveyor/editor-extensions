@@ -35,26 +35,43 @@ export async function installExtension(): Promise<void> {
       return;
     }
 
-    let extensionPath = '';
-    if (process.env.VSIX_FILE_PATH && fs.existsSync(process.env.VSIX_FILE_PATH)) {
-      console.log(`Installing VSIX from ${process.env.VSIX_FILE_PATH}`);
-      extensionPath = process.env.VSIX_FILE_PATH;
+    // Install konveyor core extension
+    let coreExtensionPath = '';
+    if (process.env.CORE_VSIX_FILE_PATH && fs.existsSync(process.env.CORE_VSIX_FILE_PATH)) {
+      console.log(`Installing core VSIX from ${process.env.CORE_VSIX_FILE_PATH}`);
+      coreExtensionPath = process.env.CORE_VSIX_FILE_PATH;
     } else if (process.env.VSIX_DOWNLOAD_URL) {
       console.log(`Downloading VSIX from ${process.env.VSIX_DOWNLOAD_URL}`);
-      extensionPath = 'extension.vsix';
-      await downloadFile(process.env.VSIX_DOWNLOAD_URL, extensionPath);
+      coreExtensionPath = 'extension.vsix';
+      await downloadFile(process.env.VSIX_DOWNLOAD_URL, coreExtensionPath);
     } else {
       throw new Error(
-        `Extension installation failed: No valid VSIX file path or download URL available: ${extensionPath}`
+        `Extension installation failed: No valid VSIX file path or download URL available`
       );
     }
 
-    const installCommand = `code --install-extension "${extensionPath}"`;
+    execSync(`code --install-extension "${coreExtensionPath}"`, { stdio: 'inherit' });
+    console.log('Konveyor core extension installed/updated successfully.');
 
-    execSync(installCommand, {
-      stdio: 'inherit',
-    });
-    console.log('Extension installed/updated successfully.');
+    // Install konveyor-java extension if path provided
+    if (process.env.JAVA_VSIX_FILE_PATH && fs.existsSync(process.env.JAVA_VSIX_FILE_PATH)) {
+      console.log(`Installing Konveyor Java VSIX from ${process.env.JAVA_VSIX_FILE_PATH}`);
+      execSync(`code --install-extension "${process.env.JAVA_VSIX_FILE_PATH}"`, {
+        stdio: 'inherit',
+      });
+      console.log('Java extension installed/updated successfully.');
+
+      // Verify Red Hat Java extension is installed (required dependency)
+      if (!isExtensionInstalled('redhat.java')) {
+        console.warn(
+          'Warning: Red Hat Java extension (redhat.java) is not installed. Installing...'
+        );
+        execSync('code --install-extension redhat.java', { stdio: 'inherit' });
+        console.log('Red Hat Java extension installed successfully.');
+      } else {
+        console.log('Red Hat Java extension is already installed.');
+      }
+    }
   } catch (error) {
     console.error('Error installing the VSIX extension:', error);
     throw error;

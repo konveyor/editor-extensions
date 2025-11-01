@@ -197,10 +197,10 @@ jobs:
           npm run dist
           npm run package
 
-      - name: Upload VSIX artifact
+      - name: Upload VSIX artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vsix-artifact
+          name: vsix-artifacts
           path: ./dist/*.vsix
 
   test-e2e:
@@ -277,29 +277,40 @@ jobs:
         run: npm ci
         working-directory: ./tests
 
-      - name: Download VSIX artifact
+      - name: Download VSIX artifacts
         uses: actions/download-artifact@v4
         with:
-          name: vsix-artifact
+          name: vsix-artifacts
           path: ./dist
 
-      - name: Set VSIX path
-        id: set_vsix_path
-        run: echo "vsix_path=$(ls -1 ./dist/*.vsix)" >> $GITHUB_OUTPUT
+      - name: Set VSIX paths
+        id: set_vsix_paths
+        run: |
+          # Read extension names from package.json files
+          CORE_NAME=$(node -p "require('./vscode/core/package.json').name")
+          JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
+          JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
+
+          # Find VSIX files by name pattern
+          echo "core_vsix=$(ls -1 ./dist/${CORE_NAME}-*.vsix)" >> $GITHUB_OUTPUT
+          echo "java_vsix=$(ls -1 ./dist/${JAVA_NAME}-*.vsix)" >> $GITHUB_OUTPUT
+          echo "javascript_vsix=$(ls -1 ./dist/${JS_NAME}-*.vsix)" >> $GITHUB_OUTPUT
 
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
         working-directory: ./tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_path.outputs.vsix_path }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.java_vsix }}
 
       # This is intentionally kept in a separate step to avoid passing in credentials
       - name: Run e2e tests (Linux - Offline)
         run: npx playwright test e2e/tests/agent_flow_coolstore.test.ts
         working-directory: ./tests
         env:
-          VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_path.outputs.vsix_path }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.java_vsix }}
           OPENAI_API_KEY: <dummy> # this only exists to pass provider validation
 
       - name: Collect test artifacts
@@ -333,36 +344,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download VSIX artifact
+      - name: Download VSIX artifacts
         uses: actions/download-artifact@v4
         with:
-          name: vsix-artifact
+          name: vsix-artifacts
           path: ./dist
 
-      - name: Find VSIX file
-        id: find_vsix
+      - name: Deploy development builds
         run: |
-          VSIX_FILE=$(find ./dist -name "*.vsix" -type f | head -1)
-          VSIX_NAME=$(basename "$VSIX_FILE")
-          echo "vsix_path=$VSIX_FILE" >> "$GITHUB_OUTPUT"
-          echo "vsix_name=$VSIX_NAME" >> "$GITHUB_OUTPUT"
-          echo "Found VSIX: $VSIX_NAME"
-
-      - name: Deploy development build
-        uses: WebFreak001/deploy-nightly@v3.2.0
-        with:
-          upload_url: ${{ vars.CI_UPLOAD_URL }}
-          release_id: ${{ vars.CI_RELEASE_ID }}
-          asset_path: ${{ steps.find_vsix.outputs.vsix_path }}
-          asset_name: ${{ steps.find_vsix.outputs.vsix_name }}
-          asset_content_type: application/octet-stream
-          ignore_hash: true
+          for vsix in ./dist/*.vsix; do
+            VSIX_NAME=$(basename "$vsix")
+            echo "Uploading $VSIX_NAME"
+            gh release upload development-builds "$vsix" --clobber
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Cleanup old development builds
         run: |
+          # Keep last 21 assets (7 builds × 3 extensions)
           c=1
           for i in $(gh release view -R konveyor/editor-extensions development-builds --json assets | jq -r .assets[].name | sort -r); do
-            if [ "$c" -gt 7 ]; then
+            if [ "$c" -gt 21 ]; then
               gh release delete-asset -y -R konveyor/editor-extensions development-builds $i
             fi
             c=$((c+1))
@@ -378,5 +381,5 @@ jobs:
     with:
       tag_name: ${{ github.ref_name }}
       prerelease: ${{ contains(github.ref_name, '-') }}
-      vsix_artifact_name: "vsix-artifact"
+      vsix_artifact_name: "vsix-artifacts"
     secrets: inherit

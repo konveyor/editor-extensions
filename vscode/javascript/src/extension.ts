@@ -125,16 +125,9 @@ export async function activate(context: vscode.ExtensionContext) {
       ],
       contextLines: 10,
     },
-    getBundleMetadata: () => ({
-      // These are example values - should be loaded from actual ruleset metadata
-      sources: ["fake"],
-      targets: ["data"],
-    }),
-    supportsFileExtensions: [".ts", ".js", ".tsx", "jsx"],
     rulesetsPaths: [
       // In Phase 1, rulesets are still in core extension
-      // Will be moved to java extension in later phase
-      // TODO: Use the rulesets that Todd Has
+      // Will be moved to JavaScript extension in later phase
     ],
   });
 
