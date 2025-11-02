@@ -16,14 +16,13 @@ test.describe('Run analysis for different repositories', () => {
       test.setTimeout(900000);
       const profileName = `${String(repoKey)} analysis`;
 
-      const vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      const vscodeApp = await VSCodeFactory.open(
+        repoInfo.repoUrl,
+        repoInfo.repoName,
+        repoInfo.branch
+      );
 
       try {
-        await test.step('Configure Generative AI', async () => {
-          await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
-          await vscodeApp.waitForGenAIConfigurationCompleted();
-        });
-
         await test.step('Create profile', async () => {
           await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
         });
@@ -52,6 +51,7 @@ test.describe('Run analysis for different repositories', () => {
           await vscodeApp.deleteProfile(profileName);
         } catch (e) {
           testInfo.attach('cleanup-deleteProfile-error.txt', { body: String(e) });
+          console.error('Error deleting profile:', e);
         }
         await vscodeApp.closeVSCode();
       }
