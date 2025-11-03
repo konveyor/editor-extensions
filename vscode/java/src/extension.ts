@@ -65,10 +65,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
   if (!javaExt.isActive) {
     logger.info("Java Language Support extension is not yet active, waiting...");
-    vscode.window.showInformationMessage(
-      "The Java Language Support extension is installed but not yet active. " +
-        "Java analysis features may be limited until it's fully loaded.",
-    );
+
+    try {
+      await javaExt.activate();
+      logger.info("Java Language Support activated successfully");
+    } catch (err) {
+      logger.error("Failed to activate Java Language Support", err);
+      vscode.window.showErrorMessage(
+        "Failed to activate Java Language Support extension. Java analysis may not work correctly.",
+      );
+      return;
+    }
   }
 
   // Check for Java installation

@@ -361,6 +361,19 @@ jobs:
           if [ -d "test-output" ]; then
             cp -r test-output test-artifacts/
           fi
+
+          # Collect extension logs from VSCode's log directory
+          if [ -d "test-data-dir/logs" ]; then
+            echo "Collecting extension logs..."
+            mkdir -p test-artifacts/extension-logs
+            cp -r test-data-dir/logs/* test-artifacts/extension-logs/
+
+            # List log files for debugging
+            echo "Extension log files found:"
+            find test-artifacts/extension-logs -type f -name "*.log" -ls || echo "No .log files found"
+          else
+            echo "Warning: test-data-dir/logs directory not found"
+          fi
         working-directory: ./tests
 
       - name: Upload test artifacts

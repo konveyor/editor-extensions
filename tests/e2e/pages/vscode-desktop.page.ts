@@ -164,13 +164,42 @@ export class VSCodeDesktop extends VSCode {
       // This was working before - the extension activates and opens the view
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Analysis View`);
 
-      // Wait for Java extension initialization signal
+      // Wait for Java extension initialization signal with retry logic
       // The Java extension waits for core to activate, so this signal means both are ready
       console.log('Waiting for Java extension initialization signal...');
-      const javaInitMessage = this.window
-        .getByRole('alert')
-        .getByText('__JAVA_EXTENSION_INITIALIZED__');
-      await expect(javaInitMessage).toBeVisible({ timeout: 300000 }); // 5 minute timeout for asset downloads
+
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes with 5 second intervals
+      let lastError: Error | undefined;
+
+      while (attempts < maxAttempts) {
+        try {
+          const javaInitMessage = this.window
+            .getByRole('alert')
+            .getByText('__JAVA_EXTENSION_INITIALIZED__');
+          await expect(javaInitMessage).toBeVisible({ timeout: 5000 });
+          console.log('Java extension initialization signal received');
+          break;
+        } catch (error) {
+          attempts++;
+          lastError = error as Error;
+          console.log(`Attempt ${attempts}/${maxAttempts}: Java extension not yet initialized...`);
+
+          if (attempts >= maxAttempts) {
+            console.error(
+              'Failed to receive Java extension initialization signal after maximum attempts'
+            );
+            console.error('This likely indicates:');
+            console.error('  1. RedHat Java extension failed to activate');
+            console.error('  2. Extension activation threw an error');
+            console.error('  3. The initialization message was not shown');
+            throw lastError;
+          }
+
+          // Wait before retrying
+          await this.window.waitForTimeout(5000);
+        }
+      }
 
       // Dismiss the message
       await this.window.keyboard.press('Escape');

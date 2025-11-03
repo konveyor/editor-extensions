@@ -32,7 +32,8 @@
     "redhat.java"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onLanguage:java"
   ],
   "contributes": {
     "javaExtensions": [
