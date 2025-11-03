@@ -36,5 +36,12 @@
     "customRulesFolder": "ehr_viewer/rules",
     "issuesCount": 1,
     "incidentsCount": 2
+  },
+  "jboss-eap-quickstarts": {
+    "repoUrl": "https://github.com/jboss-developer/jboss-eap-quickstarts",
+    "repoName": "jboss-eap-quickstarts",
+    "branch": "7.4.x",
+    "sources": [],
+    "targets": ["eap7", "eap8"]
   }
 }
