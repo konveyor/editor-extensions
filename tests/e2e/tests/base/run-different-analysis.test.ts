@@ -37,8 +37,16 @@ test.describe('Run analysis for different repositories', () => {
         });
 
         await test.step('Verify issues and incidents counts', async () => {
-          expect(repoInfo.issuesCount).not.toBeUndefined();
-          expect(repoInfo.incidentsCount).not.toBeUndefined();
+          if (repoInfo.issuesCount === undefined) {
+            throw new Error(
+              `'issuesCount' should be set for ${repoInfo.repoName} in test-repos.json`
+            );
+          }
+          if (repoInfo.incidentsCount === undefined) {
+            throw new Error(
+              `'incidentsCount' should be set for ${repoInfo.repoName} in test-repos.json`
+            );
+          }
 
           const issuesCount = await vscodeApp.getIssuesCount();
           const incidentsCount = await vscodeApp.getIncidentsCount();
