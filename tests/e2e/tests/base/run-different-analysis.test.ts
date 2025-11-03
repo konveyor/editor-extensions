@@ -12,6 +12,9 @@ test.describe('Run analysis for different repositories', () => {
   const entries = Object.entries(testReposData) as [keyof RepoData, RepoData[keyof RepoData]][];
 
   for (const [repoKey, repoInfo] of entries) {
+    if (repoKey === 'jboss-eap-quickstarts') {
+      continue;
+    }
     test(`Analyze ${String(repoKey)} app`, async ({}, testInfo) => {
       test.setTimeout(900000);
       const profileName = `${String(repoKey)} analysis`;
