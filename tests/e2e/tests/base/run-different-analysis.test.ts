@@ -26,6 +26,19 @@ test.describe('Run analysis for different repositories', () => {
       );
 
       try {
+        await test.step('Check data is set', async () => {
+          if (repoInfo.issuesCount === undefined) {
+            throw new Error(
+              `'issuesCount' should be set for ${repoInfo.repoName} in test-repos.json`
+            );
+          }
+          if (repoInfo.incidentsCount === undefined) {
+            throw new Error(
+              `'incidentsCount' should be set for ${repoInfo.repoName} in test-repos.json`
+            );
+          }
+        });
+
         await test.step('Create profile', async () => {
           await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
         });
@@ -40,23 +53,13 @@ test.describe('Run analysis for different repositories', () => {
         });
 
         await test.step('Verify issues and incidents counts', async () => {
-          if (repoInfo.issuesCount === undefined) {
-            throw new Error(
-              `'issuesCount' should be set for ${repoInfo.repoName} in test-repos.json`
-            );
-          }
-          if (repoInfo.incidentsCount === undefined) {
-            throw new Error(
-              `'incidentsCount' should be set for ${repoInfo.repoName} in test-repos.json`
-            );
-          }
-
           const issuesCount = await vscodeApp.getIssuesCount();
           const incidentsCount = await vscodeApp.getIncidentsCount();
 
           expect(issuesCount).toBe(repoInfo.issuesCount);
           expect(incidentsCount).toBe(repoInfo.incidentsCount);
         });
+        
       } finally {
         try {
           await vscodeApp.deleteProfile(profileName);
