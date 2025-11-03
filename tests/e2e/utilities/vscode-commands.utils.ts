@@ -65,6 +65,21 @@ export async function installExtension(): Promise<void> {
         stdio: 'inherit',
       });
       console.log('Java extension installed/updated successfully.');
+
+      // Wait a moment for VSCode to process extension dependencies
+      // VSCode should automatically install extensionDependencies (like redhat.java)
+      console.log('Waiting for VSCode to process extension dependencies...');
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
+      // Verify that redhat.java was installed as a dependency
+      if (!isExtensionInstalled('redhat.java')) {
+        console.warn('Warning: redhat.java was not automatically installed as a dependency.');
+        console.warn('This may indicate an issue with extension dependency resolution.');
+        console.warn('Installing redhat.java manually...');
+        execSync('code --install-extension redhat.java --force', { stdio: 'inherit' });
+      } else {
+        console.log('Verified: redhat.java is installed (dependency of konveyor-java).');
+      }
     }
   } catch (error) {
     console.error('Error installing the VSIX extension:', error);

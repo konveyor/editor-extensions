@@ -296,9 +296,18 @@ export abstract class VSCode {
     await expect(fileTab).toBeVisible();
     expect(await fileTab.getAttribute('aria-selected')).toBe('true');
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
-    await this.window.keyboard.press(`${modifier}+a+Delete`);
+    // Select all content
+    await this.window.keyboard.press(`${modifier}+a`);
+    await this.window.waitForTimeout(200);
+    // Delete selected content
+    await this.window.keyboard.press('Backspace');
+    await this.window.waitForTimeout(200);
+    // Paste new content
     await this.pasteContent(config);
+    await this.window.waitForTimeout(200);
+    // Save file
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    // Wait for file to be saved and processed
     await this.waitDefault();
   }
 

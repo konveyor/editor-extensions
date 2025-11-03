@@ -11,6 +11,7 @@ export const AWS_PROVIDER: ProviderConfig = {
   provider: LLMProviders.awsBedrock,
   model: 'meta.llama3-70b-instruct-v1:0',
   config: [
+    '---',
     'models:',
     '  AmazonBedrock: &active',
     '    provider: "ChatBedrock"',
@@ -24,6 +25,7 @@ export const OPENAI_GPT4O_PROVIDER: ProviderConfig = {
   provider: LLMProviders.openAI,
   model: 'gpt-4o',
   config: [
+    '---',
     'models:',
     '  OpenAI: &active',
     '    provider: "ChatOpenAI"',
@@ -37,6 +39,7 @@ export const OPENAI_GPT4OMINI_PROVIDER: ProviderConfig = {
   provider: LLMProviders.openAI,
   model: 'gpt-4o-mini',
   config: [
+    '---',
     'models:',
     '  OpenAI: &active',
     '    provider: "ChatOpenAI"',
@@ -63,6 +66,7 @@ export const PARASOL_PROVIDER: ProviderConfig = {
   provider: LLMProviders.openAI,
   model: 'granite-3-3-8b-instruct',
   config: [
+    '---',
     'models:',
     '  parasols-maas-granite: &active',
     '    provider: "ChatOpenAI"',
