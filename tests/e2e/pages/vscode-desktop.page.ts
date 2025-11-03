@@ -144,7 +144,9 @@ export class VSCodeDesktop extends VSCode {
 
   /**
    * Waits for the Konveyor extension to complete initialization by watching for
-   * the __EXTENSION_INITIALIZED__ info message signal.
+   * the __JAVA_EXTENSION_INITIALIZED__ info message signal.
+   * Since the Java extension waits for the core extension to activate before completing,
+   * this signal guarantees that both core and Java extensions are fully ready.
    */
   public async waitForExtensionInitialization(): Promise<void> {
     try {
@@ -162,17 +164,18 @@ export class VSCodeDesktop extends VSCode {
       // This was working before - the extension activates and opens the view
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Analysis View`);
 
-      // Now wait for the initialization signal message to appear
-      // This message is shown by the extension when __TEST_EXTENSION_END_TO_END__ env var is set
-      const initializationMessage = this.window
+      // Wait for Java extension initialization signal
+      // The Java extension waits for core to activate, so this signal means both are ready
+      console.log('Waiting for Java extension initialization signal...');
+      const javaInitMessage = this.window
         .getByRole('alert')
-        .getByText('__EXTENSION_INITIALIZED__');
-      await expect(initializationMessage).toBeVisible({ timeout: 300000 }); // 5 minute timeout for asset downloads
+        .getByText('__JAVA_EXTENSION_INITIALIZED__');
+      await expect(javaInitMessage).toBeVisible({ timeout: 300000 }); // 5 minute timeout for asset downloads
 
       // Dismiss the message
       await this.window.keyboard.press('Escape');
       await this.window.waitForTimeout(2000); // Give VSCode a chance to process the message
-      console.log('Konveyor extension initialized successfully');
+      console.log('Konveyor extensions initialized successfully');
     } catch (error) {
       console.error('Failed to wait for extension initialization:', error);
       throw error;

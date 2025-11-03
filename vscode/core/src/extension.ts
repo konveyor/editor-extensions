@@ -585,11 +585,6 @@ class VsCodeExtension {
 
       // Setup diff status bar item
       this.setupDiffStatusBar();
-
-      // Signal completion for E2E tests
-      if (process.env.__TEST_EXTENSION_END_TO_END__) {
-        vscode.window.showInformationMessage("__EXTENSION_INITIALIZED__");
-      }
     } catch (error) {
       this.state.logger.error("Error initializing extension", error);
       vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);

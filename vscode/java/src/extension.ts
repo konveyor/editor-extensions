@@ -185,6 +185,11 @@ export async function activate(context: vscode.ExtensionContext) {
     lspProxySocket: lspProxySocketPath,
     workspaceLocation,
   });
+
+  // Signal completion for E2E tests
+  if (process.env.__TEST_EXTENSION_END_TO_END__) {
+    vscode.window.showInformationMessage("__JAVA_EXTENSION_INITIALIZED__");
+  }
 }
 
 export function deactivate() {
