@@ -137,6 +137,7 @@ export class MCPClient {
     params: any,
     schema: z.ZodSchema<T>
   ): Promise<T | null> {
+    await this.authManager.waitForRefresh();
     const result = await this.client?.callTool({
       name: endpoint,
       arguments: params,
@@ -177,7 +178,9 @@ export class MCPClient {
     }
   }
 
-  public dispose(): void {
+  public async dispose(): Promise<void> {
+    this.authManager.stopAutoRefresh();
+    await this.authManager.waitForRefresh().catch(() => {});
     this.authManager.dispose();
 
     if (this.transport) {

@@ -1,4 +1,4 @@
-import {generateRandomString} from '../e2e/utilities/utils'
+import { generateRandomString } from '../e2e/utilities/utils';
 
 interface TokenResponse {
   access_token: string;
@@ -31,6 +31,7 @@ export class AuthenticationManager {
   private tokenExpiresAt: number | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
   private refreshPromise: Promise<void> | null = null;
+  private isRefreshing = false;
 
   constructor(
     private readonly baseUrl: string,
@@ -62,6 +63,12 @@ export class AuthenticationManager {
 
     const tokenData = await this.fetchToken(tokenUrl, params);
     this.setTokenData(tokenData);
+  }
+
+  public async waitForRefresh(): Promise<void> {
+    if (this.isRefreshing && this.refreshPromise) {
+      await this.refreshPromise;
+    }
   }
 
   public getBearerToken(): string | null {
@@ -104,6 +111,7 @@ export class AuthenticationManager {
   }
 
   private async refreshTokenFlow(): Promise<void> {
+    this.isRefreshing = true;
     this.stopAutoRefresh();
 
     try {
@@ -132,6 +140,8 @@ export class AuthenticationManager {
       } else {
         console.error('Token refresh error:', error);
       }
+    } finally {
+      this.isRefreshing = false;
     }
   }
 
