@@ -165,9 +165,7 @@ jobs:
             # Development build: use workflow artifacts from current branch
             npm run collect-assets -- \
               --use-workflow-artifacts \
-              --branch=${{ github.ref_name }} \
-              --platform=runtime \
-              --arch=runtime
+              --branch=${{ github.ref_name }}
           fi
 
       - name: Set version for build
