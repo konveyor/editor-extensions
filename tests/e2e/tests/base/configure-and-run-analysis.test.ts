@@ -36,7 +36,7 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(GOOGLE_GEMINI_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
   });
 
   test('Start server', async () => {

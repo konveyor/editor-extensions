@@ -47,7 +47,7 @@ export const OPENAI_GPT4OMINI_PROVIDER: ProviderConfig = {
 };
 
 export const GOOGLE_GEMINI_PROVIDER: ProviderConfig = {
-  provider: LLMProviders.openAI,
+  provider: LLMProviders.google,
   model: 'gemini-2.5-pro',
   config: [
     'models:',
