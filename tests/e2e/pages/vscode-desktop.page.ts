@@ -174,10 +174,8 @@ export class VSCodeDesktop extends VSCode {
 
       while (attempts < maxAttempts) {
         try {
-          const javaInitMessage = this.window
-            .getByRole('alert')
-            .getByText('__JAVA_EXTENSION_INITIALIZED__');
-          await expect(javaInitMessage).toBeVisible({ timeout: 5000 });
+          const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__');
+          await expect(javaInitStatusBar).toBeVisible({ timeout: 5000 });
           console.log('Java extension initialization signal received');
           break;
         } catch (error) {

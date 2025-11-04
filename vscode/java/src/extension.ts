@@ -193,10 +193,13 @@ export async function activate(context: vscode.ExtensionContext) {
     workspaceLocation,
   });
 
-  // Signal completion for E2E tests
-  // if (process.env.__TEST_EXTENSION_END_TO_END__) {
-  vscode.window.showInformationMessage("__JAVA_EXTENSION_INITIALIZED__");
-  // }
+  // Signal completion for E2E tests with a persistent status bar item
+  if (process.env.__TEST_EXTENSION_END_TO_END__) {
+    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    statusBarItem.text = "__JAVA_EXTENSION_INITIALIZED__";
+    statusBarItem.show();
+    context.subscriptions.push(statusBarItem);
+  }
 }
 
 export function deactivate() {
