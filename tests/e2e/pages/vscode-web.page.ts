@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import { BrowserContextOptions } from 'playwright';
 import { expect, Page } from '@playwright/test';
@@ -8,6 +9,8 @@ import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { getOSInfo } from '../utilities/utils';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
+import { KAIViews } from '../enums/views.enum';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -88,6 +91,7 @@ export class VSCodeWeb extends VSCode {
     if (await javaLightSelector.isVisible()) {
       await javaLightSelector.click();
     }
+
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
     await javaReadySelector.waitFor({ timeout: 180_000 });
     return vscode;
@@ -163,8 +167,28 @@ export class VSCodeWeb extends VSCode {
   }
 
   protected async selectCustomRules(customRulesPath: string) {
-    // TODO (abrugaro) implement
-    throw new Error('VSCodeWeb.selectCustomRules is not implemented for WEB_ENV yet');
+    const manageProfileView = await this.getView(KAIViews.manageProfiles);
+    console.log(`Selecting custom rules from: ${customRulesPath}`);
+
+    const customRulesButton = manageProfileView.getByRole('button', {
+      name: 'Select Custom Rules…',
+    });
+    await customRulesButton.click();
+    const pathInput = this.window.locator('.quick-input-box input');
+    await expect(pathInput).toHaveValue(`/projects/${this.repoDir}/`);
+    await pathInput.fill(`/projects/${this.repoDir}/${customRulesPath}/`);
+    await expect(
+      this.window.locator('.quick-input-list-entry').filter({ hasText: '.yaml' }).first()
+    ).toBeVisible();
+    await this.window
+      .locator('.quick-input-action')
+      .getByRole('button', { name: 'Select Custom Rules' })
+      .click();
+
+    const customRulesLabel = manageProfileView
+      .locator('[class*="label"], [class*="Label"]')
+      .filter({ hasText: customRulesPath });
+    await expect(customRulesLabel.first()).toBeVisible({ timeout: 30000 });
   }
 
   /**
@@ -280,5 +304,47 @@ export class VSCodeWeb extends VSCode {
     await expect(
       this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
     ).toBeVisible({ timeout: 300_000 });
+  }
+
+  /**
+   * Upload files by creating them from the terminal as uploading them is not well-supported
+   * This shouldn't be used for large files as it loads the file in plain text
+   * @see https://github.com/microsoft/playwright/issues/8850
+   * @param paths array of paths, supports file and folders
+   * @param dst destination folder
+   */
+  async upload(paths: string[], dst: string): Promise<void> {
+    const files: { name: string; content: string }[] = [];
+
+    await this.executeTerminalCommand(
+      `mkdir -p ${dst} && cd ${dst} && clear`,
+      `${dst} (${this.branch})`
+    );
+
+    function collectFiles(filePath: string) {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile()) {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const name = path.basename(filePath);
+        files.push({ name, content });
+      } else if (stat.isDirectory()) {
+        const entries = fs.readdirSync(filePath);
+        for (const entry of entries) {
+          collectFiles(path.join(filePath, entry));
+        }
+      } else {
+        console.warn(`Path ignored (not a file nor a folder): ${filePath}`);
+      }
+    }
+
+    for (const p of paths) {
+      collectFiles(p);
+    }
+
+    const commands = files.map(({ name, content }) => {
+      return `echo "${content}" > "./${name}"`;
+    });
+
+    await this.executeTerminalCommand(`cd ${dst} && ${commands.join(' && ')}`);
   }
 }

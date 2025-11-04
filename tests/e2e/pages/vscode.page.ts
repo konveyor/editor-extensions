@@ -568,6 +568,7 @@ export abstract class VSCode {
   /**
    * Opens the Konveyor command to configure Solution Server credentials,
    * then types username and password into the respective input fields.
+   * All commands are executed from the project folder
    * @param username - Username for solution server
    * @param password - Password for solution server
    */
@@ -597,13 +598,19 @@ export abstract class VSCode {
     if (!(await this.window.getByRole('tab', { name: 'Terminal' }).isVisible())) {
       await this.executeQuickCommand(`View: Toggle Terminal`);
     }
+
+    await expect(this.window.locator('.terminal-widget-container')).toBeVisible();
+    await this.window.keyboard.type(`cd /projects/${this.repoDir}`);
+    await this.window.keyboard.press('Enter');
     await expect(this.window.getByText(`${this.repoDir} (${this.branch})`).last()).toBeVisible();
     await this.window.keyboard.type(command);
     await this.window.keyboard.press('Enter');
     if (expectedOutput) {
-      await expect(this.window.getByText(expectedOutput)).toBeVisible();
+      await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
     }
+
     await this.executeQuickCommand(`View: Toggle Terminal`);
+    await expect(this.window.locator('.terminal-widget-container')).not.toBeVisible();
   }
 
   public async getIssuesCount(): Promise<number> {
