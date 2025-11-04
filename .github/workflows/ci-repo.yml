@@ -165,7 +165,7 @@ jobs:
             # Development build: use workflow artifacts from current branch
             npm run collect-assets -- \
               --use-workflow-artifacts \
-              --pr=${{ github.ref_name }}
+              --pr=${{ github.event.number }}
           fi
 
       - name: Set version for build
