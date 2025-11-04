@@ -7,6 +7,7 @@ import { VSCode } from './vscode.page';
 import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
+import { getOSInfo } from '../utilities/utils';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -67,7 +68,10 @@ export class VSCodeWeb extends VSCode {
 
     await newPage.waitForTimeout(30_000);
     await vscode.executeQuickCommand('Workspaces: Manage Workspace Trust');
-    await newPage.getByRole('button', { name: 'Trust', exact: true }).first().click();
+    const trustBtn = newPage.getByRole('button', { name: 'Trust', exact: true }).first();
+    if (await trustBtn.isVisible()) {
+      await trustBtn.click();
+    }
 
     // Resets the workspace so it can be reused
     await vscode.executeTerminalCommand(
@@ -79,13 +83,13 @@ export class VSCodeWeb extends VSCode {
       await vscode.installExtension();
     }
 
-    await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 60_000 });
+    await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
     const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
     if (await javaLightSelector.isVisible()) {
       await javaLightSelector.click();
     }
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
-    await javaReadySelector.waitFor({ timeout: 120_000 });
+    await javaReadySelector.waitFor({ timeout: 180_000 });
     return vscode;
   }
 
@@ -159,7 +163,7 @@ export class VSCodeWeb extends VSCode {
   }
 
   protected async selectCustomRules(customRulesPath: string) {
-    // TODO implementc
+    // TODO (abrugaro) implement
     throw new Error('VSCodeWeb.selectCustomRules is not implemented for WEB_ENV yet');
   }
 
@@ -213,11 +217,14 @@ export class VSCodeWeb extends VSCode {
   }
 
   public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
-    // TODO implement
+    // TODO (abrugaro) implement
+    throw new Error('writeOrUpdateVSCodeSettings NOT IMPLEMENTED');
   }
 
   public async pasteContent(content: string) {
-    // TODO (abrugaro) implement
+    await this.window.evaluate((content) => navigator.clipboard.writeText(content), content);
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    await this.window.keyboard.press(`${modifier}+v`, { delay: 500 });
   }
 
   public getWindow(): Page {

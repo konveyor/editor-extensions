@@ -3,6 +3,7 @@ import { VSCode } from '../../pages/vscode.page';
 import { KAIViews } from '../../enums/views.enum';
 import { extensionName } from '../../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 const SOLUTION_SERVER_URL = process.env.SOLUTION_SERVER_URL;
 const SOLUTION_SERVER_REALM = process.env.SOLUTION_SERVER_REALM ?? 'tackle';
@@ -73,7 +74,7 @@ test.describe(`Configure Solution Server settings`, () => {
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
     await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
     await vscodeApp.openWorkspaceSettingsAndWrite(buildSettings(solutionServerConfigs[0]));
     await vscodeApp.waitDefault();

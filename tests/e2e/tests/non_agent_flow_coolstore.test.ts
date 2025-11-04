@@ -7,6 +7,7 @@ import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 import { verifyAnalysisViewCleanState } from '../utilities/utils';
+import * as VSCodeFactory from '../utilities/vscode.factory';
 
 // NOTE: This is the list of providers that have cached data for the coolstore app
 // Update this list when you create cache for a new provider, you probably don't need
@@ -23,7 +24,7 @@ providers.forEach((config) => {
       test.setTimeout(1600000);
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
-      vscodeApp = await VSCode.open(repoInfo.repoUrl, repoInfo.repoName);
+      vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
       try {
         await vscodeApp.deleteProfile(profileName);
       } catch {
@@ -32,7 +33,7 @@ providers.forEach((config) => {
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
-      await vscodeApp.ensureLLMCache();
+      await vscodeApp.ensureLLMCache(false);
     });
 
     test.beforeEach(async () => {

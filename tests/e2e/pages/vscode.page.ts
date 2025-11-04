@@ -1,6 +1,6 @@
 import { FrameLocator } from 'playwright';
 import { expect, Page } from '@playwright/test';
-import { extensionName, generateRandomString, getOSInfo } from '../utilities/utils';
+import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
@@ -269,11 +269,14 @@ export abstract class VSCode {
     await this.executeQuickCommand(
       `${VSCode.COMMAND_CATEGORY}: Open the GenAI model provider configuration file`
     );
-
+    const fileTab = this.window.locator('div[data-resource-name="provider-settings.yaml"]');
+    await expect(fileTab).toBeVisible();
+    expect(await fileTab.getAttribute('aria-selected')).toBe('true');
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    await this.waitDefault();
   }
 
   public async findDebugArchiveCommand(): Promise<string> {
@@ -526,7 +529,9 @@ export abstract class VSCode {
     username: string,
     password: string
   ): Promise<void> {
-    await this.executeQuickCommand(`${extensionShortName}: Configure Solution Server Credentials`);
+    await this.executeQuickCommand(
+      `${VSCode.COMMAND_CATEGORY}: Configure Solution Server Credentials`
+    );
 
     const usernameInput = this.window.getByRole('textbox', { name: 'input' });
     await expect(usernameInput).toBeVisible({ timeout: 5000 });

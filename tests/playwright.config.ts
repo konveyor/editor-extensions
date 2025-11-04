@@ -14,11 +14,13 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   timeout: 120000,
+
   reporter: 'line',
   expect: {
     timeout: 10000,
   },
   use: {
+    permissions: ['clipboard-write', 'clipboard-read'],
     viewport: { width: 1920, height: 1080 },
     screenshot: 'only-on-failure', // Not yet supported on Electron https://github.com/microsoft/playwright/issues/8208
     trace: 'retain-on-failure',

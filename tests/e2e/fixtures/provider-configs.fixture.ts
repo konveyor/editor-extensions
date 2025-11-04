@@ -46,6 +46,19 @@ export const OPENAI_GPT4OMINI_PROVIDER: ProviderConfig = {
   ].join('\n'),
 };
 
+export const GOOGLE_GEMINI_PROVIDER: ProviderConfig = {
+  provider: LLMProviders.openAI,
+  model: 'gemini-2.5-pro',
+  config: [
+    'models:',
+    '  GoogleGenAI: &active',
+    '    provider: "ChatGoogleGenerativeAI"',
+    '    args:',
+    '      model: "gemini-2.5-pro"',
+    'active: *active',
+  ].join('\n'),
+};
+
 export const PARASOL_PROVIDER: ProviderConfig = {
   provider: LLMProviders.openAI,
   model: 'granite-3-3-8b-instruct',
