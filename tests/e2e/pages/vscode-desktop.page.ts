@@ -164,44 +164,14 @@ export class VSCodeDesktop extends VSCode {
       // This was working before - the extension activates and opens the view
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Analysis View`);
 
-      // Wait for Java extension initialization signal with retry logic
+      // Wait for Java extension initialization signal
       // The Java extension waits for core to activate, so this signal means both are ready
+      // This is a persistent status bar item, so we can just wait for it to appear
       console.log('Waiting for Java extension initialization signal...');
 
-      let attempts = 0;
-      const maxAttempts = 60; // 5 minutes with 5 second intervals
-      let lastError: Error | undefined;
+      const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__');
+      await expect(javaInitStatusBar).toBeVisible({ timeout: 300_000 }); // 5 minute timeout
 
-      while (attempts < maxAttempts) {
-        try {
-          const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__');
-          await expect(javaInitStatusBar).toBeVisible({ timeout: 5000 });
-          console.log('Java extension initialization signal received');
-          break;
-        } catch (error) {
-          attempts++;
-          lastError = error as Error;
-          console.log(`Attempt ${attempts}/${maxAttempts}: Java extension not yet initialized...`);
-
-          if (attempts >= maxAttempts) {
-            console.error(
-              'Failed to receive Java extension initialization signal after maximum attempts'
-            );
-            console.error('This likely indicates:');
-            console.error('  1. RedHat Java extension failed to activate');
-            console.error('  2. Extension activation threw an error');
-            console.error('  3. The initialization message was not shown');
-            throw lastError;
-          }
-
-          // Wait before retrying
-          await this.window.waitForTimeout(5000);
-        }
-      }
-
-      // Dismiss the message
-      await this.window.keyboard.press('Escape');
-      await this.window.waitForTimeout(2000); // Give VSCode a chance to process the message
       console.log('Konveyor extensions initialized successfully');
     } catch (error) {
       console.error('Failed to wait for extension initialization:', error);
