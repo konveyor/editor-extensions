@@ -154,18 +154,18 @@ const actions = [
     (async () => ({
       id: "download analyzer-lsp-binaries release assets",
       meta: await downloadGitHubReleaseAssets({
-        targetDirectory: join(DOWNLOAD_CACHE, "java-provider-assets"),
-        org: cli.org,
+        targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+        org,
         repo: "analyzer-lsp",
-        releaseTag: cli.releaseTag,
+        releaseTag,
         bearerToken,
 
         assets: [
-          { name: "analyzer-lsp-binaries.linux_amd64.zip" },
-          { name: "analyzer-lsp-binaries.linux_arm64.zip" },
-          { name: "analyzer-lsp-binaries.darwin_amd64.zip" },
-          { name: "analyzer-lsp-binaries.darwin_arm64.zip" },
-          { name: "analyzer-lsp-binaries.windows_amd64.zip" },
+          { name: "analyzer-lsp-binaries.linux-amd64.zip" },
+          { name: "analyzer-lsp-binaries.linux-arm64.zip" },
+          { name: "analyzer-lsp-binaries.darwin-amd64.zip" },
+          { name: "analyzer-lsp-binaries.darwin-arm64.zip" },
+          { name: "analyzer-lsp-binaries.windows-amd64.zip" },
         ],
       }),
     })),
@@ -177,10 +177,10 @@ const actions = [
       meta: await downloadWorkflowArtifactsAndExtractAssets({
         downloadDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-artifacts"),
         targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
-        org: org,
+        org,
         repo: "analyzer-lsp",
-        branch: "main",
-        pr: pr,
+        branch,
+        pr,
         workflow: "pr-testing.yml",
         bearerToken,
 
