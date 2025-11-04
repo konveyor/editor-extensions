@@ -53,7 +53,7 @@
     "dev:shared": "npm run dev -w shared",
     "dev:agentic": "npm run dev -w agentic",
     "dev:webview-ui": "wait-on -d 500 shared/dist/index.mjs && npm run start -w webview-ui",
-    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && concurrently -c auto 'npm run dev -w vscode/core' && concurrently -c auto 'npm run dev -w vscode/javascript'",
+    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && concurrently -c auto 'npm run dev -w vscode/core' 'npm run dev -w vscode/javascript' 'npm run dev -w vscode/java'",
     "prebuild": "[ -f scripts/prebuild.js ] && node scripts/prebuild.js || echo 'No prebuild script found'",
     "build": "npm run build --workspaces --if-present",
     "postbuild": "[ -f scripts/postbuild.js ] && node scripts/postbuild.js || echo 'No postbuild script found'",

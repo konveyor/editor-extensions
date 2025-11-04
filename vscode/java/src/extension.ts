@@ -133,14 +133,20 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // Start LSP proxy server (JSON-RPC over UDS)
-  const lspProxyServer = new LspProxyServer(lspProxySocketPath, logger);
-  await lspProxyServer.start();
-  context.subscriptions.push(lspProxyServer);
+  try {
+    const lspProxyServer = new LspProxyServer(lspProxySocketPath, logger);
+    await lspProxyServer.start();
+    context.subscriptions.push(lspProxyServer);
 
-  // Start java-external-provider subprocess (GRPC over UDS)
-  const providerManager = new JavaExternalProviderManager(providerSocketPath, context, logger);
-  await providerManager.start();
-  context.subscriptions.push(providerManager);
+    // Start java-external-provider subprocess (GRPC over UDS)
+    const providerManager = new JavaExternalProviderManager(providerSocketPath, context, logger);
+    await providerManager.start();
+    context.subscriptions.push(providerManager);
+  } catch (err) {
+    logger.error("Failed to start java provider", err);
+    vscode.window.showErrorMessage("Failed to start java provider.");
+    return;
+  }
 
   // Get workspace location for analysis
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];

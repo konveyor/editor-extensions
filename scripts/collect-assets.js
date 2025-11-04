@@ -4,7 +4,7 @@ import { join } from "path";
 import { cwdToProjectRoot, ensureDirs, parseCli } from "./_util.js";
 import {
   downloadAndExtractGitHubReleaseSourceCode,
-  // downloadGitHubReleaseAssets,
+  downloadGitHubReleaseAssets,
   downloadWorkflowArtifactsAndExtractAssets,
 } from "./_download.js";
 import { unpackAssets } from "./_unpack.js";
@@ -42,71 +42,50 @@ console.log("pr:", pr);
 console.log("workflow:", workflow);
 
 const actions = [
-  // TODO(djzager): UNNCOMMENT THIS when https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
-  // is merged AND a release is created with the binaries
   // If from a release, download the release asset zips
-  // useRelease &&
-  //   (async () => ({
-  //     id: "download release assets",
-  //     meta: await downloadGitHubReleaseAssets({
-  //       targetDirectory: join(DOWNLOAD_CACHE, "assets"),
-  //       org,
-  //       repo,
-  //       releaseTag,
-  //       bearerToken,
+  useRelease &&
+    (async () => ({
+      id: "download release assets",
+      meta: await downloadGitHubReleaseAssets({
+        targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+        org,
+        repo,
+        releaseTag,
+        bearerToken,
 
-  //       assets: [
-  //         { name: "kai-rpc-server.linux-x86_64.zip" },
-  //         { name: "kai-rpc-server.linux-aarch64.zip" },
-  //         { name: "kai-rpc-server.macos-x86_64.zip" },
-  //         { name: "kai-rpc-server.macos-arm64.zip" },
-  //         { name: "kai-rpc-server.windows-X64.zip" },
-  //       ],
-  //     }),
-  //   })),
+        assets: [
+          { name: "kai-rpc-server.linux-x86_64.zip" },
+          { name: "kai-rpc-server.linux-aarch64.zip" },
+          { name: "kai-rpc-server.macos-x86_64.zip" },
+          { name: "kai-rpc-server.macos-arm64.zip" },
+          { name: "kai-rpc-server.windows-X64.zip" },
+        ],
+      }),
+    })),
 
   // // If from a workflow, download the artifacts and unpack
-  // useWorkflow &&
-  //   (async () => ({
-  //     id: "download workflow artifacts and extract assets",
-  //     meta: await downloadWorkflowArtifactsAndExtractAssets({
-  //       downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
-  //       targetDirectory: join(DOWNLOAD_CACHE, "assets"),
-  //       org,
-  //       repo,
-  //       branch,
-  //       pr,
-  //       workflow,
-  //       bearerToken,
+  useWorkflow &&
+    (async () => ({
+      id: "download workflow artifacts and extract assets",
+      meta: await downloadWorkflowArtifactsAndExtractAssets({
+        downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
+        targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+        org,
+        repo,
+        branch,
+        pr,
+        workflow,
+        bearerToken,
 
-  //       artifacts: [
-  //         { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
-  //         { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-  //         { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
-  //         { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-  //         { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
-  //       ],
-  //     }),
-  //   })),
-  async () => ({
-    id: "download kai release assets",
-    meta: await downloadWorkflowArtifactsAndExtractAssets({
-      downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
-      targetDirectory: join(DOWNLOAD_CACHE, "assets"),
-      org,
-      repo,
-      workflowRunId: "18910655281", // https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
-      bearerToken,
-
-      artifacts: [
-        { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-        { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
-        { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-        { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
-        { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
-      ],
-    }),
-  }),
+        artifacts: [
+          { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
+          { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
+          { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
+          { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
+          { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
+        ],
+      }),
+    })),
 
   // Extract Kai binaries from the downloaded workflows artifact or release assets
   async () => ({
@@ -170,67 +149,65 @@ const actions = [
     }),
   }),
 
-  // Download java-external-provider binaries from analyzer-lsp release
-  // useRelease &&
-  //   (async () => ({
-  //     id: "download java-external-provider release assets",
-  //     meta: await downloadGitHubReleaseAssets({
-  //       targetDirectory: join(DOWNLOAD_CACHE, "java-provider-assets"),
-  //       org: cli.org,
-  //       repo: "analyzer-lsp",
-  //       releaseTag: cli.releaseTag,
-  //       bearerToken,
-  //
-  //       assets: [
-  //         { name: "java-external-provider_linux_amd64.tar.gz" },
-  //         { name: "java-external-provider_linux_arm64.tar.gz" },
-  //         { name: "java-external-provider_darwin_amd64.tar.gz" },
-  //         { name: "java-external-provider_darwin_arm64.tar.gz" },
-  //         { name: "java-external-provider_windows_amd64.zip" },
-  //       ],
-  //     }),
-  //   })),
+  // Download analyzer-lsp-binaries from analyzer-lsp release
+  useRelease &&
+    (async () => ({
+      id: "download analyzer-lsp-binaries release assets",
+      meta: await downloadGitHubReleaseAssets({
+        targetDirectory: join(DOWNLOAD_CACHE, "java-provider-assets"),
+        org: cli.org,
+        repo: "analyzer-lsp",
+        releaseTag: cli.releaseTag,
+        bearerToken,
 
-  // Download java-external-provider from analyzer-lsp workflow artifacts
-  // useWorkflow &&
-  // when a release exists with the binaries, use the release assets
-  async () => ({
-    id: "download external-provider workflow artifacts",
-    meta: await downloadWorkflowArtifactsAndExtractAssets({
-      downloadDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-artifacts"),
-      targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
-      org: org,
-      repo: "analyzer-lsp",
-      branch: "main", // TODO(djzager): UNNCOMMENT THIS when https://github.com/konveyor/kai/actions/runs/18910655281?pr=889
-      // is merged AND a release is created with the binaries
-      pr: pr,
-      workflow: "pr-testing.yml",
-      bearerToken,
+        assets: [
+          { name: "analyzer-lsp-binaries.linux_amd64.zip" },
+          { name: "analyzer-lsp-binaries.linux_arm64.zip" },
+          { name: "analyzer-lsp-binaries.darwin_amd64.zip" },
+          { name: "analyzer-lsp-binaries.darwin_arm64.zip" },
+          { name: "analyzer-lsp-binaries.windows_amd64.zip" },
+        ],
+      }),
+    })),
 
-      artifacts: [
-        {
-          name: "analyzer-lsp-binaries.linux-amd64.zip",
-          contents: ["analyzer-lsp-binaries.*.zip"],
-        },
-        {
-          name: "analyzer-lsp-binaries.linux-arm64.zip",
-          contents: ["analyzer-lsp-binaries.*.zip"],
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-amd64.zip",
-          contents: ["analyzer-lsp-binaries.*.zip"],
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-arm64.zip",
-          contents: ["analyzer-lsp-binaries.*.zip"],
-        },
-        {
-          name: "analyzer-lsp-binaries.windows-amd64.zip",
-          contents: ["analyzer-lsp-binaries.*.zip"],
-        },
-      ],
-    }),
-  }),
+  // Download analyzer-lsp-binaries from analyzer-lsp workflow artifacts
+  useWorkflow &&
+    (async () => ({
+      id: "download analyzer-lsp-binaries workflow artifacts",
+      meta: await downloadWorkflowArtifactsAndExtractAssets({
+        downloadDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-artifacts"),
+        targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+        org: org,
+        repo: "analyzer-lsp",
+        branch: "main",
+        pr: pr,
+        workflow: "pr-testing.yml",
+        bearerToken,
+
+        artifacts: [
+          {
+            name: "analyzer-lsp-binaries.linux-amd64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.linux-arm64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.darwin-amd64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.darwin-arm64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.windows-amd64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+        ],
+      }),
+    })),
 
   // Extract java-external-provider binaries to platform-specific directories (same as kai pattern)
   async () => ({

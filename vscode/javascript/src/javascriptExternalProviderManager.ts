@@ -83,6 +83,7 @@ export class JavaScriptExternalProviderManager implements vscode.Disposable {
     // Handle process errors
     this.process.on("error", (err) => {
       this.logger.error("javascript-external-provider process error", err);
+      this.process = null;
       vscode.window.showErrorMessage(
         `Failed to start javascript-external-provider: ${err.message}`,
       );

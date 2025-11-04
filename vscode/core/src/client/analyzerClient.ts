@@ -259,9 +259,15 @@ export class AnalyzerClient {
 
     // Write provider configs to temp JSON file
     const providerConfigPath = path.join(paths().serverLogs.fsPath, "provider-config.json");
-    fs.writeFileSync(providerConfigPath, JSON.stringify(providerConfigs, null, 2), "utf-8");
-
-    this.logger.info(`Wrote provider config to ${providerConfigPath}`);
+    try {
+      fs.writeFileSync(providerConfigPath, JSON.stringify(providerConfigs, null, 2), "utf-8");
+      this.logger.info(`Wrote provider config to ${providerConfigPath}`);
+    } catch (err) {
+      this.logger.error("Failed to write provider config", err);
+      throw new Error(
+        `Failed to write provider config: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     const args = [
       "-server-pipe",
