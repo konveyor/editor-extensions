@@ -8,12 +8,8 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 test.describe(`Profile Tests`, () => {
   let vscodeApp: VSCode;
-  const emptyProfileName = `emptyprofile-${generateRandomString()}`;
   const profileNameWithRules = `profileWithRules-${generateRandomString()}`;
-  const profileToDuplicate = emptyProfileName;
-  const duplicatedProfileName = `${profileToDuplicate} 1`;
-  const existingProfileName = `existing-${generateRandomString()}`;
-  const profilesToDelete: string[] = [];
+  const createdProfiles: string[] = [];
   let profileView: FrameLocator;
 
   test.beforeAll(async ({ testRepoData }) => {
@@ -30,14 +26,13 @@ test.describe(`Profile Tests`, () => {
   });
 
   test('Create empty Profile', async () => {
-    test.setTimeout(300000);
+    const emptyProfileName = `emptyprofile-${generateRandomString()}`;
     await vscodeApp.createProfile([], [], emptyProfileName);
     await expect(profileView.getByText('Fix validation errors before continuing.')).toBeVisible();
-    profilesToDelete.push(emptyProfileName);
+    createdProfiles.push(emptyProfileName);
   });
 
   test.skip('Create Profile and Set Sources targets and custom rules', async ({ testRepoData }) => {
-    test.setTimeout(300000);
     const repoInfo = testRepoData['inventory_management'];
     expect(repoInfo.customRulesFolder).toBeDefined();
     await vscodeApp.createProfile(
@@ -48,40 +43,38 @@ test.describe(`Profile Tests`, () => {
     );
     const customRulesList = profileView.getByRole('list', { name: 'Custom Rules' });
     await expect(customRulesList).toBeVisible({ timeout: 5000 });
-    profilesToDelete.push(profileNameWithRules);
+    createdProfiles.push(profileNameWithRules);
   });
 
   test.skip('Remove Custom Rules from profile ', async () => {
-    test.setTimeout(300000);
     await vscodeApp.removeProfileCustomRules(`${profileNameWithRules} (active)`, profileView);
   });
 
-  test('Create profile With Existing Name', async () => {
-    test.setTimeout(300000);
-    await vscodeApp.createProfile([], [], existingProfileName);
-    //creating a profile with the same name
-    profilesToDelete.push(existingProfileName);
-    await vscodeApp.createProfile([], [], existingProfileName);
+  test('Create profile With Existing Name', async ({ testRepoData }) => {
+    const existingProfileName = await getOrCreateProfile(testRepoData);
+    const repoInfo = testRepoData['inventory_management'];
     const errorMessage = profileView.locator('.pf-m-error', {
       hasText: 'A profile with this name already exists.',
     });
-    profilesToDelete.unshift(`${existingProfileName} 1`);
+    await vscodeApp.getWindow().pause();
+    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, existingProfileName);
+    createdProfiles.push(`${existingProfileName}`);
     await expect(errorMessage).toBeVisible();
   });
 
-  test('Duplicate Profile', async () => {
-    test.setTimeout(300000);
+  test('Activate Profile', async () => {
+    await verifyProfileActivationFlow(false);
+  });
+
+  test('Duplicate Profile using action button', async ({ testRepoData }) => {
+    const profileToDuplicate = await getOrCreateProfile(testRepoData);
+
     await vscodeApp.doMenuButtonAction(
       profileToDuplicate,
       ProfileActions.duplicateProfile,
       profileView
     );
-    profilesToDelete.unshift(`${profileToDuplicate} 1`);
-  });
-
-  test('Activate Profile', async () => {
-    test.setTimeout(300000);
-    await verifyProfileActivationFlow(false);
+    createdProfiles.push(profileToDuplicate);
   });
 
   test('Activate Profile using action Button', async () => {
@@ -89,13 +82,14 @@ test.describe(`Profile Tests`, () => {
     await verifyProfileActivationFlow(true);
   });
 
-  test.skip('Delete profile using action Button', async () => {
+  test.skip('Delete profile using action Button', async ({ testRepoData }) => {
     test.setTimeout(300000);
-    await vscodeApp.deleteProfile(duplicatedProfileName);
+    let toDelete = await getOrCreateProfile(testRepoData);
+    await vscodeApp.deleteProfile(toDelete);
   });
 
   test.afterAll(async () => {
-    for (const profileStr of profilesToDelete) {
+    for (const profileStr of createdProfiles) {
       await vscodeApp.deleteProfile(profileStr);
     }
   });
@@ -116,6 +110,7 @@ test.describe(`Profile Tests`, () => {
       await expect(profileView.getByRole('button', { name: 'Make Active' })).toBeEnabled();
     }
   }
+
   async function verifyActiveByList(
     profileView: FrameLocator,
     profileName: string,
@@ -128,6 +123,7 @@ test.describe(`Profile Tests`, () => {
       await expect(activeLabel).toHaveCount(0);
     }
   }
+
   async function verifyProfileIsActive(
     vscodeApp: VSCode,
     profileView: FrameLocator,
@@ -143,12 +139,12 @@ test.describe(`Profile Tests`, () => {
     const profile2 = `profile2-${generateRandomString()}`;
 
     await vscodeApp.createProfile([], [], profile1);
-    profilesToDelete.push(profile1);
+    createdProfiles.push(profile1);
     await verifyProfileIsActive(vscodeApp, profileView, profile1, true);
 
     //Create second profile and verify activation swapped
     await vscodeApp.createProfile([], [], profile2);
-    profilesToDelete.push(profile2);
+    createdProfiles.push(profile2);
     await verifyActiveByList(profileView, profile1, false);
     await verifyProfileIsActive(vscodeApp, profileView, profile2, true);
 
@@ -161,5 +157,17 @@ test.describe(`Profile Tests`, () => {
     await verifyProfileIsActive(vscodeApp, profileView, profile1, true);
 
     console.log('Verified profile activation flow successfully');
+  }
+
+  async function getOrCreateProfile(testRepoData: any): Promise<string> {
+    if (createdProfiles.length > 0) {
+      return createdProfiles[0];
+    }
+
+    const repoInfo = testRepoData['inventory_management'];
+    const newProfile = `tmp-${generateRandomString()}`;
+    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, newProfile);
+    createdProfiles.push(newProfile);
+    return newProfile;
   }
 });
