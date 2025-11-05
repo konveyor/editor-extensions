@@ -247,16 +247,6 @@ export class VSCodeDesktop extends VSCode {
     fs.renameSync(`${newCacheZip}.metadata`, `${this.llmCachePaths().storedPath}.metadata`);
   }
 
-  private llmCachePaths(): {
-    storedPath: string; // this is where the data is checked-in in the repo
-    workspacePath: string; // this is where a workspace is expecting to find cached data
-  } {
-    return {
-      storedPath: path.join(__dirname, '..', '..', 'data', 'llm_cache.zip'),
-      workspacePath: path.join(this.repoDir ?? '', '.vscode', 'cache'),
-    };
-  }
-
   public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
     writeOrUpdateSettingsJson(path.join(this.repoDir ?? '', '.vscode', 'settings.json'), settings);
   }

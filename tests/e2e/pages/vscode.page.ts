@@ -4,6 +4,7 @@ import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
+import path from 'path';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -28,6 +29,16 @@ export abstract class VSCode {
   public abstract closeVSCode(): Promise<void>;
   public abstract pasteContent(content: string): Promise<void>;
   public abstract getWindow(): Page;
+
+  protected llmCachePaths(): {
+    storedPath: string; // this is where the data is checked-in in the repo
+    workspacePath: string; // this is where a workspace is expecting to find cached data
+  } {
+    return {
+      storedPath: path.join(__dirname, '..', '..', 'data', 'llm_cache.zip'),
+      workspacePath: path.join(this.repoDir ?? '', '.vscode', 'cache'),
+    };
+  }
 
   public async executeQuickCommand(command: string) {
     await this.waitDefault();

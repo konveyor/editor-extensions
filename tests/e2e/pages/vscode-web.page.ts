@@ -9,7 +9,6 @@ import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { getOSInfo } from '../utilities/utils';
-import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 import { KAIViews } from '../enums/views.enum';
 
 export class VSCodeWeb extends VSCode {
@@ -196,27 +195,8 @@ export class VSCodeWeb extends VSCode {
    * @param cleanup
    */
   public async ensureLLMCache(cleanup: boolean = false): Promise<void> {
-    try {
-      const wspacePath = this.llmCachePaths().workspacePath;
-      const storedPath = this.llmCachePaths().storedPath;
-      if (cleanup) {
-        if (fs.existsSync(wspacePath)) {
-          fs.rmSync(wspacePath, { recursive: true, force: true });
-        }
-        return;
-      }
-      if (!fs.existsSync(wspacePath)) {
-        fs.mkdirSync(wspacePath, { recursive: true });
-      }
-      if (!fs.existsSync(storedPath)) {
-        return;
-      }
-      // move stored zip to workspace
-      extractZip(storedPath, wspacePath);
-    } catch (error) {
-      console.error('Error unzipping test data:', error);
-      throw error;
-    }
+    // TODO (abrugaro) implement
+    throw new Error('vscode-web.ensureLLMCache NOT IMPLEMENTED');
   }
 
   /**
@@ -224,20 +204,7 @@ export class VSCodeWeb extends VSCode {
    * This will be used when we want to generate a new cache data
    */
   public async updateLLMCache() {
-    const newCacheZip = path.join(path.dirname(this.llmCachePaths().storedPath), 'new.zip');
-    createZip(this.llmCachePaths().workspacePath, newCacheZip);
-    fs.renameSync(newCacheZip, this.llmCachePaths().storedPath);
-    fs.renameSync(`${newCacheZip}.metadata`, `${this.llmCachePaths().storedPath}.metadata`);
-  }
-
-  private llmCachePaths(): {
-    storedPath: string; // this is where the data is checked-in in the repo
-    workspacePath: string; // this is where a workspace is expecting to find cached data
-  } {
-    return {
-      storedPath: path.join(__dirname, '..', '..', 'data', 'llm_cache.zip'),
-      workspacePath: path.join(this.repoDir ?? '', '.vscode', 'cache'),
-    };
+    throw new Error('vscode-web.updateLLMCache NOT IMPLEMENTED');
   }
 
   public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
