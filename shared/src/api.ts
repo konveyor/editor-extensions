@@ -32,7 +32,7 @@ export interface ProviderConfig {
   address: string;
 
   /** Whether to use sockets/named pipes for communication (true for UDS/Windows named pipes) */
-  useSockets?: boolean;
+  useSocket?: boolean;
 
   /** Initialization configuration for the provider */
   initConfig?: ProviderInitConfig[];

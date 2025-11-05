@@ -204,7 +204,7 @@ export class AnalyzerClient {
   protected async getSocket(pipeName: string): Promise<Socket> {
     const s = createConnection(pipeName);
     let ready = false;
-    const MAX_RETRIES = 5;
+    const MAX_RETRIES = 30;
     const RETRY_DELAY = 2000; // 2 seconds
     let retryCount = 0;
 

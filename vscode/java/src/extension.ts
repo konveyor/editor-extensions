@@ -14,13 +14,30 @@ const EXTENSION_ID = "konveyor.konveyor-java";
 /**
  * Check if a command is available on the system
  */
-async function checkCommand(command: string, versionFlag = "--version"): Promise<boolean> {
-  try {
-    await promisify(execFile)(command, [versionFlag]);
-    return true;
-  } catch {
-    return false;
+async function checkCommand(command: string, versionFlag = "-version"): Promise<boolean> {
+  // On Windows, Maven is installed as mvn.cmd, not mvn.exe
+  const commandName = process.platform === "win32" && command === "mvn" ? "mvn.cmd" : command;
+
+  // Try multiple version flags as fallbacks for better cross-platform compatibility
+  const versionFlags = [versionFlag, "-version", "--version", "-v"];
+  const uniqueFlags = [...new Set(versionFlags)]; // Remove duplicates
+
+  for (const flag of uniqueFlags) {
+    try {
+      await promisify(execFile)(commandName, [flag]);
+      return true;
+    } catch {
+      // Try with shell option as fallback for this flag
+      try {
+        await promisify(execFile)(commandName, [flag], { shell: true });
+        return true;
+      } catch {
+        // Continue to next flag
+      }
+    }
   }
+
+  return false;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -153,13 +170,18 @@ export async function activate(context: vscode.ExtensionContext) {
   const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
 
   // Format provider address for GRPC
-  // Windows named pipes: unix:\\.\pipe\vscode-ipc-123
-  // Unix domain sockets: unix:///tmp/vscode-ipc-123.sock
-  const providerAddress = `unix:${providerSocketPath}`;
+  // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
+  // analyzer-lsp expects: unix:/path for Unix domain sockets
+  const providerAddress =
+    process.platform === "win32"
+      ? `passthrough:unix://${providerSocketPath}` // Windows: analyzer-lsp format (see provider/grpc/socket/pipe_windows.go:27)
+      : `unix:${providerSocketPath}`; // Unix: standard format
 
   logger.info("Provider configuration", {
+    platform: process.platform,
     providerAddress,
     workspaceLocation,
+    providerSocketPath,
   });
 
   // Register Java provider with core
@@ -168,7 +190,7 @@ export async function activate(context: vscode.ExtensionContext) {
     providerConfig: {
       name: "java",
       address: providerAddress, // GRPC socket address
-      useSockets: true,
+      useSocket: true,
       initConfig: [
         {
           location: workspaceLocation,
