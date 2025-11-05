@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -274,13 +275,13 @@ export class VSCodeWeb extends VSCode {
   }
 
   /**
-   * Upload files by creating them from the terminal as uploading them is not well-supported
+   * Upload texts files by creating them from the terminal as uploading them is not well-supported
    * This shouldn't be used for large files as it loads the file in plain text
    * @see https://github.com/microsoft/playwright/issues/8850
    * @param paths array of paths, supports file and folders
    * @param dst destination folder
    */
-  async upload(paths: string[], dst: string): Promise<void> {
+  async uploadTextFile(paths: string[], dst: string): Promise<void> {
     const files: { name: string; content: string }[] = [];
 
     await this.executeTerminalCommand(
@@ -313,5 +314,30 @@ export class VSCodeWeb extends VSCode {
     });
 
     await this.executeTerminalCommand(`cd ${dst} && ${commands.join(' && ')}`);
+  }
+
+  private async uploadFile(filePath: string) {
+    await this.openLeftBarElement('Explorer');
+
+    await this.window.locator('.explorer-folders-view').click({ button: 'right' });
+
+    const fileChooserPromise = this.window.waitForEvent('filechooser').catch(() => null);
+
+    const uploadAnchor = this.window.locator(`div.context-view .monaco-menu a.action-menu-item`, {
+      hasText: 'Upload...',
+    });
+    await expect(uploadAnchor).toBeVisible();
+    await this.waitDefault();
+    await Promise.all([fileChooserPromise, uploadAnchor.first().click({ timeout: 1500 })]);
+    const fileChooser = await fileChooserPromise;
+    if (fileChooser) {
+      await fileChooser.setFiles([filePath]);
+    }
+
+    const fileName = filePath.replace('\\', '/').split('/').pop();
+    const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
+      hasText: fileName,
+    });
+    await expect(fileItem).toBeVisible({ timeout: 60_000 });
   }
 }
