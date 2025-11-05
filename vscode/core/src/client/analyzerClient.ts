@@ -26,11 +26,6 @@ import { Logger } from "winston";
 import { executeExtensionCommand } from "../commands";
 import { ProviderRegistry } from "../api";
 
-// const uid = (() => {
-//   let counter = 0;
-//   return (prefix: string = "") => `${prefix}${counter++}`;
-// })();
-
 export class AnalyzerClient {
   private assetPaths: AssetPaths;
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
