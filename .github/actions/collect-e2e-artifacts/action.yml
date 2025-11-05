@@ -1,0 +1,48 @@
+name: "Collect E2E Test Artifacts"
+description: "Collects test artifacts from E2E test runs"
+
+inputs:
+  artifact-name:
+    description: "Name for the uploaded artifact"
+    required: true
+  tests-directory:
+    description: "Path to tests directory"
+    required: false
+    default: "./tests"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Collect test artifacts
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.tests-directory }}
+      run: |
+        mkdir -p test-artifacts
+        if [ -d "test-data-dir" ]; then
+          cp -r test-data-dir test-artifacts/
+        fi
+        if [ -d "test-output" ]; then
+          cp -r test-output test-artifacts/
+        fi
+
+        # Collect extension logs from VSCode's log directory
+        if [ -d "test-data-dir/logs" ]; then
+          echo "Collecting extension logs..."
+          mkdir -p test-artifacts/extension-logs
+          cp -r test-data-dir/logs/* test-artifacts/extension-logs/
+
+          # List log files for debugging
+          echo "Extension log files found:"
+          find test-artifacts/extension-logs -type f -name "*.log" -ls || echo "No .log files found"
+        else
+          echo "Warning: test-data-dir/logs directory not found"
+        fi
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.tests-directory }}/test-artifacts/
+        retention-days: 7
