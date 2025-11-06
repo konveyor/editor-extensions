@@ -5,7 +5,6 @@ import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import path from 'path';
-import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -543,9 +542,7 @@ export abstract class VSCode {
     await this.pasteContent(newContent);
 
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
-    await this.getWindow().screenshot({
-      path: `${SCREENSHOTS_FOLDER}/config-${generateRandomString()}-alex-test.png`,
-    });
+    await this.window.waitForTimeout(300);
     await this.window.keyboard.press(`${modifier}+w`);
   }
 
