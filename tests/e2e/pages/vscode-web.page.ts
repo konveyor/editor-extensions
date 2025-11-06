@@ -11,6 +11,8 @@ import { BrowserContext } from 'playwright-core';
 import { getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
+import { genAISettingKey, kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
+import pathlib from 'path';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -75,7 +77,12 @@ export class VSCodeWeb extends VSCode {
     if (await trustBtn.isVisible()) {
       await trustBtn.click();
     }
-
+    await vscode.openWorkspaceSettingsAndWrite({
+      [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
+      [kaiDemoMode]: true,
+      'java.configuration.updateBuildConfiguration': 'automatic',
+    });
+    await vscode.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true });
     // Resets the workspace so it can be reused
     await vscode.executeTerminalCommand(
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
@@ -199,8 +206,8 @@ export class VSCodeWeb extends VSCode {
   public async ensureLLMCache(cleanup: boolean = false): Promise<void> {
     const wspacePath = this.llmCachePaths().workspacePath;
     const storedPath = this.llmCachePaths().storedPath;
+    await this.executeTerminalCommand(`rm -rf ../${wspacePath}`);
     if (cleanup) {
-      await this.executeTerminalCommand(`rm -rf ../${wspacePath}`);
       return;
     }
 
@@ -212,16 +219,11 @@ export class VSCodeWeb extends VSCode {
 
     await this.uploadFile(storedPath);
     const zipName = storedPath.replace('\\', '/').split('/').pop();
-    await this.executeTerminalCommand(`unzip ./${zipName} -d ../${wspacePath}`);
+    await this.executeTerminalCommand(`unzip -o ./${zipName} -d ../${wspacePath}`);
   }
 
   public async updateLLMCache() {
     console.info('No need to update LLM cache in web mode, skipping...');
-  }
-
-  public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
-    // TODO (abrugaro) implement
-    throw new Error('writeOrUpdateVSCodeSettings NOT IMPLEMENTED');
   }
 
   public async pasteContent(content: string) {

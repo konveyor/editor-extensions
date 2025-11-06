@@ -48,7 +48,7 @@ providers.forEach((config) => {
     test('Fix JMS Topic issue with agent mode disabled (offline)', async () => {
       test.setTimeout(3600000);
       // set demoMode and update java configuration to auto-reload
-      await vscodeApp.writeOrUpdateVSCodeSettings({
+      await vscodeApp.openWorkspaceSettingsAndWrite({
         [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
         [kaiDemoMode]: true,
         'java.configuration.updateBuildConfiguration': 'automatic',

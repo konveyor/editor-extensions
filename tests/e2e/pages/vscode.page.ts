@@ -5,6 +5,7 @@ import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import path from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -16,15 +17,10 @@ export abstract class VSCode {
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
 
   /**
-   * Unzips all test data into workspace .vscode/ directory, deletes the zip files if cleanup is true
+   * Unzips all test data into workspace .vscode/ directory, only deletes the zip files if cleanup is true
    */
   public abstract ensureLLMCache(cleanup: boolean): Promise<void>;
   public abstract updateLLMCache(): Promise<void>;
-  /**
-   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
-   * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
-   */
-  public abstract writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void>;
   protected abstract selectCustomRules(customRulesPath: string): Promise<void>;
   public abstract closeVSCode(): Promise<void>;
   public abstract pasteContent(content: string): Promise<void>;
@@ -504,15 +500,10 @@ export abstract class VSCode {
   }
 
   /**
-   * Opens the workspace settings file in VSCode and writes new settings.
-   * Supports updating a single key/value pair or merging multiple settings at once.
-   * @param keyOrObject - Either a settings key (string) or an object containing multiple settings.
-   * @param value - The value to set when a single key is provided.
+   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
+   * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
    */
-  public async openWorkspaceSettingsAndWrite(
-    keyOrObject: string | Record<string, any>,
-    value?: any
-  ): Promise<void> {
+  public async openWorkspaceSettingsAndWrite(settings: Record<string, any>): Promise<void> {
     await this.executeQuickCommand('Preferences: Open Workspace Settings (JSON)');
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
@@ -521,7 +512,6 @@ export abstract class VSCode {
     await editor.click();
     await this.window.waitForTimeout(200);
 
-    // --- Read current content ---
     let editorContent = '';
     try {
       editorContent = await editor.innerText();
@@ -529,41 +519,22 @@ export abstract class VSCode {
       editorContent = '{}';
     }
 
-    // --- Parse settings safely ---
-    let settings: Record<string, any> = {};
+    let existingSettings: Record<string, any> = {};
     try {
-      settings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
+      existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
     } catch {
-      settings = {};
+      existingSettings = {};
     }
 
-    // --- Merge updates ---
-    const deepMerge = (target: any, source: any): any => {
-      for (const key of Object.keys(source)) {
-        if (
-          source[key] instanceof Object &&
-          !Array.isArray(source[key]) &&
-          key in target &&
-          target[key] instanceof Object &&
-          !Array.isArray(target[key])
-        ) {
-          deepMerge(target[key], source[key]);
-        } else {
-          target[key] = source[key];
-        }
-      }
-      return target;
-    };
+    const newContent = JSON.stringify(
+      {
+        ...existingSettings,
+        ...settings,
+      },
+      null,
+      2
+    );
 
-    if (typeof keyOrObject === 'string') {
-      settings[keyOrObject] = value;
-    } else {
-      settings = deepMerge(settings, keyOrObject);
-    }
-
-    const newContent = JSON.stringify(settings, null, 2);
-
-    // --- Replace file content and save ---
     await editor.click();
     await this.window.keyboard.press(`${modifier}+a`);
     await this.window.waitForTimeout(100);
@@ -572,7 +543,9 @@ export abstract class VSCode {
     await this.pasteContent(newContent);
 
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
-    await this.window.waitForTimeout(300);
+    await this.getWindow().screenshot({
+      path: `${SCREENSHOTS_FOLDER}/config-${generateRandomString()}-alex-test.png`,
+    });
     await this.window.keyboard.press(`${modifier}+w`);
   }
 
