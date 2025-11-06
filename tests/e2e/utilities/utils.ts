@@ -162,3 +162,42 @@ export async function verifyAnalysisViewCleanState(
   await vscodeApp.getWindow().screenshot({ path: screenshotPath });
   console.log(`${logPrefix}: Final screenshot saved to ${screenshotPath}`);
 }
+
+export function getSOlutionServerConfig(toEnableSolutionServer: boolean) {
+  const url = process.env.SOLUTION_SERVER_URL;
+  if (!url) {
+    throw new Error('Missing required URL');
+  }
+  const isLocalServer = url.startsWith('http://');
+  const localConfig = {
+    'konveyor.solutionServer': {
+      enabled: toEnableSolutionServer,
+    },
+  };
+
+  if (isLocalServer === true) {
+    return localConfig;
+  }
+
+  const username = process.env.SOLUTION_SERVER_USERNAME;
+  const password = process.env.SOLUTION_SERVER_PASSWORD;
+  const realm = process.env.SOLUTION_SERVER_REALM;
+  if (!username || !password || !realm) {
+    throw new Error('Missing solution server credentials');
+  }
+
+  const remoteConfig = {
+    'konveyor.solutionServer': {
+      enabled: toEnableSolutionServer,
+      url,
+      auth: {
+        enabled: true,
+        realm,
+        insecure: true,
+        username,
+        password,
+      },
+    },
+  };
+  return remoteConfig;
+}

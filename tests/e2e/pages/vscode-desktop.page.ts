@@ -11,6 +11,7 @@ import { installExtension, isExtensionInstalled } from '../utilities/vscode-comm
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
+import { getSOlutionServerConfig } from '../utilities/utils';
 
 export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
@@ -277,5 +278,27 @@ export class VSCodeDesktop extends VSCode {
       throw new Error('VSCode window is not initialized.');
     }
     return this.window;
+  }
+
+  public async SetUpSolutionServer(toEnableSolutionServer = false) {
+    const url = process.env.SOLUTION_SERVER_URL;
+    if (!this.repoDir) {
+      throw new Error('Missing repository path.');
+    }
+    if (!url) {
+      throw new Error('Missing Solution Server URL');
+    }
+    const config = getSOlutionServerConfig(toEnableSolutionServer);
+    writeOrUpdateSettingsJson(path.join(this.repoDir ?? '', '.vscode', 'settings.json'), config);
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+
+    if (url.startsWith('https://')) {
+      const configData = config['konveyor.solutionServer'];
+      const auth = (configData as any).auth;
+      if (auth?.username && auth?.password) {
+        await this.configureSolutionServerCredentials(auth.username, auth.password);
+      }
+    }
   }
 }
