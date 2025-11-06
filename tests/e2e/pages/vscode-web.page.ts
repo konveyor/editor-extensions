@@ -1,16 +1,12 @@
 import * as fs from 'fs';
-import * as fsPromises from 'fs/promises';
-import * as path from 'path';
 import { BrowserContextOptions } from 'playwright';
 import { expect, Page } from '@playwright/test';
-import { createZip, extractZip } from '../utilities/archive';
 import { VSCode } from './vscode.page';
 import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
-import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 import { genAISettingKey, kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 import pathlib from 'path';
 
@@ -218,7 +214,7 @@ export class VSCodeWeb extends VSCode {
     }
 
     await this.uploadFile(storedPath);
-    const zipName = storedPath.replace('\\', '/').split('/').pop();
+    const zipName = storedPath.replace(/\\/g, '/').split('/').pop();
     await this.executeTerminalCommand(`unzip -o ./${zipName} -d ../${wspacePath}`);
   }
 
@@ -305,7 +301,7 @@ export class VSCodeWeb extends VSCode {
       await fileChooser.setFiles([filePath]);
     }
 
-    const fileName = filePath.replace('\\', '/').split('/').pop();
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop();
     const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
       hasText: fileName,
     });
