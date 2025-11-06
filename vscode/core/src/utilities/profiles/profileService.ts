@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { AnalysisProfile } from "@editor-extensions/shared";
 import { ExtensionState } from "../../extensionState";
 import { getBundledProfiles } from "./bundledProfiles";
+import { discoverInTreeProfiles } from "./inTreeProfiles";
 
 const USER_PROFILE_KEY = "userProfiles";
 const ACTIVE_PROFILE_KEY = "activeProfileId";
@@ -42,18 +43,31 @@ export function getActiveProfileId(context: vscode.ExtensionContext): string | u
   return context.workspaceState.get<string>(ACTIVE_PROFILE_KEY);
 }
 
-export function getAllProfiles(context: vscode.ExtensionContext): AnalysisProfile[] {
+export async function getAllProfiles(context: vscode.ExtensionContext): Promise<AnalysisProfile[]> {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+  // If in-tree profiles exist, ONLY return those (IN-TREE ALWAYS WINS)
+  if (workspaceRoot) {
+    const inTreeProfiles = await discoverInTreeProfiles(workspaceRoot);
+    if (inTreeProfiles.length > 0) {
+      return inTreeProfiles;
+    }
+  }
+
+  // Fallback to existing behavior
   const bundled = getBundledProfiles();
   const user = getUserProfiles(context);
   return [...bundled, ...user];
 }
 
-export function getActiveProfile(state: ExtensionState): AnalysisProfile | undefined {
+export async function getActiveProfile(
+  state: ExtensionState,
+): Promise<AnalysisProfile | undefined> {
   const activeId = state.data.activeProfileId;
   if (!activeId) {
     return undefined;
   }
-  const allProfiles = getAllProfiles(state.extensionContext);
+  const allProfiles = await getAllProfiles(state.extensionContext);
   const activeProfile = allProfiles.find((p) => p.id === activeId);
   if (!activeProfile) {
     console.error(`Active profile with ID ${activeId} not found.`);
@@ -62,16 +76,19 @@ export function getActiveProfile(state: ExtensionState): AnalysisProfile | undef
   return activeProfile;
 }
 
-export function getLabelSelector(state: ExtensionState): string {
-  return getActiveProfile(state)?.labelSelector ?? "(discovery)";
+export async function getLabelSelector(state: ExtensionState): Promise<string> {
+  const profile = await getActiveProfile(state);
+  return profile?.labelSelector ?? "(discovery)";
 }
 
-export function getCustomRules(state: ExtensionState): string[] {
-  return getActiveProfile(state)?.customRules ?? [];
+export async function getCustomRules(state: ExtensionState): Promise<string[]> {
+  const profile = await getActiveProfile(state);
+  return profile?.customRules ?? [];
 }
 
-export function getUseDefaultRules(state: ExtensionState): boolean {
-  return getActiveProfile(state)?.useDefaultRules ?? true;
+export async function getUseDefaultRules(state: ExtensionState): Promise<boolean> {
+  const profile = await getActiveProfile(state);
+  return profile?.useDefaultRules ?? true;
 }
 
 export function updateActiveProfile(

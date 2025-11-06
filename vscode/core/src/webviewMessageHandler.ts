@@ -30,8 +30,8 @@ import {
   OPEN_RESOLUTION_PANEL,
 } from "@editor-extensions/shared";
 
-import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
 import {
+  getAllProfiles,
   getUserProfiles,
   saveUserProfiles,
   setActiveProfileId,
@@ -61,33 +61,54 @@ const actions: {
   ) => void | Promise<void>;
 } = {
   [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
-    const userProfiles = getUserProfiles(state.extensionContext);
+    const allProfiles = await getAllProfiles(state.extensionContext);
 
-    if (userProfiles.some((p) => p.name === profile.name)) {
+    if (allProfiles.some((p) => p.name === profile.name)) {
       vscode.window.showErrorMessage(`A profile named "${profile.name}" already exists.`);
       return;
     }
 
+    // Only allow adding profiles if we're not in in-tree mode
+    const isInTreeMode = allProfiles.length > 0 && allProfiles[0]?.source === "local";
+    if (isInTreeMode) {
+      vscode.window.showWarningMessage(
+        "Cannot add profiles while using in-tree configuration. Profiles are managed in .konveyor/profiles/.",
+      );
+      return;
+    }
+
+    const userProfiles = getUserProfiles(state.extensionContext);
     const updated = [...userProfiles, profile];
     saveUserProfiles(state.extensionContext, updated);
 
-    const allProfiles = [...getBundledProfiles(), ...updated];
+    const updatedAllProfiles = await getAllProfiles(state.extensionContext);
     setActiveProfileId(profile.id, state);
 
     state.mutateData((draft) => {
-      draft.profiles = allProfiles;
+      draft.profiles = updatedAllProfiles;
       draft.activeProfileId = profile.id;
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
 
   [DELETE_PROFILE]: async (profileId: string, state) => {
+    const allProfiles = await getAllProfiles(state.extensionContext);
+
+    // Prevent deletion if in in-tree mode
+    const isInTreeMode = allProfiles.length > 0 && allProfiles[0]?.source === "local";
+    if (isInTreeMode) {
+      vscode.window.showWarningMessage(
+        "Cannot delete profiles while using in-tree configuration. Profiles are managed in .konveyor/profiles/.",
+      );
+      return;
+    }
+
     const userProfiles = getUserProfiles(state.extensionContext);
     const filtered = userProfiles.filter((p) => p.id !== profileId);
 
     saveUserProfiles(state.extensionContext, filtered);
 
-    const fullProfiles = [...getBundledProfiles(), ...filtered];
+    const fullProfiles = await getAllProfiles(state.extensionContext);
     state.mutateData((draft) => {
       draft.profiles = fullProfiles;
 
@@ -100,10 +121,18 @@ const actions: {
   },
 
   [UPDATE_PROFILE]: async ({ originalId, updatedProfile }, state) => {
-    const allProfiles = [...getBundledProfiles(), ...getUserProfiles(state.extensionContext)];
-    const isBundled = allProfiles.find((p) => p.id === originalId)?.readOnly;
+    const allProfiles = await getAllProfiles(state.extensionContext);
+    const profileToUpdate = allProfiles.find((p) => p.id === originalId);
 
-    if (isBundled) {
+    // Prevent editing if in in-tree mode or if profile is read-only
+    if (profileToUpdate?.source === "local") {
+      vscode.window.showWarningMessage(
+        "In-tree profiles cannot be edited from the UI. Edit the YAML file in .konveyor/profiles/ directly.",
+      );
+      return;
+    }
+
+    if (profileToUpdate?.readOnly) {
       vscode.window.showWarningMessage(
         "Built-in profiles cannot be edited. Copy it to a new profile first.",
       );
@@ -114,10 +143,10 @@ const actions: {
       p.id === originalId ? { ...p, ...updatedProfile } : p,
     );
 
-    const userProfiles = updatedList.filter((p) => !p.readOnly);
+    const userProfiles = updatedList.filter((p) => !p.readOnly && p.source !== "local");
     saveUserProfiles(state.extensionContext, userProfiles);
 
-    const fullProfiles = [...getBundledProfiles(), ...userProfiles];
+    const fullProfiles = await getAllProfiles(state.extensionContext);
 
     // Check if we're updating the active profile
     const isActiveProfile = state.data.activeProfileId === originalId;
@@ -143,7 +172,7 @@ const actions: {
   },
 
   [SET_ACTIVE_PROFILE]: async (profileId: string, state) => {
-    const allProfiles = [...getBundledProfiles(), ...getUserProfiles(state.extensionContext)];
+    const allProfiles = await getAllProfiles(state.extensionContext);
     const valid = allProfiles.find((p) => p.id === profileId);
     if (!valid) {
       vscode.window.showErrorMessage(`Cannot set active profile. Profile not found.`);

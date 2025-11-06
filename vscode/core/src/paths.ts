@@ -372,6 +372,12 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
 
   const f = relative(fsPaths().workspaceRepo, uri.fsPath);
   _logger?.debug(`isUriIgnored: ${f}`);
+
+  // Always ignore .konveyor directory
+  if (f.startsWith(".konveyor/") || f === ".konveyor") {
+    return true;
+  }
+
   return isIgnoredBy(f);
 };
 

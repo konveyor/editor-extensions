@@ -39,8 +39,7 @@ import {
   getConfigAutoAcceptOnSave,
   updateConfigErrors,
 } from "./utilities";
-import { getBundledProfiles } from "./utilities/profiles/bundledProfiles";
-import { getUserProfiles } from "./utilities/profiles/profileService";
+import { getAllProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
 // Removed InlineSuggestionCodeActionProvider import since we're using merge editor now
@@ -218,9 +217,7 @@ class VsCodeExtension {
       // Initialize vertical diff system
       this.initializeVerticalDiff();
 
-      const bundled = getBundledProfiles();
-      const user = getUserProfiles(this.context);
-      const allProfiles = [...bundled, ...user];
+      const allProfiles = await getAllProfiles(this.context);
 
       const storedActiveId = this.context.workspaceState.get<string>("activeProfileId");
 
@@ -260,6 +257,9 @@ class VsCodeExtension {
         // Initialize configuration errors after setting profiles and activeProfileId
         this.updateConfigurationErrors(draft);
       });
+
+      // Watch for changes to .konveyor/profiles directory
+      this.setupProfileWatcher();
 
       this.setupModelProvider(paths().settingsYaml)
         .then((configError) => {
@@ -782,6 +782,51 @@ class VsCodeExtension {
         },
       ),
     );
+  }
+
+  private setupProfileWatcher(): void {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) {
+      return;
+    }
+
+    // Watch for changes to .konveyor/profiles directory
+    const profilesPattern = new vscode.RelativePattern(
+      workspaceRoot,
+      ".konveyor/profiles/**/profile.yaml",
+    );
+    const watcher = vscode.workspace.createFileSystemWatcher(profilesPattern);
+
+    // Reload profiles when files change
+    const reloadProfiles = async () => {
+      this.state.logger.info("Detected changes to .konveyor/profiles, reloading profiles");
+      const allProfiles = await getAllProfiles(this.context);
+      const currentActiveId = this.state.data.activeProfileId;
+
+      // Check if active profile still exists
+      const activeStillExists = allProfiles.find((p) => p.id === currentActiveId);
+      const newActiveId =
+        activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
+
+      this.state.mutateData((draft) => {
+        draft.profiles = allProfiles;
+        draft.activeProfileId = newActiveId;
+        this.updateConfigurationErrors(draft);
+      });
+
+      if (currentActiveId !== newActiveId) {
+        this.state.logger.info(`Active profile changed to "${newActiveId}" after profile reload.`);
+        vscode.window.showInformationMessage(
+          `Active profile changed to "${allProfiles.find((p) => p.id === newActiveId)?.name ?? "none"}" after profile reload.`,
+        );
+      }
+    };
+
+    watcher.onDidCreate(reloadProfiles);
+    watcher.onDidChange(reloadProfiles);
+    watcher.onDidDelete(reloadProfiles);
+
+    this.context.subscriptions.push(watcher);
   }
 
   private checkContinueInstalled(): void {

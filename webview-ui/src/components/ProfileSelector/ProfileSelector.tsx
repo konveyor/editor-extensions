@@ -41,6 +41,9 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
 
   const selected = profiles.find((p) => p.id === activeProfile);
 
+  // Check if in in-tree mode (all profiles have source === 'local')
+  const isInTreeMode = profiles.length > 0 && profiles.every((p) => p.source === "local");
+
   const filtered = searchInput.trim()
     ? profiles.filter((p) => p.name.toLowerCase().includes(searchInput.trim().toLowerCase()))
     : profiles;
@@ -106,19 +109,23 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
         )}
       </DropdownList>
 
-      <Divider />
+      {!isInTreeMode && (
+        <>
+          <Divider />
 
-      <DropdownItem
-        key="manage-profiles"
-        onClick={() => {
-          setIsOpen(false);
-          onManageProfiles();
-        }}
-        icon={<CogIcon />}
-        style={{ fontStyle: "italic", opacity: 0.9 }}
-      >
-        Manage Profiles
-      </DropdownItem>
+          <DropdownItem
+            key="manage-profiles"
+            onClick={() => {
+              setIsOpen(false);
+              onManageProfiles();
+            }}
+            icon={<CogIcon />}
+            style={{ fontStyle: "italic", opacity: 0.9 }}
+          >
+            Manage Profiles
+          </DropdownItem>
+        </>
+      )}
     </Dropdown>
   );
 };

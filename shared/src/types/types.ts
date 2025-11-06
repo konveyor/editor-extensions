@@ -246,6 +246,10 @@ export interface AnalysisProfile {
   useDefaultRules: boolean;
   labelSelector: string;
   readOnly?: boolean;
+  // Fields for in-tree and hub-synced profiles
+  source?: "local" | "hub" | "bundled";
+  version?: string;
+  syncedAt?: string;
 }
 
 export type ToolMessageValue = { toolName: string; toolStatus: string };
