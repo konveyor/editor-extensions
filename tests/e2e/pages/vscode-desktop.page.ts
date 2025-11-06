@@ -226,6 +226,7 @@ export class VSCodeDesktop extends VSCode {
         fs.mkdirSync(wspacePath, { recursive: true });
       }
       if (!fs.existsSync(storedPath)) {
+        console.info('No local cache file found');
         return;
       }
       // move stored zip to workspace

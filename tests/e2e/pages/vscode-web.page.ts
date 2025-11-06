@@ -80,6 +80,7 @@ export class VSCodeWeb extends VSCode {
     await vscode.executeTerminalCommand(
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
     );
+    await vscode.ensureLLMCache(false);
 
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
     if (!(await navLi.isVisible())) {
@@ -196,16 +197,26 @@ export class VSCodeWeb extends VSCode {
    * @param cleanup
    */
   public async ensureLLMCache(cleanup: boolean = false): Promise<void> {
-    // TODO (abrugaro) implement
-    throw new Error('vscode-web.ensureLLMCache NOT IMPLEMENTED');
+    const wspacePath = this.llmCachePaths().workspacePath;
+    const storedPath = this.llmCachePaths().storedPath;
+    if (cleanup) {
+      await this.executeTerminalCommand(`rm -rf ../${wspacePath}`);
+      return;
+    }
+
+    await this.executeTerminalCommand(`mkdir -p ../${wspacePath}`);
+    if (!fs.existsSync(storedPath)) {
+      console.info('No local cache file found');
+      return;
+    }
+
+    await this.uploadFile(storedPath);
+    const zipName = storedPath.replace('\\', '/').split('/').pop();
+    await this.executeTerminalCommand(`unzip ./${zipName} -d ../${wspacePath}`);
   }
 
-  /**
-   * Copies all newly generated LLM cache data into a zip file in the repo, merges with the existing data
-   * This will be used when we want to generate a new cache data
-   */
   public async updateLLMCache() {
-    throw new Error('vscode-web.updateLLMCache NOT IMPLEMENTED');
+    console.info('No need to update LLM cache in web mode, skipping...');
   }
 
   public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
@@ -272,48 +283,6 @@ export class VSCodeWeb extends VSCode {
     await expect(
       this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
     ).toBeVisible({ timeout: 300_000 });
-  }
-
-  /**
-   * Upload texts files by creating them from the terminal as uploading them is not well-supported
-   * This shouldn't be used for large files as it loads the file in plain text
-   * @see https://github.com/microsoft/playwright/issues/8850
-   * @param paths array of paths, supports file and folders
-   * @param dst destination folder
-   */
-  async uploadTextFile(paths: string[], dst: string): Promise<void> {
-    const files: { name: string; content: string }[] = [];
-
-    await this.executeTerminalCommand(
-      `mkdir -p ${dst} && cd ${dst} && clear`,
-      `${dst} (${this.branch})`
-    );
-
-    function collectFiles(filePath: string) {
-      const stat = fs.statSync(filePath);
-      if (stat.isFile()) {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const name = path.basename(filePath);
-        files.push({ name, content });
-      } else if (stat.isDirectory()) {
-        const entries = fs.readdirSync(filePath);
-        for (const entry of entries) {
-          collectFiles(path.join(filePath, entry));
-        }
-      } else {
-        console.warn(`Path ignored (not a file nor a folder): ${filePath}`);
-      }
-    }
-
-    for (const p of paths) {
-      collectFiles(p);
-    }
-
-    const commands = files.map(({ name, content }) => {
-      return `echo "${content}" > "./${name}"`;
-    });
-
-    await this.executeTerminalCommand(`cd ${dst} && ${commands.join(' && ')}`);
   }
 
   private async uploadFile(filePath: string) {
