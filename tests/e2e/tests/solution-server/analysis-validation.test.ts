@@ -11,23 +11,29 @@ import {
   SuccessRateResponse,
 } from '../../../mcp-client/mcp-client-responses.model';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { AnalysisTab } from '../../enums/analysis-tabs.enum';
+import { FilterMode } from '../../enums/filter-mode.enum';
 
 test.describe(`Solution server analysis validations`, () => {
   let vsCode: VSCode;
   let mcpClient: MCPClient;
   let successRateBase: SuccessRateResponse;
   let bestHintBase: BestHintResponse;
+  const issueToFix = 'Replace the Java EE version with the Jakarta equivalent';
+  const ruleSetName = 'eap8/eap7';
+  const violationName = 'javaee-to-jakarta-namespaces-00033';
+  let config: Configuration;
+  const MAX_ATTEMPTS = 15;
 
   test.beforeAll(async ({ testRepoData }) => {
     const repoInfo = testRepoData['coolstore'];
-    test.setTimeout(600000);
-    mcpClient = await MCPClient.connect('http://localhost:8000');
     vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
-    const config = await Configuration.open(vsCode);
+    config = await Configuration.open(vsCode);
     await config.setEnabledConfiguration(solutionServerEnabled, true);
     await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
     await vsCode.createProfile(repoInfo.sources, repoInfo.targets);
     await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
+    mcpClient = await MCPClient.connect();
     await vsCode.startServer();
     await vsCode.runAnalysis();
     await expect(vsCode.getWindow().getByText('Analysis completed').first()).toBeVisible({
@@ -35,32 +41,61 @@ test.describe(`Solution server analysis validations`, () => {
     });
   });
 
-  test.beforeEach(async () => {
-    successRateBase = await mcpClient.getSuccessRate([
-      {
-        ruleset_name: 'eap8/eap7',
-        violation_name: 'javax-to-jakarta-import-00001',
-      },
-    ]);
-    bestHintBase = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
+  test.describe('Success rate validation tests', () => {
+    test.setTimeout(600000);
+    test.beforeEach(async () => {
+      successRateBase = await mcpClient.getSuccessRate([
+        { ruleset_name: ruleSetName, violation_name: violationName },
+      ]);
+      bestHintBase = await mcpClient.getBestHint(ruleSetName, violationName);
+    });
+
+    test('Reject solution and assert success rate', async () => {
+      await requestFixAndAssertSolution(false);
+      const bestHint = await mcpClient.getBestHint(ruleSetName, violationName);
+      expect(bestHint.hint_id).toEqual(bestHintBase.hint_id);
+    });
+
+    test('Accept solution and assert success rate', async () => {
+      await requestFixAndAssertSolution(true);
+      const bestHint = await mcpClient.getBestHint(ruleSetName, violationName);
+      expect(bestHint.hint_id).not.toEqual(bestHintBase.hint_id);
+      expect(bestHint.hint.toLowerCase()).toContain('persistence');
+    });
   });
 
-  test('Reject solution and assert success rate', async () => {
-    await requestFixAndAssertSolution(false);
-    const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
-    expect(bestHint.hint_id).toEqual(bestHintBase.hint_id);
+  test('Filter by "Has Success Rate" - files view', async () => {
+    await filterAndAssertFilteration(AnalysisTab.files);
   });
 
-  test('Accept solution and assert success rate', async () => {
-    await requestFixAndAssertSolution(true);
-    const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
-    expect(bestHint.hint_id).not.toEqual(bestHintBase.hint_id);
+  test('Filter by "Has Success Rate" - issues view', async () => {
+    await filterAndAssertFilteration(AnalysisTab.issues);
+  });
 
-    // The hint text is not deterministic, but it should always contain the word javax
-    expect(bestHint.hint.toLowerCase()).toContain('javax');
+  test('Filter by "Has Success Rate" - all incidents view', async () => {
+    const analysisView = await vsCode.getView(KAIViews.analysisView);
+    await vsCode.sortIncidntAndApplyFilter(AnalysisTab.all, FilterMode.off);
+    const listContainer = analysisView.locator('div.pf-v6-l-stack.pf-m-gutter').nth(2);
+    const allCards = await listContainer.locator('div.pf-v6-c-card').all();
+    const analysisCard = allCards.find(async (card) => {
+      const text = await card.textContent();
+      return text?.includes('Analysis Results');
+    });
+    const isExpanded = await analysisCard!.evaluate((el) => el.classList.contains('pf-m-expanded'));
+    if (!isExpanded) {
+      const toggleBtn = analysisCard!.locator('.pf-v6-c-card__header-toggle button');
+      await toggleBtn.click();
+    }
+    const incidentsBeforeFilter = await vsCode.getSolutionsStatusFromIncidentsView();
+    await vsCode.sortIncidntAndApplyFilter(AnalysisTab.all, FilterMode.on);
+    const incidentsAfterFilter = await vsCode.getSolutionsStatusFromIncidentsView();
+    expect(incidentsAfterFilter).toEqual(incidentsBeforeFilter);
   });
 
   test.afterAll(async () => {
+    if (mcpClient) {
+      mcpClient.dispose();
+    }
     await vsCode.closeVSCode();
   });
 
@@ -83,27 +118,27 @@ test.describe(`Solution server analysis validations`, () => {
    * 7. Asserts that the UI displays the correct success rate counts
    */
   async function requestFixAndAssertSolution(accept: boolean) {
-    await vsCode.searchAndRequestFix(
-      'Replace the `javax.persistence` import statement with `jakarta.persistence`',
-      FixTypes.Incident
-    );
+    await vsCode.getWindow().waitForTimeout(30000);
+    await config.setEnabledConfiguration(solutionServerEnabled, false);
+    await config.setEnabledConfiguration(solutionServerEnabled, true);
+    await vsCode.getWindow().waitForTimeout(30000);
+
+    await vsCode.searchAndRequestFix(issueToFix, FixTypes.Incident);
 
     const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
     const actionButton = resolutionView.locator(
       `button[aria-label="${accept ? 'Accept' : 'Reject'} all changes"]`
     );
-    await actionButton.waitFor();
+    await actionButton.waitFor({ timeout: 180000 });
 
-    let successRate = await mcpClient.getSuccessRate([
-      {
-        ruleset_name: 'eap8/eap7',
-        violation_name: 'javax-to-jakarta-import-00001',
-      },
-    ]);
-    expect(successRate.pending_solutions).toBe(successRateBase.pending_solutions + 1);
-    expect(successRate.counted_solutions).toBe(successRateBase.counted_solutions + 1);
-    await actionButton.click();
+    let updatedSucessRate = await getUpdatedSuccessRate(
+      (current, expected) => current !== expected
+    );
 
+    expect(updatedSucessRate.pending_solutions).toBe(successRateBase.pending_solutions + 1);
+    expect(updatedSucessRate.counted_solutions).toBe(successRateBase.counted_solutions + 1);
+
+    await vsCode.acceptOrRejectAllSolutions(accept);
     await vsCode.openAnalysisView();
     const analysisView = await vsCode.getView(KAIViews.analysisView);
 
@@ -113,22 +148,79 @@ test.describe(`Solution server analysis validations`, () => {
         .filter({ hasText: 'Waiting for solution confirmation...' })
     ).not.toBeVisible({ timeout: 35000 });
 
-    successRate = await mcpClient.getSuccessRate([
+    updatedSucessRate = await getUpdatedSuccessRate((current, expected) => current === expected);
+    expect(updatedSucessRate.pending_solutions).toBe(successRateBase.pending_solutions);
+    await expect(
+      analysisView
+        .getByRole('heading', { level: 2 })
+        .filter({ hasText: 'Waiting for user action...' })
+    ).not.toBeVisible({ timeout: 105000 });
+
+    let successRate = await mcpClient.getSuccessRate([
       {
-        ruleset_name: 'eap8/eap7',
-        violation_name: 'javax-to-jakarta-import-00001',
+        ruleset_name: ruleSetName,
+        violation_name: violationName,
       },
     ]);
-    expect(successRate.pending_solutions).toBe(successRateBase.pending_solutions);
 
     const key = accept ? 'accepted_solutions' : 'rejected_solutions';
     expect(successRate[key]).toBe(successRateBase[key] + 1);
     expect(successRate.counted_solutions).toBe(successRateBase.counted_solutions + 1);
 
     await expect(
-      analysisView.locator(
-        `#javax-to-jakarta-import-00001-${accept ? 'accepted' : 'rejected'}-solutions`
-      )
+      analysisView.locator(`#${violationName}-${accept ? 'accepted' : 'rejected'}-solutions`)
     ).toContainText(`${successRate[key]} ${accept ? 'accepted' : 'rejected'}`);
+  }
+
+  /**
+   * Toggles the "Has Success Rate" filter for a given analysis tab
+   * and verifies that filtering doesn't change the solutions map.
+   */
+  async function filterAndAssertFilteration(tabName: AnalysisTab) {
+    await config.setEnabledConfiguration(solutionServerEnabled, false);
+    await config.setEnabledConfiguration(solutionServerEnabled, true);
+    await vsCode.sortIncidntAndApplyFilter(tabName, FilterMode.off);
+    const listBeforeFilter = await vsCode.getSolutionsStatusFromCardsView();
+    await vsCode.sortIncidntAndApplyFilter(tabName, FilterMode.on);
+    const listAfterFilter = await vsCode.getSolutionsStatusFromCardsView();
+    expect(listAfterFilter).toEqual(listBeforeFilter);
+  }
+
+  /**
+   * Polls the solution server until the success rate reflects
+   * the latest database state or the max attempt limit is reached.
+   *
+   * @param comparisonFunction - A predicate used to determine whether
+   *   the current success rate matches the expected value.
+   *   Allows flexible checks for both “before” and “after” update states.
+   */
+  async function getUpdatedSuccessRate(
+    comparisonFunction: (current: number, expected: number) => boolean
+  ) {
+    let successRate = await mcpClient.getSuccessRate([
+      {
+        ruleset_name: ruleSetName,
+        violation_name: violationName,
+      },
+    ]);
+
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      if (comparisonFunction(successRate.pending_solutions, successRateBase.pending_solutions)) {
+        break;
+      }
+      await vsCode.waitDefault();
+      try {
+        successRate = await mcpClient.getSuccessRate([
+          {
+            ruleset_name: ruleSetName,
+            violation_name: violationName,
+          },
+        ]);
+      } catch (error) {
+        console.error(`Failed to get success rate at iteration ${i}:`, error);
+        throw error;
+      }
+    }
+    return successRate;
   }
 });

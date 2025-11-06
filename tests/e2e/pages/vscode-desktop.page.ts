@@ -292,7 +292,7 @@ export class VSCodeDesktop extends VSCode {
     writeOrUpdateSettingsJson(path.join(this.repoDir ?? '', '.vscode', 'settings.json'), config);
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
-
+    // If the Solution Server uses HTTPS its probably remote so we need configure authentication credentials (username and password)
     if (url.startsWith('https://')) {
       const configData = config['konveyor.solutionServer'];
       const auth = (configData as any).auth;
