@@ -41,7 +41,7 @@ test.describe(`Profile Tests`, () => {
     await sourceInput.click({ delay: 500 });
     await expect(errorMessage).toBeVisible();
     // Cleanup: deleting immediately to prevent afterAll cleanup from failing, when multiple profiles share the same name.
-    await immidiateProfileDelete();
+    await immediateProfileDelete();
   });
 
   test('Activate Profile', async () => {
@@ -81,13 +81,13 @@ test.describe(`Profile Tests`, () => {
     createdProfiles.push(profileNameWithRules);
   });
 
-  // TODO: Remove skip once bug #565 is fixed
+  // TODO: Remove skip once bug #565 is fixed.
   test.skip('Delete profile using action Button', async ({ testRepoData }) => {
     test.setTimeout(300000);
     let toDelete = await getOrCreateProfile(testRepoData);
     await vscodeApp.deleteProfile(toDelete);
   });
-  // TODO: Remove skip once bug #838 retested and fixed
+  // TODO: Remove skip once bug #838 retested and fixed.
   test.skip('Remove Custom Rules from profile ', async () => {
     await vscodeApp.removeProfileCustomRules(`${profileNameWithRules} (active)`, profileView);
   });
@@ -180,7 +180,7 @@ test.describe(`Profile Tests`, () => {
     return newProfile;
   }
 
-  async function immidiateProfileDelete() {
+  async function immediateProfileDelete() {
     const deleteButton = profileView.getByRole('button', { name: 'Delete Profile' });
     await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
     // Ensures the button is clicked even if there are notifications overlaying it due to screen size

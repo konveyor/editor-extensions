@@ -619,14 +619,12 @@ export abstract class VSCode {
     const targetProfile = profileList.locator(
       `//li[.//span[normalize-space() = "${profileName}" or normalize-space() = "${profileName} (active)"]]`
     );
-    // Check if profile exists before attempting to delete
-    const profileCount = await targetProfile.count();
+    // Check if profile exists
     const count = await targetProfile.count();
     if (count === 0) {
       console.log(`Profile '${profileName}' not found using XPath.`);
       return undefined;
     }
-
     return targetProfile;
   }
 
@@ -642,9 +640,9 @@ export abstract class VSCode {
   public async activateProfile(profileName: string, profileView?: FrameLocator) {
     const pageView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
     await this.clickOnProfileContainer(profileName, pageView);
-    const deleteButton = pageView.getByRole('button', { name: 'Make Active' });
-    await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
-    await deleteButton.click();
+    const activationButton = pageView.getByRole('button', { name: 'Make Active' });
+    await activationButton.waitFor({ state: 'visible', timeout: 10000 });
+    await activationButton.click();
     const activeProfileButton = pageView.getByRole('button', { name: 'Active Profile' });
     await expect(activeProfileButton).toBeVisible({ timeout: 30000 });
     await expect(activeProfileButton).toBeDisabled({ timeout: 30000 });
@@ -665,7 +663,7 @@ export abstract class VSCode {
     await kebabMenuButton.click();
     await manageProfileView.getByRole('menuitem', { name: actionName }).click();
     await this.waitDefault();
-    if (actionName == 'Delete') {
+    if (actionName === 'Delete') {
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
