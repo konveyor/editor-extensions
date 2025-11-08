@@ -609,7 +609,7 @@ export abstract class VSCode {
     const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents?\s+found\)/i);
     return Number(incidentsMatch?.[1].replace(/,/g, ''));
   }
-  
+
   private async getProfileContainerByName(profileName: string, profileView: FrameLocator) {
     const profileList = profileView.getByRole('list', {
       name: 'Profile list',
@@ -683,20 +683,6 @@ export abstract class VSCode {
       await removeButtons.first().click();
     }
     expect(await customRuleList.count()).toBe(0);
-  }
-
-  public async changeProfileName(
-    currentProfile: string,
-    newProfile: string,
-    pageView?: FrameLocator
-  ) {
-    const profileView = pageView ? pageView : await this.getView(KAIViews.manageProfiles);
-    await this.clickOnProfileContainer(currentProfile, profileView);
-    await profileView.getByRole('textbox', { name: 'Profile Name' }).clear();
-    await profileView.getByRole('textbox', { name: 'Profile Name' }).fill(newProfile);
-    //we "confirm" the change but clicking on other textbox
-    const targetsInput = profileView.getByRole('combobox', { name: 'Type to filter' }).first();
-    await targetsInput.click({ delay: 500 });
   }
 
   public async getCurrActiveProfile() {

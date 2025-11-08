@@ -57,6 +57,7 @@ test.describe(`Profile Tests`, () => {
     );
 
     const duplicatedName = `${profileToDuplicate} 1`;
+    await expect(profileView.getByText(duplicatedName)).toBeVisible({ timeout: 10000 });
     createdProfiles.unshift(duplicatedName);
   });
 
