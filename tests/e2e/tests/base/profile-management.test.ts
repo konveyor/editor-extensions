@@ -20,8 +20,6 @@ test.describe(`Profile Tests`, () => {
   });
 
   test.beforeEach(async () => {
-    const testName = test.info().title.replace(' ', '-');
-    console.log(`Starting ${testName} at ${new Date()}`);
     profileView = await vscodeApp.getView(KAIViews.manageProfiles);
   });
 
@@ -32,6 +30,42 @@ test.describe(`Profile Tests`, () => {
     createdProfiles.push(emptyProfileName);
   });
 
+  test('Create profile With Existing Name', async ({ testRepoData }) => {
+    const existingProfileName = await getOrCreateProfile(testRepoData);
+    const errorMessage = profileView.locator('.pf-m-error', {
+      hasText: 'A profile with this name already exists.',
+    });
+    await profileView.getByRole('button', { name: '+ New Profile' }).click();
+    await profileView.getByRole('textbox', { name: 'Profile Name' }).fill(existingProfileName);
+    const sourceInput = profileView.getByRole('combobox', { name: 'Type to filter' }).nth(1);
+    await sourceInput.click({ delay: 500 });
+    await expect(errorMessage).toBeVisible();
+    // Cleanup: deleting immediately to prevent afterAll cleanup from failing, when multiple profiles share the same name.
+    await immidiateProfileDelete();
+  });
+
+  test('Activate Profile', async () => {
+    await verifyProfileActivationFlow(false);
+  });
+
+  test('Duplicate Profile using action button', async ({ testRepoData }) => {
+    const profileToDuplicate = await getOrCreateProfile(testRepoData);
+    await vscodeApp.doMenuButtonAction(
+      profileToDuplicate,
+      ProfileActions.duplicateProfile,
+      profileView
+    );
+
+    const duplicatedName = `${profileToDuplicate} 1`;
+    createdProfiles.unshift(duplicatedName);
+  });
+
+  test('Activate Profile using action Button', async () => {
+    test.setTimeout(300000);
+    await verifyProfileActivationFlow(true);
+  });
+
+  // TODO: Remove skip once bug #838 retested and fixed
   test.skip('Create Profile and Set Sources targets and custom rules', async ({ testRepoData }) => {
     const repoInfo = testRepoData['inventory_management'];
     expect(repoInfo.customRulesFolder).toBeDefined();
@@ -46,46 +80,15 @@ test.describe(`Profile Tests`, () => {
     createdProfiles.push(profileNameWithRules);
   });
 
-  test.skip('Remove Custom Rules from profile ', async () => {
-    await vscodeApp.removeProfileCustomRules(`${profileNameWithRules} (active)`, profileView);
-  });
-
-  test('Create profile With Existing Name', async ({ testRepoData }) => {
-    const existingProfileName = await getOrCreateProfile(testRepoData);
-    const repoInfo = testRepoData['inventory_management'];
-    const errorMessage = profileView.locator('.pf-m-error', {
-      hasText: 'A profile with this name already exists.',
-    });
-    await vscodeApp.getWindow().pause();
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, existingProfileName);
-    createdProfiles.push(`${existingProfileName}`);
-    await expect(errorMessage).toBeVisible();
-  });
-
-  test('Activate Profile', async () => {
-    await verifyProfileActivationFlow(false);
-  });
-
-  test('Duplicate Profile using action button', async ({ testRepoData }) => {
-    const profileToDuplicate = await getOrCreateProfile(testRepoData);
-
-    await vscodeApp.doMenuButtonAction(
-      profileToDuplicate,
-      ProfileActions.duplicateProfile,
-      profileView
-    );
-    createdProfiles.push(profileToDuplicate);
-  });
-
-  test('Activate Profile using action Button', async () => {
-    test.setTimeout(300000);
-    await verifyProfileActivationFlow(true);
-  });
-
+  // TODO: Remove skip once bug #565 is fixed
   test.skip('Delete profile using action Button', async ({ testRepoData }) => {
     test.setTimeout(300000);
     let toDelete = await getOrCreateProfile(testRepoData);
     await vscodeApp.deleteProfile(toDelete);
+  });
+  // TODO: Remove skip once bug #838 retested and fixed
+  test.skip('Remove Custom Rules from profile ', async () => {
+    await vscodeApp.removeProfileCustomRules(`${profileNameWithRules} (active)`, profileView);
   });
 
   test.afterAll(async () => {
@@ -134,6 +137,11 @@ test.describe(`Profile Tests`, () => {
     await verifyActiveByButton(vscodeApp, profileView, profileName, shouldBeActive);
   }
 
+  // Verifies the profile activation flow:
+  // 1. Creates two profiles.
+  // 2. Ensures the second one becomes active when created.
+  // 3. Reactivates the first profile (either via action button or list).
+  // 4. Confirms the activation state was swapped correctly.
   async function verifyProfileActivationFlow(activateByActionButton: boolean) {
     const profile1 = `profile1-${generateRandomString()}`;
     const profile2 = `profile2-${generateRandomString()}`;
@@ -169,5 +177,18 @@ test.describe(`Profile Tests`, () => {
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, newProfile);
     createdProfiles.push(newProfile);
     return newProfile;
+  }
+
+  async function immidiateProfileDelete() {
+    const deleteButton = profileView.getByRole('button', { name: 'Delete Profile' });
+    await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
+    // Ensures the button is clicked even if there are notifications overlaying it due to screen size
+    await deleteButton.first().dispatchEvent('click');
+
+    const confirmButton = profileView
+      .getByRole('dialog', { name: 'Delete profile?' })
+      .getByRole('button', { name: 'Confirm' });
+    await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
+    await confirmButton.click();
   }
 });
