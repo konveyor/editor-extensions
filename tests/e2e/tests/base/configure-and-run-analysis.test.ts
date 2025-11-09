@@ -1,10 +1,7 @@
 import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import {
-  GOOGLE_GEMINI_PROVIDER,
-  OPENAI_GPT4O_PROVIDER,
-} from '../../fixtures/provider-configs.fixture';
+import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as fs from 'fs/promises';
 import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
@@ -12,7 +9,7 @@ import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
-test.describe(`Configure extension and run analysis`, () => {
+test.describe.serial(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `automation-${randomString}`;
@@ -54,7 +51,7 @@ test.describe(`Configure extension and run analysis`, () => {
   });
 
   test('Disable and enable Generative AI', async () => {
-    await vscodeApp.openWorkspaceSettingsAndWrite(genAISettingKey, false); // disable
+    await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: false }); // disable
     await vscodeApp.waitDefault();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');
@@ -63,7 +60,7 @@ test.describe(`Configure extension and run analysis`, () => {
     await expect(analysisView.getByText('Agent Mode')).not.toBeVisible();
     await expect(solutionButton.first()).not.toBeVisible({ timeout: 36000 });
 
-    await vscodeApp.openWorkspaceSettingsAndWrite(genAISettingKey, true); // enable
+    await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true }); // enable
     await vscodeApp.waitDefault();
     await expect(
       analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })

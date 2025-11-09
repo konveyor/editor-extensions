@@ -204,7 +204,7 @@ export class AnalyzerClient {
   protected async getSocket(pipeName: string): Promise<Socket> {
     const s = createConnection(pipeName);
     let ready = false;
-    const MAX_RETRIES = 5;
+    const MAX_RETRIES = 30;
     const RETRY_DELAY = 2000; // 2 seconds
     let retryCount = 0;
 
@@ -335,6 +335,10 @@ export class AnalyzerClient {
 
   public isServerRunning(): boolean {
     return !!this.analyzerRpcServer && !this.analyzerRpcServer.killed;
+  }
+
+  public getRegisteredProviders() {
+    return this.providerRegistry.getProviders();
   }
 
   public async notifyFileChanges(fileChanges: FileChange[]): Promise<void> {

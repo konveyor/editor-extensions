@@ -1,13 +1,14 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { BrowserContextOptions } from 'playwright';
 import { expect, Page } from '@playwright/test';
-import { createZip, extractZip } from '../utilities/archive';
 import { VSCode } from './vscode.page';
 import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { getOSInfo } from '../utilities/utils';
+import { KAIViews } from '../enums/views.enum';
+import { genAISettingKey, kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
+import pathlib from 'path';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -72,11 +73,17 @@ export class VSCodeWeb extends VSCode {
     if (await trustBtn.isVisible()) {
       await trustBtn.click();
     }
-
+    await vscode.openWorkspaceSettingsAndWrite({
+      [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
+      [kaiDemoMode]: true,
+      'java.configuration.updateBuildConfiguration': 'automatic',
+    });
+    await vscode.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true });
     // Resets the workspace so it can be reused
     await vscode.executeTerminalCommand(
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
     );
+    await vscode.ensureLLMCache(false);
 
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
     if (!(await navLi.isVisible())) {
@@ -88,6 +95,7 @@ export class VSCodeWeb extends VSCode {
     if (await javaLightSelector.isVisible()) {
       await javaLightSelector.click();
     }
+
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
     await javaReadySelector.waitFor({ timeout: 180_000 });
     return vscode;
@@ -163,8 +171,28 @@ export class VSCodeWeb extends VSCode {
   }
 
   protected async selectCustomRules(customRulesPath: string) {
-    // TODO (abrugaro) implement
-    throw new Error('VSCodeWeb.selectCustomRules is not implemented for WEB_ENV yet');
+    const manageProfileView = await this.getView(KAIViews.manageProfiles);
+    console.log(`Selecting custom rules from: ${customRulesPath}`);
+
+    const customRulesButton = manageProfileView.getByRole('button', {
+      name: 'Select Custom Rules…',
+    });
+    await customRulesButton.click();
+    const pathInput = this.window.locator('.quick-input-box input');
+    await expect(pathInput).toHaveValue(`/projects/${this.repoDir}/`);
+    await pathInput.fill(`/projects/${this.repoDir}/${customRulesPath}/`);
+    await expect(
+      this.window.locator('.quick-input-list-entry').filter({ hasText: '.yaml' }).first()
+    ).toBeVisible();
+    await this.window
+      .locator('.quick-input-action')
+      .getByRole('button', { name: 'Select Custom Rules' })
+      .click();
+
+    const customRulesLabel = manageProfileView
+      .locator('[class*="label"], [class*="Label"]')
+      .filter({ hasText: customRulesPath });
+    await expect(customRulesLabel.first()).toBeVisible({ timeout: 30000 });
   }
 
   /**
@@ -172,53 +200,26 @@ export class VSCodeWeb extends VSCode {
    * @param cleanup
    */
   public async ensureLLMCache(cleanup: boolean = false): Promise<void> {
-    try {
-      const wspacePath = this.llmCachePaths().workspacePath;
-      const storedPath = this.llmCachePaths().storedPath;
-      if (cleanup) {
-        if (fs.existsSync(wspacePath)) {
-          fs.rmSync(wspacePath, { recursive: true, force: true });
-        }
-        return;
-      }
-      if (!fs.existsSync(wspacePath)) {
-        fs.mkdirSync(wspacePath, { recursive: true });
-      }
-      if (!fs.existsSync(storedPath)) {
-        return;
-      }
-      // move stored zip to workspace
-      extractZip(storedPath, wspacePath);
-    } catch (error) {
-      console.error('Error unzipping test data:', error);
-      throw error;
+    const wspacePath = this.llmCachePaths().workspacePath;
+    const storedPath = this.llmCachePaths().storedPath;
+    await this.executeTerminalCommand(`rm -rf ../${wspacePath}`);
+    if (cleanup) {
+      return;
     }
+
+    await this.executeTerminalCommand(`mkdir -p ../${wspacePath}`);
+    if (!fs.existsSync(storedPath)) {
+      console.info('No local cache file found');
+      return;
+    }
+
+    await this.uploadFile(storedPath);
+    const zipName = storedPath.replace(/\\/g, '/').split('/').pop();
+    await this.executeTerminalCommand(`unzip -o ./${zipName} -d ../${wspacePath}`);
   }
 
-  /**
-   * Copies all newly generated LLM cache data into a zip file in the repo, merges with the existing data
-   * This will be used when we want to generate a new cache data
-   */
   public async updateLLMCache() {
-    const newCacheZip = path.join(path.dirname(this.llmCachePaths().storedPath), 'new.zip');
-    createZip(this.llmCachePaths().workspacePath, newCacheZip);
-    fs.renameSync(newCacheZip, this.llmCachePaths().storedPath);
-    fs.renameSync(`${newCacheZip}.metadata`, `${this.llmCachePaths().storedPath}.metadata`);
-  }
-
-  private llmCachePaths(): {
-    storedPath: string; // this is where the data is checked-in in the repo
-    workspacePath: string; // this is where a workspace is expecting to find cached data
-  } {
-    return {
-      storedPath: path.join(__dirname, '..', '..', 'data', 'llm_cache.zip'),
-      workspacePath: path.join(this.repoDir ?? '', '.vscode', 'cache'),
-    };
-  }
-
-  public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
-    // TODO (abrugaro) implement
-    throw new Error('writeOrUpdateVSCodeSettings NOT IMPLEMENTED');
+    console.info('No need to update LLM cache in web mode, skipping...');
   }
 
   public async pasteContent(content: string) {
@@ -280,5 +281,30 @@ export class VSCodeWeb extends VSCode {
     await expect(
       this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
     ).toBeVisible({ timeout: 300_000 });
+  }
+
+  private async uploadFile(filePath: string) {
+    await this.openLeftBarElement('Explorer');
+
+    await this.window.locator('.explorer-folders-view').click({ button: 'right' });
+
+    const fileChooserPromise = this.window.waitForEvent('filechooser').catch(() => null);
+
+    const uploadAnchor = this.window.locator(`div.context-view .monaco-menu a.action-menu-item`, {
+      hasText: 'Upload...',
+    });
+    await expect(uploadAnchor).toBeVisible();
+    await this.waitDefault();
+    await Promise.all([fileChooserPromise, uploadAnchor.first().click({ timeout: 1500 })]);
+    const fileChooser = await fileChooserPromise;
+    if (fileChooser) {
+      await fileChooser.setFiles([filePath]);
+    }
+
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop();
+    const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
+      hasText: fileName,
+    });
+    await expect(fileItem).toBeVisible({ timeout: 60_000 });
   }
 }

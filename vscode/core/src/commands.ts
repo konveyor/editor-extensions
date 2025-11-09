@@ -57,6 +57,23 @@ export function executeExtensionCommand(commandSuffix: string, ...args: any[]): 
 }
 
 /**
+ * Check if any language providers are registered before starting analyzer
+ * @returns true if providers are registered, false if not (and shows warning)
+ */
+function checkProvidersRegistered(state: ExtensionState, logger: Logger): boolean {
+  const providers = state.analyzerClient.getRegisteredProviders();
+  if (providers.length === 0) {
+    const message =
+      "No language providers are registered yet. Please wait for language extensions " +
+      "(e.g., Konveyor Java) to finish loading before starting the analyzer.";
+    logger.warn(message);
+    vscode.window.showWarningMessage(message);
+    return false;
+  }
+  return true;
+}
+
+/**
  * Helper function to execute deferred workflow disposal after solution completes
  */
 function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
@@ -84,6 +101,11 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.startServer`]: async () => {
       const analyzerClient = state.analyzerClient;
+
+      if (!checkProvidersRegistered(state, logger)) {
+        return;
+      }
+
       if (!(await analyzerClient.canAnalyzeInteractive())) {
         return;
       }
@@ -106,6 +128,10 @@ const commandsMap: (
       try {
         if (analyzerClient.isServerRunning()) {
           await analyzerClient.stop();
+        }
+
+        if (!checkProvidersRegistered(state, logger)) {
+          return;
         }
 
         if (!(await analyzerClient.canAnalyzeInteractive())) {

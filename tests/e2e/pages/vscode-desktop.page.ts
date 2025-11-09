@@ -209,23 +209,24 @@ export class VSCodeDesktop extends VSCode {
   }
 
   /**
-   * Unzips all test data into workspace .vscode/ directory, deletes the zip files if cleanup is true
+   * Unzips all test data into workspace .vscode/ directory, only deletes the zip files if cleanup is true
    * @param cleanup
    */
   public async ensureLLMCache(cleanup: boolean = false): Promise<void> {
     try {
       const wspacePath = this.llmCachePaths().workspacePath;
       const storedPath = this.llmCachePaths().storedPath;
+      if (fs.existsSync(wspacePath)) {
+        fs.rmSync(wspacePath, { recursive: true, force: true });
+      }
       if (cleanup) {
-        if (fs.existsSync(wspacePath)) {
-          fs.rmSync(wspacePath, { recursive: true, force: true });
-        }
         return;
       }
       if (!fs.existsSync(wspacePath)) {
         fs.mkdirSync(wspacePath, { recursive: true });
       }
       if (!fs.existsSync(storedPath)) {
+        console.info('No local cache file found');
         return;
       }
       // move stored zip to workspace
@@ -245,20 +246,6 @@ export class VSCodeDesktop extends VSCode {
     createZip(this.llmCachePaths().workspacePath, newCacheZip);
     fs.renameSync(newCacheZip, this.llmCachePaths().storedPath);
     fs.renameSync(`${newCacheZip}.metadata`, `${this.llmCachePaths().storedPath}.metadata`);
-  }
-
-  private llmCachePaths(): {
-    storedPath: string; // this is where the data is checked-in in the repo
-    workspacePath: string; // this is where a workspace is expecting to find cached data
-  } {
-    return {
-      storedPath: path.join(__dirname, '..', '..', 'data', 'llm_cache.zip'),
-      workspacePath: path.join(this.repoDir ?? '', '.vscode', 'cache'),
-    };
-  }
-
-  public async writeOrUpdateVSCodeSettings(settings: Record<string, any>): Promise<void> {
-    writeOrUpdateSettingsJson(path.join(this.repoDir ?? '', '.vscode', 'settings.json'), settings);
   }
 
   public async pasteContent(content: string) {
