@@ -10,6 +10,7 @@ type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
 
 export abstract class VSCode {
+
   protected repoDir?: string;
   protected branch?: string;
   protected abstract window: Page;
@@ -608,5 +609,43 @@ export abstract class VSCode {
     const incidentsText = await incidentsCount.textContent();
     const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents?\s+found\)/i);
     return Number(incidentsMatch?.[1].replace(/,/g, ''));
+  }
+
+  public async getAllIssues() {
+    const analysisView = await this.getView(KAIViews.analysisView);
+
+    // Locate all issue cards by unique class for each header (adapt as needed)
+    const issueCards = analysisView.locator('.pf-v6-c-card__header');
+    const issueCount = await issueCards.count();
+    const results: { title: string; incidents: number }[] = [];
+
+    for (let i = 0; i < issueCount; i++) {
+      const card = issueCards.nth(i);
+      // Find h3 in the card for the title
+      const headerMain = card.locator('.pf-v6-c-card__header-main h3');
+      let title = '';
+      try {
+        title = (await headerMain.textContent())?.trim() ?? '';
+      } catch {
+        title = '';
+      }
+
+      // Look for "incidents" string inside a '.pf-v6-c-label__text' element within the card
+      let incidents = 0;
+      try {
+        const label = card.locator('.pf-v6-c-label__text');
+        const labelText = (await label.textContent()) ?? '';
+        const match = labelText.match(/(\d+)\s+incidents?/i);
+        if (match) {
+          incidents = parseInt(match[1], 10);
+        }
+      } catch {
+        incidents = 0;
+      }
+
+      results.push({ title, incidents });
+    }
+
+    return results;
   }
 }
