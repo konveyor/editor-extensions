@@ -141,7 +141,13 @@
     "sources": [],
     "targets": ["openjdk17"],
     "issuesCount": 1,
-    "incidentsCount": 1
+    "incidentsCount": 1,
+    "issues": [
+      {
+        "issue": "The `sun.misc.BASE64` class has been removed.",
+        "incidentCount": 1
+      }
+    ]
   },
   "inventory_management": {
     "repoUrl": "https://github.com/savitharaghunathan/inventory_management",
@@ -151,7 +157,13 @@
     "targets": ["openjdk21"],
     "customRulesFolder": "inventory_management/rules",
     "issuesCount": 1,
-    "incidentsCount": 2
+    "incidentsCount": 2,
+    "issues": [
+      {
+        "issue": "The java.annotation (Common Annotations) module has been removed from OpenJDK 11",
+        "incidentCount": 2
+      }
+    ]
   },
   "ehr": {
     "repoUrl": "https://github.com/hhpatel14/ehr_viewer",
@@ -161,7 +173,13 @@
     "targets": ["openjdk21"],
     "customRulesFolder": "ehr_viewer/rules",
     "issuesCount": 1,
-    "incidentsCount": 2
+    "incidentsCount": 2,
+    "issues": [
+      {
+        "issue": "The java.annotation (Common Annotations) module has been removed from OpenJDK 11",
+        "incidentCount": 2
+      }
+    ]
   },
   "jboss-eap-quickstarts": {
     "repoUrl": "https://github.com/jboss-developer/jboss-eap-quickstarts",
