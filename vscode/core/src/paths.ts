@@ -413,7 +413,11 @@ export const ignoresToExcludedPaths = () => {
     }
   }
 
-  const exclude = globbySync(ignores, {
+  // Always exclude .konveyor directory regardless of ignore files
+  const alwaysExclude = [".konveyor"];
+  const allIgnores = [...new Set([...alwaysExclude, ...ignores])];
+
+  const exclude = globbySync(allIgnores, {
     cwd,
     expandDirectories: false,
     dot: true,
