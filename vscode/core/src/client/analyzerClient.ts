@@ -337,10 +337,6 @@ export class AnalyzerClient {
     return !!this.analyzerRpcServer && !this.analyzerRpcServer.killed;
   }
 
-  public getRegisteredProviders() {
-    return this.providerRegistry.getProviders();
-  }
-
   public async notifyFileChanges(fileChanges: FileChange[]): Promise<void> {
     if (this.serverState !== "running" || !this.analyzerRpcConnection) {
       this.logger.warn("kai rpc server is not running, skipping notifyFileChanged.");
