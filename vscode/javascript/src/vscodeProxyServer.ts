@@ -28,7 +28,7 @@ export class vscodeProxyServer implements vscode.Disposable {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server = createServer((socket: Socket) => {
-        this.logger.info("Java external provider connected to LSP proxy");
+        this.logger.info("Javascript external provider connected to LSP proxy");
         this.handleConnection(socket);
       });
 
@@ -128,7 +128,7 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Handle connection close
     connection.onClose(() => {
-      this.logger.info("Java external provider disconnected from LSP proxy");
+      this.logger.info("Javascript external provider disconnected from LSP proxy");
       this.connections.delete(connection);
     });
 
