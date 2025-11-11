@@ -58,12 +58,11 @@ test.describe('Run analysis for different repositories', () => {
           expect(issuesCount).toBe(repoInfo.issuesCount);
           expect(incidentsCount).toBe(repoInfo.incidentsCount);
 
-        const issues = await vscodeApp.getAllIssues();
-        for (const issue of issues) {
-          console.log(`Issue Title: ${issue.title}, Incidents: ${issue.incidents}`);
-        }
+          const foundIssues = await vscodeApp.getAllIssues();
+
+          expect(foundIssues.length).toBe(repoInfo.issues.length);
+          expect(foundIssues).toEqual(repoInfo.issues);
         });
-        
       } finally {
         try {
           await vscodeApp.deleteProfile(profileName);
