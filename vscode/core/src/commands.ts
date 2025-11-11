@@ -184,6 +184,19 @@ const commandsMap: (
         window.showErrorMessage("Analyzer must be started and configured before run!");
         return;
       }
+
+      // Check if analysis is already running
+      if (state.data.isAnalyzing) {
+        window.showWarningMessage("Analysis is already running. Please wait for it to complete.");
+        return;
+      }
+
+      // Cancel any scheduled analysis before running manual analysis
+      if (state.data.isAnalysisScheduled && state.batchedAnalysisTrigger) {
+        logger.info("Cancelling scheduled analysis in favor of manual analysis");
+        state.batchedAnalysisTrigger.cancelScheduledAnalysis();
+      }
+
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {

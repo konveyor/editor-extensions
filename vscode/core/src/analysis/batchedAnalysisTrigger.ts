@@ -102,6 +102,22 @@ export class BatchedAnalysisTrigger {
     }
   }
 
+  public cancelScheduledAnalysis() {
+    // Cancel any scheduled analysis
+    this.analysisBackoff.cancel();
+
+    // Clear the queues
+    this.analysisFileChangesQueue.clear();
+    this.notifyFileChangesQueue.clear();
+
+    // Reset the scheduled flag
+    if (this.extensionState.data.isAnalysisScheduled) {
+      this.extensionState.mutateData((draft) => {
+        draft.isAnalysisScheduled = false;
+      });
+    }
+  }
+
   dispose() {
     this.analysisBackoff.dispose();
     this.notifyFileChangesBackoff.dispose();

@@ -10,6 +10,7 @@ export const registerAnalysisTrigger = (
   state: ExtensionState,
 ) => {
   const batchedAnalysisTrigger = new BatchedAnalysisTrigger(state);
+  state.batchedAnalysisTrigger = batchedAnalysisTrigger;
 
   vscode.workspace.onDidRenameFiles(
     async (e: vscode.FileRenameEvent) => {
@@ -21,11 +22,7 @@ export const registerAnalysisTrigger = (
     disposables,
   );
 
-  vscode.workspace.onDidCloseTextDocument(
-    ({ uri }: vscode.TextDocument) => {},
-    undefined,
-    disposables,
-  );
+  vscode.workspace.onDidCloseTextDocument((_: vscode.TextDocument) => {}, undefined, disposables);
 
   vscode.workspace.onDidSaveTextDocument(
     async (d: vscode.TextDocument) => {
@@ -43,6 +40,14 @@ export const registerAnalysisTrigger = (
     undefined,
     disposables,
   );
+
+  // Add disposal of batchedAnalysisTrigger
+  disposables.push({
+    dispose: () => {
+      batchedAnalysisTrigger.dispose();
+      state.batchedAnalysisTrigger = undefined;
+    },
+  });
 };
 
 export const runPartialAnalysis = async (state: ExtensionState, filePaths: vscode.Uri[]) => {
