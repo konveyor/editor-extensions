@@ -92,6 +92,13 @@ export class BatchedAnalysisTrigger {
       // no changes to analyze
       return;
     }
+
+    // Set isAnalyzing immediately to prevent button from being enabled
+    this.extensionState.mutateData((draft) => {
+      draft.isAnalyzing = true;
+      draft.isAnalysisScheduled = false;
+    });
+
     try {
       await runPartialAnalysis(this.extensionState, changedFiles);
       for (const file of changedFiles) {
@@ -99,6 +106,10 @@ export class BatchedAnalysisTrigger {
       }
     } catch (error) {
       console.error("error running analysis", error);
+      // Reset isAnalyzing on error since analyzerClient won't do it
+      this.extensionState.mutateData((draft) => {
+        draft.isAnalyzing = false;
+      });
     }
   }
 
@@ -116,6 +127,10 @@ export class BatchedAnalysisTrigger {
         draft.isAnalysisScheduled = false;
       });
     }
+  }
+
+  public isScheduledAnalysisRunning(): boolean {
+    return this.analysisBackoff.isRunningCallback();
   }
 
   dispose() {

@@ -191,6 +191,14 @@ const commandsMap: (
         return;
       }
 
+      // Check if scheduled analysis is actively running
+      if (state.batchedAnalysisTrigger?.isScheduledAnalysisRunning()) {
+        window.showWarningMessage(
+          "Analysis is already starting. Please wait a moment and try again.",
+        );
+        return;
+      }
+
       // Cancel any scheduled analysis before running manual analysis
       if (state.data.isAnalysisScheduled && state.batchedAnalysisTrigger) {
         logger.info("Cancelling scheduled analysis in favor of manual analysis");
