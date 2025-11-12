@@ -72,8 +72,9 @@ export class ProviderRegistry {
 /**
  * Create the Konveyor Core API instance
  */
-export function createCoreApi(registry: ProviderRegistry): KonveyorCoreApi {
+export function createCoreApi(registry: ProviderRegistry, version: string): KonveyorCoreApi {
   return {
+    version,
     registerProvider: (config: ProviderRegistration) => registry.registerProvider(config),
     onAnalysisComplete: (handler: (results: AnalysisResults) => void) =>
       registry.onAnalysisComplete(handler),
