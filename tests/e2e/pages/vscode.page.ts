@@ -619,21 +619,12 @@ export abstract class VSCode {
     const targetProfile = profileList.locator(
       `//li[.//span[normalize-space() = "${profileName}" or normalize-space() = "${profileName} (active)"]]`
     );
-    // Check if profile exists
-    const count = await targetProfile.count();
-    if (count === 0) {
-      console.log(`Profile '${profileName}' not found using XPath.`);
-      return undefined;
-    }
+    await expect(targetProfile).toHaveCount(1, { timeout: 60000 });
     return targetProfile;
   }
 
   public async clickOnProfileContainer(profileName: string, profileView: FrameLocator) {
     const targetProfile = await this.getProfileContainerByName(profileName, profileView);
-    if (!targetProfile) {
-      throw new Error(`Profile '${profileName}' not found, cannot proceed with deletion.`);
-    }
-    console.log(`Found profile '${profileName}'`);
     await targetProfile.click({ timeout: 60000 });
   }
 
@@ -648,17 +639,13 @@ export abstract class VSCode {
     await expect(activeProfileButton).toBeDisabled({ timeout: 30000 });
   }
 
-  public async doMenuButtonAction(
+  public async doProfileMenuButtonAction(
     profileName: string,
     actionName: string,
     profileView?: FrameLocator
   ) {
     let manageProfileView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
     const targetProfile = await this.getProfileContainerByName(profileName, manageProfileView);
-    if (!targetProfile) {
-      throw new Error(`Could not find any profile container for "${profileName}"`);
-    }
-    expect(await targetProfile.count()).toBe(1);
     const kebabMenuButton = targetProfile.getByLabel('Profile actions menu');
     await kebabMenuButton.click();
     await manageProfileView.getByRole('menuitem', { name: actionName }).click();
@@ -680,7 +667,7 @@ export abstract class VSCode {
     for (let i = 0; i < rulesInList; i++) {
       await removeButtons.first().click();
     }
-    expect(await customRuleList.count()).toBe(0);
+    await expect(removeButtons).toHaveCount(0);
   }
 
   public async getCurrActiveProfile() {

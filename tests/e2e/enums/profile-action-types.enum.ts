@@ -1,5 +1,5 @@
-export const ProfileActions = {
-  activateProfile: 'Make Active',
-  duplicateProfile: 'Duplicate',
-  deleteProfile: 'Delete',
-} as const;
+export enum ProfileActions {
+  activateProfile = 'Make Active',
+  duplicateProfile = 'Duplicate',
+  deleteProfile = 'Delete',
+}
