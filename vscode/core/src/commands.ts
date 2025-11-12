@@ -15,7 +15,13 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import { EnhancedIncident, RuleSet, Scope, ChatMessageType } from "@editor-extensions/shared";
+import {
+  EnhancedIncident,
+  RuleSet,
+  Scope,
+  ChatMessageType,
+  getProgrammingLanguageFromUri,
+} from "@editor-extensions/shared";
 import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
@@ -323,10 +329,15 @@ const commandsMap: (
         });
 
         try {
+          // Detect programming language from the first incident's URI
+          // All incidents in a single fix request should be for the same file/language
+          const programmingLanguage =
+            incidents.length > 0 ? getProgrammingLanguageFromUri(incidents[0].uri) : "Java";
+
           const input: KaiInteractiveWorkflowInput = {
             incidents,
             migrationHint: profileName,
-            programmingLanguage: "Java",
+            programmingLanguage,
             enableAgentMode: agentMode,
           };
 
