@@ -78,6 +78,9 @@ export class BatchedAnalysisTrigger {
         return;
       }
       await this.runPartialAnalysis();
+      this.extensionState.mutateData((draft) => {
+        draft.isAnalysisScheduled = false;
+      });
     });
   }
 
@@ -86,10 +89,7 @@ export class BatchedAnalysisTrigger {
       (uri) => !isUriIgnored(uri),
     );
     if (changedFiles.length < 1) {
-      // no changes to analyze - reset the scheduled flag
-      this.extensionState.mutateData((draft) => {
-        draft.isAnalysisScheduled = false;
-      });
+      // no changes to analyze
       return;
     }
     try {
@@ -99,11 +99,6 @@ export class BatchedAnalysisTrigger {
       }
     } catch (error) {
       console.error("error running analysis", error);
-    } finally {
-      // Always reset the scheduled flag after analysis completes or fails
-      this.extensionState.mutateData((draft) => {
-        draft.isAnalysisScheduled = false;
-      });
     }
   }
 
