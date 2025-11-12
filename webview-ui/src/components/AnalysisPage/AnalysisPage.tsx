@@ -38,7 +38,10 @@ import {
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
+  Tooltip,
+  Icon,
 } from "@patternfly/react-core";
+import ClockIcon from "@patternfly/react-icons/dist/esm/icons/clock-icon";
 
 import {
   openFile,
@@ -67,6 +70,7 @@ const AnalysisPage: React.FC = () => {
 
   const {
     isAnalyzing,
+    isAnalysisScheduled,
     isStartingServer,
     isInitializingServer,
     isFetchingSolution: isWaitingForSolution,
@@ -264,16 +268,31 @@ const AnalysisPage: React.FC = () => {
                           isDisabled={isStartingServer || isAnalyzing}
                         />
                       </Flex>
-                      <Button
-                        variant="primary"
-                        onClick={handleRunAnalysis}
-                        isLoading={isAnalyzing}
-                        isDisabled={
-                          isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
-                        }
-                      >
-                        {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-                      </Button>
+                      <div className="analysis-button-wrapper">
+                        <Button
+                          variant="primary"
+                          onClick={handleRunAnalysis}
+                          isLoading={isAnalyzing}
+                          isDisabled={
+                            isAnalyzing ||
+                            isStartingServer ||
+                            !serverRunning ||
+                            isWaitingForSolution
+                          }
+                        >
+                          {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                        </Button>
+                        {isAnalysisScheduled && !isAnalyzing && (
+                          <Tooltip
+                            content="Analysis is scheduled for changed files. Click to run full analysis now."
+                            position="bottom"
+                          >
+                            <Icon className="analysis-scheduled-icon">
+                              <ClockIcon />
+                            </Icon>
+                          </Tooltip>
+                        )}
+                      </div>
                     </Flex>
                   </CardHeader>
 
