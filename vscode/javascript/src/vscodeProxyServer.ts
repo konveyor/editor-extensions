@@ -1,14 +1,7 @@
 import * as vscode from "vscode";
 import { createServer, Server, Socket } from "net";
 import * as rpc from "vscode-jsonrpc/node";
-import {
-  Location,
-  Position,
-  Range,
-  SymbolKind,
-  uinteger,
-  WorkspaceSymbol,
-} from "vscode-languageserver-types";
+import { createConverter } from "vscode-languageclient/lib/common/codeConverter";
 import { Logger } from "winston";
 
 /**
@@ -21,6 +14,7 @@ export class vscodeProxyServer implements vscode.Disposable {
   private server: Server | null = null;
   private connections: Set<rpc.MessageConnection> = new Set();
   private socketPath: string;
+  private converter = createConverter();
 
   constructor(
     socketPath: string,
@@ -77,9 +71,16 @@ export class vscodeProxyServer implements vscode.Disposable {
           query,
         );
 
-        this.logger.info(`"Workspace symbol result: ${JSON.stringify(result)} symbols"`);
+        this.logger.info(`Workspace symbol result: ${result?.length || 0} symbols`);
 
-        return this.convertSymbolInformationToWorkspaceSymbol(result) || [];
+        // Convert vscode.SymbolInformation[] to LSP WorkspaceSymbol[]
+        return (
+          result?.map((symbol) => ({
+            name: symbol.name,
+            kind: this.converter.asSymbolKind(symbol.kind),
+            location: this.converter.asLocation(symbol.location),
+          })) || []
+        );
       } catch (error) {
         this.logger.error(`Workspace symbol error`, error);
         return [];
@@ -103,11 +104,7 @@ export class vscodeProxyServer implements vscode.Disposable {
         this.logger.info(
           `Definition result: ${Array.isArray(result) ? result.length : 1} locations`,
         );
-        const locations: Location[] = [];
-        for (const l of result) {
-          locations.push(this.asLocation(l));
-        }
-        return locations;
+        return result?.map((location) => this.converter.asLocation(location)) || [];
       } catch (error) {
         this.logger.error(`Text document definition error`, error);
         throw error;
@@ -130,11 +127,7 @@ export class vscodeProxyServer implements vscode.Disposable {
         this.logger.info(
           `References result: ${Array.isArray(result) ? result.length : 0} locations`,
         );
-        const locations: Location[] = [];
-        for (const l of result) {
-          locations.push(this.asLocation(l));
-        }
-        return locations;
+        return result?.map((location) => this.converter.asLocation(location)) || [];
       } catch (error) {
         this.logger.error(`Text document references error`, error);
         throw error;
@@ -153,55 +146,6 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Start listening
     connection.listen();
-  }
-
-  convertSymbolInformationToWorkspaceSymbol(
-    symbols: vscode.SymbolInformation[],
-  ): WorkspaceSymbol[] {
-    const workspaceSymbols: WorkspaceSymbol[] = [];
-    for (const s of symbols) {
-      const workspaceSymbol = this.asWorkspaceSymbol(s);
-      workspaceSymbols.push(workspaceSymbol);
-    }
-    return workspaceSymbols;
-  }
-
-  asWorkspaceSymbol(item: vscode.SymbolInformation): WorkspaceSymbol {
-    return WorkspaceSymbol.create(
-      item.name,
-      this.asSymbolKind(item.kind),
-      item.location.uri.toString(),
-      this.asRange(item.location.range),
-    );
-  }
-
-  asSymbolKind(item: vscode.SymbolKind): SymbolKind {
-    if (item <= vscode.SymbolKind.TypeParameter) {
-      // Symbol kind is one based in the protocol and zero based in code.
-      return (item + 1) as SymbolKind;
-    }
-    return SymbolKind.Property;
-  }
-
-  asLocation(value: vscode.Location): Location {
-    if (value === undefined || value === null) {
-      return value;
-    }
-    return Location.create(value.uri.toString(), this.asRange(value.range));
-  }
-
-  asRange(value: vscode.Range): Range {
-    return Range.create(this.asPosition(value.start), this.asPosition(value.end));
-  }
-
-  asPosition(value: vscode.Position): Position {
-    if (value === undefined || value === null) {
-      return value;
-    }
-    return {
-      line: value.line > uinteger.MAX_VALUE ? uinteger.MAX_VALUE : value.line,
-      character: value.character > uinteger.MAX_VALUE ? uinteger.MAX_VALUE : value.character,
-    };
   }
 
   /**
