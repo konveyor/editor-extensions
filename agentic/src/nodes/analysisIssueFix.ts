@@ -247,7 +247,7 @@ As you make changes that impact dependencies or imports, be sure you explain wha
     const fileName = basename(state.inputFileUri);
 
     const sysMessage = new SystemMessage(
-      `You are an experienced ${state.programmingLanguage} developer, who specializes in migrating code from ${state.migrationHint}`,
+      `You are an experienced ${state.programmingLanguage.toLowerCase()} developer, who specializes in migrating code from ${state.migrationHint}`,
     );
 
     // Generate language-specific dependency guidance

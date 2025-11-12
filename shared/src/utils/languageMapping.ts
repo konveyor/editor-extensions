@@ -439,7 +439,8 @@ export function getProgrammingLanguageForLLM(detectedLanguage: string): string {
  * Handles special cases like pom.xml -> Java, package.json -> JavaScript, etc.
  */
 export function getProgrammingLanguageFromUri(uri: string): string {
-  const filename = uri.split("/").pop() || "";
+  // Handle both Unix (/) and Windows (\) path separators
+  const filename = uri.split(/[/\\]/).pop() || "";
   const lowerFilename = filename.toLowerCase();
 
   // Special case: Java build/config files should map to Java
