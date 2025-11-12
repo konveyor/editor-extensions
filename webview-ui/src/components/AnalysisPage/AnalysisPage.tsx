@@ -67,7 +67,6 @@ const AnalysisPage: React.FC = () => {
 
   const {
     isAnalyzing,
-    isAnalysisScheduled,
     isStartingServer,
     isInitializingServer,
     isFetchingSolution: isWaitingForSolution,
@@ -262,26 +261,18 @@ const AnalysisPage: React.FC = () => {
                           onManageProfiles={() =>
                             dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
                           }
-                          isDisabled={isStartingServer || isAnalyzing || isAnalysisScheduled}
+                          isDisabled={isStartingServer || isAnalyzing}
                         />
                       </Flex>
                       <Button
                         variant="primary"
                         onClick={handleRunAnalysis}
-                        isLoading={isAnalyzing || isAnalysisScheduled}
+                        isLoading={isAnalyzing}
                         isDisabled={
-                          isAnalyzing ||
-                          isAnalysisScheduled ||
-                          isStartingServer ||
-                          !serverRunning ||
-                          isWaitingForSolution
+                          isAnalyzing || isStartingServer || !serverRunning || isWaitingForSolution
                         }
                       >
-                        {isAnalyzing
-                          ? "Analyzing..."
-                          : isAnalysisScheduled
-                            ? "Scheduled..."
-                            : "Run Analysis"}
+                        {isAnalyzing ? "Analyzing..." : "Run Analysis"}
                       </Button>
                     </Flex>
                   </CardHeader>
