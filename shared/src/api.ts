@@ -81,6 +81,11 @@ export interface Disposable {
  */
 export interface KonveyorCoreApi {
   /**
+   * Core extension version (e.g., "0.4.0")
+   */
+  readonly version: string;
+
+  /**
    * Register a language provider with the core extension
    * @param config Provider registration configuration
    * @returns Disposable to unregister the provider
