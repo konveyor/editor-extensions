@@ -285,7 +285,7 @@ export class SolutionWorkflowOrchestrator {
     if (this.agentMode) {
       // In agent mode, workflow.run() has completed but messages might still be in queue
       // Give a brief delay to ensure all messages are processed
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       this.logger.info("After delay in agent mode", {
         pendingInteractionsCount: this.pendingInteractions.size,

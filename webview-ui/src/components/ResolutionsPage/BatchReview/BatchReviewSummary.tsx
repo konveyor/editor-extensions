@@ -20,7 +20,11 @@ import "./batchReviewSummary.css";
 
 export const BatchReviewSummary: React.FC = () => {
   const pendingFiles = useExtensionStore((state) => state.pendingBatchReview || []);
-  const isProcessing = useExtensionStore((state) => state.isProcessingQueuedMessages);
+  // Use batch-specific processing state to prevent premature resets
+  const isBatchProcessing = useExtensionStore((state) => state.isBatchOperationInProgress);
+  const setBatchOperationInProgress = useExtensionStore(
+    (state) => state.setBatchOperationInProgress,
+  );
   const [isApplying, setIsApplying] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
 
@@ -28,17 +32,19 @@ export const BatchReviewSummary: React.FC = () => {
     return null;
   }
 
-  // Reset local loading states when processing completes
+  // Reset local loading states when batch processing completes
   React.useEffect(() => {
-    if (!isProcessing) {
+    if (!isBatchProcessing) {
       setIsApplying(false);
       setIsRejecting(false);
     }
-  }, [isProcessing]);
+  }, [isBatchProcessing]);
 
   const handleApplyAll = () => {
     console.log("[BatchReviewSummary] Apply All clicked, files:", pendingFiles.length);
     setIsApplying(true);
+    // Set batch operation in progress
+    setBatchOperationInProgress(true);
     // Send message to apply all files
     window.vscode.postMessage({
       type: "BATCH_APPLY_ALL",
@@ -56,6 +62,8 @@ export const BatchReviewSummary: React.FC = () => {
   const handleRejectAll = () => {
     console.log("[BatchReviewSummary] Reject All clicked, files:", pendingFiles.length);
     setIsRejecting(true);
+    // Set batch operation in progress
+    setBatchOperationInProgress(true);
     // Send message to reject all files
     window.vscode.postMessage({
       type: "BATCH_REJECT_ALL",
@@ -122,7 +130,7 @@ export const BatchReviewSummary: React.FC = () => {
               <Button
                 variant="secondary"
                 onClick={handleApplyAll}
-                isDisabled={isApplying || isRejecting}
+                isDisabled={isApplying || isRejecting || isBatchProcessing}
                 icon={isApplying ? <Spinner size="sm" /> : undefined}
               >
                 {isApplying ? "Applying..." : `Apply All (${pendingFiles.length})`}
@@ -132,7 +140,7 @@ export const BatchReviewSummary: React.FC = () => {
               <Button
                 variant="link"
                 onClick={handleRejectAll}
-                isDisabled={isApplying || isRejecting}
+                isDisabled={isApplying || isRejecting || isBatchProcessing}
                 icon={isRejecting ? <Spinner size="sm" /> : undefined}
               >
                 {isRejecting ? "Rejecting..." : "Reject All"}

@@ -29,7 +29,14 @@ import type {
   PendingBatchReviewFile,
 } from "@editor-extensions/shared";
 
-const MAX_CHAT_MESSAGES = 2000000000000;
+/**
+ * Maximum number of chat messages to keep in memory.
+ * NOTE: This constant is duplicated in useVSCodeMessageHandler.ts
+ * TODO: Consider consolidating into a shared constants file
+ *
+ * Must match the value in useVSCodeMessageHandler.ts
+ */
+const MAX_CHAT_MESSAGES = 50000;
 
 // ✅ BENEFIT: Single interface for entire state (simpler than Redux slices)
 interface ExtensionStore {
@@ -65,6 +72,7 @@ interface ExtensionStore {
 
   // Batch review state
   pendingBatchReview: PendingBatchReviewFile[];
+  isBatchOperationInProgress: boolean;
 
   // ✅ BENEFIT: Actions are just methods on the store
   // No need for separate action creators like Redux
@@ -85,6 +93,7 @@ interface ExtensionStore {
   setIsInitializingServer: (isInitializing: boolean) => void;
   setIsWaitingForUserInteraction: (isWaiting: boolean) => void;
   setIsProcessingQueuedMessages: (isProcessing: boolean) => void;
+  setBatchOperationInProgress: (isInProgress: boolean) => void;
   setActiveDecorators: (decorators: Record<string, string>) => void;
   deleteActiveDecorator: (streamId: string) => void;
 
@@ -142,6 +151,7 @@ export const useExtensionStore = create<ExtensionStore>()(
 
         // Batch review state
         pendingBatchReview: [],
+        isBatchOperationInProgress: false,
 
         // ✅ BENEFIT: Actions are simple functions
         // With Immer middleware, you can write mutable code
@@ -185,10 +195,14 @@ export const useExtensionStore = create<ExtensionStore>()(
           set((state) => {
             state.chatMessages.push(message);
 
-            // Auto-limit messages
+            // Auto-limit messages to prevent memory issues
             if (state.chatMessages.length > MAX_CHAT_MESSAGES) {
+              const droppedCount = state.chatMessages.length - MAX_CHAT_MESSAGES;
               state.chatMessages = state.chatMessages.slice(-MAX_CHAT_MESSAGES);
-              console.warn(`Keeping last ${MAX_CHAT_MESSAGES} messages`);
+              console.warn(
+                `Chat messages exceeded limit in addChatMessage. ` +
+                  `Dropping ${droppedCount} oldest messages, keeping the most recent ${MAX_CHAT_MESSAGES}.`,
+              );
             }
           }),
 
@@ -225,6 +239,11 @@ export const useExtensionStore = create<ExtensionStore>()(
         setIsProcessingQueuedMessages: (isProcessing) =>
           set((state) => {
             state.isProcessingQueuedMessages = isProcessing;
+          }),
+
+        setBatchOperationInProgress: (isInProgress) =>
+          set((state) => {
+            state.isBatchOperationInProgress = isInProgress;
           }),
 
         setActiveDecorators: (decorators) =>

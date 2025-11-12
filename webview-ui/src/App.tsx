@@ -44,6 +44,9 @@ const App: React.FC = () => {
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         chatMessages: Array.isArray(windowData.chatMessages) ? windowData.chatMessages : [],
+        pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
+          ? windowData.pendingBatchReview
+          : [],
       });
     }
   }, []);

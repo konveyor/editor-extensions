@@ -397,12 +397,12 @@ export const processMessageByType = async (
           llmError = createLLMError.llmRequestFailed(actualError);
         }
 
-        state.mutateData((draft) => {
+        state.mutateConfigErrors((draft) => {
           draft.llmErrors.push(llmError);
         });
       } else {
         // For non-LLM errors, just add to chat messages
-        state.mutateData((draft) => {
+        state.mutateChatMessages((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,

@@ -101,6 +101,17 @@ export class MessageQueueManager {
 
     if (this.messageQueue.length === 0) {
       this.logger.debug("Queue is empty, nothing to process");
+
+      // Invoke drain callback for empty queue to ensure callers observe completion
+      if (this.onDrainCallback) {
+        this.logger.debug("Queue already empty, invoking onDrain callback");
+        try {
+          this.onDrainCallback();
+        } catch (error) {
+          this.logger.error("Error in onDrain callback:", error);
+        }
+      }
+
       return;
     }
 

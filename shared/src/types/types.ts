@@ -120,6 +120,7 @@ export interface PendingBatchReviewFile {
   originalContent?: string;
   isNew: boolean;
   isDeleted: boolean;
+  hasError?: boolean;
 }
 
 export interface ExtensionData {

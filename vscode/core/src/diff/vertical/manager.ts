@@ -30,7 +30,6 @@ export class VerticalDiffManager {
 
   private readonly logger: Logger;
   private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>;
-  private readonly mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   private readonly mutateDecorators: (
     recipe: (draft: ExtensionData) => void,
   ) => Immutable<ExtensionData>;
@@ -40,10 +39,9 @@ export class VerticalDiffManager {
     extensionState: ExtensionState,
   ) {
     // Destructure the properties we need from extensionState
-    const { logger, kaiFsCache, mutateData, mutateDecorators } = extensionState;
+    const { logger, kaiFsCache, mutateDecorators } = extensionState;
     this.logger = logger;
     this.kaiFsCache = kaiFsCache;
-    this.mutateData = mutateData;
     this.mutateDecorators = mutateDecorators;
 
     this.userChangeListener = undefined;

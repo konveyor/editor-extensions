@@ -12,7 +12,10 @@ import "./batchReviewExpandable.css";
 export const BatchReviewExpandable: React.FC = () => {
   const pendingFiles = useExtensionStore((state) => state.pendingBatchReview || []);
   const activeDecorators = useExtensionStore((state) => state.activeDecorators);
-  const isGlobalProcessing = useExtensionStore((state) => state.isProcessingQueuedMessages);
+  const isGlobalProcessing = useExtensionStore((state) => state.isBatchOperationInProgress);
+  const setBatchOperationInProgress = useExtensionStore(
+    (state) => state.setBatchOperationInProgress,
+  );
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
@@ -52,6 +55,41 @@ export const BatchReviewExpandable: React.FC = () => {
       });
     }
   }, [currentIndex, activeDecorators, pendingFiles]);
+
+  // Clear processing state for files no longer in pendingFiles or files with errors
+  React.useEffect(() => {
+    if (processingFiles.size > 0) {
+      const currentPendingTokens = new Set(pendingFiles.map((file) => file.messageToken));
+      const tokensToRemove: string[] = [];
+
+      // Find tokens that should be cleared from processing state
+      processingFiles.forEach((token) => {
+        // Clear if file is no longer in pendingFiles (success case)
+        if (!currentPendingTokens.has(token)) {
+          tokensToRemove.push(token);
+        } else {
+          // Clear if file has an error (to allow retry)
+          const file = pendingFiles.find((f) => f.messageToken === token);
+          if (file?.hasError) {
+            tokensToRemove.push(token);
+          }
+        }
+      });
+
+      // Remove tokens that are no longer relevant or have errors
+      if (tokensToRemove.length > 0) {
+        console.log(
+          "[BatchReviewExpandable] Clearing processing state for removed/errored files:",
+          tokensToRemove,
+        );
+        setProcessingFiles((prev) => {
+          const newSet = new Set(prev);
+          tokensToRemove.forEach((token) => newSet.delete(token));
+          return newSet;
+        });
+      }
+    }
+  }, [pendingFiles, processingFiles]);
 
   // Don't render if no pending files
   if (pendingFiles.length === 0) {
@@ -241,6 +279,8 @@ export const BatchReviewExpandable: React.FC = () => {
   };
 
   const handleApplyAll = () => {
+    // Set batch operation in progress
+    setBatchOperationInProgress(true);
     window.vscode.postMessage({
       type: "BATCH_APPLY_ALL",
       payload: {
@@ -255,6 +295,8 @@ export const BatchReviewExpandable: React.FC = () => {
   };
 
   const handleRejectAll = () => {
+    // Set batch operation in progress
+    setBatchOperationInProgress(true);
     window.vscode.postMessage({
       type: "BATCH_REJECT_ALL",
       payload: {
@@ -424,6 +466,11 @@ export const BatchReviewExpandable: React.FC = () => {
                 Deleted
               </Label>
             )}
+            {currentFile.hasError && (
+              <Label color="orange" isCompact>
+                Error - Retry Available
+              </Label>
+            )}
           </FlexItem>
         </Flex>
       </div>
@@ -481,8 +528,9 @@ export const BatchReviewExpandable: React.FC = () => {
         ) : /* Show special UI for empty diffs (no changes) */
         shouldShowNoChangesNeeded ? (
           <Flex
-            spaceItems={{ default: "spaceItemsXs" }}
+            spaceItems={{ default: "spaceItemsSm" }}
             alignItems={{ default: "alignItemsCenter" }}
+            justifyContent={{ default: "justifyContentCenter" }}
           >
             <FlexItem>
               <Button
@@ -494,13 +542,11 @@ export const BatchReviewExpandable: React.FC = () => {
                 ←
               </Button>
             </FlexItem>
-            <FlexItem flex={{ default: "flex_1" }}>
+            <FlexItem>
               <span
                 style={{
                   color: "#6a6e73",
                   fontStyle: "italic",
-                  textAlign: "center",
-                  display: "block",
                 }}
               >
                 ℹ️ No changes detected in this file

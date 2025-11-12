@@ -8,7 +8,7 @@ interface SentMessageProps {
   timestamp?: string | Date;
 }
 
-export const SentMessage: React.FC<SentMessageProps> = React.memo(
+export const SentMessage = React.memo<SentMessageProps>(
   ({ content, extraContent, timestamp = new Date() }) => {
     const formatTimestamp = (time: string | Date): string => {
       const date = typeof time === "string" ? new Date(time) : time;

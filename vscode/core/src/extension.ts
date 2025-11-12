@@ -110,15 +110,6 @@ class VsCodeExtension {
       () => {},
     );
     const getData = () => this.data;
-    const setData = (data: Immutable<ExtensionData>) => {
-      this.data = data;
-      this._onDidChange.fire(this.data);
-    };
-    const mutateData = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      setData(data);
-      return data;
-    };
 
     // Update chat messages without triggering global state change (sends only chat delta to webview)
     const mutateChatMessages = (
@@ -173,7 +164,7 @@ class VsCodeExtension {
       return data;
     };
 
-    // Update analysis state without triggering global state change
+    // Update analysis state and notify all listeners
     const mutateAnalysisState = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
@@ -191,6 +182,9 @@ class VsCodeExtension {
           timestamp: new Date().toISOString(),
         });
       });
+
+      // Fire the global change event to notify extension listeners
+      this._onDidChange.fire(this.data);
 
       return data;
     };
@@ -329,7 +323,8 @@ class VsCodeExtension {
     this.state = {
       analyzerClient: new AnalyzerClient(
         context,
-        mutateData,
+        mutateServerState,
+        mutateAnalysisState,
         getData,
         taskManager,
         logger,
@@ -346,7 +341,6 @@ class VsCodeExtension {
       get data() {
         return getData();
       },
-      mutateData,
       mutateChatMessages,
       mutateAnalysisState,
       mutateSolutionWorkflow,
@@ -527,7 +521,7 @@ class VsCodeExtension {
           // Only poll if solution server is enabled and we should be connected
           if (!getConfigSolutionServerEnabled()) {
             // Pause; config change handlers will resume when re-enabled
-            this.state.mutateData((draft) => {
+            this.state.mutateServerState((draft) => {
               draft.solutionServerConnected = false;
             });
             return;
@@ -1029,9 +1023,14 @@ class VsCodeExtension {
       const newActiveId =
         activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
-      this.state.mutateData((draft) => {
+      // Update profiles first
+      this.state.mutateProfiles((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = newActiveId;
+      });
+
+      // Then update configuration errors
+      this.state.mutateConfigErrors((draft) => {
         this.updateConfigurationErrors(draft);
       });
 
@@ -1152,7 +1151,7 @@ class VsCodeExtension {
   public async dispose() {
     // Clean up pending interactions and resolver function to prevent memory leaks
     this.state.resolvePendingInteraction = undefined;
-    this.state.mutateData((draft) => {
+    this.state.mutateSolutionWorkflow((draft) => {
       draft.isWaitingForUserInteraction = false;
     });
 

@@ -26,7 +26,6 @@ export interface ExtensionState {
   diagnosticCollection: vscode.DiagnosticCollection;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
-  mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   mutateChatMessages: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   mutateAnalysisState: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   mutateSolutionWorkflow: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;

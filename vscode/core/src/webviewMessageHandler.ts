@@ -84,7 +84,7 @@ const actions: {
     const updatedAllProfiles = await getAllProfiles(state.extensionContext);
     setActiveProfileId(profile.id, state);
 
-    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateData)
+    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
     await state.extensionContext.workspaceState.update("activeProfileId", profile.id);
 
     // Use mutateProfiles to broadcast profile updates to webview
@@ -210,7 +210,7 @@ const actions: {
     const currentActiveProfileId = state.data.activeProfileId;
     const isProfileChanging = currentActiveProfileId !== profileId;
 
-    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateData)
+    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
     await state.extensionContext.workspaceState.update("activeProfileId", profileId);
 
     // Broadcast active profile change to webview
@@ -276,7 +276,8 @@ const actions: {
           );
           if (fileIndex !== -1) {
             // Mark as error rather than removing, so user can retry
-            logger.info(`Marking file as error in pendingBatchReview: ${path}`);
+            draft.pendingBatchReview[fileIndex].hasError = true;
+            logger.info(`Marked file as error in pendingBatchReview: ${path}`);
           }
         }
       });
@@ -379,7 +380,7 @@ const actions: {
       );
       console.log("Continue decision: ", { responseId, hasChanges });
 
-      await handleFileResponse(messageToken, responseId, path, finalContent, state);
+      await handleFileResponse(messageToken, responseId, path, finalContent, state, true); // Skip analysis - it runs on save
 
       // Remove from pendingBatchReview after processing
       state.mutateSolutionWorkflow((draft) => {
@@ -399,11 +400,25 @@ const actions: {
       checkBatchReviewComplete(state, logger);
     } catch (error) {
       logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
-      await handleFileResponse(messageToken, "reject", path, content, state);
+      await handleFileResponse(messageToken, "reject", path, content, state, true); // Skip analysis - it runs on save
+
+      // Remove from pendingBatchReview after error handling
+      state.mutateSolutionWorkflow((draft) => {
+        if (draft.pendingBatchReview) {
+          draft.pendingBatchReview = draft.pendingBatchReview.filter(
+            (file) => file.messageToken !== messageToken,
+          );
+        }
+      });
+
+      // Check if workflow cleanup should happen
+      checkBatchReviewComplete(state, logger);
     }
   },
 
   BATCH_APPLY_ALL: async ({ files }, state, logger) => {
+    const failures: Array<{ path: string; error: string }> = [];
+
     try {
       logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
       console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
@@ -413,39 +428,78 @@ const actions: {
         draft.isProcessingQueuedMessages = true;
       });
 
-      // Process files one by one and remove from pendingBatchReview as we go
+      // Process files one by one with individual error handling
       for (const file of files) {
-        logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
-        await handleFileResponse(file.messageToken, "apply", file.path, file.content, state);
+        try {
+          logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
+          await handleFileResponse(file.messageToken, "apply", file.path, file.content, state);
 
-        // Remove this file from pendingBatchReview immediately for real-time progress
-        state.mutateSolutionWorkflow((draft) => {
-          if (draft.pendingBatchReview) {
-            draft.pendingBatchReview = draft.pendingBatchReview.filter(
-              (f) => f.messageToken !== file.messageToken,
-            );
-            logger.info(
-              `BATCH_APPLY_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
-            );
-          }
-        });
+          // Remove this file from pendingBatchReview only on success
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              draft.pendingBatchReview = draft.pendingBatchReview.filter(
+                (f) => f.messageToken !== file.messageToken,
+              );
+              logger.info(
+                `BATCH_APPLY_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
+              );
+            }
+          });
+        } catch (fileError) {
+          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
+          logger.error(`BATCH_APPLY_ALL: Failed to apply file ${file.path}:`, fileError);
+          failures.push({ path: file.path, error: errorMessage });
+
+          // Mark the file as having an error in pendingBatchReview
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              const fileIndex = draft.pendingBatchReview.findIndex(
+                (f) => f.messageToken === file.messageToken,
+              );
+              if (fileIndex !== -1) {
+                draft.pendingBatchReview[fileIndex].hasError = true;
+              }
+            }
+          });
+        }
       }
 
-      // Reset processing flag
-      state.mutateSolutionWorkflow((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
+      // Report results
+      const successCount = files.length - failures.length;
+      logger.info(
+        `BATCH_APPLY_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
+      );
 
-      logger.info(`BATCH_APPLY_ALL: Successfully applied ${files.length} files`);
-      console.log(`[BATCH_APPLY_ALL] Successfully completed`);
+      // Notify user if there were failures
+      if (failures.length > 0) {
+        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
+        logger.error(`BATCH_APPLY_ALL: Failures:\n${failureDetails}`);
+
+        if (failures.length === 1) {
+          vscode.window.showErrorMessage(
+            `Failed to apply 1 file: ${failures[0].path}. See output for details.`,
+          );
+        } else {
+          vscode.window.showErrorMessage(
+            `Failed to apply ${failures.length} out of ${files.length} files. See output for details.`,
+          );
+        }
+      } else {
+        logger.info(`BATCH_APPLY_ALL: Successfully applied all ${files.length} files`);
+        console.log(`[BATCH_APPLY_ALL] Successfully completed`);
+      }
 
       // Check if workflow cleanup should happen
       checkBatchReviewComplete(state, logger);
-    } catch (error) {
-      logger.error("Error in BATCH_APPLY_ALL:", error);
-      console.error("[BATCH_APPLY_ALL] Error:", error);
+    } catch (unexpectedError) {
+      logger.error("Unexpected error in BATCH_APPLY_ALL:", unexpectedError);
+      console.error("[BATCH_APPLY_ALL] Unexpected error:", unexpectedError);
 
-      // Reset processing flag on error
+      vscode.window.showErrorMessage(
+        "An unexpected error occurred while applying files. Check the output for details.",
+      );
+    } finally {
+      // Always reset processing flag
       state.mutateSolutionWorkflow((draft) => {
         draft.isProcessingQueuedMessages = false;
       });
@@ -453,6 +507,8 @@ const actions: {
   },
 
   BATCH_REJECT_ALL: async ({ files }, state, logger) => {
+    const failures: Array<{ path: string; error: string }> = [];
+
     try {
       logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
       console.log(`[BATCH_REJECT_ALL] Processing ${files.length} files`);
@@ -462,39 +518,78 @@ const actions: {
         draft.isProcessingQueuedMessages = true;
       });
 
-      // Process files one by one and remove from pendingBatchReview as we go
+      // Process files one by one with individual error handling
       for (const file of files) {
-        logger.info(`BATCH_REJECT_ALL: Rejecting file ${file.path}`);
-        await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
+        try {
+          logger.info(`BATCH_REJECT_ALL: Rejecting file ${file.path}`);
+          await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
 
-        // Remove this file from pendingBatchReview immediately for real-time progress
-        state.mutateSolutionWorkflow((draft) => {
-          if (draft.pendingBatchReview) {
-            draft.pendingBatchReview = draft.pendingBatchReview.filter(
-              (f) => f.messageToken !== file.messageToken,
-            );
-            logger.info(
-              `BATCH_REJECT_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
-            );
-          }
-        });
+          // Remove this file from pendingBatchReview only on success
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              draft.pendingBatchReview = draft.pendingBatchReview.filter(
+                (f) => f.messageToken !== file.messageToken,
+              );
+              logger.info(
+                `BATCH_REJECT_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
+              );
+            }
+          });
+        } catch (fileError) {
+          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
+          logger.error(`BATCH_REJECT_ALL: Failed to reject file ${file.path}:`, fileError);
+          failures.push({ path: file.path, error: errorMessage });
+
+          // Mark the file as having an error in pendingBatchReview
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              const fileIndex = draft.pendingBatchReview.findIndex(
+                (f) => f.messageToken === file.messageToken,
+              );
+              if (fileIndex !== -1) {
+                draft.pendingBatchReview[fileIndex].hasError = true;
+              }
+            }
+          });
+        }
       }
 
-      // Reset processing flag
-      state.mutateSolutionWorkflow((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
+      // Report results
+      const successCount = files.length - failures.length;
+      logger.info(
+        `BATCH_REJECT_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
+      );
 
-      logger.info(`BATCH_REJECT_ALL: Successfully rejected ${files.length} files`);
-      console.log(`[BATCH_REJECT_ALL] Successfully completed`);
+      // Notify user if there were failures
+      if (failures.length > 0) {
+        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
+        logger.error(`BATCH_REJECT_ALL: Failures:\n${failureDetails}`);
+
+        if (failures.length === 1) {
+          vscode.window.showErrorMessage(
+            `Failed to reject 1 file: ${failures[0].path}. See output for details.`,
+          );
+        } else {
+          vscode.window.showErrorMessage(
+            `Failed to reject ${failures.length} out of ${files.length} files. See output for details.`,
+          );
+        }
+      } else {
+        logger.info(`BATCH_REJECT_ALL: Successfully rejected all ${files.length} files`);
+        console.log(`[BATCH_REJECT_ALL] Successfully completed`);
+      }
 
       // Check if workflow cleanup should happen
       checkBatchReviewComplete(state, logger);
-    } catch (error) {
-      logger.error("Error in BATCH_REJECT_ALL:", error);
-      console.error("[BATCH_REJECT_ALL] Error:", error);
+    } catch (unexpectedError) {
+      logger.error("Unexpected error in BATCH_REJECT_ALL:", unexpectedError);
+      console.error("[BATCH_REJECT_ALL] Unexpected error:", unexpectedError);
 
-      // Reset processing flag on error
+      vscode.window.showErrorMessage(
+        "An unexpected error occurred while rejecting files. Check the output for details.",
+      );
+    } finally {
+      // Always reset processing flag
       state.mutateSolutionWorkflow((draft) => {
         draft.isProcessingQueuedMessages = false;
       });

@@ -26,7 +26,6 @@ interface ModifiedFileMessageProps {
  * users review them all at once rather than one-by-one.
  */
 export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = React.memo(
-  // eslint-disable-next-line react/prop-types
   ({ data, timestamp }) => {
     // Use shared data normalization hook
     const normalizedData = useModifiedFileData(data);

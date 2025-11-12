@@ -101,6 +101,7 @@ export async function handleFileResponse(
   path: string,
   content: string | undefined,
   state: ExtensionState,
+  skipAnalysis: boolean = false,
 ): Promise<void> {
   const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });
   try {
@@ -161,14 +162,21 @@ export async function handleFileResponse(
 
         // Trigger analysis after file changes are applied in agentic mode or when analyze on save is enabled
         // This ensures that the tasks interaction can detect new diagnostic issues
-        try {
-          await runPartialAnalysis(state, [uri]);
-        } catch (analysisError) {
-          logger.warn(
-            `Failed to trigger analysis after applying changes to ${path}:`,
-            analysisError,
+        // Skip analysis if explicitly requested (e.g., from decorator review flow where analysis runs on save)
+        if (!skipAnalysis) {
+          try {
+            await runPartialAnalysis(state, [uri]);
+          } catch (analysisError) {
+            logger.warn(
+              `Failed to trigger analysis after applying changes to ${path}:`,
+              analysisError,
+            );
+            // Don't throw here - file changes were successful, analysis failure is not critical
+          }
+        } else {
+          logger.info(
+            `Skipping analysis for ${path} as requested (analysis will run on file save)`,
           );
-          // Don't throw here - file changes were successful, analysis failure is not critical
         }
       } catch (error) {
         logger.error("Error applying file changes:", error);

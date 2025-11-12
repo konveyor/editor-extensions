@@ -18,8 +18,9 @@ export interface NormalizedFileData {
 
 export const useModifiedFileData = (data: ModifiedFileMessageValue): NormalizedFileData => {
   return useMemo(() => {
-    // Generate fileName from path
-    const fileName = data.path.split("/").pop() || data.path || "Unnamed File";
+    // Generate fileName from path (normalize for cross-platform compatibility)
+    const normalizedPath = data.path.replace(/\\/g, "/");
+    const fileName = normalizedPath.split("/").pop() || data.path || "Unnamed File";
 
     return {
       path: data.path,

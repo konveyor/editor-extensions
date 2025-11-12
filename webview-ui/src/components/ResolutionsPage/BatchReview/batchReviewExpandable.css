@@ -3,20 +3,30 @@
  * Compact, expandable panel that slides up from the footer
  */
 
+/* Local CSS variables */
+:root {
+  --batch-review-glow-color: rgba(
+    0,
+    102,
+    204,
+    0.3
+  ); /* Semi-transparent brand blue for pulse glow effect */
+}
+
 /* Base container */
 .batch-review-expandable {
-  background-color: var(--pf-v5-global--BackgroundColor--200);
-  border: 1px solid var(--pf-v5-global--BorderColor--100);
-  border-radius: var(--pf-v5-global--BorderRadius--sm);
+  background-color: var(--pf-t--global--background--color--200);
+  border: 1px solid var(--pf-t--global--border--color--100);
+  border-radius: var(--pf-t--global--border--radius--sm);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: var(--pf-v5-global--spacer--sm);
+  margin-bottom: var(--pf-t--global--spacer--sm);
   overflow: hidden;
 }
 
 /* Collapsed state - minimal height */
 .batch-review-expandable.collapsed {
   max-height: 48px;
-  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
 }
 
 /* Collapsed state content wrapper */
@@ -27,9 +37,9 @@
 
 /* Highlight effect for collapsed state with pending files */
 .batch-review-expandable.collapsed.batch-review-highlight {
-  background-color: var(--pf-v5-global--palette--blue-50);
-  border: 2px solid var(--pf-v5-global--primary-color--100);
-  box-shadow: 0 0 0 1px var(--pf-v5-global--primary-color--100);
+  background-color: var(--pf-t--color--blue--50);
+  border: 2px solid var(--pf-t--color--brand--default);
+  box-shadow: 0 0 0 1px var(--pf-t--color--brand--default);
   animation: batch-review-pulse 2s ease-in-out infinite;
 }
 
@@ -43,15 +53,15 @@
 
 @keyframes batch-review-pulse {
   0% {
-    box-shadow: 0 0 0 1px var(--pf-v5-global--primary-color--100);
+    box-shadow: 0 0 0 1px var(--pf-t--color--brand--default);
   }
   50% {
     box-shadow:
-      0 0 0 3px var(--pf-v5-global--primary-color--100),
-      0 0 8px rgba(0, 102, 204, 0.3);
+      0 0 0 3px var(--pf-t--color--brand--default),
+      0 0 8px var(--batch-review-glow-color);
   }
   100% {
-    box-shadow: 0 0 0 1px var(--pf-v5-global--primary-color--100);
+    box-shadow: 0 0 0 1px var(--pf-t--color--brand--default);
   }
 }
 
@@ -65,38 +75,38 @@
 
 /* Expandable header */
 .batch-review-expandable-header {
-  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
-  background-color: var(--pf-v5-global--BackgroundColor--100);
-  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100);
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background-color: var(--pf-t--global--background--color--100);
+  border-bottom: 1px solid var(--pf-t--global--border--color--100);
 }
 
 /* Expandable footer */
 .batch-review-expandable-footer {
-  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
-  background-color: var(--pf-v5-global--BackgroundColor--light-100);
-  border-top: 1px solid var(--pf-v5-global--BorderColor--100);
-  margin-top: var(--pf-v5-global--spacer--sm);
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background-color: var(--pf-t--global--background--color--100);
+  border-top: 1px solid var(--pf-t--global--border--color--100);
+  margin-top: var(--pf-t--global--spacer--sm);
 }
 
 /* Ensure buttons in header don't get too cramped */
-.batch-review-expandable-header .pf-v5-c-button {
+.batch-review-expandable-header .pf-v6-c-button {
   white-space: nowrap;
 }
 
 .batch-review-title {
-  font-weight: var(--pf-v5-global--FontWeight--semi-bold);
-  font-size: var(--pf-v5-global--FontSize--md);
+  font-weight: var(--pf-t--global--font--weight--body--bold);
+  font-size: var(--pf-t--global--font--size--md);
 }
 
 /* Current file section - compact */
 .batch-review-current-file {
-  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
-  background-color: var(--pf-v5-global--BackgroundColor--150);
-  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100);
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background-color: var(--pf-t--global--background--color--primary--subtle);
+  border-bottom: 1px solid var(--pf-t--global--border--color--100);
 }
 
 .batch-review-filename-compact {
-  font-size: var(--pf-v5-global--FontSize--sm);
+  font-size: var(--pf-t--global--font--size--sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -104,14 +114,14 @@
 
 /* Actions section - horizontal layout for minimal height */
 .batch-review-actions {
-  padding: var(--pf-v5-global--spacer--sm) var(--pf-v5-global--spacer--md);
-  background-color: var(--pf-v5-global--BackgroundColor--100);
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--md);
+  background-color: var(--pf-t--global--background--color--100);
 }
 
 /* Decorator status message */
 .batch-review-decorator-status {
-  font-size: var(--pf-v5-global--FontSize--sm);
-  color: var(--pf-v5-global--Color--200);
+  font-size: var(--pf-t--global--font--size--sm);
+  color: var(--pf-t--global--text--color--subtle);
   font-style: italic;
 }
 
@@ -120,25 +130,34 @@
   white-space: nowrap;
 }
 
-.batch-review-actions .pf-v5-c-button.pf-m-control {
+.batch-review-actions .pf-v6-c-button.pf-m-control {
   min-width: 32px;
   padding: 0.25rem 0.5rem;
 }
 
-/* Dark theme support */
-.pf-v5-theme-dark .batch-review-expandable {
-  background-color: var(--pf-v5-global--BackgroundColor--300);
-  border-color: var(--pf-v5-global--BorderColor--200);
+/* VS Code theme support */
+.batch-review-expandable {
+  background-color: var(--vscode-editor-background);
+  border-color: var(--vscode-panel-border, #3c3f41);
 }
 
-.pf-v5-theme-dark .batch-review-expandable-header,
-.pf-v5-theme-dark .batch-review-actions {
-  background-color: var(--pf-v5-global--BackgroundColor--200);
-  border-color: var(--pf-v5-global--BorderColor--200);
+.batch-review-expandable-header,
+.batch-review-actions {
+  background-color: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  border-color: var(--vscode-panel-border, #3c3f41);
 }
 
-.pf-v5-theme-dark .batch-review-current-file {
-  background-color: var(--pf-v5-global--BackgroundColor--250);
+.batch-review-current-file {
+  background-color: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.1));
+}
+
+/* Light theme adjustments */
+.vscode-light .batch-review-expandable {
+  filter: brightness(0.98);
+}
+
+.vscode-light .batch-review-current-file {
+  background-color: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.04));
 }
 
 /* Responsive - even more compact on mobile */
@@ -147,18 +166,18 @@
     max-height: 60vh;
   }
 
-  .batch-review-actions .pf-v5-l-flex {
+  .batch-review-actions .pf-v6-l-flex {
     flex-wrap: wrap;
   }
 
   .batch-review-filename-compact {
-    font-size: var(--pf-v5-global--FontSize--xs);
+    font-size: var(--pf-t--global--font--size--xs);
   }
 
   /* Stack header items on small screens */
-  .batch-review-expandable-header .pf-v5-l-flex {
+  .batch-review-expandable-header .pf-v6-l-flex {
     flex-wrap: wrap;
-    gap: var(--pf-v5-global--spacer--sm);
+    gap: var(--pf-t--global--spacer--sm);
   }
 
   .batch-review-expandable-header .batch-review-title {

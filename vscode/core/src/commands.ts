@@ -15,21 +15,7 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-<<<<<<< HEAD
-import {
-  EnhancedIncident,
-  RuleSet,
-  Scope,
-  ChatMessageType,
-  getProgrammingLanguageFromUri,
-} from "@editor-extensions/shared";
-import {
-  type KaiWorkflowMessage,
-  type KaiInteractiveWorkflowInput,
-} from "@editor-extensions/agentic";
-=======
 import { EnhancedIncident, RuleSet } from "@editor-extensions/shared";
->>>>>>> 723f5c0 (:bug: Handle early cleanup bug with fix-all flows)
 import {
   updateAnalyzerPath,
   getAllConfigurationValues,

@@ -1,12 +1,6 @@
 import "./resolutionsPage.css";
 import React, { useMemo, useCallback } from "react";
-import {
-  Page,
-  PageSection,
-  PageSidebar,
-  PageSidebarBody,
-  Title,
-} from "@patternfly/react-core";
+import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
 import { CheckCircleIcon } from "@patternfly/react-icons";
 import {
   ChatMessage,
@@ -83,7 +77,6 @@ const UserRequestMessages: React.FC<{
   solutionScope: any;
   onIncidentClick: (incident: Incident) => void;
   isReadOnly: boolean;
-  // eslint-disable-next-line react/prop-types
 }> = React.memo(({ solutionScope, onIncidentClick, isReadOnly }) => {
   const USER_REQUEST_MESSAGES: ChatMessage[] = [
     {
@@ -131,8 +124,14 @@ const ResolutionPage: React.FC = () => {
   const solutionScope = useExtensionStore((state) => state.solutionScope);
 
   // Unified data hook
-  const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
-    useResolutionData();
+  const {
+    isTriggeredByUser,
+    hasNothingToView,
+    chatMessages,
+    isFetchingSolution,
+    isAnalyzing,
+    solutionState,
+  } = useResolutionData();
 
   // Show processing state while fetching solution from LLM
   const isProcessing = isFetchingSolution;
@@ -219,7 +218,9 @@ const ResolutionPage: React.FC = () => {
         <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
           Generative AI Results
           {isProcessing && <LoadingIndicator />}
-          {!isProcessing && <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />}
+          {!isProcessing && solutionState === "received" && (
+            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
+          )}
         </Title>
       </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>

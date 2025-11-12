@@ -46,9 +46,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
 
     // Update selectedResponse if initialSelectedResponse changes (e.g., when persistence data loads)
     useEffect(() => {
-      if (initialSelectedResponse && selectedResponse !== initialSelectedResponse) {
-        setSelectedResponse(initialSelectedResponse);
-      }
+      setSelectedResponse(initialSelectedResponse);
     }, [initialSelectedResponse]);
 
     const formatTimestamp = (time: string | Date): string => {

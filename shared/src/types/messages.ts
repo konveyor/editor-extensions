@@ -174,6 +174,7 @@ export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMe
   return (
     !isAnalysisStateUpdate(msg) &&
     !isChatMessagesUpdate(msg) &&
+    !isChatMessageStreamingUpdate(msg) &&
     !isChatStreamingChunk(msg) &&
     !isSolutionWorkflowUpdate(msg) &&
     !isServerStateUpdate(msg) &&

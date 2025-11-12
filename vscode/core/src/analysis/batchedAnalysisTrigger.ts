@@ -94,7 +94,7 @@ export class BatchedAnalysisTrigger {
     }
 
     // Set isAnalyzing immediately to prevent button from being enabled
-    this.extensionState.mutateData((draft) => {
+    this.extensionState.mutateAnalysisState((draft) => {
       draft.isAnalyzing = true;
       draft.isAnalysisScheduled = false;
     });
@@ -107,7 +107,7 @@ export class BatchedAnalysisTrigger {
     } catch (error) {
       console.error("error running analysis", error);
       // Reset isAnalyzing on error since analyzerClient won't do it
-      this.extensionState.mutateData((draft) => {
+      this.extensionState.mutateAnalysisState((draft) => {
         draft.isAnalyzing = false;
       });
     }
@@ -123,7 +123,7 @@ export class BatchedAnalysisTrigger {
 
     // Reset the scheduled flag
     if (this.extensionState.data.isAnalysisScheduled) {
-      this.extensionState.mutateData((draft) => {
+      this.extensionState.mutateAnalysisState((draft) => {
         draft.isAnalysisScheduled = false;
       });
     }

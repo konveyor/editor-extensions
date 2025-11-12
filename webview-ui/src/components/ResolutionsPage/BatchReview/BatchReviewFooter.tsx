@@ -22,6 +22,7 @@ import "./batchReviewFooter.css";
 export const BatchReviewFooter: React.FC = () => {
   const pendingFiles = useExtensionStore((state) => state.pendingBatchReview || []);
   const isProcessing = useExtensionStore((state) => state.isProcessingQueuedMessages);
+  const isBatchOperationInProgress = useExtensionStore((state) => state.isBatchOperationInProgress);
   const [isApplying, setIsApplying] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
 
@@ -86,7 +87,7 @@ export const BatchReviewFooter: React.FC = () => {
                 <FileIcon style={{ fontSize: "0.875rem" }} />
               </FlexItem>
               <FlexItem style={{ fontSize: "0.875rem" }}>
-                <strong>{file.path.split("/").pop()}</strong>
+                <strong>{file.path.replace(/\\/g, "/").split("/").pop() || file.path}</strong>
               </FlexItem>
               <FlexItem>
                 {file.isNew && (
@@ -119,7 +120,7 @@ export const BatchReviewFooter: React.FC = () => {
                 spaceItems={{ default: "spaceItemsSm" }}
               >
                 <FlexItem>
-                  <ExclamationCircleIcon color="var(--pf-v5-global--warning-color--100)" />
+                  <ExclamationCircleIcon color="var(--vscode-notificationsWarningIcon-foreground, #b98412)" />
                 </FlexItem>
                 <FlexItem>
                   <span className="batch-review-footer-text">
@@ -153,7 +154,7 @@ export const BatchReviewFooter: React.FC = () => {
                     variant="link"
                     size="sm"
                     onClick={handleRejectAll}
-                    isDisabled={isApplying || isRejecting}
+                    isDisabled={isApplying || isRejecting || isBatchOperationInProgress}
                     icon={isRejecting ? <Spinner size="sm" /> : undefined}
                   >
                     {isRejecting ? "Rejecting..." : "Reject All"}
@@ -164,7 +165,7 @@ export const BatchReviewFooter: React.FC = () => {
                     variant="secondary"
                     size="sm"
                     onClick={handleApplyAll}
-                    isDisabled={isApplying || isRejecting}
+                    isDisabled={isApplying || isRejecting || isBatchOperationInProgress}
                     icon={isApplying ? <Spinner size="sm" /> : undefined}
                   >
                     {isApplying ? "Applying..." : `Apply All (${pendingFiles.length})`}
