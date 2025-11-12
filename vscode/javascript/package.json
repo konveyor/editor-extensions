@@ -59,6 +59,8 @@
   "dependencies": {
     "winston": "^3.17.0",
     "winston-transport-vscode": "^0.1.0",
-    "vscode-jsonrpc": "^8.2.1"
+    "vscode-jsonrpc": "^8.2.1",
+    "vscode-languageserver-types": "^3.17.5",
+    "vscode-languageclient": "^9.0.1"
   }
 }

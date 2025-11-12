@@ -1,6 +1,14 @@
 import * as vscode from "vscode";
 import { createServer, Server, Socket } from "net";
 import * as rpc from "vscode-jsonrpc/node";
+import {
+  Location,
+  Position,
+  Range,
+  SymbolKind,
+  uinteger,
+  WorkspaceSymbol,
+} from "vscode-languageserver-types";
 import { Logger } from "winston";
 
 /**
@@ -58,21 +66,20 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Handle workspace/executeCommand requests
     connection.onRequest("workspace/symbol", async (params: any) => {
-      this.logger.debug("Received workspace/symbol", { params });
+      this.logger.info("Received workspace/symbol", { params });
 
       // Taken from @savitha's work for golang provider.
       try {
         const query = Array.isArray(params) ? params[0]?.query : params?.query;
 
-        const result = await vscode.commands.executeCommand(
+        const result: vscode.SymbolInformation[] = await vscode.commands.executeCommand(
           "vscode.executeWorkspaceSymbolProvider",
           query,
         );
 
-        this.logger.debug(
-          `Workspace symbol result: ${Array.isArray(result) ? result.length : 0} symbols`,
-        );
-        return result || [];
+        this.logger.info(`"Workspace symbol result: ${JSON.stringify(result)} symbols"`);
+
+        return this.convertSymbolInformationToWorkspaceSymbol(result) || [];
       } catch (error) {
         this.logger.error(`Workspace symbol error`, error);
         return [];
@@ -81,22 +88,26 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Handle other LSP requests that java-external-provider might send
     connection.onRequest("textDocument/definition", async (params: any) => {
-      this.logger.debug(`Text document definition request`, {
+      this.logger.info(`Text document definition request`, {
         uri: params.textDocument?.uri,
         position: params.position,
       });
 
       try {
-        const result = await vscode.commands.executeCommand(
+        const result: vscode.Location[] = await vscode.commands.executeCommand(
           "vscode.executeDefinitionProvider",
           vscode.Uri.parse(params.textDocument.uri),
           new vscode.Position(params.position.line, params.position.character),
         );
 
-        this.logger.debug(
+        this.logger.info(
           `Definition result: ${Array.isArray(result) ? result.length : 1} locations`,
         );
-        return result;
+        const locations: Location[] = [];
+        for (const l of result) {
+          locations.push(this.asLocation(l));
+        }
+        return locations;
       } catch (error) {
         this.logger.error(`Text document definition error`, error);
         throw error;
@@ -104,22 +115,26 @@ export class vscodeProxyServer implements vscode.Disposable {
     });
 
     connection.onRequest("textDocument/references", async (params: any) => {
-      this.logger.debug(`Text document references request`, {
+      this.logger.info(`Text document references request`, {
         uri: params.textDocument?.uri,
         position: params.position,
       });
 
       try {
-        const result = await vscode.commands.executeCommand(
+        const result: vscode.Location[] = await vscode.commands.executeCommand(
           "vscode.executeReferenceProvider",
           vscode.Uri.parse(params.textDocument.uri),
           new vscode.Position(params.position.line, params.position.character),
         );
 
-        this.logger.debug(
+        this.logger.info(
           `References result: ${Array.isArray(result) ? result.length : 0} locations`,
         );
-        return result;
+        const locations: Location[] = [];
+        for (const l of result) {
+          locations.push(this.asLocation(l));
+        }
+        return locations;
       } catch (error) {
         this.logger.error(`Text document references error`, error);
         throw error;
@@ -138,6 +153,55 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Start listening
     connection.listen();
+  }
+
+  convertSymbolInformationToWorkspaceSymbol(
+    symbols: vscode.SymbolInformation[],
+  ): WorkspaceSymbol[] {
+    const workspaceSymbols: WorkspaceSymbol[] = [];
+    for (const s of symbols) {
+      const workspaceSymbol = this.asWorkspaceSymbol(s);
+      workspaceSymbols.push(workspaceSymbol);
+    }
+    return workspaceSymbols;
+  }
+
+  asWorkspaceSymbol(item: vscode.SymbolInformation): WorkspaceSymbol {
+    return WorkspaceSymbol.create(
+      item.name,
+      this.asSymbolKind(item.kind),
+      item.location.uri.toString(),
+      this.asRange(item.location.range),
+    );
+  }
+
+  asSymbolKind(item: vscode.SymbolKind): SymbolKind {
+    if (item <= vscode.SymbolKind.TypeParameter) {
+      // Symbol kind is one based in the protocol and zero based in code.
+      return (item + 1) as SymbolKind;
+    }
+    return SymbolKind.Property;
+  }
+
+  asLocation(value: vscode.Location): Location {
+    if (value === undefined || value === null) {
+      return value;
+    }
+    return Location.create(value.uri.toString(), this.asRange(value.range));
+  }
+
+  asRange(value: vscode.Range): Range {
+    return Range.create(this.asPosition(value.start), this.asPosition(value.end));
+  }
+
+  asPosition(value: vscode.Position): Position {
+    if (value === undefined || value === null) {
+      return value;
+    }
+    return {
+      line: value.line > uinteger.MAX_VALUE ? uinteger.MAX_VALUE : value.line,
+      character: value.character > uinteger.MAX_VALUE ? uinteger.MAX_VALUE : value.character,
+    };
   }
 
   /**
