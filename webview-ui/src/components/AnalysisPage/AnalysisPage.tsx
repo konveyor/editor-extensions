@@ -70,6 +70,7 @@ const AnalysisPage: React.FC = () => {
 
   const {
     isAnalyzing,
+    isAnalysisScheduled,
     isStartingServer,
     isInitializingServer,
     isFetchingSolution: isWaitingForSolution,
