@@ -21,7 +21,7 @@ To set up and run the extension, follow the steps below.
 Ensure that you have the following installed:
 
 - [Node.js](https://nodejs.org/) (LTS version recommended - see [.nvmrc](.nvmrc) for the version used by the project)
-- [npm](https://www.npmjs.com/)
+- [npm](https://www.npmjs.com/) (v10.5.2 or higher - enforced by engine requirements)
 - [Visual Studio Code](https://code.visualstudio.com/)
 
 ### Installation
