@@ -641,7 +641,7 @@ export abstract class VSCode {
 
   public async doProfileMenuButtonAction(
     profileName: string,
-    actionName: string,
+    actionName: ProfileActions,
     profileView?: FrameLocator
   ) {
     let manageProfileView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
