@@ -63,7 +63,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.showErrorMessage("TypeScript extension not found.");
     return;
   }
-  await tsExt.activate();
+  try {
+    await tsExt.activate();
+  } catch (error) {
+    logger.error("Failed to activate ts extension", { error });
+  }
 
   // Create socket paths for communication
   const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for kai-analyzer-rpc
@@ -179,7 +183,7 @@ async function warmUpTypeScriptServer(logger: winston.Logger) {
         vscode.workspace.findFiles("**/*.js", exclude, 1),
         vscode.workspace.findFiles("**/*.jsx", exclude, 1),
       ]);
-      if (!tsFiles && !tsxFiles && !jsFiles && !jsxFiles) {
+      if (!tsFiles.length && !tsxFiles.length && !jsFiles.length && !jsxFiles.length) {
         logger.warn("No JS/TS files found to warm up the TypeScript server");
         return;
       }
@@ -212,14 +216,14 @@ async function waitForDiagnosticsForUris(
   if (remaining.size === 0) {
     return;
   }
+  let sub: vscode.Disposable | undefined;
   await Promise.race<void>([
     new Promise<void>((resolve) => {
-      const sub = vscode.languages.onDidChangeDiagnostics((e) => {
+      sub = vscode.languages.onDidChangeDiagnostics((e) => {
         for (const changed of e.uris) {
           remaining.delete(changed.toString());
         }
         if (remaining.size === 0) {
-          sub.dispose();
           resolve();
         }
       });
@@ -233,4 +237,5 @@ async function waitForDiagnosticsForUris(
       }, timeoutMs),
     ),
   ]);
+  sub?.dispose();
 }
