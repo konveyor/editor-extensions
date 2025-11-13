@@ -7,6 +7,10 @@ import {
 } from "@editor-extensions/shared";
 import { Logger } from "winston";
 import { Resource, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { AIMessageChunk } from "@langchain/core/messages";
+
+import { KaiWorkflowEventEmitter } from "../eventEmitter";
+import { KaiWorkflowMessageType } from "../types";
 
 export interface SolutionServerCapabilities {
   tools: Tool[];
@@ -52,7 +56,7 @@ export interface TokenResponse {
 const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
 const REAUTH_DELAY_MS = 5000; // Delay before re-authentication attempt
 
-export class SolutionServerClient {
+export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private mcpClient: Client | null = null;
   private enabled: boolean;
   private serverUrl: string;
@@ -73,8 +77,10 @@ export class SolutionServerClient {
 
   private isRefreshingTokens: boolean = false;
   private refreshRetryCount: number = 0;
+  private cachedCapabilities: SolutionServerCapabilities | null = null;
 
   constructor(config: SolutionServerConfig, logger: Logger) {
+    super();
     this.enabled = config.enabled;
     this.serverUrl = config.url;
     this.authEnabled = config.auth.enabled;
@@ -135,6 +141,13 @@ export class SolutionServerClient {
 
     this.username = username;
     this.password = password;
+
+    // Clear any existing tokens to force fresh authentication with new credentials
+    this.bearerToken = null;
+    this.refreshToken = null;
+    this.tokenExpiresAt = null;
+    this.clearTokenRefreshTimer();
+
     this.logger.info("Credentials stored for authentication");
   }
 
@@ -196,6 +209,9 @@ export class SolutionServerClient {
     try {
       const { tools } = await this.mcpClient.listTools();
       const { resources } = await this.mcpClient.listResources();
+
+      this.cachedCapabilities = { tools, resources };
+
       this.logger.info(`Available tools: ${tools.map((t: Tool) => t.name).join(", ")}`);
       this.logger.info(`Available resources: ${resources.map((r: Resource) => r.name).join(", ")}`);
 
@@ -272,6 +288,8 @@ export class SolutionServerClient {
     // Clear refresh timer
     this.clearTokenRefreshTimer();
 
+    this.cachedCapabilities = null;
+
     // Restore SSL settings
     if (this.sslBypassCleanup) {
       this.sslBypassCleanup();
@@ -291,6 +309,26 @@ export class SolutionServerClient {
     }
   }
 
+  /**
+   * Closes and cleans up a stale MCP client after connection failure.
+   * This is called when we detect the server is unreachable to prevent resource leaks.
+   */
+  private async closeStaleClient(): Promise<void> {
+    if (this.mcpClient) {
+      try {
+        await this.mcpClient.close();
+        this.logger.debug("Closed stale MCP client after connection failure");
+      } catch (closeError) {
+        this.logger.warn("Error closing stale MCP client:", closeError);
+      } finally {
+        this.mcpClient = null;
+      }
+    }
+
+    // Clear cached capabilities since we're disconnected
+    this.cachedCapabilities = null;
+  }
+
   public setClientId(clientId: string): void {
     this.currentClientId = clientId;
   }
@@ -299,7 +337,9 @@ export class SolutionServerClient {
     return this.currentClientId;
   }
 
-  public async getServerCapabilities(): Promise<SolutionServerCapabilities> {
+  public async getServerCapabilities(
+    skipCache: boolean = false,
+  ): Promise<SolutionServerCapabilities> {
     if (!this.enabled) {
       this.logger.info("Solution server is disabled, returning empty capabilities");
       return {
@@ -318,15 +358,67 @@ export class SolutionServerClient {
       };
     }
 
+    // Return cached capabilities if available to avoid redundant calls (unless skipCache is true)
+    if (!skipCache && this.cachedCapabilities) {
+      this.logger.debug("Returning cached server capabilities");
+      return this.cachedCapabilities;
+    }
+
     try {
       const { tools } = await this.mcpClient.listTools();
       const { resources } = await this.mcpClient.listResources();
+
+      // Cache for future calls
+      this.cachedCapabilities = { tools, resources };
 
       return {
         tools,
         resources,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode =
+        error && typeof error === "object" && "cause" in error && error.cause
+          ? (error.cause as any)?.code
+          : undefined;
+
+      // Check if this is a connection error
+      const isConnectionError =
+        errorMessage.toLowerCase().includes("fetch failed") ||
+        errorMessage.toLowerCase().includes("econnreset") ||
+        errorMessage.toLowerCase().includes("econnrefused") ||
+        errorMessage.toLowerCase().includes("etimedout") ||
+        errorCode === "ECONNRESET" ||
+        errorCode === "ECONNREFUSED" ||
+        errorCode === "ETIMEDOUT";
+
+      if (isConnectionError) {
+        // Connection error - log detailed diagnostic information
+        this.logger.error(`Solution server connection failure while getting capabilities`, {
+          errorMessage,
+          errorCode,
+          serverUrl: this.serverUrl,
+          isConnected: this.isConnected,
+          authEnabled: this.authEnabled,
+          hasToken: !!this.bearerToken,
+          tokenExpiresAt: this.tokenExpiresAt,
+          mcpClientExists: !!this.mcpClient,
+          fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        });
+
+        // Mark as disconnected
+        this.isConnected = false;
+
+        // Close the stale MCP client to prevent resource leaks
+        await this.closeStaleClient();
+
+        // Return empty capabilities instead of throwing
+        return {
+          tools: [],
+          resources: [],
+        };
+      }
+
       this.logger.error("Failed to get server capabilities", error);
       throw error;
     }
@@ -669,6 +761,15 @@ export class SolutionServerClient {
     try {
       this.logger.info(`Getting best hint for violation: ${rulesetName} - ${violationName}`);
 
+      // Emit message that we're querying the solution server for a hint
+      this.emitWorkflowMessage({
+        id: `solution-server-hint-query-${Date.now()}-${rulesetName}-${violationName}`,
+        type: KaiWorkflowMessageType.LLMResponseChunk,
+        data: new AIMessageChunk(
+          `🔍 Querying solution server for hints about: **${violationName}**`,
+        ),
+      });
+
       const result = await this.mcpClient!.callTool({
         name: "get_best_hint",
         arguments: {
@@ -695,6 +796,16 @@ export class SolutionServerClient {
                   this.logger.info(
                     `Found best hint for violation ${rulesetName} - ${violationName}`,
                   );
+
+                  // Emit message showing the hint that was found
+                  this.emitWorkflowMessage({
+                    id: `solution-server-hint-found-${Date.now()}-${rulesetName}-${violationName}`,
+                    type: KaiWorkflowMessageType.LLMResponseChunk,
+                    data: new AIMessageChunk(
+                      `✅ Found solution server hint (ID: ${parsed.hint_id}):\n\n${parsed.hint}`,
+                    ),
+                  });
+
                   return {
                     hint: parsed.hint,
                     hint_id: parsed.hint_id,
@@ -711,11 +822,103 @@ export class SolutionServerClient {
       }
 
       this.logger.info(`No hint found for violation ${rulesetName} - ${violationName}`);
+
+      // Emit message that no hint was found
+      this.emitWorkflowMessage({
+        id: `solution-server-hint-not-found-${Date.now()}-${rulesetName}-${violationName}`,
+        type: KaiWorkflowMessageType.LLMResponseChunk,
+        data: new AIMessageChunk(`ℹ️ No hint found in solution server for: **${violationName}**`),
+      });
+
       return undefined;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode =
+        error && typeof error === "object" && "cause" in error && error.cause
+          ? (error.cause as any)?.code
+          : undefined;
+
+      // Check if this is a "not found" error rather than a connection/server error
+      const isNotFoundError =
+        errorMessage.toLowerCase().includes("not found") ||
+        errorMessage.toLowerCase().includes("does not exist") ||
+        errorMessage.toLowerCase().includes("not in the database");
+
+      // Check if this is a connection error
+      const isConnectionError =
+        errorMessage.toLowerCase().includes("fetch failed") ||
+        errorMessage.toLowerCase().includes("econnreset") ||
+        errorMessage.toLowerCase().includes("econnrefused") ||
+        errorMessage.toLowerCase().includes("etimedout") ||
+        errorMessage.toLowerCase().includes("network") ||
+        errorCode === "ECONNRESET" ||
+        errorCode === "ECONNREFUSED" ||
+        errorCode === "ETIMEDOUT";
+
+      if (isNotFoundError) {
+        // Treat "not found" as a normal case - the violation simply has no hint in the database
+        this.logger.info(
+          `No hint available in solution server for violation ${rulesetName} - ${violationName} (not in database)`,
+        );
+
+        // Emit message that no hint was found (same as successful query with no results)
+        this.emitWorkflowMessage({
+          id: `solution-server-hint-not-found-${Date.now()}-${rulesetName}-${violationName}`,
+          type: KaiWorkflowMessageType.LLMResponseChunk,
+          data: new AIMessageChunk(`ℹ️ No hint found in solution server for: **${violationName}**`),
+        });
+
+        return undefined;
+      }
+
+      if (isConnectionError) {
+        // Connection errors should not stop the workflow - log detailed info for debugging
+        this.logger.error(
+          `Solution server connection failure while getting hint for ${rulesetName} - ${violationName}`,
+          {
+            errorMessage,
+            errorCode,
+            serverUrl: this.serverUrl,
+            isConnected: this.isConnected,
+            authEnabled: this.authEnabled,
+            hasToken: !!this.bearerToken,
+            tokenExpiresAt: this.tokenExpiresAt,
+            mcpClientExists: !!this.mcpClient,
+            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+          },
+        );
+
+        // Mark as disconnected so future calls will know
+        this.isConnected = false;
+
+        // Close the stale MCP client to prevent resource leaks
+        await this.closeStaleClient();
+
+        // Emit a warning message instead of an error to allow workflow to continue
+        this.emitWorkflowMessage({
+          id: `solution-server-hint-connection-issue-${Date.now()}-${rulesetName}-${violationName}`,
+          type: KaiWorkflowMessageType.LLMResponseChunk,
+          data: new AIMessageChunk(
+            `⚠️ Solution server connection failed (${errorCode || "network error"}) - continuing without hint for: **${violationName}**`,
+          ),
+        });
+
+        // Return undefined to allow workflow to continue without the hint
+        return undefined;
+      }
+
+      // For other actual errors (auth, permissions, etc.), log and emit error
       this.logger.error(
-        `Error getting best hint for violation ${rulesetName} - ${violationName}: ${error}`,
+        `Error getting best hint for violation ${rulesetName} - ${violationName}: ${errorMessage}`,
       );
+
+      // Emit error message for actual errors
+      this.emitWorkflowMessage({
+        id: `solution-server-hint-error-${Date.now()}-${rulesetName}-${violationName}`,
+        type: KaiWorkflowMessageType.Error,
+        data: `Error querying solution server: ${errorMessage}`,
+      });
+
       throw error;
     }
   }

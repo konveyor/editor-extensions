@@ -15,7 +15,13 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import { EnhancedIncident, RuleSet, Scope, ChatMessageType } from "@editor-extensions/shared";
+import {
+  EnhancedIncident,
+  RuleSet,
+  Scope,
+  ChatMessageType,
+  getProgrammingLanguageFromUri,
+} from "@editor-extensions/shared";
 import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
@@ -191,12 +197,18 @@ const commandsMap: (
         return;
       }
 
-      // Check if analysis is already scheduled
-      if (state.data.isAnalysisScheduled) {
-        window.showInformationMessage(
-          "Analysis is already scheduled. It will run shortly after pending file changes are processed.",
+      // Check if scheduled analysis is actively running
+      if (state.batchedAnalysisTrigger?.isScheduledAnalysisRunning()) {
+        window.showWarningMessage(
+          "Analysis is already starting. Please wait a moment and try again.",
         );
         return;
+      }
+
+      // Cancel any scheduled analysis before running manual analysis
+      if (state.data.isAnalysisScheduled && state.batchedAnalysisTrigger) {
+        logger.info("Cancelling scheduled analysis in favor of manual analysis");
+        state.batchedAnalysisTrigger.cancelScheduledAnalysis();
       }
 
       analyzerClient.runAnalysis();
@@ -243,6 +255,7 @@ const commandsMap: (
         draft.solutionState = "started";
         draft.solutionScope = scope;
         draft.chatMessages = []; // Clear previous chat messages
+        draft.llmErrors = []; // Clear previous LLM errors
         draft.activeDecorators = {};
       });
 
@@ -260,12 +273,31 @@ const commandsMap: (
 
         // Set the state to indicate we're fetching a solution
 
-        await state.workflowManager.init({
-          modelProvider: state.modelProvider,
-          workspaceDir: state.data.workspaceRoot,
-          solutionServerClient: state.solutionServerClient,
-        });
-        logger.debug("Agent initialized");
+        try {
+          await state.workflowManager.init({
+            modelProvider: state.modelProvider,
+            workspaceDir: state.data.workspaceRoot,
+            solutionServerClient: state.solutionServerClient,
+          });
+          logger.debug("Agent initialized");
+        } catch (initError) {
+          logger.error("Failed to initialize workflow", initError);
+          const errorMessage = initError instanceof Error ? initError.message : String(initError);
+
+          state.mutateData((draft) => {
+            draft.isFetchingSolution = false;
+            draft.solutionState = "failedOnSending";
+            draft.chatMessages.push({
+              messageToken: `m${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: { message: `Workflow initialization failed: ${errorMessage}` },
+              timestamp: new Date().toISOString(),
+            });
+          });
+          executeDeferredWorkflowDisposal(state, logger);
+          window.showErrorMessage(`Failed to initialize workflow: ${errorMessage}`);
+          return;
+        }
 
         // Get the workflow instance
         workflow = state.workflowManager.getWorkflow();
@@ -311,22 +343,22 @@ const commandsMap: (
         });
 
         // Add error event listener to catch workflow errors
+        // These are handled by the workflow message processor
         workflow.on("error", (error: any) => {
           logger.error("Workflow error:", error);
-          state.mutateData((draft) => {
-            draft.isFetchingSolution = false;
-            if (draft.solutionState === "started") {
-              draft.solutionState = "failedOnSending";
-            }
-          });
-          executeDeferredWorkflowDisposal(state, logger);
+          // State updates will be handled by the Error message type in processMessage
         });
 
         try {
+          // Detect programming language from the first incident's URI
+          // All incidents in a single fix request should be for the same file/language
+          const programmingLanguage =
+            incidents.length > 0 ? getProgrammingLanguageFromUri(incidents[0].uri) : "Java";
+
           const input: KaiInteractiveWorkflowInput = {
             incidents,
             migrationHint: profileName,
-            programmingLanguage: "Java",
+            programmingLanguage,
             enableAgentMode: agentMode,
           };
 
@@ -346,8 +378,18 @@ const commandsMap: (
           logger.error(`Error in running the agent - ${err}`);
           logger.info(`Error trace - `, err instanceof Error ? err.stack : "N/A");
 
+          const errorMessage = err instanceof Error ? err.message : String(err);
+
           // Ensure isFetchingSolution is reset on any error
           state.mutateData((draft) => {
+            // Add to chat messages for visibility
+            draft.chatMessages.push({
+              messageToken: `m${Date.now()}`,
+              kind: ChatMessageType.String,
+              value: { message: `Error: ${errorMessage}` },
+              timestamp: new Date().toISOString(),
+            });
+
             draft.isFetchingSolution = false;
             if (draft.solutionState === "started") {
               draft.solutionState = "failedOnSending";

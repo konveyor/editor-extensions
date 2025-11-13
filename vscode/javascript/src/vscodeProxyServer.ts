@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { createServer, Server, Socket } from "net";
 import * as rpc from "vscode-jsonrpc/node";
+import { createConverter } from "vscode-languageclient/lib/common/codeConverter";
 import { Logger } from "winston";
 
 /**
@@ -13,6 +14,7 @@ export class vscodeProxyServer implements vscode.Disposable {
   private server: Server | null = null;
   private connections: Set<rpc.MessageConnection> = new Set();
   private socketPath: string;
+  private converter = createConverter();
 
   constructor(
     socketPath: string,
@@ -28,7 +30,7 @@ export class vscodeProxyServer implements vscode.Disposable {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server = createServer((socket: Socket) => {
-        this.logger.info("Java external provider connected to LSP proxy");
+        this.logger.info("Javascript external provider connected to LSP proxy");
         this.handleConnection(socket);
       });
 
@@ -58,21 +60,27 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Handle workspace/executeCommand requests
     connection.onRequest("workspace/symbol", async (params: any) => {
-      this.logger.debug("Received workspace/symbol", { params });
+      this.logger.info("Received workspace/symbol", { params });
 
       // Taken from @savitha's work for golang provider.
       try {
         const query = Array.isArray(params) ? params[0]?.query : params?.query;
 
-        const result = await vscode.commands.executeCommand(
+        const result: vscode.SymbolInformation[] = await vscode.commands.executeCommand(
           "vscode.executeWorkspaceSymbolProvider",
           query,
         );
 
-        this.logger.debug(
-          `Workspace symbol result: ${Array.isArray(result) ? result.length : 0} symbols`,
+        this.logger.info(`Workspace symbol result: ${result?.length || 0} symbols`);
+
+        // Convert vscode.SymbolInformation[] to LSP WorkspaceSymbol[]
+        return (
+          result?.map((symbol) => ({
+            name: symbol.name,
+            kind: this.converter.asSymbolKind(symbol.kind),
+            location: this.converter.asLocation(symbol.location),
+          })) || []
         );
-        return result || [];
       } catch (error) {
         this.logger.error(`Workspace symbol error`, error);
         return [];
@@ -81,22 +89,22 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Handle other LSP requests that java-external-provider might send
     connection.onRequest("textDocument/definition", async (params: any) => {
-      this.logger.debug(`Text document definition request`, {
+      this.logger.info(`Text document definition request`, {
         uri: params.textDocument?.uri,
         position: params.position,
       });
 
       try {
-        const result = await vscode.commands.executeCommand(
+        const result: vscode.Location[] = await vscode.commands.executeCommand(
           "vscode.executeDefinitionProvider",
           vscode.Uri.parse(params.textDocument.uri),
           new vscode.Position(params.position.line, params.position.character),
         );
 
-        this.logger.debug(
+        this.logger.info(
           `Definition result: ${Array.isArray(result) ? result.length : 1} locations`,
         );
-        return result;
+        return result?.map((location) => this.converter.asLocation(location)) || [];
       } catch (error) {
         this.logger.error(`Text document definition error`, error);
         throw error;
@@ -104,22 +112,22 @@ export class vscodeProxyServer implements vscode.Disposable {
     });
 
     connection.onRequest("textDocument/references", async (params: any) => {
-      this.logger.debug(`Text document references request`, {
+      this.logger.info(`Text document references request`, {
         uri: params.textDocument?.uri,
         position: params.position,
       });
 
       try {
-        const result = await vscode.commands.executeCommand(
+        const result: vscode.Location[] = await vscode.commands.executeCommand(
           "vscode.executeReferenceProvider",
           vscode.Uri.parse(params.textDocument.uri),
           new vscode.Position(params.position.line, params.position.character),
         );
 
-        this.logger.debug(
+        this.logger.info(
           `References result: ${Array.isArray(result) ? result.length : 0} locations`,
         );
-        return result;
+        return result?.map((location) => this.converter.asLocation(location)) || [];
       } catch (error) {
         this.logger.error(`Text document references error`, error);
         throw error;
@@ -128,7 +136,7 @@ export class vscodeProxyServer implements vscode.Disposable {
 
     // Handle connection close
     connection.onClose(() => {
-      this.logger.info("Java external provider disconnected from LSP proxy");
+      this.logger.info("Javascript external provider disconnected from LSP proxy");
       this.connections.delete(connection);
     });
 

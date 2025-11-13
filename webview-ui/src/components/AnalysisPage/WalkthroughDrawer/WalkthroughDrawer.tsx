@@ -40,6 +40,10 @@ export function WalkthroughDrawer({
 
   const profile = state.profiles.find((p) => p.id === state.activeProfileId);
 
+  // Check if in in-tree mode (all profiles have source === 'local')
+  const isInTreeMode =
+    state.profiles.length > 0 && state.profiles.every((p) => p.source === "local");
+
   const labelSelectorValid = !!profile?.labelSelector?.trim();
 
   const rulesConfigured = !!profile?.useDefaultRules || (profile?.customRules?.length ?? 0) > 0;
@@ -171,7 +175,7 @@ export function WalkthroughDrawer({
                         fullText={step.fullDescription}
                       />
                     </StackItem>
-                    {step.id !== "genai" && (
+                    {step.id !== "genai" && !isInTreeMode && (
                       <StackItem>
                         <Button
                           variant="link"

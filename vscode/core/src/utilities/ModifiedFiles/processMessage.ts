@@ -9,7 +9,7 @@ import {
 } from "@editor-extensions/agentic";
 import { flattenCurrentTasks, summarizeTasks, type TasksList } from "../../taskManager";
 import { ExtensionState } from "../../extensionState";
-import { ChatMessageType, ToolMessageValue } from "@editor-extensions/shared";
+import { ChatMessageType, ToolMessageValue, createLLMError } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
 
@@ -334,6 +334,59 @@ export const processMessageByType = async (
         queueManager,
         state.modifiedFilesEventEmitter,
       );
+      break;
+    }
+    case KaiWorkflowMessageType.Error: {
+      // Handle error messages from the workflow (including LLM errors)
+      const errorMessage = msg.data as string;
+      state.logger.error("Workflow error received:", errorMessage);
+
+      // Check if this is an LLM-specific error based on the error message
+      // The workflow emits "Failed to get llm response - " prefix for LLM errors
+      if (errorMessage.includes("Failed to get llm response")) {
+        // Extract the actual error message after the prefix
+        const actualError = errorMessage.replace("Failed to get llm response - ", "");
+        const lowerError = actualError.toLowerCase();
+
+        // Categorize the LLM error based on the actual error content
+        let llmError;
+        if (lowerError.includes("timeout") || lowerError.includes("timed out")) {
+          llmError = createLLMError.llmTimeout();
+        } else if (lowerError.includes("rate limit") || lowerError.includes("429")) {
+          llmError = createLLMError.llmRateLimit();
+        } else if (
+          lowerError.includes("context length") ||
+          lowerError.includes("token limit") ||
+          lowerError.includes("context_length_exceeded") ||
+          lowerError.includes("max_tokens")
+        ) {
+          llmError = createLLMError.llmContextLimit();
+        } else if (
+          lowerError.includes("parse") ||
+          lowerError.includes("json") ||
+          lowerError.includes("invalid response")
+        ) {
+          llmError = createLLMError.llmResponseParseFailed(actualError);
+        } else {
+          llmError = createLLMError.llmRequestFailed(actualError);
+        }
+
+        state.mutateData((draft) => {
+          draft.llmErrors.push(llmError);
+        });
+      } else {
+        // For non-LLM errors, just add to chat messages
+        state.mutateData((draft) => {
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: msg.id,
+            timestamp: new Date().toISOString(),
+            value: {
+              message: `Error: ${errorMessage}`,
+            },
+          });
+        });
+      }
       break;
     }
   }

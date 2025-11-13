@@ -104,7 +104,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const providerDisposable = coreApi.registerProvider({
     name: "javascript",
     providerConfig: {
-      name: "javascript",
+      name: "nodejs",
       address: providerAddress, // GRPC socket address
       useSocket: true,
       initConfig: [

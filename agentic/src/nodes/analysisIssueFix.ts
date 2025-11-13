@@ -42,6 +42,40 @@ export class AnalysisIssueFix extends BaseNode {
     this.summarizeAdditionalInformation = this.summarizeAdditionalInformation.bind(this);
   }
 
+  // Generate language-specific guidance for dependency and import management
+  private getDependencyGuidance(programmingLanguage: string): string {
+    const language = programmingLanguage.toLowerCase();
+
+    if (
+      language === "java" ||
+      language === "kotlin" ||
+      language === "scala" ||
+      language === "groovy"
+    ) {
+      return `Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.`;
+    }
+
+    if (language === "javascript" || language === "typescript") {
+      return `Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.`;
+    }
+
+    if (language === "python") {
+      return `Pay attention to changes you make and impacts to external dependencies in requirements.txt or pyproject.toml as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.`;
+    }
+
+    if (language === "go") {
+      return `Pay attention to changes you make and impacts to external dependencies in go.mod as well as changes to imports we need to consider.
+As you make changes that impact go.mod or imports, be sure you explain what needs to be updated.`;
+    }
+    // Generic fallback for other languages
+    return `Pay attention to changes you make and impacts to external dependencies as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.`;
+  }
+
   // node responsible for routing analysis issue fixes
   // processes input / output to / from analysis fix node
   // glorified for loop in a state machine
@@ -213,8 +247,11 @@ export class AnalysisIssueFix extends BaseNode {
     const fileName = basename(state.inputFileUri);
 
     const sysMessage = new SystemMessage(
-      `You are an experienced java developer, who specializes in migrating code from ${state.migrationHint}`,
+      `You are an experienced ${state.programmingLanguage.toLowerCase()} developer, who specializes in migrating code from ${state.migrationHint}`,
     );
+
+    // Generate language-specific dependency guidance
+    const dependencyGuidance = this.getDependencyGuidance(state.programmingLanguage);
 
     const humanMessage =
       new HumanMessage(`I will give you a file for which I want to take one step towards migrating ${state.migrationHint}.
@@ -222,9 +259,7 @@ I will provide you with static source code analysis information highlighting an 
 Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
 Before attempting to migrate the code from ${state.migrationHint}, reason through what changes are required and why.
 
-Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
-Remember when updating or adding annotations that the class must be imported.
-As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+${dependencyGuidance}
 After you have shared your step by step thinking, provide a full output of the updated file.
 
 **It is essential that you always output the entire updated file without omitting any unchanged code.**

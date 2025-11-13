@@ -17,6 +17,8 @@ vscode/.metadata
 # Miscellaneous
 .vscode/*.aider*
 .vscode/settings.json
+vscode/.vscode-test
+vscode/org.eclipse.*
 
 # Allow PNG files in vscode/resources
 !vscode/resources/*.png

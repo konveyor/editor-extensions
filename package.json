@@ -17,7 +17,7 @@
   "engines": {
     "vscode": "^1.93.0",
     "node": ">=22.9.0",
-    "npm": "^9.5.0 || >=10.5.2"
+    "npm": ">=10.5.2"
   },
   "type": "module",
   "categories": [

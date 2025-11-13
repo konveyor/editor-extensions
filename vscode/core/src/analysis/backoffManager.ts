@@ -51,6 +51,13 @@ export class BackoffManager {
     this.currentBackoffDelay = this.baseBackoffDelay;
   }
 
+  cancel() {
+    if (this.backoffTimer) {
+      clearTimeout(this.backoffTimer);
+      this.backoffTimer = null;
+    }
+  }
+
   dispose() {
     if (this.backoffTimer) {
       clearTimeout(this.backoffTimer);

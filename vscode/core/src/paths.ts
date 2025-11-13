@@ -372,6 +372,12 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
 
   const f = relative(fsPaths().workspaceRepo, uri.fsPath);
   _logger?.debug(`isUriIgnored: ${f}`);
+
+  // Always ignore .konveyor directory
+  if (f.startsWith(".konveyor/") || f === ".konveyor") {
+    return true;
+  }
+
   return isIgnoredBy(f);
 };
 
@@ -407,7 +413,11 @@ export const ignoresToExcludedPaths = () => {
     }
   }
 
-  const exclude = globbySync(ignores, {
+  // Always exclude .konveyor directory regardless of ignore files
+  const alwaysExclude = [".konveyor"];
+  const allIgnores = [...new Set([...alwaysExclude, ...ignores])];
+
+  const exclude = globbySync(allIgnores, {
     cwd,
     expandDirectories: false,
     dot: true,

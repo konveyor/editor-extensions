@@ -1,6 +1,15 @@
 import "./resolutionsPage.css";
 import React, { useMemo, useCallback } from "react";
-import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
+import {
+  Page,
+  PageSection,
+  PageSidebar,
+  PageSidebarBody,
+  Title,
+  Alert,
+  AlertGroup,
+  AlertActionCloseButton,
+} from "@patternfly/react-core";
 import { CheckCircleIcon } from "@patternfly/react-icons";
 import {
   ChatMessage,
@@ -8,6 +17,7 @@ import {
   Incident,
   type ToolMessageValue,
   type ModifiedFileMessageValue,
+  type LLMError,
 } from "@editor-extensions/shared";
 import { openFile } from "../../hooks/actions";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
@@ -37,6 +47,7 @@ const useResolutionData = (state: any) => {
     solutionScope,
     isFetchingSolution = false,
     isAnalyzing,
+    llmErrors = [],
   } = state;
 
   const isTriggeredByUser = useMemo(
@@ -68,6 +79,7 @@ const useResolutionData = (state: any) => {
     isFetchingSolution,
     isAnalyzing,
     solutionState,
+    llmErrors,
   };
 };
 
@@ -121,8 +133,17 @@ const ResolutionPage: React.FC = () => {
   const { solutionScope } = state;
 
   // Unified data hook
-  const { isTriggeredByUser, hasNothingToView, chatMessages, isFetchingSolution, isAnalyzing } =
-    useResolutionData(state);
+  const {
+    isTriggeredByUser,
+    hasNothingToView,
+    chatMessages,
+    isFetchingSolution,
+    isAnalyzing,
+    llmErrors,
+  } = useResolutionData(state);
+
+  // Track dismissed error IDs
+  const [dismissedErrors, setDismissedErrors] = React.useState<Set<string>>(new Set());
 
   const { messageBoxRef, triggerScrollOnUserAction } = useScrollManagement(
     chatMessages,
@@ -215,6 +236,46 @@ const ResolutionPage: React.FC = () => {
           )}
         </Title>
       </PageSection>
+      {llmErrors.length > 0 && (
+        <PageSection padding={{ default: "noPadding" }}>
+          <AlertGroup isToast>
+            {llmErrors
+              .filter((error: LLMError) => !dismissedErrors.has(error.timestamp))
+              .map((error: LLMError) => (
+                <Alert
+                  key={error.timestamp}
+                  variant="danger"
+                  title={error.message}
+                  actionClose={
+                    <AlertActionCloseButton
+                      onClose={() => {
+                        setDismissedErrors((prev) => new Set([...prev, error.timestamp]));
+                      }}
+                    />
+                  }
+                >
+                  {error.error && (
+                    <details style={{ marginTop: "8px" }}>
+                      <summary style={{ cursor: "pointer" }}>Technical details</summary>
+                      <pre
+                        style={{
+                          fontSize: "12px",
+                          whiteSpace: "pre-wrap",
+                          marginTop: "8px",
+                          padding: "8px",
+                          backgroundColor: "#f5f5f5",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {error.error}
+                      </pre>
+                    </details>
+                  )}
+                </Alert>
+              ))}
+          </AlertGroup>
+        </PageSection>
+      )}
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
           <MessageBox ref={messageBoxRef} style={{ paddingBottom: "2rem" }}>

@@ -78,6 +78,9 @@ export class BatchedAnalysisTrigger {
         return;
       }
       await this.runPartialAnalysis();
+      this.extensionState.mutateData((draft) => {
+        draft.isAnalysisScheduled = false;
+      });
     });
   }
 
@@ -86,12 +89,16 @@ export class BatchedAnalysisTrigger {
       (uri) => !isUriIgnored(uri),
     );
     if (changedFiles.length < 1) {
-      // no changes to analyze - reset the scheduled flag
-      this.extensionState.mutateData((draft) => {
-        draft.isAnalysisScheduled = false;
-      });
+      // no changes to analyze
       return;
     }
+
+    // Set isAnalyzing immediately to prevent button from being enabled
+    this.extensionState.mutateData((draft) => {
+      draft.isAnalyzing = true;
+      draft.isAnalysisScheduled = false;
+    });
+
     try {
       await runPartialAnalysis(this.extensionState, changedFiles);
       for (const file of changedFiles) {
@@ -99,12 +106,31 @@ export class BatchedAnalysisTrigger {
       }
     } catch (error) {
       console.error("error running analysis", error);
-    } finally {
-      // Always reset the scheduled flag after analysis completes or fails
+      // Reset isAnalyzing on error since analyzerClient won't do it
+      this.extensionState.mutateData((draft) => {
+        draft.isAnalyzing = false;
+      });
+    }
+  }
+
+  public cancelScheduledAnalysis() {
+    // Cancel any scheduled analysis
+    this.analysisBackoff.cancel();
+
+    // Clear the queues
+    this.analysisFileChangesQueue.clear();
+    this.notifyFileChangesQueue.clear();
+
+    // Reset the scheduled flag
+    if (this.extensionState.data.isAnalysisScheduled) {
       this.extensionState.mutateData((draft) => {
         draft.isAnalysisScheduled = false;
       });
     }
+  }
+
+  public isScheduledAnalysisRunning(): boolean {
+    return this.analysisBackoff.isRunningCallback();
   }
 
   dispose() {

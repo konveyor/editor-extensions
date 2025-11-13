@@ -373,3 +373,121 @@ export function getLanguageDisplayName(language: string): string {
 
   return displayNames[language] || language.charAt(0).toUpperCase() + language.slice(1);
 }
+
+/**
+ * Map detected language to programming language name for LLM prompts.
+ * Groups related languages/files together (e.g., pom.xml -> Java).
+ */
+export function getProgrammingLanguageForLLM(detectedLanguage: string): string {
+  const languageMap: { [key: string]: string } = {
+    // Java and related files
+    java: "Java",
+    kotlin: "Kotlin",
+    scala: "Scala",
+    groovy: "Groovy",
+
+    // JavaScript/TypeScript
+    javascript: "JavaScript",
+    typescript: "TypeScript",
+
+    // Python
+    python: "Python",
+
+    // C/C++
+    c: "C",
+    cpp: "C++",
+
+    // C#
+    csharp: "C#",
+
+    // Go
+    go: "Go",
+
+    // Rust
+    rust: "Rust",
+
+    // Ruby
+    ruby: "Ruby",
+
+    // PHP
+    php: "PHP",
+
+    // Swift
+    swift: "Swift",
+
+    // Dart
+    dart: "Dart",
+
+    // Other languages
+    lua: "Lua",
+    r: "R",
+    sql: "SQL",
+    shell: "Shell",
+    powershell: "PowerShell",
+    haskell: "Haskell",
+    elm: "Elm",
+    clojure: "Clojure",
+    ocaml: "OCaml",
+    fsharp: "F#",
+  };
+
+  return languageMap[detectedLanguage] || "Java"; // Default to Java for backward compatibility
+}
+
+/**
+ * Detect programming language from file URI for LLM context.
+ * Handles special cases like pom.xml -> Java, package.json -> JavaScript, etc.
+ */
+export function getProgrammingLanguageFromUri(uri: string): string {
+  // Handle both Unix (/) and Windows (\) path separators
+  const filename = uri.split(/[/\\]/).pop() || "";
+  const lowerFilename = filename.toLowerCase();
+
+  // Special case: Java build/config files should map to Java
+  if (
+    lowerFilename === "pom.xml" ||
+    lowerFilename === "build.gradle" ||
+    lowerFilename === "build.gradle.kts" ||
+    lowerFilename.endsWith(".gradle")
+  ) {
+    return "Java";
+  }
+
+  // Special case: JavaScript/TypeScript build/config files
+  if (
+    lowerFilename === "package.json" ||
+    lowerFilename === "tsconfig.json" ||
+    lowerFilename.endsWith(".config.js") ||
+    lowerFilename.endsWith(".config.ts")
+  ) {
+    return "JavaScript";
+  }
+
+  // Special case: Python build/config files
+  if (
+    lowerFilename === "setup.py" ||
+    lowerFilename === "requirements.txt" ||
+    lowerFilename === "pyproject.toml"
+  ) {
+    return "Python";
+  }
+
+  // Special case: Ruby build/config files
+  if (lowerFilename === "gemfile" || lowerFilename === "rakefile" || lowerFilename === "podfile") {
+    return "Ruby";
+  }
+
+  // Special case: Go build/config files
+  if (lowerFilename === "go.mod" || lowerFilename === "go.sum") {
+    return "Go";
+  }
+
+  // Special case: Rust build/config files
+  if (lowerFilename === "cargo.toml" || lowerFilename === "cargo.lock") {
+    return "Rust";
+  }
+
+  // For regular files, detect language from filename and map to LLM language
+  const detectedLanguage = getLanguageFromFilename(filename);
+  return getProgrammingLanguageForLLM(detectedLanguage);
+}

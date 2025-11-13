@@ -3,12 +3,38 @@ import fs from 'fs';
 import { downloadFile } from './download.utils';
 import { extensionId } from './utils';
 
-export function isExtensionInstalled(extension: string) {
-  const installedExtensions = execSync('code --list-extensions', {
-    encoding: 'utf-8',
-  });
+/**
+ * Helper function to get environment variables with NODE_OPTIONS cleared
+ * to avoid ESM loader conflicts with VS Code
+ */
+function getCleanEnv() {
+  return {
+    ...process.env,
+    NODE_OPTIONS: '', // Clear NODE_OPTIONS to avoid ESM loader conflicts
+  };
+}
 
-  return installedExtensions.includes(extension);
+export function isExtensionInstalled(extension: string) {
+  try {
+    const installedExtensions = execSync('code --list-extensions', {
+      encoding: 'utf-8',
+      env: getCleanEnv(),
+    });
+
+    return installedExtensions.includes(extension);
+  } catch (error: any) {
+    // Handle the V8/ESM loader error that occurs in CI environments
+    console.warn(`Failed to list extensions: ${error.message}`);
+
+    // In CI, we can assume the extension is not installed if we can't check
+    if (process.env.CI) {
+      console.log('CI environment detected, assuming extension not installed');
+      return false;
+    }
+
+    // Re-throw in local development to catch actual issues
+    throw error;
+  }
 }
 
 /**
@@ -50,7 +76,10 @@ export async function installExtension(): Promise<void> {
       );
     }
 
-    execSync(`code --install-extension "${coreExtensionPath}" --force`, { stdio: 'inherit' });
+    execSync(`code --install-extension "${coreExtensionPath}" --force`, {
+      stdio: 'inherit',
+      env: getCleanEnv(),
+    });
     console.log('Konveyor core extension installed/updated successfully.');
 
     // Verify core extension is actually installed
@@ -63,6 +92,7 @@ export async function installExtension(): Promise<void> {
       console.log(`Installing Konveyor Java VSIX from ${process.env.JAVA_VSIX_FILE_PATH}`);
       execSync(`code --install-extension "${process.env.JAVA_VSIX_FILE_PATH}" --force`, {
         stdio: 'inherit',
+        env: getCleanEnv(),
       });
       console.log('Java extension installed/updated successfully.');
 
@@ -76,7 +106,10 @@ export async function installExtension(): Promise<void> {
         console.warn('Warning: redhat.java was not automatically installed as a dependency.');
         console.warn('This may indicate an issue with extension dependency resolution.');
         console.warn('Installing redhat.java manually...');
-        execSync('code --install-extension redhat.java --force', { stdio: 'inherit' });
+        execSync('code --install-extension redhat.java --force', {
+          stdio: 'inherit',
+          env: getCleanEnv(),
+        });
       } else {
         console.log('Verified: redhat.java is installed (dependency of konveyor-java).');
       }
