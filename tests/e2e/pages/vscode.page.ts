@@ -4,6 +4,7 @@ import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
+import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
 
 type SortOrder = 'ascending' | 'descending';
@@ -650,7 +651,7 @@ export abstract class VSCode {
     await kebabMenuButton.click();
     await manageProfileView.getByRole('menuitem', { name: actionName }).click();
     await this.waitDefault();
-    if (actionName === 'Delete') {
+    if (actionName === ProfileActions.deleteProfile) {
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
