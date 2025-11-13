@@ -272,7 +272,7 @@ export class AnalyzerClient {
       "-log-file",
       logs,
       "-verbosity",
-      "-4",
+      "-10",
     ];
 
     // Add provider-config if we have providers
