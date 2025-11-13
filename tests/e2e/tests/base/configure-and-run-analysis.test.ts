@@ -52,6 +52,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
 
   test('Disable and enable Generative AI', async () => {
     await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: false }); // disable
+    await vscodeApp.openAnalysisView();
     await vscodeApp.waitDefault();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');
@@ -71,6 +72,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
   });
 
   test('Set list kind and sort (Issues ascending and descending)', async () => {
+    await vscodeApp.openAnalysisView();
     await vscodeApp.setListKindAndSort('issues', 'ascending');
     const namesAscending = await vscodeApp.getListNames('issues');
     expect(isAscending(namesAscending)).toBe(true);

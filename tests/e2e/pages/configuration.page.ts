@@ -1,5 +1,6 @@
 import { VSCode } from './vscode.page';
 import { extensionId } from '../utilities/utils';
+import { VSCodeWeb } from './vscode-web.page';
 
 export class Configuration {
   public constructor(private readonly vsCode: VSCode) {}
@@ -32,5 +33,18 @@ export class Configuration {
   public async setDropdownConfiguration(configuration: string, value: string) {
     const selectLocator = this.vsCode.getWindow().locator(`select[aria-label="${configuration}"]`);
     await selectLocator.selectOption({ value });
+  }
+
+  /**
+   * Sets the value of a configuration input that expects a path.
+   * If VSCode is running in web mode, it first uploads the file
+   * @param configuration
+   * @param path
+   */
+  public async setInputFromLocalPath(configuration: string, path: string) {
+    if (this.vsCode instanceof VSCodeWeb) {
+      await this.vsCode.uploadFile(path);
+    }
+    await this.setInputConfiguration(configuration, path);
   }
 }

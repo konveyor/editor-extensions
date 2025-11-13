@@ -53,6 +53,7 @@ export const GOOGLE_GEMINI_PROVIDER: ProviderConfig = {
   provider: LLMProviders.google,
   model: 'gemini-2.5-pro',
   config: [
+    '---',
     'models:',
     '  GoogleGenAI: &active',
     '    provider: "ChatGoogleGenerativeAI"',

@@ -283,7 +283,7 @@ export class VSCodeWeb extends VSCode {
     ).toBeVisible({ timeout: 300_000 });
   }
 
-  private async uploadFile(filePath: string) {
+  public async uploadFile(filePath: string) {
     await this.openLeftBarElement('Explorer');
 
     await this.window.locator('.explorer-folders-view').click({ button: 'right' });
