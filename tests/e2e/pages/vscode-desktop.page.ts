@@ -169,7 +169,7 @@ export class VSCodeDesktop extends VSCode {
       // This is a persistent status bar item, so we can just wait for it to appear
       console.log('Waiting for Java extension initialization signal...');
 
-      const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__');
+      const javaInitStatusBar = this.window.getByText('__EXTENSION_INITIALIZED__');
       await expect(javaInitStatusBar).toBeVisible({ timeout: 300_000 }); // 5 minute timeout
 
       console.log('Konveyor extensions initialized successfully');
