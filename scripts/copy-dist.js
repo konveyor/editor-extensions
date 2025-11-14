@@ -9,10 +9,12 @@ cwdToProjectRoot();
 const corePackage = JSON.parse(fs.readFileSync("vscode/core/package.json", "utf8"));
 const javaPackage = JSON.parse(fs.readFileSync("vscode/java/package.json", "utf8"));
 const jsPackage = JSON.parse(fs.readFileSync("vscode/javascript/package.json", "utf8"));
+const goPackage = JSON.parse(fs.readFileSync("vscode/go/package.json", "utf8"));
 
 const CORE_EXTENSION_NAME = corePackage.name; // e.g., "konveyor" or "migration-toolkit-runtimes"
 const JAVA_EXTENSION_NAME = javaPackage.name; // e.g., "konveyor-java" or "migration-toolkit-runtimes-java"
 const JS_EXTENSION_NAME = jsPackage.name; // e.g., "konveyor-javascript" or "migration-toolkit-runtimes-javascript"
+const GO_EXTENSION_NAME = goPackage.name; // e.g., "konveyor-go" or "migration-toolkit-runtimes-go"
 
 console.log(`Building dist for ${CORE_EXTENSION_NAME} (core) extension...`);
 
@@ -235,7 +237,69 @@ await copy({
   ],
 });
 
+console.log(`Building dist for ${GO_EXTENSION_NAME} extension...`);
+
+// Copy files to `dist/{go-extension-name}/`
+await copy({
+  verbose: true,
+  targets: [
+    {
+      src: "vscode/go/package.json",
+      dest: `dist/${GO_EXTENSION_NAME}/`,
+      transform: (contents) => {
+        const packageJson = JSON.parse(contents.toString());
+
+        packageJson.dependencies = undefined;
+        packageJson.devDependencies = undefined;
+        packageJson["lint-staged"] = undefined;
+
+        // Fix icon path from resources/icon.png to resources/icon.png (already correct)
+        if (packageJson.icon && packageJson.icon.startsWith("../")) {
+          packageJson.icon = packageJson.icon.replace("../", "");
+        }
+
+        packageJson.includedAssetPaths = {
+          genericExternalProvider: "./assets/generic-external-provider",
+          golangDependencyProvider: "./assets/golang-dependency-provider",
+        };
+
+        return JSON.stringify(packageJson, null, 2);
+      },
+    },
+
+    // files from vscode/go build
+    {
+      context: "vscode/go",
+      src: [
+        ".vscodeignore",
+        "LICENSE.md",
+        "README.md",
+        "out/**/*",
+        "!out/test",
+        "!out/**/*.test{.js,.ts,.d.ts}",
+        "resources/**/*",
+      ],
+      dest: `dist/${GO_EXTENSION_NAME}/`,
+    },
+
+    // seed assets - generic-external-provider binaries
+    {
+      context: "downloaded_assets/generic-external-provider",
+      src: ["*/generic-external-provider*"],
+      dest: `dist/${GO_EXTENSION_NAME}/assets/generic-external-provider`,
+    },
+
+    // seed assets - golang-dependency-provider binaries
+    {
+      context: "downloaded_assets/golang-dependency-provider",
+      src: ["*/golang-dependency-provider*"],
+      dest: `dist/${GO_EXTENSION_NAME}/assets/golang-dependency-provider`,
+    },
+  ],
+});
+
 console.log("\nAll extensions built successfully!");
 console.log(`  - dist/${CORE_EXTENSION_NAME}/`);
 console.log(`  - dist/${JAVA_EXTENSION_NAME}/`);
 console.log(`  - dist/${JS_EXTENSION_NAME}/`);
+console.log(`  - dist/${GO_EXTENSION_NAME}/`);

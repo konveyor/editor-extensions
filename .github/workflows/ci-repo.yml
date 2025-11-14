@@ -201,6 +201,9 @@ jobs:
       - name: Package JavaScript extension
         run: npm run package-javascript
 
+      - name: Package Go extension
+        run: npm run package-go
+
       - name: Upload VSIX artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -228,6 +231,11 @@ jobs:
         with:
           distribution: "oracle"
           java-version: "17"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
 
       - name: Download and Install VSCode
         run: |
@@ -294,11 +302,13 @@ jobs:
           CORE_NAME=$(node -p "require('./vscode/core/package.json').name")
           JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
           JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
+          GO_NAME=$(node -p "require('./vscode/go/package.json').name")
 
           # Find the actual VSIX files using glob patterns
           CORE_VSIX=$(ls ./dist/${CORE_NAME}-*.vsix | head -n 1)
           JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
           JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
+          GO_VSIX=$(ls ./dist/${GO_NAME}-*.vsix | head -n 1)
 
           # Verify files exist
           if [ ! -f "$CORE_VSIX" ]; then
@@ -316,16 +326,23 @@ jobs:
             ls -la ./dist/
             exit 1
           fi
+          if [ ! -f "$GO_VSIX" ]; then
+            echo "Error: Go VSIX not found for ${GO_NAME}"
+            ls -la ./dist/
+            exit 1
+          fi
 
           # Output to GitHub Actions
           echo "core_vsix=${CORE_VSIX}" >> $GITHUB_OUTPUT
           echo "java_vsix=${JAVA_VSIX}" >> $GITHUB_OUTPUT
           echo "javascript_vsix=${JS_VSIX}" >> $GITHUB_OUTPUT
+          echo "go_vsix=${GO_VSIX}" >> $GITHUB_OUTPUT
 
           echo "VSIX files found:"
           echo "  Core: ${CORE_VSIX}"
           echo "  Java: ${JAVA_VSIX}"
           echo "  JavaScript: ${JS_VSIX}"
+          echo "  Go: ${GO_VSIX}"
 
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
@@ -408,10 +425,10 @@ jobs:
 
       - name: Cleanup old development builds
         run: |
-          # Keep last 21 assets (7 builds x 3 extensions)
+          # Keep last 28 assets (7 builds x 4 extensions)
           c=1
           for i in $(gh release view -R ${{ github.repository }} development-builds --json assets | jq -r .assets[].name | sort -r); do
-            if [ "$c" -gt 21 ]; then
+            if [ "$c" -gt 28 ]; then
               gh release delete-asset -y -R ${{ github.repository }} development-builds $i
             fi
             c=$((c+1))

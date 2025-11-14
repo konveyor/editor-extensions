@@ -9,6 +9,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/core",
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/java",
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/javascript",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/go",
         "--enable-proposed-api=konveyor.konveyor-ai",
         "--verbose"
       ],
@@ -17,6 +18,7 @@
         "${workspaceFolder}/vscode/core/out/**/*.js",
         "${workspaceFolder}/vscode/java/out/**/*.js",
         "${workspaceFolder}/vscode/javascript/out/**/*.js",
+        "${workspaceFolder}/vscode/go/out/**/*.js",
         "${workspaceFolder}/agentic/dist/**/*.js",
         "${workspaceFolder}/shared/dist/**/*.js"
       ],
@@ -24,6 +26,8 @@
       "resolveSourceMapLocations": [
         "${workspaceFolder}/vscode/core/out/**",
         "${workspaceFolder}/vscode/java/out/**",
+        "${workspaceFolder}/vscode/javascript/out/**",
+        "${workspaceFolder}/vscode/go/out/**",
         "${workspaceFolder}/agentic/dist/**",
         "${workspaceFolder}/shared/dist/**",
         "!**/node_modules/**"

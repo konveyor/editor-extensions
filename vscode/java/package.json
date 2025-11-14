@@ -32,7 +32,6 @@
     "redhat.java"
   ],
   "activationEvents": [
-    "onStartupFinished",
     "onLanguage:java"
   ],
   "contributes": {
