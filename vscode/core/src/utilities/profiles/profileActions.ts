@@ -37,7 +37,7 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
   );
   await saveUserProfiles(state.extensionContext, userProfiles);
 
-  state.mutateData((draft) => {
+  state.mutateProfiles((draft) => {
     const target = draft.profiles.find((p) => p.id === updated.id);
     if (target) {
       Object.assign(target, updated);

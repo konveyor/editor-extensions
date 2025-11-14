@@ -10,10 +10,11 @@ export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: Rule
 
   enhancedIncidents = await state.solutionServerClient.getSuccessRate(enhancedIncidents);
 
-  state.mutateData((draft) => {
+  state.mutateAnalysisState((draft) => {
     draft.ruleSets = receivedRuleSets;
     draft.enhancedIncidents = enhancedIncidents;
   });
+
   const diagnosticTuples = processIncidents(enhancedIncidents);
   state.diagnosticCollection.clear();
   state.diagnosticCollection.set(diagnosticTuples);
@@ -21,7 +22,7 @@ export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: Rule
 
 export const cleanRuleSets = (state: ExtensionState) => {
   state.diagnosticCollection.clear();
-  state.mutateData((draft) => {
+  state.mutateAnalysisState((draft) => {
     draft.ruleSets = [];
   });
 };

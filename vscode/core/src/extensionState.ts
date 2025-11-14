@@ -16,6 +16,7 @@ import winston from "winston";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { BatchedAnalysisTrigger } from "./analysis/batchedAnalysisTrigger";
+import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
@@ -25,7 +26,14 @@ export interface ExtensionState {
   diagnosticCollection: vscode.DiagnosticCollection;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
-  mutateData: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateChatMessages: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateAnalysisState: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateSolutionWorkflow: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateServerState: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateProfiles: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateConfigErrors: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateDecorators: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutateSettings: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
   profiles?: AnalysisProfile[];
   activeProfileId?: string;
   kaiFsCache: InMemoryCacheWithRevisions<string, string>;
@@ -52,4 +60,6 @@ export interface ExtensionState {
   verticalDiffManager?: VerticalDiffManager;
   staticDiffAdapter?: StaticDiffAdapter;
   batchedAnalysisTrigger?: BatchedAnalysisTrigger;
+  currentQueueManager?: MessageQueueManager;
+  pendingInteractionsMap?: Map<string, (response: any) => void>;
 }
