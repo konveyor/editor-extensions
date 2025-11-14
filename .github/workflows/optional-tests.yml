@@ -1,0 +1,80 @@
+name: Optional Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches:
+      - main
+      - "release-*"
+
+concurrency:
+  group: optional-tests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# https://typicode.github.io/husky/how-to.html#ci-server-and-docker
+env:
+  HUSKY: 0
+
+jobs:
+  test-custom-binary:
+    name: Test E2E - Custom Binary
+    runs-on: ubuntu-latest
+    # Only run on PRs with the test/custom-binary label
+    if: contains(github.event.pull_request.labels.*.name, 'test/custom-binary')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Collect runtime assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run collect-assets -- --use-workflow-artifacts --branch=main
+
+      - name: Set version for build
+        run: |
+          CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          VERSION="${CURRENT_VERSION}-dev.${TIMESTAMP}.${SHA}"
+          echo "Setting development version: $VERSION"
+          npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
+
+      - name: Build dist
+        run: npm run dist
+
+      - name: Package core extension
+        run: npm run package-core
+
+      - name: Package Java extension
+        run: npm run package-java
+
+      - name: Setup E2E environment
+        id: setup
+        uses: ./.github/actions/setup-e2e
+
+      - name: Run custom binary e2e test (Linux)
+        run: npx playwright test e2e/tests/base/custom-binary-analysis.test.ts
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.setup.outputs.core-vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.setup.outputs.java-vsix }}
+
+      - name: Collect and upload test artifacts
+        if: always()
+        uses: ./.github/actions/collect-e2e-artifacts
+        with:
+          artifact-name: e2e-custom-binary-test-artifacts

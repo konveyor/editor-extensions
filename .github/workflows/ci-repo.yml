@@ -215,117 +215,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install vscode dependencies
-        run: sudo apt-get update && sudo apt-get install -y wget
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: "oracle"
-          java-version: "17"
-
-      - name: Download and Install VSCode
-        run: |
-          wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-          sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
-          echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" |sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
-          rm -f packages.microsoft.gpg
-          sudo apt install apt-transport-https -y
-          sudo apt update
-          sudo apt install code -y
-
-      - name: Set up virtual X11
-        run: |
-          sudo apt-get install -y \
-            xvfb \
-            x11-xserver-utils \
-            dbus-x11 \
-            xfonts-100dpi \
-            xfonts-75dpi \
-            libxrender1 \
-            libxext6 \
-            libx11-6 \
-            xfonts-base \
-            nickle cairo-5c \
-            xorg-docs-core
-
-      - name: Set DISPLAY environment variable
-        run: |
-          Xvfb :99 -screen 0 1920x1080x24 &
-          echo "DISPLAY=:99" >> "$GITHUB_ENV"
-
-      - name: Start Dbus
-        run: |
-          dbus-launch --exit-with-session &
-          sudo service dbus start
-          export XDG_RUNTIME_DIR=/run/user/$(id -u)
-          sudo chmod 700 $XDG_RUNTIME_DIR
-          sudo chown $(id -un):$(id -gn) $XDG_RUNTIME_DIR
-          export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
-          dbus-daemon --session --address=$DBUS_SESSION_BUS_ADDRESS --nofork --nopidfile --syslog-only &
-          mkdir ~/.vscode && echo '{ "disable-hardware-acceleration": true }' > ~/.vscode/argv.json
-
-      - name: Verify Installation
-        run: code --version
-
-      - name: Ensure no VSCode instances are running
-        run: |
-          pkill -f code || true
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: ./tests
-
-      - name: Download VSIX artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: vsix-artifacts
-          path: ./dist
-
-      - name: Set VSIX paths
-        id: set_vsix_paths
-        run: |
-          # Read extension names from package.json files
-          CORE_NAME=$(node -p "require('./vscode/core/package.json').name")
-          JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
-          JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
-
-          # Find the actual VSIX files using glob patterns
-          CORE_VSIX=$(ls ./dist/${CORE_NAME}-*.vsix | head -n 1)
-          JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
-          JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
-
-          # Verify files exist
-          if [ ! -f "$CORE_VSIX" ]; then
-            echo "Error: Core VSIX not found for ${CORE_NAME}"
-            ls -la ./dist/
-            exit 1
-          fi
-          if [ ! -f "$JAVA_VSIX" ]; then
-            echo "Error: Java VSIX not found for ${JAVA_NAME}"
-            ls -la ./dist/
-            exit 1
-          fi
-          if [ ! -f "$JS_VSIX" ]; then
-            echo "Error: JavaScript VSIX not found for ${JS_NAME}"
-            ls -la ./dist/
-            exit 1
-          fi
-
-          # Output to GitHub Actions
-          echo "core_vsix=${CORE_VSIX}" >> $GITHUB_OUTPUT
-          echo "java_vsix=${JAVA_VSIX}" >> $GITHUB_OUTPUT
-          echo "javascript_vsix=${JS_VSIX}" >> $GITHUB_OUTPUT
-
-          echo "VSIX files found:"
-          echo "  Core: ${CORE_VSIX}"
-          echo "  Java: ${JAVA_VSIX}"
-          echo "  JavaScript: ${JS_VSIX}"
+      - name: Setup E2E environment
+        id: setup
+        uses: ./.github/actions/setup-e2e
 
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
@@ -333,8 +225,8 @@ jobs:
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.core_vsix }}
-          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.java_vsix }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.setup.outputs.core-vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.setup.outputs.java-vsix }}
 
       # This is intentionally kept in a separate step to avoid passing in credentials
       - name: Run e2e tests (Linux - Offline)
@@ -342,42 +234,15 @@ jobs:
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
-          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.core_vsix }}
-          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.set_vsix_paths.outputs.java_vsix }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.setup.outputs.core-vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ steps.setup.outputs.java-vsix }}
           OPENAI_API_KEY: <dummy> # this only exists to pass provider validation
 
-      - name: Collect test artifacts
+      - name: Collect and upload test artifacts
         if: always()
-        run: |
-          mkdir -p test-artifacts
-          if [ -d "test-data-dir" ]; then
-            cp -r test-data-dir test-artifacts/
-          fi
-          if [ -d "test-output" ]; then
-            cp -r test-output test-artifacts/
-          fi
-
-          # Collect extension logs from VSCode's log directory
-          if [ -d "test-data-dir/logs" ]; then
-            echo "Collecting extension logs..."
-            mkdir -p test-artifacts/extension-logs
-            cp -r test-data-dir/logs/* test-artifacts/extension-logs/
-
-            # List log files for debugging
-            echo "Extension log files found:"
-            find test-artifacts/extension-logs -type f -name "*.log" -ls || echo "No .log files found"
-          else
-            echo "Warning: test-data-dir/logs directory not found"
-          fi
-        working-directory: ./tests
-
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/collect-e2e-artifacts
         with:
-          name: e2e-test-artifacts
-          path: tests/test-artifacts/
-          retention-days: 7
+          artifact-name: e2e-test-artifacts
 
   publish:
     name: Publish Development Build
