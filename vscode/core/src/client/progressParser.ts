@@ -19,6 +19,7 @@ export type ProgressEvent = {
 };
 
 export type ProgressCallback = (event: ProgressEvent) => void;
+export type NonProgressLineCallback = (line: string) => void;
 
 /**
  * Parses NDJSON progress events from kai-analyzer-rpc stderr
@@ -26,9 +27,11 @@ export type ProgressCallback = (event: ProgressEvent) => void;
 export class ProgressParser {
   private buffer: string = "";
   private callback: ProgressCallback;
+  private nonProgressLineCallback?: NonProgressLineCallback;
 
-  constructor(callback: ProgressCallback) {
+  constructor(callback: ProgressCallback, nonProgressLineCallback?: NonProgressLineCallback) {
     this.callback = callback;
+    this.nonProgressLineCallback = nonProgressLineCallback;
   }
 
   /**
@@ -55,10 +58,17 @@ export class ProgressParser {
       const obj = JSON.parse(line);
       if (this.isProgressEvent(obj)) {
         this.callback(obj);
+      } else {
+        // Valid JSON but not a progress event, pass to non-progress callback if provided
+        if (this.nonProgressLineCallback) {
+          this.nonProgressLineCallback(line);
+        }
       }
     } catch (err) {
-      // Not a JSON line or not a progress event, ignore silently
-      // (stderr may contain other logs)
+      // Not valid JSON, pass to non-progress callback if provided
+      if (this.nonProgressLineCallback) {
+        this.nonProgressLineCallback(line);
+      }
     }
   }
 

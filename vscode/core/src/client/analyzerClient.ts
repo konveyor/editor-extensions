@@ -299,19 +299,21 @@ export class AnalyzerClient {
     });
 
     // Set up progress parser that uses current progress callback
-    const progressParser = new ProgressParser((event) => {
-      if (this.currentProgressCallback) {
-        this.currentProgressCallback(event);
-      }
-    });
+    const progressParser = new ProgressParser(
+      (event) => {
+        if (this.currentProgressCallback) {
+          this.currentProgressCallback(event);
+        }
+      },
+      (line) => {
+        // Only log non-progress lines (non-JSON progress events)
+        this.logger.error(line);
+      },
+    );
 
     analyzerRpcServer.stderr.on("data", (data) => {
-      // Feed to progress parser
+      // Feed to progress parser which will handle both progress events and logging
       progressParser.feed(data);
-
-      // Also log to logger (non-progress messages will still be logged)
-      const asString: string = data.toString().trimEnd();
-      this.logger.error(`${asString}`);
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
