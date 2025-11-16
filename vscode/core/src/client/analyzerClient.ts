@@ -61,6 +61,11 @@ export class AnalyzerClient {
   private fireAnalysisStateChange(flag: boolean) {
     this.mutateExtensionData((draft) => {
       draft.isAnalyzing = flag;
+      // Reset progress when analysis completes
+      if (!flag) {
+        draft.analysisProgress = 0;
+        draft.analysisProgressMessage = "";
+      }
     });
   }
 
@@ -399,34 +404,73 @@ export class AnalyzerClient {
           progress.report({ message: "Initializing..." });
           this.fireAnalysisStateChange(true);
 
-          // Set up progress callback to update VS Code UI
+          // Set up progress callback to update VS Code UI and webview
           this.currentProgressCallback = (event: ProgressEvent) => {
-            let message = "";
+            let notificationMessage = "";
+            let webviewMessage = "";
+            let progressPercent = 0;
+
             switch (event.stage) {
               case "init":
-                message = "Initializing analysis...";
+                notificationMessage = "Initializing analysis...";
+                webviewMessage = notificationMessage;
+                progressPercent = 0;
                 break;
               case "provider_init":
-                message = event.message ? `Provider: ${event.message}` : "Initializing providers...";
+                notificationMessage = event.message
+                  ? `Provider: ${event.message}`
+                  : "Initializing providers...";
+                webviewMessage = notificationMessage;
+                progressPercent = 10;
                 break;
               case "rule_parsing":
-                message = event.total ? `Loaded ${event.total} rules` : "Loading rules...";
+                notificationMessage = event.total
+                  ? `Loaded ${event.total} rules`
+                  : "Loading rules...";
+                webviewMessage = notificationMessage;
+                progressPercent = 20;
                 break;
               case "rule_execution":
                 if (event.total && event.current) {
-                  const percent = event.percent || (event.current / event.total) * 100;
-                  message = `Processing rules: ${event.current}/${event.total} (${percent.toFixed(1)}%)`;
+                  const rulePercent = event.percent || (event.current / event.total) * 100;
+                  // Map rule execution progress from 20% to 90%
+                  progressPercent = 20 + rulePercent * 0.7;
+
+                  // Abbreviated message for notification
+                  notificationMessage = `Processing rule ${event.current}/${event.total}`;
+
+                  // Detailed message with rule ID for webview
+                  const ruleId = event.message || event.metadata?.rule_id || event.metadata?.ruleId;
+                  if (ruleId) {
+                    webviewMessage = `Processing rule ${event.current}/${event.total}: ${ruleId}`;
+                  } else {
+                    webviewMessage = notificationMessage;
+                  }
                 } else {
-                  message = "Processing rules...";
+                  notificationMessage = "Processing rules...";
+                  webviewMessage = notificationMessage;
+                  progressPercent = 20;
                 }
                 break;
               case "complete":
-                message = "Analysis complete!";
+                notificationMessage = "Analysis complete!";
+                webviewMessage = notificationMessage;
+                progressPercent = 100;
                 break;
               default:
-                message = `Analysis in progress (${event.stage})...`;
+                notificationMessage = `Analysis in progress (${event.stage})...`;
+                webviewMessage = notificationMessage;
+                progressPercent = 50;
             }
-            progress.report({ message });
+
+            // Update VS Code progress notification with abbreviated message
+            progress.report({ message: notificationMessage });
+
+            // Update extension state for webview with detailed message
+            this.mutateExtensionData((draft) => {
+              draft.analysisProgress = Math.round(progressPercent);
+              draft.analysisProgressMessage = webviewMessage;
+            });
           };
           const activeProfile = this.getExtStateData().profiles.find(
             (p) => p.id === this.getExtStateData().activeProfileId,
