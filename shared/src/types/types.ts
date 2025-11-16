@@ -116,6 +116,8 @@ export interface ExtensionData {
   ruleSets: RuleSet[];
   enhancedIncidents: EnhancedIncident[];
   isAnalyzing: boolean;
+  analysisProgress?: number;
+  analysisProgressMessage?: string;
   isFetchingSolution: boolean;
   isStartingServer: boolean;
   isInitializingServer: boolean;
