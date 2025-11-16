@@ -18,6 +18,7 @@ import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
+import { ProgressParser, ProgressEvent } from "./progressParser";
 import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
@@ -30,6 +31,7 @@ export class AnalyzerClient {
   private assetPaths: AssetPaths;
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
   private analyzerRpcConnection?: rpc.MessageConnection | null;
+  private currentProgressCallback?: (event: ProgressEvent) => void;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -273,6 +275,10 @@ export class AnalyzerClient {
       logs,
       "-verbosity",
       "-4",
+      "-progress-output",
+      "stderr",
+      "-progress-format",
+      "json",
     ];
 
     // Add provider-config if we have providers
@@ -287,7 +293,18 @@ export class AnalyzerClient {
       env: serverEnv,
     });
 
+    // Set up progress parser that uses current progress callback
+    const progressParser = new ProgressParser((event) => {
+      if (this.currentProgressCallback) {
+        this.currentProgressCallback(event);
+      }
+    });
+
     analyzerRpcServer.stderr.on("data", (data) => {
+      // Feed to progress parser
+      progressParser.feed(data);
+
+      // Also log to logger (non-progress messages will still be logged)
       const asString: string = data.toString().trimEnd();
       this.logger.error(`${asString}`);
     });
@@ -379,8 +396,38 @@ export class AnalyzerClient {
       },
       async (progress, token) => {
         try {
-          progress.report({ message: "Running..." });
+          progress.report({ message: "Initializing..." });
           this.fireAnalysisStateChange(true);
+
+          // Set up progress callback to update VS Code UI
+          this.currentProgressCallback = (event: ProgressEvent) => {
+            let message = "";
+            switch (event.stage) {
+              case "init":
+                message = "Initializing analysis...";
+                break;
+              case "provider_init":
+                message = event.message ? `Provider: ${event.message}` : "Initializing providers...";
+                break;
+              case "rule_parsing":
+                message = event.total ? `Loaded ${event.total} rules` : "Loading rules...";
+                break;
+              case "rule_execution":
+                if (event.total && event.current) {
+                  const percent = event.percent || (event.current / event.total) * 100;
+                  message = `Processing rules: ${event.current}/${event.total} (${percent.toFixed(1)}%)`;
+                } else {
+                  message = "Processing rules...";
+                }
+                break;
+              case "complete":
+                message = "Analysis complete!";
+                break;
+              default:
+                message = `Analysis in progress (${event.stage})...`;
+            }
+            progress.report({ message });
+          };
           const activeProfile = this.getExtStateData().profiles.find(
             (p) => p.id === this.getExtStateData().activeProfileId,
           );
@@ -504,6 +551,9 @@ export class AnalyzerClient {
             success: false,
             error: err instanceof Error ? err.message : String(err),
           });
+        } finally {
+          // Clear progress callback
+          this.currentProgressCallback = undefined;
         }
         this.fireAnalysisStateChange(false);
       },
