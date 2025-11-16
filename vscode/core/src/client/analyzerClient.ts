@@ -407,6 +407,9 @@ export class AnalyzerClient {
           this.fireAnalysisStateChange(true);
 
           // Set up progress callback to update VS Code UI and webview
+          // The callback handles progress events and updates two separate UIs:
+          // - notificationMessage: Abbreviated message for VS Code notification (lower right)
+          // - webviewMessage: Detailed message for the Analysis View webview
           this.currentProgressCallback = (event: ProgressEvent) => {
             let notificationMessage = "";
             let webviewMessage = "";
@@ -442,6 +445,9 @@ export class AnalyzerClient {
                   notificationMessage = `Processing rule ${event.current}/${event.total}`;
 
                   // Detailed message with rule ID for webview
+                  // Note: event.message contains different data depending on stage:
+                  // - provider_init: provider name
+                  // - rule_execution: rule ID (when available)
                   const ruleId = event.message || event.metadata?.rule_id || event.metadata?.ruleId;
                   if (ruleId) {
                     webviewMessage = `Processing rule ${event.current}/${event.total}: ${ruleId}`;

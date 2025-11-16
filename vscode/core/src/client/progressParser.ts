@@ -18,17 +18,36 @@ export type ProgressEvent = {
   metadata?: Record<string, any>;
 };
 
+/**
+ * Callback function invoked when a valid progress event is parsed
+ */
 export type ProgressCallback = (event: ProgressEvent) => void;
+
+/**
+ * Callback function invoked for non-JSON stderr lines (typically error messages)
+ * that should be logged separately from progress events
+ */
 export type NonProgressLineCallback = (line: string) => void;
 
 /**
  * Parses NDJSON progress events from kai-analyzer-rpc stderr
+ *
+ * The parser processes stderr output and:
+ * - Extracts valid progress events and passes them to the progress callback
+ * - Filters out non-progress JSON to prevent output clutter
+ * - Forwards non-JSON lines (actual error messages) to the optional logging callback
  */
 export class ProgressParser {
   private buffer: string = "";
   private callback: ProgressCallback;
   private nonProgressLineCallback?: NonProgressLineCallback;
 
+  /**
+   * Creates a new ProgressParser
+   *
+   * @param callback - Function to call when a valid progress event is parsed
+   * @param nonProgressLineCallback - Optional function to call for non-JSON stderr lines (error messages)
+   */
   constructor(callback: ProgressCallback, nonProgressLineCallback?: NonProgressLineCallback) {
     this.callback = callback;
     this.nonProgressLineCallback = nonProgressLineCallback;
@@ -53,13 +72,23 @@ export class ProgressParser {
     }
   }
 
+  /**
+   * Parses a single line from stderr
+   *
+   * The line is processed as follows:
+   * 1. If it's valid JSON and a progress event → invoke progress callback
+   * 2. If it's valid JSON but not a progress event → skip (prevents garbled output)
+   * 3. If it's not valid JSON → invoke non-progress callback (actual error message)
+   *
+   * @param line - A single line from stderr to parse
+   */
   private parseLine(line: string): void {
     try {
       const obj = JSON.parse(line);
       if (this.isProgressEvent(obj)) {
         this.callback(obj);
       }
-      // Skip other JSON - don't log it to prevent clutter
+      // Skip other JSON - don't log it to prevent clutter in OUTPUT panel
     } catch (err) {
       // Not valid JSON - this is likely an actual error message, so log it
       if (this.nonProgressLineCallback) {
