@@ -79,6 +79,8 @@ class VsCodeExtension {
         ruleSets: [],
         enhancedIncidents: [],
         isAnalyzing: false,
+        analysisProgress: 0,
+        analysisProgressMessage: "",
         isFetchingSolution: false,
         isStartingServer: false,
         isInitializingServer: false,
