@@ -58,14 +58,10 @@ export class ProgressParser {
       const obj = JSON.parse(line);
       if (this.isProgressEvent(obj)) {
         this.callback(obj);
-      } else {
-        // Valid JSON but not a progress event, pass to non-progress callback if provided
-        if (this.nonProgressLineCallback) {
-          this.nonProgressLineCallback(line);
-        }
       }
+      // Skip other JSON - don't log it to prevent clutter
     } catch (err) {
-      // Not valid JSON, pass to non-progress callback if provided
+      // Not valid JSON - this is likely an actual error message, so log it
       if (this.nonProgressLineCallback) {
         this.nonProgressLineCallback(line);
       }
