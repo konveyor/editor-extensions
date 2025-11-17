@@ -18,7 +18,45 @@ async function updateConfigValue<T>(
   value: T | undefined,
   scope: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Workspace,
 ): Promise<void> {
-  await vscode.workspace.getConfiguration(EXTENSION_NAME).update(key, value, scope);
+  try {
+    await vscode.workspace.getConfiguration(EXTENSION_NAME).update(key, value, scope);
+  } catch (error) {
+    // Log the error for debugging
+    console.error(`Failed to update configuration key "${key}":`, error);
+
+    let errorMessage = `Failed to update setting "${key}": `;
+
+    if (error instanceof Error) {
+      if (error.message.includes("Unable to write")) {
+        errorMessage += "Your settings.json may contain syntax errors.";
+      } else {
+        errorMessage += error.message;
+      }
+    } else {
+      errorMessage += String(error);
+    }
+
+    // Show error notification with option to open settings
+    vscode.window.showErrorMessage(errorMessage, "Open Settings").then(async (action) => {
+      if (action === "Open Settings") {
+        await vscode.commands.executeCommand("workbench.action.openWorkspaceSettingsFile");
+        // Show helpful tip about fixing JSON errors
+        vscode.window
+          .showInformationMessage(
+            'Tip: Use "Format Document" (Shift+Alt+F) to help identify JSON syntax errors.',
+            "Format Now",
+          )
+          .then((formatAction) => {
+            if (formatAction === "Format Now") {
+              vscode.commands.executeCommand("editor.action.formatDocument");
+            }
+          });
+      }
+    });
+
+    // Re-throw the error so callers can handle it if needed
+    throw error;
+  }
 }
 
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
