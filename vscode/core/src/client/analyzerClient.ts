@@ -437,7 +437,10 @@ export class AnalyzerClient {
                 break;
               case "rule_execution":
                 if (event.total && event.current) {
-                  const rulePercent = event.percent || (event.current / event.total) * 100;
+                  const rulePercent = Math.min(
+                    100,
+                    Math.max(0, event.percent || (event.current / event.total) * 100),
+                  );
                   // Map rule execution progress from 20% to 90%
                   progressPercent = 20 + rulePercent * 0.7;
 
@@ -460,6 +463,11 @@ export class AnalyzerClient {
                   progressPercent = 20;
                 }
                 break;
+              case "dependency_analysis":
+                notificationMessage = "Analyzing dependencies...";
+                webviewMessage = notificationMessage;
+                progressPercent = 90;
+                break;
               case "complete":
                 notificationMessage = "Analysis complete!";
                 webviewMessage = notificationMessage;
@@ -476,7 +484,7 @@ export class AnalyzerClient {
 
             // Update extension state for webview with detailed message
             this.mutateExtensionData((draft) => {
-              draft.analysisProgress = Math.round(progressPercent);
+              draft.analysisProgress = Math.min(100, Math.max(0, Math.round(progressPercent)));
               draft.analysisProgressMessage = webviewMessage;
             });
           };
