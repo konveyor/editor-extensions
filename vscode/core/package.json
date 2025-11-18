@@ -357,32 +357,32 @@
           "scope": "window",
           "order": 26
         },
-        "konveyor.solutionServer": {
+        "konveyor.hub": {
           "type": "object",
-          "description": "Configuration for the MCP solution server. Set 'enabled: true' to enable, 'url' for server endpoint, and configure 'auth' object with 'enabled: true', 'realm' (default: tackle), and 'insecure: true' to skip SSL verification if needed.",
+          "description": "Configuration for Konveyor Hub connectivity. The Hub provides centralized profile management and AI solution server features.",
           "scope": "window",
           "order": 30,
           "properties": {
             "enabled": {
               "type": "boolean",
               "default": false,
-              "description": "Enable the MCP solution server client"
+              "description": "Enable connection to Konveyor Hub"
             },
             "url": {
               "type": "string",
-              "default": "http://localhost:8000",
+              "default": "http://localhost:8080",
               "pattern": "^https?://.*",
               "patternErrorMessage": "The URL must start with http:// or https://",
-              "description": "URL for the MCP solution server endpoint"
+              "description": "Konveyor Hub base URL"
             },
             "auth": {
               "type": "object",
-              "description": "Authentication settings for the solution server",
+              "description": "Authentication settings for the Hub",
               "properties": {
                 "enabled": {
                   "type": "boolean",
                   "default": false,
-                  "description": "Enable authentication for the solution server"
+                  "description": "Enable authentication for the Hub"
                 },
                 "realm": {
                   "type": "string",
@@ -392,7 +392,35 @@
                 "insecure": {
                   "type": "boolean",
                   "default": false,
-                  "description": "Skip SSL certificate verification for the solution server"
+                  "description": "Skip SSL certificate verification for the Hub"
+                }
+              }
+            },
+            "features": {
+              "type": "object",
+              "description": "Hub feature toggles",
+              "properties": {
+                "solutionServer": {
+                  "type": "object",
+                  "description": "AI solution server (MCP) for incident hints and solution tracking",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "default": true,
+                      "description": "Enable solution server features"
+                    }
+                  }
+                },
+                "profileSync": {
+                  "type": "object",
+                  "description": "Automatic synchronization of analyzer profiles from Hub",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "Enable profile synchronization"
+                    }
+                  }
                 }
               }
             }

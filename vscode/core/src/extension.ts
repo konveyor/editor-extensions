@@ -25,9 +25,7 @@ import { ExtensionPaths, ensurePaths, paths, ensureKaiAnalyzerBinary } from "./p
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
-  getConfigSolutionServer,
-  getConfigSolutionServerEnabled,
-  getConfigSolutionServerAuth,
+  getConfigHub,
   getConfigAgentMode,
   getCacheDir,
   getTraceDir,
@@ -69,7 +67,7 @@ class VsCodeExtension {
     logger: winston.Logger,
     private readonly providerRegistry: ProviderRegistry,
   ) {
-    const solutionServerConfig = getConfigSolutionServer();
+    const solutionServerConfig = getConfigHub();
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
@@ -98,6 +96,7 @@ class VsCodeExtension {
         activeDecorators: {},
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
+        hubConfig: solutionServerConfig,
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -232,22 +231,19 @@ class VsCodeExtension {
       const authConfig = config.get("solutionServer.auth");
       if (typeof authConfig === "boolean") {
         this.state.logger.warn(
-          "Detected invalid configuration 'konveyor.solutionServer.auth' set to boolean. This setting should not be a boolean and can cause problems with other configuration keys.",
+          "Detected invalid configuration 'konveyor.hub.auth' set to boolean. This setting should not be a boolean and can cause problems with other configuration keys.",
         );
         vscode.window
           .showWarningMessage(
-            "Invalid configuration detected: 'konveyor.solutionServer.auth' is set to a boolean value (true/false). " +
+            "Invalid configuration detected: 'konveyor.hub.auth' is set to a boolean value (true/false). " +
               "Please remove this setting from your VS Code settings. " +
-              "Use 'konveyor.solutionServer.auth.enabled' instead. " +
+              "Use 'konveyor.hub.auth.enabled' instead. " +
               "This invalid setting can cause problems with other configuration options below it.",
             "Open Settings",
           )
           .then((selection) => {
             if (selection === "Open Settings") {
-              vscode.commands.executeCommand(
-                "workbench.action.openSettings",
-                "konveyor.solutionServer",
-              );
+              vscode.commands.executeCommand("workbench.action.openSettings", "konveyor.hub");
             }
           });
       }
@@ -291,7 +287,7 @@ class VsCodeExtension {
       this.checkContinueInstalled();
 
       // Connect to solution server
-      if (getConfigSolutionServerEnabled()) {
+      if (getConfigHub().enabled && getConfigHub().features.solutionServer.enabled) {
         await this.connectToSolutionServer();
       }
 
@@ -308,7 +304,7 @@ class VsCodeExtension {
 
         pollTimeout = setTimeout(async () => {
           // Only poll if solution server is enabled and we should be connected
-          if (!getConfigSolutionServerEnabled()) {
+          if (!getConfigHub().enabled && getConfigHub().features.solutionServer.enabled) {
             // Pause; config change handlers will resume when re-enabled
             this.state.mutateData((draft) => {
               draft.solutionServerConnected = false;
@@ -497,7 +493,7 @@ class VsCodeExtension {
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer`)) {
-            const newConfig = getConfigSolutionServer();
+            const newConfig = getConfigHub();
             this.state.logger.info("Solution server configuration modified!", {
               enabled: newConfig.enabled,
               url: newConfig.url,
@@ -671,7 +667,7 @@ class VsCodeExtension {
   }
 
   private async connectToSolutionServer(): Promise<void> {
-    if (!getConfigSolutionServerEnabled()) {
+    if (!getConfigHub().enabled && getConfigHub().features.solutionServer.enabled) {
       this.state.logger.info("Solution server is disabled, skipping connection");
       return;
     }
@@ -679,7 +675,7 @@ class VsCodeExtension {
     // Only attempt to connect if solution server is enabled
     let username: string = "";
     let password: string = "";
-    if (getConfigSolutionServerAuth()) {
+    if (getConfigHub().auth.enabled) {
       const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
       if (!credentials) {
         this.state.mutateData((draft) => {
@@ -715,15 +711,18 @@ class VsCodeExtension {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
     const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
+    const hubViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "hub");
 
     this.state.webviewProviders.set("sidebar", sidebarProvider);
     this.state.webviewProviders.set("resolution", resolutionViewProvider);
     this.state.webviewProviders.set("profiles", profilesViewProvider);
+    this.state.webviewProviders.set("hub", hubViewProvider);
 
-    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
-      this.onDidChangeData((data) => {
-        provider.sendMessageToWebview(data);
-      }),
+    [sidebarProvider, resolutionViewProvider, profilesViewProvider, hubViewProvider].forEach(
+      (provider) =>
+        this.onDidChangeData((data) => {
+          provider.sendMessageToWebview(data);
+        }),
     );
 
     this.context.subscriptions.push(

@@ -6,7 +6,7 @@ import {
   AnalysisProfile,
   createConfigError,
   ExtensionData,
-  SolutionServerConfig,
+  HubConfig,
 } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
@@ -61,26 +61,27 @@ async function updateConfigValue<T>(
 
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
 
-export const getConfigSolutionServer = (): SolutionServerConfig => {
-  const config = getConfigValue<Partial<SolutionServerConfig>>("solutionServer") || {};
+export const getConfigHub = (): HubConfig => {
+  const config = getConfigValue<Partial<HubConfig>>("hub") || {};
+
   return {
     enabled: config.enabled ?? false,
-    url: config.url || "http://localhost:8000",
+    url: config.url || "http://localhost:8080",
     auth: {
       enabled: config.auth?.enabled ?? false,
       realm: config.auth?.realm || "tackle",
       insecure: config.auth?.insecure ?? false,
     },
+    features: {
+      solutionServer: {
+        enabled: config.features?.solutionServer?.enabled ?? true,
+      },
+      profileSync: {
+        enabled: config.features?.profileSync?.enabled ?? false,
+      },
+    },
   };
 };
-
-// Legacy getters for backward compatibility - will be removed after refactoring
-export const getConfigSolutionServerUrl = (): string => getConfigSolutionServer().url;
-export const getConfigSolutionServerEnabled = (): boolean => getConfigSolutionServer().enabled;
-export const getConfigSolutionServerAuth = (): boolean => getConfigSolutionServer().auth.enabled;
-export const getConfigSolutionServerRealm = (): string => getConfigSolutionServer().auth.realm;
-export const getConfigSolutionServerInsecure = (): boolean =>
-  getConfigSolutionServer().auth.insecure;
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigLabelSelector = (): string =>
   getConfigValue<string>("analysis.labelSelector") || "discovery";
@@ -130,27 +131,27 @@ export function getAllConfigurationValues(): Record<string, any> {
   return result;
 }
 
-export const updateSolutionServerConfig = async (
-  config: Partial<SolutionServerConfig>,
-): Promise<void> => {
-  const currentConfig = getConfigSolutionServer();
-  const newConfig = {
+export const updateHubConfig = async (config: Partial<HubConfig>): Promise<void> => {
+  const currentConfig = getConfigHub();
+  const newConfig: HubConfig = {
     ...currentConfig,
     ...config,
     auth: {
       ...currentConfig.auth,
       ...config.auth,
     },
+    features: {
+      solutionServer: {
+        ...currentConfig.features.solutionServer,
+        ...config.features?.solutionServer,
+      },
+      profileSync: {
+        ...currentConfig.features.profileSync,
+        ...config.features?.profileSync,
+      },
+    },
   };
-  await updateConfigValue("solutionServer", newConfig, vscode.ConfigurationTarget.Workspace);
-};
-
-// Legacy setters for backward compatibility - will be removed after refactoring
-export const updateSolutionServerUrl = async (value: string | undefined): Promise<void> => {
-  await updateSolutionServerConfig({ url: value || "http://localhost:8000" });
-};
-export const updateSolutionServerEnabled = async (value: boolean): Promise<void> => {
-  await updateSolutionServerConfig({ enabled: value });
+  await updateConfigValue("hub", newConfig, vscode.ConfigurationTarget.Workspace);
 };
 export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);

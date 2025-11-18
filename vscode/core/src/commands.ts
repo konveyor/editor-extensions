@@ -34,9 +34,8 @@ import {
   getWorkspaceRelativePath,
   getTraceEnabled,
   getTraceDir,
-  getConfigSolutionServerAuth,
   fileUriToPath,
-  getConfigSolutionServer,
+  getConfigHub,
 } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import { promptForCredentials } from "./utilities/auth";
@@ -105,6 +104,14 @@ const commandsMap: (
         logger.error("Profiles provider not found");
       }
     },
+    [`${EXTENSION_NAME}.openHubSettingsPanel`]: async () => {
+      const provider = state.webviewProviders.get("hub");
+      if (provider) {
+        provider.showWebviewPanel();
+      } else {
+        logger.error("Hub settings provider not found");
+      }
+    },
     [`${EXTENSION_NAME}.startServer`]: async () => {
       const analyzerClient = state.analyzerClient;
 
@@ -150,7 +157,7 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
       const solutionServerClient = state.solutionServerClient;
-      const config = getConfigSolutionServer();
+      const config = getConfigHub();
       if (!config.enabled) {
         logger.info("Solution server is disabled, skipping restart");
         return;
@@ -799,7 +806,7 @@ const commandsMap: (
       }
     },
     [`${EXTENSION_NAME}.configureSolutionServerCredentials`]: async () => {
-      if (!getConfigSolutionServerAuth()) {
+      if (!getConfigHub().auth.enabled) {
         logger.info("Solution server authentication is disabled.");
         window.showInformationMessage(
           "Solution server authentication is disabled. Please enable it in the extension settings.",
