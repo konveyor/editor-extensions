@@ -2,12 +2,7 @@ import * as vscode from "vscode";
 import * as pathlib from "path";
 import { fileURLToPath } from "url";
 import { EXTENSION_NAME } from "./constants";
-import {
-  AnalysisProfile,
-  createConfigError,
-  ExtensionData,
-  HubConfig,
-} from "@editor-extensions/shared";
+import { AnalysisProfile, createConfigError, ExtensionData } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(EXTENSION_NAME)?.get<T>(key);
@@ -61,27 +56,6 @@ async function updateConfigValue<T>(
 
 export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analyzerPath") || "";
 
-export const getConfigHub = (): HubConfig => {
-  const config = getConfigValue<Partial<HubConfig>>("hub") || {};
-
-  return {
-    enabled: config.enabled ?? false,
-    url: config.url || "http://localhost:8080",
-    auth: {
-      enabled: config.auth?.enabled ?? false,
-      realm: config.auth?.realm || "tackle",
-      insecure: config.auth?.insecure ?? false,
-    },
-    features: {
-      solutionServer: {
-        enabled: config.features?.solutionServer?.enabled ?? true,
-      },
-      profileSync: {
-        enabled: config.features?.profileSync?.enabled ?? false,
-      },
-    },
-  };
-};
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigLabelSelector = (): string =>
   getConfigValue<string>("analysis.labelSelector") || "discovery";
@@ -131,28 +105,6 @@ export function getAllConfigurationValues(): Record<string, any> {
   return result;
 }
 
-export const updateHubConfig = async (config: Partial<HubConfig>): Promise<void> => {
-  const currentConfig = getConfigHub();
-  const newConfig: HubConfig = {
-    ...currentConfig,
-    ...config,
-    auth: {
-      ...currentConfig.auth,
-      ...config.auth,
-    },
-    features: {
-      solutionServer: {
-        ...currentConfig.features.solutionServer,
-        ...config.features?.solutionServer,
-      },
-      profileSync: {
-        ...currentConfig.features.profileSync,
-        ...config.features?.profileSync,
-      },
-    },
-  };
-  await updateConfigValue("hub", newConfig, vscode.ConfigurationTarget.Workspace);
-};
 export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
 };

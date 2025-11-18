@@ -80,6 +80,12 @@ function parseProfileYaml(yamlContent: string, profileDir: string): AnalysisProf
   try {
     const parsed = yaml.load(yamlContent) as ProfileYaml;
 
+    // Check if YAML is null or not an object
+    if (!parsed || typeof parsed !== "object") {
+      console.warn("Profile YAML is empty or invalid");
+      return null;
+    }
+
     // Validate required fields
     if (!parsed.metadata || !parsed.spec) {
       console.warn("Profile YAML missing required metadata or spec sections");

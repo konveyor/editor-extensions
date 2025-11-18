@@ -25,6 +25,7 @@ const defaultState: ExtensionData = {
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
   llmErrors: [],
+  hubConfig: undefined,
 };
 
 // Safely merge window state with default state to ensure all arrays are defined
@@ -47,6 +48,7 @@ const getInitialState = (): ExtensionData => {
         llmErrors: Array.isArray(windowData.llmErrors) ? windowData.llmErrors : [],
         activeDecorators: windowData.activeDecorators || {},
         isWaitingForUserInteraction: windowData.isWaitingForUserInteraction || false,
+        hubConfig: windowData.hubConfig,
       };
     }
   } catch (error) {
@@ -84,6 +86,7 @@ export function ExtensionStateProvider({ children }: PropsWithChildren) {
         llmErrors: Array.isArray(event.data.llmErrors) ? event.data.llmErrors : [],
         activeDecorators: event.data.activeDecorators || {},
         isWaitingForUserInteraction: event.data.isWaitingForUserInteraction || false,
+        hubConfig: event.data.hubConfig,
       };
       setState(safeData);
     };
