@@ -1,7 +1,10 @@
 import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import {
+  GOOGLE_GEMINI_PROVIDER,
+  OPENAI_GPT4O_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import * as fs from 'fs/promises';
 import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
@@ -33,7 +36,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(GOOGLE_GEMINI_PROVIDER.config);
   });
 
   test('Start server', async () => {
