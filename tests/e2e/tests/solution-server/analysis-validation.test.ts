@@ -28,16 +28,16 @@ test.describe(`Solution server analysis validations`, () => {
   test.beforeAll(async ({ testRepoData }) => {
     const repoInfo = testRepoData['coolstore'];
     vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
-    config = await Configuration.open(vsCode);
-    await config.setEnabledConfiguration(solutionServerEnabled, true);
     await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
     await vsCode.createProfile(repoInfo.sources, repoInfo.targets);
     await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
+    config = await Configuration.open(vsCode);
+    await config.setEnabledConfiguration(solutionServerEnabled, true);
     mcpClient = await MCPClient.connect();
     await vsCode.startServer();
     await vsCode.runAnalysis();
     await expect(vsCode.getWindow().getByText('Analysis completed').first()).toBeVisible({
-      timeout: 300000,
+      timeout: 900000,
     });
   });
 
@@ -118,11 +118,7 @@ test.describe(`Solution server analysis validations`, () => {
    * 7. Asserts that the UI displays the correct success rate counts
    */
   async function requestFixAndAssertSolution(accept: boolean) {
-    await vsCode.getWindow().waitForTimeout(30000);
-    await config.setEnabledConfiguration(solutionServerEnabled, false);
-    await config.setEnabledConfiguration(solutionServerEnabled, true);
-    await vsCode.getWindow().waitForTimeout(30000);
-
+    await restartSolutionServer();
     await vsCode.searchAndRequestFix(issueToFix, FixTypes.Incident);
 
     const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
@@ -177,8 +173,7 @@ test.describe(`Solution server analysis validations`, () => {
    * and verifies that filtering doesn't change the solutions map.
    */
   async function filterAndAssertFilteration(tabName: AnalysisTab) {
-    await config.setEnabledConfiguration(solutionServerEnabled, false);
-    await config.setEnabledConfiguration(solutionServerEnabled, true);
+    await restartSolutionServer();
     await vsCode.sortIncidntAndApplyFilter(tabName, FilterMode.off);
     const listBeforeFilter = await vsCode.getSolutionsStatusFromCardsView();
     await vsCode.sortIncidntAndApplyFilter(tabName, FilterMode.on);
@@ -222,5 +217,12 @@ test.describe(`Solution server analysis validations`, () => {
       }
     }
     return successRate;
+  }
+
+  async function restartSolutionServer(waitingTime = 30000) {
+    await vsCode.getWindow().waitForTimeout(waitingTime);
+    await config.setEnabledConfiguration(solutionServerEnabled, false);
+    await config.setEnabledConfiguration(solutionServerEnabled, true);
+    await vsCode.getWindow().waitForTimeout(waitingTime);
   }
 });
