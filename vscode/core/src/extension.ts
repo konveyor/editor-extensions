@@ -12,7 +12,7 @@ import {
   EXTENSION_ID,
   EXTENSION_NAME,
   EXTENSION_VERSION,
-} from "@editor-extensions/shared";
+} from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
   InMemoryCacheWithRevisions,

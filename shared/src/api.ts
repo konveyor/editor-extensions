@@ -81,7 +81,8 @@ export interface Disposable {
  */
 export interface KonveyorCoreApi {
   /**
-   * Core extension version (e.g., "0.4.0")
+   * Get the version of the core extension
+   * @returns The version of the core extension
    */
   readonly version: string;
 

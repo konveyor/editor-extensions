@@ -2,12 +2,8 @@ import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import * as rpc from "vscode-jsonrpc/node";
-import {
-  KonveyorCoreApi,
-  EXTENSION_DISPLAY_NAME,
-  EXTENSION_ID,
-  EXTENSION_VERSION,
-} from "@editor-extensions/shared";
+import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { EXTENSION_DISPLAY_NAME, EXTENSION_ID, EXTENSION_VERSION } from "./utilities/constants";
 import { vscodeProxyServer } from "./vscodeProxyServer";
 import { JavaScriptExternalProviderManager } from "./javascriptExternalProviderManager";
 

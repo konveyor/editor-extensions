@@ -1,8 +1,3 @@
-/**
- * Build-time constants injected by webpack DefinePlugin
- * These are defined in webpack.config.js for each extension
- */
-
 // Declare webpack-defined globals
 declare const __EXTENSION_NAME__: string;
 declare const __EXTENSION_PUBLISHER__: string;
