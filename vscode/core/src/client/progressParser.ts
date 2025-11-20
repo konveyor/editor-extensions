@@ -89,7 +89,7 @@ export class ProgressParser {
         this.callback(obj);
       }
       // Skip other JSON - don't log it to prevent clutter in OUTPUT panel
-    } catch (err) {
+    } catch {
       // Not valid JSON - this is likely an actual error message, so log it
       if (this.nonProgressLineCallback) {
         this.nonProgressLineCallback(line);
