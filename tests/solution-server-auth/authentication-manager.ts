@@ -110,7 +110,7 @@ export class AuthenticationManager {
     }
   }
 
-  private async refreshTokenFlow(): Promise<void> {
+  public async refreshTokenFlow(): Promise<void> {
     this.isRefreshing = true;
     this.stopAutoRefresh();
 
