@@ -12,6 +12,7 @@ export class MessageQueueManager {
   private isProcessingQueue = false;
   private processingTimer: NodeJS.Timeout | null = null;
   private logger: Logger;
+  private onDrainCallback?: () => void;
 
   constructor(
     private state: ExtensionState,
@@ -28,10 +29,20 @@ export class MessageQueueManager {
   }
 
   /**
+   * Register a callback to be invoked when the queue drains (becomes empty)
+   */
+  onDrain(callback: () => void): void {
+    this.onDrainCallback = callback;
+  }
+
+  /**
    * Adds a message to the queue
    */
   enqueueMessage(message: KaiWorkflowMessage): void {
     this.messageQueue.push(message);
+    this.logger.debug(
+      `Message enqueued: ${message.type}, id: ${message.id}, queue length: ${this.messageQueue.length}`,
+    );
   }
 
   /**
@@ -56,12 +67,9 @@ export class MessageQueueManager {
     const processInterval = 100; // Check every 100ms
 
     this.processingTimer = setInterval(() => {
-      // Only process if we're not already processing and not waiting for user
-      if (
-        !this.isProcessingQueue &&
-        !this.state.data.isWaitingForUserInteraction &&
-        this.messageQueue.length > 0
-      ) {
+      // Only process if we're not already processing and have messages
+      // The processQueuedMessages method will handle filtering based on user interaction state
+      if (!this.isProcessingQueue && this.messageQueue.length > 0) {
         this.processQueuedMessages().catch((error) => {
           this.logger.error("Error in background queue processing:", error);
         });
@@ -81,30 +89,49 @@ export class MessageQueueManager {
 
   /**
    * Processes queued messages one at a time atomically
-   * Stops immediately when a blocking message triggers user interaction
+   * With batch review, we no longer need to pause for ModifiedFile messages
+   * Only UserInteraction messages (yesNo, choice, tasks) should block the queue
    */
   async processQueuedMessages(): Promise<void> {
     // Prevent concurrent queue processing
     if (this.isProcessingQueue) {
+      this.logger.debug("Already processing queue, skipping");
       return;
     }
 
     if (this.messageQueue.length === 0) {
+      this.logger.debug("Queue is empty, nothing to process");
+
+      // Invoke drain callback for empty queue to ensure callers observe completion
+      if (this.onDrainCallback) {
+        this.logger.debug("Queue already empty, invoking onDrain callback");
+        try {
+          this.onDrainCallback();
+        } catch (error) {
+          this.logger.error("Error in onDrain callback:", error);
+        }
+      }
+
       return;
     }
 
-    // Don't process if waiting for user interaction
+    // If waiting for user interaction (UserInteraction messages only, not ModifiedFile),
+    // we should still process the queue since ModifiedFile messages are now non-blocking
     if (this.state.data.isWaitingForUserInteraction) {
-      return;
+      this.logger.debug("Waiting for user interaction, but will continue processing queue");
     }
 
+    this.logger.info(`Starting queue processing, ${this.messageQueue.length} messages in queue`);
     this.isProcessingQueue = true;
 
     try {
       // Process messages one at a time from the front of the queue
-      while (this.messageQueue.length > 0 && !this.state.data.isWaitingForUserInteraction) {
-        // Take the first message from queue
+      while (this.messageQueue.length > 0) {
+        // Remove from queue and process
         const msg = this.messageQueue.shift()!;
+        this.logger.info(
+          `Processing message: ${msg.type}, id: ${msg.id}, remaining in queue: ${this.messageQueue.length}`,
+        );
 
         try {
           // Call the core processing logic directly
@@ -118,21 +145,18 @@ export class MessageQueueManager {
             this.pendingInteractions,
             this,
           );
-
-          // If this message triggered user interaction, stop processing
-          if (this.state.data.isWaitingForUserInteraction) {
-            break;
-          }
         } catch (error) {
           this.logger.error(`Error processing queued message ${msg.id}:`, error);
           // Continue processing other messages even if one fails
         }
       }
+
+      this.logger.info("Queue processing complete");
     } catch (error) {
       this.logger.error("Error in queue processing:", error);
 
       // Add an error indicator to the chat
-      this.state.mutateData((draft) => {
+      this.state.mutateChatMessages((draft) => {
         draft.chatMessages.push({
           kind: ChatMessageType.String,
           messageToken: `queue-error-${Date.now()}`,
@@ -144,6 +168,16 @@ export class MessageQueueManager {
       });
     } finally {
       this.isProcessingQueue = false;
+
+      // If queue is now empty and we have a drain callback, invoke it
+      if (this.messageQueue.length === 0 && this.onDrainCallback) {
+        this.logger.debug("Queue drained, invoking onDrain callback");
+        try {
+          this.onDrainCallback();
+        } catch (error) {
+          this.logger.error("Error in onDrain callback:", error);
+        }
+      }
     }
   }
 
@@ -165,19 +199,19 @@ export class MessageQueueManager {
 
 /**
  * Handle completion of user interactions and resume queued message processing
- * This should be called whenever isWaitingForUserInteraction transitions from true to false
+ * Used only for UserInteraction messages (yesNo, choice, tasks)
+ * ModifiedFile messages no longer need this since they don't block the queue
  */
 export async function handleUserInteractionComplete(
   state: ExtensionState,
   queueManager: MessageQueueManager,
 ): Promise<void> {
-  // Reset the waiting flag
-  state.mutateData((draft) => {
+  // Reset the waiting flag to allow queue processing to continue
+  state.mutateSolutionWorkflow((draft) => {
     draft.isWaitingForUserInteraction = false;
   });
 
   // The background processor will automatically resume processing
-  // But we can trigger immediate processing if queue has messages
   if (queueManager.getQueueLength() > 0) {
     // Don't await - let background processor handle it
     queueManager.processQueuedMessages().catch((error) => {

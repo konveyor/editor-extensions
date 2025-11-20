@@ -108,6 +108,12 @@ export class StaticDiffAdapter {
     messageToken: string,
   ): Promise<void> {
     try {
+      // Check if diff is empty
+      if (!unifiedDiff || unifiedDiff.trim() === "") {
+        this.logger.debug("[StaticDiffAdapter] Skipping empty diff for", filePath);
+        return;
+      }
+
       // Check if this is purely a line ending diff and skip if so
       if (isOnlyLineEndingDiff(unifiedDiff)) {
         this.logger.debug("[StaticDiffAdapter] Skipping line-ending-only diff for", filePath);

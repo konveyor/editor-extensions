@@ -9,10 +9,11 @@ import {
   Tooltip,
 } from "@patternfly/react-core";
 import { EnhancedIncident } from "@editor-extensions/shared";
-import { useExtensionStateContext } from "../context/ExtensionStateContext";
+import { useExtensionStore } from "../store/store";
 import { getSolution, getSolutionWithKonveyorContext } from "../hooks/actions";
 import { EllipsisVIcon, WrenchIcon } from "@patternfly/react-icons";
 import { getBrandName } from "../utils/branding";
+import { sendVscodeMessage as dispatch } from "../utils/vscodeMessaging";
 
 type GetSolutionDropdownProps = {
   incidents: EnhancedIncident[];
@@ -26,7 +27,14 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
   }
 
   const [isOpen, setIsOpen] = useState(false);
-  const { state, dispatch } = useExtensionStateContext();
+
+  // ✅ Selective subscriptions - only re-render when these specific values change
+  const configErrors = useExtensionStore((state) => state.configErrors);
+  const isFetchingSolution = useExtensionStore((state) => state.isFetchingSolution);
+  const isAnalyzing = useExtensionStore((state) => state.isAnalyzing);
+  const serverState = useExtensionStore((state) => state.serverState);
+  const isContinueInstalled = useExtensionStore((state) => state.isContinueInstalled);
+
   const onGetSolution = (incidents: EnhancedIncident[]) => {
     dispatch(getSolution(incidents));
   };
@@ -36,12 +44,11 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
   };
 
   // Hide component completely when GenAI is disabled
-  if (state.configErrors.some((e) => e.type === "genai-disabled")) {
+  if (configErrors.some((e) => e.type === "genai-disabled")) {
     return null;
   }
 
-  const isButtonDisabled =
-    state.isFetchingSolution || state.isAnalyzing || state.serverState !== "running";
+  const isButtonDisabled = isFetchingSolution || isAnalyzing || serverState !== "running";
 
   const dropdown = (
     <Dropdown
@@ -94,7 +101,7 @@ const GetSolutionDropdown: React.FC<GetSolutionDropdownProps> = ({ incidents, sc
           <DropdownItem key="get-rag-solution" onClick={() => onGetSolution(incidents)}>
             Get solution
           </DropdownItem>
-          {scope === "incident" && incidents.length === 1 && state.isContinueInstalled && (
+          {scope === "incident" && incidents.length === 1 && isContinueInstalled && (
             <DropdownItem
               key="ask-continue-konveyor"
               onClick={() => onGetSolutionWithKonveyorContext(incidents[0])}
