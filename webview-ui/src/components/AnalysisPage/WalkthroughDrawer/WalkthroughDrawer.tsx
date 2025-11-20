@@ -67,7 +67,8 @@ export function WalkthroughDrawer({
         !!state.hubConfig?.auth.password?.trim()));
 
   const disabledDescription = "This feature is disabled based on your configuration.";
-  const disabledFullDescription = "This feature is disabled because the values are managed by the in-tree profile currently selected.";
+  const disabledFullDescription =
+    "This feature is disabled because the values are managed by the in-tree profile currently selected.";
 
   const steps = [
     {
