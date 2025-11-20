@@ -6,6 +6,7 @@ import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType } from "@editor-extensions/shared";
 import { ExtensionStateProvider } from "./context/ExtensionStateContext";
 import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
+import { HubSettingsPage } from "./components/HubSettings/HubSettingsPage";
 import { getBrandName } from "./utils/branding";
 
 const App: React.FC = () => {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
         {currentView === "sidebar" && <AnalysisPage />}
         {currentView === "resolution" && <ResolutionPage />}
         {currentView === "profiles" && <ProfileManagerPage />}
+        {currentView === "hub" && <HubSettingsPage />}
       </ExtensionStateProvider>
     </div>
   );

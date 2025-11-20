@@ -6,9 +6,13 @@ export function TruncatedDescription({
   fullText,
 }: {
   shortText: string;
-  fullText: string;
+  fullText?: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!fullText) {
+    return <Content component={ContentVariants.p}>{shortText}</Content>;
+  }
 
   return (
     <Content component={ContentVariants.p}>

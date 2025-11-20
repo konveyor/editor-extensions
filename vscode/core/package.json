@@ -357,47 +357,6 @@
           "scope": "window",
           "order": 26
         },
-        "konveyor.solutionServer": {
-          "type": "object",
-          "description": "Configuration for the MCP solution server. Set 'enabled: true' to enable, 'url' for server endpoint, and configure 'auth' object with 'enabled: true', 'realm' (default: tackle), and 'insecure: true' to skip SSL verification if needed.",
-          "scope": "window",
-          "order": 30,
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": false,
-              "description": "Enable the MCP solution server client"
-            },
-            "url": {
-              "type": "string",
-              "default": "http://localhost:8000",
-              "pattern": "^https?://.*",
-              "patternErrorMessage": "The URL must start with http:// or https://",
-              "description": "URL for the MCP solution server endpoint"
-            },
-            "auth": {
-              "type": "object",
-              "description": "Authentication settings for the solution server",
-              "properties": {
-                "enabled": {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Enable authentication for the solution server"
-                },
-                "realm": {
-                  "type": "string",
-                  "default": "tackle",
-                  "description": "Keycloak realm for authentication"
-                },
-                "insecure": {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Skip SSL certificate verification for the solution server"
-                }
-              }
-            }
-          }
-        },
         "konveyor.debug.webview": {
           "type": "boolean",
           "default": false,

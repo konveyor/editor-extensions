@@ -25,20 +25,17 @@ import { ExtensionPaths, ensurePaths, paths, ensureKaiAnalyzerBinary } from "./p
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
-  getConfigSolutionServer,
-  getConfigSolutionServerEnabled,
-  getConfigSolutionServerAuth,
   getConfigAgentMode,
   getCacheDir,
   getTraceDir,
   getTraceEnabled,
   getConfigKaiDemoMode,
   getConfigLogLevel,
-  checkAndPromptForCredentials,
   getConfigGenAIEnabled,
   getConfigAutoAcceptOnSave,
   updateConfigErrors,
 } from "./utilities";
+import { initializeHubConfig, getDefaultHubConfig } from "./utilities/hubConfigStorage";
 import { getAllProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
@@ -69,7 +66,8 @@ class VsCodeExtension {
     logger: winston.Logger,
     private readonly providerRegistry: ProviderRegistry,
   ) {
-    const solutionServerConfig = getConfigSolutionServer();
+    // Use default hub config for initial state; will be updated after async initialization
+    const defaultHubConfig = getDefaultHubConfig();
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
@@ -91,7 +89,7 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
-        solutionServerEnabled: solutionServerConfig.enabled, // should we pass the full config object?
+        solutionServerEnabled: false, // Will be updated after hub config loads
         configErrors: [],
         llmErrors: [],
         activeProfileId: "",
@@ -100,6 +98,7 @@ class VsCodeExtension {
         activeDecorators: {},
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
+        hubConfig: defaultHubConfig,
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -132,7 +131,7 @@ class VsCodeExtension {
         logger,
         providerRegistry,
       ),
-      solutionServerClient: new SolutionServerClient(solutionServerConfig, logger),
+      solutionServerClient: new SolutionServerClient(defaultHubConfig, logger),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
@@ -231,28 +230,6 @@ class VsCodeExtension {
 
       // Check for problematic solutionServer.auth configuration (should be an object, not boolean)
       const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
-      const authConfig = config.get("solutionServer.auth");
-      if (typeof authConfig === "boolean") {
-        this.state.logger.warn(
-          "Detected invalid configuration 'konveyor.solutionServer.auth' set to boolean. This setting should not be a boolean and can cause problems with other configuration keys.",
-        );
-        vscode.window
-          .showWarningMessage(
-            "Invalid configuration detected: 'konveyor.solutionServer.auth' is set to a boolean value (true/false). " +
-              "Please remove this setting from your VS Code settings. " +
-              "Use 'konveyor.solutionServer.auth.enabled' instead. " +
-              "This invalid setting can cause problems with other configuration options below it.",
-            "Open Settings",
-          )
-          .then((selection) => {
-            if (selection === "Open Settings") {
-              vscode.commands.executeCommand(
-                "workbench.action.openSettings",
-                "konveyor.solutionServer",
-              );
-            }
-          });
-      }
 
       this.state.mutateData((draft) => {
         draft.profiles = allProfiles;
@@ -292,8 +269,19 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
-      // Connect to solution server
-      if (getConfigSolutionServerEnabled()) {
+      // Initialize hub config from secret storage (with migration)
+      const hubConfig = await initializeHubConfig(this.context);
+      this.state.mutateData((draft) => {
+        draft.hubConfig = hubConfig;
+        draft.solutionServerEnabled =
+          hubConfig.enabled && hubConfig.features.solutionServer.enabled;
+      });
+
+      // Update solution server client with loaded config
+      this.state.solutionServerClient.updateConfig(hubConfig);
+
+      // Connect to solution server if enabled
+      if (hubConfig.enabled && hubConfig.features.solutionServer.enabled) {
         await this.connectToSolutionServer();
       }
 
@@ -310,7 +298,8 @@ class VsCodeExtension {
 
         pollTimeout = setTimeout(async () => {
           // Only poll if solution server is enabled and we should be connected
-          if (!getConfigSolutionServerEnabled()) {
+          const currentHubConfig = this.state.data.hubConfig;
+          if (!currentHubConfig?.enabled || !currentHubConfig?.features.solutionServer.enabled) {
             // Pause; config change handlers will resume when re-enabled
             this.state.mutateData((draft) => {
               draft.solutionServerConnected = false;
@@ -498,49 +487,6 @@ class VsCodeExtension {
             });
           }
 
-          if (event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer`)) {
-            const newConfig = getConfigSolutionServer();
-            this.state.logger.info("Solution server configuration modified!", {
-              enabled: newConfig.enabled,
-              url: newConfig.url,
-              authEnabled: newConfig.auth.enabled,
-            });
-
-            // Capture current connection state before mutating
-            const wasConnected = this.state.data.solutionServerConnected;
-
-            // Update the enabled state immediately
-            this.state.mutateData((draft) => {
-              draft.solutionServerEnabled = newConfig.enabled;
-              // Reset connection status - let the connection poll handle updating it
-              draft.solutionServerConnected = false;
-            });
-
-            // Update the client configuration
-            this.state.solutionServerClient.updateConfig(newConfig);
-
-            // Disconnect if currently connected to apply new settings
-            if (wasConnected) {
-              try {
-                await this.state.solutionServerClient.disconnect();
-                this.state.logger.info(
-                  "Disconnected from solution server for configuration update",
-                );
-              } catch (error) {
-                this.state.logger.error("Error disconnecting from solution server:", error);
-              }
-            }
-
-            // Resume polling if enabled - it will handle reconnection with new config
-            if (newConfig.enabled) {
-              consecutiveFailures = 0;
-              pollInterval = 10000;
-              scheduleNextPoll(withJitter(pollInterval));
-
-              // Auth credentials will be prompted on next connection attempt if needed
-            }
-          }
-
           if (event.affectsConfiguration(`${EXTENSION_NAME}.logLevel`)) {
             this.state.logger.info("Log level configuration modified!");
             const newLogLevel = getConfigLogLevel();
@@ -673,17 +619,21 @@ class VsCodeExtension {
   }
 
   private async connectToSolutionServer(): Promise<void> {
-    if (!getConfigSolutionServerEnabled()) {
+    const hubConfig = this.state.data.hubConfig;
+
+    if (!hubConfig?.enabled || !hubConfig?.features.solutionServer.enabled) {
       this.state.logger.info("Solution server is disabled, skipping connection");
       return;
     }
 
-    // Only attempt to connect if solution server is enabled
+    // Get credentials from hub config
     let username: string = "";
     let password: string = "";
-    if (getConfigSolutionServerAuth()) {
-      const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
-      if (!credentials) {
+
+    if (hubConfig.auth.enabled) {
+      // Check if username and password are configured
+      if (!hubConfig.auth.username?.trim() || !hubConfig.auth.password?.trim()) {
+        this.state.logger.warn("Hub auth enabled but credentials not configured");
         this.state.mutateData((draft) => {
           if (!draft.configErrors.some((error) => error.type === "missing-auth-credentials")) {
             draft.configErrors.push(createConfigError.missingAuthCredentials());
@@ -691,8 +641,9 @@ class VsCodeExtension {
         });
         return;
       }
-      username = credentials.username;
-      password = credentials.password;
+
+      username = hubConfig.auth.username;
+      password = hubConfig.auth.password;
     }
 
     this.state.solutionServerClient
@@ -717,15 +668,18 @@ class VsCodeExtension {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
     const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
+    const hubViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "hub");
 
     this.state.webviewProviders.set("sidebar", sidebarProvider);
     this.state.webviewProviders.set("resolution", resolutionViewProvider);
     this.state.webviewProviders.set("profiles", profilesViewProvider);
+    this.state.webviewProviders.set("hub", hubViewProvider);
 
-    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
-      this.onDidChangeData((data) => {
-        provider.sendMessageToWebview(data);
-      }),
+    [sidebarProvider, resolutionViewProvider, profilesViewProvider, hubViewProvider].forEach(
+      (provider) =>
+        this.onDidChangeData((data) => {
+          provider.sendMessageToWebview(data);
+        }),
     );
 
     this.context.subscriptions.push(
