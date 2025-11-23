@@ -1,6 +1,7 @@
 import { generateRandomString, getOSInfo } from './e2e/utilities/utils';
 import { KAIViews } from './e2e/enums/views.enum';
 import * as VSCodeFactory from './e2e/utilities/vscode.factory';
+import { VSCodeDesktop } from './e2e/pages/vscode-desktop.page';
 
 async function globalSetup() {
   const repoUrl = process.env.TEST_REPO_URL ?? 'https://github.com/konveyor-ecosystem/coolstore';
@@ -11,12 +12,14 @@ async function globalSetup() {
   if (getOSInfo() === 'windows' && process.env.CI) {
     await vscodeApp.getWindow().waitForTimeout(60000);
   }
-  const javaReadySelector = vscodeApp.getWindow().getByRole('button', { name: 'Java: Ready' });
-  await javaReadySelector.waitFor({ timeout: 120000 });
-  // Sometimes the java ready status is displayed for a few seconds before starting to load again
-  // This checks that the state is kept for a few seconds before continuing
-  await vscodeApp.waitDefault();
-  await javaReadySelector.waitFor({ timeout: 1200000 });
+  
+  // Open a Java file to trigger extension activation (onLanguage:java)
+  // This is needed for both redhat.java and konveyor-java extensions to activate
+  if (vscodeApp instanceof VSCodeDesktop) {
+    await vscodeApp.openJavaFileForActivation();
+    await vscodeApp.waitForExtensionInitialization();
+  }
+  
   await vscodeApp.openAnalysisView();
   await vscodeApp.closeVSCode();
   console.log('Completed global setup.');

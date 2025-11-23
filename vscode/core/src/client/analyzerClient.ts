@@ -18,6 +18,7 @@ import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
+import { ProgressParser, ProgressEvent } from "./progressParser";
 import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
@@ -30,6 +31,7 @@ export class AnalyzerClient {
   private assetPaths: AssetPaths;
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
   private analyzerRpcConnection?: rpc.MessageConnection | null;
+  private currentProgressCallback?: (event: ProgressEvent) => void;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -59,6 +61,11 @@ export class AnalyzerClient {
   private fireAnalysisStateChange(flag: boolean) {
     this.mutateExtensionData((draft) => {
       draft.isAnalyzing = flag;
+      // Reset progress when analysis completes
+      if (!flag) {
+        draft.analysisProgress = 0;
+        draft.analysisProgressMessage = "";
+      }
     });
   }
 
@@ -273,6 +280,10 @@ export class AnalyzerClient {
       logs,
       "-verbosity",
       "-4",
+      "-progress-output",
+      "stderr",
+      "-progress-format",
+      "json",
     ];
 
     // Add provider-config if we have providers
@@ -287,9 +298,22 @@ export class AnalyzerClient {
       env: serverEnv,
     });
 
+    // Set up progress parser that uses current progress callback
+    const progressParser = new ProgressParser(
+      (event) => {
+        if (this.currentProgressCallback) {
+          this.currentProgressCallback(event);
+        }
+      },
+      (line) => {
+        // Only log non-progress lines (non-JSON progress events)
+        this.logger.error(line);
+      },
+    );
+
     analyzerRpcServer.stderr.on("data", (data) => {
-      const asString: string = data.toString().trimEnd();
-      this.logger.error(`${asString}`);
+      // Feed to progress parser which will handle both progress events and logging
+      progressParser.feed(data);
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
@@ -379,8 +403,91 @@ export class AnalyzerClient {
       },
       async (progress, token) => {
         try {
-          progress.report({ message: "Running..." });
+          progress.report({ message: "Initializing..." });
           this.fireAnalysisStateChange(true);
+
+          // Set up progress callback to update VS Code UI and webview
+          // The callback handles progress events and updates two separate UIs:
+          // - notificationMessage: Abbreviated message for VS Code notification (lower right)
+          // - webviewMessage: Detailed message for the Analysis View webview
+          this.currentProgressCallback = (event: ProgressEvent) => {
+            let notificationMessage = "";
+            let webviewMessage = "";
+            let progressPercent = 0;
+
+            switch (event.stage) {
+              case "init":
+                notificationMessage = "Initializing analysis...";
+                webviewMessage = notificationMessage;
+                progressPercent = 0;
+                break;
+              case "provider_init":
+                notificationMessage = event.message
+                  ? `Provider: ${event.message}`
+                  : "Initializing providers...";
+                webviewMessage = notificationMessage;
+                progressPercent = 10;
+                break;
+              case "rule_parsing":
+                notificationMessage = event.total
+                  ? `Loaded ${event.total} rules`
+                  : "Loading rules...";
+                webviewMessage = notificationMessage;
+                progressPercent = 20;
+                break;
+              case "rule_execution":
+                if (event.total && event.current) {
+                  const rulePercent = Math.min(
+                    100,
+                    Math.max(0, event.percent || (event.current / event.total) * 100),
+                  );
+                  // Map rule execution progress from 20% to 90%
+                  progressPercent = 20 + rulePercent * 0.7;
+
+                  // Abbreviated message for notification
+                  notificationMessage = `Processing rule ${event.current}/${event.total}`;
+
+                  // Detailed message with rule ID for webview
+                  // Note: event.message contains different data depending on stage:
+                  // - provider_init: provider name
+                  // - rule_execution: rule ID (when available)
+                  const ruleId = event.message || event.metadata?.rule_id || event.metadata?.ruleId;
+                  if (ruleId) {
+                    webviewMessage = `Processing rule ${event.current}/${event.total}: ${ruleId}`;
+                  } else {
+                    webviewMessage = notificationMessage;
+                  }
+                } else {
+                  notificationMessage = "Processing rules...";
+                  webviewMessage = notificationMessage;
+                  progressPercent = 20;
+                }
+                break;
+              case "dependency_analysis":
+                notificationMessage = "Analyzing dependencies...";
+                webviewMessage = notificationMessage;
+                progressPercent = 90;
+                break;
+              case "complete":
+                notificationMessage = "Analysis complete!";
+                webviewMessage = notificationMessage;
+                progressPercent = 100;
+                break;
+              default:
+                notificationMessage = `Analysis in progress (${event.stage})...`;
+                webviewMessage = notificationMessage;
+                progressPercent = 50;
+            }
+
+            // Update VS Code progress notification with abbreviated message
+            progress.report({ message: notificationMessage });
+
+            // Update extension state for webview with detailed message
+            this.mutateExtensionData((draft) => {
+              draft.analysisProgress = Math.min(100, Math.max(0, Math.round(progressPercent)));
+              draft.analysisProgressMessage = webviewMessage;
+            });
+          };
           const activeProfile = this.getExtStateData().profiles.find(
             (p) => p.id === this.getExtStateData().activeProfileId,
           );
@@ -504,6 +611,9 @@ export class AnalyzerClient {
             success: false,
             error: err instanceof Error ? err.message : String(err),
           });
+        } finally {
+          // Clear progress callback
+          this.currentProgressCallback = undefined;
         }
         this.fireAnalysisStateChange(false);
       },

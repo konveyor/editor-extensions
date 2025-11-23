@@ -288,6 +288,46 @@ const actions = [
       ],
     }),
   }),
+
+  // Extract golang-dependency-provider binaries to platform-specific directories (same as kai pattern)
+  async () => ({
+    id: "golang-dependency-provider binaries",
+    meta: await unpackAssets({
+      title: "golang-dependency-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "golang-dependency-provider", `${platform}-${arch}`),
+
+      globs: ["golang-dependency-provider*"],
+      assets: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
 ];
 
 // Run the queued actions

@@ -16,6 +16,10 @@
       "name": "Javascript Extension",
       "path": "vscode/javascript",
     },
+    {
+      "name": "Go Extension",
+      "path": "vscode/go",
+    },
   ],
   "settings": {
     "files.exclude": {
@@ -34,11 +38,15 @@
         "args": [
           "--extensionDevelopmentPath=${workspaceFolder:Core Extension}",
           "--extensionDevelopmentPath=${workspaceFolder:Java Extension}",
+          "--extensionDevelopmentPath=${workspaceFolder:Javascript Extension}",
+          "--extensionDevelopmentPath=${workspaceFolder:Go Extension}",
           "--verbose",
         ],
         "outFiles": [
           "${workspaceFolder:Core Extension}/out/**/*.js",
           "${workspaceFolder:Java Extension}/out/**/*.js",
+          "${workspaceFolder:Javascript Extension}/out/**/*.js",
+          "${workspaceFolder:Go Extension}/out/**/*.js",
           "${workspaceFolder:Root}/agentic/dist/**/*.js",
           "${workspaceFolder:Root}/shared/dist/**/*.js",
         ],
@@ -52,7 +60,7 @@
       {
         "label": "Build Extensions",
         "type": "shell",
-        "command": "npm run build -w vscode/core && npm run build -w vscode/java && npm run build -w vscode/javascript",
+        "command": "npm run build -w vscode/core && npm run build -w vscode/java && npm run build -w vscode/javascript && npm run build -w vscode/go",
         "options": {
           "cwd": "${workspaceFolder:Root}",
         },

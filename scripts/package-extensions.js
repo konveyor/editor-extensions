@@ -5,7 +5,7 @@ import { cwdToProjectRoot } from "./_util.js";
 
 cwdToProjectRoot();
 
-// Get the extension type from command line args (e.g., 'core', 'java', 'javascript')
+// Get the extension type from command line args (e.g., 'core', 'java', 'javascript', 'go')
 // Or package all extensions if no argument provided
 const extensionType = process.argv[2];
 
@@ -22,7 +22,7 @@ function packageExtension(type) {
 
   if (!fs.existsSync(packageJsonPath)) {
     console.error(`Error: Extension package.json not found at ${packageJsonPath}`);
-    console.error(`Valid extension types: core, java, javascript`);
+    console.error(`Valid extension types: core, java, javascript, go`);
     process.exit(1);
   }
 

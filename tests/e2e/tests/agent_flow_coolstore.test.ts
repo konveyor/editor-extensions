@@ -1,6 +1,7 @@
 import * as pathlib from 'path';
 import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.page';
+import { VSCodeDesktop } from '../pages/vscode-desktop.page';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 import { getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
@@ -25,6 +26,14 @@ providers.forEach((config) => {
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+
+      // Open a Java file to trigger extension activation (onLanguage:java)
+      // This is needed for both redhat.java and konveyor-java extensions to activate
+      if (vscodeApp instanceof VSCodeDesktop) {
+        await vscodeApp.openJavaFileForActivation();
+        await vscodeApp.waitForExtensionInitialization();
+      }
+
       try {
         await vscodeApp.deleteProfile(profileName);
       } catch {

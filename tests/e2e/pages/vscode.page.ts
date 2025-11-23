@@ -4,6 +4,7 @@ import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
+import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
 
 type SortOrder = 'ascending' | 'descending';
@@ -380,7 +381,7 @@ export abstract class VSCode {
       }
 
       console.log(`Found profile '${profileName}', proceeding with deletion`);
-      await targetProfile.click({ timeout: 30000 });
+      await targetProfile.click({ timeout: 60000 });
 
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
@@ -608,6 +609,77 @@ export abstract class VSCode {
     const incidentsText = await incidentsCount.textContent();
     const incidentsMatch = incidentsText?.match(/\(([\d,]+)\s+incidents?\s+found\)/i);
     return Number(incidentsMatch?.[1].replace(/,/g, ''));
+  }
+
+  private async getProfileContainerByName(profileName: string, profileView: FrameLocator) {
+    const profileList = profileView.getByRole('list', {
+      name: 'Profile list',
+    });
+    await profileList.waitFor({ state: 'visible', timeout: 30000 });
+
+    const targetProfile = profileList.locator(
+      `//li[.//span[normalize-space() = "${profileName}" or normalize-space() = "${profileName} (active)"]]`
+    );
+    await expect(targetProfile).toHaveCount(1, { timeout: 60000 });
+    return targetProfile;
+  }
+
+  public async clickOnProfileContainer(profileName: string, profileView: FrameLocator) {
+    const targetProfile = await this.getProfileContainerByName(profileName, profileView);
+    await targetProfile.click({ timeout: 60000 });
+  }
+
+  public async activateProfile(profileName: string, profileView?: FrameLocator) {
+    const pageView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(profileName, pageView);
+    const activationButton = pageView.getByRole('button', { name: 'Make Active' });
+    await activationButton.waitFor({ state: 'visible', timeout: 10000 });
+    await activationButton.click();
+    const activeProfileButton = pageView.getByRole('button', { name: 'Active Profile' });
+    await expect(activeProfileButton).toBeVisible({ timeout: 30000 });
+    await expect(activeProfileButton).toBeDisabled({ timeout: 30000 });
+  }
+
+  public async doProfileMenuButtonAction(
+    profileName: string,
+    actionName: ProfileActions,
+    profileView?: FrameLocator
+  ) {
+    let manageProfileView = profileView ? profileView : await this.getView(KAIViews.manageProfiles);
+    const targetProfile = await this.getProfileContainerByName(profileName, manageProfileView);
+    const kebabMenuButton = targetProfile.getByLabel('Profile actions menu');
+    await kebabMenuButton.click();
+    await manageProfileView.getByRole('menuitem', { name: actionName }).click();
+    await this.waitDefault();
+    if (actionName === ProfileActions.deleteProfile) {
+      const confirmButton = manageProfileView
+        .getByRole('dialog', { name: 'Delete profile?' })
+        .getByRole('button', { name: 'Confirm' });
+      await confirmButton.click();
+    }
+  }
+
+  public async removeProfileCustomRules(profileName: string, pageView?: FrameLocator) {
+    const profileView = pageView ? pageView : await this.getView(KAIViews.manageProfiles);
+    await this.clickOnProfileContainer(profileName, profileView);
+    const customRuleList = profileView.getByRole('list', { name: 'Custom Rules' });
+    const removeButtons = customRuleList.getByRole('button', { name: 'Remove rule' });
+    const rulesInList = await removeButtons.count();
+    for (let i = 0; i < rulesInList; i++) {
+      await removeButtons.first().click();
+    }
+    await expect(removeButtons).toHaveCount(0);
+  }
+
+  public async getCurrActiveProfile() {
+    const view = await this.getView(KAIViews.manageProfiles);
+    const activeProfileLocator = view.locator('span:has(em:text-is("(active)"))');
+    const fullText = await activeProfileLocator.textContent();
+    if (fullText == null) {
+      throw new Error('No active profile found');
+    }
+    const profileName = fullText.replace('(active)', '').trim();
+    return profileName;
   }
 
   public async getAllIssues(): Promise<{ title: string; incidentsCount: number }[]> {

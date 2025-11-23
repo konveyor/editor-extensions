@@ -58,6 +58,17 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
+  const tsExt = vscode.extensions.getExtension("vscode.typescript-language-features");
+  if (!tsExt) {
+    vscode.window.showErrorMessage("TypeScript extension not found.");
+    return;
+  }
+  try {
+    await tsExt.activate();
+  } catch (error) {
+    logger.error("Failed to activate ts extension", { error });
+  }
+
   // Create socket paths for communication
   const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for kai-analyzer-rpc
   const lspProxySocketPath = rpc.generateRandomPipeName(); // JSON-RPC socket for vscode proxy
@@ -136,9 +147,95 @@ export async function activate(context: vscode.ExtensionContext) {
     lspProxySocket: lspProxySocketPath,
     workspaceLocation,
   });
+
+  // Warm up TypeScript server so providers work even with no JS/TS editor open
+  await warmUpTypeScriptServer(logger);
 }
 
 export function deactivate() {
   // Logger may not be available at this point
   console.log("Konveyor JavaScript extension is now deactivated");
+}
+
+let tsWarmupOnce: Promise<void> | null = null;
+
+async function warmUpTypeScriptServer(logger: winston.Logger) {
+  if (tsWarmupOnce) {
+    return tsWarmupOnce;
+  }
+  tsWarmupOnce = (async () => {
+    try {
+      // If a JS/TS document is already open, no need to open anything
+      const existing = vscode.workspace.textDocuments.find((d) =>
+        ["javascript", "javascriptreact", "typescript", "typescriptreact"].includes(d.languageId),
+      );
+      if (existing) {
+        logger.info("TypeScript server warm-up skipped; JS/TS document already open", {
+          file: existing.uri.fsPath,
+        });
+        return;
+      }
+      const exclude =
+        "{**/node_modules/**,**/dist/**,**/build/**,**/out/**,**/.git/**,**/.yarn/**}";
+      const [tsFiles, tsxFiles, jsFiles, jsxFiles] = await Promise.all([
+        vscode.workspace.findFiles("**/*.ts", exclude, 1),
+        vscode.workspace.findFiles("**/*.tsx", exclude, 1),
+        vscode.workspace.findFiles("**/*.js", exclude, 1),
+        vscode.workspace.findFiles("**/*.jsx", exclude, 1),
+      ]);
+      if (!tsFiles.length && !tsxFiles.length && !jsFiles.length && !jsxFiles.length) {
+        logger.warn("No JS/TS files found to warm up the TypeScript server");
+        return;
+      }
+      const files = [...tsFiles, ...tsxFiles, ...jsFiles, ...jsxFiles];
+      logger.info("Warming up TypeScript server using files", {
+        files: files.map((f) => f.fsPath),
+      });
+      await Promise.all(files.map((f) => vscode.workspace.openTextDocument(f)));
+      await Promise.all(
+        files.map((f) => vscode.commands.executeCommand("vscode.executeDocumentSymbolProvider", f)),
+      );
+      await waitForDiagnosticsForUris(files, 8000, logger);
+      logger.info("TypeScript server warm-up complete");
+    } catch (err) {
+      logger.warn("Failed to warm up TypeScript server", err as Error);
+    }
+  })();
+  return tsWarmupOnce;
+}
+
+async function waitForDiagnosticsForUris(
+  uris: vscode.Uri[],
+  timeoutMs: number,
+  logger: winston.Logger,
+) {
+  const remaining = new Set(uris.map((u) => u.toString()));
+  for (const [uri] of vscode.languages.getDiagnostics()) {
+    remaining.delete(uri.toString());
+  }
+  if (remaining.size === 0) {
+    return;
+  }
+  let sub: vscode.Disposable | undefined;
+  await Promise.race<void>([
+    new Promise<void>((resolve) => {
+      sub = vscode.languages.onDidChangeDiagnostics((e) => {
+        for (const changed of e.uris) {
+          remaining.delete(changed.toString());
+        }
+        if (remaining.size === 0) {
+          resolve();
+        }
+      });
+    }),
+    new Promise<void>((resolve) =>
+      setTimeout(() => {
+        logger.info("Diagnostics wait timed out", {
+          pending: Array.from(remaining),
+        });
+        resolve();
+      }, timeoutMs),
+    ),
+  ]);
+  sub?.dispose();
 }
