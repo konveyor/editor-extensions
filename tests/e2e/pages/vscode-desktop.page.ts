@@ -226,7 +226,6 @@ export class VSCodeDesktop extends VSCode {
       // Trigger extension activation by opening the analysis view
       console.log('Opening Analysis View to trigger core extension activation...');
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Analysis View`);
-      await this.waitDefault();
 
       // Wait for Java extension initialization signal
       // The Java extension waits for core to activate, so this signal means both are ready
