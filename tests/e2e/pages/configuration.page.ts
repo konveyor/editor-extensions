@@ -1,4 +1,5 @@
 import { VSCode } from './vscode.page';
+import { VSCodeDesktop } from './vscode-desktop.page';
 import { extensionId } from '../utilities/utils';
 
 export class Configuration {
@@ -19,9 +20,11 @@ export class Configuration {
   }
 
   public async setEnabledConfiguration(configuration: string, enabled: boolean) {
-    const window = this.vsCode.getWindow();
-    const checkbox = window.getByLabel(configuration);
-    await checkbox.setChecked(enabled);
+    if (this.vsCode instanceof VSCodeDesktop) {
+      await this.vsCode.SetUpSolutionServer(enabled);
+    } else {
+      throw new Error('Solution Server initialization is not available in VSCode Web.');
+    }
   }
 
   public async setInputConfiguration(configuration: string, value: string) {

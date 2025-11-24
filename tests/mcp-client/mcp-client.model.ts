@@ -131,11 +131,16 @@ export class MCPClient {
       }
     );
   }
+  private isUnauthorized(result: any): boolean {
+    const msg = JSON.stringify(result?.content || '');
+    return msg.includes('401') || msg.includes('unauthorized');
+  }
 
   private async request<T>(
     endpoint: string,
     params: any,
-    schema: z.ZodSchema<T>
+    schema: z.ZodSchema<T>,
+    retries = 1
   ): Promise<T | null> {
     await this.authManager.waitForRefresh();
     const result = await this.client?.callTool({
@@ -146,6 +151,12 @@ export class MCPClient {
     console.log(result);
 
     if (result?.isError) {
+      if (this.isUnauthorized(result) && retries > 0) {
+        console.warn('Token expired or connection lost — attempting auto-reconnect...');
+        await this.authManager.refreshTokenFlow().catch(() => this.authManager.authenticate());
+        await this.reconnectWithNewToken(this.authManager.getBearerToken()!);
+        return await this.request(endpoint, params, schema, retries - 1);
+      }
       const errorMessage = Array.isArray(result.content)
         ? result.content
             .filter((item: any) => item.type === 'text')
