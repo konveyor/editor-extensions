@@ -137,89 +137,116 @@ export class AnalyzerClient {
     this.analyzerRpcServer = analyzerRpcServer;
     this.logger.info(`Analyzer RPC server started successfully [pid: ${analyzerPid}]`);
 
-    const socket: Socket = await this.getSocket(pipeName);
-    socket.addListener("connectionAttempt", () => {
-      this.logger.info("Attempting to establish connection...");
-    });
-    socket.addListener("connectionAttemptFailed", () => {
-      this.logger.info("Connection attempt failed");
-    });
-    socket.on("data", (data) => {
-      this.logger.debug(`Received data: ${data.toString()}`);
-    });
-    const reader = new rpc.SocketMessageReader(socket, "utf-8");
-    const writer = new rpc.SocketMessageWriter(socket, "utf-8");
+    try {
+      const socket: Socket = await this.getSocket(pipeName);
+      socket.addListener("connectionAttempt", () => {
+        this.logger.info("Attempting to establish connection...");
+      });
+      socket.addListener("connectionAttemptFailed", () => {
+        this.logger.info("Connection attempt failed");
+      });
+      socket.on("data", (data) => {
+        this.logger.debug(`Received data: ${data.toString()}`);
+      });
+      const reader = new rpc.SocketMessageReader(socket, "utf-8");
+      const writer = new rpc.SocketMessageWriter(socket, "utf-8");
 
-    reader.onClose(() => {
-      this.logger.info("Message reader closed");
-    });
-    reader.onError((e) => {
-      this.logger.error("Error in message reader", e);
-    });
-    writer.onClose(() => {
-      this.logger.info("Message writer closed");
-    });
-    writer.onError((e) => {
-      this.logger.error("Error in message writer", e);
-    });
-    this.analyzerRpcConnection = rpc.createMessageConnection(reader, writer);
-    this.analyzerRpcConnection.trace(
-      rpc.Trace.Messages,
-      {
-        log: (message) => {
-          this.logger.silly("RPC Trace", { message: JSON.stringify(message) });
+      reader.onClose(() => {
+        this.logger.info("Message reader closed");
+      });
+      reader.onError((e) => {
+        this.logger.error("Error in message reader", e);
+      });
+      writer.onClose(() => {
+        this.logger.info("Message writer closed");
+      });
+      writer.onError((e) => {
+        this.logger.error("Error in message writer", e);
+      });
+      this.analyzerRpcConnection = rpc.createMessageConnection(reader, writer);
+      this.analyzerRpcConnection.trace(
+        rpc.Trace.Messages,
+        {
+          log: (message) => {
+            this.logger.silly("RPC Trace", { message: JSON.stringify(message) });
+          },
         },
-      },
-      false,
-    );
-    this.analyzerRpcConnection.onUnhandledNotification((e) => {
-      this.logger.warn(`Unhandled notification: ${e.method}`);
-    });
+        false,
+      );
+      this.analyzerRpcConnection.onUnhandledNotification((e) => {
+        this.logger.warn(`Unhandled notification: ${e.method}`);
+      });
 
-    this.analyzerRpcConnection.onClose(() => this.logger.info("RPC connection closed"));
-    this.analyzerRpcConnection.onRequest((method, params) => {
-      this.logger.debug(`Received request: ${method} + ${JSON.stringify(params)}`);
-    });
+      this.analyzerRpcConnection.onClose(() => this.logger.info("RPC connection closed"));
+      this.analyzerRpcConnection.onRequest((method, params) => {
+        this.logger.debug(`Received request: ${method} + ${JSON.stringify(params)}`);
+      });
 
-    this.analyzerRpcConnection.onNotification("started", (_: []) => {
-      this.logger.info("Server initialization complete");
-      this.fireServerStateChange("running");
-    });
-    this.analyzerRpcConnection.onNotification((method: string, params: any) => {
-      this.logger.debug(`Received notification: ${method} + ${JSON.stringify(params)}`);
-    });
-    this.analyzerRpcConnection.onUnhandledNotification((e) => {
-      this.logger.warn(`Unhandled notification: ${e.method}`);
-    });
-    this.analyzerRpcConnection.onRequest(
-      "workspace/executeCommand",
-      async (params: WorksapceCommandParams) => {
-        this.logger.debug(`Executing workspace command`, {
-          command: params.command,
-          arguments: JSON.stringify(params.arguments),
-        });
+      this.analyzerRpcConnection.onNotification("started", (_: []) => {
+        this.logger.info("Server initialization complete");
+        this.fireServerStateChange("running");
+      });
+      this.analyzerRpcConnection.onNotification((method: string, params: any) => {
+        this.logger.debug(`Received notification: ${method} + ${JSON.stringify(params)}`);
+      });
+      this.analyzerRpcConnection.onUnhandledNotification((e) => {
+        this.logger.warn(`Unhandled notification: ${e.method}`);
+      });
+      this.analyzerRpcConnection.onRequest(
+        "workspace/executeCommand",
+        async (params: WorksapceCommandParams) => {
+          this.logger.debug(`Executing workspace command`, {
+            command: params.command,
+            arguments: JSON.stringify(params.arguments),
+          });
 
-        try {
-          const result = await vscode.commands.executeCommand(
-            "java.execute.workspaceCommand",
-            params.command,
-            params.arguments![0],
+          try {
+            const result = await vscode.commands.executeCommand(
+              "java.execute.workspaceCommand",
+              params.command,
+              params.arguments![0],
+            );
+
+            this.logger.debug(`Command execution result: ${JSON.stringify(result)}`);
+            return result;
+          } catch (error) {
+            this.logger.error(`[Java] Command execution error`, error);
+          }
+        },
+      );
+      this.analyzerRpcConnection.onError((e) => {
+        this.logger.error("RPC connection error", e);
+        // If we're still in starting/initializing state, this means connection failed
+        const currentState = this.getExtStateData().serverState;
+        if (currentState === "starting" || currentState === "initializing") {
+          this.logger.error("RPC connection failed during startup, cleaning up...");
+          this.fireServerStateChange("startFailed");
+          // Kill the analyzer process since we can't communicate with it
+          if (this.analyzerRpcServer && !this.analyzerRpcServer.killed) {
+            this.analyzerRpcServer.kill();
+          }
+          vscode.window.showErrorMessage(
+            "Failed to establish connection with analyzer server. Please try starting the server again.",
           );
-
-          this.logger.debug(`Command execution result: ${JSON.stringify(result)}`);
-          return result;
-        } catch (error) {
-          this.logger.error(`[Java] Command execution error`, error);
         }
-      },
-    );
-    this.analyzerRpcConnection.onError((e) => {
-      this.logger.error("RPC connection error", e);
-    });
-    this.analyzerRpcConnection.listen();
-    this.analyzerRpcConnection.sendNotification("start", { type: "start" });
-    await this.runHealthCheck();
-    this.logger.info(`startAnalyzer took ${performance.now() - startTime}ms`);
+      });
+      this.analyzerRpcConnection.listen();
+      this.analyzerRpcConnection.sendNotification("start", { type: "start" });
+      await this.runHealthCheck();
+      this.logger.info(`startAnalyzer took ${performance.now() - startTime}ms`);
+    } catch (error) {
+      this.logger.error("Failed to establish RPC connection", error);
+      this.fireServerStateChange("startFailed");
+      // Kill the analyzer process since we can't communicate with it
+      if (this.analyzerRpcServer && !this.analyzerRpcServer.killed) {
+        this.analyzerRpcServer.kill();
+        this.analyzerRpcServer = null;
+      }
+      vscode.window.showErrorMessage(
+        `Failed to connect to analyzer server: ${error instanceof Error ? error.message : String(error)}. Please check that the Java extension is ready and try again.`,
+      );
+      throw error; // Re-throw to allow callers to handle it
+    }
   }
 
   protected async runHealthCheck(): Promise<void> {
