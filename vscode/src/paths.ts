@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import AdmZip from "adm-zip";
+import { getDispatcherWithCertBundle, getFetchWithDispatcher } from "./utilities/tls";
 
 /**
  * Parse a sha256sum.txt file to extract the SHA256 hash for a specific filename
@@ -145,8 +146,23 @@ export async function ensureKaiAnalyzerBinary(
   logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
+  // Create certificate-aware fetch function if CA_BUNDLE or NODE_EXTRA_CA_CERTS is set
+  const caBundle = process.env.CA_BUNDLE || process.env.NODE_EXTRA_CA_CERTS;
+  const insecure = process.env.ALLOW_INSECURE === "true" || process.env.ALLOW_INSECURE === "1";
+  let certAwareFetch = fetch;
+
+  if (caBundle || insecure) {
+    try {
+      logger.info(`Using custom CA bundle for downloads: ${caBundle || "(insecure mode)"}`);
+      const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure, false);
+      certAwareFetch = getFetchWithDispatcher(dispatcher);
+    } catch (error) {
+      logger.warn(`Failed to setup custom dispatcher, using default fetch: ${error}`);
+    }
+  }
+
   // Download and parse sha256sum.txt to get expected SHA
-  const sha256Response = await fetch(sha256sumUrl);
+  const sha256Response = await certAwareFetch(sha256sumUrl);
   if (!sha256Response.ok) {
     throw new Error(`Failed to download SHA256 checksums: HTTP ${sha256Response.status}`);
   }
@@ -173,7 +189,7 @@ export async function ensureKaiAnalyzerBinary(
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
 
       // Download zip file
-      const response = await fetch(downloadUrl);
+      const response = await certAwareFetch(downloadUrl);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
