@@ -164,10 +164,7 @@ export abstract class VSCode {
 
     try {
       // Ensure server is running before attempting analysis
-      const serverRunning = await this.isServerRunning();
-      if (!serverRunning) {
-        throw new Error('Cannot run analysis: server is not running.');
-      }
+      this.startServer();
 
       const runAnalysisBtnLocator = analysisView.getByRole('button', {
         name: 'Run Analysis',
