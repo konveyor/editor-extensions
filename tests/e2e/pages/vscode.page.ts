@@ -688,43 +688,4 @@ export abstract class VSCode {
     const profileName = fullText.replace('(active)', '').trim();
     return profileName;
   }
-
-  public async getAllIssues(): Promise<{ title: string; incidentsCount: number }[]> {
-    const analysisView = await this.getView(KAIViews.analysisView);
-
-    // Locate all issue cards by unique class for each header (adapt as needed)
-    const fillContainer = analysisView.locator('.pf-v6-l-stack__item.pf-m-fill');
-    const issueCards = fillContainer.locator('.pf-v6-c-card__header');
-    const issueCount = await issueCards.count();
-    const results: { title: string; incidentsCount: number }[] = [];
-
-    for (let i = 0; i < issueCount; i++) {
-      const card = issueCards.nth(i);
-      // Find h3 in the card for the title
-      const headerMain = card.locator('.pf-v6-c-card__header-main h3');
-      let title = '';
-      try {
-        title = (await headerMain.textContent())?.trim() ?? '';
-      } catch {
-        title = '';
-      }
-
-      // Look for "incidents" string inside a '.pf-v6-c-label__text' element within the card
-      let incidentsCount = 0;
-      try {
-        const label = card.locator('.pf-v6-c-label__text');
-        const labelText = (await label.textContent()) ?? '';
-        const match = labelText.match(/(\d+)\s+incidents?/i);
-        if (match) {
-          incidentsCount = parseInt(match[1], 10);
-        }
-      } catch {
-        incidentsCount = 0;
-      }
-
-      results.push({ title, incidentsCount });
-    }
-
-    return results;
-  }
 }
