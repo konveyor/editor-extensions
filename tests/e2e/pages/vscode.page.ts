@@ -171,7 +171,10 @@ export abstract class VSCode {
       });
 
       console.log('Waiting for Run Analysis button to be enabled...');
-      await expect(runAnalysisBtnLocator).toBeEnabled({ timeout: 600000 });
+      const isEnabled = await runAnalysisBtnLocator.isEnabled({ timeout: 120000 });
+      if (!isEnabled) {
+        throw new Error('Run Analysis button is not enabled after waiting 2 minutes');
+      }
 
       console.log('Starting analysis...');
       await runAnalysisBtnLocator.click();
