@@ -97,16 +97,26 @@ export abstract class VSCode {
 
     try {
       // Check if server is already running
-      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-      const isServerRunning = await stopButton.isVisible();
 
-      if (!isServerRunning) {
+      if (!this.isServerRunning()) {
         console.log('Starting server...');
         const startButton = analysisView.getByRole('button', { name: 'Start' });
         await startButton.waitFor({ state: 'visible', timeout: 10000 });
+        if (!(await startButton.isEnabled({ timeout: 10000 }))) {
+          console.log('Start button is not enabled after waiting 10s');
+          if (!(await startButton.isEnabled({ timeout: 10000 }))) {
+            throw new Error('Start button is not enabled after waiting 10s');
+          }
+        }
         await startButton.click({ delay: 500 });
 
+        // check if the spinning ball is visible
+        const spinningBall = analysisView.locator('[aria-label="Loading spinner"]');
+        await expect(spinningBall).toBeVisible({ timeout: 10000 });
+        console.log('Server is starting...');
+
         // Wait for server to start (Stop button becomes enabled)
+        const stopButton = analysisView.getByRole('button', { name: 'Stop' });
         await stopButton.waitFor({ state: 'visible', timeout: 180000 });
         await stopButton.isEnabled({ timeout: 180000 });
         console.log('Server started successfully');
@@ -680,5 +690,44 @@ export abstract class VSCode {
     }
     const profileName = fullText.replace('(active)', '').trim();
     return profileName;
+  }
+
+  public async getAllIssues(): Promise<{ title: string; incidentsCount: number }[]> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+
+    // Locate all issue cards by unique class for each header (adapt as needed)
+    const fillContainer = analysisView.locator('.pf-v6-l-stack__item.pf-m-fill');
+    const issueCards = fillContainer.locator('.pf-v6-c-card__header');
+    const issueCount = await issueCards.count();
+    const results: { title: string; incidentsCount: number }[] = [];
+
+    for (let i = 0; i < issueCount; i++) {
+      const card = issueCards.nth(i);
+      // Find h3 in the card for the title
+      const headerMain = card.locator('.pf-v6-c-card__header-main h3');
+      let title = '';
+      try {
+        title = (await headerMain.textContent())?.trim() ?? '';
+      } catch {
+        title = '';
+      }
+
+      // Look for "incidents" string inside a '.pf-v6-c-label__text' element within the card
+      let incidentsCount = 0;
+      try {
+        const label = card.locator('.pf-v6-c-label__text');
+        const labelText = (await label.textContent()) ?? '';
+        const match = labelText.match(/(\d+)\s+incidents?/i);
+        if (match) {
+          incidentsCount = parseInt(match[1], 10);
+        }
+      } catch {
+        incidentsCount = 0;
+      }
+
+      results.push({ title, incidentsCount });
+    }
+
+    return results;
   }
 }
