@@ -325,12 +325,16 @@ export abstract class VSCode {
   ) {
     await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
 
+    console.log("Openning 'manage profiles' view ... ");
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
     await manageProfileView.getByRole('button', { name: '+ New Profile' }).click();
 
     const randomName = generateRandomString();
     const nameToUse = profileName ? profileName : randomName;
+
+    console.log(`Creating profile ${nameToUse} ...`);
+
     await manageProfileView.getByRole('textbox', { name: 'Profile Name' }).fill(nameToUse);
 
     const targetsInput = manageProfileView
@@ -360,6 +364,7 @@ export abstract class VSCode {
     if (customRulesPath) {
       await this.selectCustomRules(customRulesPath);
     }
+    console.log(`Created profile ${nameToUse}`);
     return nameToUse;
   }
 
