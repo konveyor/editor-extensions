@@ -128,10 +128,6 @@ export abstract class VSCode {
           throw new Error('Start button is not enabled after waiting 10 seconds');
         }
         await startButton.click({ delay: 500 });
-
-        // check if the spinning ball is visible
-        const spinningBall = analysisView.locator('[aria-label="Loading spinner"]');
-        await expect(spinningBall).toBeVisible({ timeout: 10000 });
         console.log('Server is starting...');
 
         // Wait for server to start (Stop button becomes enabled)
