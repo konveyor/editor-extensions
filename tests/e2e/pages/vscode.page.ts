@@ -103,7 +103,7 @@ export abstract class VSCode {
         const startButton = analysisView.getByRole('button', { name: 'Start' });
         await startButton.waitFor({ state: 'visible', timeout: 10000 });
         if (!(await startButton.isEnabled({ timeout: 10000 }))) {
-          console.log('Start button is not enabled after waiting 10s');
+          throw new Error('Start button is not enabled after waiting 10 seconds');
         }
         await startButton.click({ delay: 500 });
 
