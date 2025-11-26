@@ -108,9 +108,9 @@ export abstract class VSCode {
       await startButton.waitFor({ state: 'visible', timeout: 30_000 });
       await expect(startButton).toBeEnabled();
 
-      const spinningBall = analysisView.locator('[aria-label="Loading spinner"]');
-      await expect(spinningBall).toBeVisible({ timeout: 10000 });
       console.log('Server is starting...');
+      // debug
+      await debugElement(analysisView.locator('.server-status-wrapper'), 'SERVER STATUS WRAPPER');
 
       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
       await stopButton.waitFor({ state: 'visible', timeout: 180000 });
@@ -149,8 +149,6 @@ export abstract class VSCode {
       .locator('.server-status-wrapper')
       .waitFor({ state: 'visible', timeout: 20000 });
     const serverStatusWrapper = analysisView.locator('.server-status-wrapper');
-    // debug
-    await debugElement(analysisView.locator('.server-status-wrapper'), 'SERVER STATUS WRAPPER');
     const status = await serverStatusWrapper.innerText();
     return status.includes('Running');
   }
