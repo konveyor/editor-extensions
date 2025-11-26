@@ -37,6 +37,7 @@ export abstract class VSCode {
   }
 
   public async executeQuickCommand(command: string) {
+    console.log(`Executing command [${command}]`);
     await this.waitDefault();
     await this.window.locator('body').focus();
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
@@ -97,9 +98,9 @@ export abstract class VSCode {
 
     try {
       // Check if server is already running
-
+      console.log('Checking server status');
       if (!this.isServerRunning()) {
-        console.log('Starting server...');
+        console.log('Server is not running, starting server...');
         const startButton = analysisView.getByRole('button', { name: 'Start' });
         await startButton.waitFor({ state: 'visible', timeout: 10000 });
         if (!(await startButton.isEnabled({ timeout: 10000 }))) {
@@ -156,6 +157,7 @@ export abstract class VSCode {
 
   public async runAnalysis() {
     await this.window.waitForTimeout(15000);
+    console.log('Starting analysis process');
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
 
@@ -300,6 +302,7 @@ export abstract class VSCode {
   }
 
   public async configureGenerativeAI(config: string = DEFAULT_PROVIDER.config) {
+    console.log('Starting GenAI configuration');
     await this.executeQuickCommand(
       `${VSCode.COMMAND_CATEGORY}: Open the GenAI model provider configuration file`
     );
@@ -310,6 +313,7 @@ export abstract class VSCode {
     await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    console.log('GenAI configured');
     await this.waitDefault();
   }
 
