@@ -120,6 +120,26 @@ export abstract class VSCode {
         console.log('Server started successfully');
       } else {
         console.log('Server is already running');
+        /// debug
+        console.log('clicking on start server anyways ... ');
+        const startButton = analysisView.getByRole('button', { name: 'Start' });
+        await startButton.waitFor({ state: 'visible', timeout: 10000 });
+        if (!(await startButton.isEnabled({ timeout: 10000 }))) {
+          throw new Error('Start button is not enabled after waiting 10 seconds');
+        }
+        await startButton.click({ delay: 500 });
+
+        // check if the spinning ball is visible
+        const spinningBall = analysisView.locator('[aria-label="Loading spinner"]');
+        await expect(spinningBall).toBeVisible({ timeout: 10000 });
+        console.log('Server is starting...');
+
+        // Wait for server to start (Stop button becomes enabled)
+        const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
+        await stopButton.isEnabled({ timeout: 180000 });
+        console.log('Server started successfully');
+        /// debug
       }
     } catch (error) {
       console.log('Error starting server:', error);
