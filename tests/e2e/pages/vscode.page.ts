@@ -94,34 +94,29 @@ export abstract class VSCode {
   }
 
   public async startServer(): Promise<void> {
-    await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
-
     try {
-      // Check if server is already running
       console.log('Checking server status');
-      if (!this.isServerRunning()) {
-        console.log('Server is not running, starting server...');
-        const startButton = analysisView.getByRole('button', { name: 'Start' });
-        await startButton.waitFor({ state: 'visible', timeout: 10000 });
-        if (!(await startButton.isEnabled({ timeout: 10000 }))) {
-          throw new Error('Start button is not enabled after waiting 10 seconds');
-        }
-        await startButton.click({ delay: 500 });
 
-        // check if the spinning ball is visible
-        const spinningBall = analysisView.locator('[aria-label="Loading spinner"]');
-        await expect(spinningBall).toBeVisible({ timeout: 10000 });
-        console.log('Server is starting...');
-
-        // Wait for server to start (Stop button becomes enabled)
-        const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
-        await stopButton.isEnabled({ timeout: 180000 });
-        console.log('Server started successfully');
-      } else {
+      if (await this.isServerRunning()) {
         console.log('Server is already running');
+        return;
       }
+
+      console.log('Server is not running, starting server...');
+      const startButton = analysisView.getByRole('button', { name: 'Start' });
+      await startButton.waitFor({ state: 'visible', timeout: 30_000 });
+      await expect(startButton).toBeEnabled();
+
+      const spinningBall = analysisView.locator('[aria-label="Loading spinner"]');
+      await expect(spinningBall).toBeVisible({ timeout: 10000 });
+      console.log('Server is starting...');
+
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      await stopButton.waitFor({ state: 'visible', timeout: 180000 });
+      await expect(stopButton).toBeEnabled();
+
+      console.log('Server started successfully');
     } catch (error) {
       console.log('Error starting server:', error);
       throw error;
@@ -149,23 +144,28 @@ export abstract class VSCode {
    * @returns {Promise<boolean>} Whether the server is running or not
    */
   public async isServerRunning(): Promise<boolean> {
-    await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
+    await analysisView
+      .locator('.server-status-wrapper')
+      .waitFor({ state: 'visible', timeout: 20000 });
     const serverStatusWrapper = analysisView.locator('.server-status-wrapper');
+    // debug
     await debugElement(analysisView.locator('.server-status-wrapper'), 'SERVER STATUS WRAPPER');
-    const runningLabel = serverStatusWrapper.getByText('Running', { exact: true });
-    return await runningLabel.isVisible({ timeout: 5000 }).catch(() => false);
+    const status = await serverStatusWrapper.locator('.server-status-wrapper').innerText();
+    return status.includes('Running');
   }
 
   public async runAnalysis() {
-    await this.window.waitForTimeout(15000);
+    await this.window.waitForTimeout(15_000); // wait for 15 seconds to avoid race conditions
+
     console.log('Starting analysis process');
+
     await this.openAnalysisView();
+
     const analysisView = await this.getView(KAIViews.analysisView);
 
     try {
-      // Ensure server is running before attempting analysis
-      this.startServer();
+      await this.startServer();
 
       const runAnalysisBtnLocator = analysisView.getByRole('button', {
         name: 'Run Analysis',
@@ -181,6 +181,7 @@ export abstract class VSCode {
       await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
         timeout: 60000,
       });
+
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
