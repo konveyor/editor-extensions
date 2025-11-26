@@ -69,6 +69,9 @@ export class VSCodeWeb extends VSCode {
     await newPage.waitForTimeout(30_000);
     await vscode.executeQuickCommand('Workspaces: Manage Workspace Trust');
     const trustBtn = newPage.getByRole('button', { name: 'Trust', exact: true }).first();
+    await expect(
+      vscode.getWindow().locator('.workspace-trust-limitations-title-text').first()
+    ).toBeVisible();
     if (await trustBtn.isVisible()) {
       await trustBtn.click();
     }
@@ -242,7 +245,7 @@ export class VSCodeWeb extends VSCode {
       throw new Error('Repo URL is missing for creating a new workspace');
     }
     await page.getByRole('link', { name: 'Create Workspace' }).click();
-    await page.locator('#git-repo-url').fill(repoUrl);
+    await page.locator('#git-repo-url').fill(`${repoUrl}?cpuLimit=4&memoryLimit=7Gi`);
     await page.locator('#accordion-item-git-repo-options').click();
     await page.getByPlaceholder('Enter the branch of the Git Repository').fill(branch);
     const newPagePromise = ctx.waitForEvent('page');
@@ -274,6 +277,7 @@ export class VSCodeWeb extends VSCode {
 
   private async installExtensions(extensions: ExtensionTypes[]) {
     for (const extension of extensions) {
+      console.log('Installing extension', extension);
       const vsixPath = process.env[`${extension}_VSIX_FILE_PATH`];
       const vsixUrl = process.env[`${extension}_VSIX_DOWNLOAD_URL`];
       let extensionFileName = '';
@@ -292,13 +296,12 @@ export class VSCodeWeb extends VSCode {
 
       await this.executeQuickCommand(`Extensions: Install from VSIX...`);
       const pathInput = this.window.locator('.quick-input-box input');
-      await expect(pathInput).toHaveValue('/home/user/');
+      await expect(pathInput).toHaveValue('/home/user/', { timeout: 30_000 });
       await pathInput.fill(`/projects/${this.repoDir}/${extensionFileName}`);
       await expect(
         this.window.locator('.quick-input-list-entry').filter({ hasText: extensionFileName })
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 30_000 });
       await this.window.getByRole('button', { name: 'Install' }).click();
-      await this.executeQuickCommand(`View: Toggle Terminal`);
       await expect(
         this.window.getByText('Completed installing extension.', { exact: true })
       ).toBeVisible({ timeout: 300_000 });
@@ -306,6 +309,7 @@ export class VSCodeWeb extends VSCode {
         this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
       ).toBeVisible({ timeout: 300_000 });
       console.log(`${extension} extension installed`);
+      await this.waitDefault();
     }
   }
 
@@ -328,14 +332,24 @@ export class VSCodeWeb extends VSCode {
     }
 
     const fileName = filePath.replace(/\\/g, '/').split('/').pop();
-    const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
-      hasText: fileName,
-    });
-    await expect(fileItem).toBeVisible({ timeout: 80_000 });
-
     if (!fileName) {
       throw new Error(`Could not find file name from ${filePath}`);
     }
+    const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
+      hasText: fileName,
+    });
+    const uploadingLinks = this.window.locator('a.statusbar-item-label:has-text("Uploading")');
+    await expect(uploadingLinks).toHaveCount(0, { timeout: 120_000 });
+    await expect(fileItem, 'File took too long to upload').toBeVisible({
+      timeout: 120_000,
+    });
+    // After a file is uploaded, the corresponding new tab opens. This tab may take longer to appear than the file item in the explorer view
+    await expect(this.window.locator(`div.tab a.label-name:has-text("${fileName}")`)).toBeVisible({
+      timeout: 60_000,
+    });
+    await this.waitDefault();
+    await this.executeQuickCommand('View: Close Editor');
+
     return fileName;
   }
 }

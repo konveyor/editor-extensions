@@ -7,16 +7,23 @@ export class Configuration {
 
   public static async open(vsCode: VSCode) {
     const config = new Configuration(vsCode);
-    const window = vsCode.getWindow();
-    await vsCode.executeQuickCommand('Preferences: Open Settings (UI)');
-    await window.getByRole('button', { name: `Backup and Sync Settings` }).waitFor();
+    await config.openConfigPage();
+    return config;
+  }
 
+  private async openConfigPage(): Promise<void> {
+    const window = this.vsCode.getWindow();
+    await this.vsCode.executeQuickCommand('Preferences: Open Settings (UI)');
     // element is not an input nor has the "contenteditable" attr, so fill can't be used
     const searchInput = window.locator('div.settings-header div.suggest-input-container');
+    await searchInput.waitFor();
+    const clearFilterLocator = window.getByRole('button', { name: 'Clear Settings Search Input' });
+    if (await clearFilterLocator.isEnabled()) {
+      await clearFilterLocator.click();
+    }
     await searchInput.click();
     await searchInput.pressSequentially(`@ext:${extensionId}`);
-    await vsCode.waitDefault();
-    return config;
+    await this.vsCode.waitDefault();
   }
 
   public async setEnabledConfiguration(configuration: string, enabled: boolean) {
@@ -43,7 +50,9 @@ export class Configuration {
    */
   public async setInputFromLocalPath(configuration: string, path: string) {
     if (this.vsCode instanceof VSCodeWeb) {
-      await this.vsCode.uploadFile(path);
+      const filename = await this.vsCode.uploadFile(path);
+      path = `/projects/${this.vsCode.repoDir}/${filename}`;
+      await this.vsCode.executeTerminalCommand(`chmod +x ${filename}`);
     }
     await this.setInputConfiguration(configuration, path);
   }

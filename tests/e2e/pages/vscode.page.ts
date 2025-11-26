@@ -11,7 +11,7 @@ type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
 
 export abstract class VSCode {
-  protected repoDir?: string;
+  repoDir?: string;
   protected branch?: string;
   protected abstract window: Page;
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
@@ -44,10 +44,11 @@ export abstract class VSCode {
     const input = this.window.getByPlaceholder('Type the name of a command to run.');
     await expect(input).toBeVisible({ timeout: 10_000 });
     await input.fill(`>${command}`);
-    await expect(
-      this.window.locator(`a.label-name span.highlight >> text="${command}"`)
-    ).toBeVisible();
-    await input.press('Enter', { delay: 500 });
+    const commandLocator = this.window
+      .locator('a')
+      .filter({ hasText: new RegExp(`^${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
+    await expect(commandLocator).toBeVisible();
+    await commandLocator.click();
   }
 
   public async openLeftBarElement(name: string) {
