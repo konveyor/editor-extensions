@@ -6,6 +6,7 @@ import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
+import { debugElement } from '../utilities/debug';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -120,22 +121,6 @@ export abstract class VSCode {
         console.log('Server started successfully');
       } else {
         console.log('Server is already running');
-        /// debug
-        console.log('clicking on start server anyways ... ');
-        const startButton = analysisView.getByRole('button', { name: 'Start' });
-        await startButton.waitFor({ state: 'visible', timeout: 10000 });
-        if (!(await startButton.isEnabled({ timeout: 10000 }))) {
-          throw new Error('Start button is not enabled after waiting 10 seconds');
-        }
-        await startButton.click({ delay: 500 });
-        console.log('Server is starting...');
-
-        // Wait for server to start (Stop button becomes enabled)
-        const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
-        await stopButton.isEnabled({ timeout: 180000 });
-        console.log('Server started successfully');
-        /// debug
       }
     } catch (error) {
       console.log('Error starting server:', error);
@@ -167,6 +152,7 @@ export abstract class VSCode {
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
     const serverStatusWrapper = analysisView.locator('.server-status-wrapper');
+    await debugElement(analysisView.locator('.server-status-wrapper'), 'SERVER STATUS WRAPPER');
     const runningLabel = serverStatusWrapper.getByText('Running', { exact: true });
     return await runningLabel.isVisible({ timeout: 5000 }).catch(() => false);
   }
