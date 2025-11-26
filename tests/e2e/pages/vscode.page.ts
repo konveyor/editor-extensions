@@ -107,6 +107,7 @@ export abstract class VSCode {
       const startButton = analysisView.getByRole('button', { name: 'Start' });
       await startButton.waitFor({ state: 'visible', timeout: 30_000 });
       await expect(startButton).toBeEnabled();
+      await startButton.click({ delay: 500 });
 
       console.log('Server is starting...');
       // debug
