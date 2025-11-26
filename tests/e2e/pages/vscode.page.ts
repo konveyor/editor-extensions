@@ -151,7 +151,7 @@ export abstract class VSCode {
     const serverStatusWrapper = analysisView.locator('.server-status-wrapper');
     // debug
     await debugElement(analysisView.locator('.server-status-wrapper'), 'SERVER STATUS WRAPPER');
-    const status = await serverStatusWrapper.locator('.server-status-wrapper').innerText();
+    const status = await serverStatusWrapper.innerText();
     return status.includes('Running');
   }
 
