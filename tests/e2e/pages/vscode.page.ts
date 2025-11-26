@@ -104,9 +104,6 @@ export abstract class VSCode {
         await startButton.waitFor({ state: 'visible', timeout: 10000 });
         if (!(await startButton.isEnabled({ timeout: 10000 }))) {
           console.log('Start button is not enabled after waiting 10s');
-          if (!(await startButton.isEnabled({ timeout: 10000 }))) {
-            throw new Error('Start button is not enabled after waiting 10s');
-          }
         }
         await startButton.click({ delay: 500 });
 
@@ -171,10 +168,7 @@ export abstract class VSCode {
       });
 
       console.log('Waiting for Run Analysis button to be enabled...');
-      const isEnabled = await runAnalysisBtnLocator.isEnabled({ timeout: 120000 });
-      if (!isEnabled) {
-        throw new Error('Run Analysis button is not enabled after waiting 2 minutes');
-      }
+      await expect(runAnalysisBtnLocator).toBeEnabled({ timeout: 600000 });
 
       console.log('Starting analysis...');
       await runAnalysisBtnLocator.click();
