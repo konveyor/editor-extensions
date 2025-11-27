@@ -11,6 +11,7 @@ import {
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
   EXTENSION_NAME,
+  EXTENSION_SHORT_NAME,
 } from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
@@ -978,8 +979,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   } catch (error) {
     await extension?.dispose();
     extension = undefined;
-    logger.error("Failed to activate Konveyor extension", error);
-    vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
+    logger.error(`Failed to activate ${EXTENSION_SHORT_NAME} extension`, error);
+    vscode.window.showErrorMessage(
+      `Failed to activate ${EXTENSION_SHORT_NAME} extension: ${error}`,
+    );
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
   }
 }
