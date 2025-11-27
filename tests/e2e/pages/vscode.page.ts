@@ -115,9 +115,21 @@ export abstract class VSCode {
         .catch(() => 'unknown');
       console.log('Status before click:', statusBefore);
 
+      await this.window.screenshot({
+        path: `test-output/01-before-start-click.png`,
+        fullPage: true,
+      });
+      console.log('Screenshot saved: 01-before-start-click.png');
+
       // click the start button
       await startButton.click({ delay: 500 });
       console.log('Start button clicked');
+
+      await this.window.screenshot({
+        path: `test-output/01-start-button-clicked.png`,
+        fullPage: true,
+      });
+      console.log('Screenshot saved: 01-start-button-clicked.png');
 
       console.log('Waiting for loading spinner...');
       const spinningIcon = analysisView.locator('[aria-label="Loading spinner"]');
