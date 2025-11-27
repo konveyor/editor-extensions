@@ -107,15 +107,35 @@ export abstract class VSCode {
       const startButton = analysisView.getByRole('button', { name: 'Start' });
       await startButton.waitFor({ state: 'visible', timeout: 30_000 });
       await expect(startButton).toBeEnabled();
+
+      // Log status before clicking
+      const statusBefore = await analysisView
+        .locator('.pf-v6-c-label__text')
+        .textContent()
+        .catch(() => 'unknown');
+      console.log('Status before click:', statusBefore);
+
+      // click the start button
       await startButton.click({ delay: 500 });
+      console.log('Start button clicked');
 
-      console.log('Server is starting...');
-      // debug
-      await debugElement(analysisView.locator(startButton), 'Start Button');
-      await this.captureServerLogs();
-
+      console.log('Waiting for loading spinner...');
       const spinningIcon = analysisView.locator('[aria-label="Loading spinner"]');
-      await expect(spinningIcon).toBeVisible({ timeout: 10000 });
+      const spinnerVisible = await spinningIcon.isVisible({ timeout: 10000 }).catch(() => false);
+
+      if (!spinnerVisible) {
+        console.error('Loading spinner never appeared');
+        await this.captureServerLogs();
+        throw new Error('Server failed to start - no loading indicator appeared');
+      }
+
+      // Wait and check if status changed
+      await this.window.waitForTimeout(3000);
+      const statusAfter = await analysisView
+        .locator('.pf-v6-c-label__text')
+        .textContent()
+        .catch(() => 'unknown');
+      console.log('Status 3s after click:', statusAfter);
 
       console.log('waiting for stop button to be visible ...');
       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
@@ -128,116 +148,6 @@ export abstract class VSCode {
       throw error;
     }
   }
-
-  // public async startServer(): Promise<void> {
-  //   const analysisView = await this.getView(KAIViews.analysisView);
-  //   try {
-  //     console.log('Checking server status');
-
-  //     if (await this.isServerRunning()) {
-  //       console.log('Server is already running');
-  //       return;
-  //     }
-
-  //     console.log('Server is not running, starting server...');
-  //     const startButton = analysisView.getByRole('button', { name: 'Start' });
-  //     await startButton.waitFor({ state: 'visible', timeout: 30_000 });
-  //     await expect(startButton).toBeEnabled();
-
-  //     // Capture state before clicking
-  //     await debugElement(analysisView.locator('.server-status-wrapper'), 'BEFORE START');
-
-  //     await startButton.click({ delay: 500 });
-  //     console.log('Start button clicked');
-
-  //     // Poll for status changes with detailed logging
-  //     const maxAttempts = 36; // 180 seconds / 5 seconds
-  //     let lastStatus = '';
-
-  //     for (let i = 0; i < maxAttempts; i++) {
-  //       await this.window.waitForTimeout(5000);
-
-  //       // Check current status
-  //       const statusLabel = analysisView.locator('.pf-v6-c-label__text');
-  //       const currentStatus = await statusLabel.textContent().catch(() => 'unknown');
-
-  //       if (currentStatus !== lastStatus) {
-  //         console.log(
-  //           `[Attempt ${i + 1}/${maxAttempts}] Status changed: ${lastStatus} -> ${currentStatus}`
-  //         );
-  //         lastStatus = currentStatus || '';
-  //       }
-
-  //       // Check for Stop button
-  //       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-  //       const isStopVisible = await stopButton.isVisible().catch(() => false);
-
-  //       if (isStopVisible) {
-  //         console.log('Stop button is now visible');
-  //         await expect(stopButton).toBeEnabled({ timeout: 10000 });
-  //         console.log('Server started successfully');
-  //         return;
-  //       }
-
-  //       // Check for error states
-  //       const errorElements = await analysisView
-  //         .locator('.pf-m-danger, .pf-m-red:has-text("Error"), .error-message')
-  //         .all();
-  //       if (errorElements.length > 0) {
-  //         console.error('Error elements detected during server start');
-  //         for (const elem of errorElements) {
-  //           const text = await elem.textContent();
-  //           console.error(`Error: ${text}`);
-  //         }
-  //       }
-
-  //       // Debug dump every 30 seconds
-  //       if (i > 0 && i % 6 === 0) {
-  //         await debugElement(
-  //           analysisView.locator('.server-status-wrapper'),
-  //           `SERVER STATUS at ${i * 5}s`
-  //         );
-  //       }
-  //     }
-
-  //     // Final debug dump before throwing
-  //     console.error('Server failed to start within timeout');
-  //     await debugElement(analysisView.locator('.server-status-wrapper'), 'FINAL SERVER STATUS');
-
-  //     // Capture full analysis view HTML using evaluate
-  //     const fullHtml = await analysisView
-  //       .locator('body')
-  //       .evaluate((el) => el.innerHTML)
-  //       .catch(() => 'Failed to capture HTML');
-  //     console.error('Full analysis view HTML:', fullHtml);
-
-  //     // Take screenshot
-  //     await this.window.screenshot({
-  //       path: `server-start-failure-${Date.now()}.png`,
-  //       fullPage: true,
-  //     });
-
-  //     throw new Error('Server failed to start - Stop button never appeared after 180 seconds');
-  //   } catch (error) {
-  //     console.error('Error starting server:', error);
-
-  //     // Additional debugging on error
-  //     try {
-  //       await debugElement(analysisView.locator('.server-status-wrapper'), 'ERROR STATE');
-
-  //       // Capture HTML using evaluate on a locator
-  //       const viewHtml = await analysisView
-  //         .locator('body')
-  //         .evaluate((el) => el.outerHTML)
-  //         .catch(() => 'N/A');
-  //       console.error('Analysis view HTML on error:', viewHtml);
-  //     } catch (debugError) {
-  //       console.error('Error during debugging:', debugError);
-  //     }
-
-  //     throw error;
-  //   }
-  // }
 
   public async searchViolation(term: string): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
@@ -812,29 +722,45 @@ export abstract class VSCode {
     return profileName;
   }
 
-  public async captureServerLogs(): Promise<void> {
+  private async captureServerLogs(): Promise<void> {
     try {
-      // Open Output panel and select Konveyor channel
+      console.log('=== Attempting to capture server logs ===');
+
+      // Open Output panel
       await this.executeQuickCommand('View: Toggle Output');
       await this.window.waitForTimeout(1000);
 
-      // Try to select Konveyor output channel
-      const outputDropdown = this.window.locator('.output-dropdown');
-      if (await outputDropdown.isVisible().catch(() => false)) {
+      // Try to select Konveyor output channel if dropdown exists
+      const outputDropdown = this.window.locator('.output-view select, .output-view .select-box');
+      if (await outputDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
         await outputDropdown.click();
         await this.window.waitForTimeout(500);
 
-        // Look for Konveyor or Analysis Server option
-        const konveyorOption = this.window.locator('text=/Konveyor|Analysis|Server/i').first();
-        if (await konveyorOption.isVisible().catch(() => false)) {
+        // Look for Konveyor-related options
+        const konveyorOption = this.window
+          .locator('option:has-text("Konveyor"), option:has-text("Analysis")')
+          .first();
+        if (await konveyorOption.isVisible({ timeout: 1000 }).catch(() => false)) {
           await konveyorOption.click();
           await this.window.waitForTimeout(1000);
-
-          const outputContent = await this.window.locator('.view-line').allTextContents();
-          console.log('=== Konveyor Server Output ===');
-          console.log(outputContent.join('\n'));
         }
       }
+
+      // Get output content
+      const outputContent = await this.window
+        .locator('.output .view-lines, .monaco-editor .view-lines')
+        .textContent()
+        .catch(() => '');
+      if (outputContent && outputContent.trim().length > 0) {
+        console.log('=== VSCode Output Panel ===');
+        console.log(outputContent);
+        console.log('=== End Output ===');
+      } else {
+        console.log('No output content captured');
+      }
+
+      // Close output panel
+      await this.executeQuickCommand('View: Toggle Output');
     } catch (error) {
       console.error('Failed to capture server logs:', error);
     }
