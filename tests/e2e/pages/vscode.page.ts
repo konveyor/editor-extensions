@@ -111,8 +111,12 @@ export abstract class VSCode {
 
       console.log('Server is starting...');
       // debug
-      // await debugElement(analysisView.locator('.server-status-wrapper'), 'SERVER STATUS WRAPPER');
+      await debugElement(analysisView.locator(startButton), 'Start Button');
       await this.captureServerLogs();
+
+      const spinningIcon = analysisView.locator('[aria-label="Loading spinner"]');
+      await expect(spinningIcon).toBeVisible({ timeout: 10000 });
+
       console.log('waiting for stop button to be visible ...');
       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
       await stopButton.waitFor({ state: 'visible', timeout: 600_000 }); // 10 minutes
