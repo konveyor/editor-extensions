@@ -137,7 +137,7 @@ export abstract class VSCode {
 
       if (!spinnerVisible) {
         console.error('Loading spinner never appeared');
-        await this.captureServerLogs();
+        await this.captureAllVSCodeLogs();
         throw new Error('Server failed to start - no loading indicator appeared');
       }
 
@@ -734,47 +734,59 @@ export abstract class VSCode {
     return profileName;
   }
 
-  private async captureServerLogs(): Promise<void> {
+  private async captureAllVSCodeLogs(): Promise<void> {
     try {
-      console.log('=== Attempting to capture server logs ===');
+      console.log('=== Capturing all VSCode logs ===');
 
       // Open Output panel
-      await this.executeQuickCommand('View: Toggle Output');
+      await this.executeQuickCommand('View: Output');
       await this.window.waitForTimeout(1000);
 
-      // Try to select Konveyor output channel if dropdown exists
-      const outputDropdown = this.window.locator('.output-view select, .output-view .select-box');
-      if (await outputDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await outputDropdown.click();
-        await this.window.waitForTimeout(500);
+      // Get the output channel selector
+      const channelSelector = this.window
+        .locator('.output-view .select-box, .output-view select')
+        .first();
 
-        // Look for Konveyor-related options
-        const konveyorOption = this.window
-          .locator('option:has-text("Konveyor"), option:has-text("Analysis")')
-          .first();
-        if (await konveyorOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await konveyorOption.click();
-          await this.window.waitForTimeout(1000);
+      // Get all available channels
+      if (await channelSelector.isVisible({ timeout: 2000 }).catch(() => false)) {
+        const channels = await channelSelector.locator('option').allTextContents();
+        console.log('Available output channels:', channels);
+
+        // Capture each relevant channel
+        const channelsToCheck = [
+          'Extension Host',
+          'Konveyor Extension for VSCode',
+          'Language Server',
+        ];
+
+        for (const channel of channelsToCheck) {
+          const channelOption = this.window.locator(`option:has-text("${channel}")`).first();
+          if (await channelOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+            console.log(`\nSelecting channel: ${channel}`);
+            await channelSelector.click();
+            await channelOption.click();
+            await this.window.waitForTimeout(500);
+
+            const content = await this.window.locator('.monaco-editor .view-lines').textContent();
+            if (content && content.trim()) {
+              console.log(`\n=== ${channel} Output ===`);
+              console.log(content);
+              console.log(`=== End ${channel} ===\n`);
+            } else {
+              console.log(`(No content in ${channel})`);
+            }
+          } else {
+            console.log(`Channel "${channel}" not found`);
+          }
         }
-      }
-
-      // Get output content
-      const outputContent = await this.window
-        .locator('.output .view-lines, .monaco-editor .view-lines')
-        .textContent()
-        .catch(() => '');
-      if (outputContent && outputContent.trim().length > 0) {
-        console.log('=== VSCode Output Panel ===');
-        console.log(outputContent);
-        console.log('=== End Output ===');
       } else {
-        console.log('No output content captured');
+        console.log('Output channel selector not found');
       }
 
-      // Close output panel
-      await this.executeQuickCommand('View: Toggle Output');
-    } catch (error) {
-      console.error('Failed to capture server logs:', error);
+      // Close Output panel
+      await this.executeQuickCommand('View: Output');
+    } catch (error: any) {
+      console.error('Failed to capture VSCode logs:', error?.message);
     }
   }
 }
