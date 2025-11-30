@@ -6,7 +6,6 @@ import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
-import { debugElement } from '../utilities/debug';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -131,30 +130,23 @@ export abstract class VSCode {
       });
       console.log('Screenshot saved: 01-start-button-clicked.png');
 
-      console.log('Waiting for loading spinner...');
-      const spinningIcon = analysisView.locator('[aria-label="Loading spinner"]');
-      const spinnerVisible = await spinningIcon.isVisible({ timeout: 10000 }).catch(() => false);
-
-      if (!spinnerVisible) {
-        console.error('Loading spinner never appeared');
-        await this.captureAllVSCodeLogs();
-        throw new Error('Server failed to start - no loading indicator appeared');
-      }
-
-      // Wait and check if status changed
-      await this.window.waitForTimeout(3000);
-      const statusAfter = await analysisView
-        .locator('.pf-v6-c-label__text')
-        .textContent()
-        .catch(() => 'unknown');
-      console.log('Status 3s after click:', statusAfter);
+      // Check notifications after button click
+      console.log('Checking notifications after BUTTON CLICK');
+      await this.captureVSCodeNotifications();
 
       console.log('waiting for stop button to be visible ...');
       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
       await stopButton.waitFor({ state: 'visible', timeout: 600_000 }); // 10 minutes
       await expect(stopButton).toBeEnabled();
 
-      console.log('Server started successfully');
+      // Screenshot after stop button is visible
+      await this.window.screenshot({
+        path: `test-output/02-stop-button-visible.png`,
+        fullPage: true,
+      });
+      console.log('Screenshot saved: 02-stop-button-visible.png');
+
+      console.log('Server started successfully via button click!');
     } catch (error) {
       console.log('Error starting server:', error);
       throw error;
@@ -185,32 +177,23 @@ export abstract class VSCode {
         fullPage: true,
       });
 
-      // Check if spinner appeared
-      console.log('Checking for loading spinner...');
-      const spinningIcon = analysisView.locator('[aria-label="Loading spinner"]');
-      const spinnerVisible = await spinningIcon.isVisible({ timeout: 15000 }).catch(() => false);
+      // Check notifications after command run
+      console.log('Checking notifications after COMMAND');
+      await this.captureVSCodeNotifications();
 
-      if (spinnerVisible) {
-        console.log('SUCCESS! Spinner appeared via command');
+      // Wait for Stop button to be visible
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      await stopButton.waitFor({ state: 'visible', timeout: 600_000 });
+      console.log('Server started successfully via command!');
 
-        // Wait for Stop button
-        const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-        await stopButton.waitFor({ state: 'visible', timeout: 600_000 });
-        console.log('Server started successfully via command!');
+      await this.window.screenshot({
+        path: `test-output/command-03-server-started.png`,
+        fullPage: true,
+      });
 
-        await this.window.screenshot({
-          path: `test-output/command-03-server-started.png`,
-          fullPage: true,
-        });
-
-        return;
-      } else {
-        console.log('Spinner did not appear even with command');
-        await this.captureAllVSCodeLogs();
-      }
+      return;
     } catch (error) {
       console.error('Error starting server via command:', error);
-      await this.captureAllVSCodeLogs();
       throw error;
     }
   }
@@ -802,59 +785,64 @@ export abstract class VSCode {
     return profileName;
   }
 
-  private async captureAllVSCodeLogs(): Promise<void> {
+  private async captureVSCodeNotifications(): Promise<void> {
     try {
-      console.log('=== Capturing all VSCode logs ===');
+      console.log('=== Capturing VSCode Notifications ===');
 
-      // Open Output panel
-      await this.executeQuickCommand('View: Output');
-      await this.window.waitForTimeout(1000);
-
-      // Get the output channel selector
-      const channelSelector = this.window
-        .locator('.output-view .select-box, .output-view select')
-        .first();
-
-      // Get all available channels
-      if (await channelSelector.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const channels = await channelSelector.locator('option').allTextContents();
-        console.log('Available output channels:', channels);
-
-        // Capture each relevant channel
-        const channelsToCheck = [
-          'Extension Host',
-          'Konveyor Extension for VSCode',
-          'Language Server',
-        ];
-
-        for (const channel of channelsToCheck) {
-          const channelOption = this.window.locator(`option:has-text("${channel}")`).first();
-          if (await channelOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-            console.log(`\nSelecting channel: ${channel}`);
-            await channelSelector.click();
-            await channelOption.click();
-            await this.window.waitForTimeout(500);
-
-            const content = await this.window.locator('.monaco-editor .view-lines').textContent();
-            if (content && content.trim()) {
-              console.log(`\n=== ${channel} Output ===`);
-              console.log(content);
-              console.log(`=== End ${channel} ===\n`);
-            } else {
-              console.log(`(No content in ${channel})`);
-            }
-          } else {
-            console.log(`Channel "${channel}" not found`);
-          }
-        }
-      } else {
-        console.log('Output channel selector not found');
+      // Open notification center by clicking the bell icon
+      console.log('Opening notification center...');
+      const bellIcon = this.window.locator('.codicon-bell, [aria-label*="Notification"]').first();
+      if (await bellIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await bellIcon.click();
+        await this.window.waitForTimeout(1000);
       }
 
-      // Close Output panel
-      await this.executeQuickCommand('View: Output');
-    } catch (error: any) {
-      console.error('Failed to capture VSCode logs:', error?.message);
+      // Check if notification center is visible
+      const notificationCenter = await this.window
+        .locator('.notifications-list-container')
+        .isVisible()
+        .catch(() => false);
+
+      if (notificationCenter) {
+        console.log('Notification center is open');
+
+        // Get all notification rows
+        const notificationRows = await this.window
+          .locator('.notifications-list-container .monaco-list-row')
+          .all();
+        console.log(`Found ${notificationRows.length} notification(s)\n`);
+
+        if (notificationRows.length === 0) {
+          console.log('No notifications found');
+          return;
+        }
+
+        // Print each notification's full content
+        for (let i = 0; i < notificationRows.length; i++) {
+          const fullText = await notificationRows[i].textContent();
+          console.log(`--- Notification ${i + 1} ---`);
+          console.log(fullText);
+          console.log('');
+        }
+      } else {
+        console.log('Notification center not visible');
+      }
+
+      // Also check for toast notifications
+      const toasts = await this.window
+        .locator('.notifications-toasts .notification-toast-container')
+        .all();
+      if (toasts.length > 0) {
+        console.log(`\nFound ${toasts.length} toast notification(s):`);
+        for (let i = 0; i < toasts.length; i++) {
+          const toastText = await toasts[i].textContent();
+          console.log(`Toast ${i + 1}: ${toastText}`);
+        }
+      }
+
+      console.log('=== End Notifications ===\n');
+    } catch (error) {
+      console.error('Failed to capture notifications:', error as Error);
     }
   }
 }
