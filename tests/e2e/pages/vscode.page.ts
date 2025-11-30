@@ -161,6 +161,60 @@ export abstract class VSCode {
     }
   }
 
+  public async startServerViaCommand(): Promise<void> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    try {
+      console.log('=== Testing server start via command ===');
+
+      // Screenshot before
+      await this.window.screenshot({
+        path: `test-output/command-01-before.png`,
+        fullPage: true,
+      });
+
+      // Execute the command directly
+      await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Start Server`);
+      console.log('Command executed');
+
+      // Wait a moment
+      await this.window.waitForTimeout(2000);
+
+      // Screenshot after command
+      await this.window.screenshot({
+        path: `test-output/command-02-after-command.png`,
+        fullPage: true,
+      });
+
+      // Check if spinner appeared
+      console.log('Checking for loading spinner...');
+      const spinningIcon = analysisView.locator('[aria-label="Loading spinner"]');
+      const spinnerVisible = await spinningIcon.isVisible({ timeout: 15000 }).catch(() => false);
+
+      if (spinnerVisible) {
+        console.log('SUCCESS! Spinner appeared via command');
+
+        // Wait for Stop button
+        const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+        await stopButton.waitFor({ state: 'visible', timeout: 600_000 });
+        console.log('Server started successfully via command!');
+
+        await this.window.screenshot({
+          path: `test-output/command-03-server-started.png`,
+          fullPage: true,
+        });
+
+        return;
+      } else {
+        console.log('Spinner did not appear even with command');
+        await this.captureAllVSCodeLogs();
+      }
+    } catch (error) {
+      console.error('Error starting server via command:', error);
+      await this.captureAllVSCodeLogs();
+      throw error;
+    }
+  }
+
   public async searchViolation(term: string): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
 
@@ -201,7 +255,21 @@ export abstract class VSCode {
     const analysisView = await this.getView(KAIViews.analysisView);
 
     try {
-      await this.startServer();
+      // Try command first
+      console.log('\n========================================');
+      console.log('ATTEMPT 1: Start server via COMMAND');
+      console.log('========================================');
+      try {
+        await this.startServerViaCommand();
+        console.log('Command method WORKED!');
+      } catch (error) {
+        console.log('Command method FAILED');
+
+        console.log('\n========================================');
+        console.log('ATTEMPT 2: Start server via BUTTON CLICK');
+        console.log('========================================');
+        await this.startServer();
+      }
 
       const runAnalysisBtnLocator = analysisView.getByRole('button', {
         name: 'Run Analysis',
