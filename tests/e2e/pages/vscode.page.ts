@@ -122,7 +122,7 @@ export abstract class VSCode {
       console.log('Screenshot saved: 01-before-start-click.png');
 
       // click the start button
-      await startButton.click({ delay: 500 });
+      await startButton.click({ delay: 500, force: true });
       console.log('Start button clicked');
 
       await this.window.screenshot({
