@@ -124,6 +124,14 @@ export abstract class VSCode {
       console.log('Listing installed extensions...');
       await this.listInstalledExtensions();
 
+      // Wait 5 minutes for language providers to load
+      console.log('Waiting 5 minutes for language providers to fully initialize...');
+      const waitTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+      await this.window.waitForTimeout(waitTime);
+
+      console.log('✓ Wait complete, attempting to start server');
+
+      console.log('Listing installed extensions after button click...');
       // click the start button
       await startButton.click({ delay: 500, force: true });
       console.log('Start button clicked');
@@ -171,6 +179,13 @@ export abstract class VSCode {
       // print the list of installed extensions
       console.log('Listing installed extensions before command execution...');
       await this.listInstalledExtensions();
+
+      // Wait 5 minutes for language providers to load
+      console.log(
+        'Waiting 5 minutes for language providers to fully initialize after command execution ...'
+      );
+      const waitTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+      await this.window.waitForTimeout(waitTime);
 
       // Execute the command directly
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Start Server`);
