@@ -89,7 +89,10 @@ export const providerConfigs: ProviderConfig[] = [
 export function getAvailableProviders(): ProviderConfig[] {
   const providers: ProviderConfig[] = [];
   if (process.env.OPENAI_API_KEY) {
+    console.log('OPENAI_API_KEY is set');
     providers.push(OPENAI_GPT4OMINI_PROVIDER);
+  } else {
+    console.log('OPENAI_API_KEY is not set');
   }
 
   if (isAWSConfigured()) {
