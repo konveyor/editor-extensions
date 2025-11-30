@@ -165,7 +165,7 @@ export abstract class VSCode {
     }
   }
 
-  public async startServerViaCommand(maxRetries: number = 3): Promise<void> {
+  public async startServerViaCommand(maxRetries: number = 10): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -193,12 +193,12 @@ export abstract class VSCode {
         await this.window.waitForTimeout(waitTime);
         const endWait = Date.now();
         const actualWaitSec = Math.round((endWait - startWait) / 1000);
-        console.log(`✓ Wait complete (${actualWaitSec} seconds elapsed)`);
+        console.log(`Wait complete (${actualWaitSec} seconds elapsed)`);
   
         // Execute the command directly
         console.log(`[Attempt ${attempt}] Executing command: ${VSCode.COMMAND_CATEGORY}: Start Server`);
         await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Start Server`);
-        console.log('✓ Command executed');
+        console.log('Command executed');
   
         // Wait a moment
         await this.window.waitForTimeout(2000);
@@ -221,15 +221,6 @@ export abstract class VSCode {
   
         if (hasNoProvidersError) {
           console.error(`Attempt ${attempt} FAILED: Language providers still not ready`);
-          
-          // Dismiss the notification
-          const dismissButton = this.window
-            .locator('.notification-list-item:has-text("No language providers") .codicon-notifications-clear')
-            .first();
-          if (await dismissButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await dismissButton.click();
-            console.log('Dismissed error notification');
-          }
   
           // If this isn't the last attempt, continue to next retry
           if (attempt < maxRetries) {
@@ -280,11 +271,9 @@ export abstract class VSCode {
   
         // If this is the last attempt, capture logs and throw
         if (attempt >= maxRetries) {
-          console.error(`All ${maxRetries} attempts failed. Capturing final diagnostics...`);
-          await this.captureVSCodeNotifications();
-          throw new Error(`Server failed to start after ${maxRetries} attempts (${maxRetries * 5} minutes total). Last error: ${error.message}`);
+          console.error(`All ${maxRetries} attempts failed. Capturing `);
+          throw new Error(`Server failed to start after ${maxRetries} attempts (${maxRetries * 5} minutes total). Last error: ${error instanceof Error ? error.message : String(error)}`);
         }
-        
         // Otherwise, retry
         console.log(`\nRetrying after error... (${maxRetries - attempt} attempt(s) remaining)\n`);
       }
