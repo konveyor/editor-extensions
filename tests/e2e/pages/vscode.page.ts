@@ -5,10 +5,8 @@ import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
+import { OutputPanel } from './output.page';
 import path from 'path';
-import { OutputChannel } from '../enums/output.enum';
-import { SettingsView } from '../enums/settings-view.enum';
-import { LogLevel } from '../enums/LogLevel.enum';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -18,6 +16,14 @@ export abstract class VSCode {
   protected branch?: string;
   protected abstract window: Page;
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
+
+  /**
+   * Gets the OutputPanel instance for this VSCode instance.
+   * Provides access to output channel operations.
+   */
+  public get outputPanel(): OutputPanel {
+    return OutputPanel.getInstance(this);
+  }
 
   /**
    * Unzips all test data into workspace .vscode/ directory, only deletes the zip files if cleanup is true
@@ -683,66 +689,5 @@ export abstract class VSCode {
     }
     const profileName = fullText.replace('(active)', '').trim();
     return profileName;
-  }
-
-  public async openOutputView(channel: OutputChannel, filterText?: string): Promise<void> {
-    await this.executeQuickCommand(`Output: Show Output Channels...`);
-    await this.window.getByText(channel).first().click();
-    if (filterText) {
-      await this.window.getByPlaceholder('Filter').fill(filterText);
-    }
-  }
-
-  public async getOutputChannelContent(
-    channel: OutputChannel,
-    filterText?: string
-  ): Promise<string> {
-    await this.openOutputView(channel, filterText);
-    return (
-      (await this.window
-        .locator(`div.output-view-content[aria-label="${channel}"]`)
-        .textContent()) ?? ''
-    );
-  }
-
-  public async getOutputChannelContentByRegex(
-    channel: OutputChannel,
-    regex: RegExp
-  ): Promise<string> {
-    const content = await this.getOutputChannelContent(channel);
-    const globalRegex = new RegExp(
-      regex.source,
-      regex.flags.includes('g') ? regex.flags : regex.flags + 'g'
-    );
-    const matches = content.match(globalRegex);
-    return matches ? matches.join('\n') : '';
-  }
-
-  public async openKonveyorSettings(view: SettingsView, searchSettings?: string): Promise<void> {
-    await this.executeQuickCommand('Preferences: Open Settings (UI)');
-    const settingsHeader = await this.window.locator('class=settings-header');
-    await settingsHeader.waitFor({ state: 'visible', timeout: 10000 });
-    settingsHeader.getByText(view).click();
-    if (searchSettings) {
-      const searchInput = settingsHeader.locator('div.suggest-input-container');
-      await searchInput.fill(`@ext:konveyor.konveyor ${searchSettings}`);
-      await this.window.waitForTimeout(1000);
-      const settingsCountBadge = this.window.locator(
-        '.search-container-widgets .settings-count-widget.monaco-count-badge'
-      );
-      await expect(settingsCountBadge).toHaveText(/^\d+ Setting[s]? Found$/);
-      const settingsCountText = await settingsCountBadge.textContent();
-      if (settingsCountText && /^0 Setting[s]? Found$/.test(settingsCountText.trim())) {
-        throw new Error(`No settings found for "${searchSettings}"`);
-      }
-    }
-  }
-
-  public async selectLogLevel(logLevel: LogLevel) {
-    this.openKonveyorSettings(SettingsView.user, 'log level');
-    const logLevelSelect = this.window.locator('select[aria-label="konveyor.logLevel"]');
-    await logLevelSelect.waitFor({ state: 'visible', timeout: 5000 });
-    await logLevelSelect.selectOption(logLevel);
-    await this.window.waitForTimeout(1000);
   }
 }
