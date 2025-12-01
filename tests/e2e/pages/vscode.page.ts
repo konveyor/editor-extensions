@@ -120,18 +120,6 @@ export abstract class VSCode {
       });
       console.log('Screenshot saved: 01-before-start-click.png');
 
-      // print the list of installed extensions
-      console.log('Listing installed extensions...');
-      await this.listInstalledExtensions();
-
-      // Wait 5 minutes for language providers to load
-      console.log('Waiting 5 minutes for language providers to fully initialize...');
-      const waitTime = 5 * 60 * 1000; // 5 minutes in milliseconds
-      await this.window.waitForTimeout(waitTime);
-
-      console.log('✓ Wait complete, attempting to start server');
-
-      console.log('Listing installed extensions after button click...');
       // click the start button
       await startButton.click({ delay: 500, force: true });
       console.log('Start button clicked');
@@ -167,112 +155,124 @@ export abstract class VSCode {
 
   public async startServerViaCommand(maxRetries: number = 10): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`\n========================================`);
         console.log(`ATTEMPT ${attempt}/${maxRetries}: Start Server via Command`);
         console.log(`========================================\n`);
-  
+
         // Screenshot before
         await this.window.screenshot({
           path: `test-output/attempt-${attempt}-01-before.png`,
           fullPage: true,
         });
-  
+
         // Print the list of installed extensions (only on first attempt)
         if (attempt === 1) {
           console.log('Listing installed extensions...');
           await this.listInstalledExtensions();
         }
-  
+
         // Wait 5 minutes for language providers to load
-        console.log(`[Attempt ${attempt}] Waiting 5 minutes for language providers to initialize...`);
+        console.log(
+          `[Attempt ${attempt}] Waiting 5 minutes for language providers to initialize...`
+        );
         const waitTime = 5 * 60 * 1000; // 5 minutes in milliseconds
         const startWait = Date.now();
         await this.window.waitForTimeout(waitTime);
         const endWait = Date.now();
         const actualWaitSec = Math.round((endWait - startWait) / 1000);
         console.log(`Wait complete (${actualWaitSec} seconds elapsed)`);
-  
+
         // Execute the command directly
-        console.log(`[Attempt ${attempt}] Executing command: ${VSCode.COMMAND_CATEGORY}: Start Server`);
+        console.log(
+          `[Attempt ${attempt}] Executing command: ${VSCode.COMMAND_CATEGORY}: Start Server`
+        );
         await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Start Server`);
         console.log('Command executed');
-  
+
         // Wait a moment
         await this.window.waitForTimeout(2000);
-  
+
         // Screenshot after command
         await this.window.screenshot({
           path: `test-output/attempt-${attempt}-02-after-command.png`,
           fullPage: true,
         });
-  
+
         // Check notifications after command
         console.log(`[Attempt ${attempt}] Checking notifications...`);
         await this.captureVSCodeNotifications();
-  
+
         // Check if "No language providers" error appears
         const hasNoProvidersError = await this.window
           .locator('.notification-list-item-message:has-text("No language providers")')
           .isVisible({ timeout: 2000 })
           .catch(() => false);
-  
+
         if (hasNoProvidersError) {
           console.error(`Attempt ${attempt} FAILED: Language providers still not ready`);
-  
+
           // If this isn't the last attempt, continue to next retry
           if (attempt < maxRetries) {
             console.log(`\nRetrying... (${maxRetries - attempt} attempt(s) remaining)\n`);
             continue;
           } else {
             // Last attempt failed
-            throw new Error(`Server failed to start after ${maxRetries} attempts (${maxRetries * 5} minutes total wait time). Language providers never became ready.`);
+            throw new Error(
+              `Server failed to start after ${maxRetries} attempts (${maxRetries * 5} minutes total wait time). Language providers never became ready.`
+            );
           }
         }
-  
+
         // No error notification - check if server actually started
         console.log(`[Attempt ${attempt}] Waiting for Stop button to confirm server started...`);
         const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-        
+
         try {
           await stopButton.waitFor({ state: 'visible', timeout: 60000 }); // 1 minute to appear
           console.log(`SUCCESS! Server started via command on attempt ${attempt}`);
-  
+
           await this.window.screenshot({
             path: `test-output/attempt-${attempt}-03-server-started.png`,
             fullPage: true,
           });
-  
-          const totalWaitMinutes = (attempt * 5);
-          console.log(`Server started successfully after ${totalWaitMinutes} minutes total wait time`);
+
+          const totalWaitMinutes = attempt * 5;
+          console.log(
+            `Server started successfully after ${totalWaitMinutes} minutes total wait time`
+          );
           return; // Success - exit function
-  
         } catch (stopButtonError) {
           console.error(`Attempt ${attempt} FAILED: Stop button did not appear`);
-          
+
           if (attempt < maxRetries) {
             console.log(`\nRetrying... (${maxRetries - attempt} attempt(s) remaining)\n`);
             continue;
           } else {
-            throw new Error(`Server failed to start after ${maxRetries} attempts. Stop button never appeared.`);
+            throw new Error(
+              `Server failed to start after ${maxRetries} attempts. Stop button never appeared.`
+            );
           }
         }
-  
       } catch (error) {
         console.error(`Attempt ${attempt} encountered an error:`, error);
-        
+
         // Screenshot error state
-        await this.window.screenshot({
-          path: `test-output/attempt-${attempt}-99-error.png`,
-          fullPage: true,
-        }).catch(() => {});
-  
+        await this.window
+          .screenshot({
+            path: `test-output/attempt-${attempt}-99-error.png`,
+            fullPage: true,
+          })
+          .catch(() => {});
+
         // If this is the last attempt, capture logs and throw
         if (attempt >= maxRetries) {
           console.error(`All ${maxRetries} attempts failed. Capturing `);
-          throw new Error(`Server failed to start after ${maxRetries} attempts (${maxRetries * 5} minutes total). Last error: ${error instanceof Error ? error.message : String(error)}`);
+          throw new Error(
+            `Server failed to start after ${maxRetries} attempts (${maxRetries * 5} minutes total). Last error: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
         // Otherwise, retry
         console.log(`\nRetrying after error... (${maxRetries - attempt} attempt(s) remaining)\n`);
@@ -321,20 +321,25 @@ export abstract class VSCode {
 
     try {
       // Try command first
-      console.log('\n========================================');
-      console.log('ATTEMPT 1: Start server via COMMAND');
-      console.log('========================================');
-      try {
-        await this.startServerViaCommand();
-        console.log('Command method WORKED!');
-      } catch (error) {
-        console.log('Command method FAILED');
+      // console.log('\n========================================');
+      // console.log('ATTEMPT 1: Start server via COMMAND');
+      // console.log('========================================');
+      // try {
+      //   await this.startServerViaCommand();
+      //   console.log('Command method WORKED!');
+      // } catch (error) {
+      //   console.log('Command method FAILED');
 
-        console.log('\n========================================');
-        console.log('ATTEMPT 2: Start server via BUTTON CLICK');
-        console.log('========================================');
-        await this.startServer();
-      }
+      //   console.log('\n========================================');
+      //   console.log('ATTEMPT 2: Start server via BUTTON CLICK');
+      //   console.log('========================================');
+      //   await this.startServer();
+      // }
+
+      console.log('\n========================================');
+      console.log('ATTEMPT 2: Start server via BUTTON CLICK');
+      console.log('========================================');
+      await this.startServer();
 
       const runAnalysisBtnLocator = analysisView.getByRole('button', {
         name: 'Run Analysis',
