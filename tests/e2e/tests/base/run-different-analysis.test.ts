@@ -59,7 +59,6 @@ test.describe('Run analysis for different repositories', () => {
           expect(issuesCount).toBe(repoInfo.issuesCount);
           expect(incidentsCount).toBe(repoInfo.incidentsCount);
         });
-        
       } finally {
         try {
           await vscodeApp.deleteProfile(profileName);
