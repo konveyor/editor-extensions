@@ -81,13 +81,13 @@ export async function installExtension(): Promise<void> {
 
     // Install konveyor core extension
     let coreExtensionPath = '';
-    if (process.env.CORE_VSIX_FILE_PATH && fs.existsSync(process.env.CORE_VSIX_FILE_PATH)) {
-      console.log(`Installing core VSIX from ${process.env.CORE_VSIX_FILE_PATH}`);
-      coreExtensionPath = process.env.CORE_VSIX_FILE_PATH;
-    } else if (process.env.CORE_VSIX_DOWNLOAD_URL) {
-      console.log(`Downloading VSIX from ${process.env.CORE_VSIX_DOWNLOAD_URL}`);
+    if (process.env.JAVA_VSIX_FILE_PATH && fs.existsSync(process.env.JAVA_VSIX_FILE_PATH)) {
+      console.log(`Installing Java VSIX from ${process.env.JAVA_VSIX_FILE_PATH}`);
+      coreExtensionPath = process.env.JAVA_VSIX_FILE_PATH;
+    } else if (process.env.JAVA_VSIX_FILE_PATH) {
+      console.log(`Downloading VSIX from ${process.env.JAVA_VSIX_FILE_PATH}`);
       coreExtensionPath = 'extension.vsix';
-      await downloadFile(process.env.CORE_VSIX_DOWNLOAD_URL, coreExtensionPath);
+      await downloadFile(process.env.JAVA_VSIX_FILE_PATH, coreExtensionPath);
     } else {
       throw new Error(
         `Extension installation failed: No valid core VSIX file path or download URL available`
