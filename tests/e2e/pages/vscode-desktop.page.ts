@@ -199,6 +199,11 @@ export class VSCodeDesktop extends VSCode {
       const editorTab = this.window.locator(`div.tab[aria-label*="${fileName}"]`);
       await expect(editorTab).toBeVisible({ timeout: 10000 });
       console.log(`Java file opened successfully: ${fileName}`);
+      await this.window.screenshot({
+        path: `test-output/01-java-file-opened.png`,
+        fullPage: true,
+      });
+      console.log('Screenshot saved: 01-java-file-opened.png');
     } catch (error) {
       console.error('Failed to open Java file for activation:', error);
       throw error;
