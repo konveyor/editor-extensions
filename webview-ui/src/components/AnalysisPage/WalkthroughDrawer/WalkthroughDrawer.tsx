@@ -41,6 +41,7 @@ export function WalkthroughDrawer({
   const profiles = useExtensionStore((state) => state.profiles);
   const activeProfileId = useExtensionStore((state) => state.activeProfileId);
   const configErrors = useExtensionStore((state) => state.configErrors);
+  const hubConfig = useExtensionStore((state) => state.hubConfig);
 
   const profile = profiles.find((p) => p.id === activeProfileId);
 
@@ -62,12 +63,12 @@ export function WalkthroughDrawer({
 
   // Check hub configuration status - must have URL and if auth is enabled, must have username and password
   const hubConfigured =
-    state.hubConfig?.enabled &&
-    !!state.hubConfig?.url?.trim() &&
-    (!state.hubConfig?.auth.enabled ||
-      (!!state.hubConfig?.auth.realm?.trim() &&
-        !!state.hubConfig?.auth.username?.trim() &&
-        !!state.hubConfig?.auth.password?.trim()));
+    hubConfig?.enabled &&
+    !!hubConfig?.url?.trim() &&
+    (!hubConfig?.auth.enabled ||
+      (!!hubConfig?.auth.realm?.trim() &&
+        !!hubConfig?.auth.username?.trim() &&
+        !!hubConfig?.auth.password?.trim()));
 
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
@@ -79,8 +80,8 @@ export function WalkthroughDrawer({
       title: "Hub Configuration",
       status: hubConfigured
         ? "Completed"
-        : state.hubConfig?.auth.enabled &&
-            (!state.hubConfig?.auth.username?.trim() || !state.hubConfig?.auth.password?.trim())
+        : hubConfig?.auth.enabled &&
+            (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
           ? "Missing credentials"
           : "Not configured",
       description: "Connect to Konveyor Hub for advanced features.",

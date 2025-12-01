@@ -27,6 +27,7 @@ import type {
   SolutionState,
   Scope,
   PendingBatchReviewFile,
+  HubConfig,
 } from "@editor-extensions/shared";
 
 /**
@@ -71,6 +72,7 @@ interface ExtensionStore {
   solutionServerConnected: boolean;
   isAgentMode: boolean;
   isContinueInstalled: boolean;
+  hubConfig?: HubConfig;
 
   // Batch review state
   pendingBatchReview: PendingBatchReviewFile[];
@@ -110,6 +112,7 @@ interface ExtensionStore {
   setSolutionServerEnabled: (enabled: boolean) => void;
   setIsAgentMode: (isAgentMode: boolean) => void;
   setIsContinueInstalled: (isInstalled: boolean) => void;
+  setHubConfig: (config: HubConfig | undefined) => void;
   setWorkspaceRoot: (root: string) => void;
 
   // Utility
@@ -154,6 +157,7 @@ export const useExtensionStore = create<ExtensionStore>()(
         solutionServerConnected: false,
         isAgentMode: false,
         isContinueInstalled: false,
+        hubConfig: undefined,
 
         // Batch review state
         pendingBatchReview: [],
@@ -317,6 +321,11 @@ export const useExtensionStore = create<ExtensionStore>()(
         setIsContinueInstalled: (isInstalled) =>
           set((state) => {
             state.isContinueInstalled = isInstalled;
+          }),
+
+        setHubConfig: (config) =>
+          set((state) => {
+            state.hubConfig = config;
           }),
 
         setWorkspaceRoot: (root) =>
