@@ -13,6 +13,10 @@ export type RepoData = Record<
     customRulesFolder?: string;
     issuesCount: number;
     incidentsCount: number;
+    issues: {
+      title: string;
+      incidentsCount: number;
+    }[];
   }
 >;
 
