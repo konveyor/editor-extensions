@@ -52,14 +52,12 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
         throw new Error(`Analyzer executable not found at: ${binaryPath}`);
       }
     }
-
     console.log(`Custom analyzer path found in ${binaryPath}`);
     const repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });
 
-  // TODO (abrugaro): This test is affected by https://github.com/konveyor/editor-extensions/issues/720, enable the test once the issue fixed
   test("Use a non-existing path and verify the server doesn't start", async () => {
     const configPage = await Configuration.open(vscodeApp);
     await configPage.setInputConfiguration(analyzerPath, 'nonExistingPath');
@@ -74,7 +72,7 @@ test.describe.serial(`@tier2 Override the analyzer binary and run analysis`, () 
   test('Analyze coolstore app', async () => {
     test.setTimeout(600000);
     const configPage = await Configuration.open(vscodeApp);
-    await configPage.setInputConfiguration(analyzerPath, binaryPath!);
+    await configPage.setInputFromLocalPath(analyzerPath, binaryPath!);
     await vscodeApp.startServer();
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();

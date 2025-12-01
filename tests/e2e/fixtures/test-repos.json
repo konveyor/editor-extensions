@@ -38,8 +38,8 @@
     "incidentsCount": 2
   },
   "jboss-eap-quickstarts": {
-    "repoUrl": "https://github.com/jboss-developer/jboss-eap-quickstarts",
-    "repoName": "jboss-eap-quickstarts",
+    "repoUrl": "https://github.com/abrugaro/jboss-eap-quickstarts-kitchensink",
+    "repoName": "jboss-eap-quickstarts-kitchensink",
     "branch": "7.4.x",
     "sources": [],
     "targets": ["eap7", "eap8"]

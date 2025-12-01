@@ -1,14 +1,12 @@
 import * as fs from 'fs';
-import { BrowserContextOptions } from 'playwright';
+import { BrowserContextOptions, chromium } from 'playwright';
 import { expect, Page } from '@playwright/test';
 import { VSCode } from './vscode.page';
-import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
-import { getOSInfo } from '../utilities/utils';
+import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
-import { genAISettingKey, kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
-import pathlib from 'path';
+import { ExtensionTypes } from '../enums/extension-types.enum';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -67,27 +65,26 @@ export class VSCodeWeb extends VSCode {
     await expect(newPage.getByText('Waiting metrics...')).toBeVisible({ timeout: 300_000 });
     await expect(newPage.getByText('Waiting metrics...')).not.toBeVisible({ timeout: 300_000 });
 
+    // TODO: Replace this waiting
     await newPage.waitForTimeout(30_000);
     await vscode.executeQuickCommand('Workspaces: Manage Workspace Trust');
     const trustBtn = newPage.getByRole('button', { name: 'Trust', exact: true }).first();
+    await expect(
+      vscode.getWindow().locator('.workspace-trust-limitations-title-text').first()
+    ).toBeVisible();
     if (await trustBtn.isVisible()) {
       await trustBtn.click();
     }
-    await vscode.openWorkspaceSettingsAndWrite({
-      [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
-      [kaiDemoMode]: true,
-      'java.configuration.updateBuildConfiguration': 'automatic',
-    });
-    await vscode.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true });
+    // TODO: After trusting the workspace the extensions are activated, need a way to handle it instead of just waiting
+    await newPage.waitForTimeout(30_000);
     // Resets the workspace so it can be reused
     await vscode.executeTerminalCommand(
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
     );
-    await vscode.ensureLLMCache(false);
 
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
     if (!(await navLi.isVisible())) {
-      await vscode.installExtension();
+      await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
     }
 
     await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
@@ -109,13 +106,16 @@ export class VSCodeWeb extends VSCode {
    */
   public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
     if (
-      !process.env.WEB_BASE_URL ||
-      !process.env.WEB_LOGIN ||
-      !process.env.WEB_PASSWORD ||
-      !process.env.CORE_VSIX_DOWNLOAD_URL
+      [
+        process.env.WEB_BASE_URL,
+        process.env.WEB_LOGIN,
+        process.env.WEB_PASSWORD,
+        process.env.CORE_VSIX_DOWNLOAD_URL,
+        process.env.JAVA_VSIX_DOWNLOAD_URL,
+      ].some((envVar) => !envVar)
     ) {
       throw new Error(
-        'The following environment variables are required for running tests in web mode: WEB_BASE_URL, WEB_LOGIN, WEB PASSWORD, CORE_VSIX_DOWNLOAD_URL'
+        'The following environment variables are required for running tests in web mode: WEB_BASE_URL, WEB_LOGIN, WEB PASSWORD, CORE_VSIX_DOWNLOAD_URL, JAVA_VSIX_DOWNLOAD_URL'
       );
     }
     const browser = await chromium.launch();
@@ -136,8 +136,8 @@ export class VSCodeWeb extends VSCode {
     const kubeadminBtn = page.getByRole('link', { name: 'kube:admin' }).first();
     await expect(kubeadminBtn).toBeVisible();
     await kubeadminBtn.click();
-    await page.locator('#inputUsername').fill(process.env.WEB_LOGIN);
-    await page.locator('#inputPassword').fill(process.env.WEB_PASSWORD);
+    await page.locator('#inputUsername').fill(process.env.WEB_LOGIN!);
+    await page.locator('#inputPassword').fill(process.env.WEB_PASSWORD!);
     await page.getByRole('button', { name: 'Log in' }).click();
 
     const allowSelectButton = page.getByRole('button', { name: 'Allow' });
@@ -245,7 +245,7 @@ export class VSCodeWeb extends VSCode {
       throw new Error('Repo URL is missing for creating a new workspace');
     }
     await page.getByRole('link', { name: 'Create Workspace' }).click();
-    await page.locator('#git-repo-url').fill(repoUrl);
+    await page.locator('#git-repo-url').fill(`${repoUrl}?cpuLimit=4&memoryLimit=7Gi`);
     await page.locator('#accordion-item-git-repo-options').click();
     await page.getByPlaceholder('Enter the branch of the Git Repository').fill(branch);
     const newPagePromise = ctx.waitForEvent('page');
@@ -259,31 +259,61 @@ export class VSCodeWeb extends VSCode {
     return await newPagePromise;
   }
 
-  private async installExtension(): Promise<void> {
+  /**
+   * Downloads a file by URL into the workspace
+   * @param url
+   * @private
+   */
+  private async getFileByUrl(url: string): Promise<string> {
     // https://github.com/microsoft/playwright/issues/8850#issuecomment-3250011388
-    // TODO (abrugaro) explore ways for installing the extension from a local file
+    // TODO (abrugaro) Install the extension from a local file (upload and install)
+    const extensionFileName = `${generateRandomString()}.vsix`;
     await this.executeTerminalCommand(
-      `clear && wget ${process.env.VSIX_DOWNLOAD_URL} -O ../extension.vsix`,
-      '‘../extension.vsix’ saved'
+      `clear && wget ${url} -O ${extensionFileName}`,
+      `‘${extensionFileName}’ saved`
     );
-    await this.executeQuickCommand(`Extensions: Install from VSIX...`);
-    const pathInput = this.window.locator('.quick-input-box input');
-    await expect(pathInput).toHaveValue('/home/user/');
-    await pathInput.fill('/projects/extension.vsix');
-    await expect(
-      this.window.locator('.quick-input-list-entry').filter({ hasText: 'extension.vsix' })
-    ).toBeVisible();
-    await this.window.getByRole('button', { name: 'Install' }).click();
-    await this.executeQuickCommand(`View: Toggle Terminal`);
-    await expect(
-      this.window.getByText('Completed installing extension.', { exact: true })
-    ).toBeVisible({ timeout: 300_000 });
-    await expect(
-      this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
-    ).toBeVisible({ timeout: 300_000 });
+    return extensionFileName;
   }
 
-  private async uploadFile(filePath: string) {
+  private async installExtensions(extensions: ExtensionTypes[]) {
+    for (const extension of extensions) {
+      console.log('Installing extension', extension);
+      const vsixPath = process.env[`${extension}_VSIX_FILE_PATH`];
+      const vsixUrl = process.env[`${extension}_VSIX_DOWNLOAD_URL`];
+      let extensionFileName = '';
+      if (vsixPath) {
+        if (!fs.existsSync(vsixPath)) {
+          throw new Error(`${extension}_VSIX_FILE_PATH is set but the path is not correct`);
+        }
+        extensionFileName = await this.uploadFile(vsixPath);
+      } else if (vsixUrl) {
+        extensionFileName = await this.getFileByUrl(vsixUrl!);
+      } else {
+        throw new Error(
+          `${extension}_VSIX_FILE_PATH nor ${extension}_VSIX_DOWNLOAD_URL are defined`
+        );
+      }
+
+      await this.executeQuickCommand(`Extensions: Install from VSIX...`);
+      const pathInput = this.window.locator('.quick-input-box input');
+      await expect(pathInput).toHaveValue('/home/user/', { timeout: 30_000 });
+      await pathInput.fill(`/projects/${this.repoDir}/${extensionFileName}`);
+      await expect(
+        this.window.locator('.quick-input-list-entry').filter({ hasText: extensionFileName })
+      ).toBeVisible({ timeout: 30_000 });
+      await this.window.getByRole('button', { name: 'Install' }).click();
+      await expect(
+        this.window.getByText('Completed installing extension.', { exact: true })
+      ).toBeVisible({ timeout: 300_000 });
+      await expect(
+        this.window.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..')
+      ).toBeVisible({ timeout: 300_000 });
+      console.log(`${extension} extension installed`);
+      await this.waitDefault();
+    }
+  }
+
+  public async uploadFile(filePath: string): Promise<string> {
     await this.openLeftBarElement('Explorer');
 
     await this.window.locator('.explorer-folders-view').click({ button: 'right' });
@@ -302,9 +332,24 @@ export class VSCodeWeb extends VSCode {
     }
 
     const fileName = filePath.replace(/\\/g, '/').split('/').pop();
+    if (!fileName) {
+      throw new Error(`Could not find file name from ${filePath}`);
+    }
     const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
       hasText: fileName,
     });
-    await expect(fileItem).toBeVisible({ timeout: 60_000 });
+    const uploadingLinks = this.window.locator('a.statusbar-item-label:has-text("Uploading")');
+    await expect(uploadingLinks).toHaveCount(0, { timeout: 120_000 });
+    await expect(fileItem, 'File took too long to upload').toBeVisible({
+      timeout: 120_000,
+    });
+    // After a file is uploaded, the corresponding new tab opens. This tab may take longer to appear than the file item in the explorer view
+    await expect(this.window.locator(`div.tab a.label-name:has-text("${fileName}")`)).toBeVisible({
+      timeout: 60_000,
+    });
+    await this.waitDefault();
+    await this.executeQuickCommand('View: Close Editor');
+
+    return fileName;
   }
 }

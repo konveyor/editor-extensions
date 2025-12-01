@@ -20,10 +20,8 @@ getAvailableProviders().forEach((provider) => {
     let vscodeApp: VSCode;
     const profileName = `llm-reversion-${generateRandomString()}`;
     let repoInfo: RepoData[string];
-    const kitchenRepoPath = 'jboss-eap-quickstarts/kitchensink';
     const memberFileUri = path.resolve(
-      kitchenRepoPath,
-      'src/main/java/org/jboss/as/quickstarts/kitchensink/model/Member.java'
+      'jboss-eap-quickstarts-kitchensink/kitchensink/src/main/java/org/jboss/as/quickstarts/kitchensink/model/Member.java'
     );
     let beforeTestMemberFileImports: string[];
     let afterFirstFixMemberFileImports: string[];
@@ -32,16 +30,7 @@ getAvailableProviders().forEach((provider) => {
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(15 * MIN);
       repoInfo = testRepoData['jboss-eap-quickstarts'];
-      vscodeApp = await VSCodeFactory.open(
-        repoInfo.repoUrl,
-        repoInfo.repoName,
-        repoInfo.branch,
-        false
-      );
-      await vscodeApp.closeVSCode();
-      // Only analyzing kitchensink to save time vs. full jboss repo
-      // TODO (abrugaro) handle opening a subfolder in web environment
-      vscodeApp = await VSCodeFactory.open(undefined, kitchenRepoPath, undefined);
+      vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
       await vscodeApp.startServer();
