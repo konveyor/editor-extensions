@@ -1,10 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import {
-  EnhancedIncident,
-  SuccessRateMetric,
-  SolutionServerConfig,
-} from "@editor-extensions/shared";
+import { EnhancedIncident, SuccessRateMetric, HubConfig } from "@editor-extensions/shared";
 import { Logger } from "winston";
 import { Resource, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { AIMessageChunk } from "@langchain/core/messages";
@@ -79,9 +75,9 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private refreshRetryCount: number = 0;
   private cachedCapabilities: SolutionServerCapabilities | null = null;
 
-  constructor(config: SolutionServerConfig, logger: Logger) {
+  constructor(config: HubConfig, logger: Logger) {
     super();
-    this.enabled = config.enabled;
+    this.enabled = config.enabled && config.features.solutionServer.enabled;
     this.serverUrl = config.url;
     this.authEnabled = config.auth.enabled;
     this.insecure = config.auth.insecure;
@@ -104,8 +100,8 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     }
   }
 
-  public updateConfig(config: SolutionServerConfig): void {
-    this.enabled = config.enabled;
+  public updateConfig(config: HubConfig): void {
+    this.enabled = config.enabled && config.features.solutionServer.enabled;
     this.serverUrl = config.url;
     this.authEnabled = config.auth.enabled;
     this.insecure = config.auth.insecure;

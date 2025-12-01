@@ -34,12 +34,9 @@ import {
   getWorkspaceRelativePath,
   getTraceEnabled,
   getTraceDir,
-  getConfigSolutionServerAuth,
   fileUriToPath,
-  getConfigSolutionServer,
 } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
-import { promptForCredentials } from "./utilities/auth";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -105,6 +102,14 @@ const commandsMap: (
         logger.error("Profiles provider not found");
       }
     },
+    [`${EXTENSION_NAME}.openHubSettingsPanel`]: async () => {
+      const provider = state.webviewProviders.get("hub");
+      if (provider) {
+        provider.showWebviewPanel();
+      } else {
+        logger.error("Hub settings provider not found");
+      }
+    },
     [`${EXTENSION_NAME}.startServer`]: async () => {
       const analyzerClient = state.analyzerClient;
 
@@ -150,8 +155,8 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
       const solutionServerClient = state.solutionServerClient;
-      const config = getConfigSolutionServer();
-      if (!config.enabled) {
+      const config = state.data.hubConfig;
+      if (!config?.enabled) {
         logger.info("Solution server is disabled, skipping restart");
         return;
       }
@@ -799,27 +804,11 @@ const commandsMap: (
       }
     },
     [`${EXTENSION_NAME}.configureSolutionServerCredentials`]: async () => {
-      if (!getConfigSolutionServerAuth()) {
-        logger.info("Solution server authentication is disabled.");
-        window.showInformationMessage(
-          "Solution server authentication is disabled. Please enable it in the extension settings.",
-        );
-        return;
-      }
-
-      const credentials = await promptForCredentials(state.extensionContext);
-      if (!credentials) {
-        logger.info("Credential configuration cancelled.");
-        return;
-      }
-
-      // Update the solution server client with new credentials
-      // (credentials are already stored by promptForCredentials)
-      await state.solutionServerClient.authenticate(credentials.username, credentials.password);
-
-      // Restart the connection with new credentials
-      await executeExtensionCommand("restartSolutionServer");
-      logger.info("Solution server credentials updated successfully.");
+      // Credentials are now configured through the Hub Settings form
+      window.showInformationMessage(
+        "Please configure Hub credentials through the Hub Configuration panel.",
+      );
+      executeExtensionCommand("openHubSettingsPanel");
     },
 
     [`${EXTENSION_NAME}.enableGenAI`]: async () => {

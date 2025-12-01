@@ -1,4 +1,4 @@
-export type WebviewType = "sidebar" | "resolution" | "profiles";
+export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub";
 
 export interface Incident {
   uri: string;
@@ -23,13 +23,23 @@ export interface SuccessRateMetric {
   unknown_solutions: number;
 }
 
-export interface SolutionServerConfig {
+export interface HubConfig {
   enabled: boolean;
   url: string;
   auth: {
     enabled: boolean;
     realm: string;
+    username: string;
+    password: string;
     insecure: boolean;
+  };
+  features: {
+    solutionServer: {
+      enabled: boolean;
+    };
+    profileSync: {
+      enabled: boolean;
+    };
   };
 }
 
@@ -136,6 +146,7 @@ export interface ExtensionData {
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
+  hubConfig: HubConfig | undefined;
 }
 
 export type ConfigErrorType =

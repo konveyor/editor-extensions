@@ -57,30 +57,63 @@ export function WalkthroughDrawer({
   const genaiDisabled = state.configErrors.some((error) => error.type === "genai-disabled");
   const providerConfigured = !providerConnectionError && !providerNotConfigured && !genaiDisabled;
 
+  // Check hub configuration status - must have URL and if auth is enabled, must have username and password
+  const hubConfigured =
+    state.hubConfig?.enabled &&
+    !!state.hubConfig?.url?.trim() &&
+    (!state.hubConfig?.auth.enabled ||
+      (!!state.hubConfig?.auth.realm?.trim() &&
+        !!state.hubConfig?.auth.username?.trim() &&
+        !!state.hubConfig?.auth.password?.trim()));
+
+  const disabledDescription = "This feature is disabled based on your configuration.";
+  const disabledFullDescription =
+    "This feature is disabled because the values are managed by the in-tree profile currently selected.";
+
   const steps = [
+    {
+      id: "hub-config",
+      title: "Hub Configuration",
+      status: hubConfigured
+        ? "Completed"
+        : state.hubConfig?.auth.enabled &&
+            (!state.hubConfig?.auth.username?.trim() || !state.hubConfig?.auth.password?.trim())
+          ? "Missing credentials"
+          : "Not configured",
+      description: "Connect to Konveyor Hub for advanced features.",
+      fullDescription:
+        "Connect to Konveyor Hub to enable profile synchronization, solution server capabilities, and other advanced features. The Hub provides centralized management and enhanced collaboration capabilities for your migration projects.",
+    },
     {
       id: "select-profile",
       title: "Select Profile",
-      status: profile ? "Completed" : "Not configured",
-      description: "Choose a profile for your analysis setup.",
-      fullDescription:
-        "Choose a profile for your analysis setup. Profiles define the scope of your analysis by specifying which technologies to target and which rules to apply. You can create multiple profiles for different types of projects or analysis scenarios.",
+      status: isInTreeMode ? "Disabled" : profile ? "Completed" : "Not configured",
+      description: isInTreeMode ? disabledDescription : "Choose a profile for your analysis setup.",
+      fullDescription: isInTreeMode
+        ? disabledFullDescription
+        : "Choose a profile for your analysis setup. Profiles define the scope of your analysis by specifying which technologies to target and which rules to apply. You can create multiple profiles for different types of projects or analysis scenarios.",
     },
     {
       id: "label-selector",
       title: "Configure Label Selector",
-      status: labelSelectorValid ? "Completed" : "Not configured",
-      description: "Used to target the technologies your project uses.",
-      fullDescription:
-        "Used to target the technologies your project uses. Label selectors help Konveyor identify which analysis rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.",
+      status: isInTreeMode ? "Disabled" : labelSelectorValid ? "Completed" : "Not configured",
+      description: isInTreeMode
+        ? disabledDescription
+        : "Used to target the technologies your project uses.",
+      fullDescription: isInTreeMode
+        ? disabledFullDescription
+        : "Used to target the technologies your project uses. Label selectors help Konveyor identify which analysis rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.",
     },
     {
       id: "rules",
       title: "Set Rules",
-      status: rulesConfigured ? "Completed" : "Not configured",
-      description: "Choose between default rules and your own custom rule files.",
-      fullDescription:
-        "Choose between default rules and your own custom rule files. Default rules cover common migration scenarios and best practices. Custom rules allow you to define project-specific analysis patterns, coding standards, or migration requirements tailored to your organization's needs.",
+      status: isInTreeMode ? "Disabled" : rulesConfigured ? "Completed" : "Not configured",
+      description: isInTreeMode
+        ? disabledDescription
+        : "Choose between default rules and your own custom rule files.",
+      fullDescription: isInTreeMode
+        ? disabledFullDescription
+        : "Choose between default rules and your own custom rule files. Default rules cover common migration scenarios and best practices. Custom rules allow you to define project-specific analysis patterns, coding standards, or migration requirements tailored to your organization's needs.",
     },
     {
       id: "genai",
@@ -122,6 +155,8 @@ export function WalkthroughDrawer({
         return "warning";
       case "GenAI is disabled":
         return "warning";
+      case "Disabled":
+        return "info";
       default:
         return "info";
     }
@@ -175,7 +210,7 @@ export function WalkthroughDrawer({
                         fullText={step.fullDescription}
                       />
                     </StackItem>
-                    {step.id !== "genai" && !isInTreeMode && (
+                    {step.id !== "genai" && step.id !== "hub-config" && !isInTreeMode && (
                       <StackItem>
                         <Button
                           variant="link"
@@ -200,6 +235,17 @@ export function WalkthroughDrawer({
                             Configure GenAI Settings
                           </Button>
                         )}
+                      </StackItem>
+                    )}
+                    {step.id === "hub-config" && (
+                      <StackItem>
+                        <Button
+                          variant="link"
+                          icon={<PencilAltIcon />}
+                          onClick={() => dispatch({ type: "OPEN_HUB_SETTINGS", payload: {} })}
+                        >
+                          Configure Hub Settings
+                        </Button>
                       </StackItem>
                     )}
                   </Stack>
