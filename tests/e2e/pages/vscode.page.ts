@@ -6,6 +6,7 @@ import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
+import { VSCodeDesktop } from './vscode-desktop.page';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -101,6 +102,17 @@ export abstract class VSCode {
       if (await this.isServerRunning()) {
         console.log('Server is already running');
         return;
+      }
+
+      if (this instanceof VSCodeDesktop) {
+        console.log('Activating extensions before starting server...');
+        await this.openJavaFileForActivation();
+        await this.waitForExtensionInitialization();
+        await this.getWindow().screenshot({
+          path: `test-output/01-java-file-opened-again.png`,
+          fullPage: true,
+        });
+        console.log('Screenshot saved: 01-java-file-opened-again.png');
       }
 
       console.log('Server is not running, starting server...');

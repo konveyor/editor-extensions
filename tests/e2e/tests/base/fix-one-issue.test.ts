@@ -19,15 +19,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
-      if (vscodeApp instanceof VSCodeDesktop) {
-        console.log('second attempt : Opening Java file for activation...');
-        await vscodeApp.openJavaFileForActivation();
-        await vscodeApp.waitForExtensionInitialization();
-        await vscodeApp.getWindow().screenshot({
-          path: `test-output/01-java-file-opened-again.png`,
-          fullPage: true,
-        });
-      }
+
       await vscodeApp.startServer();
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
