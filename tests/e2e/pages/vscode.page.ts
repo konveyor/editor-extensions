@@ -743,7 +743,7 @@ export abstract class VSCode {
       await input.fill(`.java`);
       const fileLocator = this.window
         .locator('a')
-        .filter({ hasText: new RegExp('.+\\.java') })
+        .filter({ hasText: /\.java$/ })
         .first();
       await expect(fileLocator).toBeVisible();
       await fileLocator.click();

@@ -12,7 +12,6 @@ import { installExtension, isExtensionInstalled } from '../utilities/vscode-comm
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
-import pathlib from 'path';
 
 export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
@@ -289,12 +288,12 @@ export class VSCodeDesktop extends VSCode {
     if (!this.repoDir) {
       throw new Error('repodir is required in VscodeDesktop.ensureDebugArchive');
     }
-    const zipPath = pathlib.join(this.repoDir, '.vscode', 'debug-archive.zip');
+    const zipPath = path.join(this.repoDir, '.vscode', 'debug-archive.zip');
     const zipStat = await fsPromises.stat(zipPath);
     expect(zipStat.isFile()).toBe(true);
-    const extractedPath = pathlib.join(this.repoDir, '.vscode');
+    const extractedPath = path.join(this.repoDir, '.vscode');
     extractZip(zipPath, extractedPath);
-    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
+    const logsPath = path.join(extractedPath, 'logs', 'extension.log');
     const logsStat = await fsPromises.stat(logsPath);
     expect(logsStat.isFile()).toBe(true);
   }
