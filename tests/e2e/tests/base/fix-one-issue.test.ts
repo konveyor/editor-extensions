@@ -19,7 +19,6 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
-
       await vscodeApp.startServer();
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();

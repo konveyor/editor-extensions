@@ -6,7 +6,6 @@ import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
-import { VSCodeDesktop } from './vscode-desktop.page';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -26,6 +25,14 @@ export abstract class VSCode {
   public abstract closeVSCode(): Promise<void>;
   public abstract pasteContent(content: string): Promise<void>;
   public abstract getWindow(): Page;
+
+  /**
+   * Hook for platform-specific initialization before starting the server.
+   * Override in subclasses to provide platform-specific behavior.
+   */
+  protected async beforeStartServer(): Promise<void> {
+    // Default implementation does nothing
+  }
 
   protected llmCachePaths(): {
     storedPath: string; // this is where the data is checked-in in the repo
@@ -104,16 +111,8 @@ export abstract class VSCode {
         return;
       }
 
-      if (this instanceof VSCodeDesktop) {
-        console.log('Activating extensions before starting server...');
-        await this.openJavaFileForActivation();
-        await this.waitForExtensionInitialization();
-        await this.getWindow().screenshot({
-          path: `test-output/01-java-file-opened-again.png`,
-          fullPage: true,
-        });
-        console.log('Screenshot saved: 01-java-file-opened-again.png');
-      }
+      // Platform-specific initialization before starting server
+      await this.beforeStartServer();
 
       console.log('Server is not running, starting server...');
       const startButton = analysisView.getByRole('button', { name: 'Start' });

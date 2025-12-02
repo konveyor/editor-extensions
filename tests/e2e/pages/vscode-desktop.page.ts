@@ -163,6 +163,20 @@ export class VSCodeDesktop extends VSCode {
   }
 
   /**
+   * Desktop-specific initialization before starting the server
+   */
+  protected async beforeStartServer(): Promise<void> {
+    console.log('Activating extensions before starting server...');
+    await this.openJavaFileForActivation();
+    await this.waitForExtensionInitialization();
+    await this.getWindow().screenshot({
+      path: `test-output/01-java-file-opened-again.png`,
+      fullPage: true,
+    });
+    console.log('Screenshot saved: 01-java-file-opened-again.png');
+  }
+
+  /**
    * Opens a Java file to trigger onLanguage:java activation for both redhat.java and konveyor-java
    */
   public async openJavaFileForActivation(): Promise<void> {
