@@ -41,6 +41,8 @@ export function broadcastAnalysisState(
     enhancedIncidents: EnhancedIncident[];
     isAnalyzing: boolean;
     isAnalysisScheduled: boolean;
+    analysisProgress?: number;
+    analysisProgressMessage?: string;
   },
 ) {
   const message: AnalysisStateUpdateMessage = {
@@ -49,6 +51,8 @@ export function broadcastAnalysisState(
     enhancedIncidents: data.enhancedIncidents,
     isAnalyzing: data.isAnalyzing,
     isAnalysisScheduled: data.isAnalysisScheduled,
+    analysisProgress: data.analysisProgress,
+    analysisProgressMessage: data.analysisProgressMessage,
     timestamp: new Date().toISOString(),
   };
   broadcastToAllWebviews(state, message);

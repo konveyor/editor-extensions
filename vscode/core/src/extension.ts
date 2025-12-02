@@ -180,6 +180,8 @@ class VsCodeExtension {
           enhancedIncidents: data.enhancedIncidents,
           isAnalyzing: data.isAnalyzing,
           isAnalysisScheduled: data.isAnalysisScheduled,
+          analysisProgress: data.analysisProgress,
+          analysisProgressMessage: data.analysisProgressMessage,
           timestamp: new Date().toISOString(),
         });
       });

@@ -128,6 +128,8 @@ export function useVSCodeMessageHandler() {
             enhancedIncidents: message.enhancedIncidents,
             isAnalyzing: message.isAnalyzing,
             isAnalysisScheduled: message.isAnalysisScheduled,
+            analysisProgress: message.analysisProgress ?? 0,
+            analysisProgressMessage: message.analysisProgressMessage ?? "",
           });
           return;
         }
@@ -214,6 +216,8 @@ export function useVSCodeMessageHandler() {
               ? message.enhancedIncidents
               : [],
             isAnalyzing: message.isAnalyzing ?? false,
+            analysisProgress: message.analysisProgress ?? 0,
+            analysisProgressMessage: message.analysisProgressMessage ?? "",
             isFetchingSolution: message.isFetchingSolution ?? false,
             isStartingServer: message.isStartingServer ?? false,
             isInitializingServer: message.isInitializingServer ?? false,

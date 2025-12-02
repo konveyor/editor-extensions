@@ -29,6 +29,8 @@ export interface AnalysisStateUpdateMessage {
   enhancedIncidents: EnhancedIncident[];
   isAnalyzing: boolean;
   isAnalysisScheduled: boolean;
+  analysisProgress?: number;
+  analysisProgressMessage?: string;
   timestamp: string;
 }
 
