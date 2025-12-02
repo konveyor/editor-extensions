@@ -5,9 +5,6 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
-import path from 'path';
-import { TEST_OUTPUT_FOLDER } from '../../utilities/consts';
-import fs from 'fs';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -16,18 +13,12 @@ getAvailableProviders().forEach((provider) => {
 
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(600000);
-      // Create test-output directory
-      const outputDir = path.join(process.cwd(), TEST_OUTPUT_FOLDER, 'fix-one-issue');
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-        console.log('Created test-output directory');
-      }
-
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
+      await vscodeApp.startServer();
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
