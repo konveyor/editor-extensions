@@ -22,6 +22,7 @@ getAvailableProviders().forEach((provider) => {
       if (vscodeApp instanceof VSCodeDesktop) {
         console.log('second attempt : Opening Java file for activation...');
         await vscodeApp.openJavaFileForActivation();
+        await vscodeApp.waitForExtensionInitialization();
         await vscodeApp.waitDefault();
         await vscodeApp.getWindow().screenshot({
           path: `test-output/01-java-file-opened-again.png`,
