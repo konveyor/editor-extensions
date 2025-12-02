@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { _electron as electron } from 'playwright';
@@ -11,6 +12,7 @@ import { installExtension, isExtensionInstalled } from '../utilities/vscode-comm
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
+import pathlib from 'path';
 
 export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
@@ -163,49 +165,6 @@ export class VSCodeDesktop extends VSCode {
   }
 
   /**
-   * Opens a Java file to trigger onLanguage:java activation for both redhat.java and konveyor-java
-   */
-  public async openJavaFileForActivation(): Promise<void> {
-    try {
-      console.log('Opening Java file to trigger Java extension activation...');
-
-      // Wait for VSCode to be fully ready before executing commands
-      await this.waitDefault();
-      await this.window.waitForTimeout(3000);
-
-      await this.window.locator('body').focus();
-      await this.waitDefault();
-
-      const javaFilePath = path.resolve(
-        this.repoDir || '',
-        'src/main/java/com/redhat/coolstore/service/OrderService.java'
-      );
-
-      if (!fs.existsSync(javaFilePath)) {
-        throw new Error(
-          `Java file not found at ${javaFilePath}. Cannot trigger Java extension activation.`
-        );
-      }
-
-      await stubDialog(this.app, 'showOpenDialog', {
-        filePaths: [javaFilePath],
-        canceled: false,
-      });
-      await this.executeQuickCommand('File: Open File...');
-      await this.waitDefault();
-
-      // Verify file opened
-      const fileName = 'OrderService.java';
-      const editorTab = this.window.locator(`div.tab[aria-label*="${fileName}"]`);
-      await expect(editorTab).toBeVisible({ timeout: 10000 });
-      console.log(`Java file opened successfully: ${fileName}`);
-    } catch (error) {
-      console.error('Failed to open Java file for activation:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Waits for the Konveyor extension to complete initialization by watching for
    * the __JAVA_EXTENSION_INITIALIZED__ info message signal.
    * Since the Java extension waits for the core extension to activate before completing,
@@ -324,5 +283,19 @@ export class VSCodeDesktop extends VSCode {
       throw new Error('VSCode window is not initialized.');
     }
     return this.window;
+  }
+
+  public async ensureDebugArchive() {
+    if (!this.repoDir) {
+      throw new Error('repodir is required in VscodeDesktop.ensureDebugArchive');
+    }
+    const zipPath = pathlib.join(this.repoDir, '.vscode', 'debug-archive.zip');
+    const zipStat = await fsPromises.stat(zipPath);
+    expect(zipStat.isFile()).toBe(true);
+    const extractedPath = pathlib.join(this.repoDir, '.vscode');
+    extractZip(zipPath, extractedPath);
+    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
+    const logsStat = await fsPromises.stat(logsPath);
+    expect(logsStat.isFile()).toBe(true);
   }
 }
