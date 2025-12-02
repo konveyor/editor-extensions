@@ -302,6 +302,7 @@ class VsCodeExtension {
           solutionServerEnabled: data.solutionServerEnabled,
           isAgentMode: data.isAgentMode,
           isContinueInstalled: data.isContinueInstalled,
+          hubConfig: data.hubConfig,
           timestamp: new Date().toISOString(),
         });
       });

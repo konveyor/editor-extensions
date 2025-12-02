@@ -9,6 +9,7 @@ import {
   SolutionState,
   Scope,
   PendingBatchReviewFile,
+  HubConfig,
 } from "./types";
 
 /**
@@ -104,6 +105,7 @@ export interface SettingsUpdateMessage {
   solutionServerEnabled: boolean;
   isAgentMode: boolean;
   isContinueInstalled: boolean;
+  hubConfig?: HubConfig;
   timestamp: string;
 }
 

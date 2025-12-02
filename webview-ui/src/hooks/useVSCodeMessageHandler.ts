@@ -200,6 +200,7 @@ export function useVSCodeMessageHandler() {
             solutionServerEnabled: message.solutionServerEnabled,
             isAgentMode: message.isAgentMode,
             isContinueInstalled: message.isContinueInstalled,
+            hubConfig: message.hubConfig,
           });
           return;
         }
@@ -240,6 +241,7 @@ export function useVSCodeMessageHandler() {
                 : Array.isArray(message.chatMessages)
                   ? message.chatMessages
                   : [],
+            hubConfig: message.hubConfig,
           });
         }
       } catch (error) {
