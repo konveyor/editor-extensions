@@ -5,6 +5,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { VSCodeDesktop } from '../../pages/vscode-desktop.page';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -18,6 +19,15 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
+      if (vscodeApp instanceof VSCodeDesktop) {
+        console.log('second attempt : Opening Java file for activation...');
+        await vscodeApp.openJavaFileForActivation();
+        await vscodeApp.waitDefault();
+        await vscodeApp.getWindow().screenshot({
+          path: `test-output/01-java-file-opened-again.png`,
+          fullPage: true,
+        });
+      }
       await vscodeApp.startServer();
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
