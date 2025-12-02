@@ -93,6 +93,7 @@ export abstract class VSCode {
   }
 
   public async startServer(): Promise<void> {
+    await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
     try {
       console.log('Checking server status');
