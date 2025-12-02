@@ -91,7 +91,11 @@ As you make changes that impact dependencies or imports, be sure you explain wha
       inputFileContent: undefined,
       inputIncidents: [],
     };
-    this.logger.silly("AnalysisIssueFixRouter called with state", { state });
+    // Don't log full state - can cause "Invalid string length" error with large states
+    this.logger.silly("AnalysisIssueFixRouter called", {
+      currentIdx: state.currentIdx,
+      totalIncidents: state.inputIncidentsByUris.length,
+    });
     // we have to fix the incidents if there's at least one present in state
     if (state.currentIdx < state.inputIncidentsByUris.length) {
       const nextEntry = state.inputIncidentsByUris[state.currentIdx];
@@ -198,7 +202,11 @@ As you make changes that impact dependencies or imports, be sure you explain wha
       nextState.inputAllReasoning = accumulated.reasoning;
       nextState.inputAllModifiedFiles = accumulated.uris;
     }
-    this.logger.silly("AnalysisIssueFixRouter returning nextState", { nextState });
+    // Don't log full state - can cause "Invalid string length" error
+    this.logger.silly("AnalysisIssueFixRouter returning", {
+      hasOutputAllResponses: !!nextState.outputAllResponses,
+      responseCount: nextState.outputAllResponses?.length || 0,
+    });
     return nextState;
   }
 
@@ -206,7 +214,12 @@ As you make changes that impact dependencies or imports, be sure you explain wha
   async fixAnalysisIssue(
     state: typeof AnalysisIssueFixInputState.State,
   ): Promise<typeof AnalysisIssueFixOutputState.State> {
-    this.logger.silly("AnalysisIssueFix called with state", { state });
+    // Don't log full state - can cause "Invalid string length" error
+    this.logger.silly("AnalysisIssueFix called", {
+      hasInputFileUri: !!state.inputFileUri,
+      hasInputFileContent: !!state.inputFileContent,
+      incidentCount: state.inputIncidents?.length || 0,
+    });
     if (!state.inputFileUri || !state.inputFileContent || state.inputIncidents.length === 0) {
       return {
         outputUpdatedFile: undefined,

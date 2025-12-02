@@ -13,13 +13,12 @@ import {
   Alert,
 } from "@patternfly/react-core";
 import { ExclamationCircleIcon, InfoCircleIcon } from "@patternfly/react-icons";
-import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { HubConfig } from "@editor-extensions/shared";
 
 export const HubSettingsForm: React.FC<{
   initialConfig: HubConfig;
 }> = ({ initialConfig }) => {
-  const { dispatch } = useExtensionStateContext();
   const [formData, setFormData] = useState<HubConfig>(initialConfig);
   const [isDirty, setIsDirty] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);

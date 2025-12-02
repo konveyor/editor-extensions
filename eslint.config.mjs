@@ -73,6 +73,7 @@ const tsConfig = {
     "@typescript-eslint/no-explicit-any": "off",
     "react/jsx-key": "warn",
     "react/no-unknown-property": ["warn"],
+    "react/prop-types": "off", // TypeScript handles prop validation
   },
 };
 

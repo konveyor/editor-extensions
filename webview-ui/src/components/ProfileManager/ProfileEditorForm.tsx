@@ -27,7 +27,7 @@ import {
   StarIcon,
   InfoCircleIcon,
 } from "@patternfly/react-icons";
-import { useExtensionStateContext } from "../../context/ExtensionStateContext";
+import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
@@ -74,8 +74,6 @@ export const ProfileEditorForm: React.FC<{
 
   const [rulesValidation, setRulesValidation] = useState<"default" | "error">("default");
   const [rulesErrorMsg, setRulesErrorMsg] = useState<string | null>(null);
-
-  const { dispatch } = useExtensionStateContext();
 
   const { callback: debouncedChange, isPending: isSaving } = useDebouncedCallback(onChange, 300);
 

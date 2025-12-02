@@ -39,7 +39,7 @@ const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> =
 const resetStuckAnalysisFlags = (state: ExtensionState): void => {
   if (state.data.isAnalyzing || state.data.isAnalysisScheduled) {
     console.warn("Tasks interaction: Force resetting stuck analysis flags");
-    state.mutateData((draft) => {
+    state.mutateAnalysisState((draft) => {
       draft.isAnalyzing = false;
       draft.isAnalysisScheduled = false;
     });
@@ -58,7 +58,7 @@ const handleUserInteractionPromise = async (
   queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
-  state.mutateData((draft) => {
+  state.mutateSolutionWorkflow((draft) => {
     draft.isWaitingForUserInteraction = true;
   });
 
@@ -66,7 +66,7 @@ const handleUserInteractionPromise = async (
     const timeout = setTimeout(() => {
       console.warn(`User interaction timeout for message ${msg.id}`);
       pendingInteractions.delete(msg.id);
-      state.mutateData((draft) => {
+      state.mutateSolutionWorkflow((draft) => {
         draft.isWaitingForUserInteraction = false;
       });
       resolve();
@@ -91,8 +91,14 @@ const handleTasksInteraction = async (
   queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
+  const logger = state.logger.child({ component: "handleTasksInteraction" });
+
   // Increment iteration counter
   state.currentTaskManagerIterations += 1;
+  logger.debug("Starting tasks interaction", {
+    messageId: msg.id,
+    iteration: state.currentTaskManagerIterations,
+  });
 
   // Wait for analysis to complete
   await waitForAnalysisCompletion(state);
@@ -105,12 +111,24 @@ const handleTasksInteraction = async (
 
   if (rawTasks.currentTasks.length === 0) {
     // No tasks found - auto-reject
+    logger.info("No tasks found - auto-rejecting", { messageId: msg.id });
     (msg.data as KaiUserInteraction).response = { yesNo: false };
-    await workflow.resolveUserInteraction(msg as any);
+    try {
+      await workflow.resolveUserInteraction(msg as any);
+      logger.info("Successfully resolved tasks interaction with no tasks", { messageId: msg.id });
+    } catch (error) {
+      logger.error("Error resolving tasks interaction", { messageId: msg.id, error });
+    }
     return;
   }
+
+  logger.info("Tasks found - showing to user", {
+    messageId: msg.id,
+    taskCount: rawTasks.currentTasks.length,
+  });
+
   // Show tasks to user and wait for response
-  state.mutateData((draft) => {
+  state.mutateChatMessages((draft) => {
     draft.chatMessages.push({
       kind: ChatMessageType.String,
       messageToken: msg.id,
@@ -127,6 +145,7 @@ const handleTasksInteraction = async (
   });
 
   await handleUserInteractionPromise(msg, state, queueManager, pendingInteractions);
+  logger.debug("Tasks interaction promise completed", { messageId: msg.id });
 };
 
 export const processMessage = async (
@@ -161,7 +180,7 @@ export const processMessageByType = async (
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat
-      state.mutateData((draft) => {
+      state.mutateChatMessages((draft) => {
         const toolName = msg.data.name || "unnamed tool";
         const toolStatus = msg.data.status;
         // Check if the most recent message is a tool message with the same name
@@ -207,7 +226,7 @@ export const processMessageByType = async (
             const message = interaction.systemMessage.yesNo || "Would you like to proceed?";
 
             // Add the question to chat with quick responses
-            state.mutateData((draft) => {
+            state.mutateChatMessages((draft) => {
               // Always add the interaction message - don't skip based on existing interactions
               // Multiple interactions can be pending at the same time
               draft.chatMessages.push({
@@ -237,7 +256,7 @@ export const processMessageByType = async (
         case "choice": {
           try {
             const choices = interaction.systemMessage.choice || [];
-            state.mutateData((draft) => {
+            state.mutateChatMessages((draft) => {
               draft.chatMessages.push({
                 kind: ChatMessageType.String,
                 messageToken: msg.id,
@@ -276,6 +295,8 @@ export const processMessageByType = async (
       break;
     }
     case KaiWorkflowMessageType.LLMResponseChunk: {
+      // Continue's approach: Direct updates, no buffering/throttling
+      // React and Zustand handle rendering efficiently
       const chunk = msg.data as any;
       let content: string;
       if (typeof chunk.content === "string") {
@@ -291,8 +312,12 @@ export const processMessageByType = async (
       }
 
       if (msg.id !== state.lastMessageId) {
-        // This is a new message - create a new chat message
-        state.mutateData((draft) => {
+        // New message - create initial entry
+        state.logger.info(`[Streaming] New message, content length: ${content.length}`, {
+          messageId: msg.id,
+          preview: content.substring(0, 50),
+        });
+        state.mutateChatMessages((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
@@ -304,20 +329,23 @@ export const processMessageByType = async (
         });
         state.lastMessageId = msg.id;
       } else {
-        // This is a continuation of the current message - append to it
-        state.mutateData((draft) => {
+        // Continuation - append directly to last message
+        state.mutateChatMessages((draft) => {
           if (draft.chatMessages.length > 0) {
-            draft.chatMessages[draft.chatMessages.length - 1].value.message += content;
-          } else {
-            // If there are no messages, create a new one instead
-            draft.chatMessages.push({
-              kind: ChatMessageType.String,
-              messageToken: msg.id,
-              timestamp: new Date().toISOString(),
-              value: {
-                message: content,
-              },
-            });
+            const lastMessage = draft.chatMessages[draft.chatMessages.length - 1];
+            if (lastMessage.messageToken === msg.id) {
+              const oldLength = (lastMessage.value.message as string)?.length || 0;
+              lastMessage.value.message += content;
+              lastMessage.timestamp = new Date().toISOString();
+              const newLength = (lastMessage.value.message as string)?.length || 0;
+              state.logger.info(`[Streaming] Appended chunk`, {
+                messageId: msg.id,
+                oldLength,
+                newLength,
+                chunkSize: content.length,
+                preview: content.substring(0, 30),
+              });
+            }
           }
         });
       }
@@ -329,9 +357,7 @@ export const processMessageByType = async (
         state.modifiedFiles,
         modifiedFilesPromises,
         processedTokens,
-        pendingInteractions,
         state,
-        queueManager,
         state.modifiedFilesEventEmitter,
       );
       break;
@@ -371,12 +397,12 @@ export const processMessageByType = async (
           llmError = createLLMError.llmRequestFailed(actualError);
         }
 
-        state.mutateData((draft) => {
+        state.mutateConfigErrors((draft) => {
           draft.llmErrors.push(llmError);
         });
       } else {
         // For non-LLM errors, just add to chat messages
-        state.mutateData((draft) => {
+        state.mutateChatMessages((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
