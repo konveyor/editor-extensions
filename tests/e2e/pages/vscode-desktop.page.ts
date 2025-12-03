@@ -169,10 +169,6 @@ export class VSCodeDesktop extends VSCode {
     console.log('Activating extensions before starting server...');
     await this.openJavaFileForActivation();
     await this.waitForExtensionInitialization();
-    await this.getWindow().screenshot({
-      path: `test-output/01-java-file-opened-again.png`,
-      fullPage: true,
-    });
   }
 
   /**
