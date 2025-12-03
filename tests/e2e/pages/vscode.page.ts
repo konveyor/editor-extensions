@@ -727,30 +727,4 @@ export abstract class VSCode {
 
     return results;
   }
-
-  /**
-   * Opens a Java file to trigger onLanguage:java activation for both redhat.java and konveyor-java
-   */
-  public async openJavaFileForActivation(): Promise<void> {
-    try {
-      console.log('Opening Java file to trigger Java extension activation...');
-      await this.waitDefault();
-      await this.window.locator('body').focus();
-      const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
-      await this.window.keyboard.press(`${modifier}+P`, { delay: 500 });
-      const input = this.window.getByPlaceholder('Search files by name');
-      await expect(input).toBeVisible({ timeout: 10_000 });
-      await input.fill(`.java`);
-      const fileLocator = this.window
-        .locator('a')
-        .filter({ hasText: /\.java$/ })
-        .first();
-      await expect(fileLocator).toBeVisible();
-      await fileLocator.click();
-      console.log(`Java file opened successfully`);
-    } catch (error) {
-      console.error('Failed to open Java file for activation:', error);
-      throw error;
-    }
-  }
 }
