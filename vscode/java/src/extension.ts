@@ -2,14 +2,12 @@ import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import * as rpc from "vscode-jsonrpc/node";
-import type { KonveyorCoreApi } from "@editor-extensions/shared";
+import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { EXTENSION_DISPLAY_NAME, EXTENSION_ID, EXTENSION_VERSION } from "./utilities/constants";
 import { LspProxyServer } from "./lspProxyServer";
 import { JavaExternalProviderManager } from "./javaExternalProviderManager";
 import { execFile } from "child_process";
 import { promisify } from "util";
-
-const EXTENSION_DISPLAY_NAME = "Konveyor Java";
-const EXTENSION_ID = "konveyor.konveyor-java";
 
 /**
  * Check if a command is available on the system
@@ -139,6 +137,27 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.showErrorMessage(message);
     return;
   }
+
+  // Check version compatibility
+  const javaExtVersion = EXTENSION_VERSION;
+  const coreExtVersion = coreApi.version;
+  if (javaExtVersion !== coreExtVersion) {
+    const message =
+      `Version mismatch detected!\n\n` +
+      `Konveyor Java extension (v${javaExtVersion}) is not compatible with Konveyor Core extension (v${coreExtVersion}).\n\n` +
+      `Please ensure both extensions are at the same version. This mismatch can cause analysis failures and unexpected behavior.`;
+    logger.error(message, {
+      javaVersion: javaExtVersion,
+      coreVersion: coreExtVersion,
+    });
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+
+  logger.info("Version compatibility check passed", {
+    javaVersion: javaExtVersion,
+    coreVersion: coreExtVersion,
+  });
 
   // Create socket paths for communication
   const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for kai-analyzer-rpc

@@ -11,6 +11,7 @@ import {
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
   EXTENSION_NAME,
+  EXTENSION_VERSION,
 } from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
@@ -1181,8 +1182,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     await extension.initialize();
 
     // Create and return the API for language extensions
-    const api = createCoreApi(providerRegistry);
-    logger.info("Core extension API created and ready for language extensions");
+    const api = createCoreApi(providerRegistry, EXTENSION_VERSION);
+    logger.info("Core extension API created and ready for language extensions", {
+      version: EXTENSION_VERSION,
+    });
     return api;
   } catch (error) {
     await extension?.dispose();
