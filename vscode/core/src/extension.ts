@@ -263,11 +263,12 @@ class VsCodeExtension {
       const data = produce(getData(), recipe);
       this.data = data;
 
-      // Send only config errors to webviews
+      // Send config errors and LLM errors to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
           type: "CONFIG_ERRORS_UPDATE",
           configErrors: data.configErrors,
+          llmErrors: data.llmErrors,
           timestamp: new Date().toISOString(),
         });
       });
