@@ -7,6 +7,7 @@ import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import { OutputPanel } from './output.page';
 import path from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -33,6 +34,7 @@ export abstract class VSCode {
   protected abstract selectCustomRules(customRulesPath: string): Promise<void>;
   public abstract closeVSCode(): Promise<void>;
   public abstract pasteContent(content: string): Promise<void>;
+  public abstract ensureDebugArchive(): Promise<void>;
   public abstract getWindow(): Page;
 
   protected llmCachePaths(): {
@@ -510,11 +512,11 @@ export abstract class VSCode {
   }
 
   /**
-   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
+   * Writes or updates the VSCode settings.json file to current user @ .vscode/settings.json
    * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
    */
   public async openWorkspaceSettingsAndWrite(settings: Record<string, any>): Promise<void> {
-    await this.executeQuickCommand('Preferences: Open Workspace Settings (JSON)');
+    await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     const editor = this.window.locator('.monaco-editor .view-lines').first();
@@ -544,6 +546,7 @@ export abstract class VSCode {
       null,
       2
     );
+    console.log(`Writing \n ${newContent} \n into settings.`);
 
     await editor.click();
     await this.window.keyboard.press(`${modifier}+a`);
@@ -553,6 +556,9 @@ export abstract class VSCode {
     await this.pasteContent(newContent);
 
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    await this.window.screenshot({
+      path: `${SCREENSHOTS_FOLDER}/last-config.png`,
+    });
     await this.window.waitForTimeout(300);
     await this.window.keyboard.press(`${modifier}+w`);
   }
@@ -729,5 +735,31 @@ export abstract class VSCode {
     }
 
     return results;
+  }
+
+  /**
+   * Opens a Java file to trigger onLanguage:java activation for both redhat.java and konveyor-java
+   */
+  public async openJavaFileForActivation(): Promise<void> {
+    try {
+      console.log('Opening Java file to trigger Java extension activation...');
+      await this.waitDefault();
+      await this.window.locator('body').focus();
+      const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+      await this.window.keyboard.press(`${modifier}+P`, { delay: 500 });
+      const input = this.window.getByPlaceholder('Search files by name');
+      await expect(input).toBeVisible({ timeout: 10_000 });
+      await input.fill(`.java`);
+      const fileLocator = this.window
+        .locator('a')
+        .filter({ hasText: /\.java$/ })
+        .first();
+      await expect(fileLocator).toBeVisible();
+      await fileLocator.click();
+      console.log(`Java file opened successfully`);
+    } catch (error) {
+      console.error('Failed to open Java file for activation:', error);
+      throw error;
+    }
   }
 }

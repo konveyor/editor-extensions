@@ -95,6 +95,7 @@ export class VSCodeWeb extends VSCode {
 
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
     await javaReadySelector.waitFor({ timeout: 180_000 });
+    await vscode.openJavaFileForActivation();
     return vscode;
   }
 
@@ -351,5 +352,12 @@ export class VSCodeWeb extends VSCode {
     await this.executeQuickCommand('View: Close Editor');
 
     return fileName;
+  }
+
+  public async ensureDebugArchive(): Promise<void> {
+    await this.executeTerminalCommand(
+      'ls ".vscode/debug-archive.zip" && unzip -o ".vscode/debug-archive.zip" -d ".vscode" && ls ".vscode/logs/extension.log"',
+      '.vscode/logs/extension.log'
+    );
   }
 }
