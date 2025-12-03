@@ -31,7 +31,7 @@ export class AnalysisIssueFix extends BaseNode {
     tools: DynamicStructuredTool[],
     private readonly fsCache: InMemoryCacheWithRevisions<string, string>,
     private readonly workspaceDir: string,
-    private readonly solutionServerClient: SolutionServerClient,
+    private readonly solutionServerClient: SolutionServerClient | undefined,
     logger: Logger,
   ) {
     super("AnalysisIssueFix", modelProvider, tools, logger);
@@ -140,14 +140,14 @@ As you make changes that impact dependencies or imports, be sure you explain wha
         state.outputReasoning &&
         state.inputIncidents.length > 0
       ) {
+        const solutionServerClient = this.solutionServerClient;
+
         const incidentIds = await Promise.all(
-          state.inputIncidents.map((incident) =>
-            this.solutionServerClient.createIncident(incident),
-          ),
+          state.inputIncidents.map((incident) => solutionServerClient.createIncident(incident)),
         );
 
         try {
-          await this.solutionServerClient.createSolution(
+          await solutionServerClient.createSolution(
             incidentIds,
             [
               {
@@ -243,6 +243,10 @@ As you make changes that impact dependencies or imports, be sure you explain wha
         if (!seenViolationTypes.has(violationKey)) {
           seenViolationTypes.add(violationKey);
           try {
+            if (!this.solutionServerClient) {
+              this.logger.info("Solution server client not available, skipping hint retrieval");
+              continue;
+            }
             const hint = await this.solutionServerClient.getBestHint(
               incident.ruleset_name,
               incident.violation_name,

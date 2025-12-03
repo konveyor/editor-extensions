@@ -250,37 +250,36 @@ const actions: {
     // Save to VS Code Secret Storage
     await saveHubConfig(state.extensionContext, config);
 
-    // Update the solution server client configuration
-    state.solutionServerClient.updateConfig(config);
-
-    // Update state
+    // Update state first
     state.mutateSettings((draft) => {
       draft.hubConfig = config;
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
     });
 
-    // Handle connection/disconnection based on config changes
+    // Update hub connection manager configuration (this handles reconnection internally)
+    await state.hubConnectionManager.updateConfig(config);
+
+    // Update connection state based on actual connection status
+    state.mutateServerState((draft) => {
+      draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
+    });
+
+    // Notify user about connection changes
     const wasEnabled = previousConfig?.enabled && previousConfig?.features?.solutionServer?.enabled;
     const isNowEnabled = config.enabled && config.features.solutionServer.enabled;
 
     if (wasEnabled && !isNowEnabled) {
-      // Solution server was disabled
-      state.logger.info("Solution server disabled, disconnecting");
-      try {
-        await state.solutionServerClient.disconnect();
-        state.mutateServerState((draft) => {
-          draft.solutionServerConnected = false;
-        });
-      } catch (error) {
-        state.logger.error("Error disconnecting solution server", { error });
-      }
+      vscode.window.showInformationMessage("Solution server disconnected");
     } else if (!wasEnabled && isNowEnabled) {
-      // Solution server was enabled - automatically connect
-      state.logger.info("Solution server enabled, attempting connection");
-      vscode.window.showInformationMessage("Connecting to solution server...");
-      await vscode.commands.executeCommand("konveyor.restartSolutionServer");
+      if (state.hubConnectionManager.isSolutionServerConnected()) {
+        vscode.window.showInformationMessage("Successfully connected to solution server");
+      } else {
+        vscode.window.showWarningMessage(
+          "Failed to connect to solution server. Check configuration and try again.",
+        );
+      }
     } else if (wasEnabled && isNowEnabled) {
-      // Config changed but still enabled - check if we need to reconnect
+      // Config changed but still enabled
       const configChanged =
         previousConfig?.url !== config.url ||
         previousConfig?.auth?.enabled !== config.auth?.enabled ||
@@ -289,11 +288,15 @@ const actions: {
         previousConfig?.auth?.password !== config.auth?.password;
 
       if (configChanged) {
-        state.logger.info("Hub configuration changed, reconnecting automatically");
-        vscode.window.showInformationMessage(
-          "Reconnecting to solution server with new configuration...",
-        );
-        await vscode.commands.executeCommand("konveyor.restartSolutionServer");
+        if (state.hubConnectionManager.isSolutionServerConnected()) {
+          vscode.window.showInformationMessage(
+            "Successfully reconnected to solution server with new configuration",
+          );
+        } else {
+          vscode.window.showWarningMessage(
+            "Failed to reconnect to solution server. Check configuration and try again.",
+          );
+        }
       }
     }
   },

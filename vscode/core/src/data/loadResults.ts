@@ -8,7 +8,11 @@ export const loadRuleSets = async (state: ExtensionState, receivedRuleSets: Rule
   await writeDataFile(receivedRuleSets, RULE_SET_DATA_FILE_PREFIX);
   let enhancedIncidents = enhanceIncidentsFromRuleSets(receivedRuleSets);
 
-  enhancedIncidents = await state.solutionServerClient.getSuccessRate(enhancedIncidents);
+  // Get success rate if solution server client is available
+  const solutionServerClient = state.hubConnectionManager.getSolutionServerClient();
+  if (solutionServerClient) {
+    enhancedIncidents = await solutionServerClient.getSuccessRate(enhancedIncidents);
+  }
 
   state.mutateAnalysisState((draft) => {
     draft.ruleSets = receivedRuleSets;
