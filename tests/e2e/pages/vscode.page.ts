@@ -111,47 +111,29 @@ export abstract class VSCode {
         return;
       }
 
-      // Platform-specific initialization before starting server
-      await this.beforeStartServer();
-
       console.log('Server is not running, starting server...');
       const startButton = analysisView.getByRole('button', { name: 'Start' });
       await startButton.waitFor({ state: 'visible', timeout: 30_000 });
       await expect(startButton).toBeEnabled();
 
-      await this.window.screenshot({
-        path: `test-output/01-before-start-click.png`,
-        fullPage: true,
-      });
-      console.log('Screenshot saved: 01-before-start-click.png');
-
-      // click the start button
       await startButton.click({ delay: 500, force: true });
-      console.log('Start button clicked');
+      console.log('Start button clicked for the first time');
 
-      await this.window.screenshot({
-        path: `test-output/01-start-button-clicked.png`,
-        fullPage: true,
-      });
-      console.log('Screenshot saved: 01-start-button-clicked.png');
-
-      // Check notifications after button click
-      console.log('Checking notifications after BUTTON CLICK');
-      await this.captureVSCodeNotifications();
+      const notifications = await this.captureVSCodeNotifications();
+      if (notifications.some((n) => n.includes('No language providers are registered yet'))) {
+        console.log('No language providers are registered yet, activating extensions again...');
+        await this.beforeStartServer();
+        // click the start button again
+        await startButton.click({ delay: 500, force: true });
+        console.log('Start button clicked for the second time');
+      }
 
       console.log('waiting for stop button to be visible ...');
       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
       await stopButton.waitFor({ state: 'visible', timeout: 600_000 }); // 10 minutes
       await expect(stopButton).toBeEnabled();
 
-      // Screenshot after stop button is visible
-      await this.window.screenshot({
-        path: `test-output/02-stop-button-visible.png`,
-        fullPage: true,
-      });
-      console.log('Screenshot saved: 02-stop-button-visible.png');
-
-      console.log('Server started successfully via button click!');
+      console.log('Server started successfully!');
     } catch (error) {
       console.log('Error starting server:', error);
       throw error;
@@ -726,19 +708,15 @@ export abstract class VSCode {
     return profileName;
   }
 
-  private async captureVSCodeNotifications(): Promise<void> {
+  private async captureVSCodeNotifications(): Promise<string[]> {
     try {
-      console.log('=== Capturing VSCode Notifications ===');
-
-      // Open notification center by clicking the bell icon
+      const notifications: string[] = [];
       console.log('Opening notification center...');
       const bellIcon = this.window.locator('.codicon-bell, [aria-label*="Notification"]').first();
       if (await bellIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
         await bellIcon.click();
         await this.window.waitForTimeout(1000);
       }
-
-      // Check if notification center is visible
       const notificationCenter = await this.window
         .locator('.notifications-list-container')
         .isVisible()
@@ -746,8 +724,6 @@ export abstract class VSCode {
 
       if (notificationCenter) {
         console.log('Notification center is open');
-
-        // Get all notification rows
         const notificationRows = await this.window
           .locator('.notifications-list-container .monaco-list-row')
           .all();
@@ -755,35 +731,22 @@ export abstract class VSCode {
 
         if (notificationRows.length === 0) {
           console.log('No notifications found');
-          return;
+          return [];
         }
-
-        // Print each notification's full content
         for (let i = 0; i < notificationRows.length; i++) {
           const fullText = await notificationRows[i].textContent();
-          console.log(`--- Notification ${i + 1} ---`);
-          console.log(fullText);
-          console.log('');
+          if (fullText) {
+            notifications.push(fullText);
+          }
         }
       } else {
         console.log('Notification center not visible');
+        return [];
       }
-
-      // Also check for toast notifications
-      const toasts = await this.window
-        .locator('.notifications-toasts .notification-toast-container')
-        .all();
-      if (toasts.length > 0) {
-        console.log(`\nFound ${toasts.length} toast notification(s):`);
-        for (let i = 0; i < toasts.length; i++) {
-          const toastText = await toasts[i].textContent();
-          console.log(`Toast ${i + 1}: ${toastText}`);
-        }
-      }
-
-      console.log('=== End Notifications ===\n');
+      return notifications;
     } catch (error) {
       console.error('Failed to capture notifications:', error as Error);
+      return [];
     }
   }
 }

@@ -5,7 +5,6 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
-import { VSCodeDesktop } from '../../pages/vscode-desktop.page';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {

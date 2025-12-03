@@ -173,7 +173,6 @@ export class VSCodeDesktop extends VSCode {
       path: `test-output/01-java-file-opened-again.png`,
       fullPage: true,
     });
-    console.log('Screenshot saved: 01-java-file-opened-again.png');
   }
 
   /**
@@ -217,7 +216,6 @@ export class VSCodeDesktop extends VSCode {
         path: `test-output/01-java-file-opened.png`,
         fullPage: true,
       });
-      console.log('Screenshot saved: 01-java-file-opened.png');
     } catch (error) {
       console.error('Failed to open Java file for activation:', error);
       throw error;
