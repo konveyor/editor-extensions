@@ -100,11 +100,8 @@ export class VSCodeDesktop extends VSCode {
     const vscode = new VSCodeDesktop(vscodeApp, window, repoDir);
 
     if (waitForInitialization) {
-      // Open Java file immediately after VSCode starts to trigger onLanguage:java activation
-      if (repoDir) {
-        await vscode.openJavaFileForActivation();
-      }
-      // Wait for extension initialization in downstream environment
+      // Wait for extension initialization
+      // Extensions will activate automatically via workspaceContains activation events
       await vscode.waitForExtensionInitialization();
     }
 
