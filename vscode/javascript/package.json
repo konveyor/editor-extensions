@@ -31,7 +31,16 @@
     "konveyor.konveyor"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "workspaceContains:package.json",
+    "workspaceContains:*/package.json",
+    "workspaceContains:jsconfig.json",
+    "workspaceContains:*/jsconfig.json",
+    "workspaceContains:tsconfig.json",
+    "workspaceContains:*/tsconfig.json"
   ],
   "contributes": {},
   "includedAssetPaths": {
