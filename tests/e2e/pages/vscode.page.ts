@@ -28,6 +28,14 @@ export abstract class VSCode {
   public abstract ensureDebugArchive(): Promise<void>;
   public abstract getWindow(): Page;
 
+  /**
+   * Hook for platform-specific initialization before starting the server.
+   * Override in subclasses to provide platform-specific behavior.
+   */
+  protected async beforeStartServer(): Promise<void> {
+    // Default implementation does nothing
+  }
+
   protected llmCachePaths(): {
     storedPath: string; // this is where the data is checked-in in the repo
     workspacePath: string; // this is where a workspace is expecting to find cached data
@@ -39,6 +47,7 @@ export abstract class VSCode {
   }
 
   public async executeQuickCommand(command: string) {
+    console.log(`Executing command [${command}]`);
     await this.waitDefault();
     await this.window.locator('body').focus();
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
@@ -97,25 +106,37 @@ export abstract class VSCode {
   public async startServer(): Promise<void> {
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
-
     try {
-      // Check if server is already running
-      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
-      const isServerRunning = await stopButton.isVisible();
+      console.log('Checking server status');
 
-      if (!isServerRunning) {
-        console.log('Starting server...');
-        const startButton = analysisView.getByRole('button', { name: 'Start' });
-        await startButton.waitFor({ state: 'visible', timeout: 10000 });
-        await startButton.click({ delay: 500 });
-
-        // Wait for server to start (Stop button becomes enabled)
-        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
-        await stopButton.isEnabled({ timeout: 180000 });
-        console.log('Server started successfully');
-      } else {
+      if (await this.isServerRunning()) {
         console.log('Server is already running');
+        return;
       }
+
+      console.log('Server is not running, starting server...');
+      const startButton = analysisView.getByRole('button', { name: 'Start' });
+      await startButton.waitFor({ state: 'visible', timeout: 30_000 });
+      await expect(startButton).toBeEnabled();
+
+      await startButton.click({ delay: 500, force: true });
+      console.log('Start button clicked for the first time');
+
+      const notifications = await this.captureVSCodeNotifications();
+      if (notifications.some((n) => n.includes('No language providers are registered yet'))) {
+        console.log('No language providers are registered yet, activating extensions again...');
+        await this.beforeStartServer();
+        // click the start button again
+        await startButton.click({ delay: 500, force: true });
+        console.log('Start button clicked for the second time');
+      }
+
+      console.log('waiting for stop button to be visible ...');
+      const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+      await stopButton.waitFor({ state: 'visible', timeout: 600_000 }); // 10 minutes
+      await expect(stopButton).toBeEnabled();
+
+      console.log('Server started successfully!');
     } catch (error) {
       console.log('Error starting server:', error);
       throw error;
@@ -151,7 +172,10 @@ export abstract class VSCode {
   }
 
   public async runAnalysis() {
-    await this.window.waitForTimeout(15000);
+    await this.window.waitForTimeout(15_000); // wait for 15 seconds to avoid race conditions
+
+    console.log('Starting analysis process');
+
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
 
@@ -299,6 +323,7 @@ export abstract class VSCode {
   }
 
   public async configureGenerativeAI(config: string = DEFAULT_PROVIDER.config) {
+    console.log('Starting GenAI configuration');
     await this.executeQuickCommand(
       `${VSCode.COMMAND_CATEGORY}: Open the GenAI model provider configuration file`
     );
@@ -309,6 +334,7 @@ export abstract class VSCode {
     await this.window.keyboard.press(`${modifier}+a+Delete`);
     await this.pasteContent(config);
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    console.log('GenAI configured');
     await this.waitDefault();
   }
 
@@ -726,5 +752,47 @@ export abstract class VSCode {
     }
 
     return results;
+  }
+
+  private async captureVSCodeNotifications(): Promise<string[]> {
+    try {
+      const notifications: string[] = [];
+      console.log('Opening notification center...');
+      const bellIcon = this.window.locator('.codicon-bell, [aria-label*="Notification"]').first();
+      if (await bellIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await bellIcon.click();
+        await this.window.waitForTimeout(1000);
+      }
+      const notificationCenter = await this.window
+        .locator('.notifications-list-container')
+        .isVisible()
+        .catch(() => false);
+
+      if (notificationCenter) {
+        console.log('Notification center is open');
+        const notificationRows = await this.window
+          .locator('.notifications-list-container .monaco-list-row')
+          .all();
+        console.log(`Found ${notificationRows.length} notification(s)\n`);
+
+        if (notificationRows.length === 0) {
+          console.log('No notifications found');
+          return [];
+        }
+        for (let i = 0; i < notificationRows.length; i++) {
+          const fullText = await notificationRows[i].textContent();
+          if (fullText) {
+            notifications.push(fullText);
+          }
+        }
+      } else {
+        console.log('Notification center not visible');
+        return [];
+      }
+      return notifications;
+    } catch (error) {
+      console.error('Failed to capture notifications:', error as Error);
+      return [];
+    }
   }
 }
