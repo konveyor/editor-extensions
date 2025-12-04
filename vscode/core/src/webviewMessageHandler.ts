@@ -245,60 +245,22 @@ const actions: {
     executeExtensionCommand("openHubSettingsPanel");
   },
   [UPDATE_HUB_CONFIG]: async (config: HubConfig, state) => {
-    const previousConfig = state.data.hubConfig;
-
     // Save to VS Code Secret Storage
     await saveHubConfig(state.extensionContext, config);
 
-    // Update state first
+    // Update state
     state.mutateSettings((draft) => {
       draft.hubConfig = config;
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
     });
 
-    // Update hub connection manager configuration (this handles reconnection internally)
+    // Update hub connection manager - it handles all connection logic internally
     await state.hubConnectionManager.updateConfig(config);
 
     // Update connection state based on actual connection status
     state.mutateServerState((draft) => {
       draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
     });
-
-    // Notify user about connection changes
-    const wasEnabled = previousConfig?.enabled && previousConfig?.features?.solutionServer?.enabled;
-    const isNowEnabled = config.enabled && config.features.solutionServer.enabled;
-
-    if (wasEnabled && !isNowEnabled) {
-      vscode.window.showInformationMessage("Solution server disconnected");
-    } else if (!wasEnabled && isNowEnabled) {
-      if (state.hubConnectionManager.isSolutionServerConnected()) {
-        vscode.window.showInformationMessage("Successfully connected to solution server");
-      } else {
-        vscode.window.showWarningMessage(
-          "Failed to connect to solution server. Check configuration and try again.",
-        );
-      }
-    } else if (wasEnabled && isNowEnabled) {
-      // Config changed but still enabled
-      const configChanged =
-        previousConfig?.url !== config.url ||
-        previousConfig?.auth?.enabled !== config.auth?.enabled ||
-        previousConfig?.auth?.realm !== config.auth?.realm ||
-        previousConfig?.auth?.username !== config.auth?.username ||
-        previousConfig?.auth?.password !== config.auth?.password;
-
-      if (configChanged) {
-        if (state.hubConnectionManager.isSolutionServerConnected()) {
-          vscode.window.showInformationMessage(
-            "Successfully reconnected to solution server with new configuration",
-          );
-        } else {
-          vscode.window.showWarningMessage(
-            "Failed to reconnect to solution server. Check configuration and try again.",
-          );
-        }
-      }
-    }
   },
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");

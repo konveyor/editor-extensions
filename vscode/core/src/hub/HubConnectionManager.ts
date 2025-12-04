@@ -1,6 +1,7 @@
 import { HubConfig } from "@editor-extensions/shared";
 import { Logger } from "winston";
 import { SolutionServerClient } from "@editor-extensions/agentic";
+import * as vscode from "vscode";
 
 export interface TokenResponse {
   access_token: string;
@@ -97,6 +98,8 @@ export class HubConnectionManager {
       this.config.enabled !== config.enabled ||
       this.config.auth.enabled !== config.auth.enabled ||
       this.config.auth.realm !== config.auth.realm ||
+      this.config.auth.username !== config.auth.username ||
+      this.config.auth.password !== config.auth.password ||
       this.config.features.solutionServer.enabled !== config.features.solutionServer.enabled;
 
     const wasConnected = this.isSolutionServerConnected();
@@ -130,15 +133,38 @@ export class HubConnectionManager {
       // Should disconnect
       this.logger.info("Configuration change requires disconnection");
       await this.disconnect();
+      vscode.window.showInformationMessage("Solution server disconnected");
     } else if (!wasConnected && shouldBeConnected) {
       // Should connect
       this.logger.info("Configuration change requires connection");
-      await this.connect();
+      await this.connect().catch((error) => {
+        this.logger.error("Failed to connect after config update", error);
+      });
+      // Notify user about initial connection result
+      if (this.isSolutionServerConnected()) {
+        vscode.window.showInformationMessage("Successfully connected to solution server");
+      } else {
+        vscode.window.showWarningMessage(
+          "Failed to connect to solution server. Check configuration and try again.",
+        );
+      }
     } else if (wasConnected && shouldBeConnected && configChanged) {
       // Should reconnect with new config
       this.logger.info("Configuration change requires reconnection");
       await this.disconnect();
-      await this.connect();
+      await this.connect().catch((error) => {
+        this.logger.error("Failed to reconnect after config update", error);
+      });
+      // Notify user about reconnection result
+      if (this.isSolutionServerConnected()) {
+        vscode.window.showInformationMessage(
+          "Successfully reconnected to solution server with new configuration",
+        );
+      } else {
+        vscode.window.showWarningMessage(
+          "Failed to reconnect to solution server. Check configuration and try again.",
+        );
+      }
     }
 
     // Notify extension to dispose workflow if solution server client changed
