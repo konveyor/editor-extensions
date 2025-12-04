@@ -95,7 +95,6 @@ export class VSCodeWeb extends VSCode {
 
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
     await javaReadySelector.waitFor({ timeout: 180_000 });
-    await vscode.openJavaFileForActivation();
     return vscode;
   }
 
