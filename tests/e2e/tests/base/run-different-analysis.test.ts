@@ -1,6 +1,5 @@
 import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
-import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { readFileSync } from 'fs';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
@@ -58,8 +57,12 @@ test.describe('Run analysis for different repositories', () => {
 
           expect(issuesCount).toBe(repoInfo.issuesCount);
           expect(incidentsCount).toBe(repoInfo.incidentsCount);
+
+          const foundIssues = await vscodeApp.getAllIssues();
+
+          expect(foundIssues.length).toBe(repoInfo.issues.length);
+          expect(foundIssues).toEqual(repoInfo.issues);
         });
-        
       } finally {
         try {
           await vscodeApp.deleteProfile(profileName);

@@ -1,7 +1,10 @@
 import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import {
+  GOOGLE_GEMINI_PROVIDER,
+  OPENAI_GPT4O_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import * as fs from 'fs/promises';
 import { generateRandomString } from '../../utilities/utils';
 import { extractZip } from '../../utilities/archive';
@@ -33,7 +36,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(GOOGLE_GEMINI_PROVIDER.config);
   });
 
   test('Start server', async () => {
@@ -52,6 +55,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
 
   test('Disable and enable Generative AI', async () => {
     await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: false }); // disable
+    await vscodeApp.openAnalysisView();
     await vscodeApp.waitDefault();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');
@@ -71,6 +75,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
   });
 
   test('Set list kind and sort (Issues ascending and descending)', async () => {
+    await vscodeApp.openAnalysisView();
     await vscodeApp.setListKindAndSort('issues', 'ascending');
     const namesAscending = await vscodeApp.getListNames('issues');
     expect(isAscending(namesAscending)).toBe(true);
@@ -155,14 +160,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
       await vscodeApp.getWindow().keyboard.press('Enter');
       await vscodeApp.waitDefault();
     }
-    const zipPath = pathlib.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
-    const zipStat = await fs.stat(zipPath);
-    expect(zipStat.isFile()).toBe(true);
-    const extractedPath = pathlib.join(repoInfo.repoName, '.vscode');
-    extractZip(zipPath, extractedPath);
-    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
-    const logsStat = await fs.stat(logsPath);
-    expect(logsStat.isFile()).toBe(true);
+    await vscodeApp.ensureDebugArchive();
   });
 
   test('delete profile', async () => {

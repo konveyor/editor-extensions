@@ -1,4 +1,4 @@
-export type WebviewType = "sidebar" | "resolution" | "profiles";
+export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub";
 
 export interface Incident {
   uri: string;
@@ -23,13 +23,23 @@ export interface SuccessRateMetric {
   unknown_solutions: number;
 }
 
-export interface SolutionServerConfig {
+export interface HubConfig {
   enabled: boolean;
   url: string;
   auth: {
     enabled: boolean;
     realm: string;
+    username: string;
+    password: string;
     insecure: boolean;
+  };
+  features: {
+    solutionServer: {
+      enabled: boolean;
+    };
+    profileSync: {
+      enabled: boolean;
+    };
   };
 }
 
@@ -89,6 +99,7 @@ export enum ChatMessageType {
   JSON = "JsonChatMessage",
   Tool = "ToolChatMessage",
   ModifiedFile = "ModifiedFileChatMessage",
+  BatchReview = "BatchReviewChatMessage",
 }
 
 export interface QuickResponse {
@@ -109,6 +120,17 @@ export interface ChatMessage {
   isCompact?: boolean;
   selectedResponse?: string;
   userInteraction?: any;
+}
+
+export interface PendingBatchReviewFile {
+  messageToken: string;
+  path: string;
+  diff: string;
+  content: string;
+  originalContent?: string;
+  isNew: boolean;
+  isDeleted: boolean;
+  hasError?: boolean;
 }
 
 export interface ExtensionData {
@@ -136,6 +158,9 @@ export interface ExtensionData {
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
+  hubConfig: HubConfig | undefined;
+  isProcessingQueuedMessages?: boolean;
+  pendingBatchReview?: PendingBatchReviewFile[];
 }
 
 export type ConfigErrorType =
@@ -332,6 +357,7 @@ export type ModifiedFileMessageValue = {
   messageToken?: string;
   quickResponses?: QuickResponse[];
   userInteraction?: KaiUserInteraction;
+  readOnly?: boolean; // If true, don't show Apply/Reject buttons (just context)
 };
 export interface KaiUserInteraction {
   type: "yesNo" | "choice" | "tasks" | "modifiedFile";

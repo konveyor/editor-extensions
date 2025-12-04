@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { createServer, Server, Socket } from "net";
 import * as rpc from "vscode-jsonrpc/node";
 import { createConverter } from "vscode-languageclient/lib/common/codeConverter";
+import * as proto from "vscode-languageserver-protocol";
 import { Logger } from "winston";
 
 /**
@@ -58,53 +59,11 @@ export class GoVscodeProxyServer implements vscode.Disposable {
     // Track this connection
     this.connections.add(connection);
 
-    // Handle initialize request (required for LSP handshake)
-    connection.onRequest("initialize", async (params: any) => {
-      this.logger.info("Received initialize request", { params });
-      return {
-        capabilities: {
-          workspaceSymbolProvider: true,
-          definitionProvider: true,
-          referencesProvider: true,
-        },
-        serverInfo: {
-          name: "go-vscode-proxy",
-          version: "1.0.0",
-        },
-      };
-    });
-
-    // Handle initialized notification (sent after initialize)
-    connection.onNotification("initialized", () => {
-      this.logger.debug("Received initialized notification");
-    });
-
-    // Handle workspace/executeCommand requests
+    // Handle workspace/symbol requests
     connection.onRequest("workspace/symbol", async (params: any) => {
       this.logger.info("Received workspace/symbol", { params });
-
-      try {
-        const query = Array.isArray(params) ? params[0]?.query : params?.query;
-
-        const result: vscode.SymbolInformation[] = await vscode.commands.executeCommand(
-          "vscode.executeWorkspaceSymbolProvider",
-          query,
-        );
-
-        this.logger.info(`Workspace symbol result: ${result?.length || 0} symbols`);
-
-        // Convert vscode.SymbolInformation[] to LSP WorkspaceSymbol[]
-        return (
-          result?.map((symbol) => ({
-            name: symbol.name,
-            kind: this.converter.asSymbolKind(symbol.kind),
-            location: this.converter.asLocation(symbol.location),
-          })) || []
-        );
-      } catch (error) {
-        this.logger.error(`Workspace symbol error`, error);
-        return [];
-      }
+      // Intentionally not handling workspace/symbol requests to allow the generic provider to use documentSymbol based search
+      return [];
     });
 
     // Handle other LSP requests that go-external-provider might send
@@ -151,6 +110,46 @@ export class GoVscodeProxyServer implements vscode.Disposable {
       } catch (error) {
         this.logger.error(`Text document references error`, error);
         throw error;
+      }
+    });
+
+    // Handle textDocument/didOpen requests
+    connection.onNotification("textDocument/didOpen", async (params: any) => {
+      try {
+        await vscode.workspace.openTextDocument(params.textDocument.uri);
+      } catch (error) {
+        this.logger.error("Failed to open text document", { error, params });
+      }
+    });
+
+    // Handle textDocument/documentSymbol requests
+    connection.onRequest("textDocument/documentSymbol", async (params: any) => {
+      this.logger.info("Received textDocument/documentSymbol", {
+        uri: params.textDocument?.uri,
+      });
+
+      try {
+        const result: vscode.DocumentSymbol[] = await vscode.commands.executeCommand(
+          "vscode.executeDocumentSymbolProvider",
+          vscode.Uri.parse(params.textDocument.uri),
+        );
+
+        this.logger.info(`Document symbol result: ${result?.length || 0} symbols`);
+
+        const converterFunc = (symbol: vscode.DocumentSymbol): proto.DocumentSymbol => {
+          return {
+            name: symbol.name,
+            kind: this.converter.asSymbolKind(symbol.kind),
+            selectionRange: this.converter.asRange(symbol.selectionRange),
+            range: this.converter.asRange(symbol.range),
+            children: symbol.children?.map(converterFunc),
+          };
+        };
+
+        return result?.map(converterFunc) || [];
+      } catch (error) {
+        this.logger.error("Failed to get document symbols", { error, params });
+        return [];
       }
     });
 

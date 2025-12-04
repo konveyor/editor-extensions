@@ -23,6 +23,8 @@ export const QUICK_RESPONSE = "QUICK_RESPONSE";
 export const OPEN_FILE_IN_EDITOR = "OPEN_FILE_IN_EDITOR";
 export const TOGGLE_AGENT_MODE = "TOGGLE_AGENT_MODE";
 export const OPEN_RESOLUTION_PANEL = "OPEN_RESOLUTION_PANEL";
+export const OPEN_HUB_SETTINGS = "OPEN_HUB_SETTINGS";
+export const UPDATE_HUB_CONFIG = "UPDATE_HUB_CONFIG";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -50,7 +52,9 @@ export type WebviewActionType =
   | typeof QUICK_RESPONSE
   | typeof OPEN_FILE_IN_EDITOR
   | typeof TOGGLE_AGENT_MODE
-  | typeof OPEN_RESOLUTION_PANEL;
+  | typeof OPEN_RESOLUTION_PANEL
+  | typeof OPEN_HUB_SETTINGS
+  | typeof UPDATE_HUB_CONFIG;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

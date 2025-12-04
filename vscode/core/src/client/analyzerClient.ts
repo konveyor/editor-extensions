@@ -35,7 +35,8 @@ export class AnalyzerClient {
 
   constructor(
     private extContext: vscode.ExtensionContext,
-    private mutateExtensionData: (recipe: (draft: ExtensionData) => void) => void,
+    private mutateServerState: (recipe: (draft: ExtensionData) => void) => void,
+    private mutateAnalysisState: (recipe: (draft: ExtensionData) => void) => void,
     private getExtStateData: () => Immutable<ExtensionData>,
     private readonly taskManager: TaskManager,
     private readonly logger: Logger,
@@ -50,7 +51,7 @@ export class AnalyzerClient {
   }
 
   private fireServerStateChange(state: ServerState) {
-    this.mutateExtensionData((draft) => {
+    this.mutateServerState((draft) => {
       this.logger.info(`serverState change from [${draft.serverState}] to [${state}]`);
       draft.serverState = state;
       draft.isStartingServer = state === "starting";
@@ -59,7 +60,7 @@ export class AnalyzerClient {
   }
 
   private fireAnalysisStateChange(flag: boolean) {
-    this.mutateExtensionData((draft) => {
+    this.mutateAnalysisState((draft) => {
       draft.isAnalyzing = flag;
       // Reset progress when analysis completes
       if (!flag) {
@@ -483,7 +484,7 @@ export class AnalyzerClient {
             progress.report({ message: notificationMessage });
 
             // Update extension state for webview with detailed message
-            this.mutateExtensionData((draft) => {
+            this.mutateAnalysisState((draft) => {
               draft.analysisProgress = Math.min(100, Math.max(0, Math.round(progressPercent)));
               draft.analysisProgressMessage = webviewMessage;
             });

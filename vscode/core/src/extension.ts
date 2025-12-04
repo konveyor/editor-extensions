@@ -11,6 +11,7 @@ import {
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
   EXTENSION_NAME,
+  EXTENSION_VERSION,
 } from "./utilities/constants";
 import {
   KaiInteractiveWorkflow,
@@ -25,20 +26,17 @@ import { ExtensionPaths, ensurePaths, paths, ensureKaiAnalyzerBinary } from "./p
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
-  getConfigSolutionServer,
-  getConfigSolutionServerEnabled,
-  getConfigSolutionServerAuth,
   getConfigAgentMode,
   getCacheDir,
   getTraceDir,
   getTraceEnabled,
   getConfigKaiDemoMode,
   getConfigLogLevel,
-  checkAndPromptForCredentials,
   getConfigGenAIEnabled,
   getConfigAutoAcceptOnSave,
   updateConfigErrors,
 } from "./utilities";
+import { initializeHubConfig, getDefaultHubConfig } from "./utilities/hubConfigStorage";
 import { getAllProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
@@ -69,7 +67,8 @@ class VsCodeExtension {
     logger: winston.Logger,
     private readonly providerRegistry: ProviderRegistry,
   ) {
-    const solutionServerConfig = getConfigSolutionServer();
+    // Use default hub config for initial state; will be updated after async initialization
+    const defaultHubConfig = getDefaultHubConfig();
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
@@ -91,7 +90,7 @@ class VsCodeExtension {
         workspaceRoot: paths.workspaceRepo.toString(true),
         chatMessages: [],
         solutionState: "none",
-        solutionServerEnabled: solutionServerConfig.enabled, // should we pass the full config object?
+        solutionServerEnabled: false, // Will be updated after hub config loads
         configErrors: [],
         llmErrors: [],
         activeProfileId: "",
@@ -100,6 +99,8 @@ class VsCodeExtension {
         activeDecorators: {},
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
+        hubConfig: defaultHubConfig,
+        isProcessingQueuedMessages: false,
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -111,14 +112,215 @@ class VsCodeExtension {
       () => {},
     );
     const getData = () => this.data;
-    const setData = (data: Immutable<ExtensionData>) => {
-      this.data = data;
-      this._onDidChange.fire(this.data);
-    };
-    const mutateData = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
+
+    // Update chat messages without triggering global state change (sends only chat delta to webview)
+    const mutateChatMessages = (
+      recipe: (draft: ExtensionData) => void,
+    ): Immutable<ExtensionData> => {
+      const oldMessages = getData().chatMessages;
       const data = produce(getData(), recipe);
-      setData(data);
+
+      // Update internal state WITHOUT firing global change event
+      this.data = data;
+
+      // Optimize: Only send changed messages to reduce webview overhead
+      // If we're streaming (same number of messages), send just the last message
+      // Otherwise send the full array (for new messages, deletions, etc.)
+      const isStreamingUpdate =
+        data.chatMessages.length === oldMessages.length && data.chatMessages.length > 0;
+
+      if (isStreamingUpdate) {
+        // Streaming chunk - send only the last message for efficiency
+        const lastMessage = data.chatMessages[data.chatMessages.length - 1];
+        logger.info(`[Streaming] Sending incremental update`, {
+          messageIndex: data.chatMessages.length - 1,
+          messageLength: (lastMessage.value as any)?.message?.length || 0,
+          messageToken: lastMessage.messageToken,
+        });
+
+        // CRITICAL: Create a plain object copy to avoid Immer proxy issues
+        // Immer's immutable data might reuse object references internally
+        const plainMessage = JSON.parse(JSON.stringify(lastMessage));
+
+        // Broadcast streaming update to all webviews
+        broadcastToWebviews((provider) => {
+          provider.sendMessageToWebview({
+            type: "CHAT_MESSAGE_STREAMING_UPDATE",
+            message: plainMessage,
+            messageIndex: data.chatMessages.length - 1,
+            timestamp: new Date().toISOString(),
+          });
+        });
+      } else {
+        // Structure change - send full array
+        broadcastToWebviews((provider) => {
+          provider.sendMessageToWebview({
+            type: "CHAT_MESSAGES_UPDATE",
+            chatMessages: data.chatMessages,
+            previousLength: oldMessages.length,
+            timestamp: new Date().toISOString(),
+          });
+        });
+      }
+
       return data;
+    };
+
+    // Update analysis state and notify all listeners
+    const mutateAnalysisState = (
+      recipe: (draft: ExtensionData) => void,
+    ): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only analysis state to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "ANALYSIS_STATE_UPDATE",
+          ruleSets: data.ruleSets,
+          enhancedIncidents: data.enhancedIncidents,
+          isAnalyzing: data.isAnalyzing,
+          isAnalysisScheduled: data.isAnalysisScheduled,
+          analysisProgress: data.analysisProgress,
+          analysisProgressMessage: data.analysisProgressMessage,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Fire the global change event to notify extension listeners
+      this._onDidChange.fire(this.data);
+
+      return data;
+    };
+
+    // Update solution workflow state without triggering global state change
+    const mutateSolutionWorkflow = (
+      recipe: (draft: ExtensionData) => void,
+    ): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only solution workflow state to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "SOLUTION_WORKFLOW_UPDATE",
+          isFetchingSolution: data.isFetchingSolution,
+          solutionState: data.solutionState,
+          solutionScope: data.solutionScope,
+          isWaitingForUserInteraction: data.isWaitingForUserInteraction,
+          isProcessingQueuedMessages: data.isProcessingQueuedMessages,
+          pendingBatchReview: data.pendingBatchReview || [],
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
+    // Update server state without triggering global state change
+    const mutateServerState = (
+      recipe: (draft: ExtensionData) => void,
+    ): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only server state to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "SERVER_STATE_UPDATE",
+          serverState: data.serverState,
+          isStartingServer: data.isStartingServer,
+          isInitializingServer: data.isInitializingServer,
+          solutionServerConnected: data.solutionServerConnected,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
+    // Update profiles without triggering global state change
+    const mutateProfiles = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only profiles to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "PROFILES_UPDATE",
+          profiles: data.profiles,
+          activeProfileId: data.activeProfileId,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
+    // Update config errors without triggering global state change
+    const mutateConfigErrors = (
+      recipe: (draft: ExtensionData) => void,
+    ): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only config errors to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "CONFIG_ERRORS_UPDATE",
+          configErrors: data.configErrors,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
+    // Update decorators without triggering global state change
+    const mutateDecorators = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only decorators to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "DECORATORS_UPDATE",
+          activeDecorators: data.activeDecorators || {},
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
+    // Update settings without triggering global state change
+    const mutateSettings = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
+      const data = produce(getData(), recipe);
+      this.data = data;
+
+      // Send only settings to webviews
+      broadcastToWebviews((provider) => {
+        provider.sendMessageToWebview({
+          type: "SETTINGS_UPDATE",
+          solutionServerEnabled: data.solutionServerEnabled,
+          isAgentMode: data.isAgentMode,
+          isContinueInstalled: data.isContinueInstalled,
+          hubConfig: data.hubConfig,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return data;
+    };
+
+    // Helper to safely broadcast messages to webview providers
+    const broadcastToWebviews = (messageFn: (provider: KonveyorGUIWebviewViewProvider) => void) => {
+      const extensionState = (this as VsCodeExtension).state;
+      if (extensionState?.webviewProviders) {
+        extensionState.webviewProviders.forEach((provider) => {
+          messageFn(provider);
+        });
+      }
     };
 
     const taskManager = new DiagnosticTaskManager(getExcludedDiagnosticSources());
@@ -126,13 +328,14 @@ class VsCodeExtension {
     this.state = {
       analyzerClient: new AnalyzerClient(
         context,
-        mutateData,
+        mutateServerState,
+        mutateAnalysisState,
         getData,
         taskManager,
         logger,
         providerRegistry,
       ),
-      solutionServerClient: new SolutionServerClient(solutionServerConfig, logger),
+      solutionServerClient: new SolutionServerClient(defaultHubConfig, logger),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
@@ -143,7 +346,14 @@ class VsCodeExtension {
       get data() {
         return getData();
       },
-      mutateData,
+      mutateChatMessages,
+      mutateAnalysisState,
+      mutateSolutionWorkflow,
+      mutateServerState,
+      mutateProfiles,
+      mutateConfigErrors,
+      mutateDecorators,
+      mutateSettings,
       modifiedFiles: new Map(),
       modifiedFilesEventEmitter: new EventEmitter(),
       lastMessageId: "0",
@@ -231,33 +441,15 @@ class VsCodeExtension {
 
       // Check for problematic solutionServer.auth configuration (should be an object, not boolean)
       const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
-      const authConfig = config.get("solutionServer.auth");
-      if (typeof authConfig === "boolean") {
-        this.state.logger.warn(
-          "Detected invalid configuration 'konveyor.solutionServer.auth' set to boolean. This setting should not be a boolean and can cause problems with other configuration keys.",
-        );
-        vscode.window
-          .showWarningMessage(
-            "Invalid configuration detected: 'konveyor.solutionServer.auth' is set to a boolean value (true/false). " +
-              "Please remove this setting from your VS Code settings. " +
-              "Use 'konveyor.solutionServer.auth.enabled' instead. " +
-              "This invalid setting can cause problems with other configuration options below it.",
-            "Open Settings",
-          )
-          .then((selection) => {
-            if (selection === "Open Settings") {
-              vscode.commands.executeCommand(
-                "workbench.action.openSettings",
-                "konveyor.solutionServer",
-              );
-            }
-          });
-      }
 
-      this.state.mutateData((draft) => {
+      // Broadcast profiles to webview using granular update
+      this.state.mutateProfiles((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = activeProfileId;
-        // Initialize configuration errors after setting profiles and activeProfileId
+      });
+
+      // Update config errors
+      this.state.mutateConfigErrors((draft) => {
         this.updateConfigurationErrors(draft);
       });
 
@@ -266,21 +458,21 @@ class VsCodeExtension {
 
       this.setupModelProvider(paths().settingsYaml)
         .then((configError) => {
-          this.state.mutateData((draft) => {
-            if (configError) {
+          if (configError) {
+            this.state.mutateConfigErrors((draft) => {
               draft.configErrors.push(configError);
-            }
-          });
+            });
+          }
         })
         .catch((error) => {
           this.state.logger.error("Error setting up model provider:", error);
-          this.state.mutateData((draft) => {
-            if (error) {
-              const configError = createConfigError.providerConnnectionFailed();
-              configError.error = error instanceof Error ? error.message : String(error);
+          if (error) {
+            const configError = createConfigError.providerConnnectionFailed();
+            configError.error = error instanceof Error ? error.message : String(error);
+            this.state.mutateConfigErrors((draft) => {
               draft.configErrors.push(configError);
-            }
-          });
+            });
+          }
         });
 
       this.registerWebviewProvider();
@@ -292,8 +484,19 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
-      // Connect to solution server
-      if (getConfigSolutionServerEnabled()) {
+      // Initialize hub config from secret storage (with migration)
+      const hubConfig = await initializeHubConfig(this.context);
+      this.state.mutateSettings((draft) => {
+        draft.hubConfig = hubConfig;
+        draft.solutionServerEnabled =
+          hubConfig.enabled && hubConfig.features.solutionServer.enabled;
+      });
+
+      // Update solution server client with loaded config
+      this.state.solutionServerClient.updateConfig(hubConfig);
+
+      // Connect to solution server if enabled
+      if (hubConfig.enabled && hubConfig.features.solutionServer.enabled) {
         await this.connectToSolutionServer();
       }
 
@@ -310,9 +513,10 @@ class VsCodeExtension {
 
         pollTimeout = setTimeout(async () => {
           // Only poll if solution server is enabled and we should be connected
-          if (!getConfigSolutionServerEnabled()) {
+          const currentHubConfig = this.state.data.hubConfig;
+          if (!currentHubConfig?.enabled || !currentHubConfig?.features.solutionServer.enabled) {
             // Pause; config change handlers will resume when re-enabled
-            this.state.mutateData((draft) => {
+            this.state.mutateServerState((draft) => {
               draft.solutionServerConnected = false;
             });
             return;
@@ -329,13 +533,14 @@ class VsCodeExtension {
             consecutiveFailures = 0;
             pollInterval = 10000;
 
-            this.state.mutateData((draft) => {
+            // If we get here, connection is working
+            this.state.mutateServerState((draft) => {
               draft.solutionServerConnected = true;
             });
           } catch {
-            // Failure - increase backoff interval
             consecutiveFailures++;
-            this.state.mutateData((draft) => {
+            // If we can't get capabilities, assume disconnected
+            this.state.mutateServerState((draft) => {
               draft.solutionServerConnected = false;
             });
 
@@ -436,7 +641,8 @@ class VsCodeExtension {
         vscode.workspace.onDidSaveTextDocument(async (doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
             const configError = await this.setupModelProvider(paths().settingsYaml);
-            this.state.mutateData((draft) => {
+            this.state.mutateConfigErrors((draft) => {
+              // Clear all config errors and re-validate
               draft.configErrors = [];
               if (configError) {
                 draft.configErrors.push(configError);
@@ -457,7 +663,7 @@ class VsCodeExtension {
           ) {
             this.setupModelProvider(paths().settingsYaml)
               .then((configError) => {
-                this.state.mutateData((draft) => {
+                this.state.mutateConfigErrors((draft) => {
                   // Clear all GenAI-related config errors
                   draft.configErrors = draft.configErrors.filter(
                     (e) =>
@@ -472,9 +678,9 @@ class VsCodeExtension {
                   }
                 });
               })
-              .catch((error) => {
+              .catch((error: Error) => {
                 this.state.logger.error("Error setting up model provider:", error);
-                this.state.mutateData((draft) => {
+                this.state.mutateConfigErrors((draft) => {
                   // Clear all GenAI-related config errors
                   draft.configErrors = draft.configErrors.filter(
                     (e) =>
@@ -493,52 +699,9 @@ class VsCodeExtension {
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
             const agentMode = getConfigAgentMode();
-            this.state.mutateData((draft) => {
+            this.state.mutateSettings((draft) => {
               draft.isAgentMode = agentMode;
             });
-          }
-
-          if (event.affectsConfiguration(`${EXTENSION_NAME}.solutionServer`)) {
-            const newConfig = getConfigSolutionServer();
-            this.state.logger.info("Solution server configuration modified!", {
-              enabled: newConfig.enabled,
-              url: newConfig.url,
-              authEnabled: newConfig.auth.enabled,
-            });
-
-            // Capture current connection state before mutating
-            const wasConnected = this.state.data.solutionServerConnected;
-
-            // Update the enabled state immediately
-            this.state.mutateData((draft) => {
-              draft.solutionServerEnabled = newConfig.enabled;
-              // Reset connection status - let the connection poll handle updating it
-              draft.solutionServerConnected = false;
-            });
-
-            // Update the client configuration
-            this.state.solutionServerClient.updateConfig(newConfig);
-
-            // Disconnect if currently connected to apply new settings
-            if (wasConnected) {
-              try {
-                await this.state.solutionServerClient.disconnect();
-                this.state.logger.info(
-                  "Disconnected from solution server for configuration update",
-                );
-              } catch (error) {
-                this.state.logger.error("Error disconnecting from solution server:", error);
-              }
-            }
-
-            // Resume polling if enabled - it will handle reconnection with new config
-            if (newConfig.enabled) {
-              consecutiveFailures = 0;
-              pollInterval = 10000;
-              scheduleNextPoll(withJitter(pollInterval));
-
-              // Auth credentials will be prompted on next connection attempt if needed
-            }
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.logLevel`)) {
@@ -673,26 +836,30 @@ class VsCodeExtension {
   }
 
   private async connectToSolutionServer(): Promise<void> {
-    if (!getConfigSolutionServerEnabled()) {
+    const hubConfig = this.state.data.hubConfig;
+
+    if (!hubConfig?.enabled || !hubConfig?.features.solutionServer.enabled) {
       this.state.logger.info("Solution server is disabled, skipping connection");
       return;
     }
 
-    // Only attempt to connect if solution server is enabled
+    // Get credentials from hub config
     let username: string = "";
     let password: string = "";
-    if (getConfigSolutionServerAuth()) {
-      const credentials = await checkAndPromptForCredentials(this.context, this.state.logger);
-      if (!credentials) {
-        this.state.mutateData((draft) => {
+    if (hubConfig.auth.enabled) {
+      // Check if username and password are configured
+      if (!hubConfig.auth.username?.trim() || !hubConfig.auth.password?.trim()) {
+        this.state.logger.warn("Hub auth enabled but credentials not configured");
+        this.state.mutateConfigErrors((draft) => {
           if (!draft.configErrors.some((error) => error.type === "missing-auth-credentials")) {
             draft.configErrors.push(createConfigError.missingAuthCredentials());
           }
         });
         return;
       }
-      username = credentials.username;
-      password = credentials.password;
+
+      username = hubConfig.auth.username;
+      password = hubConfig.auth.password;
     }
 
     this.state.solutionServerClient
@@ -700,14 +867,14 @@ class VsCodeExtension {
       .then(() => this.state.solutionServerClient.connect())
       .then(() => {
         // Update state to reflect successful connection
-        this.state.mutateData((draft) => {
+        this.state.mutateServerState((draft) => {
           draft.solutionServerConnected = true;
         });
       })
       .catch((error) => {
         this.state.logger.error("Error connecting to solution server", error);
         // Update state to reflect failed connection
-        this.state.mutateData((draft) => {
+        this.state.mutateServerState((draft) => {
           draft.solutionServerConnected = false;
         });
       });
@@ -717,15 +884,18 @@ class VsCodeExtension {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
     const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
+    const hubViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "hub");
 
     this.state.webviewProviders.set("sidebar", sidebarProvider);
     this.state.webviewProviders.set("resolution", resolutionViewProvider);
     this.state.webviewProviders.set("profiles", profilesViewProvider);
+    this.state.webviewProviders.set("hub", hubViewProvider);
 
-    [sidebarProvider, resolutionViewProvider, profilesViewProvider].forEach((provider) =>
-      this.onDidChangeData((data) => {
-        provider.sendMessageToWebview(data);
-      }),
+    [sidebarProvider, resolutionViewProvider, profilesViewProvider, hubViewProvider].forEach(
+      (provider) =>
+        this.onDidChangeData((data) => {
+          provider.sendMessageToWebview(data);
+        }),
     );
 
     this.context.subscriptions.push(
@@ -811,9 +981,14 @@ class VsCodeExtension {
       const newActiveId =
         activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
-      this.state.mutateData((draft) => {
+      // Update profiles first
+      this.state.mutateProfiles((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = newActiveId;
+      });
+
+      // Then update configuration errors
+      this.state.mutateConfigErrors((draft) => {
         this.updateConfigurationErrors(draft);
       });
 
@@ -834,7 +1009,7 @@ class VsCodeExtension {
 
   private checkContinueInstalled(): void {
     const continueExt = vscode.extensions.getExtension("Continue.continue");
-    this.state.mutateData((draft) => {
+    this.state.mutateSettings((draft) => {
       draft.isContinueInstalled = !!continueExt;
     });
   }
@@ -934,7 +1109,7 @@ class VsCodeExtension {
   public async dispose() {
     // Clean up pending interactions and resolver function to prevent memory leaks
     this.state.resolvePendingInteraction = undefined;
-    this.state.mutateData((draft) => {
+    this.state.mutateSolutionWorkflow((draft) => {
       draft.isWaitingForUserInteraction = false;
     });
 
@@ -956,7 +1131,7 @@ class VsCodeExtension {
     });
 
     // Update state to reflect disconnected status
-    this.state.mutateData((draft) => {
+    this.state.mutateServerState((draft) => {
       draft.solutionServerConnected = false;
     });
 
@@ -1007,8 +1182,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     await extension.initialize();
 
     // Create and return the API for language extensions
-    const api = createCoreApi(providerRegistry);
-    logger.info("Core extension API created and ready for language extensions");
+    const api = createCoreApi(providerRegistry, EXTENSION_VERSION);
+    logger.info("Core extension API created and ready for language extensions", {
+      version: EXTENSION_VERSION,
+    });
     return api;
   } catch (error) {
     await extension?.dispose();

@@ -24,7 +24,7 @@ export async function handleQuickResponse(
       const msg = state.data.chatMessages[messageIndex];
 
       // Update the chat message state to include the selected response
-      state.mutateData((draft) => {
+      state.mutateChatMessages((draft) => {
         const message = draft.chatMessages.find((m) => m.messageToken === messageToken);
         if (message) {
           message.selectedResponse = responseId;
@@ -76,7 +76,7 @@ export async function handleQuickResponse(
           console.warn(`No pending interaction found for messageToken: ${messageToken}`);
           // As a fallback, reset the waiting flag if no pending interaction was found
           // This should rarely happen if the architecture is working correctly
-          state.mutateData((draft) => {
+          state.mutateSolutionWorkflow((draft) => {
             draft.isWaitingForUserInteraction = false;
           });
         } else {
@@ -87,7 +87,7 @@ export async function handleQuickResponse(
           "resolvePendingInteraction function not available - this indicates a setup issue",
         );
         // As a fallback, reset the waiting flag
-        state.mutateData((draft) => {
+        state.mutateSolutionWorkflow((draft) => {
           draft.isWaitingForUserInteraction = false;
         });
       }

@@ -6,12 +6,13 @@ import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
 
 export abstract class VSCode {
-  protected repoDir?: string;
+  repoDir?: string;
   protected branch?: string;
   protected abstract window: Page;
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
@@ -24,6 +25,7 @@ export abstract class VSCode {
   protected abstract selectCustomRules(customRulesPath: string): Promise<void>;
   public abstract closeVSCode(): Promise<void>;
   public abstract pasteContent(content: string): Promise<void>;
+  public abstract ensureDebugArchive(): Promise<void>;
   public abstract getWindow(): Page;
 
   /**
@@ -53,10 +55,11 @@ export abstract class VSCode {
     const input = this.window.getByPlaceholder('Type the name of a command to run.');
     await expect(input).toBeVisible({ timeout: 10_000 });
     await input.fill(`>${command}`);
-    await expect(
-      this.window.locator(`a.label-name span.highlight >> text="${command}"`)
-    ).toBeVisible();
-    await input.press('Enter', { delay: 500 });
+    const commandLocator = this.window
+      .locator('a')
+      .filter({ hasText: new RegExp(`^${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
+    await expect(commandLocator).toBeVisible();
+    await commandLocator.click();
   }
 
   public async openLeftBarElement(name: string) {
@@ -526,11 +529,11 @@ export abstract class VSCode {
   }
 
   /**
-   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
+   * Writes or updates the VSCode settings.json file to current user @ .vscode/settings.json
    * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
    */
   public async openWorkspaceSettingsAndWrite(settings: Record<string, any>): Promise<void> {
-    await this.executeQuickCommand('Preferences: Open Workspace Settings (JSON)');
+    await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     const editor = this.window.locator('.monaco-editor .view-lines').first();
@@ -560,6 +563,7 @@ export abstract class VSCode {
       null,
       2
     );
+    console.log(`Writing \n ${newContent} \n into settings.`);
 
     await editor.click();
     await this.window.keyboard.press(`${modifier}+a`);
@@ -569,6 +573,9 @@ export abstract class VSCode {
     await this.pasteContent(newContent);
 
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    await this.window.screenshot({
+      path: `${SCREENSHOTS_FOLDER}/last-config.png`,
+    });
     await this.window.waitForTimeout(300);
     await this.window.keyboard.press(`${modifier}+w`);
   }
@@ -706,6 +713,45 @@ export abstract class VSCode {
     }
     const profileName = fullText.replace('(active)', '').trim();
     return profileName;
+  }
+
+  public async getAllIssues(): Promise<{ title: string; incidentsCount: number }[]> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+
+    // Locate all issue cards by unique class for each header (adapt as needed)
+    const fillContainer = analysisView.locator('.pf-v6-l-stack__item.pf-m-fill');
+    const issueCards = fillContainer.locator('.pf-v6-c-card__header');
+    const issueCount = await issueCards.count();
+    const results: { title: string; incidentsCount: number }[] = [];
+
+    for (let i = 0; i < issueCount; i++) {
+      const card = issueCards.nth(i);
+      // Find h3 in the card for the title
+      const headerMain = card.locator('.pf-v6-c-card__header-main h3');
+      let title = '';
+      try {
+        title = (await headerMain.textContent())?.trim() ?? '';
+      } catch {
+        title = '';
+      }
+
+      // Look for "incidents" string inside a '.pf-v6-c-label__text' element within the card
+      let incidentsCount = 0;
+      try {
+        const label = card.locator('.pf-v6-c-label__text');
+        const labelText = (await label.textContent()) ?? '';
+        const match = labelText.match(/(\d+)\s+incidents?/i);
+        if (match) {
+          incidentsCount = parseInt(match[1], 10);
+        }
+      } catch {
+        incidentsCount = 0;
+      }
+
+      results.push({ title, incidentsCount });
+    }
+
+    return results;
   }
 
   private async captureVSCodeNotifications(): Promise<string[]> {
