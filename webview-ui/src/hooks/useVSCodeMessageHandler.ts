@@ -187,6 +187,7 @@ export function useVSCodeMessageHandler() {
         // Handle config errors updates
         if (isConfigErrorsUpdate(message)) {
           store.setConfigErrors(message.configErrors);
+          store.setLLMErrors(message.llmErrors);
           return;
         }
 
@@ -236,6 +237,7 @@ export function useVSCodeMessageHandler() {
             activeDecorators: message.activeDecorators ?? {},
             profiles: Array.isArray(message.profiles) ? message.profiles : [],
             configErrors: Array.isArray(message.configErrors) ? message.configErrors : [],
+            llmErrors: Array.isArray(message.llmErrors) ? message.llmErrors : [],
             pendingBatchReview: Array.isArray(message.pendingBatchReview)
               ? message.pendingBatchReview
               : [],

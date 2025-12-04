@@ -23,6 +23,7 @@ import type {
   ChatMessage,
   AnalysisProfile,
   ConfigError,
+  LLMError,
   ServerState,
   SolutionState,
   Scope,
@@ -66,6 +67,7 @@ interface ExtensionStore {
   // Config state
   workspaceRoot: string;
   configErrors: ConfigError[];
+  llmErrors: LLMError[];
   solutionState: SolutionState;
   solutionScope?: Scope;
   solutionServerEnabled: boolean;
@@ -106,6 +108,9 @@ interface ExtensionStore {
   setConfigErrors: (errors: ConfigError[]) => void;
   addConfigError: (error: ConfigError) => void;
   clearConfigErrors: () => void;
+  setLLMErrors: (errors: LLMError[]) => void;
+  addLLMError: (error: LLMError) => void;
+  clearLLMErrors: () => void;
   setSolutionState: (state: SolutionState) => void;
   setSolutionScope: (scope: Scope | undefined) => void;
   setSolutionServerConnected: (connected: boolean) => void;
@@ -151,6 +156,7 @@ export const useExtensionStore = create<ExtensionStore>()(
         activeDecorators: {},
         workspaceRoot: "/",
         configErrors: [],
+        llmErrors: [],
         solutionState: "none",
         solutionScope: undefined,
         solutionServerEnabled: false,
@@ -291,6 +297,21 @@ export const useExtensionStore = create<ExtensionStore>()(
         clearConfigErrors: () =>
           set((state) => {
             state.configErrors = [];
+          }),
+
+        setLLMErrors: (errors) =>
+          set((state) => {
+            state.llmErrors = errors;
+          }),
+
+        addLLMError: (error) =>
+          set((state) => {
+            state.llmErrors.push(error);
+          }),
+
+        clearLLMErrors: () =>
+          set((state) => {
+            state.llmErrors = [];
           }),
 
         setSolutionState: (solutionState) =>

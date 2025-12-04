@@ -5,6 +5,7 @@ import {
   ChatMessage,
   AnalysisProfile,
   ConfigError,
+  LLMError,
   ServerState,
   SolutionState,
   Scope,
@@ -91,6 +92,7 @@ export interface ProfilesUpdateMessage {
 export interface ConfigErrorsUpdateMessage {
   type: "CONFIG_ERRORS_UPDATE";
   configErrors: ConfigError[];
+  llmErrors: LLMError[];
   timestamp: string;
 }
 
