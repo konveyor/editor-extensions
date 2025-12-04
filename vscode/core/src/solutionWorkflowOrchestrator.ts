@@ -76,13 +76,14 @@ export class SolutionWorkflowOrchestrator {
     this.logger.info("Initializing workflow", {
       incidentsCount: this.incidents.length,
       agentMode: this.agentMode,
+      solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
     });
 
     // Initialize workflow manager
     await this.state.workflowManager.init({
       modelProvider: this.state.modelProvider!,
       workspaceDir: this.state.data.workspaceRoot,
-      solutionServerClient: this.state.solutionServerClient,
+      solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
     });
 
     this.workflow = this.state.workflowManager.getWorkflow();
@@ -471,7 +472,7 @@ export class SolutionWorkflowOrchestrator {
     const scope: Scope = { incidents: this.incidents };
     const clientId = uuidv4();
 
-    this.state.solutionServerClient.setClientId(clientId);
+    this.state.hubConnectionManager.getSolutionServerClient()?.setClientId(clientId);
     this.logger.debug("Client ID set", { clientId });
 
     this.logger.info("Initializing workflow state", {

@@ -16,9 +16,9 @@ import {
 import {
   KaiInteractiveWorkflow,
   InMemoryCacheWithRevisions,
-  SolutionServerClient,
   FileBasedResponseCache,
 } from "@editor-extensions/agentic";
+import { HubConnectionManager } from "./hub";
 import { Immutable, produce } from "immer";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
@@ -67,8 +67,6 @@ class VsCodeExtension {
     logger: winston.Logger,
     private readonly providerRegistry: ProviderRegistry,
   ) {
-    // Use default hub config for initial state; will be updated after async initialization
-    const defaultHubConfig = getDefaultHubConfig();
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
@@ -99,7 +97,7 @@ class VsCodeExtension {
         activeDecorators: {},
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
-        hubConfig: defaultHubConfig,
+        hubConfig: getDefaultHubConfig(), // Will be updated after async initialization
         isProcessingQueuedMessages: false,
         analysisConfig: {
           labelSelector: "",
@@ -335,7 +333,7 @@ class VsCodeExtension {
         logger,
         providerRegistry,
       ),
-      solutionServerClient: new SolutionServerClient(defaultHubConfig, logger),
+      hubConnectionManager: new HubConnectionManager(getDefaultHubConfig(), logger),
       webviewProviders: new Map<string, KonveyorGUIWebviewViewProvider>(),
       extensionContext: context,
       diagnosticCollection: vscode.languages.createDiagnosticCollection("konveyor"),
@@ -369,10 +367,11 @@ class VsCodeExtension {
           try {
             this.state.workflowManager.workflow = new KaiInteractiveWorkflow(this.state.logger);
             // Make sure fsCache and solutionServerClient are passed to the workflow init
+            // Get solution server client from hub connection manager (may be undefined if not connected)
             await this.state.workflowManager.workflow.init({
               ...config,
               fsCache: this.state.kaiFsCache,
-              solutionServerClient: this.state.solutionServerClient,
+              solutionServerClient: config.solutionServerClient,
               toolCache: new FileBasedResponseCache(
                 getConfigKaiDemoMode(), // cache enabled only when demo mode is on
                 (args) =>
@@ -439,9 +438,6 @@ class VsCodeExtension {
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
-      // Check for problematic solutionServer.auth configuration (should be an object, not boolean)
-      const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
-
       // Broadcast profiles to webview using granular update
       this.state.mutateProfiles((draft) => {
         draft.profiles = allProfiles;
@@ -492,13 +488,39 @@ class VsCodeExtension {
           hubConfig.enabled && hubConfig.features.solutionServer.enabled;
       });
 
-      // Update solution server client with loaded config
-      this.state.solutionServerClient.updateConfig(hubConfig);
+      // Set up workflow disposal callback for when solution server client changes
+      this.state.hubConnectionManager.setWorkflowDisposalCallback(() => {
+        // Check if workflow is running
+        const isWorkflowRunning = this.state.data.isFetchingSolution;
 
-      // Connect to solution server if enabled
-      if (hubConfig.enabled && hubConfig.features.solutionServer.enabled) {
-        await this.connectToSolutionServer();
-      }
+        if (isWorkflowRunning) {
+          this.state.logger.warn(
+            "Solution server client changed but workflow is running - will dispose after completion",
+          );
+          // Mark for disposal after current workflow completes
+          this.state.workflowDisposalPending = true;
+        } else if (this.state.workflowManager.isInitialized) {
+          this.state.logger.info(
+            "Solution server client changed, disposing workflow for reinitialization",
+          );
+          this.state.workflowManager.dispose();
+          this.state.workflowDisposalPending = false;
+        }
+      });
+
+      // Initialize hub connection manager with loaded config
+      // This handles connecting to the solution server if enabled
+      await this.state.hubConnectionManager.initialize(hubConfig).catch((error) => {
+        this.state.logger.error("Error initializing Hub connection", error);
+        this.state.mutateServerState((draft) => {
+          draft.solutionServerConnected = false;
+        });
+      });
+
+      // Update connection state based on initialization result
+      this.state.mutateServerState((draft) => {
+        draft.solutionServerConnected = this.state.hubConnectionManager.isSolutionServerConnected();
+      });
 
       // Adaptive connection polling with exponential backoff
       let pollInterval = 10000; // Start at 10 seconds
@@ -523,7 +545,9 @@ class VsCodeExtension {
           }
 
           try {
-            await this.state.solutionServerClient.getServerCapabilities(true);
+            await this.state.hubConnectionManager
+              .getSolutionServerClient()
+              ?.getServerCapabilities(true);
             // Success - reset failure count and use base interval
             if (consecutiveFailures > 0) {
               this.state.logger.info(
@@ -835,51 +859,6 @@ class VsCodeExtension {
     updateConfigErrors(draft, this.paths.settingsYaml.fsPath);
   }
 
-  private async connectToSolutionServer(): Promise<void> {
-    const hubConfig = this.state.data.hubConfig;
-
-    if (!hubConfig?.enabled || !hubConfig?.features.solutionServer.enabled) {
-      this.state.logger.info("Solution server is disabled, skipping connection");
-      return;
-    }
-
-    // Get credentials from hub config
-    let username: string = "";
-    let password: string = "";
-    if (hubConfig.auth.enabled) {
-      // Check if username and password are configured
-      if (!hubConfig.auth.username?.trim() || !hubConfig.auth.password?.trim()) {
-        this.state.logger.warn("Hub auth enabled but credentials not configured");
-        this.state.mutateConfigErrors((draft) => {
-          if (!draft.configErrors.some((error) => error.type === "missing-auth-credentials")) {
-            draft.configErrors.push(createConfigError.missingAuthCredentials());
-          }
-        });
-        return;
-      }
-
-      username = hubConfig.auth.username;
-      password = hubConfig.auth.password;
-    }
-
-    this.state.solutionServerClient
-      .authenticate(username, password)
-      .then(() => this.state.solutionServerClient.connect())
-      .then(() => {
-        // Update state to reflect successful connection
-        this.state.mutateServerState((draft) => {
-          draft.solutionServerConnected = true;
-        });
-      })
-      .catch((error) => {
-        this.state.logger.error("Error connecting to solution server", error);
-        // Update state to reflect failed connection
-        this.state.mutateServerState((draft) => {
-          draft.solutionServerConnected = false;
-        });
-      });
-  }
-
   private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
     const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
@@ -1054,6 +1033,11 @@ class VsCodeExtension {
     }
 
     try {
+      this.state.logger.info("About to run getModelProviderFromConfig", {
+        hadPreviousProvider,
+        demoMode: getConfigKaiDemoMode(),
+        cacheDir: getCacheDir(this.data.workspaceRoot),
+      });
       this.state.modelProvider = await getModelProviderFromConfig(
         modelConfig,
         this.state.logger,
@@ -1085,6 +1069,10 @@ class VsCodeExtension {
     } catch (err) {
       this.state.logger.error("Error running model health check:", err);
       this.state.modelProvider = undefined;
+      this.state.logger.error("Health check failed, setting modelProvider to undefined", {
+        error: err,
+        demoMode: getConfigKaiDemoMode(),
+      });
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1126,8 +1114,8 @@ class VsCodeExtension {
     // Cleanup is handled by vertical diff manager
 
     await this.state.analyzerClient?.stop();
-    await this.state.solutionServerClient?.disconnect().catch((error) => {
-      this.state.logger.error("Error disconnecting from solution server", error);
+    await this.state.hubConnectionManager?.disconnect().catch((error: Error) => {
+      this.state.logger.error("Error disconnecting from Hub", error);
     });
 
     // Update state to reflect disconnected status

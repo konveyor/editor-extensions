@@ -6,7 +6,6 @@ import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 import { getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
-import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 import * as VSCodeFactory from '../utilities/vscode.factory';
 import { verifyAnalysisViewCleanState } from '../utilities/utils';
 
@@ -25,7 +24,15 @@ providers.forEach((config) => {
       test.setTimeout(1600000);
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
-      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+
+      // prepareOffline=true extracts LLM cache and sets demoMode/cacheDir BEFORE VS Code launches
+      // This ensures the extension can use cached healthcheck data during initial activation
+      vscodeApp = await VSCodeFactory.init(
+        repoInfo.repoUrl,
+        repoInfo.repoName,
+        undefined,
+        true // prepareOffline
+      );
 
       // Wait for extension initialization
       // Both redhat.java and konveyor-java extensions will activate automatically
@@ -40,9 +47,9 @@ providers.forEach((config) => {
         console.log(`An existing profile probably doesn't exist, creating a new one`);
       }
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
-      await vscodeApp.ensureLLMCache(false);
     });
 
     test.beforeEach(async () => {
@@ -56,10 +63,8 @@ providers.forEach((config) => {
     // this test uses cached data, and only ensures that the agent mode flow works
     test('Fix JMS Topic issue with agent mode enabled (offline)', async () => {
       test.setTimeout(3600000);
-      // set demoMode and update java configuration to auto-reload
+      // update java configuration to auto-reload
       await vscodeApp.openWorkspaceSettingsAndWrite({
-        [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
-        [kaiDemoMode]: true,
         'java.configuration.updateBuildConfiguration': 'automatic',
       });
       // we need to run analysis before enabling agent mode

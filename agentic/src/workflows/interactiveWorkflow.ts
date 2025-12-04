@@ -125,9 +125,11 @@ export class KaiInteractiveWorkflow
     });
 
     // relay events from solution server client back to callers
-    options.solutionServerClient.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-      this.emitWorkflowMessage(msg);
-    });
+    if (options.solutionServerClient) {
+      options.solutionServerClient.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+        this.emitWorkflowMessage(msg);
+      });
+    }
 
     this.diagnosticsNodes = new DiagnosticsIssueFix(
       options.modelProvider,
