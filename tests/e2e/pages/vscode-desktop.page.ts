@@ -165,7 +165,6 @@ export class VSCodeDesktop extends VSCode {
    */
   protected async beforeStartServer(): Promise<void> {
     console.log('Activating extensions before starting server...');
-    await this.openJavaFileForActivation();
     await this.waitForExtensionInitialization();
   }
 
