@@ -1033,6 +1033,11 @@ class VsCodeExtension {
     }
 
     try {
+      this.state.logger.info("About to run getModelProviderFromConfig", {
+        hadPreviousProvider,
+        demoMode: getConfigKaiDemoMode(),
+        cacheDir: getCacheDir(this.data.workspaceRoot),
+      });
       this.state.modelProvider = await getModelProviderFromConfig(
         modelConfig,
         this.state.logger,
@@ -1064,6 +1069,10 @@ class VsCodeExtension {
     } catch (err) {
       this.state.logger.error("Error running model health check:", err);
       this.state.modelProvider = undefined;
+      this.state.logger.error("Health check failed, setting modelProvider to undefined", {
+        error: err,
+        demoMode: getConfigKaiDemoMode(),
+      });
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
