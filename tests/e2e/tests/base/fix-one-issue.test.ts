@@ -5,6 +5,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -32,7 +33,9 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.searchAndRequestFix('InventoryEntity', FixTypes.Incident);
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
       const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]').first();
-      await vscodeApp.getWindow().screenshot({ path: 'resolution-view-before-fix.png' });
+      await vscodeApp.getWindow().screenshot({
+        path: `${SCREENSHOTS_FOLDER}/resolution-view-before-fix.png`,
+      });
       await expect(fixLocator).toBeVisible({ timeout: 60000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.dispatchEvent('click');
