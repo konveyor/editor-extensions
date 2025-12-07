@@ -245,13 +245,8 @@ const actions: {
     executeExtensionCommand("openHubSettingsPanel");
   },
   [UPDATE_HUB_CONFIG]: async (config: HubConfig, state) => {
-    const previousConfig = state.data.hubConfig;
-
     // Save to VS Code Secret Storage
     await saveHubConfig(state.extensionContext, config);
-
-    // Update the solution server client configuration
-    state.solutionServerClient.updateConfig(config);
 
     // Update state
     state.mutateSettings((draft) => {
@@ -259,43 +254,13 @@ const actions: {
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
     });
 
-    // Handle connection/disconnection based on config changes
-    const wasEnabled = previousConfig?.enabled && previousConfig?.features?.solutionServer?.enabled;
-    const isNowEnabled = config.enabled && config.features.solutionServer.enabled;
+    // Update hub connection manager - it handles all connection logic internally
+    await state.hubConnectionManager.updateConfig(config);
 
-    if (wasEnabled && !isNowEnabled) {
-      // Solution server was disabled
-      state.logger.info("Solution server disabled, disconnecting");
-      try {
-        await state.solutionServerClient.disconnect();
-        state.mutateServerState((draft) => {
-          draft.solutionServerConnected = false;
-        });
-      } catch (error) {
-        state.logger.error("Error disconnecting solution server", { error });
-      }
-    } else if (!wasEnabled && isNowEnabled) {
-      // Solution server was enabled - automatically connect
-      state.logger.info("Solution server enabled, attempting connection");
-      vscode.window.showInformationMessage("Connecting to solution server...");
-      await vscode.commands.executeCommand("konveyor.restartSolutionServer");
-    } else if (wasEnabled && isNowEnabled) {
-      // Config changed but still enabled - check if we need to reconnect
-      const configChanged =
-        previousConfig?.url !== config.url ||
-        previousConfig?.auth?.enabled !== config.auth?.enabled ||
-        previousConfig?.auth?.realm !== config.auth?.realm ||
-        previousConfig?.auth?.username !== config.auth?.username ||
-        previousConfig?.auth?.password !== config.auth?.password;
-
-      if (configChanged) {
-        state.logger.info("Hub configuration changed, reconnecting automatically");
-        vscode.window.showInformationMessage(
-          "Reconnecting to solution server with new configuration...",
-        );
-        await vscode.commands.executeCommand("konveyor.restartSolutionServer");
-      }
-    }
+    // Update connection state based on actual connection status
+    state.mutateServerState((draft) => {
+      draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
+    });
   },
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");

@@ -141,25 +141,25 @@ const commandsMap: (
       }
     },
     [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
-      const solutionServerClient = state.solutionServerClient;
-      const config = state.data.hubConfig;
-      if (!config?.enabled) {
-        logger.info("Solution server is disabled, skipping restart");
+      const solutionServerClient = state.hubConnectionManager.getSolutionServerClient();
+      if (!solutionServerClient) {
+        logger.info("Solution server client not available, skipping restart");
+        window.showInformationMessage("Solution server is not currently enabled");
         return;
       }
 
       try {
         window.showInformationMessage("Restarting solution server...");
-        await solutionServerClient.disconnect();
 
-        // Update state to reflect disconnected status
+        // Disconnect and reconnect the solution server client (not the whole Hub connection)
+        await solutionServerClient.disconnect();
         state.mutateServerState((draft) => {
           draft.solutionServerConnected = false;
         });
 
         await solutionServerClient.connect();
 
-        // Update state to reflect connected status
+        // Update state to reflect successful reconnection
         state.mutateServerState((draft) => {
           draft.solutionServerConnected = true;
         });
@@ -218,11 +218,17 @@ const commandsMap: (
           return;
         }
 
+        const solutionServerClient = state.hubConnectionManager.getSolutionServerClient();
+        if (!solutionServerClient) {
+          logger.info("Solution server client not available, skipping success rate update");
+          return;
+        }
+
         const currentIncidents = state.data.enhancedIncidents.map((incident) => ({
           ...incident,
           violation_labels: incident.violation_labels ? [...incident.violation_labels] : undefined,
         }));
-        const updatedIncidents = await state.solutionServerClient.getSuccessRate(currentIncidents);
+        const updatedIncidents = await solutionServerClient.getSuccessRate(currentIncidents);
 
         // Update the state with the enhanced incidents
         state.mutateAnalysisState((draft) => {
@@ -236,7 +242,7 @@ const commandsMap: (
       logger.info("File change applied", { path });
 
       try {
-        await state.solutionServerClient.acceptFile(path, finalContent);
+        await state.hubConnectionManager.getSolutionServerClient()?.acceptFile(path, finalContent);
         // After we accept a file, we should update the success rates.
         await executeExtensionCommand("getSuccessRate");
       } catch (error: any) {
@@ -259,7 +265,7 @@ const commandsMap: (
       logger.info("File change discarded", { path });
 
       try {
-        await state.solutionServerClient.rejectFile(path);
+        await state.hubConnectionManager.getSolutionServerClient()?.rejectFile(path);
         await executeExtensionCommand("getSuccessRate");
       } catch (error: any) {
         logger.error("Error notifying solution server of file rejection", { error, path });

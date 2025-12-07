@@ -17,10 +17,11 @@ import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { BatchedAnalysisTrigger } from "./analysis/batchedAnalysisTrigger";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
+import { HubConnectionManager } from "./hub";
 
 export interface ExtensionState {
   analyzerClient: AnalyzerClient;
-  solutionServerClient: SolutionServerClient;
+  hubConnectionManager: HubConnectionManager;
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
   extensionContext: vscode.ExtensionContext;
   diagnosticCollection: vscode.DiagnosticCollection;
@@ -44,7 +45,7 @@ export interface ExtensionState {
     init: (config: {
       modelProvider: KaiModelProvider;
       workspaceDir: string;
-      solutionServerClient?: SolutionServerClient;
+      solutionServerClient?: SolutionServerClient | undefined;
     }) => Promise<void>;
     getWorkflow: () => KaiInteractiveWorkflow;
     dispose: () => void;

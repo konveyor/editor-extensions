@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { EnhancedIncident, SuccessRateMetric, HubConfig } from "@editor-extensions/shared";
+import { EnhancedIncident, SuccessRateMetric } from "@editor-extensions/shared";
 import { Logger } from "winston";
 import { Resource, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { AIMessageChunk } from "@langchain/core/messages";
@@ -42,142 +42,31 @@ export class SolutionServerClientError extends Error {
   }
 }
 
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  refresh_token?: string;
-}
-
-const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
-const REAUTH_DELAY_MS = 5000; // Delay before re-authentication attempt
-
+/**
+ * Client for interacting with the MCP solution server.
+ *
+ * Note: Authentication is now handled by HubConnectionManager.
+ * This class focuses solely on MCP client operations.
+ */
 export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private mcpClient: Client | null = null;
-  private enabled: boolean;
   private serverUrl: string;
-  private isConnected: boolean = false;
-  private authEnabled: boolean;
-  private insecure: boolean;
-  private realm: string;
-  private clientId: string;
-  private username: string;
-  private password: string;
-  private bearerToken: string | null = null;
-  private refreshToken: string | null = null;
-  private tokenExpiresAt: number | null = null;
-  private refreshTimer: NodeJS.Timeout | null = null;
+  private bearerToken: string | null;
   private currentClientId: string = "";
   private logger: Logger;
-  private sslBypassCleanup: (() => void) | null = null;
-
-  private isRefreshingTokens: boolean = false;
-  private refreshRetryCount: number = 0;
   private cachedCapabilities: SolutionServerCapabilities | null = null;
+  public isConnected: boolean = false;
 
-  constructor(config: HubConfig, logger: Logger) {
+  constructor(serverUrl: string, bearerToken: string | null, logger: Logger) {
     super();
-    this.enabled = config.enabled && config.features.solutionServer.enabled;
-    this.serverUrl = config.url;
-    this.authEnabled = config.auth.enabled;
-    this.insecure = config.auth.insecure;
-    this.realm = config.auth.realm;
-    this.clientId = `${this.realm}-ui`;
-    this.username = "";
-    this.password = "";
+    this.serverUrl = serverUrl;
+    this.bearerToken = bearerToken;
     this.logger = logger.child({
       component: "SolutionServerClient",
     });
-    // Clear auth-related properties if auth is disabled
-    if (!this.authEnabled) {
-      this.realm = "";
-      this.clientId = "";
-      this.insecure = false;
-      this.bearerToken = null;
-      this.refreshToken = null;
-      this.tokenExpiresAt = null;
-      this.clearTokenRefreshTimer();
-    }
-  }
-
-  public updateConfig(config: HubConfig): void {
-    this.enabled = config.enabled && config.features.solutionServer.enabled;
-    this.serverUrl = config.url;
-    this.authEnabled = config.auth.enabled;
-    this.insecure = config.auth.insecure;
-    this.realm = config.auth.realm;
-    this.clientId = `${this.realm}-ui`;
-    // Clear auth-related properties if auth is disabled
-    if (!this.authEnabled) {
-      this.realm = "";
-      this.clientId = "";
-      this.insecure = false;
-      this.bearerToken = null;
-      this.refreshToken = null;
-      this.tokenExpiresAt = null;
-      this.clearTokenRefreshTimer();
-    }
-    this.logger.info("Solution server configuration updated");
-  }
-
-  public async authenticate(username: string, password: string): Promise<void> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, skipping authentication");
-      return;
-    }
-
-    if (!this.authEnabled) {
-      this.logger.info("Authentication is disabled");
-      return;
-    }
-
-    if (!username || !password) {
-      throw new SolutionServerClientError("No username or password provided");
-    }
-
-    this.username = username;
-    this.password = password;
-
-    // Clear any existing tokens to force fresh authentication with new credentials
-    this.bearerToken = null;
-    this.refreshToken = null;
-    this.tokenExpiresAt = null;
-    this.clearTokenRefreshTimer();
-
-    this.logger.info("Credentials stored for authentication");
   }
 
   public async connect(): Promise<void> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, skipping connection");
-      return;
-    }
-
-    // Apply SSL bypass for development/testing if insecure flag is enabled
-    if (this.insecure) {
-      this.sslBypassCleanup = this.applySSLBypass();
-    }
-
-    // Handle authentication if required
-    if (this.authEnabled) {
-      // Only require credentials if we don't yet have a token
-      if (!this.bearerToken && (!this.username || !this.password)) {
-        throw new SolutionServerClientError("No credentials available. Call authenticate() first.");
-      }
-      // Exchange for tokens if we don't have one
-      if (!this.bearerToken) {
-        try {
-          await this.exchangeForTokens();
-        } catch (error) {
-          this.logger.error("Failed to exchange for tokens", error);
-          throw error;
-        }
-      }
-
-      // Ensure refresh timer is running (also after manual restarts)
-      this.startTokenRefreshTimer();
-    }
-
     this.mcpClient = new Client(
       {
         name: "konveyor-vscode-extension",
@@ -221,7 +110,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private async attemptConnectionWithSlashRetry(): Promise<boolean> {
     const transportOptions: any = {};
 
-    if (this.authEnabled && this.bearerToken) {
+    if (this.bearerToken) {
       transportOptions.requestInit = {
         headers: {
           Authorization: `Bearer ${this.bearerToken}`,
@@ -274,23 +163,9 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   public async disconnect(): Promise<void> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, skipping disconnect");
-      return;
-    }
-
     this.logger.info("Disconnecting from MCP solution server...");
 
-    // Clear refresh timer
-    this.clearTokenRefreshTimer();
-
     this.cachedCapabilities = null;
-
-    // Restore SSL settings
-    if (this.sslBypassCleanup) {
-      this.sslBypassCleanup();
-      this.sslBypassCleanup = null;
-    }
 
     try {
       if (this.mcpClient) {
@@ -336,22 +211,8 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   public async getServerCapabilities(
     skipCache: boolean = false,
   ): Promise<SolutionServerCapabilities> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning empty capabilities");
-      return {
-        tools: [],
-        resources: [],
-      };
-    }
     if (!this.mcpClient || !this.isConnected) {
       throw new SolutionServerClientError("Solution server is not connected");
-    }
-    if (this.isRefreshingTokens) {
-      this.logger.info("Solution server is refreshing tokens, returning empty capabilities");
-      return {
-        tools: [],
-        resources: [],
-      };
     }
 
     // Return cached capabilities if available to avoid redundant calls (unless skipCache is true)
@@ -395,9 +256,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
           errorCode,
           serverUrl: this.serverUrl,
           isConnected: this.isConnected,
-          authEnabled: this.authEnabled,
           hasToken: !!this.bearerToken,
-          tokenExpiresAt: this.tokenExpiresAt,
           mcpClientExists: !!this.mcpClient,
           fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
         });
@@ -421,11 +280,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   public async getSuccessRate(incidents: EnhancedIncident[]): Promise<EnhancedIncident[]> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning incidents without success rate");
-      return incidents;
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Get success rate called but solution server is not connected. Maybe the server is not running?",
@@ -516,11 +370,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   public async createIncident(enhancedIncident: EnhancedIncident): Promise<number> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning dummy incident ID");
-      return -1; // Return a dummy ID when disabled
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Create incident called but solution server is not connected. Maybe the server is not running?",
@@ -579,15 +428,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   public async createMultipleIncidents(
     enhancedIncidents: EnhancedIncident[],
   ): Promise<CreateMultipleIncidentsResult> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning dummy incident IDs");
-      return {
-        incident_ids: enhancedIncidents.map(() => -1),
-        created_count: enhancedIncidents.length,
-        failed_count: 0,
-      };
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Create multiple incidents called but solution server is not connected. Maybe the server is not running?",
@@ -671,11 +511,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     reasoning: string,
     usedHintIds: number[],
   ): Promise<number> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, returning dummy solution ID");
-      return -1; // Return a dummy ID when disabled
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Create solution called but solution server is not connected. Maybe the server is not running?",
@@ -742,11 +577,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     rulesetName: string,
     violationName: string,
   ): Promise<GetBestHintResult | undefined> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, no hint available");
-      return undefined;
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Get best hint called but solution server is not connected. Maybe the server is not running?",
@@ -876,9 +706,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
             errorCode,
             serverUrl: this.serverUrl,
             isConnected: this.isConnected,
-            authEnabled: this.authEnabled,
             hasToken: !!this.bearerToken,
-            tokenExpiresAt: this.tokenExpiresAt,
             mcpClientExists: !!this.mcpClient,
             fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
           },
@@ -920,11 +748,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   public async acceptFile(uri: string, content: string): Promise<void> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, skipping accept_file");
-      return;
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Accept file called but solution server is not connected. Maybe the server is not running?",
@@ -954,11 +777,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   public async rejectFile(uri: string): Promise<void> {
-    if (!this.enabled) {
-      this.logger.info("Solution server is disabled, skipping reject_file");
-      return;
-    }
-
     if (!this.mcpClient || !this.isConnected) {
       this.logger.error(
         "Reject file called but solution server is not connected. Maybe the server is not running?",
@@ -982,270 +800,5 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       this.logger.error(`Error rejecting file ${uri}: ${error}`);
       throw error;
     }
-  }
-
-  private async exchangeForTokens(): Promise<void> {
-    if (!this.username || !this.password) {
-      throw new SolutionServerClientError("No username or password available for token exchange");
-    }
-
-    const url = new URL(this.serverUrl);
-    const keycloakUrl = `${url.protocol}//${url.host}/auth`;
-    const tokenUrl = `${keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
-
-    const params = new URLSearchParams();
-    params.append("grant_type", "password");
-    params.append("client_id", this.clientId);
-    params.append("username", this.username);
-    params.append("password", this.password);
-
-    try {
-      this.logger.debug(`Attempting token exchange with ${tokenUrl}`);
-
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: params,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(
-          `Token exchange failed: ${response.status} ${response.statusText}`,
-          errorText,
-        );
-        throw new SolutionServerClientError(
-          `Authentication failed: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const tokenResponse = (await response.json()) as TokenResponse;
-      this.logger.info("Token exchange successful");
-
-      this.bearerToken = tokenResponse.access_token;
-      this.refreshToken = tokenResponse.refresh_token || null;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
-    } catch (error) {
-      this.logger.error("Token exchange failed", error);
-      if (error instanceof SolutionServerClientError) {
-        throw error;
-      }
-      throw new SolutionServerClientError(
-        `Token exchange failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  private async refreshTokens(): Promise<void> {
-    if (!this.refreshToken) {
-      this.logger.warn("No refresh token available, cannot refresh");
-      return;
-    }
-
-    if (this.isRefreshingTokens) {
-      this.logger.debug("Token refresh already in progress");
-      return;
-    }
-
-    // Retry configuration - local constants
-    const maxRefreshRetries = 3;
-    const baseRetryDelayMs = 1000; // Start with 1 second
-    // Cancel any pending timers to avoid overlapping refreshes
-    this.clearTokenRefreshTimer();
-    this.isRefreshingTokens = true;
-    const url = new URL(this.serverUrl);
-    const keycloakUrl = `${url.protocol}//${url.host}/auth`;
-    const tokenUrl = `${keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`;
-
-    const params = new URLSearchParams();
-    params.append("grant_type", "refresh_token");
-    params.append("client_id", this.clientId);
-    params.append("refresh_token", this.refreshToken);
-
-    try {
-      this.logger.debug(`Attempting token refresh with ${tokenUrl}`);
-
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: params,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(
-          `Token refresh failed: ${response.status} ${response.statusText}`,
-          errorText,
-        );
-        throw new SolutionServerClientError(
-          `Token refresh failed: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const tokenResponse = (await response.json()) as TokenResponse;
-      this.logger.info("Token refresh successful");
-
-      this.bearerToken = tokenResponse.access_token;
-      this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
-
-      if (this.isConnected) {
-        this.logger.info("Reconnecting to MCP solution server");
-        try {
-          await this.disconnect();
-          await this.connect();
-        } catch (error) {
-          this.logger.error("Error reconnecting to MCP solution server", error);
-        }
-      }
-
-      // Success case - reset retry counter and start normal timer
-      this.refreshRetryCount = 0;
-      this.startTokenRefreshTimer();
-    } catch (error) {
-      this.logger.error("Token refresh failed", error);
-
-      // Determine if error is retryable
-      const isRetryable = this.isRetryableRefreshError(error);
-
-      if (isRetryable && this.refreshRetryCount < maxRefreshRetries) {
-        this.refreshRetryCount++;
-        const delayMs = baseRetryDelayMs * Math.pow(2, this.refreshRetryCount - 1);
-
-        this.logger.warn(
-          `Token refresh failed (attempt ${this.refreshRetryCount}/${maxRefreshRetries}), retrying in ${delayMs}ms`,
-        );
-
-        // Schedule retry with exponential backoff
-        this.refreshTimer = setTimeout(() => {
-          this.refreshTokens().catch((error) => {
-            this.logger.error("Retry token refresh failed", error);
-          });
-        }, delayMs);
-      } else {
-        // Non-retryable error or max retries exceeded
-        this.refreshRetryCount = 0;
-        this.logger.error(
-          `Token refresh failed permanently: ${isRetryable ? "max retries exceeded" : "non-retryable error"}`,
-        );
-
-        // Clear the refresh timer to break any potential retry loops
-        this.clearTokenRefreshTimer();
-
-        // Clear the invalid tokens
-        this.bearerToken = null;
-        this.refreshToken = null;
-        this.tokenExpiresAt = null;
-
-        // Attempt full re-authentication if credentials are available
-        if (this.username && this.password) {
-          this.logger.info(
-            `Attempting full re-authentication after permanent refresh failure in ${REAUTH_DELAY_MS}ms`,
-          );
-          this.refreshTimer = setTimeout(() => {
-            this.exchangeForTokens()
-              .then(async () => {
-                this.logger.info("Re-authentication successful, reconnecting...");
-                if (this.isConnected) {
-                  await this.disconnect();
-                }
-                await this.connect();
-              })
-              .catch((error) => {
-                this.logger.error("Re-authentication failed after token refresh failure", error);
-              });
-          }, REAUTH_DELAY_MS);
-        } else {
-          this.logger.error(
-            "Cannot recover from token refresh failure: no credentials available for re-authentication",
-          );
-        }
-      }
-    } finally {
-      this.isRefreshingTokens = false;
-    }
-  }
-
-  private startTokenRefreshTimer(): void {
-    this.clearTokenRefreshTimer();
-
-    if (!this.tokenExpiresAt) {
-      this.logger.warn("No token expiration time available, cannot start refresh timer");
-      return;
-    }
-
-    const now = Date.now();
-    const timeUntilRefresh = this.tokenExpiresAt - now;
-
-    if (timeUntilRefresh <= 0) {
-      // Token already expired, refresh immediately
-      this.refreshTokens().catch((error) => {
-        this.logger.error("Immediate token refresh failed", error);
-      });
-      return;
-    }
-
-    this.logger.info(`Starting token refresh timer, will refresh in ${timeUntilRefresh}ms`);
-    this.refreshTimer = setTimeout(() => {
-      this.refreshTokens().catch((error) => {
-        this.logger.error("Token refresh timer failed", error);
-      });
-    }, timeUntilRefresh);
-  }
-
-  private clearTokenRefreshTimer(): void {
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer);
-      this.refreshTimer = null;
-    }
-  }
-
-  private isRetryableRefreshError(error: any): boolean {
-    if (error instanceof SolutionServerClientError) {
-      // Check if it's an HTTP 400/401 (bad/expired refresh token)
-      const message = error.message.toLowerCase();
-      if (
-        message.includes("400") ||
-        message.includes("401") ||
-        message.includes("invalid_grant") ||
-        message.includes("unauthorized")
-      ) {
-        return false; // Non-retryable - token is likely permanently invalid
-      }
-    }
-
-    // Network errors, 5xx server errors, timeouts are retryable
-    return true;
-  }
-
-  /**
-   * Apply SSL bypass for insecure connections (Node.js specific)
-   */
-  private applySSLBypass(): () => void {
-    this.logger.debug("Applying SSL bypass for insecure connections");
-
-    // Store original values
-    const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-
-    // Disable SSL verification through environment variable
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
-    this.logger.warn("SSL certificate verification is disabled");
-
-    // Return cleanup function
-    return () => {
-      this.logger.debug("Restoring SSL settings");
-      if (originalRejectUnauthorized !== undefined) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
-      } else {
-        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      }
-    };
   }
 }

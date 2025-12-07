@@ -13,6 +13,36 @@ import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
 
+/**
+ * Prepare workspace for offline/cached mode BEFORE VS Code launches.
+ * This extracts the LLM cache and sets up demoMode settings so the extension
+ * can use cached healthcheck data during activation.
+ * @param repoDir The workspace directory to prepare
+ */
+export function prepareOfflineWorkspace(repoDir: string): void {
+  const storedPath = path.join(__dirname, '..', '..', 'data', 'llm_cache.zip');
+  const cachePath = path.join(repoDir, '.vscode', 'cache');
+
+  // Extract cache if zip exists
+  if (fs.existsSync(storedPath)) {
+    if (fs.existsSync(cachePath)) {
+      fs.rmSync(cachePath, { recursive: true, force: true });
+    }
+    fs.mkdirSync(cachePath, { recursive: true });
+    extractZip(storedPath, cachePath);
+    console.log(`Extracted LLM cache to ${cachePath}`);
+  } else {
+    console.warn(`LLM cache zip not found at ${storedPath}`);
+  }
+
+  // Set demoMode and cacheDir in settings BEFORE VS Code launches
+  writeOrUpdateSettingsJson(path.join(repoDir, '.vscode', 'settings.json'), {
+    'konveyor.genai.demoMode': true,
+    'konveyor.genai.cacheDir': '.vscode/cache',
+  });
+  console.log('Set demoMode and cacheDir in workspace settings');
+}
+
 export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
   protected window: Page;
@@ -28,7 +58,8 @@ export class VSCodeDesktop extends VSCode {
     repoUrl?: string,
     repoDir?: string,
     branch = 'main',
-    waitForInitialization = true
+    waitForInitialization = true,
+    prepareOffline = false
   ) {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
@@ -55,6 +86,12 @@ export class VSCodeDesktop extends VSCode {
 
     if (repoDir) {
       args.push(path.resolve(repoDir));
+    }
+
+    // Prepare offline workspace if requested - must happen AFTER repo is cloned
+    // but BEFORE VS Code launches, so demoMode/cacheDir are available at activation
+    if (prepareOffline && repoDir) {
+      prepareOfflineWorkspace(repoDir);
     }
 
     // set the log level prior to starting vscode
@@ -113,8 +150,14 @@ export class VSCodeDesktop extends VSCode {
    * @param repoUrl
    * @param repoDir path to repo
    * @param branch optional branch to clone from
+   * @param prepareOffline if true, extracts LLM cache and sets demoMode/cacheDir before VS Code launches
    */
-  public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
+  public static async init(
+    repoUrl?: string,
+    repoDir?: string,
+    branch?: string,
+    prepareOffline = false
+  ): Promise<VSCode> {
     try {
       if (process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL) {
         await installExtension();
@@ -142,7 +185,9 @@ export class VSCodeDesktop extends VSCode {
         }
       }
 
-      return repoUrl ? VSCodeDesktop.open(repoUrl, repoDir, branch, false) : VSCodeDesktop.open();
+      return repoUrl
+        ? VSCodeDesktop.open(repoUrl, repoDir, branch, false, prepareOffline)
+        : VSCodeDesktop.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
       throw error;
