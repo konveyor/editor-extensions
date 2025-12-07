@@ -161,14 +161,6 @@ export class VSCodeDesktop extends VSCode {
   }
 
   /**
-   * Desktop-specific initialization before starting the server
-   */
-  protected async beforeStartServer(): Promise<void> {
-    console.log('Activating extensions before starting server...');
-    await this.waitForExtensionInitialization();
-  }
-
-  /**
    * Waits for the Konveyor extension to complete initialization by watching for
    * the __JAVA_EXTENSION_INITIALIZED__ info message signal.
    * Since the Java extension waits for the core extension to activate before completing,

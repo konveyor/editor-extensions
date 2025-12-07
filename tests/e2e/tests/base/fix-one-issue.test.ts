@@ -32,6 +32,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.searchAndRequestFix('InventoryEntity', FixTypes.Incident);
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
       const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]').first();
+      await vscodeApp.getWindow().screenshot({ path: 'resolution-view-before-fix.png' });
       await expect(fixLocator).toBeVisible({ timeout: 60000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.dispatchEvent('click');
