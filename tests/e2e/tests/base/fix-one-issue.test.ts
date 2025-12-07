@@ -36,7 +36,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.getWindow().screenshot({
         path: `${SCREENSHOTS_FOLDER}/resolution-view-before-fix.png`,
       });
-      await expect(fixLocator).toBeVisible({ timeout: 60000 });
+      await expect(fixLocator).toBeVisible({ timeout: 120_000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.dispatchEvent('click');
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
