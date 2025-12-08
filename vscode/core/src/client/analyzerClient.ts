@@ -70,6 +70,24 @@ export class AnalyzerClient {
     });
   }
 
+  private isProgressEvent(obj: any): obj is ProgressEvent {
+    return (
+      typeof obj === "object" &&
+      obj !== null &&
+      typeof obj.timestamp === "string" &&
+      typeof obj.stage === "string" &&
+      [
+        "init",
+        "provider_init",
+        "provider_prepare",
+        "rule_parsing",
+        "rule_execution",
+        "dependency_analysis",
+        "complete",
+      ].includes(obj.stage)
+    );
+  }
+
   public get serverState(): ServerState {
     return this.getExtStateData().serverState;
   }
@@ -194,6 +212,12 @@ export class AnalyzerClient {
     this.analyzerRpcConnection.onNotification("started", (_: []) => {
       this.logger.info("Server initialization complete");
       this.fireServerStateChange("running");
+    });
+    this.analyzerRpcConnection.onNotification("analysis.progress", (params: any) => {
+      this.logger.debug(`Received analysis.progress notification: ${JSON.stringify(params)}`);
+      if (this.currentProgressCallback && this.isProgressEvent(params)) {
+        this.currentProgressCallback(params);
+      }
     });
     this.analyzerRpcConnection.onNotification((method: string, params: any) => {
       this.logger.debug(`Received notification: ${method} + ${JSON.stringify(params)}`);
@@ -428,6 +452,28 @@ export class AnalyzerClient {
                   : "Initializing providers...";
                 webviewMessage = notificationMessage;
                 progressPercent = 10;
+                break;
+              case "provider_prepare":
+                if (event.total && event.current) {
+                  const filePercent = Math.min(
+                    100,
+                    Math.max(0, event.percent || (event.current / event.total) * 100),
+                  );
+                  // Map file processing progress from 10% to 15%
+                  progressPercent = 10 + filePercent * 0.05;
+
+                  // Abbreviated message for notification
+                  notificationMessage = `Processing file ${event.current}/${event.total}`;
+
+                  // Detailed message for webview
+                  webviewMessage = event.message
+                    ? `Processing file ${event.current}/${event.total}: ${event.message}`
+                    : notificationMessage;
+                } else {
+                  notificationMessage = "Processing files...";
+                  webviewMessage = notificationMessage;
+                  progressPercent = 10;
+                }
                 break;
               case "rule_parsing":
                 notificationMessage = event.total

@@ -7,6 +7,7 @@ export type ProgressEvent = {
   stage:
     | "init"
     | "provider_init"
+    | "provider_prepare"
     | "rule_parsing"
     | "rule_execution"
     | "dependency_analysis"
@@ -106,6 +107,7 @@ export class ProgressParser {
       [
         "init",
         "provider_init",
+        "provider_prepare",
         "rule_parsing",
         "rule_execution",
         "dependency_analysis",

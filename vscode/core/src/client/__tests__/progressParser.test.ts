@@ -71,6 +71,31 @@ describe("ProgressParser", () => {
       expect(receivedEvents[0].metadata?.rule_id).toBe("java-transaction-00001");
     });
 
+    it("should handle provider_prepare stage with file processing progress", () => {
+      const receivedEvents: ProgressEvent[] = [];
+      const parser = new ProgressParser((event) => {
+        receivedEvents.push(event);
+      });
+
+      const progressEvent = {
+        timestamp: "2024-01-01T00:00:00Z",
+        stage: "provider_prepare",
+        message: "src/main/java/Application.java",
+        current: 523,
+        total: 1247,
+        percent: 41.94,
+      };
+
+      parser.feed(JSON.stringify(progressEvent) + "\n");
+
+      expect(receivedEvents.length).toBe(1);
+      expect(receivedEvents[0].stage).toBe("provider_prepare");
+      expect(receivedEvents[0].current).toBe(523);
+      expect(receivedEvents[0].total).toBe(1247);
+      expect(receivedEvents[0].percent).toBe(41.94);
+      expect(receivedEvents[0].message).toBe("src/main/java/Application.java");
+    });
+
     it("should handle all valid progress stages", () => {
       const receivedEvents: ProgressEvent[] = [];
       const parser = new ProgressParser((event) => {
@@ -80,6 +105,7 @@ describe("ProgressParser", () => {
       const stages = [
         "init",
         "provider_init",
+        "provider_prepare",
         "rule_parsing",
         "rule_execution",
         "dependency_analysis",
@@ -94,7 +120,7 @@ describe("ProgressParser", () => {
         parser.feed(JSON.stringify(event) + "\n");
       });
 
-      expect(receivedEvents.length).toBe(6);
+      expect(receivedEvents.length).toBe(7);
       stages.forEach((stage, index) => {
         expect(receivedEvents[index].stage).toBe(stage);
       });
