@@ -36,6 +36,7 @@ export interface ModelProviderOptions {
   tracer: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>;
   tools?: BindToolsInput[] | undefined;
   toolKwargs?: Partial<KaiModelProviderInvokeCallOptions> | undefined;
+  provider?: string;
 }
 
 // If there are special cases for a model provider, we will add them here
@@ -65,6 +66,7 @@ export class BaseModelProvider implements KaiModelProvider {
   protected readonly tracer: FileBasedResponseCache<BaseLanguageModelInput, BaseMessage>;
   protected readonly tools: BindToolsInput[] | undefined;
   protected readonly toolKwargs: Partial<KaiModelProviderInvokeCallOptions> | undefined;
+  public readonly provider: string | undefined;
 
   constructor(options: ModelProviderOptions) {
     this.streamingModel = options.streamingModel;
@@ -75,6 +77,7 @@ export class BaseModelProvider implements KaiModelProvider {
     this.tracer = options.tracer;
     this.tools = options.tools;
     this.toolKwargs = options.toolKwargs;
+    this.provider = options.provider;
   }
 
   bindTools(
@@ -93,6 +96,7 @@ export class BaseModelProvider implements KaiModelProvider {
       tracer: this.tracer,
       tools,
       toolKwargs: kwargs,
+      provider: this.provider,
     });
   }
 
@@ -323,6 +327,7 @@ export class BedrockModelProvider extends BaseModelProvider {
       tracer: this.tracer,
       tools,
       toolKwargs: kwargs,
+      provider: this.provider,
     });
   }
 

@@ -1,7 +1,9 @@
 import { HubConfig } from "@editor-extensions/shared";
 import { Logger } from "winston";
 import { SolutionServerClient } from "@editor-extensions/agentic";
+import { ProfileSyncClient, type LLMProxyConfig } from "../clients/ProfileSyncClient";
 import * as vscode from "vscode";
+import { executeExtensionCommand } from "../commands";
 
 export interface TokenResponse {
   access_token: string;
@@ -13,8 +15,16 @@ export interface TokenResponse {
 // Callback type for workflow disposal
 export type WorkflowDisposalCallback = () => void;
 
+// Callback type for token refresh (to update model provider)
+export type TokenRefreshCallback = (newToken: string) => void;
+
+// Callback type for profile sync (to trigger automatic sync)
+export type ProfileSyncCallback = () => Promise<void>;
+
 const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
 const REAUTH_DELAY_MS = 5000; // Delay before re-authentication attempt
+const PROFILE_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const TOKEN_EXCHANGE_TIMEOUT_MS = 30000; // 30 second timeout for token exchange
 
 export class HubConnectionManagerError extends Error {
   constructor(message: string) {
@@ -24,14 +34,15 @@ export class HubConnectionManagerError extends Error {
 }
 
 /**
- * Manages Hub connection, authentication, and solution server client lifecycle.
- * Centralizes all Hub-related configuration and auth management.
+ * Manages Hub connection, authentication, and client lifecycle.
  */
 export class HubConnectionManager {
   private config: HubConfig;
   private logger: Logger;
   private solutionServerClient: SolutionServerClient | null = null;
+  private profileSyncClient: ProfileSyncClient | null = null;
   private onWorkflowDisposal?: WorkflowDisposalCallback;
+  private onTokenRefresh?: TokenRefreshCallback;
 
   // Authentication state
   private bearerToken: string | null = null;
@@ -45,6 +56,9 @@ export class HubConnectionManager {
   private isRefreshingTokens: boolean = false;
   private refreshRetryCount: number = 0;
 
+  // Profile sync state
+  private profileSyncTimer: NodeJS.Timeout | null = null;
+
   // SSL bypass cleanup
   private sslBypassCleanup: (() => void) | null = null;
 
@@ -57,11 +71,16 @@ export class HubConnectionManager {
 
   /**
    * Set workflow disposal callback
-   * This callback is invoked when the solution server client changes,
-   * allowing the extension to dispose/reinitialize the workflow
    */
   public setWorkflowDisposalCallback(callback: WorkflowDisposalCallback): void {
     this.onWorkflowDisposal = callback;
+  }
+
+  /**
+   * Set token refresh callback
+   */
+  public setTokenRefreshCallback(callback: TokenRefreshCallback): void {
+    this.onTokenRefresh = callback;
   }
 
   /**
@@ -69,15 +88,9 @@ export class HubConnectionManager {
    */
   public async initialize(config: HubConfig): Promise<void> {
     this.config = config;
+    this.updateCredentials(config);
 
-    // Initialize auth state
-    if (config.auth.enabled) {
-      this.username = config.auth.username || "";
-      this.password = config.auth.password || "";
-    }
-
-    // Connect if enabled
-    if (config.enabled && config.features.solutionServer.enabled) {
+    if (config.enabled) {
       await this.connect();
     }
 
@@ -85,99 +98,31 @@ export class HubConnectionManager {
       enabled: config.enabled,
       solutionServerEnabled: config.features.solutionServer.enabled,
       solutionServerConnected: this.isSolutionServerConnected(),
+      profileSyncEnabled: config.features.profileSync.enabled,
+      profileSyncConnected: this.isProfileSyncConnected(),
     });
   }
 
   /**
-   * Update Hub configuration and reinitialize if needed
+   * Update Hub configuration and reconnect
    */
   public async updateConfig(config: HubConfig): Promise<void> {
-    // Determine if connection-related config changed
-    const configChanged =
-      this.config.url !== config.url ||
-      this.config.enabled !== config.enabled ||
-      this.config.auth.enabled !== config.auth.enabled ||
-      this.config.auth.realm !== config.auth.realm ||
-      this.config.auth.username !== config.auth.username ||
-      this.config.auth.password !== config.auth.password ||
-      this.config.features.solutionServer.enabled !== config.features.solutionServer.enabled;
-
-    const wasConnected = this.isSolutionServerConnected();
-    const shouldBeConnected = config.enabled && config.features.solutionServer.enabled;
+    const wasEnabled = this.config.enabled;
 
     this.config = config;
+    this.updateCredentials(config);
 
-    // Update credentials if auth is enabled
-    if (config.auth.enabled) {
-      this.username = config.auth.username || "";
-      this.password = config.auth.password || "";
-    } else {
-      // Clear auth state if disabled
-      this.username = "";
-      this.password = "";
-      this.bearerToken = null;
-      this.refreshToken = null;
-      this.tokenExpiresAt = null;
-      this.clearTokenRefreshTimer();
-    }
+    this.logger.info("Hub configuration updated", {
+      enabled: config.enabled,
+      wasEnabled,
+    });
 
-    this.logger.info("Hub configuration updated");
-
-    // Determine if workflow should be disposed due to solution server client change
-    const shouldDisposeWorkflow =
-      (wasConnected && !shouldBeConnected) || // Disconnecting
-      (wasConnected && shouldBeConnected && configChanged); // Reconnecting with new config
-
-    // Handle connection state changes
-    if (wasConnected && !shouldBeConnected) {
-      // Should disconnect
-      this.logger.info("Configuration change requires disconnection");
-      await this.disconnect();
-      vscode.window.showInformationMessage("Solution server disconnected");
-    } else if (!wasConnected && shouldBeConnected) {
-      // Should connect
-      this.logger.info("Configuration change requires connection");
-      await this.connect().catch((error) => {
-        this.logger.error("Failed to connect after config update", error);
-      });
-      // Notify user about initial connection result
-      if (this.isSolutionServerConnected()) {
-        vscode.window.showInformationMessage("Successfully connected to solution server");
-      } else {
-        vscode.window.showWarningMessage(
-          "Failed to connect to solution server. Check configuration and try again.",
-        );
-      }
-    } else if (wasConnected && shouldBeConnected && configChanged) {
-      // Should reconnect with new config
-      this.logger.info("Configuration change requires reconnection");
-      await this.disconnect();
-      await this.connect().catch((error) => {
-        this.logger.error("Failed to reconnect after config update", error);
-      });
-      // Notify user about reconnection result
-      if (this.isSolutionServerConnected()) {
-        vscode.window.showInformationMessage(
-          "Successfully reconnected to solution server with new configuration",
-        );
-      } else {
-        vscode.window.showWarningMessage(
-          "Failed to reconnect to solution server. Check configuration and try again.",
-        );
-      }
-    }
-
-    // Notify extension to dispose workflow if solution server client changed
-    // The callback will check if workflow is running and defer disposal if needed
-    if (shouldDisposeWorkflow && this.onWorkflowDisposal) {
-      this.logger.info("Solution server client changed, notifying workflow disposal callback");
-      this.onWorkflowDisposal();
-    }
+    await this.connect();
+    this.onWorkflowDisposal?.();
   }
 
   /**
    * Get the solution server client if available
-   * Returns undefined if Hub or solution server is disabled
    */
   public getSolutionServerClient(): SolutionServerClient | undefined {
     if (
@@ -191,11 +136,45 @@ export class HubConnectionManager {
   }
 
   /**
+   * Get the profile sync client if available
+   */
+  public getProfileSyncClient(): ProfileSyncClient | undefined {
+    if (
+      !this.config.enabled ||
+      !this.config.features.profileSync.enabled ||
+      !this.profileSyncClient
+    ) {
+      return undefined;
+    }
+    return this.profileSyncClient;
+  }
+
+  /**
+   * Get LLM proxy configuration if available
+   */
+  public getLLMProxyConfig(): LLMProxyConfig | undefined {
+    return this.profileSyncClient?.getLLMProxyConfig();
+  }
+
+  /**
+   * Get bearer token for Hub authentication
+   */
+  public getBearerToken(): string | null {
+    return this.bearerToken;
+  }
+
+  /**
    * Check if solution server is connected
-   * Returns true only if the solution server client is connected
    */
   public isSolutionServerConnected(): boolean {
     return this.solutionServerClient?.isConnected ?? false;
+  }
+
+  /**
+   * Check if profile sync is connected
+   */
+  public isProfileSyncConnected(): boolean {
+    return this.profileSyncClient?.isConnected ?? false;
   }
 
   /**
@@ -203,80 +182,134 @@ export class HubConnectionManager {
    */
   public hasValidAuth(): boolean {
     if (!this.config.auth.enabled) {
-      return true; // Auth not required
+      return true;
     }
     return !!this.bearerToken && (this.tokenExpiresAt ? this.tokenExpiresAt > Date.now() : false);
   }
 
   /**
-   * Connect to Hub and initialize solution server client
+   * Connect to Hub (idempotent)
+   *
+   * Always disconnects first, then connects enabled features with current config/token.
+   * Safe to call anytime - handles initial connection, reconnection, and config changes.
    */
   public async connect(): Promise<void> {
+    // Always disconnect first (idempotent - no-op if nothing connected)
+    await this.disconnect();
+
     if (!this.config.enabled) {
       this.logger.info("Hub is disabled, skipping connection");
       return;
     }
 
-    if (!this.config.features.solutionServer.enabled) {
-      this.logger.info("Solution server is disabled, skipping connection");
-      return;
-    }
+    this.logger.info("Connecting to Hub...", {
+      solutionServerEnabled: this.config.features.solutionServer.enabled,
+      profileSyncEnabled: this.config.features.profileSync.enabled,
+    });
 
-    // Apply SSL bypass for development/testing if insecure flag is enabled
+    // Apply SSL bypass if needed
     if (this.config.auth.insecure) {
       this.sslBypassCleanup = this.applySSLBypass();
     }
 
-    // Handle authentication if required
+    // Handle authentication
     if (this.config.auth.enabled) {
-      // Check credentials are available
-      if (!this.username || !this.password) {
-        throw new HubConnectionManagerError(
-          "Authentication is enabled but credentials are not configured",
-        );
-      }
+      try {
+        await this.ensureAuthenticated();
+        this.startTokenRefreshTimer();
 
-      // Exchange for tokens if we don't have one
-      if (!this.bearerToken) {
-        try {
-          await this.exchangeForTokens();
-        } catch (error) {
-          this.logger.error("Failed to exchange for tokens", error);
-          throw error;
+        // Notify listeners that we have a (possibly new) bearer token.
+        // This ensures downstream model providers are rebuilt after reconnects,
+        // not just after token refresh events.
+        if (this.bearerToken) {
+          this.onTokenRefresh?.(this.bearerToken);
         }
+      } catch (error) {
+        this.logger.error("Authentication failed", error);
+        return; // Can't proceed without auth
       }
-
-      // Ensure refresh timer is running
-      this.startTokenRefreshTimer();
     }
 
-    // Create solution server client with current token
-    this.solutionServerClient = new SolutionServerClient(
-      this.config.url,
-      this.bearerToken,
-      this.logger,
-    );
+    // Connect Solution Server
+    if (this.config.features.solutionServer.enabled) {
+      try {
+        this.logger.info("Connecting solution server client", { hubUrl: this.config.url });
+        this.solutionServerClient = new SolutionServerClient(
+          this.config.url,
+          this.bearerToken,
+          this.logger,
+        );
+        await this.solutionServerClient.connect();
+        this.logger.info("Successfully connected to Hub solution server");
+        vscode.window.showInformationMessage("Successfully connected to Hub solution server");
+      } catch (error) {
+        this.logger.error("Failed to connect solution server client", error);
+        vscode.window.showWarningMessage("Failed to connect to Hub solution server");
+        this.solutionServerClient = null;
+        // Continue - solution server is optional
+      }
+    }
 
-    // Connect the client
-    try {
-      await this.solutionServerClient.connect();
-      this.logger.info("Successfully connected to Hub solution server");
-    } catch (error) {
-      this.logger.error("Failed to connect solution server client", error);
-      // Clean up on connection failure
-      this.solutionServerClient = null;
-      throw error;
+    // Connect Profile Sync
+    if (this.config.features.profileSync.enabled) {
+      try {
+        this.logger.info("Connecting profile sync client");
+        this.profileSyncClient = new ProfileSyncClient(
+          this.config.url,
+          this.bearerToken,
+          this.logger,
+        );
+        await this.profileSyncClient.connect();
+        this.logger.info("Successfully connected to Hub profile sync");
+        vscode.window.showInformationMessage("Successfully connected to Hub profile sync");
+
+        // Log LLM proxy status
+        const llmProxyConfig = this.profileSyncClient.getLLMProxyConfig();
+        if (llmProxyConfig) {
+          this.logger.info("LLM proxy available", { endpoint: llmProxyConfig.endpoint });
+        }
+
+        // Trigger initial sync and start timer
+        this.triggerProfileSync();
+        this.startProfileSyncTimer();
+      } catch (error) {
+        this.logger.error("Failed to connect profile sync client", error);
+        vscode.window.showWarningMessage("Failed to connect to Hub profile sync");
+        this.profileSyncClient = null;
+        // Continue - profile sync is optional
+      }
     }
   }
 
   /**
-   * Disconnect from Hub and clean up resources
+   * Disconnect from Hub and clean up all resources
    */
   public async disconnect(): Promise<void> {
     this.logger.info("Disconnecting from Hub...");
 
-    // Clear refresh timer
+    // Clear all timers
     this.clearTokenRefreshTimer();
+    this.clearProfileSyncTimer();
+
+    // Disconnect solution server
+    if (this.solutionServerClient) {
+      try {
+        await this.solutionServerClient.disconnect();
+      } catch (error) {
+        this.logger.error("Error disconnecting solution server client", error);
+      }
+      this.solutionServerClient = null;
+    }
+
+    // Disconnect profile sync
+    if (this.profileSyncClient) {
+      try {
+        await this.profileSyncClient.disconnect();
+      } catch (error) {
+        this.logger.error("Error disconnecting profile sync client", error);
+      }
+      this.profileSyncClient = null;
+    }
 
     // Restore SSL settings
     if (this.sslBypassCleanup) {
@@ -284,18 +317,38 @@ export class HubConnectionManager {
       this.sslBypassCleanup = null;
     }
 
-    // Disconnect solution server client
-    if (this.solutionServerClient) {
-      try {
-        await this.solutionServerClient.disconnect();
-      } catch (error) {
-        this.logger.error("Error disconnecting solution server client", error);
-      } finally {
-        this.solutionServerClient = null;
-      }
+    this.logger.info("Disconnected from Hub");
+  }
+
+  /**
+   * Update stored credentials from config
+   */
+  private updateCredentials(config: HubConfig): void {
+    if (config.auth.enabled) {
+      this.username = config.auth.username || "";
+      this.password = config.auth.password || "";
+    } else {
+      this.username = "";
+      this.password = "";
+      this.bearerToken = null;
+      this.refreshToken = null;
+      this.tokenExpiresAt = null;
+    }
+  }
+
+  /**
+   * Ensure we have a valid authentication token
+   */
+  private async ensureAuthenticated(): Promise<void> {
+    if (!this.username || !this.password) {
+      throw new HubConnectionManagerError(
+        "Authentication is enabled but credentials are not configured",
+      );
     }
 
-    this.logger.info("Disconnected from Hub");
+    if (!this.hasValidAuth()) {
+      await this.exchangeForTokens();
+    }
   }
 
   /**
@@ -317,44 +370,21 @@ export class HubConnectionManager {
     params.append("username", this.username);
     params.append("password", this.password);
 
-    try {
-      this.logger.debug(`Attempting token exchange with ${tokenUrl}`);
+    this.logger.debug(`Attempting token exchange with ${tokenUrl}`);
 
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: params,
-      });
+    const tokenResponse = await this.fetchWithTimeout<TokenResponse>(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: params,
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(
-          `Token exchange failed: ${response.status} ${response.statusText}`,
-          errorText,
-        );
-        throw new HubConnectionManagerError(
-          `Authentication failed: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const tokenResponse = (await response.json()) as TokenResponse;
-      this.logger.info("Token exchange successful");
-
-      this.bearerToken = tokenResponse.access_token;
-      this.refreshToken = tokenResponse.refresh_token || null;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
-    } catch (error) {
-      this.logger.error("Token exchange failed", error);
-      if (error instanceof HubConnectionManagerError) {
-        throw error;
-      }
-      throw new HubConnectionManagerError(
-        `Token exchange failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+    this.logger.info("Token exchange successful");
+    this.bearerToken = tokenResponse.access_token;
+    this.refreshToken = tokenResponse.refresh_token || null;
+    this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
   }
 
   /**
@@ -371,14 +401,31 @@ export class HubConnectionManager {
       return;
     }
 
-    // Retry configuration
-    const maxRefreshRetries = 3;
-    const baseRetryDelayMs = 1000; // Start with 1 second
-
-    // Cancel any pending timers to avoid overlapping refreshes
     this.clearTokenRefreshTimer();
     this.isRefreshingTokens = true;
 
+    try {
+      await this.performTokenRefresh();
+
+      // Success - reconnect with new token
+      this.refreshRetryCount = 0;
+      await this.connect();
+
+      // Notify callbacks
+      if (this.bearerToken) {
+        this.onTokenRefresh?.(this.bearerToken);
+      }
+    } catch (error) {
+      await this.handleTokenRefreshError(error);
+    } finally {
+      this.isRefreshingTokens = false;
+    }
+  }
+
+  /**
+   * Perform the actual token refresh request
+   */
+  private async performTokenRefresh(): Promise<void> {
     const url = new URL(this.config.url);
     const keycloakUrl = `${url.protocol}//${url.host}/auth`;
     const tokenUrl = `${keycloakUrl}/realms/${this.config.auth.realm}/protocol/openid-connect/token`;
@@ -387,113 +434,67 @@ export class HubConnectionManager {
     const params = new URLSearchParams();
     params.append("grant_type", "refresh_token");
     params.append("client_id", clientId);
-    params.append("refresh_token", this.refreshToken);
+    params.append("refresh_token", this.refreshToken!);
 
-    try {
-      this.logger.debug(`Attempting token refresh with ${tokenUrl}`);
+    this.logger.debug(`Attempting token refresh with ${tokenUrl}`);
 
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: params,
-      });
+    const tokenResponse = await this.fetchWithTimeout<TokenResponse>(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: params,
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(
-          `Token refresh failed: ${response.status} ${response.statusText}`,
-          errorText,
-        );
-        throw new HubConnectionManagerError(
-          `Token refresh failed: ${response.status} ${response.statusText}`,
-        );
-      }
+    this.logger.info("Token refresh successful");
+    this.bearerToken = tokenResponse.access_token;
+    this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
+    this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+  }
 
-      const tokenResponse = (await response.json()) as TokenResponse;
-      this.logger.info("Token refresh successful");
+  /**
+   * Handle token refresh errors with retry logic
+   */
+  private async handleTokenRefreshError(error: unknown): Promise<void> {
+    this.logger.error("Token refresh failed", error);
 
-      this.bearerToken = tokenResponse.access_token;
-      this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
-      this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+    const maxRefreshRetries = 3;
+    const baseRetryDelayMs = 1000;
+    const isRetryable = this.isRetryableRefreshError(error);
 
-      // Reconnect solution server with new token
-      if (this.isSolutionServerConnected() && this.solutionServerClient) {
-        this.logger.info("Reconnecting solution server with new token");
-        try {
-          await this.disconnect();
-          await this.connect();
-        } catch (error) {
-          this.logger.error("Error reconnecting solution server after token refresh", error);
-        }
-      }
+    if (isRetryable && this.refreshRetryCount < maxRefreshRetries) {
+      this.refreshRetryCount++;
+      const delayMs = baseRetryDelayMs * Math.pow(2, this.refreshRetryCount - 1);
 
-      // Success - reset retry counter and start normal timer
+      this.logger.warn(
+        `Token refresh failed (attempt ${this.refreshRetryCount}/${maxRefreshRetries}), retrying in ${delayMs}ms`,
+      );
+
+      this.refreshTimer = setTimeout(() => {
+        this.refreshTokens().catch((err) => {
+          this.logger.error("Retry token refresh failed", err);
+        });
+      }, delayMs);
+    } else {
+      // Permanent failure - attempt full re-authentication
       this.refreshRetryCount = 0;
-      this.startTokenRefreshTimer();
-    } catch (error) {
-      this.logger.error("Token refresh failed", error);
+      this.logger.error(
+        `Token refresh failed permanently: ${isRetryable ? "max retries exceeded" : "non-retryable error"}`,
+      );
 
-      // Determine if error is retryable
-      const isRetryable = this.isRetryableRefreshError(error);
+      this.bearerToken = null;
+      this.refreshToken = null;
+      this.tokenExpiresAt = null;
 
-      if (isRetryable && this.refreshRetryCount < maxRefreshRetries) {
-        this.refreshRetryCount++;
-        const delayMs = baseRetryDelayMs * Math.pow(2, this.refreshRetryCount - 1);
-
-        this.logger.warn(
-          `Token refresh failed (attempt ${this.refreshRetryCount}/${maxRefreshRetries}), retrying in ${delayMs}ms`,
-        );
-
-        // Schedule retry with exponential backoff
+      if (this.username && this.password) {
+        this.logger.info(`Attempting full re-authentication in ${REAUTH_DELAY_MS}ms`);
         this.refreshTimer = setTimeout(() => {
-          this.refreshTokens().catch((error) => {
-            this.logger.error("Retry token refresh failed", error);
+          this.connect().catch((err) => {
+            this.logger.error("Re-authentication failed", err);
           });
-        }, delayMs);
-      } else {
-        // Non-retryable error or max retries exceeded
-        this.refreshRetryCount = 0;
-        this.logger.error(
-          `Token refresh failed permanently: ${isRetryable ? "max retries exceeded" : "non-retryable error"}`,
-        );
-
-        // Clear the refresh timer to break any potential retry loops
-        this.clearTokenRefreshTimer();
-
-        // Clear the invalid tokens
-        this.bearerToken = null;
-        this.refreshToken = null;
-        this.tokenExpiresAt = null;
-
-        // Attempt full re-authentication if credentials are available
-        if (this.username && this.password) {
-          this.logger.info(
-            `Attempting full re-authentication after permanent refresh failure in ${REAUTH_DELAY_MS}ms`,
-          );
-          this.refreshTimer = setTimeout(() => {
-            this.exchangeForTokens()
-              .then(async () => {
-                this.logger.info("Re-authentication successful, reconnecting...");
-                if (this.isSolutionServerConnected()) {
-                  await this.disconnect();
-                }
-                await this.connect();
-              })
-              .catch((error) => {
-                this.logger.error("Re-authentication failed after token refresh failure", error);
-              });
-          }, REAUTH_DELAY_MS);
-        } else {
-          this.logger.error(
-            "Cannot recover from token refresh failure: no credentials available for re-authentication",
-          );
-        }
+        }, REAUTH_DELAY_MS);
       }
-    } finally {
-      this.isRefreshingTokens = false;
     }
   }
 
@@ -508,11 +509,9 @@ export class HubConnectionManager {
       return;
     }
 
-    const now = Date.now();
-    const timeUntilRefresh = this.tokenExpiresAt - now;
+    const timeUntilRefresh = this.tokenExpiresAt - Date.now();
 
     if (timeUntilRefresh <= 0) {
-      // Token already expired, refresh immediately
       this.refreshTokens().catch((error) => {
         this.logger.error("Immediate token refresh failed", error);
       });
@@ -540,9 +539,8 @@ export class HubConnectionManager {
   /**
    * Check if a token refresh error is retryable
    */
-  private isRetryableRefreshError(error: any): boolean {
+  private isRetryableRefreshError(error: unknown): boolean {
     if (error instanceof HubConnectionManagerError) {
-      // Check if it's an HTTP 400/401 (bad/expired refresh token)
       const message = error.message.toLowerCase();
       if (
         message.includes("400") ||
@@ -550,29 +548,100 @@ export class HubConnectionManager {
         message.includes("invalid_grant") ||
         message.includes("unauthorized")
       ) {
-        return false; // Non-retryable - token is likely permanently invalid
+        return false;
       }
     }
-
-    // Network errors, 5xx server errors, timeouts are retryable
     return true;
   }
 
   /**
-   * Apply SSL bypass for insecure connections (Node.js specific)
+   * Trigger profile sync via callback
+   */
+  private triggerProfileSync(): void {
+    executeExtensionCommand("syncHubProfiles", true);
+  }
+
+  /**
+   * Start automatic profile sync timer
+   */
+  private startProfileSyncTimer(): void {
+    this.clearProfileSyncTimer();
+
+    this.logger.info(
+      `Starting profile sync timer, will sync every ${PROFILE_SYNC_INTERVAL_MS / 1000}s`,
+    );
+
+    this.profileSyncTimer = setInterval(() => {
+      if (this.isRefreshingTokens) {
+        this.logger.debug("Skipping periodic profile sync - token refresh in progress");
+        return;
+      }
+      this.triggerProfileSync();
+    }, PROFILE_SYNC_INTERVAL_MS);
+  }
+
+  /**
+   * Clear profile sync timer
+   */
+  private clearProfileSyncTimer(): void {
+    if (this.profileSyncTimer) {
+      clearInterval(this.profileSyncTimer);
+      this.profileSyncTimer = null;
+    }
+  }
+
+  /**
+   * Fetch with timeout and error handling
+   */
+  private async fetchWithTimeout<T>(url: string, options: RequestInit): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TOKEN_EXCHANGE_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`Request failed: ${response.status} ${response.statusText}`, errorText);
+        throw new HubConnectionManagerError(
+          `Request failed: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new HubConnectionManagerError(
+          `Request timed out after ${TOKEN_EXCHANGE_TIMEOUT_MS / 1000} seconds`,
+        );
+      }
+
+      if (error instanceof HubConnectionManagerError) {
+        throw error;
+      }
+
+      throw new HubConnectionManagerError(
+        `Request failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Apply SSL bypass for insecure connections
    */
   private applySSLBypass(): () => void {
     this.logger.debug("Applying SSL bypass for insecure connections");
-
-    // Store original values
     const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-
-    // Disable SSL verification through environment variable
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
     this.logger.warn("SSL certificate verification is disabled");
 
-    // Return cleanup function
     return () => {
       this.logger.debug("Restoring SSL settings");
       if (originalRejectUnauthorized !== undefined) {

@@ -46,18 +46,31 @@ export function getActiveProfileId(context: vscode.ExtensionContext): string | u
 export async function getAllProfiles(context: vscode.ExtensionContext): Promise<AnalysisProfile[]> {
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
+  let profiles: AnalysisProfile[] = [];
+
   // If in-tree profiles exist, ONLY return those (IN-TREE ALWAYS WINS)
   if (workspaceRoot) {
     const inTreeProfiles = await discoverInTreeProfiles(workspaceRoot);
-    if (inTreeProfiles.length > 0) {
-      return inTreeProfiles;
+
+    const hubProfiles = inTreeProfiles.filter((p) => p.source === "hub");
+    if (hubProfiles.length > 0) {
+      // Log if local in-tree profiles are being ignored
+      const localProfiles = inTreeProfiles.filter((p) => p.source === "local");
+      if (localProfiles.length > 0) {
+        vscode.window.showWarningMessage(
+          `Found ${localProfiles.length} local in-tree profile(s) that are being ignored because ` +
+            `Hub profile(s) are present. Hub profiles take precedence.`,
+        );
+      }
+      return hubProfiles;
     }
+    profiles = [...profiles, ...inTreeProfiles];
   }
 
-  // Fallback to existing behavior
   const bundled = getBundledProfiles();
   const user = getUserProfiles(context);
-  return [...bundled, ...user];
+  profiles = [...profiles, ...bundled, ...user];
+  return profiles;
 }
 
 export async function getActiveProfile(

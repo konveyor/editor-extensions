@@ -48,6 +48,11 @@ const App: React.FC = () => {
         pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
           ? windowData.pendingBatchReview
           : [],
+        hubConfig: windowData.hubConfig,
+        profileSyncEnabled: windowData.profileSyncEnabled ?? false,
+        profileSyncConnected: windowData.profileSyncConnected ?? false,
+        isSyncingProfiles: windowData.isSyncingProfiles ?? false,
+        llmProxyAvailable: windowData.llmProxyAvailable ?? false,
       });
     }
   }, []);

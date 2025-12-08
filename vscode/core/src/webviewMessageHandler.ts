@@ -30,6 +30,8 @@ import {
   OPEN_RESOLUTION_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
+  SYNC_HUB_PROFILES,
+  RETRY_PROFILE_SYNC,
   HubConfig,
 } from "@editor-extensions/shared";
 
@@ -65,19 +67,18 @@ const actions: {
   ) => void | Promise<void>;
 } = {
   [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
+    // Only allow adding profiles if we're not in in-tree mode (profiles from filesystem or Hub)
+    if (state.data.isInTreeMode) {
+      vscode.window.showWarningMessage(
+        "Cannot add profiles while using in-tree or Hub-synced configuration. Profiles are managed externally.",
+      );
+      return;
+    }
+
     const allProfiles = await getAllProfiles(state.extensionContext);
 
     if (allProfiles.some((p) => p.name === profile.name)) {
       vscode.window.showErrorMessage(`A profile named "${profile.name}" already exists.`);
-      return;
-    }
-
-    // Only allow adding profiles if we're not in in-tree mode
-    const isInTreeMode = allProfiles.length > 0 && allProfiles[0]?.source === "local";
-    if (isInTreeMode) {
-      vscode.window.showWarningMessage(
-        "Cannot add profiles while using in-tree configuration. Profiles are managed in .konveyor/profiles/.",
-      );
       return;
     }
 
@@ -104,13 +105,10 @@ const actions: {
   },
 
   [DELETE_PROFILE]: async (profileId: string, state) => {
-    const allProfiles = await getAllProfiles(state.extensionContext);
-
-    // Prevent deletion if in in-tree mode
-    const isInTreeMode = allProfiles.length > 0 && allProfiles[0]?.source === "local";
-    if (isInTreeMode) {
+    // Prevent deletion if in in-tree mode (profiles from filesystem or Hub)
+    if (state.data.isInTreeMode) {
       vscode.window.showWarningMessage(
-        "Cannot delete profiles while using in-tree configuration. Profiles are managed in .konveyor/profiles/.",
+        "Cannot delete profiles while using in-tree or Hub-synced configuration. Profiles are managed externally.",
       );
       return;
     }
@@ -120,23 +118,23 @@ const actions: {
 
     saveUserProfiles(state.extensionContext, filtered);
 
-    const fullProfiles = await getAllProfiles(state.extensionContext);
+    const allProfiles = await getAllProfiles(state.extensionContext);
     const currentActiveProfileId = state.data.activeProfileId;
 
     // Update active profile if the deleted profile was active
     if (currentActiveProfileId === profileId) {
-      const newActiveProfileId = fullProfiles[0]?.id ?? "";
+      const newActiveProfileId = allProfiles[0]?.id ?? "";
       state.extensionContext.workspaceState.update("activeProfileId", newActiveProfileId);
 
       // Broadcast profile update with new active profile
       state.mutateProfiles((draft) => {
-        draft.profiles = fullProfiles;
+        draft.profiles = allProfiles;
         draft.activeProfileId = newActiveProfileId;
       });
     } else {
       // Just update profiles list
       state.mutateProfiles((draft) => {
-        draft.profiles = fullProfiles;
+        draft.profiles = allProfiles;
       });
     }
 
@@ -252,6 +250,7 @@ const actions: {
     state.mutateSettings((draft) => {
       draft.hubConfig = config;
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
+      draft.profileSyncEnabled = config.enabled && config.features.profileSync.enabled;
     });
 
     // Update hub connection manager - it handles all connection logic internally
@@ -260,7 +259,23 @@ const actions: {
     // Update connection state based on actual connection status
     state.mutateServerState((draft) => {
       draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
+      draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
     });
+
+    // Clear syncing state if profile sync is disabled or disconnected
+    if (!state.hubConnectionManager.isProfileSyncConnected()) {
+      state.mutateSettings((draft) => {
+        draft.isSyncingProfiles = false;
+      });
+    }
+  },
+  [SYNC_HUB_PROFILES]: async (_payload, _state) => {
+    // Delegate to the command which already has all the sync logic
+    await executeExtensionCommand("syncHubProfiles");
+  },
+  [RETRY_PROFILE_SYNC]: async (_payload, _state) => {
+    // Delegate to the command which attempts to reconnect profile sync
+    await executeExtensionCommand("retryProfileSync");
   },
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");

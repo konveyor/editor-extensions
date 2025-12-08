@@ -40,13 +40,12 @@ export function WalkthroughDrawer({
   // ✅ Selective subscriptions
   const profiles = useExtensionStore((state) => state.profiles);
   const activeProfileId = useExtensionStore((state) => state.activeProfileId);
+  const isInTreeMode = useExtensionStore((state) => state.isInTreeMode);
   const configErrors = useExtensionStore((state) => state.configErrors);
   const hubConfig = useExtensionStore((state) => state.hubConfig);
+  const llmProxyAvailable = useExtensionStore((state) => state.llmProxyAvailable);
 
   const profile = profiles.find((p) => p.id === activeProfileId);
-
-  // Check if in in-tree mode (all profiles have source === 'local')
-  const isInTreeMode = profiles.length > 0 && profiles.every((p) => p.source === "local");
 
   const labelSelectorValid = !!profile?.labelSelector?.trim();
 
@@ -73,6 +72,9 @@ export function WalkthroughDrawer({
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
     "This feature is disabled because the values are managed by the in-tree profile currently selected.";
+  const genaiManagedByHubDescription = "GenAI is configured via Konveyor Hub.";
+  const genaiManagedByHubFullDescription =
+    "GenAI is configured via Konveyor Hub. The LLM proxy provides centralized AI capabilities without requiring local API key configuration. Your requests are routed through the Hub's managed service.";
 
   const steps = [
     {
@@ -121,20 +123,26 @@ export function WalkthroughDrawer({
     },
     {
       id: "genai",
-      title: genaiDisabled ? "Enable GenAI" : "Configure GenAI",
-      status: genaiDisabled
-        ? "GenAI is disabled"
-        : providerConfigured
-          ? "Completed"
-          : providerConnectionError
-            ? "Error connecting to the model"
-            : "Not configured",
-      description: genaiDisabled
-        ? "GenAI functionality is currently disabled in your settings."
-        : "Enable GenAI assistance using your API key.",
-      fullDescription: genaiDisabled
-        ? "GenAI functionality is currently disabled in your settings. When enabled, GenAI provides intelligent code suggestions, automated refactoring recommendations, and contextual explanations for migration issues. This feature enhances the analysis experience by offering AI-powered insights."
-        : "Enable GenAI assistance using your API key. Configure your preferred AI provider (OpenAI, Azure OpenAI, or other compatible services) to unlock intelligent code analysis, automated suggestions, and enhanced migration recommendations powered by large language models.",
+      title: genaiDisabled && !llmProxyAvailable ? "Enable GenAI" : "Configure GenAI",
+      status: llmProxyAvailable
+        ? "Disabled"
+        : genaiDisabled
+          ? "GenAI is disabled"
+          : providerConfigured
+            ? "Completed"
+            : providerConnectionError
+              ? "Error connecting to the model"
+              : "Not configured",
+      description: llmProxyAvailable
+        ? genaiManagedByHubDescription
+        : genaiDisabled
+          ? "GenAI functionality is currently disabled in your settings."
+          : "Enable GenAI assistance using your API key.",
+      fullDescription: llmProxyAvailable
+        ? genaiManagedByHubFullDescription
+        : genaiDisabled
+          ? "GenAI functionality is currently disabled in your settings. When enabled, GenAI provides intelligent code suggestions, automated refactoring recommendations, and contextual explanations for migration issues. This feature enhances the analysis experience by offering AI-powered insights."
+          : "Enable GenAI assistance using your API key. Configure your preferred AI provider (OpenAI, Azure OpenAI, or other compatible services) to unlock intelligent code analysis, automated suggestions, and enhanced migration recommendations powered by large language models.",
     },
   ];
 
@@ -225,7 +233,7 @@ export function WalkthroughDrawer({
                         </Button>
                       </StackItem>
                     )}
-                    {step.id === "genai" && (
+                    {step.id === "genai" && !llmProxyAvailable && (
                       <StackItem>
                         {genaiDisabled ? (
                           <Button variant="link" onClick={() => dispatch(enableGenAI())}>

@@ -8,6 +8,9 @@ import { AIMessageChunk } from "@langchain/core/messages";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 import { KaiWorkflowMessageType } from "../types";
 
+// MCP endpoint path for Konveyor Hub solution server
+const SOLUTION_SERVER_MCP_PATH = "/hub/services/kai/api";
+
 export interface SolutionServerCapabilities {
   tools: Tool[];
   resources: Resource[];
@@ -57,9 +60,17 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private cachedCapabilities: SolutionServerCapabilities | null = null;
   public isConnected: boolean = false;
 
-  constructor(serverUrl: string, bearerToken: string | null, logger: Logger) {
+  /**
+   * Create a new SolutionServerClient.
+   * @param hubUrl The base Hub URL (e.g., https://hub.example.com)
+   * @param bearerToken Optional bearer token for authentication
+   * @param logger Logger instance
+   */
+  constructor(hubUrl: string, bearerToken: string | null, logger: Logger) {
     super();
-    this.serverUrl = serverUrl;
+    // Build full MCP endpoint URL from base Hub URL
+    const baseUrl = hubUrl.endsWith("/") ? hubUrl.slice(0, -1) : hubUrl;
+    this.serverUrl = `${baseUrl}${SOLUTION_SERVER_MCP_PATH}`;
     this.bearerToken = bearerToken;
     this.logger = logger.child({
       component: "SolutionServerClient",
@@ -177,6 +188,24 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       this.logger.info("Disconnected from MCP solution server");
     } catch (error) {
       this.logger.error("Error during disconnect", error);
+    }
+  }
+
+  /**
+   * Update the bearer token and reconnect if currently connected.
+   * This is called after token refresh to ensure the MCP connection uses the new token.
+   */
+  public async updateBearerToken(newToken: string): Promise<void> {
+    const wasConnected = this.isConnected;
+    this.logger.info("Updating bearer token", { wasConnected });
+
+    this.bearerToken = newToken;
+
+    if (wasConnected) {
+      // Reconnect with new token - MCP SDK uses token during connection setup
+      this.logger.info("Reconnecting MCP client with new token");
+      await this.disconnect();
+      await this.connect();
     }
   }
 

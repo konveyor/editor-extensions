@@ -401,8 +401,6 @@ export const HubSettingsForm: React.FC<{
           </FormHelperText>
         </FormGroup>
 
-        {/* 
-        TODO: Uncomment when the profile sync feature is implemented
         <FormGroup label="Profile Sync" fieldId="feature-profile-sync">
           <Switch
             id="feature-profile-sync"
@@ -417,7 +415,7 @@ export const HubSettingsForm: React.FC<{
               </HelperTextItem>
             </HelperText>
           </FormHelperText>
-        </FormGroup> */}
+        </FormGroup>
       </FormSection>
 
       <ActionGroup>

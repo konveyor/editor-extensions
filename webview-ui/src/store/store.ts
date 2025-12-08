@@ -46,6 +46,7 @@ interface ExtensionStore {
   enhancedIncidents: EnhancedIncident[];
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
+  isInTreeMode: boolean; // True when all profiles are from filesystem (local or hub)
   isAnalyzing: boolean;
   analysisProgress?: number;
   analysisProgressMessage?: string;
@@ -73,6 +74,10 @@ interface ExtensionStore {
   isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
+  profileSyncEnabled: boolean;
+  profileSyncConnected: boolean;
+  isSyncingProfiles: boolean;
+  llmProxyAvailable: boolean;
 
   // Batch review state
   pendingBatchReview: PendingBatchReviewFile[];
@@ -114,6 +119,10 @@ interface ExtensionStore {
   setIsContinueInstalled: (isInstalled: boolean) => void;
   setHubConfig: (config: HubConfig | undefined) => void;
   setWorkspaceRoot: (root: string) => void;
+  setProfileSyncEnabled: (enabled: boolean) => void;
+  setProfileSyncConnected: (connected: boolean) => void;
+  setIsSyncingProfiles: (isSyncing: boolean) => void;
+  setLlmProxyAvailable: (available: boolean) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -137,6 +146,7 @@ export const useExtensionStore = create<ExtensionStore>()(
         enhancedIncidents: [],
         profiles: [],
         activeProfileId: null,
+        isInTreeMode: false,
         isAnalyzing: false,
         analysisProgress: 0,
         analysisProgressMessage: "",
@@ -158,6 +168,10 @@ export const useExtensionStore = create<ExtensionStore>()(
         isAgentMode: false,
         isContinueInstalled: false,
         hubConfig: undefined,
+        profileSyncEnabled: false,
+        profileSyncConnected: false,
+        isSyncingProfiles: false,
+        llmProxyAvailable: false,
 
         // Batch review state
         pendingBatchReview: [],
@@ -333,6 +347,26 @@ export const useExtensionStore = create<ExtensionStore>()(
             state.workspaceRoot = root;
           }),
 
+        setProfileSyncEnabled: (enabled) =>
+          set((state) => {
+            state.profileSyncEnabled = enabled;
+          }),
+
+        setProfileSyncConnected: (connected) =>
+          set((state) => {
+            state.profileSyncConnected = connected;
+          }),
+
+        setIsSyncingProfiles: (isSyncing) =>
+          set((state) => {
+            state.isSyncingProfiles = isSyncing;
+          }),
+
+        setLlmProxyAvailable: (available) =>
+          set((state) => {
+            state.llmProxyAvailable = available;
+          }),
+
         clearAnalysisData: () =>
           set((state) => {
             state.ruleSets = [];
@@ -350,6 +384,7 @@ export const useExtensionStore = create<ExtensionStore>()(
         partialize: (state) => ({
           activeProfileId: state.activeProfileId,
           profiles: state.profiles,
+          isInTreeMode: state.isInTreeMode,
           isAgentMode: state.isAgentMode,
           solutionServerEnabled: state.solutionServerEnabled,
           // NOT persisting large arrays like ruleSets or enhancedIncidents

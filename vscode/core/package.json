@@ -31,6 +31,9 @@
     "node": ">=22.9.0",
     "npm": "^9.5.0 || >=10.5.2"
   },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "activationEvents": [
     "onFileSystem:konveyorMemFs",
     "onFileSystem:konveyorReadOnly"
@@ -176,6 +179,18 @@
         "title": "Show Diff Actions",
         "category": "Konveyor",
         "icon": "$(diff)"
+      },
+      {
+        "command": "konveyor.syncHubProfiles",
+        "title": "Sync Profiles from Hub",
+        "category": "Konveyor",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "konveyor.retryProfileSync",
+        "title": "Retry Profile Sync Connection",
+        "category": "Konveyor",
+        "icon": "$(debug-restart)"
       }
     ],
     "submenus": [
