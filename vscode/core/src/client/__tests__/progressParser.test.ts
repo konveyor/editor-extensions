@@ -96,6 +96,93 @@ describe("ProgressParser", () => {
       expect(receivedEvents[0].message).toBe("src/main/java/Application.java");
     });
 
+    it("should handle provider_prepare stage without message field", () => {
+      const receivedEvents: ProgressEvent[] = [];
+      const parser = new ProgressParser((event) => {
+        receivedEvents.push(event);
+      });
+
+      const progressEvent = {
+        timestamp: "2024-01-01T00:00:00Z",
+        stage: "provider_prepare",
+        current: 100,
+        total: 500,
+        percent: 20.0,
+        // message field is intentionally omitted
+      };
+
+      parser.feed(JSON.stringify(progressEvent) + "\n");
+
+      expect(receivedEvents.length).toBe(1);
+      expect(receivedEvents[0].stage).toBe("provider_prepare");
+      expect(receivedEvents[0].current).toBe(100);
+      expect(receivedEvents[0].total).toBe(500);
+      expect(receivedEvents[0].percent).toBe(20.0);
+      expect(receivedEvents[0].message).toBeUndefined();
+    });
+
+    it("should handle provider_prepare stage with extreme percent values", () => {
+      const receivedEvents: ProgressEvent[] = [];
+      const parser = new ProgressParser((event) => {
+        receivedEvents.push(event);
+      });
+
+      // Test with percent > 100
+      const event1 = {
+        timestamp: "2024-01-01T00:00:00Z",
+        stage: "provider_prepare",
+        current: 150,
+        total: 100,
+        percent: 150.0,
+      };
+
+      parser.feed(JSON.stringify(event1) + "\n");
+
+      expect(receivedEvents.length).toBe(1);
+      expect(receivedEvents[0].percent).toBe(150.0); // Parser accepts it as-is
+      expect(receivedEvents[0].current).toBe(150);
+      expect(receivedEvents[0].total).toBe(100);
+
+      // Test with negative percent
+      const event2 = {
+        timestamp: "2024-01-01T00:00:01Z",
+        stage: "provider_prepare",
+        current: 0,
+        total: 100,
+        percent: -5.0,
+      };
+
+      parser.feed(JSON.stringify(event2) + "\n");
+
+      expect(receivedEvents.length).toBe(2);
+      expect(receivedEvents[1].percent).toBe(-5.0); // Parser accepts it as-is
+      expect(receivedEvents[1].current).toBe(0);
+      expect(receivedEvents[1].total).toBe(100);
+    });
+
+    it("should handle provider_prepare stage without current/total fields", () => {
+      const receivedEvents: ProgressEvent[] = [];
+      const parser = new ProgressParser((event) => {
+        receivedEvents.push(event);
+      });
+
+      const progressEvent = {
+        timestamp: "2024-01-01T00:00:00Z",
+        stage: "provider_prepare",
+        message: "Processing files...",
+        // current and total fields are intentionally omitted
+      };
+
+      parser.feed(JSON.stringify(progressEvent) + "\n");
+
+      expect(receivedEvents.length).toBe(1);
+      expect(receivedEvents[0].stage).toBe("provider_prepare");
+      expect(receivedEvents[0].message).toBe("Processing files...");
+      expect(receivedEvents[0].current).toBeUndefined();
+      expect(receivedEvents[0].total).toBeUndefined();
+      expect(receivedEvents[0].percent).toBeUndefined();
+    });
+
     it("should handle all valid progress stages", () => {
       const receivedEvents: ProgressEvent[] = [];
       const parser = new ProgressParser((event) => {

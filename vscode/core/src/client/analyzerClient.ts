@@ -18,7 +18,7 @@ import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
-import { ProgressParser, ProgressEvent } from "./progressParser";
+import { ProgressParser, ProgressEvent, VALID_PROGRESS_STAGES } from "./progressParser";
 import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
@@ -28,6 +28,14 @@ import { executeExtensionCommand } from "../commands";
 import { ProviderRegistry } from "../api";
 
 export class AnalyzerClient {
+  // Progress percentage ranges for each stage
+  private static readonly PROGRESS_PROVIDER_INIT = 10;
+  private static readonly PROGRESS_PROVIDER_PREPARE_START = 10;
+  private static readonly PROGRESS_PROVIDER_PREPARE_END = 15;
+  private static readonly PROGRESS_RULE_PARSING = 20;
+  private static readonly PROGRESS_RULE_EXECUTION_START = 20;
+  private static readonly PROGRESS_RULE_EXECUTION_END = 90;
+
   private assetPaths: AssetPaths;
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
   private analyzerRpcConnection?: rpc.MessageConnection | null;
@@ -76,15 +84,7 @@ export class AnalyzerClient {
       obj !== null &&
       typeof obj.timestamp === "string" &&
       typeof obj.stage === "string" &&
-      [
-        "init",
-        "provider_init",
-        "provider_prepare",
-        "rule_parsing",
-        "rule_execution",
-        "dependency_analysis",
-        "complete",
-      ].includes(obj.stage)
+      VALID_PROGRESS_STAGES.includes(obj.stage as any)
     );
   }
 
@@ -213,7 +213,7 @@ export class AnalyzerClient {
       this.logger.info("Server initialization complete");
       this.fireServerStateChange("running");
     });
-    this.analyzerRpcConnection.onNotification("analysis.progress", (params: any) => {
+    this.analyzerRpcConnection.onNotification("analysis.progress", (params: unknown) => {
       this.logger.debug(`Received analysis.progress notification: ${JSON.stringify(params)}`);
       if (this.currentProgressCallback && this.isProgressEvent(params)) {
         this.currentProgressCallback(params);
@@ -451,7 +451,7 @@ export class AnalyzerClient {
                   ? `Provider: ${event.message}`
                   : "Initializing providers...";
                 webviewMessage = notificationMessage;
-                progressPercent = 10;
+                progressPercent = AnalyzerClient.PROGRESS_PROVIDER_INIT;
                 break;
               case "provider_prepare":
                 if (event.total && event.current) {
@@ -459,8 +459,13 @@ export class AnalyzerClient {
                     100,
                     Math.max(0, event.percent || (event.current / event.total) * 100),
                   );
-                  // Map file processing progress from 10% to 15%
-                  progressPercent = 10 + filePercent * 0.05;
+                  // Map file processing progress from provider_prepare start to end
+                  const prepareRange =
+                    AnalyzerClient.PROGRESS_PROVIDER_PREPARE_END -
+                    AnalyzerClient.PROGRESS_PROVIDER_PREPARE_START;
+                  progressPercent =
+                    AnalyzerClient.PROGRESS_PROVIDER_PREPARE_START +
+                    (filePercent * prepareRange) / 100;
 
                   // Abbreviated message for notification
                   notificationMessage = `Processing file ${event.current}/${event.total}`;
@@ -472,7 +477,7 @@ export class AnalyzerClient {
                 } else {
                   notificationMessage = "Processing files...";
                   webviewMessage = notificationMessage;
-                  progressPercent = 10;
+                  progressPercent = AnalyzerClient.PROGRESS_PROVIDER_PREPARE_START;
                 }
                 break;
               case "rule_parsing":
@@ -480,7 +485,7 @@ export class AnalyzerClient {
                   ? `Loaded ${event.total} rules`
                   : "Loading rules...";
                 webviewMessage = notificationMessage;
-                progressPercent = 20;
+                progressPercent = AnalyzerClient.PROGRESS_RULE_PARSING;
                 break;
               case "rule_execution":
                 if (event.total && event.current) {
@@ -488,8 +493,13 @@ export class AnalyzerClient {
                     100,
                     Math.max(0, event.percent || (event.current / event.total) * 100),
                   );
-                  // Map rule execution progress from 20% to 90%
-                  progressPercent = 20 + rulePercent * 0.7;
+                  // Map rule execution progress from start to end
+                  const executionRange =
+                    AnalyzerClient.PROGRESS_RULE_EXECUTION_END -
+                    AnalyzerClient.PROGRESS_RULE_EXECUTION_START;
+                  progressPercent =
+                    AnalyzerClient.PROGRESS_RULE_EXECUTION_START +
+                    (rulePercent * executionRange) / 100;
 
                   // Abbreviated message for notification
                   notificationMessage = `Processing rule ${event.current}/${event.total}`;
