@@ -7,34 +7,44 @@ import { analyzerBinaryCheck } from "./checks/analyzerBinary";
 import { analyzerServerCheck } from "./checks/analyzerServer";
 import { namedPipeCheck } from "./checks/namedPipe";
 import { networkConfigCheck } from "./checks/networkConfig";
-import { javaExtensionCheck } from "./checks/javaExtension";
 import { fileSystemPermissionsCheck } from "./checks/fileSystemPermissions";
 import { windowsSecurityCheck } from "./checks/windowsSecurity";
 import { languageProvidersCheck } from "./checks/languageProviders";
 import { llmProviderCheck } from "./checks/llmProvider";
 import { EXTENSION_NAME } from "../utilities/constants";
+import { HealthCheckRegistry } from "../api";
 
 /**
- * Registry of all available health check modules
+ * Core health check modules (non-language-specific)
+ * These are automatically registered when the health check system initializes
  */
-const allHealthCheckModules: HealthCheckModule[] = [
+const coreHealthCheckModules: HealthCheckModule[] = [
   analyzerBinaryCheck,
   analyzerServerCheck,
   languageProvidersCheck,
   llmProviderCheck,
   namedPipeCheck,
   networkConfigCheck,
-  javaExtensionCheck,
   fileSystemPermissionsCheck,
   windowsSecurityCheck,
 ];
 
 /**
+ * Register core health check modules with the registry
+ */
+export function registerCoreHealthChecks(registry: HealthCheckRegistry): void {
+  coreHealthCheckModules.forEach((module) => {
+    registry.registerHealthCheck(module);
+  });
+}
+
+/**
  * Filter health check modules based on current platform
  */
-function getApplicableModules(): HealthCheckModule[] {
+function getApplicableModules(registry: HealthCheckRegistry): HealthCheckModule[] {
   const currentPlatform = process.platform;
-  return allHealthCheckModules.filter((module) => {
+  const allModules = registry.getHealthChecks();
+  return allModules.filter((module) => {
     if (!module.enabled) {
       return false;
     }
@@ -58,13 +68,16 @@ function determineOverallStatus(results: { status: CheckStatus }[]): CheckStatus
 /**
  * Run all applicable health checks
  */
-export async function runHealthCheck(context: HealthCheckContext): Promise<HealthCheckReport> {
+export async function runHealthCheck(
+  context: HealthCheckContext,
+  registry: HealthCheckRegistry,
+): Promise<HealthCheckReport> {
   const startTime = performance.now();
   const { logger } = context;
 
   logger.info("Starting health check...");
 
-  const applicableModules = getApplicableModules();
+  const applicableModules = getApplicableModules(registry);
   logger.info(`Running ${applicableModules.length} health checks`);
 
   const results = [];
@@ -118,7 +131,7 @@ export function formatHealthCheckReport(report: HealthCheckReport): string {
   lines.push("");
 
   // Summary
-  const statusIcon = {
+  const statusIcon: Record<CheckStatus, string> = {
     pass: ".",
     fail: "x",
     warning: "!",
@@ -191,13 +204,15 @@ export function formatHealthCheckReport(report: HealthCheckReport): string {
 /**
  * Get all registered health check modules (for testing/debugging)
  */
-export function getAllHealthCheckModules(): HealthCheckModule[] {
-  return [...allHealthCheckModules];
+export function getAllHealthCheckModules(registry: HealthCheckRegistry): HealthCheckModule[] {
+  return registry.getHealthChecks();
 }
 
 /**
  * Get applicable health check modules for current platform
  */
-export function getApplicableHealthCheckModules(): HealthCheckModule[] {
-  return getApplicableModules();
+export function getApplicableHealthCheckModules(
+  registry: HealthCheckRegistry,
+): HealthCheckModule[] {
+  return getApplicableModules(registry);
 }

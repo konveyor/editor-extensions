@@ -118,7 +118,7 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
 
       let details = `All ${testResults.length} required directories are writable:\n`;
       for (const loc of testResults) {
-        details += `  ✓ ${loc.location}\n`;
+        details += `  . ${loc.location}\n`;
       }
 
       return {

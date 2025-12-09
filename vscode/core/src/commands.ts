@@ -36,6 +36,8 @@ import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
 import { runHealthCheck, formatHealthCheckReport } from "./healthCheck";
+import { getHealthCheckRegistry } from "./extension";
+import type { CheckStatus } from "./healthCheck/types";
 
 const isWindows = process.platform === "win32";
 
@@ -774,6 +776,14 @@ const commandsMap: (
       logger.info("Running health check command...");
 
       try {
+        const registry = getHealthCheckRegistry();
+        if (!registry) {
+          const errorMessage = "Health check registry not initialized";
+          logger.error(errorMessage);
+          window.showErrorMessage(`${EXTENSION_NAME}: ${errorMessage}`);
+          return;
+        }
+
         // Show progress notification
         await window.withProgress(
           {
@@ -791,7 +801,7 @@ const commandsMap: (
               vscode,
             };
 
-            const report = await runHealthCheck(healthCheckContext);
+            const report = await runHealthCheck(healthCheckContext, registry);
 
             progress.report({ increment: 100, message: "Health check complete" });
 
@@ -836,7 +846,7 @@ const commandsMap: (
               ? `View the Output panel or the log file ${reportFileName} for details.`
               : "View the Output panel for details.";
 
-            const statusMessages = {
+            const statusMessages: Record<CheckStatus, string> = {
               pass: `All checks passed! ${detailsText}`,
               warning: `Some checks have warnings. ${detailsText}`,
               fail: `Some checks failed. ${detailsText}`,
