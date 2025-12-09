@@ -20,7 +20,7 @@ import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { ProgressParser, ProgressEvent } from "./progressParser";
 import { countIncidentsOnPaths } from "../analysis";
-import { createConnection, Socket } from "node:net";
+import { Socket } from "node:net";
 import { FileChange } from "./types";
 import { TaskManager } from "src/taskManager/types";
 import { Logger } from "winston";
@@ -210,36 +210,33 @@ export class AnalyzerClient {
   }
 
   protected async getSocket(pipeName: string): Promise<Socket> {
-    const s = createConnection(pipeName);
-    let ready = false;
-    const MAX_RETRIES = 30;
-    const RETRY_DELAY = 2000; // 2 seconds
-    let retryCount = 0;
-
-    s.on("ready", () => {
-      this.logger.info("got ready message");
-      ready = true;
-    });
-
-    while ((s.connecting || !s.readable) && !ready && retryCount < MAX_RETRIES) {
-      await setTimeout(RETRY_DELAY);
-      retryCount++;
-
-      if (!s.connecting && s.readable) {
-        break;
-      }
-      if (!s.connecting) {
-        s.connect(pipeName);
+    const MAX_RETRIES = 150; // retry for 5 minutes to connect to the analyzer pipe
+    const RETRY_DELAY = 2000;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const s = new Socket();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const onError = (err: Error) => reject(err);
+          s.once("connect", () => {
+            s.off("error", onError);
+            resolve();
+          });
+          s.once("error", onError);
+          s.connect(pipeName);
+        });
+        return s;
+      } catch (err) {
+        s.destroy();
+        this.logger.error("Error connecting to analyzer pipe", err);
+        if (attempt === MAX_RETRIES) {
+          break;
+        }
+        await setTimeout(RETRY_DELAY);
       }
     }
-
-    if (s.readable) {
-      return s;
-    } else {
-      throw Error(
-        "Unable to connect after multiple retries. Please check Java environment configuration.",
-      );
-    }
+    throw new Error(
+      "Unable to connect to analyzer pipe after multiple retries. The analyzer may not have created the pipe yet or the environment is misconfigured.",
+    );
   }
 
   protected startAnalysisServer(
