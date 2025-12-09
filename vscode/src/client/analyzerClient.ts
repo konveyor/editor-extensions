@@ -294,8 +294,11 @@ export class AnalyzerClient {
         return s;
       } catch (err) {
         s.destroy();
-        this.logger.error("Error connecting to analyzer pipe", err);
         if (attempt === MAX_RETRIES) {
+          this.logger.error("Error connecting to analyzer pipe after maximum retries", {
+            attempt,
+            err,
+          });
           break;
         }
         await setTimeout(RETRY_DELAY);
