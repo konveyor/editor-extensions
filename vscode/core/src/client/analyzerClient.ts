@@ -18,7 +18,7 @@ import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
-import { ProgressParser, ProgressEvent, VALID_PROGRESS_STAGES } from "./progressParser";
+import { ProgressEvent, VALID_PROGRESS_STAGES } from "./progressParser";
 import { countIncidentsOnPaths } from "../analysis";
 import { createConnection, Socket } from "node:net";
 import { FileChange } from "./types";
@@ -323,22 +323,11 @@ export class AnalyzerClient {
       env: serverEnv,
     });
 
-    // Set up progress parser that uses current progress callback
-    const progressParser = new ProgressParser(
-      (event) => {
-        if (this.currentProgressCallback) {
-          this.currentProgressCallback(event);
-        }
-      },
-      (line) => {
-        // Only log non-progress lines (non-JSON progress events)
-        this.logger.error(line);
-      },
-    );
-
+    // Progress updates are now received via RPC notifications (analysis.progress)
+    // The stderr-based progress parsing has been removed to avoid duplicate progress updates
     analyzerRpcServer.stderr.on("data", (data) => {
-      // Feed to progress parser which will handle both progress events and logging
-      progressParser.feed(data);
+      // Log stderr output for debugging
+      this.logger.debug(`Analyzer stderr: ${data.toString()}`);
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
