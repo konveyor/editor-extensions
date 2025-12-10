@@ -32,15 +32,17 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.openAnalysisView();
       await vscodeApp.searchAndRequestFix('InventoryEntity', FixTypes.Incident);
       const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-      const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]').first();
-      await vscodeApp.getWindow().screenshot({
-        path: `${SCREENSHOTS_FOLDER}/resolution-view-before-fix.png`,
-      });
-      await expect(fixLocator).toBeVisible({ timeout: 1800_000 }); // 30 minutes
+      const fixLocator = resolutionView.getByRole('button', { name: 'Accept' });
+      await expect(fixLocator).toBeVisible({ timeout: 200_000 }); // 2 minutes
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
-      await fixLocator.dispatchEvent('click');
-      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
+      await fixLocator.click();
+      await expect(
+        vscodeApp.getWindow().getByText('Done addressing all issues. Goodbye!').first()
+      ).toBeVisible({
         timeout: 600000,
+      });
+      await vscodeApp.getWindow().screenshot({
+        path: `${SCREENSHOTS_FOLDER}/resolution-view-after-fix.png`,
       });
     });
 
