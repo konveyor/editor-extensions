@@ -3,6 +3,7 @@
  */
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
+import { CheckResultBuilder, withErrorHandling } from "../helpers";
 
 export const languageProvidersCheck: HealthCheckModule = {
   id: "language-providers",
@@ -13,54 +14,33 @@ export const languageProvidersCheck: HealthCheckModule = {
   extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
     const { state, logger } = context;
+    const builder = new CheckResultBuilder("Language Providers");
 
-    try {
-      const analyzerClient = state.analyzerClient;
-      if (!analyzerClient) {
-        return {
-          name: "Language Providers",
-          status: "fail",
-          message: "Analyzer client not initialized",
-        };
+    return withErrorHandling("Language Providers", logger, async () => {
+      if (!state.analyzerClient) {
+        return builder.fail("Analyzer client not initialized");
       }
 
-      const providers = analyzerClient.getRegisteredProviders();
+      const providers = state.analyzerClient.getRegisteredProviders();
 
       if (providers.length === 0) {
-        return {
-          name: "Language Providers",
-          status: "warning",
-          message: "No language providers are registered",
-          details:
-            "Language providers (e.g., Konveyor Java, Konveyor Go) may still be loading. Analysis cannot run until at least one provider is registered.",
-          suggestion:
-            "Wait for language extensions to finish loading. Check that language-specific extensions are installed.",
-        };
+        return builder.warning(
+          "No language providers are registered",
+          "Language providers (e.g., Konveyor Java, Konveyor Go) may still be loading. Analysis cannot run until at least one provider is registered.",
+          "Wait for language extensions to finish loading. Check that language-specific extensions are installed.",
+        );
       }
 
-      let details = `Registered Providers: ${providers.length}\n\n`;
-      for (const provider of providers) {
-        details += `Provider: ${provider.name}\n`;
-        if (provider.providerConfig) {
-          details += `  Config: ${JSON.stringify(provider.providerConfig, null, 2).replace(/\n/g, "\n  ")}\n`;
-        }
-        details += "\n";
-      }
+      const providerDetails = providers.map((provider: any) => {
+        const config = provider.providerConfig
+          ? `\n  Config: ${JSON.stringify(provider.providerConfig, null, 2).replace(/\n/g, "\n  ")}`
+          : "";
+        return `Provider: ${provider.name}${config}`;
+      });
 
-      return {
-        name: "Language Providers",
-        status: "pass",
-        message: `${providers.length} language provider(s) registered`,
-        details: details.trim(),
-      };
-    } catch (err) {
-      logger.error("Error checking language providers", err);
-      return {
-        name: "Language Providers",
-        status: "fail",
-        message: "Failed to check language providers",
-        details: err instanceof Error ? err.message : String(err),
-      };
-    }
+      const details = `Registered Providers: ${providers.length}\n\n${providerDetails.join("\n\n")}`;
+
+      return builder.pass(`${providers.length} language provider(s) registered`, details);
+    });
   },
 };

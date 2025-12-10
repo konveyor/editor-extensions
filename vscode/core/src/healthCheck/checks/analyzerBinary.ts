@@ -6,6 +6,7 @@ import * as fs from "fs-extra";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { buildAssetPaths } from "../../client/paths";
 import { getConfigAnalyzerPath } from "../../utilities";
+import { CheckResultBuilder, withErrorHandling, formatError, formatDetails } from "../helpers";
 
 export const analyzerBinaryCheck: HealthCheckModule = {
   id: "analyzer-binary",
@@ -16,23 +17,20 @@ export const analyzerBinaryCheck: HealthCheckModule = {
   extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
     const { logger, state } = context;
+    const builder = new CheckResultBuilder("Analyzer Binary");
 
-    try {
-      // Check if custom analyzer path is configured
+    return withErrorHandling("Analyzer Binary", logger, async () => {
       const customPath = getConfigAnalyzerPath();
       const assetPaths = buildAssetPaths(state.extensionContext);
       const analyzerPath = customPath || assetPaths.kaiAnalyzer;
 
       // Check if binary exists
-      const exists = await fs.pathExists(analyzerPath);
-      if (!exists) {
-        return {
-          name: "Analyzer Binary",
-          status: "fail",
-          message: `Analyzer binary not found at: ${analyzerPath}`,
-          suggestion:
-            "The binary may need to be downloaded. Try running the analyzer or manually specify a path using 'Override Analyzer Binary' command.",
-        };
+      if (!(await fs.pathExists(analyzerPath))) {
+        return builder.fail(
+          `Analyzer binary not found at: ${analyzerPath}`,
+          undefined,
+          "The binary may need to be downloaded. Try running the analyzer or manually specify a path using 'Override Analyzer Binary' command.",
+        );
       }
 
       // Check if binary is executable (Unix-like systems)
@@ -40,13 +38,11 @@ export const analyzerBinaryCheck: HealthCheckModule = {
         try {
           await fs.access(analyzerPath, fs.constants.X_OK);
         } catch (err) {
-          return {
-            name: "Analyzer Binary",
-            status: "fail",
-            message: `Analyzer binary exists but is not executable: ${analyzerPath}`,
-            details: err instanceof Error ? err.message : String(err),
-            suggestion: `Run: chmod +x "${analyzerPath}"`,
-          };
+          return builder.fail(
+            `Analyzer binary exists but is not executable: ${analyzerPath}`,
+            formatError(err),
+            `Run: chmod +x "${analyzerPath}"`,
+          );
         }
       }
 
@@ -54,20 +50,14 @@ export const analyzerBinaryCheck: HealthCheckModule = {
       const stats = await fs.stat(analyzerPath);
       const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
 
-      return {
-        name: "Analyzer Binary",
-        status: "pass",
-        message: `Analyzer binary found and accessible`,
-        details: `Path: ${analyzerPath}\nSize: ${sizeInMB} MB\nModified: ${stats.mtime.toISOString()}`,
-      };
-    } catch (err) {
-      logger.error("Error checking analyzer binary", err);
-      return {
-        name: "Analyzer Binary",
-        status: "fail",
-        message: "Failed to check analyzer binary",
-        details: err instanceof Error ? err.message : String(err),
-      };
-    }
+      return builder.pass(
+        "Analyzer binary found and accessible",
+        formatDetails(
+          `Path: ${analyzerPath}`,
+          `Size: ${sizeInMB} MB`,
+          `Modified: ${stats.mtime.toISOString()}`,
+        ),
+      );
+    });
   },
 };
