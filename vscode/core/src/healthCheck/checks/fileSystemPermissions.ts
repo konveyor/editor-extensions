@@ -14,7 +14,7 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
   enabled: true,
   extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const { state, vscode, logger } = context;
+    const { state, logger } = context;
 
     try {
       const workspaceRoot = state.data.workspaceRoot;
