@@ -36,9 +36,7 @@ getAvailableProviders().forEach((provider) => {
       await expect(fixLocator).toBeVisible({ timeout: 200_000 }); // 2 minutes
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.click();
-      await expect(
-        vscodeApp.getWindow().getByText('Done addressing all issues. Goodbye!').first()
-      ).toBeVisible({
+      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 600000,
       });
       await vscodeApp.getWindow().screenshot({
