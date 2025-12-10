@@ -44,6 +44,8 @@ export function WalkthroughDrawer({
   const configErrors = useExtensionStore((state) => state.configErrors);
   const hubConfig = useExtensionStore((state) => state.hubConfig);
   const llmProxyAvailable = useExtensionStore((state) => state.llmProxyAvailable);
+  const profileSyncConnected = useExtensionStore((state) => state.profileSyncConnected);
+  const solutionServerConnected = useExtensionStore((state) => state.solutionServerConnected);
 
   const profile = profiles.find((p) => p.id === activeProfileId);
 
@@ -60,14 +62,21 @@ export function WalkthroughDrawer({
   const genaiDisabled = configErrors.some((error) => error.type === "genai-disabled");
   const providerConfigured = !providerConnectionError && !providerNotConfigured && !genaiDisabled;
 
-  // Check hub configuration status - must have URL and if auth is enabled, must have username and password
-  const hubConfigured =
+  // Check hub configuration status
+  // Must have URL, and if auth is enabled, must have credentials
+  const hubFieldsConfigured =
     hubConfig?.enabled &&
     !!hubConfig?.url?.trim() &&
     (!hubConfig?.auth.enabled ||
       (!!hubConfig?.auth.realm?.trim() &&
         !!hubConfig?.auth.username?.trim() &&
         !!hubConfig?.auth.password?.trim()));
+
+  // Hub is "connected" if any feature is actually connected
+  const hubConnected = profileSyncConnected || solutionServerConnected;
+
+  // Hub is fully configured only if fields are set AND connection succeeded
+  // const hubConfigured = hubFieldsConfigured && hubConnected;
 
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
@@ -76,16 +85,37 @@ export function WalkthroughDrawer({
   const genaiManagedByHubFullDescription =
     "GenAI is configured via Konveyor Hub. The LLM proxy provides centralized AI capabilities without requiring local API key configuration. Your requests are routed through the Hub's managed service.";
 
+  // Determine hub status message
+  const getHubStatus = () => {
+    if (!hubConfig?.enabled) {
+      return "Not configured";
+    }
+    if (!hubConfig?.url?.trim()) {
+      return "URL not set";
+    }
+    if (
+      hubConfig?.auth.enabled &&
+      (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
+    ) {
+      return "Missing credentials";
+    }
+    if (hubConfig?.auth.enabled && !hubConfig?.auth.realm?.trim()) {
+      return "Missing realm";
+    }
+    if (hubFieldsConfigured && !hubConnected) {
+      return "Connection failed";
+    }
+    if (hubConnected) {
+      return "Completed";
+    }
+    return "Not configured";
+  };
+
   const steps = [
     {
       id: "hub-config",
       title: "Hub Configuration",
-      status: hubConfigured
-        ? "Completed"
-        : hubConfig?.auth.enabled &&
-            (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
-          ? "Missing credentials"
-          : "Not configured",
+      status: getHubStatus(),
       description: "Connect to Konveyor Hub for advanced features.",
       fullDescription:
         "Connect to Konveyor Hub to enable profile synchronization, solution server capabilities, and other advanced features. The Hub provides centralized management and enhanced collaboration capabilities for your migration projects.",
@@ -169,6 +199,14 @@ export function WalkthroughDrawer({
         return "warning";
       case "Disabled":
         return "info";
+      case "Connection failed":
+        return "danger";
+      case "Missing credentials":
+        return "warning";
+      case "Missing realm":
+        return "warning";
+      case "URL not set":
+        return "warning";
       default:
         return "info";
     }

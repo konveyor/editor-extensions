@@ -328,6 +328,21 @@ export class ProfileSyncClient {
     });
 
     const responseText = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+
+    // Check if we got HTML instead of YAML - indicates auth failure or wrong endpoint
+    if (contentType.includes("text/html") || responseText.trim().startsWith("<!DOCTYPE")) {
+      this.logger.error("Hub API returned HTML instead of YAML - likely authentication failure", {
+        url,
+        status: response.status,
+        contentType,
+        responsePreview: responseText.substring(0, 200),
+      });
+      throw new ProfileSyncClientError(
+        "Hub API returned HTML instead of YAML. This usually means authentication failed. " +
+          "Check that your Hub URL and credentials are correct for this Hub instance.",
+      );
+    }
 
     if (!response.ok) {
       this.logger.error("Failed to fetch Hub applications", {
@@ -557,19 +572,48 @@ export class ProfileSyncClient {
   private async listProfilesForApplication(applicationId: number): Promise<HubProfile[]> {
     const url = `${this.baseUrl}/hub/applications/${applicationId}/analysis/profiles`;
 
-    this.logger.debug("Listing profiles for application", { applicationId, url });
+    this.logger.info("Listing profiles for application", { applicationId, url });
 
     const response = await fetch(url, {
       headers: this.getHeaders("application/x-yaml"),
     });
 
+    const responseText = await response.text();
+
+    this.logger.debug("Profiles API response", {
+      applicationId,
+      status: response.status,
+      statusText: response.statusText,
+      responseBody: responseText.substring(0, 500),
+    });
+
     if (!response.ok) {
+      // 404 might mean no profiles exist OR the API doesn't exist
+      if (response.status === 404) {
+        this.logger.warn(
+          "Profiles API returned 404 - this could mean no profiles exist or the API is not available",
+          {
+            applicationId,
+            url,
+            responseBody: responseText,
+          },
+        );
+        // Return empty array instead of throwing - no profiles is not an error
+        return [];
+      }
+
       throw new ProfileSyncClientError(
         `Failed to list profiles: ${response.status} ${response.statusText}`,
       );
     }
 
-    const profiles = await this.parseYamlResponse<HubProfile[]>(response);
+    const profiles = this.parseYamlText<HubProfile[]>(responseText);
+    this.logger.info("Profiles found for application", {
+      applicationId,
+      profileCount: profiles?.length ?? 0,
+      profiles: profiles?.map((p) => ({ id: p.id, name: p.name })),
+    });
+
     return profiles || [];
   }
 

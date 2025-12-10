@@ -575,10 +575,13 @@ class VsCodeExtension {
 
       // Initialize hub connection manager with loaded config
       // This handles connecting to the solution server if enabled
+      let hubInitError: Error | undefined;
       await this.state.hubConnectionManager.initialize(hubConfig).catch((error) => {
         this.state.logger.error("Error initializing Hub connection", error);
+        hubInitError = error;
         this.state.mutateServerState((draft) => {
           draft.solutionServerConnected = false;
+          draft.profileSyncConnected = false;
         });
       });
 
@@ -591,6 +594,23 @@ class VsCodeExtension {
         const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
         draft.llmProxyAvailable = llmProxyConfig?.available || false;
       });
+
+      // Show warning if Hub initialization failed
+      if (hubInitError && hubConfig.enabled) {
+        const errorMsg = hubInitError.message || String(hubInitError);
+        if (errorMsg.includes("404")) {
+          vscode.window.showWarningMessage(
+            `Hub connection failed: Authentication endpoint not found. ` +
+              `Check that the realm "${hubConfig.auth.realm}" is correct for this Hub.`,
+          );
+        } else if (errorMsg.includes("401") || errorMsg.includes("403")) {
+          vscode.window.showWarningMessage(
+            `Hub connection failed: Authentication failed. Check your username and password.`,
+          );
+        } else {
+          vscode.window.showWarningMessage(`Hub connection failed: ${errorMsg}`);
+        }
+      }
 
       // Adaptive connection polling with exponential backoff
       let pollInterval = 10000; // Start at 10 seconds

@@ -317,6 +317,11 @@ export class HubConnectionManager {
       this.profileSyncClient = null;
     }
 
+    // Clear auth tokens - important when switching to a different Hub
+    this.bearerToken = null;
+    this.refreshToken = null;
+    this.tokenExpiresAt = null;
+
     // Restore SSL settings
     if (this.sslBypassCleanup) {
       this.sslBypassCleanup();
