@@ -29,8 +29,10 @@ export class OutputPanel {
       return;
     }
     await this.vsCode.executeQuickCommand(`Output: Show Output Channels...`);
+
     await this.window.getByText(channel).first().click();
-    await this.window.locator(`select[title="${channel}"]`).waitFor({ state: 'visible', timeout: 5000 });
+    const outputActions = await this.window.locator('aria-label="Output actions"')
+    await outputActions.selectOption({ value: channel });
     if (filterText) {
       await this.window.getByPlaceholder('Filter').fill(filterText);
       console.log(`Filter text filled: [${filterText}]`);
