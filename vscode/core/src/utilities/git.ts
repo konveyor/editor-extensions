@@ -133,9 +133,12 @@ export async function getRepositoryInfo(
     // Get repository root path
     const repositoryRoot = repository.rootUri.fsPath;
 
+    // Get workspace path as a file system path (not URI)
+    const workspaceFsPath = workspaceUri.fsPath;
+
     // Calculate workspace path relative to repository root using Node.js path module
     const workspaceRelativePath =
-      path.relative(repositoryRoot, workspaceRoot).replace(/\\/g, "/") || "";
+      path.relative(repositoryRoot, workspaceFsPath).replace(/\\/g, "/") || "";
 
     // Get current branch
     const head = repository.state.HEAD;

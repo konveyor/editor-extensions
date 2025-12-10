@@ -274,6 +274,8 @@ export class ProfileSyncClient {
    * For example, if normalizedUrl is "github.com/org/repo", we generate:
    * - github.com/org/repo
    * - github.com/org/repo.git
+   * - git@github.com:org/repo (SSH shorthand with colon)
+   * - git@github.com:org/repo.git
    * - ssh://git@github.com/org/repo
    * - ssh://git@github.com/org/repo.git
    * - https://github.com/org/repo
@@ -299,31 +301,88 @@ export class ProfileSyncClient {
       variations.push(`${scheme}${base}.git`);
     }
 
+    // Also try SSH shorthand format: git@host:path (common format used by git clone)
+    // Convert "github.com/org/repo" to "git@github.com:org/repo"
+    const parts = base.split("/");
+    if (parts.length >= 2) {
+      const host = parts[0];
+      const path = parts.slice(1).join("/");
+      variations.push(`git@${host}:${path}`);
+      variations.push(`git@${host}:${path}.git`);
+    }
+
     return variations;
   }
 
   /**
-   * Try to find application using a specific URL variation
+   * Fetch all applications from Hub and filter locally by repository URL.
+   * Hub API doesn't support filtering by repository.url, so we fetch all and filter client-side.
    */
-  private async tryFindApplicationByUrl(repoUrl: string): Promise<HubApplication[] | null> {
-    const encodedFilter = encodeURIComponent(`repository.url='${repoUrl}'`);
-    const url = `${this.baseUrl}/hub/applications?filter=${encodedFilter}`;
+  private async fetchAllApplications(): Promise<HubApplication[]> {
+    const url = `${this.baseUrl}/hub/applications`;
 
-    this.logger.debug("Trying to find application with URL variation", { repoUrl, url });
+    this.logger.debug("Fetching all applications from Hub", { url });
 
     const response = await fetch(url, {
       headers: this.getHeaders("application/x-yaml"),
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
+      this.logger.error("Failed to fetch Hub applications", {
+        status: response.status,
+        statusText: response.statusText,
+        responseBody: responseText.substring(0, 500),
+      });
       throw new ProfileSyncClientError(
-        `Failed to find application: ${response.status} ${response.statusText}`,
+        `Failed to fetch applications: ${response.status} ${response.statusText}`,
       );
     }
 
-    const applications = await this.parseYamlResponse<HubApplication[]>(response);
+    const applications = this.parseYamlText<HubApplication[]>(responseText);
 
-    return applications && applications.length > 0 ? applications : null;
+    this.logger.info("Fetched all applications from Hub", {
+      count: applications?.length ?? 0,
+      applications: applications?.map((app) => ({
+        id: app.id,
+        name: app.name,
+        repositoryUrl: app.repository?.url,
+      })),
+    });
+
+    return applications || [];
+  }
+
+  /**
+   * Find applications matching any of the URL variations
+   */
+  private findApplicationsByUrlVariations(
+    applications: HubApplication[],
+    urlVariations: string[],
+  ): { matches: HubApplication[]; matchedUrl: string | null } {
+    // Create a Set for fast lookup
+    const urlSet = new Set(urlVariations.map((url) => url.toLowerCase()));
+
+    const matches: HubApplication[] = [];
+    let matchedUrl: string | null = null;
+
+    for (const app of applications) {
+      const repoUrl = app.repository?.url;
+      if (repoUrl && urlSet.has(repoUrl.toLowerCase())) {
+        matches.push(app);
+        if (!matchedUrl) {
+          matchedUrl = repoUrl;
+        }
+        this.logger.debug("Found application matching repository URL", {
+          appId: app.id,
+          appName: app.name,
+          repoUrl,
+        });
+      }
+    }
+
+    return { matches, matchedUrl };
   }
 
   /**
@@ -430,43 +489,57 @@ export class ProfileSyncClient {
   private async findApplicationForWorkspace(
     repoInfo: RepositoryInfo,
   ): Promise<HubApplication | null> {
-    // Step 1: Search Hub by URL variations
+    // Step 1: Generate URL variations we'll match against
     const urlVariations = this.generateUrlVariations(repoInfo.remoteUrl);
-    let matches: HubApplication[] = [];
-    let matchedUrl: string | null = null;
 
-    for (const urlVariation of urlVariations) {
-      try {
-        const applications = await this.tryFindApplicationByUrl(urlVariation);
+    this.logger.info("Searching for Hub application", {
+      normalizedUrl: repoInfo.remoteUrl,
+      urlVariationsToMatch: urlVariations,
+    });
 
-        if (applications && applications.length > 0) {
-          matches = applications;
-          matchedUrl = urlVariation;
-          break; // Found matches, stop trying other variations
-        }
-      } catch {
-        // Continue trying other variations
-      }
+    // Step 2: Fetch all applications from Hub (API doesn't support filtering by repository.url)
+    let allApplications: HubApplication[];
+    try {
+      allApplications = await this.fetchAllApplications();
+    } catch (error) {
+      this.logger.error("Failed to fetch applications from Hub", { error });
+      throw error;
     }
 
+    if (allApplications.length === 0) {
+      this.logger.info("No applications found in Hub");
+      return null;
+    }
+
+    // Step 3: Filter applications locally by matching repository URL
+    const { matches, matchedUrl } = this.findApplicationsByUrlVariations(
+      allApplications,
+      urlVariations,
+    );
+
     if (matches.length === 0) {
-      this.logger.info("No Hub applications found", {
+      this.logger.info("No Hub applications match repository URL", {
         normalizedUrl: repoInfo.remoteUrl,
-        variationsTried: urlVariations.length,
+        urlVariationsTried: urlVariations.length,
+        allApplicationsInHub: allApplications.map((app) => ({
+          name: app.name,
+          repositoryUrl: app.repository?.url,
+        })),
       });
       return null;
     }
 
-    this.logger.info("Found applications", {
-      count: matches.length,
+    this.logger.info("Found matching applications", {
       matchedUrl,
+      matchCount: matches.length,
+      matchedApps: matches.map((app) => app.name),
     });
 
-    // Step 3: Filter by branch if multiple matches
-    matches = this.filterByBranch(matches, repoInfo.currentBranch);
+    // Step 4: Filter by branch if multiple matches
+    const filteredMatches = this.filterByBranch(matches, repoInfo.currentBranch);
 
-    // Step 4: Filter by path and return result
-    const result = this.filterByPath(matches, repoInfo.workspaceRelativePath);
+    // Step 5: Filter by path and return result
+    const result = this.filterByPath(filteredMatches, repoInfo.workspaceRelativePath);
 
     if (result) {
       this.logger.info("Found unique application match", {
@@ -663,7 +736,13 @@ export class ProfileSyncClient {
    */
   private async parseYamlResponse<T>(response: Response): Promise<T> {
     const text = await response.text();
+    return this.parseYamlText<T>(text);
+  }
 
+  /**
+   * Parse YAML text directly
+   */
+  private parseYamlText<T>(text: string): T {
     if (!text || text.trim() === "") {
       // Empty response - return empty array for list endpoints
       return [] as T;

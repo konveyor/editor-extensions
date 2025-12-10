@@ -629,12 +629,11 @@ const commandsMap: (
         logger.debug("Skipping profile sync - analysis or solution in progress");
         return;
       }
-
-      // Get workspace root and convert URI to file system path if needed
-      let workspaceRoot = state.data.workspaceRoot;
-      if (workspaceRoot.startsWith("file://")) {
-        workspaceRoot = vscode.Uri.parse(workspaceRoot).fsPath;
-      }
+      // Get workspace root - convert from URI to file path if needed
+      const workspaceRootUri = state.data.workspaceRoot;
+      const workspaceRoot = workspaceRootUri.startsWith("file://")
+        ? vscode.Uri.parse(workspaceRootUri).fsPath
+        : workspaceRootUri;
 
       // Update state to show syncing (only if not silent)
       if (!silent) {
@@ -644,8 +643,8 @@ const commandsMap: (
       }
 
       try {
-        // Get repository information
-        const repoInfo = await getRepositoryInfo(workspaceRoot, logger);
+        // Get repository information (pass original URI string, it handles conversion)
+        const repoInfo = await getRepositoryInfo(workspaceRootUri, logger);
 
         if (!repoInfo) {
           if (!silent) {
@@ -654,7 +653,7 @@ const commandsMap: (
           return;
         }
 
-        // Determine sync directory
+        // Determine sync directory (use file system path, not URI)
         const syncDir = pathlib.join(workspaceRoot, PROFILES_DIR);
 
         logger.info("Syncing profiles", { repoInfo, syncDir });
