@@ -35,7 +35,7 @@ export class OutputPanel {
       await this.window.getByPlaceholder('Filter').fill(filterText);
       console.log(`Filter text filled: [${filterText}]`);
     }
-    
+
     this.outputOpened = true;
   }
 
@@ -94,10 +94,8 @@ export class OutputPanel {
    * Clears the output channel.
    */
   public async clearOutputChannel() {
-    await this.window.locator('div.output-view-content[aria-label="Konveyor"]').click();
-    await this.window.waitForTimeout(1000);
-    await this.window.keyboard.press('Backspace');
+    await this.window.getByLabel('Clear Output').click();
+    console.log(`Cleared output channel`);
     await this.window.waitForTimeout(1000);
   }
-
 }
