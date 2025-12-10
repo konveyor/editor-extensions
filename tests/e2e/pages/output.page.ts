@@ -1,4 +1,4 @@
-import { Page } from "@playwright/test";
+import { expect, Page } from "@playwright/test";
 import { OutputChannel } from "../enums/output.enum";
 import { VSCode } from "./vscode.page";
 
@@ -31,8 +31,11 @@ export class OutputPanel {
     await this.vsCode.executeQuickCommand(`Output: Show Output Channels...`);
 
     await this.window.getByText(channel).first().click();
-    const outputActions = await this.window.locator('aria-label="Output actions"')
-    await outputActions.selectOption({ value: channel });
+    const outputActions = await this.window.getByLabel('Output actions');
+    await expect(outputActions).toBeVisible();
+    const outputChannelSelect = outputActions.locator('select');
+    await expect(outputChannelSelect).toBeVisible();
+    await outputChannelSelect.selectOption({ value: channel });
     if (filterText) {
       await this.window.getByPlaceholder('Filter').fill(filterText);
       console.log(`Filter text filled: [${filterText}]`);
