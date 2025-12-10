@@ -454,7 +454,7 @@ export abstract class VSCode {
 
   public async acceptAllSolutions() {
     const resolutionView = await this.getView(KAIViews.resolutionDetails);
-    const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
+    const fixLocator = resolutionView.getByRole('button', { name: 'Accept' });
     const loadingIndicator = resolutionView.locator('.loading-indicator');
 
     await this.waitDefault();
