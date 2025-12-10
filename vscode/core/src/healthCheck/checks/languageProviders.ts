@@ -10,8 +10,8 @@ export const languageProvidersCheck: HealthCheckModule = {
   description: "Checks if language providers are registered with the analyzer",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { state, logger } = context;
 
     try {
@@ -21,7 +21,6 @@ export const languageProvidersCheck: HealthCheckModule = {
           name: "Language Providers",
           status: "fail",
           message: "Analyzer client not initialized",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -36,7 +35,6 @@ export const languageProvidersCheck: HealthCheckModule = {
             "Language providers (e.g., Konveyor Java, Konveyor Go) may still be loading. Analysis cannot run until at least one provider is registered.",
           suggestion:
             "Wait for language extensions to finish loading. Check that language-specific extensions are installed.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -54,7 +52,6 @@ export const languageProvidersCheck: HealthCheckModule = {
         status: "pass",
         message: `${providers.length} language provider(s) registered`,
         details: details.trim(),
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking language providers", err);
@@ -63,7 +60,6 @@ export const languageProvidersCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check language providers",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

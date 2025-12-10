@@ -11,8 +11,8 @@ export const networkConfigCheck: HealthCheckModule = {
   description: "Checks network configuration including HTTP protocol, proxy, and certificates",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger } = context;
 
     try {
@@ -112,7 +112,6 @@ export const networkConfigCheck: HealthCheckModule = {
           warnings.length > 0
             ? "Review warnings and adjust configuration if experiencing connection issues."
             : undefined,
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking network configuration", err);
@@ -121,7 +120,6 @@ export const networkConfigCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check network configuration",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

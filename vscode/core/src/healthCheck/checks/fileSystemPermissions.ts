@@ -12,8 +12,8 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
   description: "Checks if the extension can write to required directories",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { state, vscode, logger } = context;
 
     try {
@@ -24,7 +24,6 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
           status: "warning",
           message: "No workspace folder is open",
           suggestion: "Open a workspace folder to enable analysis functionality",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -112,7 +111,6 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
           details,
           suggestion:
             "Check file system permissions. Workspace may be on read-only mount or network share with restricted access.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -126,7 +124,6 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
         status: "pass",
         message: "All required directories are writable",
         details,
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking file system permissions", err);
@@ -135,7 +132,6 @@ export const fileSystemPermissionsCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check file system permissions",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

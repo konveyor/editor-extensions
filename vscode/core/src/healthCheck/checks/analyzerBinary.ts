@@ -13,8 +13,8 @@ export const analyzerBinaryCheck: HealthCheckModule = {
   description: "Checks if the analyzer binary exists and is executable",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger, state } = context;
 
     try {
@@ -32,7 +32,6 @@ export const analyzerBinaryCheck: HealthCheckModule = {
           message: `Analyzer binary not found at: ${analyzerPath}`,
           suggestion:
             "The binary may need to be downloaded. Try running the analyzer or manually specify a path using 'Override Analyzer Binary' command.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -47,7 +46,6 @@ export const analyzerBinaryCheck: HealthCheckModule = {
             message: `Analyzer binary exists but is not executable: ${analyzerPath}`,
             details: err instanceof Error ? err.message : String(err),
             suggestion: `Run: chmod +x "${analyzerPath}"`,
-            duration: performance.now() - startTime,
           };
         }
       }
@@ -61,7 +59,6 @@ export const analyzerBinaryCheck: HealthCheckModule = {
         status: "pass",
         message: `Analyzer binary found and accessible`,
         details: `Path: ${analyzerPath}\nSize: ${sizeInMB} MB\nModified: ${stats.mtime.toISOString()}`,
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking analyzer binary", err);
@@ -70,7 +67,6 @@ export const analyzerBinaryCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check analyzer binary",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

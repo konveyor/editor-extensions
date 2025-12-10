@@ -46,8 +46,8 @@ const javaExtensionCheck: HealthCheckModule = {
   description: "Checks if the Red Hat Java extension is installed and active",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "java",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { vscode, logger } = context;
 
     try {
@@ -61,7 +61,6 @@ const javaExtensionCheck: HealthCheckModule = {
           details:
             "The extension is required for Java project analysis. Without it, Java analysis results will be degraded.",
           suggestion: "Install the 'Language Support for Java(TM) by Red Hat' extension",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -75,7 +74,6 @@ const javaExtensionCheck: HealthCheckModule = {
           message: "Red Hat Java extension is installed but not active",
           details: `Version: ${version}\nThe extension may still be loading or requires workspace activation.`,
           suggestion: "Open a Java file to activate the extension",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -94,7 +92,6 @@ const javaExtensionCheck: HealthCheckModule = {
         status: "pass",
         message: "Red Hat Java extension is installed and active",
         details: `Version: ${version}\nActive: ${isActive}\nCommand Test: ${javaCommandWorks ? "Success" : "N/A (no Java projects detected)"}`,
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking Java extension", err);
@@ -103,7 +100,6 @@ const javaExtensionCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check Java extension status",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },
@@ -118,8 +114,8 @@ const javaRuntimeCheck: HealthCheckModule = {
   description: "Checks if Java (JDK/JRE) is installed and available in PATH",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "java",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger } = context;
 
     try {
@@ -133,7 +129,6 @@ const javaRuntimeCheck: HealthCheckModule = {
           details: result.error || "Java runtime is required for the Konveyor analyzer to function",
           suggestion:
             "Install a Java Development Kit (JDK) or Java Runtime Environment (JRE) and ensure it's in your PATH",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -142,7 +137,6 @@ const javaRuntimeCheck: HealthCheckModule = {
         status: "pass",
         message: "Java runtime is installed and available",
         details: result.version || "Java command is available",
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking Java runtime", err);
@@ -151,7 +145,6 @@ const javaRuntimeCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check Java runtime",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },
@@ -166,8 +159,8 @@ const mavenCheck: HealthCheckModule = {
   description: "Checks if Apache Maven is installed and available in PATH",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "java",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger } = context;
 
     try {
@@ -183,7 +176,6 @@ const mavenCheck: HealthCheckModule = {
             "Maven is required for analyzing Java projects that use Maven as their build tool",
           suggestion:
             "Install Apache Maven and ensure it's in your PATH. This is only required for Maven-based Java projects.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -192,7 +184,6 @@ const mavenCheck: HealthCheckModule = {
         status: "pass",
         message: "Maven is installed and available",
         details: result.version || "Maven command is available",
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking Maven", err);
@@ -201,7 +192,6 @@ const mavenCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check Maven",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

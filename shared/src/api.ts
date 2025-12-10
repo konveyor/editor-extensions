@@ -114,6 +114,8 @@ export interface HealthCheckModule {
   platforms: Platform[];
   /** Whether this check is enabled by default */
   enabled: boolean;
+  /** Source extension name (e.g., "core", "java", "python") */
+  extensionSource?: string;
   /** Function that performs the health check */
   check: (context: HealthCheckContext) => Promise<CheckResult>;
 }

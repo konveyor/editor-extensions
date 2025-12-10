@@ -26,8 +26,8 @@ export const windowsSecurityCheck: HealthCheckModule = {
   description: "Checks for Windows WDAC/AppLocker restrictions and related event logs",
   platforms: ["win32"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger } = context;
 
     if (process.platform !== "win32") {
@@ -35,7 +35,6 @@ export const windowsSecurityCheck: HealthCheckModule = {
         name: "Windows Security Policies",
         status: "skip",
         message: "Not applicable on non-Windows platform",
-        duration: performance.now() - startTime,
       };
     }
 
@@ -51,7 +50,6 @@ export const windowsSecurityCheck: HealthCheckModule = {
             "PowerShell is required to check Windows event logs for AppLocker/WDAC events. The extension may still function, but diagnostics are limited.",
           suggestion:
             "Install PowerShell to enable detailed Windows security diagnostics. This is not critical for normal operation.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -128,7 +126,6 @@ export const windowsSecurityCheck: HealthCheckModule = {
           details: `${warnings.map((w) => `! ${w}`).join("\n")}\n${details}`,
           suggestion:
             "Review Windows Event Viewer for detailed AppLocker/WDAC logs. If the analyzer fails to start, the binary may need to be whitelisted in your security policies.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -137,7 +134,6 @@ export const windowsSecurityCheck: HealthCheckModule = {
         status: "pass",
         message: "No recent AppLocker or WDAC events detected",
         details,
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking Windows security policies", err);
@@ -146,7 +142,6 @@ export const windowsSecurityCheck: HealthCheckModule = {
         status: "warning",
         message: "Unable to fully check Windows security policies",
         details: `${err instanceof Error ? err.message : String(err)}\nThis may be expected if you don't have permissions to view event logs.`,
-        duration: performance.now() - startTime,
       };
     }
   },

@@ -14,8 +14,8 @@ export const namedPipeCheck: HealthCheckModule = {
   description: "Checks if named pipes can be created for RPC communication",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger } = context;
 
     try {
@@ -30,7 +30,6 @@ export const namedPipeCheck: HealthCheckModule = {
           message: `Temporary directory does not exist: ${tempDir}`,
           suggestion:
             "The system temporary directory is required for socket creation. Check system configuration.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -47,7 +46,6 @@ export const namedPipeCheck: HealthCheckModule = {
           details: err instanceof Error ? err.message : String(err),
           suggestion:
             "Write access to the temporary directory is required for socket creation. This may be blocked by WDAC, AppLocker, or filesystem restrictions.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -89,7 +87,6 @@ export const namedPipeCheck: HealthCheckModule = {
         status: pathLengthWarning ? "warning" : "pass",
         message: "Temporary directory is accessible for socket/pipe creation",
         details: `Temp Directory: ${tempDir}${xdgInfo}${pathLengthWarning}${windowsInfo}`,
-        duration: performance.now() - startTime,
       };
     } catch (err) {
       logger.error("Error checking named pipe capabilities", err);
@@ -98,7 +95,6 @@ export const namedPipeCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check named pipe capabilities",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

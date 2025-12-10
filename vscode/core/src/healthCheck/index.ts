@@ -66,6 +66,19 @@ function determineOverallStatus(results: { status: CheckStatus }[]): CheckStatus
 }
 
 /**
+ * Extended check result that includes extension source metadata
+ */
+interface ExtendedCheckResult {
+  name: string;
+  status: CheckStatus;
+  message: string;
+  details?: string;
+  suggestion?: string;
+  duration?: number;
+  extensionSource?: string;
+}
+
+/**
  * Run all applicable health checks
  */
 export async function runHealthCheck(
@@ -80,13 +93,22 @@ export async function runHealthCheck(
   const applicableModules = getApplicableModules(registry);
   logger.info(`Running ${applicableModules.length} health checks`);
 
-  const results = [];
+  const results: ExtendedCheckResult[] = [];
 
   for (const module of applicableModules) {
     logger.debug(`Running health check: ${module.name}`);
     try {
+      // Automatically track duration for each health check
+      const checkStartTime = performance.now();
       const result = await module.check(context);
-      results.push(result);
+      const duration = performance.now() - checkStartTime;
+
+      // Add extension source metadata and duration to the result
+      results.push({
+        ...result,
+        duration,
+        extensionSource: module.extensionSource,
+      });
       logger.debug(`Health check completed: ${module.name} - ${result.status}`);
     } catch (error) {
       logger.error(`Health check failed: ${module.name}`, error);
@@ -95,6 +117,8 @@ export async function runHealthCheck(
         status: "fail" as CheckStatus,
         message: "Health check encountered an unexpected error",
         details: error instanceof Error ? error.message : String(error),
+        extensionSource: module.extensionSource,
+        duration: performance.now() - startTime, // Use overall startTime for error case
       });
     }
   }
@@ -163,35 +187,64 @@ export function formatHealthCheckReport(report: HealthCheckReport): string {
   lines.push(`  ${statusIcon.skip} Skipped: ${counts.skip}`);
   lines.push("");
 
-  // Individual results
-  lines.push("-".repeat(80));
-  lines.push("DETAILED RESULTS");
-  lines.push("-".repeat(80));
-  lines.push("");
+  // Group results by extension source
+  const resultsByExtension = new Map<string, ExtendedCheckResult[]>();
+  const extResults = report.results as ExtendedCheckResult[];
 
-  for (const result of report.results) {
-    const icon = statusIcon[result.status];
-    lines.push(`${icon} ${result.name.toUpperCase()}`);
-    lines.push(`  Status: ${result.status.toUpperCase()}`);
-    lines.push(`  Message: ${result.message}`);
-
-    if (result.details) {
-      lines.push(`  Details:`);
-      const detailLines = result.details.split("\n");
-      for (const line of detailLines) {
-        lines.push(`    ${line}`);
-      }
+  for (const result of extResults) {
+    const source = result.extensionSource || "core";
+    if (!resultsByExtension.has(source)) {
+      resultsByExtension.set(source, []);
     }
+    resultsByExtension.get(source)!.push(result);
+  }
 
-    if (result.suggestion) {
-      lines.push(`  Suggestion: ${result.suggestion}`);
+  // Sort extension sources: "core" first, then alphabetically
+  const sortedSources = Array.from(resultsByExtension.keys()).sort((a, b) => {
+    if (a === "core") {
+      return -1;
     }
-
-    if (result.duration !== undefined) {
-      lines.push(`  Duration: ${result.duration.toFixed(2)}ms`);
+    if (b === "core") {
+      return 1;
     }
+    return a.localeCompare(b);
+  });
 
+  // Format results by extension
+  for (const source of sortedSources) {
+    const results = resultsByExtension.get(source)!;
+
+    lines.push("-".repeat(80));
+    const sectionTitle =
+      source === "core" ? "CORE EXTENSION CHECKS" : `${source.toUpperCase()} EXTENSION CHECKS`;
+    lines.push(sectionTitle);
+    lines.push("-".repeat(80));
     lines.push("");
+
+    for (const result of results) {
+      const icon = statusIcon[result.status];
+      lines.push(`${icon} ${result.name.toUpperCase()}`);
+      lines.push(`  Status: ${result.status.toUpperCase()}`);
+      lines.push(`  Message: ${result.message}`);
+
+      if (result.details) {
+        lines.push(`  Details:`);
+        const detailLines = result.details.split("\n");
+        for (const line of detailLines) {
+          lines.push(`    ${line}`);
+        }
+      }
+
+      if (result.suggestion) {
+        lines.push(`  Suggestion: ${result.suggestion}`);
+      }
+
+      if (result.duration !== undefined) {
+        lines.push(`  Duration: ${result.duration.toFixed(2)}ms`);
+      }
+
+      lines.push("");
+    }
   }
 
   lines.push("=".repeat(80));

@@ -12,8 +12,8 @@ export const llmProviderCheck: HealthCheckModule = {
   description: "Checks if the LLM provider is configured and can communicate",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { logger, state } = context;
 
     try {
@@ -33,7 +33,6 @@ export const llmProviderCheck: HealthCheckModule = {
               "This may occur if GenAI features are not enabled or if there was an initialization error.",
             suggestion:
               "Check the Output panel for initialization errors, or enable GenAI features using the 'Enable GenAI' command.",
-            duration: performance.now() - startTime,
           };
         } catch (configError) {
           return {
@@ -43,7 +42,6 @@ export const llmProviderCheck: HealthCheckModule = {
             details: `Configuration error: ${configError instanceof Error ? configError.message : String(configError)}`,
             suggestion:
               "Configure your LLM provider settings using 'Konveyor: Open Model Provider Settings' command.",
-            duration: performance.now() - startTime,
           };
         }
       }
@@ -64,7 +62,6 @@ export const llmProviderCheck: HealthCheckModule = {
             message: "LLM provider responded but with unexpected format",
             details: `Response received but content was empty or invalid. Response: ${JSON.stringify(testResponse)}`,
             suggestion: "Check your model provider configuration and API settings.",
-            duration: performance.now() - startTime,
           };
         }
 
@@ -79,7 +76,6 @@ export const llmProviderCheck: HealthCheckModule = {
           status: "pass",
           message: "LLM provider is responding correctly",
           details: `Successfully communicated with the LLM provider.\nTest response preview: ${responsePreview}${responsePreview.length >= 100 ? "..." : ""}`,
-          duration: performance.now() - startTime,
         };
       } catch (providerError) {
         // Connectivity/API error
@@ -116,7 +112,6 @@ export const llmProviderCheck: HealthCheckModule = {
           message: "Failed to communicate with LLM provider",
           details: `Error: ${errorMessage}${errorStack ? `\n\nStack trace:\n${errorStack}` : ""}`,
           suggestion,
-          duration: performance.now() - startTime,
         };
       }
     } catch (err) {
@@ -126,7 +121,6 @@ export const llmProviderCheck: HealthCheckModule = {
         status: "fail",
         message: "Health check encountered an unexpected error",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },

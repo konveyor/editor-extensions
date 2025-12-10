@@ -10,8 +10,8 @@ export const analyzerServerCheck: HealthCheckModule = {
   description: "Checks if the analyzer server is running and responsive",
   platforms: ["all"],
   enabled: true,
+  extensionSource: "core",
   check: async (context: HealthCheckContext): Promise<CheckResult> => {
-    const startTime = performance.now();
     const { state, logger } = context;
 
     try {
@@ -22,7 +22,6 @@ export const analyzerServerCheck: HealthCheckModule = {
           status: "fail",
           message: "Analyzer client not initialized",
           suggestion: "Extension may not be fully loaded. Try reloading the window.",
-          duration: performance.now() - startTime,
         };
       }
 
@@ -36,7 +35,6 @@ export const analyzerServerCheck: HealthCheckModule = {
           status: "pass",
           message: "Analyzer server is running",
           details: `Server State: ${serverState}\nCan Analyze: ${canAnalyze}`,
-          duration: performance.now() - startTime,
         };
       } else {
         const statusMap: Record<string, string> = {
@@ -56,7 +54,6 @@ export const analyzerServerCheck: HealthCheckModule = {
               : serverState === "startFailed"
                 ? "Check logs for startup errors. May be related to binary permissions or named pipe issues."
                 : "Wait for server to complete initialization or check configuration",
-          duration: performance.now() - startTime,
         };
       }
     } catch (err) {
@@ -66,7 +63,6 @@ export const analyzerServerCheck: HealthCheckModule = {
         status: "fail",
         message: "Failed to check analyzer server status",
         details: err instanceof Error ? err.message : String(err),
-        duration: performance.now() - startTime,
       };
     }
   },
