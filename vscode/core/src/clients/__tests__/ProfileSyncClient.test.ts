@@ -253,4 +253,72 @@ describe("ProfileSyncClient - Application Matching", () => {
       }).toThrow(/Multiple Hub applications found with identical repository configuration/);
     });
   });
+
+  describe("generateUrlVariations", () => {
+    it("should generate all URL variations including git@hostname:path format", () => {
+      const normalizedUrl = "github.com/org/repo";
+
+      // @ts-expect-error - accessing private method for testing
+      const variations = client.generateUrlVariations(normalizedUrl);
+
+      // Should include base variations
+      expect(variations).toContain("github.com/org/repo");
+      expect(variations).toContain("github.com/org/repo.git");
+
+      // Should include git@hostname:path format (SSH without ssh:// prefix)
+      expect(variations).toContain("git@github.com:org/repo");
+      expect(variations).toContain("git@github.com:org/repo.git");
+
+      // Should include ssh://git@ format
+      expect(variations).toContain("ssh://git@github.com/org/repo");
+      expect(variations).toContain("ssh://git@github.com/org/repo.git");
+
+      // Should include https:// format
+      expect(variations).toContain("https://github.com/org/repo");
+      expect(variations).toContain("https://github.com/org/repo.git");
+
+      // Should include http:// format
+      expect(variations).toContain("http://github.com/org/repo");
+      expect(variations).toContain("http://github.com/org/repo.git");
+
+      // Should include git:// format
+      expect(variations).toContain("git://github.com/org/repo");
+      expect(variations).toContain("git://github.com/org/repo.git");
+
+      // Should generate 14 variations total (2 base + 2 git@ + 10 scheme variations)
+      expect(variations.length).toBe(14);
+    });
+
+    it("should handle URLs with .git suffix in normalized URL", () => {
+      const normalizedUrl = "github.com/org/repo.git";
+
+      // @ts-expect-error - accessing private method for testing
+      const variations = client.generateUrlVariations(normalizedUrl);
+
+      // Should strip .git and generate variations
+      expect(variations).toContain("github.com/org/repo");
+      expect(variations).toContain("git@github.com:org/repo");
+      expect(variations).toContain("https://github.com/org/repo");
+    });
+
+    it("should handle different hostnames", () => {
+      const normalizedUrl = "gitlab.com/user/project";
+
+      // @ts-expect-error - accessing private method for testing
+      const variations = client.generateUrlVariations(normalizedUrl);
+
+      expect(variations).toContain("git@gitlab.com:user/project");
+      expect(variations).toContain("https://gitlab.com/user/project");
+    });
+
+    // it("should handle URLs with multiple path segments", () => {
+    //   const normalizedUrl = "github.com/org/group/subgroup/repo";
+
+    //   // @ts-expect-error - accessing private method for testing
+    //   const variations = client.generateUrlVariations(normalizedUrl);
+
+    //   expect(variations).toContain("git@github.com:org/group/subgroup/repo");
+    //   expect(variations).toContain("https://github.com/org/group/subgroup/repo");
+    // });
+  });
 });

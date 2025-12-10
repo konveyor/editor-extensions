@@ -45,9 +45,11 @@ function normalizeGitUrl(url: string): string {
   let normalized = url.trim();
 
   // Remove common git protocols
+  // Handle ssh://git@host/path format first (before removing ssh://)
+  normalized = normalized.replace(/^ssh:\/\/git@([^/]+)\//, "$1/"); // Convert ssh://git@host/path to host/path
   normalized = normalized
     .replace(/^https?:\/\//, "") // Remove https:// or http://
-    .replace(/^ssh:\/\//, "") // Remove ssh://
+    .replace(/^ssh:\/\//, "") // Remove ssh:// (for any remaining ssh:// URLs)
     .replace(/^git@([^:]+):/, "$1/") // Convert git@host:path to host/path
     .replace(/\.git$/, ""); // Remove .git suffix
 

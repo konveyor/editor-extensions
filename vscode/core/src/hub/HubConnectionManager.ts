@@ -267,6 +267,12 @@ export class HubConnectionManager {
         const llmProxyConfig = this.profileSyncClient.getLLMProxyConfig();
         if (llmProxyConfig) {
           this.logger.info("LLM proxy available", { endpoint: llmProxyConfig.endpoint });
+
+          // If we have a token and a callback, notify so downstream consumers
+          // (e.g., model provider setup) can rebuild using the proxy config.
+          if (this.bearerToken) {
+            this.onTokenRefresh?.(this.bearerToken);
+          }
         }
 
         // Trigger initial sync and start timer

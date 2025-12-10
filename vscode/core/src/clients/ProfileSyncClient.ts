@@ -5,6 +5,7 @@ import * as fs from "fs/promises";
 import * as yaml from "js-yaml";
 import * as os from "os";
 import type { RepositoryInfo } from "../utilities/git";
+import { buildLabelSelectorFromLabels } from "@editor-extensions/shared";
 
 export interface HubApplication {
   id: number;
@@ -559,7 +560,7 @@ export class ProfileSyncClient {
       }
 
       const profileContent = await fs.readFile(profileYamlPath, "utf-8");
-      const parsed = yaml.load(profileContent) as any;
+      const parsed = yaml.load(profileContent, { schema: yaml.JSON_SCHEMA }) as Record<string, any>;
 
       // Check if it's Hub format (flat structure) and needs transformation
       if (parsed && typeof parsed === "object" && parsed.id && parsed.name && !parsed.metadata) {
@@ -571,26 +572,13 @@ export class ProfileSyncClient {
         this.logger.debug("Saved original Hub profile format", { profileId, path: hubProfilePath });
 
         // Build labelSelector from rules.labels if present
-        // Format: (label1) && (label2) && !(excluded1) && !(excluded2)
-        let labelSelector = "(discovery)"; // Default
+        // Uses the same logic as Go RuleSelector.String()
+        let labelSelector = "";
         if (parsed.rules?.labels) {
           const included = parsed.rules.labels.included || [];
           const excluded = parsed.rules.labels.excluded || [];
 
-          // Build selector: included labels wrapped in parentheses, excluded with ! prefix
-          const parts: string[] = [];
-          if (included.length > 0) {
-            // Each included label should be wrapped: (konveyor.io/target=eap8)
-            parts.push(...included.map((l: string) => `(${l})`));
-          }
-          if (excluded.length > 0) {
-            // Each excluded label should be negated: !(konveyor.io/target=eap7)
-            parts.push(...excluded.map((l: string) => `!(${l})`));
-          }
-
-          if (parts.length > 0) {
-            labelSelector = parts.join(" && ");
-          }
+          labelSelector = buildLabelSelectorFromLabels(included, excluded);
         }
 
         // Find all ruleset YAML files in the extracted bundle
@@ -682,7 +670,7 @@ export class ProfileSyncClient {
     }
 
     try {
-      const parsed = yaml.load(text);
+      const parsed = yaml.load(text, { schema: yaml.JSON_SCHEMA }) as Record<string, any>;
       return parsed as T;
     } catch (error) {
       this.logger.error("Failed to parse YAML response", { text, error });
