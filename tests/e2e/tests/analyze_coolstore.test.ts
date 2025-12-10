@@ -85,6 +85,7 @@ providers.forEach((config) => {
       await vscodeApp.closeVSCode();
       // Evaluation should be performed only if all tests under this suite passed
       if (allOk && process.env.CI) {
+        test.setTimeout(300_000);
         if (!isAWSConfigured()) {
           console.warn('Skipping evaluation: AWS credentials are not configured.');
           return;

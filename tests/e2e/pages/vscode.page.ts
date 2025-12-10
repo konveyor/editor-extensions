@@ -467,7 +467,7 @@ export abstract class VSCode {
       await fixLocator.first().dispatchEvent('click');
       await this.waitDefault();
 
-      if (!(await loadingIndicator.isVisible())) {
+      if ((await loadingIndicator.count()) === 0) {
         return;
       }
     }
