@@ -102,6 +102,20 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
+      - name: Publish to Open-vsx registery
+        if: ${{ inputs.prerelease == false }}
+        run: |
+          for vsix in ./artifacts/*.vsix; do
+            echo "Publishing $vsix to Open-vsx"
+            if [ -f "./artifacts/release.md" ]; then
+              echo "Publishing with changelog"
+              npx ovsx publish --packagePath "$vsix" --changelog-path "./artifacts/release.md" --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
+            else
+              echo "Publishing without changelog (file not found)"
+              npx ovsx publish --packagePath "$vsix" --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
+            fi
+          done
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
