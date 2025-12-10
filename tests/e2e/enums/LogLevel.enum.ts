@@ -1,9 +1,9 @@
 export enum LogLevel {
-  error = 'error',
-  warn = 'warn',
-  info = 'info',
-  http = 'http',
-  verbose = 'verbose',
-  debug = 'debug',
-  silly = 'silly',
+  ERROR = 'error',
+  WARN = 'warn',
+  INFO = 'info',
+  HTTP = 'http',
+  VERBOSE = 'verbose',
+  DEBUG = 'debug',
+  SILLY = 'silly',
 }
