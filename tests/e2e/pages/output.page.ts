@@ -94,7 +94,11 @@ export class OutputPanel {
    * Clears the output channel.
    */
   public async clearOutputChannel() {
-    await this.window.getByLabel('Clear Output').click();
+    const outputActions = await this.window.locator('ul[aria-label="Output actions"]');
+    await expect(outputActions).toBeVisible();
+    const clearOutput = outputActions.locator('a[aria-label="Clear Output"]');
+    await expect(clearOutput).toBeVisible();
+    await clearOutput.click();
     console.log(`Cleared output channel`);
     await this.window.waitForTimeout(1000);
   }
