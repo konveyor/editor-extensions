@@ -959,13 +959,6 @@ class VsCodeExtension {
     this.state.webviewProviders.set("profiles", profilesViewProvider);
     this.state.webviewProviders.set("hub", hubViewProvider);
 
-    [sidebarProvider, resolutionViewProvider, profilesViewProvider, hubViewProvider].forEach(
-      (provider) =>
-        this.onDidChangeData((data) => {
-          provider.sendMessageToWebview(data);
-        }),
-    );
-
     this.context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
         KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
