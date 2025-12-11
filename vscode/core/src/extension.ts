@@ -601,7 +601,7 @@ class VsCodeExtension {
         if (errorMsg.includes("404")) {
           vscode.window.showWarningMessage(
             `Hub connection failed: Authentication endpoint not found. ` +
-              `Check that the realm "${hubConfig.auth.realm}" is correct for this Hub.`,
+              `Check that the Hub URL is correct.`,
           );
         } else if (errorMsg.includes("401") || errorMsg.includes("403")) {
           vscode.window.showWarningMessage(

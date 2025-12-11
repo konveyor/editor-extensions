@@ -48,7 +48,6 @@ export function getDefaultHubConfig(): HubConfig {
     url: "http://localhost:8080",
     auth: {
       enabled: false,
-      realm: "tackle",
       username: "admin",
       password: "",
       insecure: false,

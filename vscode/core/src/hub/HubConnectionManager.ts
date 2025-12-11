@@ -12,6 +12,12 @@ export interface TokenResponse {
   refresh_token?: string;
 }
 
+// Hub login endpoint response format
+export interface HubLoginResponse {
+  token: string;
+  expiry?: number; // Unix timestamp if provided
+}
+
 // Callback type for workflow disposal
 export type WorkflowDisposalCallback = () => void;
 
@@ -363,47 +369,65 @@ export class HubConnectionManager {
   }
 
   /**
-   * Exchange credentials for OAuth tokens
+   * Exchange credentials for tokens via Hub login endpoint.
+   * Uses /hub/auth/login instead of direct Keycloak to get tokens that work with the LLM proxy.
    */
   private async exchangeForTokens(): Promise<void> {
     if (!this.username || !this.password) {
       throw new HubConnectionManagerError("No username or password available for token exchange");
     }
 
-    const url = new URL(this.config.url);
-    const keycloakUrl = `${url.protocol}//${url.host}/auth`;
-    const tokenUrl = `${keycloakUrl}/realms/${this.config.auth.realm}/protocol/openid-connect/token`;
-    const clientId = `${this.config.auth.realm}-ui`;
+    const loginUrl = `${this.config.url}/hub/auth/login`;
 
-    const params = new URLSearchParams();
-    params.append("grant_type", "password");
-    params.append("client_id", clientId);
-    params.append("username", this.username);
-    params.append("password", this.password);
+    this.logger.debug(`Attempting token exchange with ${loginUrl}`);
 
-    this.logger.debug(`Attempting token exchange with ${tokenUrl}`);
-
-    const tokenResponse = await this.fetchWithTimeout<TokenResponse>(tokenUrl, {
+    const loginResponse = await this.fetchWithTimeout<HubLoginResponse>(loginUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: params,
+      body: JSON.stringify({
+        user: this.username,
+        password: this.password,
+      }),
     });
 
-    this.logger.info("Token exchange successful");
-    this.bearerToken = tokenResponse.access_token;
-    this.refreshToken = tokenResponse.refresh_token || null;
-    this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+    this.logger.info("Token exchange successful via Hub login");
+    this.bearerToken = loginResponse.token;
+    this.refreshToken = null; // Hub login doesn't provide refresh tokens
+
+    // Get expiration from response or decode from JWT
+    if (loginResponse.expiry) {
+      this.tokenExpiresAt = loginResponse.expiry * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+    } else {
+      this.tokenExpiresAt = this.getExpirationFromJWT(loginResponse.token);
+    }
   }
 
   /**
-   * Refresh OAuth tokens using refresh token
+   * Extract expiration time from JWT token payload
+   */
+  private getExpirationFromJWT(token: string): number | null {
+    try {
+      const payload = token.split(".")[1];
+      const decoded = JSON.parse(Buffer.from(payload, "base64").toString());
+      if (decoded.exp) {
+        return decoded.exp * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+      }
+    } catch {
+      this.logger.warn("Could not decode JWT expiration");
+    }
+    return null;
+  }
+
+  /**
+   * Refresh tokens by re-authenticating with the Hub login endpoint.
+   * Hub login doesn't support refresh tokens, so we re-authenticate with credentials.
    */
   private async refreshTokens(): Promise<void> {
-    if (!this.refreshToken) {
-      this.logger.warn("No refresh token available, cannot refresh");
+    if (!this.username || !this.password) {
+      this.logger.warn("No credentials available for token refresh");
       return;
     }
 
@@ -416,7 +440,8 @@ export class HubConnectionManager {
     this.isRefreshingTokens = true;
 
     try {
-      await this.performTokenRefresh();
+      // Re-authenticate with Hub login endpoint
+      await this.exchangeForTokens();
 
       // Success - reconnect with new token
       this.refreshRetryCount = 0;
@@ -431,37 +456,6 @@ export class HubConnectionManager {
     } finally {
       this.isRefreshingTokens = false;
     }
-  }
-
-  /**
-   * Perform the actual token refresh request
-   */
-  private async performTokenRefresh(): Promise<void> {
-    const url = new URL(this.config.url);
-    const keycloakUrl = `${url.protocol}//${url.host}/auth`;
-    const tokenUrl = `${keycloakUrl}/realms/${this.config.auth.realm}/protocol/openid-connect/token`;
-    const clientId = `${this.config.auth.realm}-ui`;
-
-    const params = new URLSearchParams();
-    params.append("grant_type", "refresh_token");
-    params.append("client_id", clientId);
-    params.append("refresh_token", this.refreshToken!);
-
-    this.logger.debug(`Attempting token refresh with ${tokenUrl}`);
-
-    const tokenResponse = await this.fetchWithTimeout<TokenResponse>(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: params,
-    });
-
-    this.logger.info("Token refresh successful");
-    this.bearerToken = tokenResponse.access_token;
-    this.refreshToken = tokenResponse.refresh_token || this.refreshToken;
-    this.tokenExpiresAt = Date.now() + tokenResponse.expires_in * 1000 - TOKEN_EXPIRY_BUFFER_MS;
   }
 
   /**
@@ -488,18 +482,17 @@ export class HubConnectionManager {
         });
       }, delayMs);
     } else {
-      // Permanent failure - attempt full re-authentication
+      // Permanent failure - clear tokens and schedule reconnection attempt
       this.refreshRetryCount = 0;
       this.logger.error(
         `Token refresh failed permanently: ${isRetryable ? "max retries exceeded" : "non-retryable error"}`,
       );
 
       this.bearerToken = null;
-      this.refreshToken = null;
       this.tokenExpiresAt = null;
 
       if (this.username && this.password) {
-        this.logger.info(`Attempting full re-authentication in ${REAUTH_DELAY_MS}ms`);
+        this.logger.info(`Attempting re-authentication in ${REAUTH_DELAY_MS}ms`);
         this.refreshTimer = setTimeout(() => {
           this.connect().catch((err) => {
             this.logger.error("Re-authentication failed", err);

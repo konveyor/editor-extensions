@@ -28,7 +28,6 @@ export interface HubConfig {
   url: string;
   auth: {
     enabled: boolean;
-    realm: string;
     username: string;
     password: string;
     insecure: boolean;

@@ -68,9 +68,7 @@ export function WalkthroughDrawer({
     hubConfig?.enabled &&
     !!hubConfig?.url?.trim() &&
     (!hubConfig?.auth.enabled ||
-      (!!hubConfig?.auth.realm?.trim() &&
-        !!hubConfig?.auth.username?.trim() &&
-        !!hubConfig?.auth.password?.trim()));
+      (!!hubConfig?.auth.username?.trim() && !!hubConfig?.auth.password?.trim()));
 
   // Hub is "connected" if any feature is actually connected
   const hubConnected = profileSyncConnected || solutionServerConnected;
@@ -99,9 +97,6 @@ export function WalkthroughDrawer({
       (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
     ) {
       return "Missing credentials";
-    }
-    if (hubConfig?.auth.enabled && !hubConfig?.auth.realm?.trim()) {
-      return "Missing realm";
     }
 
     if (hubFieldsConfigured && !anyHubFeatureEnabled) {
@@ -206,8 +201,6 @@ export function WalkthroughDrawer({
       case "Connection failed":
         return "danger";
       case "Missing credentials":
-        return "warning";
-      case "Missing realm":
         return "warning";
       case "URL not set":
         return "warning";
