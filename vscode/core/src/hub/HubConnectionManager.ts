@@ -14,15 +14,14 @@ export interface TokenResponse {
 
 // Hub login endpoint response format
 export interface HubLoginResponse {
+  user?: string;
   token: string;
-  expiry?: number; // Unix timestamp if provided
+  refresh?: string; // Refresh token (field name is "refresh")
+  expiry?: number; // Seconds until expiry (NOT Unix timestamp)
 }
 
-// Callback type for workflow disposal
+// Callback type for workflow disposal (called after successful connection)
 export type WorkflowDisposalCallback = () => void;
-
-// Callback type for token refresh (to update model provider)
-export type TokenRefreshCallback = (newToken: string) => void;
 
 // Callback type for profile sync (to trigger automatic sync)
 export type ProfileSyncCallback = () => Promise<void>;
@@ -48,7 +47,6 @@ export class HubConnectionManager {
   private solutionServerClient: SolutionServerClient | null = null;
   private profileSyncClient: ProfileSyncClient | null = null;
   private onWorkflowDisposal?: WorkflowDisposalCallback;
-  private onTokenRefresh?: TokenRefreshCallback;
 
   // Authentication state
   private bearerToken: string | null = null;
@@ -80,13 +78,6 @@ export class HubConnectionManager {
    */
   public setWorkflowDisposalCallback(callback: WorkflowDisposalCallback): void {
     this.onWorkflowDisposal = callback;
-  }
-
-  /**
-   * Set token refresh callback
-   */
-  public setTokenRefreshCallback(callback: TokenRefreshCallback): void {
-    this.onTokenRefresh = callback;
   }
 
   /**
@@ -124,7 +115,6 @@ export class HubConnectionManager {
     });
 
     await this.connect();
-    this.onWorkflowDisposal?.();
   }
 
   /**
@@ -223,13 +213,6 @@ export class HubConnectionManager {
       try {
         await this.ensureAuthenticated();
         await this.startTokenRefreshTimer();
-
-        // Notify listeners that we have a (possibly new) bearer token.
-        // This ensures downstream model providers are rebuilt after reconnects,
-        // not just after token refresh events.
-        if (this.bearerToken) {
-          this.onTokenRefresh?.(this.bearerToken);
-        }
       } catch (error) {
         this.logger.error("Authentication failed", error);
         return; // Can't proceed without auth
@@ -273,12 +256,6 @@ export class HubConnectionManager {
         const llmProxyConfig = this.profileSyncClient.getLLMProxyConfig();
         if (llmProxyConfig) {
           this.logger.info("LLM proxy available", { endpoint: llmProxyConfig.endpoint });
-
-          // If we have a token and a callback, notify so downstream consumers
-          // (e.g., model provider setup) can rebuild using the proxy config.
-          if (this.bearerToken) {
-            this.onTokenRefresh?.(this.bearerToken);
-          }
         }
 
         // Trigger initial sync and start timer
@@ -291,6 +268,10 @@ export class HubConnectionManager {
         // Continue - profile sync is optional
       }
     }
+
+    // Notify workflow disposal callback after successful connection
+    // This handles both workflow disposal and model provider updates
+    this.onWorkflowDisposal?.();
   }
 
   /**
@@ -303,10 +284,6 @@ export class HubConnectionManager {
     }
 
     this.logger.info("Disconnecting from Hub...");
-
-    // Clear all timers
-    this.clearTokenRefreshTimer();
-    this.clearProfileSyncTimer();
 
     // Disconnect solution server
     if (this.solutionServerClient) {
@@ -328,15 +305,23 @@ export class HubConnectionManager {
       this.profileSyncClient = null;
     }
 
-    // Clear auth tokens - important when switching to a different Hub
-    this.bearerToken = null;
-    this.refreshToken = null;
-    this.tokenExpiresAt = null;
+    // Only clear auth/timers/SSL if we're NOT in the middle of a token refresh
+    // During refresh, we want to keep the fresh tokens and reconnect with them
+    if (!this.isRefreshingTokens) {
+      // Clear all timers
+      this.clearTokenRefreshTimer();
+      this.clearProfileSyncTimer();
 
-    // Restore SSL settings
-    if (this.sslBypassCleanup) {
-      this.sslBypassCleanup();
-      this.sslBypassCleanup = null;
+      // Clear auth tokens - important when switching to a different Hub
+      this.bearerToken = null;
+      this.refreshToken = null;
+      this.tokenExpiresAt = null;
+
+      // Restore SSL settings
+      if (this.sslBypassCleanup) {
+        this.sslBypassCleanup();
+        this.sslBypassCleanup = null;
+      }
     }
 
     this.logger.info("Disconnected from Hub");
@@ -400,13 +385,52 @@ export class HubConnectionManager {
 
     this.logger.info("Token exchange successful via Hub login");
     this.bearerToken = loginResponse.token;
-    this.refreshToken = null; // Hub login doesn't provide refresh tokens
+    this.refreshToken = loginResponse.refresh ?? null; // Store refresh token if provided
 
     // Get expiration from response or decode from JWT
     if (loginResponse.expiry) {
-      this.tokenExpiresAt = loginResponse.expiry * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+      // expiry is in SECONDS (not Unix timestamp), convert to milliseconds
+      this.tokenExpiresAt = Date.now() + loginResponse.expiry * 1000 - TOKEN_EXPIRY_BUFFER_MS;
     } else {
       this.tokenExpiresAt = this.getExpirationFromJWT(loginResponse.token);
+    }
+  }
+
+  /**
+   * Refresh tokens using the refresh token via /hub/auth/refresh endpoint.
+   * This is more efficient than re-authenticating with credentials.
+   */
+  private async refreshWithRefreshToken(): Promise<void> {
+    if (!this.refreshToken) {
+      throw new HubConnectionManagerError("No refresh token available");
+    }
+
+    const refreshUrl = `${this.config.url}/hub/auth/refresh`;
+
+    this.logger.debug(`Attempting token refresh with ${refreshUrl}`);
+
+    const refreshResponse = await this.fetchWithTimeout<HubLoginResponse>(refreshUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        refresh: this.refreshToken,
+      }),
+    });
+
+    this.logger.info("Token refresh successful via Hub refresh endpoint");
+
+    // Update tokens
+    this.bearerToken = refreshResponse.token;
+    this.refreshToken = refreshResponse.refresh ?? this.refreshToken; // Use new refresh token if provided
+
+    // Get expiration from response or decode from JWT
+    if (refreshResponse.expiry) {
+      this.tokenExpiresAt = Date.now() + refreshResponse.expiry * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+    } else {
+      this.tokenExpiresAt = this.getExpirationFromJWT(refreshResponse.token);
     }
   }
 
@@ -427,15 +451,9 @@ export class HubConnectionManager {
   }
 
   /**
-   * Refresh tokens by re-authenticating with the Hub login endpoint.
-   * Hub login doesn't support refresh tokens, so we re-authenticate with credentials.
+   * Refresh tokens using refresh token if available, otherwise re-authenticate.
    */
   private async refreshTokens(): Promise<void> {
-    if (!this.username || !this.password) {
-      this.logger.warn("No credentials available for token refresh");
-      return;
-    }
-
     if (this.isRefreshingTokens) {
       this.logger.debug("Token refresh already in progress");
       return;
@@ -445,17 +463,38 @@ export class HubConnectionManager {
     this.isRefreshingTokens = true;
 
     try {
-      // Re-authenticate with Hub login endpoint
-      await this.exchangeForTokens();
+      // Try refresh token first (more efficient)
+      if (this.refreshToken) {
+        this.logger.debug("Attempting token refresh with refresh token");
+        try {
+          await this.refreshWithRefreshToken();
+          this.logger.info("Token refresh successful using refresh token");
+        } catch (refreshError) {
+          this.logger.warn("Refresh token failed, falling back to re-authentication", refreshError);
+          this.refreshToken = null; // Clear invalid refresh token
+
+          // Fall back to re-authentication
+          if (!this.username || !this.password) {
+            throw new HubConnectionManagerError(
+              "Refresh token failed and no credentials available for re-authentication",
+            );
+          }
+          await this.exchangeForTokens();
+          this.logger.info("Re-authentication successful after refresh token failure");
+        }
+      } else {
+        // No refresh token, re-authenticate
+        this.logger.debug("No refresh token available, re-authenticating with credentials");
+        if (!this.username || !this.password) {
+          throw new HubConnectionManagerError("No credentials available for token refresh");
+        }
+        await this.exchangeForTokens();
+        this.logger.info("Re-authentication successful");
+      }
 
       // Success - reconnect with new token
       this.refreshRetryCount = 0;
       await this.connect();
-
-      // Notify callbacks
-      if (this.bearerToken) {
-        this.onTokenRefresh?.(this.bearerToken);
-      }
     } catch (error) {
       await this.handleTokenRefreshError(error);
     } finally {

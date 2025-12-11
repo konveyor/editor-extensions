@@ -1,6 +1,7 @@
 import AdmZip from "adm-zip";
 import * as pathlib from "path";
 import * as fs from "fs/promises";
+import * as glob from "glob";
 import { ExtensionState } from "./extensionState";
 import * as vscode from "vscode";
 import {
@@ -47,7 +48,6 @@ const PROFILES_DIR = ".konveyor/profiles";
 async function setProfileFilesReadOnly(syncDir: string, logger: Logger): Promise<void> {
   try {
     // Find all profile.yaml files recursively
-    const glob = await import("glob");
     const profileFiles = glob.sync(pathlib.join(syncDir, "**/profile.yaml"));
 
     logger.info(`Setting ${profileFiles.length} profile files as read-only`);

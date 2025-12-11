@@ -524,39 +524,20 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
-      // Set up workflow disposal callback for when solution server client changes
+      // Set up workflow disposal callback for when Hub clients reconnect
+      // This handles both solution server changes and LLM proxy availability
       this.state.hubConnectionManager.setWorkflowDisposalCallback(() => {
-        // Check if workflow is running
-        const isWorkflowRunning = this.state.data.isFetchingSolution;
+        this.state.logger.info("Hub clients reconnected, updating workflow and model provider");
 
-        if (isWorkflowRunning) {
-          this.state.logger.warn(
-            "Solution server client changed but workflow is running - will dispose after completion",
-          );
-          // Mark for disposal after current workflow completes
-          this.state.workflowDisposalPending = true;
-        } else if (this.state.workflowManager.isInitialized) {
-          this.state.logger.info(
-            "Solution server client changed, disposing workflow for reinitialization",
-          );
-          this.state.workflowManager.dispose();
-          this.state.workflowDisposalPending = false;
-        }
-      });
-
-      // Set up token refresh callback to update model provider with new token
-      this.state.hubConnectionManager.setTokenRefreshCallback((_newToken: string) => {
-        this.state.logger.info("Hub token refreshed, updating model provider");
-
-        // Recreate Hub proxy model provider with new token
+        // Update model provider if LLM proxy is available
         const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
         if (llmProxyConfig?.available) {
           this.createHubProxyModelProvider(llmProxyConfig)
             .then((provider) => {
               this.state.modelProvider = provider;
-              this.state.logger.info("Model provider updated with refreshed token");
+              this.state.logger.info("Model provider updated with Hub LLM proxy");
 
-              // Clear GenAI/provider-related config errors now that we're using the Hub proxy
+              // Clear GenAI/provider-related config errors
               this.state.mutateConfigErrors((draft) => {
                 draft.configErrors = draft.configErrors.filter(
                   (e) =>
@@ -565,20 +546,23 @@ class VsCodeExtension {
                     e.type !== "genai-disabled",
                 );
               });
-
-              // Dispose workflow if initialized so it uses new provider
-              if (!this.state.data.isFetchingSolution && this.state.workflowManager.isInitialized) {
-                this.state.logger.info("Disposing workflow to use updated model provider");
-                this.state.workflowManager.dispose();
-                this.state.workflowDisposalPending = false;
-              } else if (this.state.data.isFetchingSolution) {
-                this.state.logger.info("Workflow running, will use new provider after completion");
-                this.state.workflowDisposalPending = true;
-              }
             })
             .catch((error) => {
-              this.state.logger.error("Failed to update model provider after token refresh", error);
+              this.state.logger.error("Failed to update model provider", error);
             });
+        }
+
+        // Dispose workflow if needed (solution server or model provider changed)
+        const isWorkflowRunning = this.state.data.isFetchingSolution;
+        if (isWorkflowRunning) {
+          this.state.logger.warn(
+            "Hub clients changed but workflow is running - will dispose after completion",
+          );
+          this.state.workflowDisposalPending = true;
+        } else if (this.state.workflowManager.isInitialized) {
+          this.state.logger.info("Disposing workflow to use new Hub clients");
+          this.state.workflowManager.dispose();
+          this.state.workflowDisposalPending = false;
         }
       });
 

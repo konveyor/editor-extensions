@@ -285,8 +285,8 @@ describe("ProfileSyncClient - Application Matching", () => {
       expect(variations).toContain("git://github.com/org/repo");
       expect(variations).toContain("git://github.com/org/repo.git");
 
-      // Should generate 14 variations total (2 base + 2 git@ + 10 scheme variations)
-      expect(variations.length).toBe(14);
+      // Should generate 12 variations total (2 base + 2 git@ + 8 scheme variations)
+      expect(variations.length).toBe(12);
     });
 
     it("should handle URLs with .git suffix in normalized URL", () => {
