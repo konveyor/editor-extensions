@@ -55,9 +55,15 @@ export class VSCodeWeb extends VSCode {
     const vscode = new VSCodeWeb(newPage, repoDir, branch);
     await newPage.waitForLoadState();
     await page.close();
-    await newPage
-      .getByRole('button', { name: 'Yes, I trust the authors' })
-      .click({ timeout: 300_000 });
+
+    try {
+      await newPage
+        .getByRole('button', { name: 'Yes, I trust the authors' })
+        .click({ timeout: 300_000 });
+    } catch (error) {
+      console.log('Trust button not found, trying to continue', error);
+    }
+
     await expect(
       newPage.locator('h2').filter({ hasText: 'Get Started with VS Code for' })
     ).toBeVisible();
