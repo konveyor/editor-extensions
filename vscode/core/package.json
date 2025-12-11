@@ -176,6 +176,12 @@
         "title": "Show Diff Actions",
         "category": "Konveyor",
         "icon": "$(diff)"
+      },
+      {
+        "command": "konveyor.runHealthCheck",
+        "title": "Run Health Check",
+        "category": "Konveyor",
+        "icon": "$(pulse)"
       }
     ],
     "submenus": [
