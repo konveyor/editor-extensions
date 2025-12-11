@@ -39,11 +39,12 @@ export abstract class VSCode {
   }
 
   public async executeQuickCommand(command: string) {
-    await this.waitDefault();
+    /*await this.waitDefault();
     await this.window.locator('body').focus();
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
-    await this.window.keyboard.press(`${modifier}+Shift+P`, { delay: 500 });
-    const input = this.window.getByPlaceholder('Type the name of a command to run.');
+    await this.window.keyboard.press(`${modifier}+Shift+P`, { delay: 500 });*/
+    await this.window.locator('.command-center-center').click();
+    const input = this.window.getByPlaceholder('Search files by name');
     await expect(input).toBeVisible({ timeout: 10_000 });
     await input.fill(`>${command}`);
     const commandLocator = this.window
