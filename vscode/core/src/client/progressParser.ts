@@ -2,15 +2,24 @@
  * Progress event parser for kai-analyzer-rpc NDJSON output
  */
 
+/**
+ * Valid progress stages for analysis events
+ */
+export const VALID_PROGRESS_STAGES = [
+  "init",
+  "provider_init",
+  "provider_prepare",
+  "rule_parsing",
+  "rule_execution",
+  "dependency_analysis",
+  "complete",
+] as const;
+
+export type ProgressStage = (typeof VALID_PROGRESS_STAGES)[number];
+
 export type ProgressEvent = {
   timestamp: string;
-  stage:
-    | "init"
-    | "provider_init"
-    | "rule_parsing"
-    | "rule_execution"
-    | "dependency_analysis"
-    | "complete";
+  stage: ProgressStage;
   message?: string;
   current?: number;
   total?: number;
@@ -103,14 +112,7 @@ export class ProgressParser {
       obj !== null &&
       typeof obj.timestamp === "string" &&
       typeof obj.stage === "string" &&
-      [
-        "init",
-        "provider_init",
-        "rule_parsing",
-        "rule_execution",
-        "dependency_analysis",
-        "complete",
-      ].includes(obj.stage)
+      VALID_PROGRESS_STAGES.includes(obj.stage as ProgressStage)
     );
   }
 }

@@ -18,7 +18,7 @@ import { buildAssetPaths, AssetPaths } from "./paths";
 import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
-import { ProgressParser, ProgressEvent } from "./progressParser";
+import { ProgressEvent, VALID_PROGRESS_STAGES } from "./progressParser";
 import { countIncidentsOnPaths } from "../analysis";
 import { Socket } from "node:net";
 import { FileChange } from "./types";
@@ -28,6 +28,14 @@ import { executeExtensionCommand } from "../commands";
 import { ProviderRegistry } from "../api";
 
 export class AnalyzerClient {
+  // Progress percentage ranges for each stage
+  private static readonly PROGRESS_PROVIDER_INIT = 10;
+  private static readonly PROGRESS_PROVIDER_PREPARE_START = 10;
+  private static readonly PROGRESS_PROVIDER_PREPARE_END = 15;
+  private static readonly PROGRESS_RULE_PARSING = 20;
+  private static readonly PROGRESS_RULE_EXECUTION_START = 20;
+  private static readonly PROGRESS_RULE_EXECUTION_END = 90;
+
   private assetPaths: AssetPaths;
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
   private analyzerRpcConnection?: rpc.MessageConnection | null;
@@ -68,6 +76,16 @@ export class AnalyzerClient {
         draft.analysisProgressMessage = "";
       }
     });
+  }
+
+  private isProgressEvent(obj: any): obj is ProgressEvent {
+    return (
+      typeof obj === "object" &&
+      obj !== null &&
+      typeof obj.timestamp === "string" &&
+      typeof obj.stage === "string" &&
+      VALID_PROGRESS_STAGES.includes(obj.stage as any)
+    );
   }
 
   public get serverState(): ServerState {
@@ -195,6 +213,12 @@ export class AnalyzerClient {
       this.logger.info("Server initialization complete");
       this.fireServerStateChange("running");
     });
+    this.analyzerRpcConnection.onNotification("analysis.progress", (params: unknown) => {
+      this.logger.debug(`Received analysis.progress notification: ${JSON.stringify(params)}`);
+      if (this.currentProgressCallback && this.isProgressEvent(params)) {
+        this.currentProgressCallback(params);
+      }
+    });
     this.analyzerRpcConnection.onNotification((method: string, params: any) => {
       this.logger.debug(`Received notification: ${method} + ${JSON.stringify(params)}`);
     });
@@ -299,22 +323,11 @@ export class AnalyzerClient {
       env: serverEnv,
     });
 
-    // Set up progress parser that uses current progress callback
-    const progressParser = new ProgressParser(
-      (event) => {
-        if (this.currentProgressCallback) {
-          this.currentProgressCallback(event);
-        }
-      },
-      (line) => {
-        // Only log non-progress lines (non-JSON progress events)
-        this.logger.error(line);
-      },
-    );
-
+    // Progress updates are now received via RPC notifications (analysis.progress)
+    // The stderr-based progress parsing has been removed to avoid duplicate progress updates
     analyzerRpcServer.stderr.on("data", (data) => {
-      // Feed to progress parser which will handle both progress events and logging
-      progressParser.feed(data);
+      // Log stderr output for debugging
+      this.logger.debug(`Analyzer stderr: ${data.toString()}`);
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
@@ -427,14 +440,41 @@ export class AnalyzerClient {
                   ? `Provider: ${event.message}`
                   : "Initializing providers...";
                 webviewMessage = notificationMessage;
-                progressPercent = 10;
+                progressPercent = AnalyzerClient.PROGRESS_PROVIDER_INIT;
+                break;
+              case "provider_prepare":
+                if (event.total && event.current) {
+                  const filePercent = Math.min(
+                    100,
+                    Math.max(0, event.percent || (event.current / event.total) * 100),
+                  );
+                  // Map file processing progress from provider_prepare start to end
+                  const prepareRange =
+                    AnalyzerClient.PROGRESS_PROVIDER_PREPARE_END -
+                    AnalyzerClient.PROGRESS_PROVIDER_PREPARE_START;
+                  progressPercent =
+                    AnalyzerClient.PROGRESS_PROVIDER_PREPARE_START +
+                    (filePercent * prepareRange) / 100;
+
+                  // Abbreviated message for notification
+                  notificationMessage = `Processing file ${event.current}/${event.total}`;
+
+                  // Detailed message for webview
+                  webviewMessage = event.message
+                    ? `Processing file ${event.current}/${event.total}: ${event.message}`
+                    : notificationMessage;
+                } else {
+                  notificationMessage = "Processing files...";
+                  webviewMessage = notificationMessage;
+                  progressPercent = AnalyzerClient.PROGRESS_PROVIDER_PREPARE_START;
+                }
                 break;
               case "rule_parsing":
                 notificationMessage = event.total
                   ? `Loaded ${event.total} rules`
                   : "Loading rules...";
                 webviewMessage = notificationMessage;
-                progressPercent = 20;
+                progressPercent = AnalyzerClient.PROGRESS_RULE_PARSING;
                 break;
               case "rule_execution":
                 if (event.total && event.current) {
@@ -442,8 +482,13 @@ export class AnalyzerClient {
                     100,
                     Math.max(0, event.percent || (event.current / event.total) * 100),
                   );
-                  // Map rule execution progress from 20% to 90%
-                  progressPercent = 20 + rulePercent * 0.7;
+                  // Map rule execution progress from start to end
+                  const executionRange =
+                    AnalyzerClient.PROGRESS_RULE_EXECUTION_END -
+                    AnalyzerClient.PROGRESS_RULE_EXECUTION_START;
+                  progressPercent =
+                    AnalyzerClient.PROGRESS_RULE_EXECUTION_START +
+                    (rulePercent * executionRange) / 100;
 
                   // Abbreviated message for notification
                   notificationMessage = `Processing rule ${event.current}/${event.total}`;

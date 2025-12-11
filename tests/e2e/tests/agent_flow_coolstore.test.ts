@@ -113,9 +113,7 @@ providers.forEach((config) => {
         }
         // either a Yes/No button or 'Accept all changes' button will be visible throughout the flow
         const yesButton = resolutionView.locator('button').filter({ hasText: 'Yes' });
-        const acceptChangesLocator = resolutionView.locator(
-          'button[aria-label="Accept all changes"]'
-        );
+        const acceptChangesLocator = resolutionView.getByRole('button', { name: 'Accept' }).first();
         const yesButtonCount = await yesButton.count();
         if (yesButtonCount > lastYesButtonCount) {
           lastYesButtonCount = yesButtonCount;
