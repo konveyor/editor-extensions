@@ -1,6 +1,6 @@
-import { expect, Page } from "@playwright/test";
-import { OutputChannel } from "../enums/output.enum";
-import { VSCode } from "./vscode.page";
+import { expect, Page } from '@playwright/test';
+import { OutputChannel } from '../enums/output.enum';
+import { VSCode } from './vscode.page';
 
 export class OutputPanel {
   private static instance: OutputPanel;
@@ -14,7 +14,7 @@ export class OutputPanel {
   }
 
   public static getInstance(vsCode: VSCode): OutputPanel {
-    return OutputPanel.instance ??= new OutputPanel(vsCode);
+    return (OutputPanel.instance ??= new OutputPanel(vsCode));
   }
 
   /**
@@ -25,7 +25,7 @@ export class OutputPanel {
   public async openOutputView(channel: OutputChannel, filterText?: string): Promise<void> {
     console.log(`Opening output view for channel: [${channel}]`);
     if (this.outputOpened) {
-        console.log(`Output view already opened for channel: [${channel}]`);
+      console.log(`Output view already opened for channel: [${channel}]`);
       return;
     }
     await this.vsCode.executeQuickCommand(`Output: Show Output Channels...`);
@@ -94,7 +94,7 @@ export class OutputPanel {
    * Clears the output channel.
    */
   public async clearOutputChannel() {
-    const outputActions = await this.window.locator('ul[aria-label="Output actions"]');
+    const outputActions = await this.window.getByRole('toolbar', { name: 'Output actions' });
     await expect(outputActions).toBeVisible();
     const clearOutput = outputActions.locator('a[aria-label="Clear Output"]');
     await expect(clearOutput).toBeVisible();
