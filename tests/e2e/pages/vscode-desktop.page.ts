@@ -186,7 +186,7 @@ export class VSCodeDesktop extends VSCode {
       }
 
       return repoUrl
-        ? VSCodeDesktop.open(repoUrl, repoDir, branch, false, prepareOffline)
+        ? VSCodeDesktop.open(repoUrl, repoDir, branch, true, prepareOffline)
         : VSCodeDesktop.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
