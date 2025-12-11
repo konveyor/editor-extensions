@@ -138,8 +138,10 @@ export function useVSCodeMessageHandler() {
         if (isSolutionWorkflowUpdate(message)) {
           const pendingCount = message.pendingBatchReview?.length || 0;
           const previousPendingCount = store.pendingBatchReview?.length || 0;
+          const wasProcessing = store.isProcessingQueuedMessages;
+          const isNowProcessing = message.isProcessingQueuedMessages;
           console.log(
-            `[useVSCodeMessageHandler] SOLUTION_WORKFLOW_UPDATE received, pendingBatchReview: ${pendingCount} files`,
+            `[useVSCodeMessageHandler] SOLUTION_WORKFLOW_UPDATE received, pendingBatchReview: ${pendingCount} files, isProcessingQueuedMessages: ${wasProcessing} -> ${isNowProcessing}`,
           );
           store.batchUpdate({
             isFetchingSolution: message.isFetchingSolution,
@@ -150,11 +152,15 @@ export function useVSCodeMessageHandler() {
             pendingBatchReview: message.pendingBatchReview || [],
           });
 
-          // Reset batch operation state when pendingBatchReview becomes empty (batch operation completed)
-          if (previousPendingCount > 0 && pendingCount === 0 && store.isBatchOperationInProgress) {
+          const shouldResetBatchOperation =
+            store.isBatchOperationInProgress &&
+            ((previousPendingCount > 0 && pendingCount === 0) ||
+              (wasProcessing && !isNowProcessing));
+
+          if (shouldResetBatchOperation) {
             store.setBatchOperationInProgress(false);
             console.log(
-              `[useVSCodeMessageHandler] Batch operation completed, resetting isBatchOperationInProgress`,
+              `[useVSCodeMessageHandler] Batch operation completed, resetting isBatchOperationInProgress (pendingCount: ${pendingCount}, processingChanged: ${wasProcessing} -> ${isNowProcessing})`,
             );
           }
 
@@ -164,7 +170,6 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
-        // Handle server state updates
         if (isServerStateUpdate(message)) {
           store.batchUpdate({
             serverState: message.serverState,
