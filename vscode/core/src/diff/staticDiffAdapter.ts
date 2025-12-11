@@ -121,7 +121,7 @@ export class StaticDiffAdapter {
       // Open the file and ensure it's the active editor
       const uri = vscode.Uri.file(filePath);
       const document = await vscode.workspace.openTextDocument(uri);
-      const editor = await vscode.window.showTextDocument(document, {
+      await vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.Two,
         preview: false,
         preserveFocus: false, // Changed to false to ensure the editor becomes active
