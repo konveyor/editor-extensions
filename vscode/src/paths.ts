@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import AdmZip from "adm-zip";
+import { getDispatcherWithCertBundle, getFetchWithDispatcher } from "./utilities/tls";
 
 /**
  * Parse a sha256sum.txt file to extract the SHA256 hash for a specific filename
@@ -145,13 +146,51 @@ export async function ensureKaiAnalyzerBinary(
   logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
-  // Download and parse sha256sum.txt to get expected SHA
-  const sha256Response = await fetch(sha256sumUrl);
-  if (!sha256Response.ok) {
-    throw new Error(`Failed to download SHA256 checksums: HTTP ${sha256Response.status}`);
+  // Create fetch function that handles corporate environments:
+  // - Proxy support (HTTPS_PROXY, HTTP_PROXY env vars)
+  // - Corporate CA certificates (NODE_EXTRA_CA_CERTS env var)
+  // - TLS/SSL configuration
+  // Note: undici requires explicit certificate passing, it doesn't automatically
+  // use NODE_EXTRA_CA_CERTS like Node.js's built-in https module does
+  const extraCerts = process.env.NODE_EXTRA_CA_CERTS;
+  const dispatcher = await getDispatcherWithCertBundle(extraCerts, false, false);
+  const proxyAwareFetch = getFetchWithDispatcher(dispatcher);
+
+  // Log environment configuration for troubleshooting
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
+
+  if (proxyUrl) {
+    logger.info(`Using proxy: ${proxyUrl}`);
+  }
+  if (extraCerts) {
+    logger.info(`Using custom CA certificates from: ${extraCerts}`);
+  }
+  if (!proxyUrl && !extraCerts) {
+    logger.info("Using direct connection with default system certificates");
   }
 
-  const sha256Content = await sha256Response.text();
+  // Download and parse sha256sum.txt to get expected SHA (with retries)
+  let sha256Content: string;
+  try {
+    const sha256Response = await proxyAwareFetch(sha256sumUrl, {
+      signal: AbortSignal.timeout(30000), // 30 second timeout for small file
+    });
+    if (!sha256Response.ok) {
+      throw new Error(`HTTP ${sha256Response.status}: ${sha256Response.statusText}`);
+    }
+    sha256Content = await sha256Response.text();
+  } catch (error: any) {
+    throw new Error(
+      `Failed to download SHA256 checksums from ${sha256sumUrl}. ` +
+        `Error: ${error.message}. ` +
+        `This may indicate network connectivity issues or firewall restrictions.`,
+    );
+  }
+
   const expectedSha256 = parseSha256Sum(sha256Content, assetConfig.file);
 
   if (!expectedSha256) {
@@ -172,19 +211,187 @@ export async function ensureKaiAnalyzerBinary(
       // Create target directory
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
 
-      // Download zip file
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      if (!response.body) {
-        throw new Error("Response body is null");
-      }
-
+      // Download zip file with retry logic for proxy environments
       const tempZipPath = join(dirname(kaiAnalyzerPath), assetConfig.file);
-      const fileStream = createWriteStream(tempZipPath);
-      await pipeline(response.body as any, fileStream);
+      const maxRetries = 3;
+      const retryDelays = [2000, 5000, 10000]; // ms
+      let lastError: Error | null = null;
+
+      // Track progress interval across attempts so we can clean it up
+      let progressInterval: NodeJS.Timeout | undefined;
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            logger.info(`Retry attempt ${attempt}/${maxRetries} for ${downloadUrl}`);
+            progress.report({ message: `Retrying download (${attempt}/${maxRetries})...` });
+            await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt - 1]));
+          }
+
+          const fetchStartTime = Date.now();
+
+          // Show progress during potential firewall buffering delay
+          let elapsed = 0;
+          if (attempt === 0) {
+            // Only show "waiting" message on first attempt
+            progressInterval = setInterval(() => {
+              elapsed += 1;
+              if (elapsed >= 5 && elapsed < 30) {
+                progress.report({
+                  message: `Downloading... (${elapsed}s - firewall may be scanning)`,
+                });
+              }
+            }, 1000);
+          }
+
+          const response = await proxyAwareFetch(downloadUrl, {
+            // 5 minute timeout to handle:
+            // 1. High TTFB from firewall buffering/scanning (can be 10-30s)
+            // 2. Slow network connections
+            // 3. Large file size (~12MB)
+            signal: AbortSignal.timeout(300000), // 5 minutes
+            headers: {
+              "User-Agent": "vscode-mta-extension",
+              Accept: "application/zip, application/octet-stream, */*",
+            },
+          });
+
+          if (progressInterval) {
+            clearInterval(progressInterval);
+          }
+
+          const ttfb = Date.now() - fetchStartTime;
+          logger.info(`Time-To-First-Byte: ${ttfb}ms`);
+
+          if (ttfb > 10000) {
+            logger.warn(
+              `High TTFB detected (${(ttfb / 1000).toFixed(1)}s). ` +
+                `This indicates firewall buffering/scanning. ` +
+                `This is normal in corporate environments with anti-malware scanning.`,
+            );
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          if (!response.body) {
+            throw new Error("Response body is null");
+          }
+
+          const fileStream = createWriteStream(tempZipPath);
+          const contentLength = response.headers.get("content-length");
+          let downloadedBytes = 0;
+          logger.info(
+            `Content-Length: ${contentLength ? `${(parseInt(contentLength) / 1024 / 1024).toFixed(2)} MB` : "unknown"}`,
+          );
+
+          // Convert web ReadableStream to Node.js Readable for better compatibility
+          const reader = response.body.getReader();
+          const nodeStream = new (await import("stream")).Readable({
+            async read() {
+              try {
+                const { done, value } = await reader.read();
+                if (done) {
+                  this.push(null);
+                } else {
+                  downloadedBytes += value.length;
+                  // Update progress to keep connection alive
+                  if (contentLength) {
+                    const percent = Math.round((downloadedBytes / parseInt(contentLength)) * 100);
+                    progress.report({
+                      message: `Downloading... ${percent}%`,
+                      increment: percent,
+                    });
+                  }
+                  this.push(value);
+                }
+              } catch (error) {
+                this.destroy(error as Error);
+              }
+            },
+          });
+
+          await pipeline(nodeStream, fileStream);
+          logger.info(`Successfully downloaded ${downloadedBytes} bytes`);
+
+          // Clean up progress interval on success
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = undefined;
+          }
+
+          lastError = null;
+          break; // Success, exit retry loop
+        } catch (error: any) {
+          // Clean up progress interval on error
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = undefined;
+          }
+
+          lastError = error;
+          logger.warn(`Download attempt ${attempt + 1} failed:`, error);
+
+          // Clean up partial download
+          try {
+            if (existsSync(tempZipPath)) {
+              await unlink(tempZipPath);
+            }
+          } catch (cleanupError) {
+            logger.warn(`Failed to clean up partial download: ${cleanupError}`);
+          }
+
+          if (attempt === maxRetries) {
+            // Last attempt failed - provide detailed troubleshooting information
+            const errorDetails = [
+              `Failed to download analyzer binary after ${maxRetries + 1} attempts.`,
+              `URL: ${downloadUrl}`,
+              `Error: ${error.message}`,
+              `Error type: ${error.name || "Unknown"}`,
+            ];
+
+            // Add troubleshooting hints based on error type
+            if (error.message.includes("CERT") || error.message.includes("certificate")) {
+              errorDetails.push(
+                "Certificate error detected. For corporate environments with SSL inspection:",
+                "- Set NODE_EXTRA_CA_CERTS=/path/to/corporate-ca-bundle.pem",
+                "- Or contact IT to get the corporate CA certificate",
+              );
+            } else if (
+              error.message.includes("ECONNREFUSED") ||
+              error.message.includes("ETIMEDOUT")
+            ) {
+              errorDetails.push(
+                "Connection error detected. Possible causes:",
+                "- Proxy configuration required (set HTTPS_PROXY environment variable)",
+                "- Firewall blocking access to developers.redhat.com",
+                "- Network connectivity issues",
+              );
+            } else if (error.message.includes("aborted") || error.message.includes("UND_ERR")) {
+              errorDetails.push(
+                "Download was aborted. Possible causes:",
+                "- Proxy timeout (try setting a longer timeout on proxy)",
+                "- Unstable network connection",
+                "- Large file size (~12MB) may exceed network limits",
+              );
+            } else {
+              errorDetails.push(
+                "Troubleshooting steps:",
+                `- Verify ${downloadUrl} is accessible from a browser`,
+                "- Check if proxy is required (set HTTPS_PROXY if needed)",
+                "- For corporate environments, verify SSL certificates (NODE_EXTRA_CA_CERTS)",
+              );
+            }
+
+            throw new Error(errorDetails.join("\n"));
+          }
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
 
       progress.report({ message: "Verifying..." });
 

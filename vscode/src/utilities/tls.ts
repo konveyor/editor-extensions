@@ -18,11 +18,12 @@ export async function getDispatcherWithCertBundle(
   insecure: boolean = false,
   allowH2: boolean = false,
 ): Promise<UndiciTypesDispatcher> {
-  let allCerts: string | undefined;
+  let allCerts: string[] | undefined;
   if (bundlePath) {
-    const defaultCerts = tls.rootCertificates.join("\n");
-    const certs = await fs.readFile(bundlePath, "utf8");
-    allCerts = [defaultCerts, certs].join("\n");
+    // Load custom certificate and combine with Node.js defaults as an array
+    // undici expects an array of certificate strings, not a concatenated string
+    const customCert = await fs.readFile(bundlePath, "utf8");
+    allCerts = [...tls.rootCertificates, customCert];
   }
 
   // Check for proxy configuration
@@ -57,11 +58,11 @@ export async function getHttpsAgentWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
 ): Promise<HttpsAgent> {
-  let allCerts: string | undefined;
+  let allCerts: string[] | undefined;
   if (bundlePath) {
-    const defaultCerts = tls.rootCertificates.join("\n");
-    const certs = await fs.readFile(bundlePath, "utf8");
-    allCerts = [defaultCerts, certs].join("\n");
+    // Load custom certificate and combine with Node.js defaults as an array
+    const customCert = await fs.readFile(bundlePath, "utf8");
+    allCerts = [...tls.rootCertificates, customCert];
   }
 
   return new HttpsAgent({
