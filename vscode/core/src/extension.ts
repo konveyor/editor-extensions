@@ -463,12 +463,22 @@ class VsCodeExtension {
       // Initialize vertical diff system
       this.initializeVerticalDiff();
 
+      // Initialize hub config from secret storage (with migration)
+      const hubConfig = await initializeHubConfig(this.context);
+      this.state.mutateSettings((draft) => {
+        draft.hubConfig = hubConfig;
+        draft.solutionServerEnabled =
+          hubConfig.enabled && hubConfig.features.solutionServer.enabled;
+        draft.profileSyncEnabled = hubConfig.enabled && hubConfig.features.profileSync.enabled;
+        draft.solutionServerConnected = false;
+        draft.profileSyncConnected = false;
+        draft.isSyncingProfiles = false;
+        draft.llmProxyAvailable = false;
+      });
+
       const allProfiles = await getAllProfiles(this.context);
-
       const storedActiveId = this.context.workspaceState.get<string>("activeProfileId");
-
       const matchingProfile = allProfiles.find((p) => p.id === storedActiveId);
-
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
@@ -514,17 +524,6 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
-      // Initialize hub config from secret storage (with migration)
-      const hubConfig = await initializeHubConfig(this.context);
-      this.state.mutateSettings((draft) => {
-        draft.hubConfig = hubConfig;
-        draft.solutionServerEnabled =
-          hubConfig.enabled && hubConfig.features.solutionServer.enabled;
-        draft.profileSyncEnabled = hubConfig.enabled && hubConfig.features.profileSync.enabled;
-        draft.profileSyncConnected = false;
-        draft.isSyncingProfiles = false;
-      });
-
       // Set up workflow disposal callback for when solution server client changes
       this.state.hubConnectionManager.setWorkflowDisposalCallback(() => {
         // Check if workflow is running
@@ -556,6 +555,16 @@ class VsCodeExtension {
             .then((provider) => {
               this.state.modelProvider = provider;
               this.state.logger.info("Model provider updated with refreshed token");
+
+              // Clear GenAI/provider-related config errors now that we're using the Hub proxy
+              this.state.mutateConfigErrors((draft) => {
+                draft.configErrors = draft.configErrors.filter(
+                  (e) =>
+                    e.type !== "provider-not-configured" &&
+                    e.type !== "provider-connection-failed" &&
+                    e.type !== "genai-disabled",
+                );
+              });
 
               // Dispose workflow if initialized so it uses new provider
               if (!this.state.data.isFetchingSolution && this.state.workflowManager.isInitialized) {

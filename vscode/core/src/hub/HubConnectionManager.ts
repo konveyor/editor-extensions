@@ -222,7 +222,7 @@ export class HubConnectionManager {
     if (this.config.auth.enabled) {
       try {
         await this.ensureAuthenticated();
-        this.startTokenRefreshTimer();
+        await this.startTokenRefreshTimer();
 
         // Notify listeners that we have a (possibly new) bearer token.
         // This ensures downstream model providers are rebuilt after reconnects,
@@ -297,6 +297,11 @@ export class HubConnectionManager {
    * Disconnect from Hub and clean up all resources
    */
   public async disconnect(): Promise<void> {
+    if (!this.solutionServerClient && !this.profileSyncClient) {
+      this.logger.silly("No Hub features connected, skipping disconnect");
+      return;
+    }
+
     this.logger.info("Disconnecting from Hub...");
 
     // Clear all timers
@@ -505,7 +510,7 @@ export class HubConnectionManager {
   /**
    * Start automatic token refresh timer
    */
-  private startTokenRefreshTimer(): void {
+  private async startTokenRefreshTimer(): Promise<void> {
     this.clearTokenRefreshTimer();
 
     if (!this.tokenExpiresAt) {
@@ -516,7 +521,7 @@ export class HubConnectionManager {
     const timeUntilRefresh = this.tokenExpiresAt - Date.now();
 
     if (timeUntilRefresh <= 0) {
-      this.refreshTokens().catch((error) => {
+      await this.refreshTokens().catch((error) => {
         this.logger.error("Immediate token refresh failed", error);
       });
       return;

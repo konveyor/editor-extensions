@@ -107,6 +107,10 @@ export function WalkthroughDrawer({
       return "Connection failed";
     }
 
+    if (hubFieldsConfigured && anyHubFeatureEnabled && hubConnected) {
+      return "Completed";
+    }
+
     return "Not configured";
   };
 
