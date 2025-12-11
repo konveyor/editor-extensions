@@ -20,7 +20,8 @@
     "lint:fix": "eslint --fix .",
     "prebuild": "npm run clean",
     "build": "vite build",
-    "dev": "vite build --watch"
+    "dev": "vite build --watch",
+    "test": "mocha"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
