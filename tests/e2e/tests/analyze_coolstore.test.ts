@@ -61,7 +61,7 @@ providers.forEach((config) => {
       });
     });
 
-    test('Fix all issues with default (Low) effort', async () => {
+    test('Fix all issues', async () => {
       test.setTimeout(3600000);
       await vscodeApp.openAnalysisView();
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);
@@ -85,6 +85,7 @@ providers.forEach((config) => {
       await vscodeApp.closeVSCode();
       // Evaluation should be performed only if all tests under this suite passed
       if (allOk && process.env.CI) {
+        test.setTimeout(300_000);
         if (!isAWSConfigured()) {
           console.warn('Skipping evaluation: AWS credentials are not configured.');
           return;

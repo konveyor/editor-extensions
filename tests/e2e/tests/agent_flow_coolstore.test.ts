@@ -6,7 +6,6 @@ import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 import { getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
-import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 import * as VSCodeFactory from '../utilities/vscode.factory';
 import { verifyAnalysisViewCleanState } from '../utilities/utils';
 
@@ -25,12 +24,20 @@ providers.forEach((config) => {
       test.setTimeout(1600000);
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
-      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
 
-      // Open a Java file to trigger extension activation (onLanguage:java)
-      // This is needed for both redhat.java and konveyor-java extensions to activate
+      // prepareOffline=true extracts LLM cache and sets demoMode/cacheDir BEFORE VS Code launches
+      // This ensures the extension can use cached healthcheck data during initial activation
+      vscodeApp = await VSCodeFactory.init(
+        repoInfo.repoUrl,
+        repoInfo.repoName,
+        undefined,
+        true // prepareOffline
+      );
+
+      // Wait for extension initialization
+      // Both redhat.java and konveyor-java extensions will activate automatically
+      // via workspaceContains activation events (pom.xml, build.gradle, etc.)
       if (vscodeApp instanceof VSCodeDesktop) {
-        await vscodeApp.openJavaFileForActivation();
         await vscodeApp.waitForExtensionInitialization();
       }
 
@@ -40,9 +47,9 @@ providers.forEach((config) => {
         console.log(`An existing profile probably doesn't exist, creating a new one`);
       }
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
-      await vscodeApp.ensureLLMCache(false);
     });
 
     test.beforeEach(async () => {
@@ -56,10 +63,8 @@ providers.forEach((config) => {
     // this test uses cached data, and only ensures that the agent mode flow works
     test('Fix JMS Topic issue with agent mode enabled (offline)', async () => {
       test.setTimeout(3600000);
-      // set demoMode and update java configuration to auto-reload
+      // update java configuration to auto-reload
       await vscodeApp.openWorkspaceSettingsAndWrite({
-        [kaiCacheDir]: pathlib.join('.vscode', 'cache'),
-        [kaiDemoMode]: true,
         'java.configuration.updateBuildConfiguration': 'automatic',
       });
       // we need to run analysis before enabling agent mode
@@ -108,9 +113,7 @@ providers.forEach((config) => {
         }
         // either a Yes/No button or 'Accept all changes' button will be visible throughout the flow
         const yesButton = resolutionView.locator('button').filter({ hasText: 'Yes' });
-        const acceptChangesLocator = resolutionView.locator(
-          'button[aria-label="Accept all changes"]'
-        );
+        const acceptChangesLocator = resolutionView.getByRole('button', { name: 'Accept' }).first();
         const yesButtonCount = await yesButton.count();
         if (yesButtonCount > lastYesButtonCount) {
           lastYesButtonCount = yesButtonCount;

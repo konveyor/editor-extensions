@@ -23,7 +23,8 @@ import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import { PencilAltIcon } from "@patternfly/react-icons";
 
-import { useExtensionStateContext } from "../../../context/ExtensionStateContext";
+import { useExtensionStore } from "../../../store/store";
+import { sendVscodeMessage as dispatch } from "../../../utils/vscodeMessaging";
 import { TruncatedDescription } from "../../TruncatedDescription/TruncatedDescription";
 import { enableGenAI } from "../../../hooks/actions";
 
@@ -36,35 +37,38 @@ export function WalkthroughDrawer({
   onClose: () => void;
   drawerRef: React.RefObject<HTMLSpanElement>;
 }) {
-  const { state, dispatch } = useExtensionStateContext();
+  // ✅ Selective subscriptions
+  const profiles = useExtensionStore((state) => state.profiles);
+  const activeProfileId = useExtensionStore((state) => state.activeProfileId);
+  const configErrors = useExtensionStore((state) => state.configErrors);
+  const hubConfig = useExtensionStore((state) => state.hubConfig);
 
-  const profile = state.profiles.find((p) => p.id === state.activeProfileId);
+  const profile = profiles.find((p) => p.id === activeProfileId);
 
   // Check if in in-tree mode (all profiles have source === 'local')
-  const isInTreeMode =
-    state.profiles.length > 0 && state.profiles.every((p) => p.source === "local");
+  const isInTreeMode = profiles.length > 0 && profiles.every((p) => p.source === "local");
 
   const labelSelectorValid = !!profile?.labelSelector?.trim();
 
   const rulesConfigured = !!profile?.useDefaultRules || (profile?.customRules?.length ?? 0) > 0;
 
-  const providerConnectionError = state.configErrors.some(
+  const providerConnectionError = configErrors.some(
     (error) => error.type === "provider-connection-failed",
   );
-  const providerNotConfigured = state.configErrors.some(
+  const providerNotConfigured = configErrors.some(
     (error) => error.type === "provider-not-configured",
   );
-  const genaiDisabled = state.configErrors.some((error) => error.type === "genai-disabled");
+  const genaiDisabled = configErrors.some((error) => error.type === "genai-disabled");
   const providerConfigured = !providerConnectionError && !providerNotConfigured && !genaiDisabled;
 
   // Check hub configuration status - must have URL and if auth is enabled, must have username and password
   const hubConfigured =
-    state.hubConfig?.enabled &&
-    !!state.hubConfig?.url?.trim() &&
-    (!state.hubConfig?.auth.enabled ||
-      (!!state.hubConfig?.auth.realm?.trim() &&
-        !!state.hubConfig?.auth.username?.trim() &&
-        !!state.hubConfig?.auth.password?.trim()));
+    hubConfig?.enabled &&
+    !!hubConfig?.url?.trim() &&
+    (!hubConfig?.auth.enabled ||
+      (!!hubConfig?.auth.realm?.trim() &&
+        !!hubConfig?.auth.username?.trim() &&
+        !!hubConfig?.auth.password?.trim()));
 
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
@@ -76,8 +80,8 @@ export function WalkthroughDrawer({
       title: "Hub Configuration",
       status: hubConfigured
         ? "Completed"
-        : state.hubConfig?.auth.enabled &&
-            (!state.hubConfig?.auth.username?.trim() || !state.hubConfig?.auth.password?.trim())
+        : hubConfig?.auth.enabled &&
+            (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
           ? "Missing credentials"
           : "Not configured",
       description: "Connect to Konveyor Hub for advanced features.",

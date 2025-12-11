@@ -2,12 +2,10 @@ import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import * as rpc from "vscode-jsonrpc/node";
-import type { KonveyorCoreApi } from "@editor-extensions/shared";
+import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { EXTENSION_DISPLAY_NAME, EXTENSION_ID, EXTENSION_VERSION } from "./utilities/constants";
 import { vscodeProxyServer } from "./vscodeProxyServer";
 import { JavaScriptExternalProviderManager } from "./javascriptExternalProviderManager";
-
-const EXTENSION_DISPLAY_NAME = "Konveyor Javascript";
-const EXTENSION_ID = "konveyor.konveyor-javascript";
 
 export async function activate(context: vscode.ExtensionContext) {
   // Setup logger
@@ -68,6 +66,27 @@ export async function activate(context: vscode.ExtensionContext) {
   } catch (error) {
     logger.error("Failed to activate ts extension", { error });
   }
+
+  // Check version compatibility
+  const javascriptExtVersion = EXTENSION_VERSION;
+  const coreExtVersion = coreApi.version;
+  if (javascriptExtVersion !== coreExtVersion) {
+    const message =
+      `Version mismatch detected!\n\n` +
+      `Konveyor JavaScript extension (v${javascriptExtVersion}) is not compatible with Konveyor Core extension (v${coreExtVersion}).\n\n` +
+      `Please ensure both extensions are at the same version. This mismatch can cause analysis failures and unexpected behavior.`;
+    logger.error(message, {
+      javascriptVersion: javascriptExtVersion,
+      coreVersion: coreExtVersion,
+    });
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+
+  logger.info("Version compatibility check passed", {
+    javascriptVersion: javascriptExtVersion,
+    coreVersion: coreExtVersion,
+  });
 
   // Create socket paths for communication
   const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for kai-analyzer-rpc

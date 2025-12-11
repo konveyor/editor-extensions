@@ -352,4 +352,11 @@ export class VSCodeWeb extends VSCode {
 
     return fileName;
   }
+
+  public async ensureDebugArchive(): Promise<void> {
+    await this.executeTerminalCommand(
+      'ls ".vscode/debug-archive.zip" && unzip -o ".vscode/debug-archive.zip" -d ".vscode" && ls ".vscode/logs/extension.log"',
+      '.vscode/logs/extension.log'
+    );
+  }
 }

@@ -125,9 +125,11 @@ export class KaiInteractiveWorkflow
     });
 
     // relay events from solution server client back to callers
-    options.solutionServerClient.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
-      this.emitWorkflowMessage(msg);
-    });
+    if (options.solutionServerClient) {
+      options.solutionServerClient.on("workflowMessage", async (msg: KaiWorkflowMessage) => {
+        this.emitWorkflowMessage(msg);
+      });
+    }
 
     this.diagnosticsNodes = new DiagnosticsIssueFix(
       options.modelProvider,
@@ -396,7 +398,8 @@ export class KaiInteractiveWorkflow
   async analysisIssueFixRouterEdge(
     state: typeof AnalysisIssueFixOrchestratorState.State,
   ): Promise<string | string[]> {
-    this.logger.debug(`Edge function called with state:`, {
+    // Use silly level to avoid expensive logging in production
+    this.logger.silly(`Edge function called with state:`, {
       hasInputFileContent: !!state.inputFileContent,
       hasInputFileUri: !!state.inputFileUri,
       hasInputIncidents: !!state.inputIncidents && state.inputIncidents.length > 0,
@@ -454,8 +457,18 @@ export class KaiInteractiveWorkflow
   async diagnosticsOrchestratorEdge(
     state: typeof DiagnosticsOrchestratorState.State,
   ): Promise<string> {
+    this.logger.info("diagnosticsOrchestratorEdge called", {
+      shouldEnd: state.shouldEnd,
+      hasCurrentAgent: !!state.currentAgent,
+      currentAgent: state.currentAgent,
+      hasCurrentTask: !!state.currentTask,
+      hasDiagnosticsTasks: !!state.inputDiagnosticsTasks?.length,
+      hasAdditionalInfo: !!state.inputSummarizedAdditionalInfo,
+      hasNominatedAgents: !!state.plannerOutputNominatedAgents?.length,
+    });
+
     if (state.shouldEnd) {
-      this.logger.silly("Going to END because shouldEnd is true");
+      this.logger.info("Going to END because shouldEnd is true");
       return END;
     }
     // if an agent is picked, we need to invoke it to do the next task
@@ -479,6 +492,7 @@ export class KaiInteractiveWorkflow
       this.logger.silly("Going to plan_fixes because currentTask is present");
       return "plan_fixes";
     }
+    this.logger.debug("Returning to orchestrate_plan_and_execution");
     return "orchestrate_plan_and_execution";
   }
 

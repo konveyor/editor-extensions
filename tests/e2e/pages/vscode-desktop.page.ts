@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { _electron as electron } from 'playwright';
@@ -11,6 +12,36 @@ import { installExtension, isExtensionInstalled } from '../utilities/vscode-comm
 import { stubDialog } from 'electron-playwright-helpers';
 import { extensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
+
+/**
+ * Prepare workspace for offline/cached mode BEFORE VS Code launches.
+ * This extracts the LLM cache and sets up demoMode settings so the extension
+ * can use cached healthcheck data during activation.
+ * @param repoDir The workspace directory to prepare
+ */
+export function prepareOfflineWorkspace(repoDir: string): void {
+  const storedPath = path.join(__dirname, '..', '..', 'data', 'llm_cache.zip');
+  const cachePath = path.join(repoDir, '.vscode', 'cache');
+
+  // Extract cache if zip exists
+  if (fs.existsSync(storedPath)) {
+    if (fs.existsSync(cachePath)) {
+      fs.rmSync(cachePath, { recursive: true, force: true });
+    }
+    fs.mkdirSync(cachePath, { recursive: true });
+    extractZip(storedPath, cachePath);
+    console.log(`Extracted LLM cache to ${cachePath}`);
+  } else {
+    console.warn(`LLM cache zip not found at ${storedPath}`);
+  }
+
+  // Set demoMode and cacheDir in settings BEFORE VS Code launches
+  writeOrUpdateSettingsJson(path.join(repoDir, '.vscode', 'settings.json'), {
+    'konveyor.genai.demoMode': true,
+    'konveyor.genai.cacheDir': '.vscode/cache',
+  });
+  console.log('Set demoMode and cacheDir in workspace settings');
+}
 
 export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
@@ -27,7 +58,8 @@ export class VSCodeDesktop extends VSCode {
     repoUrl?: string,
     repoDir?: string,
     branch = 'main',
-    waitForInitialization = true
+    waitForInitialization = true,
+    prepareOffline = false
   ) {
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
@@ -54,6 +86,12 @@ export class VSCodeDesktop extends VSCode {
 
     if (repoDir) {
       args.push(path.resolve(repoDir));
+    }
+
+    // Prepare offline workspace if requested - must happen AFTER repo is cloned
+    // but BEFORE VS Code launches, so demoMode/cacheDir are available at activation
+    if (prepareOffline && repoDir) {
+      prepareOfflineWorkspace(repoDir);
     }
 
     // set the log level prior to starting vscode
@@ -99,11 +137,8 @@ export class VSCodeDesktop extends VSCode {
     const vscode = new VSCodeDesktop(vscodeApp, window, repoDir);
 
     if (waitForInitialization) {
-      // Open Java file immediately after VSCode starts to trigger onLanguage:java activation
-      if (repoDir) {
-        await vscode.openJavaFileForActivation();
-      }
-      // Wait for extension initialization in downstream environment
+      // Wait for extension initialization
+      // Extensions will activate automatically via workspaceContains activation events
       await vscode.waitForExtensionInitialization();
     }
 
@@ -115,8 +150,14 @@ export class VSCodeDesktop extends VSCode {
    * @param repoUrl
    * @param repoDir path to repo
    * @param branch optional branch to clone from
+   * @param prepareOffline if true, extracts LLM cache and sets demoMode/cacheDir before VS Code launches
    */
-  public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
+  public static async init(
+    repoUrl?: string,
+    repoDir?: string,
+    branch?: string,
+    prepareOffline = false
+  ): Promise<VSCode> {
     try {
       if (process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL) {
         await installExtension();
@@ -144,7 +185,9 @@ export class VSCodeDesktop extends VSCode {
         }
       }
 
-      return repoUrl ? VSCodeDesktop.open(repoUrl, repoDir, branch, false) : VSCodeDesktop.open();
+      return repoUrl
+        ? VSCodeDesktop.open(repoUrl, repoDir, branch, false, prepareOffline)
+        : VSCodeDesktop.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);
       throw error;
@@ -159,49 +202,6 @@ export class VSCodeDesktop extends VSCode {
       }
     } catch (error) {
       console.error('Error closing VSCode:', error);
-    }
-  }
-
-  /**
-   * Opens a Java file to trigger onLanguage:java activation for both redhat.java and konveyor-java
-   */
-  public async openJavaFileForActivation(): Promise<void> {
-    try {
-      console.log('Opening Java file to trigger Java extension activation...');
-
-      // Wait for VSCode to be fully ready before executing commands
-      await this.waitDefault();
-      await this.window.waitForTimeout(3000);
-
-      await this.window.locator('body').focus();
-      await this.waitDefault();
-
-      const javaFilePath = path.resolve(
-        this.repoDir || '',
-        'src/main/java/com/redhat/coolstore/service/OrderService.java'
-      );
-
-      if (!fs.existsSync(javaFilePath)) {
-        throw new Error(
-          `Java file not found at ${javaFilePath}. Cannot trigger Java extension activation.`
-        );
-      }
-
-      await stubDialog(this.app, 'showOpenDialog', {
-        filePaths: [javaFilePath],
-        canceled: false,
-      });
-      await this.executeQuickCommand('File: Open File...');
-      await this.waitDefault();
-
-      // Verify file opened
-      const fileName = 'OrderService.java';
-      const editorTab = this.window.locator(`div.tab[aria-label*="${fileName}"]`);
-      await expect(editorTab).toBeVisible({ timeout: 10000 });
-      console.log(`Java file opened successfully: ${fileName}`);
-    } catch (error) {
-      console.error('Failed to open Java file for activation:', error);
-      throw error;
     }
   }
 
@@ -324,5 +324,19 @@ export class VSCodeDesktop extends VSCode {
       throw new Error('VSCode window is not initialized.');
     }
     return this.window;
+  }
+
+  public async ensureDebugArchive() {
+    if (!this.repoDir) {
+      throw new Error('repodir is required in VscodeDesktop.ensureDebugArchive');
+    }
+    const zipPath = path.join(this.repoDir, '.vscode', 'debug-archive.zip');
+    const zipStat = await fsPromises.stat(zipPath);
+    expect(zipStat.isFile()).toBe(true);
+    const extractedPath = path.join(this.repoDir, '.vscode');
+    extractZip(zipPath, extractedPath);
+    const logsPath = path.join(extractedPath, 'logs', 'extension.log');
+    const logsStat = await fsPromises.stat(logsPath);
+    expect(logsStat.isFile()).toBe(true);
   }
 }

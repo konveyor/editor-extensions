@@ -19,7 +19,7 @@ export default defineConfig(() => {
     },
     build: {
       outDir: "build",
-      sourcemap: true,
+      sourcemap: "inline" as const, // Use inline sourcemaps for VSCode webview debugging
       chunkSizeWarningLimit: 1024,
       // Configure assets directory to include branding assets
       assetsDir: "assets",

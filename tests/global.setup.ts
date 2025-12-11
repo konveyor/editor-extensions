@@ -13,10 +13,10 @@ async function globalSetup() {
     await vscodeApp.getWindow().waitForTimeout(60000);
   }
 
-  // Open a Java file to trigger extension activation (onLanguage:java)
-  // This is needed for both redhat.java and konveyor-java extensions to activate
+  // Wait for extension initialization
+  // Both redhat.java and konveyor-java extensions will activate automatically
+  // via workspaceContains activation events (pom.xml, build.gradle, etc.)
   if (vscodeApp instanceof VSCodeDesktop) {
-    await vscodeApp.openJavaFileForActivation();
     await vscodeApp.waitForExtensionInitialization();
   }
 

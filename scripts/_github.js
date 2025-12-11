@@ -11,7 +11,7 @@ export async function fetchGitHubReleaseMetadata(octokit, releaseTag) {
     tag: releaseTag,
   });
 
-  return await response.data;
+  return response.data;
 }
 
 /**
@@ -42,7 +42,8 @@ export async function fetchFirstSuccessfulRun(octokit, branch, workflowFile) {
   });
   const headSha = branchInfo.data.commit.sha;
 
-  const workflowRunInfo = await octokit.request(
+  // First, try to find a successful run for the HEAD commit
+  const headWorkflowRunInfo = await octokit.request(
     "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs{?head_sha,per_page}",
     {
       workflow_id: workflowFile,
@@ -51,23 +52,51 @@ export async function fetchFirstSuccessfulRun(octokit, branch, workflowFile) {
     },
   );
 
-  if (workflowRunInfo.data.workflow_runs.length === 0) {
-    console.error("No workflow runs found for the commit.");
-    return {};
-  }
-
-  const workflowRun = workflowRunInfo.data.workflow_runs[0];
-  if (workflowRun.status !== "completed" || workflowRun.conclusion !== "success") {
-    console.error(
+  if (headWorkflowRunInfo.data.workflow_runs.length > 0) {
+    const workflowRun = headWorkflowRunInfo.data.workflow_runs[0];
+    if (workflowRun.status === "completed" && workflowRun.conclusion === "success") {
+      return {
+        workflowRunId: workflowRun.id,
+        workflowRunUrl: workflowRun.url,
+        headSha: headSha,
+      };
+    }
+    console.warn(
       `Workflow run ${workflowRun.id} for HEAD commit on ${branch} is not successful. status: ${workflowRun.status}, conclusion: ${workflowRun.conclusion}`,
     );
+  } else {
+    console.warn(`No workflow runs found for HEAD commit ${headSha} on ${branch}.`);
+  }
+
+  // Fall back to finding the most recent successful run for the branch
+  console.log(`Falling back to most recent successful run on ${branch}...`);
+  const recentWorkflowRunInfo = await octokit.request(
+    "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs{?branch,status,per_page}",
+    {
+      workflow_id: workflowFile,
+      branch: branch,
+      status: "completed",
+      per_page: 10,
+    },
+  );
+
+  const successfulRun = recentWorkflowRunInfo.data.workflow_runs.find(
+    (run) => run.conclusion === "success",
+  );
+
+  if (!successfulRun) {
+    console.error(`No successful workflow runs found on ${branch}.`);
     return {};
   }
 
+  console.log(
+    `Found successful workflow run ${successfulRun.id} from commit ${successfulRun.head_sha.substring(0, 7)}`,
+  );
+
   return {
-    workflowRunId: workflowRun.id,
-    workflowRunUrl: workflowRun.url,
-    headSha: headSha,
+    workflowRunId: successfulRun.id,
+    workflowRunUrl: successfulRun.url,
+    headSha: successfulRun.head_sha,
   };
 }
 

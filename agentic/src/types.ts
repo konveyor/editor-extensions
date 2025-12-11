@@ -78,7 +78,7 @@ export interface KaiWorkflowInitOptions {
   modelProvider: KaiModelProvider;
   workspaceDir: string;
   fsCache: InMemoryCacheWithRevisions<string, string>;
-  solutionServerClient: SolutionServerClient;
+  solutionServerClient?: SolutionServerClient;
   toolCache: FileBasedResponseCache<
     Record<string, any>, // tool parameters with zod schema
     string

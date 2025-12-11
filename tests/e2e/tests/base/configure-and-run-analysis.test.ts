@@ -160,14 +160,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
       await vscodeApp.getWindow().keyboard.press('Enter');
       await vscodeApp.waitDefault();
     }
-    const zipPath = pathlib.join(repoInfo.repoName, '.vscode', 'debug-archive.zip');
-    const zipStat = await fs.stat(zipPath);
-    expect(zipStat.isFile()).toBe(true);
-    const extractedPath = pathlib.join(repoInfo.repoName, '.vscode');
-    extractZip(zipPath, extractedPath);
-    const logsPath = pathlib.join(extractedPath, 'logs', 'extension.log');
-    const logsStat = await fs.stat(logsPath);
-    expect(logsStat.isFile()).toBe(true);
+    await vscodeApp.ensureDebugArchive();
   });
 
   test('delete profile', async () => {

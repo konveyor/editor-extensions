@@ -6,6 +6,7 @@ import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import path from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -24,6 +25,7 @@ export abstract class VSCode {
   protected abstract selectCustomRules(customRulesPath: string): Promise<void>;
   public abstract closeVSCode(): Promise<void>;
   public abstract pasteContent(content: string): Promise<void>;
+  public abstract ensureDebugArchive(): Promise<void>;
   public abstract getWindow(): Page;
 
   protected llmCachePaths(): {
@@ -452,7 +454,7 @@ export abstract class VSCode {
 
   public async acceptAllSolutions() {
     const resolutionView = await this.getView(KAIViews.resolutionDetails);
-    const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
+    const fixLocator = resolutionView.getByRole('button', { name: 'Accept' });
     const loadingIndicator = resolutionView.locator('.loading-indicator');
 
     await this.waitDefault();
@@ -465,7 +467,7 @@ export abstract class VSCode {
       await fixLocator.first().dispatchEvent('click');
       await this.waitDefault();
 
-      if (!(await loadingIndicator.isVisible())) {
+      if ((await loadingIndicator.count()) === 0) {
         return;
       }
     }
@@ -501,11 +503,11 @@ export abstract class VSCode {
   }
 
   /**
-   * Writes or updates the VSCode settings.json file to current workspace @ .vscode/settings.json
+   * Writes or updates the VSCode settings.json file to current user @ .vscode/settings.json
    * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
    */
   public async openWorkspaceSettingsAndWrite(settings: Record<string, any>): Promise<void> {
-    await this.executeQuickCommand('Preferences: Open Workspace Settings (JSON)');
+    await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     const editor = this.window.locator('.monaco-editor .view-lines').first();
@@ -535,6 +537,7 @@ export abstract class VSCode {
       null,
       2
     );
+    console.log(`Writing \n ${newContent} \n into settings.`);
 
     await editor.click();
     await this.window.keyboard.press(`${modifier}+a`);
@@ -544,6 +547,9 @@ export abstract class VSCode {
     await this.pasteContent(newContent);
 
     await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+    await this.window.screenshot({
+      path: `${SCREENSHOTS_FOLDER}/last-config.png`,
+    });
     await this.window.waitForTimeout(300);
     await this.window.keyboard.press(`${modifier}+w`);
   }
