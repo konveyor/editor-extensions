@@ -149,6 +149,7 @@ export async function handleFileResponse(
       const isNew = fileValue.isNew;
       const isDeleted = fileValue.isDeleted;
 
+      // Content is already normalized at the source (processModifiedFile.ts)
       const fileContent = content || fileValue.content;
 
       try {

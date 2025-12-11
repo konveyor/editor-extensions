@@ -1,10 +1,6 @@
 import React from "react";
 import { Card, CardBody } from "@patternfly/react-core";
-import {
-  ModifiedFileMessageValue,
-  isOnlyLineEndingDiff,
-  hasNoMeaningfulDiffContent,
-} from "@editor-extensions/shared";
+import { ModifiedFileMessageValue } from "@editor-extensions/shared";
 import "./modifiedFileMessage.css";
 import ModifiedFileHeader from "./ModifiedFileHeader";
 import ModifiedFileDiffPreview from "./ModifiedFileDiffPreview";
@@ -31,11 +27,9 @@ export const ModifiedFileMessage: React.FC<ModifiedFileMessageProps> = React.mem
     const normalizedData = useModifiedFileData(data);
     const { isNew, diff, path, fileName } = normalizedData;
 
-    // Check if diff has no meaningful changes
-    const isOnlyLineEndingChanges = Boolean(diff && isOnlyLineEndingDiff(diff));
-    const hasNoMeaningfulChanges = Boolean(diff && hasNoMeaningfulDiffContent(diff));
-    const shouldShowNoChangesNeeded =
-      !diff || diff.trim() === "" || isOnlyLineEndingChanges || hasNoMeaningfulChanges;
+    // Diff is already cleaned by cleanDiff() in handleModifiedFile.ts
+    // which returns "" for line-ending-only or no meaningful changes
+    const shouldShowNoChangesNeeded = !diff || diff.trim() === "";
 
     // All ModifiedFile messages are now read-only (for context)
     // User actions happen in BatchReviewModal

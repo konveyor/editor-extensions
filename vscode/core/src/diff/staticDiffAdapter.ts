@@ -3,7 +3,7 @@ import { DiffLine } from "./types";
 import { VerticalDiffManager } from "./vertical/manager";
 import { parsePatch } from "diff";
 import { Logger } from "winston";
-import { isOnlyLineEndingDiff, normalizeLineEndings } from "@editor-extensions/shared";
+import { normalizeLineEndings } from "@editor-extensions/shared";
 
 /**
  * Adapter to bridge static diffs (from ModifiedFileMessage) to Continue's vertical diff system
@@ -108,15 +108,10 @@ export class StaticDiffAdapter {
     messageToken: string,
   ): Promise<void> {
     try {
-      // Check if diff is empty
+      // Diff is already cleaned by cleanDiff() in handleModifiedFile.ts
+      // which returns "" for line-ending-only or no meaningful changes
       if (!unifiedDiff || unifiedDiff.trim() === "") {
         this.logger.debug("[StaticDiffAdapter] Skipping empty diff for", filePath);
-        return;
-      }
-
-      // Check if this is purely a line ending diff and skip if so
-      if (isOnlyLineEndingDiff(unifiedDiff)) {
-        this.logger.debug("[StaticDiffAdapter] Skipping line-ending-only diff for", filePath);
         return;
       }
 
@@ -126,7 +121,7 @@ export class StaticDiffAdapter {
       // Open the file and ensure it's the active editor
       const uri = vscode.Uri.file(filePath);
       const document = await vscode.workspace.openTextDocument(uri);
-      const editor = await vscode.window.showTextDocument(document, {
+      await vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.Two,
         preview: false,
         preserveFocus: false, // Changed to false to ensure the editor becomes active
