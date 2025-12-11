@@ -75,8 +75,9 @@ export function WalkthroughDrawer({
   // Hub is "connected" if any feature is actually connected
   const hubConnected = profileSyncConnected || solutionServerConnected;
 
-  // Hub is fully configured only if fields are set AND connection succeeded
-  // const hubConfigured = hubFieldsConfigured && hubConnected;
+  // Check if any Hub features are enabled
+  const anyHubFeatureEnabled =
+    hubConfig?.features?.profileSync?.enabled || hubConfig?.features?.solutionServer?.enabled;
 
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
@@ -102,12 +103,15 @@ export function WalkthroughDrawer({
     if (hubConfig?.auth.enabled && !hubConfig?.auth.realm?.trim()) {
       return "Missing realm";
     }
-    if (hubFieldsConfigured && !hubConnected) {
+
+    if (hubFieldsConfigured && !anyHubFeatureEnabled) {
+      return "No features enabled";
+    }
+
+    if (hubFieldsConfigured && anyHubFeatureEnabled && !hubConnected) {
       return "Connection failed";
     }
-    if (hubConnected) {
-      return "Completed";
-    }
+
     return "Not configured";
   };
 

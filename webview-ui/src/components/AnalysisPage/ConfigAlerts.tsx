@@ -8,7 +8,12 @@ import {
 } from "@patternfly/react-core";
 import { ConfigError } from "@editor-extensions/shared";
 import type { LLMError } from "@editor-extensions/shared";
-import { restartSolutionServer, enableGenAI, retryProfileSync, syncHubProfiles } from "../../hooks/actions";
+import {
+  restartSolutionServer,
+  enableGenAI,
+  retryProfileSync,
+  syncHubProfiles,
+} from "../../hooks/actions";
 
 interface ConfigAlertsProps {
   configErrors: ConfigError[];
