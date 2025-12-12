@@ -7,6 +7,7 @@ import { rm } from 'node:fs/promises';
 import process from 'process';
 import { expect } from '@playwright/test';
 import type { VSCode } from '../pages/vscode.page';
+import { LogEntry } from '../types/logEntry';
 
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
@@ -161,4 +162,23 @@ export async function verifyAnalysisViewCleanState(
   // Take final screenshot showing the analysis view with table displayed
   await vscodeApp.getWindow().screenshot({ path: screenshotPath });
   console.log(`${logPrefix}: Final screenshot saved to ${screenshotPath}`);
+}
+
+export function parseLogEntries(logText: string): LogEntry[] {
+  const lines = logText.trim().split('\n');
+  const logEntries: LogEntry[] = [];
+
+  for (const line of lines) {
+    if (!line.trim()) continue; // Skip empty lines
+
+    try {
+      const entry = JSON.parse(line);
+      logEntries.push(entry as LogEntry);
+    } catch (error) {
+      console.warn('Failed to parse log line:', line, error);
+      // Skip lines that aren't valid JSON
+    }
+  }
+
+  return logEntries;
 }
