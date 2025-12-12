@@ -32,29 +32,57 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
-      - name: Configure Git
+      - name: Calculate next prerelease tag
+        id: calc_tag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Calculate base prerelease version (current minor - 1)
+          VERSION=$(npm pkg get version | tr -d '"' | awk -F. '{print $1"."$2-1".0"}')
+          echo "Base prerelease version: ${VERSION}"
 
-      - name: Run prerelease tag script (dry-run)
+          # Find next available tag by incrementing patch until no tag exists
+          while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+            VERSION=$(echo "${VERSION}" | awk -F. '{print $1"."$2"."$3+1}')
+            echo "Tag v${VERSION} exists, trying next..."
+          done
+
+          echo "Next available tag: v${VERSION}"
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Dry run summary
         if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: node scripts/create-prerelease-tag.js --dry-run
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## [DRY RUN] Prerelease Tag
 
-      - name: Run prerelease tag script
+          **Tag:** \`${{ steps.calc_tag.outputs.tag }}\`
+          **Version:** \`${{ steps.calc_tag.outputs.version }}\`
+          **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          This is a dry run. No tag was created.
+          EOF
+
+      - name: Create and push tag
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: node scripts/create-prerelease-tag.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.calc_tag.outputs.tag }}',
+              sha: context.sha
+            });
+            console.log('Created tag: ${{ steps.calc_tag.outputs.tag }}');
 
       - name: Add tag info to summary
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
-          TAG=$(git describe --tags --abbrev=0)
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Prerelease Tag Created
 
-          **Tag:** \`${TAG}\`
+          **Tag:** \`${{ steps.calc_tag.outputs.tag }}\`
+          **Version:** \`${{ steps.calc_tag.outputs.version }}\`
           **Triggered by:** ${{ github.event_name }}
           **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
@@ -63,5 +91,5 @@ jobs:
           2. Create a GitHub pre-release
           3. Publish to VS Code Marketplace as pre-release (since minor version is odd)
 
-          [View Release Workflow](https://github.com/${{ github.repository }}/actions)
+          [View Release Workflow](https://github.com/${{ github.repository }}/actions/workflows/ci-repo.yml)
           EOF
