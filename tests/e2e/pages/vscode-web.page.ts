@@ -44,8 +44,12 @@ export class VSCodeWeb extends VSCode {
 
     // Creates a new workspace or reuses one that already exists for the same repository
     if (!(await repoRow.isVisible())) {
+      console.log('Creating new workspace...');
       newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
     } else {
+      console.log('Found existing workspace');
+      console.log(repoRow.innerHTML());
+
       [newPage] = await Promise.all([
         context.waitForEvent('page'),
         repoRow.getByRole('button', { name: 'Open' }).first().click(),
