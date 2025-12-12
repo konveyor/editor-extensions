@@ -1,4 +1,5 @@
 import { Logger } from "winston";
+import * as glob from "glob";
 import * as tar from "tar";
 import * as path from "path";
 import * as fs from "fs/promises";
@@ -660,6 +661,17 @@ export class ProfileSyncClient {
         file: tempTarFile,
         cwd: profileDir,
         strip: 0, // Keep full paths from tar
+        filter: (path) => {
+          const normalized = path.replace(/\\/g, "/");
+          if (
+            normalized.startsWith("/") ||
+            normalized.includes("../") ||
+            normalized.startsWith("..")
+          ) {
+            return false;
+          }
+          return true;
+        },
       });
     } finally {
       // Clean up temp file
@@ -706,8 +718,7 @@ export class ProfileSyncClient {
         // Look for .yaml files in rules/ subdirectories, excluding test files and profile.yaml
         const customRules: string[] = [];
         try {
-          const glob = await import("glob");
-          const rulesetFiles = glob.sync(path.join(profileDir, "rules/**/*.yaml"), {
+          const rulesetFiles = await glob.glob(path.join(profileDir, "rules/**/*.yaml"), {
             ignore: ["**/*.test.yaml", "**/profile.yaml"],
           });
 
