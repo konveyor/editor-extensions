@@ -1,0 +1,67 @@
+name: Scheduled Prerelease Tag
+
+on:
+  schedule:
+    # Runs every Monday at 8:00 AM UTC
+    - cron: "0 8 * * 1"
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (do not create/push tag)"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  HUSKY: 0
+
+jobs:
+  create-prerelease-tag:
+    name: Create Bi-weekly Prerelease Tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history and tags
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run prerelease tag script (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: node scripts/create-prerelease-tag.js --dry-run
+
+      - name: Run prerelease tag script
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: node scripts/create-prerelease-tag.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add tag info to summary
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Prerelease Tag Created
+
+          **Tag:** \`${TAG}\`
+          **Triggered by:** ${{ github.event_name }}
+          **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          This tag will trigger the CI/CD pipeline to:
+          1. Build and test the extension
+          2. Create a GitHub pre-release
+          3. Publish to VS Code Marketplace as pre-release (since minor version is odd)
+
+          [View Release Workflow](https://github.com/${{ github.repository }}/actions)
+          EOF
