@@ -17,9 +17,37 @@ env:
   HUSKY: 0
 
 jobs:
-  create-prerelease-tag:
-    name: Create Bi-weekly Prerelease Tag
+  check-week:
+    name: Check if Bi-weekly Release Week
     runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if odd week number
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "✓ Manual trigger - proceeding with release"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          WEEK=$(date +%V)
+          echo "Current week number: $WEEK"
+
+          if [ $((WEEK % 2)) -eq 1 ]; then
+            echo "✓ Odd week ($WEEK) - proceeding with release"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "⊘ Even week ($WEEK) - skipping release"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+  create-prerelease-tag:
+    name: Create Prerelease Tag
+    runs-on: ubuntu-latest
+    needs: check-week
+    if: needs.check-week.outputs.should_run == 'true'
 
     steps:
       - name: Checkout code
@@ -41,8 +69,8 @@ jobs:
 
           # Find next available tag by incrementing patch until no tag exists
           while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+            echo "Tag v${VERSION} exists, incrementing patch version..."
             VERSION=$(echo "${VERSION}" | awk -F. '{print $1"."$2"."$3+1}')
-            echo "Tag v${VERSION} exists, trying next..."
           done
 
           echo "Next available tag: v${VERSION}"
@@ -50,7 +78,7 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Dry run summary
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+        if: github.event.inputs.dry_run == 'true'
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## [DRY RUN] Prerelease Tag
@@ -62,10 +90,19 @@ jobs:
           This is a dry run. No tag was created.
           EOF
 
+      - name: Get Token
+        if: github.event.inputs.dry_run != 'true'
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v3
+        with:
+          application_id: ${{ vars.KONVEYOR_BOT_ID }}
+          application_private_key: ${{ secrets.KONVEYOR_BOT_KEY }}
+
       - name: Create and push tag
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: github.event.inputs.dry_run != 'true'
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.get_workflow_token.outputs.token }}
           script: |
             await github.rest.git.createRef({
               owner: context.repo.owner,
@@ -76,7 +113,7 @@ jobs:
             console.log('Created tag: ${{ steps.calc_tag.outputs.tag }}');
 
       - name: Add tag info to summary
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: github.event.inputs.dry_run != 'true'
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Prerelease Tag Created
