@@ -38,9 +38,11 @@ jobs:
           if [ $((WEEK % 2)) -eq 1 ]; then
             echo "✓ Odd week ($WEEK) - proceeding with release"
             echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "## Odd week ($WEEK) - proceeding with release" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "⊘ Even week ($WEEK) - skipping release"
             echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "## Even week ($WEEK) - skipping release" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   create-prerelease-tag:
@@ -68,17 +70,42 @@ jobs:
           echo "Base prerelease version: ${VERSION}"
 
           # Find next available tag by incrementing patch until no tag exists
+          PREV_TAG=""
           while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+            PREV_TAG="v${VERSION}"
             echo "Tag v${VERSION} exists, incrementing patch version..."
             VERSION=$(echo "${VERSION}" | awk -F. '{print $1"."$2"."$3+1}')
           done
 
+          # Check if there are new commits since the last prerelease
+          if [ -n "$PREV_TAG" ]; then
+            PREV_TAG_SHA=$(git rev-parse "$PREV_TAG^{commit}")
+            HEAD_SHA=$(git rev-parse HEAD)
+
+            if [ "$PREV_TAG_SHA" = "$HEAD_SHA" ]; then
+              echo "⊘ No new commits since $PREV_TAG - skipping release"
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              {
+                echo "## Prerelease Skipped - No Changes"
+                echo ""
+                echo "**Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+                echo ""
+                echo "No new commits since the last prerelease tag. Skipping release."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            COMMIT_COUNT=$(git rev-list --count "$PREV_TAG..HEAD")
+            echo "✓ Found $COMMIT_COUNT new commit(s) since $PREV_TAG"
+          fi
+
           echo "Next available tag: v${VERSION}"
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "has_changes=true" >> $GITHUB_OUTPUT
 
       - name: Dry run summary
-        if: github.event.inputs.dry_run == 'true'
+        if: github.event.inputs.dry_run == 'true' && steps.calc_tag.outputs.has_changes == 'true'
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## [DRY RUN] Prerelease Tag
@@ -91,7 +118,7 @@ jobs:
           EOF
 
       - name: Get Token
-        if: github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true' && steps.calc_tag.outputs.has_changes == 'true'
         id: get_workflow_token
         uses: peter-murray/workflow-application-token-action@v3
         with:
@@ -99,7 +126,7 @@ jobs:
           application_private_key: ${{ secrets.KONVEYOR_BOT_KEY }}
 
       - name: Create and push tag
-        if: github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true' && steps.calc_tag.outputs.has_changes == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.get_workflow_token.outputs.token }}
@@ -113,7 +140,7 @@ jobs:
             console.log('Created tag: ${{ steps.calc_tag.outputs.tag }}');
 
       - name: Add tag info to summary
-        if: github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true' && steps.calc_tag.outputs.has_changes == 'true'
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Prerelease Tag Created
