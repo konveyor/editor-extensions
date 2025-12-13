@@ -227,6 +227,15 @@ export class AnalyzerClient {
     });
     this.analyzerRpcConnection.onError((e) => {
       this.logger.error("RPC connection error", e);
+      // If we're still in starting/initializing state, this means connection failed
+      const currentState = this.getExtStateData().serverState;
+      if (currentState === "starting" || currentState === "initializing") {
+        this.fireServerStateChange("startFailed");
+        // Kill the analyzer process since we can't communicate with it
+        if (this.analyzerRpcServer && !this.analyzerRpcServer.killed) {
+          this.analyzerRpcServer.kill();
+        }
+      }
     });
     this.analyzerRpcConnection.listen();
     this.analyzerRpcConnection.sendNotification("start", { type: "start" });
