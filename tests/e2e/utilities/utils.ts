@@ -166,19 +166,19 @@ export async function verifyAnalysisViewCleanState(
 
 export function parseLogEntries(rawContent: string): LogEntry[] {
   const entries: LogEntry[] = [];
-  
+
   const normalized = rawContent.replace(/\}\s*\{/g, '}\n{');
-  
+
   const lines = normalized.split('\n');
   let buffer = '';
-  
+
   for (const line of lines) {
     const trimmed = line.trim();
-    
+
     if (!trimmed) continue;
-    
+
     buffer += trimmed;
-    
+
     try {
       const parsed = JSON.parse(buffer);
       entries.push(parsed);
@@ -192,7 +192,7 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
       }
     }
   }
-  
+
   if (buffer.trim()) {
     try {
       const parsed = JSON.parse(buffer);
@@ -201,6 +201,6 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
       console.warn(`Failed to parse remaining buffer: ${buffer.substring(0, 100)}...`);
     }
   }
-  
+
   return entries;
 }
