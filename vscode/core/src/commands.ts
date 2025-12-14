@@ -1,6 +1,7 @@
 import AdmZip from "adm-zip";
 import * as pathlib from "path";
 import * as fs from "fs/promises";
+import * as glob from "glob";
 import { ExtensionState } from "./extensionState";
 import * as vscode from "vscode";
 import {
@@ -15,7 +16,7 @@ import {
   Position,
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
-import { EnhancedIncident, RuleSet } from "@editor-extensions/shared";
+import { EnhancedIncident, RuleSet, createConfigError } from "@editor-extensions/shared";
 import {
   updateAnalyzerPath,
   getAllConfigurationValues,
@@ -35,8 +36,47 @@ import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
+import { getRepositoryInfo } from "./utilities/git";
 
 const isWindows = process.platform === "win32";
+const PROFILES_DIR = ".konveyor/profiles";
+
+/**
+ * Set profile files as read-only on disk to prevent manual edits
+ * Hub-synced profiles should not be modified locally
+ */
+async function setProfileFilesReadOnly(syncDir: string, logger: Logger): Promise<void> {
+  try {
+    // Find all profile.yaml files recursively
+    const profileFiles = glob.sync(pathlib.join(syncDir, "**/profile.yaml"));
+
+    logger.info(`Setting ${profileFiles.length} profile files as read-only`);
+
+    for (const file of profileFiles) {
+      try {
+        // Get current file stats
+        const stats = await fs.stat(file);
+
+        // Set read-only permissions
+        // On Unix: remove write permissions (chmod 444)
+        // On Windows: set readonly attribute
+        if (isWindows) {
+          // Windows: Use attrib command or fs.chmod with readonly flag
+          await fs.chmod(file, stats.mode & ~0o222); // Remove write permissions
+        } else {
+          // Unix/Linux/macOS: chmod 444 (read-only for owner, group, others)
+          await fs.chmod(file, 0o444);
+        }
+
+        logger.debug(`Set read-only: ${file}`);
+      } catch (fileError) {
+        logger.warn(`Failed to set read-only for ${file}`, fileError);
+      }
+    }
+  } catch (error) {
+    logger.error("Failed to set profile files as read-only", error);
+  }
+}
 
 /**
  * Helper function to execute internal commands with proper extension prefix
@@ -141,37 +181,68 @@ const commandsMap: (
       }
     },
     [`${EXTENSION_NAME}.restartSolutionServer`]: async () => {
-      const solutionServerClient = state.hubConnectionManager.getSolutionServerClient();
-      if (!solutionServerClient) {
-        logger.info("Solution server client not available, skipping restart");
-        window.showInformationMessage("Solution server is not currently enabled");
-        return;
-      }
-
+      // Delegate to HubConnectionManager which knows the state and will handle reconnection
       try {
+        logger.info("Restarting solution server via HubConnectionManager");
         window.showInformationMessage("Restarting solution server...");
 
-        // Disconnect and reconnect the solution server client (not the whole Hub connection)
-        await solutionServerClient.disconnect();
+        // Let HubConnectionManager handle the reconnection logic
+        await state.hubConnectionManager.connect();
+
+        // Update connection state
         state.mutateServerState((draft) => {
-          draft.solutionServerConnected = false;
+          draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
         });
 
-        await solutionServerClient.connect();
-
-        // Update state to reflect successful reconnection
-        state.mutateServerState((draft) => {
-          draft.solutionServerConnected = true;
-        });
-
-        window.showInformationMessage("Solution server restarted successfully");
+        if (state.hubConnectionManager.isSolutionServerConnected()) {
+          window.showInformationMessage("Solution server connected successfully");
+        } else {
+          window.showWarningMessage(
+            "Failed to connect solution server. Check your Hub configuration and network connection.",
+          );
+        }
       } catch (e) {
-        logger.error("Could not restart the solution server", { error: e });
-        window.showErrorMessage(`Failed to restart solution server: ${e}`);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        logger.error("Could not restart solution server", { error: e });
+        window.showErrorMessage(`Failed to connect solution server: ${errorMessage}`);
 
         // Update state to reflect failed connection
         state.mutateServerState((draft) => {
           draft.solutionServerConnected = false;
+        });
+      }
+    },
+    [`${EXTENSION_NAME}.retryProfileSync`]: async () => {
+      // Delegate to HubConnectionManager which knows the state and will handle reconnection
+      try {
+        logger.info("Retrying profile sync connection via HubConnectionManager");
+        window.showInformationMessage("Retrying profile sync connection...");
+
+        // Let HubConnectionManager handle the reconnection logic
+        await state.hubConnectionManager.connect();
+
+        // Update connection state
+        state.mutateServerState((draft) => {
+          draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
+        });
+
+        if (state.hubConnectionManager.isProfileSyncConnected()) {
+          window.showInformationMessage("Profile sync connected successfully");
+          // Trigger an initial sync (HubConnectionManager already does this, but be explicit)
+          await executeExtensionCommand("syncHubProfiles", true); // silent sync
+        } else {
+          window.showWarningMessage(
+            "Failed to connect profile sync. Check your Hub configuration and network connection.",
+          );
+        }
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        logger.error("Could not retry profile sync connection", { error: e });
+        window.showErrorMessage(`Failed to connect profile sync: ${errorMessage}`);
+
+        // Update state to reflect failed connection
+        state.mutateServerState((draft) => {
+          draft.profileSyncConnected = false;
         });
       }
     },
@@ -348,6 +419,13 @@ const commandsMap: (
       }
     },
     [`${EXTENSION_NAME}.modelProviderSettingsOpen`]: async () => {
+      // Check if LLM proxy is available via Hub - if so, don't allow local configuration
+      if (state.data.llmProxyAvailable) {
+        window.showInformationMessage(
+          "GenAI is configured via Konveyor Hub. Local settings are not used when Hub LLM proxy is available.",
+        );
+        return;
+      }
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },
@@ -532,6 +610,111 @@ const commandsMap: (
         "Please configure Hub credentials through the Hub Configuration panel.",
       );
       executeExtensionCommand("openHubSettingsPanel");
+    },
+
+    [`${EXTENSION_NAME}.syncHubProfiles`]: async (silent: boolean = false) => {
+      logger.info("Syncing profiles from Hub", { silent });
+
+      const profileSyncClient = state.hubConnectionManager.getProfileSyncClient();
+
+      if (!profileSyncClient) {
+        if (!silent) {
+          window.showWarningMessage("Profile sync is not enabled or Hub is not connected");
+        }
+        return;
+      }
+
+      // Skip if analysis or solution is in progress to avoid disrupting user work
+      if (state.data.isAnalyzing || state.data.isFetchingSolution) {
+        logger.debug("Skipping profile sync - analysis or solution in progress");
+        return;
+      }
+      // Get workspace root - convert from URI to file path if needed
+      const workspaceRootUri = state.data.workspaceRoot;
+      const workspaceRoot = workspaceRootUri.startsWith("file://")
+        ? vscode.Uri.parse(workspaceRootUri).fsPath
+        : workspaceRootUri;
+
+      // Update state to show syncing (only if not silent)
+      if (!silent) {
+        state.mutateSettings((draft) => {
+          draft.isSyncingProfiles = true;
+        });
+      }
+
+      try {
+        // Get repository information (pass original URI string, it handles conversion)
+        const repoInfo = await getRepositoryInfo(workspaceRootUri, logger);
+
+        if (!repoInfo) {
+          if (!silent) {
+            window.showWarningMessage("Workspace is not a git repository");
+          }
+          return;
+        }
+
+        // Determine sync directory (use file system path, not URI)
+        const syncDir = pathlib.join(workspaceRoot, PROFILES_DIR);
+
+        logger.info("Syncing profiles", { repoInfo, syncDir });
+        const result = await profileSyncClient.syncProfiles(repoInfo, syncDir);
+
+        // Manage ConfigErrors based on result
+        state.mutateConfigErrors((draft) => {
+          // Clear previous profile sync errors
+          draft.configErrors = draft.configErrors.filter(
+            (e) => e.type !== "no-hub-profiles" && e.type !== "hub-profile-sync-failed",
+          );
+
+          if (result.profilesFound === 0) {
+            // Add ConfigError if no profiles were found (either no application or application has no profiles)
+            draft.configErrors.push(createConfigError.noHubProfiles());
+          } else if (result.profilesFound > result.profilesSynced) {
+            // Add ConfigError if some profiles failed to sync
+            const failedCount = result.profilesFound - result.profilesSynced;
+            draft.configErrors.push(
+              createConfigError.hubProfileSyncFailed(failedCount, result.profilesFound),
+            );
+          }
+        });
+
+        if (result.success && result.profilesSynced > 0) {
+          // Set synced profile files as read-only to prevent manual edits
+          await setProfileFilesReadOnly(syncDir, logger);
+
+          if (!silent) {
+            window.showInformationMessage(
+              `Synced ${result.profilesSynced}/${result.profilesFound} profiles from Hub`,
+            );
+          }
+          // Note: Profile watcher will automatically reload profiles from .konveyor/profiles/
+        } else if (!result.success) {
+          if (!silent) {
+            window.showWarningMessage(`Profile sync failed: ${result.error}`);
+          }
+        }
+      } catch (error) {
+        logger.error("Profile sync failed", error);
+
+        if (!silent) {
+          if (error instanceof Error && error.message.includes("Multiple applications")) {
+            window.showErrorMessage(
+              "Multiple Hub applications found for this repository. Please configure sync manually.",
+            );
+          } else {
+            window.showErrorMessage(
+              `Failed to sync profiles: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
+      } finally {
+        // Clear syncing state (only if not silent)
+        if (!silent) {
+          state.mutateSettings((draft) => {
+            draft.isSyncingProfiles = false;
+          });
+        }
+      }
     },
 
     [`${EXTENSION_NAME}.enableGenAI`]: async () => {

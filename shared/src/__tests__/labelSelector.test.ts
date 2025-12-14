@@ -1,4 +1,4 @@
-import { buildLabelSelector } from "../labelSelector";
+import { buildLabelSelector, buildLabelSelectorFromLabels } from "../labelSelector";
 import { expect } from "expect";
 
 describe("buildLabelSelector", () => {
@@ -109,6 +109,77 @@ describe("buildLabelSelector", () => {
     const cloudResult = buildLabelSelector(["weblogic", "websphere"], ["kubernetes", "openshift"]);
     expect(cloudResult).toBe(
       "(konveyor.io/target=kubernetes || konveyor.io/target=openshift) && (konveyor.io/source=weblogic || konveyor.io/source=websphere) || (discovery)",
+    );
+  });
+});
+
+describe("buildLabelSelectorFromLabels", () => {
+  it("should return correct format when no labels are provided", () => {
+    const result = buildLabelSelectorFromLabels([], []);
+    expect(result).toBe("() && ");
+  });
+
+  it("should handle only sources", () => {
+    const result = buildLabelSelectorFromLabels(["konveyor.io/source=java-ee"], []);
+    expect(result).toBe("(konveyor.io/source=java-ee) && ");
+  });
+
+  it("should handle only targets", () => {
+    const result = buildLabelSelectorFromLabels(["konveyor.io/target=spring-boot"], []);
+    expect(result).toBe("(konveyor.io/target=spring-boot) && ");
+  });
+
+  it("should handle sources and targets together", () => {
+    const result = buildLabelSelectorFromLabels(
+      ["konveyor.io/source=java-ee", "konveyor.io/target=spring-boot"],
+      [],
+    );
+    expect(result).toBe("(konveyor.io/source=java-ee || konveyor.io/target=spring-boot) && ");
+  });
+
+  it("should handle excluded labels", () => {
+    const result = buildLabelSelectorFromLabels(
+      ["konveyor.io/source=java-ee", "konveyor.io/target=spring-boot"],
+      ["konveyor.io/target=eap7"],
+    );
+    expect(result).toBe(
+      "(konveyor.io/source=java-ee || konveyor.io/target=spring-boot) && !konveyor.io/target=eap7",
+    );
+  });
+
+  it("should handle multiple excluded labels", () => {
+    const result = buildLabelSelectorFromLabels(
+      ["konveyor.io/source=java-ee"],
+      ["konveyor.io/target=eap7", "konveyor.io/target=eap6"],
+    );
+    expect(result).toBe(
+      "(konveyor.io/source=java-ee) && !konveyor.io/target=eap7 && !konveyor.io/target=eap6",
+    );
+  });
+
+  it("should handle other namespace labels", () => {
+    const result = buildLabelSelectorFromLabels(
+      ["other.namespace/label=value", "konveyor.io/source=java-ee"],
+      [],
+    );
+    expect(result).toBe("(other.namespace/label=value || konveyor.io/source=java-ee) && ");
+  });
+
+  it("should handle other konveyor.io labels", () => {
+    const result = buildLabelSelectorFromLabels(
+      ["konveyor.io/other=value", "konveyor.io/source=java-ee"],
+      [],
+    );
+    expect(result).toBe("(konveyor.io/other=value || konveyor.io/source=java-ee) && ");
+  });
+
+  it("should include duplicate labels as provided", () => {
+    const result = buildLabelSelectorFromLabels(
+      ["konveyor.io/source=java-ee", "konveyor.io/source=java-ee"],
+      ["konveyor.io/target=eap7", "konveyor.io/target=eap7"],
+    );
+    expect(result).toBe(
+      "(konveyor.io/source=java-ee || konveyor.io/source=java-ee) && !konveyor.io/target=eap7 && !konveyor.io/target=eap7",
     );
   });
 });

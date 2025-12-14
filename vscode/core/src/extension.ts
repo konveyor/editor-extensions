@@ -17,6 +17,7 @@ import {
   KaiInteractiveWorkflow,
   InMemoryCacheWithRevisions,
   FileBasedResponseCache,
+  type KaiModelProvider,
 } from "@editor-extensions/agentic";
 import { HubConnectionManager } from "./hub";
 import { Immutable, produce } from "immer";
@@ -43,7 +44,12 @@ import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed InlineSuggestionCodeActionProvider import since we're using merge editor now
 import { ParsedModelConfig } from "./modelProvider/types";
 import { getModelProviderFromConfig, parseModelConfig } from "./modelProvider";
+import { BaseModelProvider, type ModelProviderOptions } from "./modelProvider/modelProvider";
+import { getCacheForModelProvider } from "./modelProvider/utils";
+import { ChatOpenAI } from "@langchain/openai";
+import { BaseMessage } from "@langchain/core/messages";
 import winston from "winston";
+import * as pathlib from "path";
 import { OutputChannelTransport } from "winston-transport-vscode";
 // Removed - replaced with vertical diff system
 // import { DiffDecorationManager } from "./decorations";
@@ -93,12 +99,17 @@ class VsCodeExtension {
         llmErrors: [],
         activeProfileId: "",
         profiles: [],
+        isInTreeMode: false, // Computed when profiles are set
         isAgentMode: getConfigAgentMode(),
         activeDecorators: {},
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
         hubConfig: getDefaultHubConfig(), // Will be updated after async initialization
         isProcessingQueuedMessages: false,
+        profileSyncEnabled: false, // Will be updated after hub config loads
+        profileSyncConnected: false,
+        isSyncingProfiles: false,
+        llmProxyAvailable: false, // Will be updated after hub initialization
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -230,6 +241,8 @@ class VsCodeExtension {
           isStartingServer: data.isStartingServer,
           isInitializingServer: data.isInitializingServer,
           solutionServerConnected: data.solutionServerConnected,
+          profileSyncConnected: data.profileSyncConnected,
+          llmProxyAvailable: data.llmProxyAvailable,
           timestamp: new Date().toISOString(),
         });
       });
@@ -240,19 +253,37 @@ class VsCodeExtension {
     // Update profiles without triggering global state change
     const mutateProfiles = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+
+      // Compute isInTreeMode: true when hub profiles are present
+      // This means profiles are managed by Hub, not created in the webview
+      const isInTreeMode = data.profiles.some((p) => p.source === "hub");
+
+      // Warn user if they have hub profiles but profile sync is disabled
+      // They need to delete the synced profiles to regain control
+      if (isInTreeMode && !data.hubConfig?.features?.profileSync?.enabled) {
+        this.state?.logger?.warn(
+          "Hub-synced profiles detected but profile sync is disabled. " +
+            "Delete the .konveyor/profiles directory to manage profiles in the webview.",
+        );
+      }
+
+      // Update isInTreeMode in state
+      this.data = produce(data, (draft) => {
+        draft.isInTreeMode = isInTreeMode;
+      });
 
       // Send only profiles to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
           type: "PROFILES_UPDATE",
-          profiles: data.profiles,
-          activeProfileId: data.activeProfileId,
+          profiles: this.data.profiles,
+          activeProfileId: this.data.activeProfileId,
+          isInTreeMode: this.data.isInTreeMode,
           timestamp: new Date().toISOString(),
         });
       });
 
-      return data;
+      return this.data;
     };
 
     // Update config errors without triggering global state change
@@ -304,6 +335,9 @@ class VsCodeExtension {
           isAgentMode: data.isAgentMode,
           isContinueInstalled: data.isContinueInstalled,
           hubConfig: data.hubConfig,
+          profileSyncEnabled: data.profileSyncEnabled,
+          isSyncingProfiles: data.isSyncingProfiles,
+          llmProxyAvailable: data.llmProxyAvailable,
           timestamp: new Date().toISOString(),
         });
       });
@@ -429,12 +463,22 @@ class VsCodeExtension {
       // Initialize vertical diff system
       this.initializeVerticalDiff();
 
+      // Initialize hub config from secret storage (with migration)
+      const hubConfig = await initializeHubConfig(this.context);
+      this.state.mutateSettings((draft) => {
+        draft.hubConfig = hubConfig;
+        draft.solutionServerEnabled =
+          hubConfig.enabled && hubConfig.features.solutionServer.enabled;
+        draft.profileSyncEnabled = hubConfig.enabled && hubConfig.features.profileSync.enabled;
+        draft.solutionServerConnected = false;
+        draft.profileSyncConnected = false;
+        draft.isSyncingProfiles = false;
+        draft.llmProxyAvailable = false;
+      });
+
       const allProfiles = await getAllProfiles(this.context);
-
       const storedActiveId = this.context.workspaceState.get<string>("activeProfileId");
-
       const matchingProfile = allProfiles.find((p) => p.id === storedActiveId);
-
       const activeProfileId =
         matchingProfile?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
@@ -480,29 +524,43 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
-      // Initialize hub config from secret storage (with migration)
-      const hubConfig = await initializeHubConfig(this.context);
-      this.state.mutateSettings((draft) => {
-        draft.hubConfig = hubConfig;
-        draft.solutionServerEnabled =
-          hubConfig.enabled && hubConfig.features.solutionServer.enabled;
-      });
-
-      // Set up workflow disposal callback for when solution server client changes
+      // Set up workflow disposal callback for when Hub clients reconnect
+      // This handles both solution server changes and LLM proxy availability
       this.state.hubConnectionManager.setWorkflowDisposalCallback(() => {
-        // Check if workflow is running
-        const isWorkflowRunning = this.state.data.isFetchingSolution;
+        this.state.logger.info("Hub clients reconnected, updating workflow and model provider");
 
+        // Update model provider if LLM proxy is available
+        const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
+        if (llmProxyConfig?.available) {
+          this.createHubProxyModelProvider(llmProxyConfig)
+            .then((provider) => {
+              this.state.modelProvider = provider;
+              this.state.logger.info("Model provider updated with Hub LLM proxy");
+
+              // Clear GenAI/provider-related config errors
+              this.state.mutateConfigErrors((draft) => {
+                draft.configErrors = draft.configErrors.filter(
+                  (e) =>
+                    e.type !== "provider-not-configured" &&
+                    e.type !== "provider-connection-failed" &&
+                    e.type !== "genai-disabled",
+                );
+              });
+            })
+            .catch((error) => {
+              this.state.logger.error("Failed to update model provider", error);
+            });
+        }
+
+        // Dispose workflow if needed (solution server or model provider changed)
+        const isWorkflowRunning = this.state.data.isFetchingSolution;
         if (isWorkflowRunning) {
           this.state.logger.warn(
-            "Solution server client changed but workflow is running - will dispose after completion",
+            "Hub clients changed but workflow is running - will dispose after completion",
           );
-          // Mark for disposal after current workflow completes
           this.state.workflowDisposalPending = true;
         } else if (this.state.workflowManager.isInitialized) {
-          this.state.logger.info(
-            "Solution server client changed, disposing workflow for reinitialization",
-          );
+          this.state.logger.info("Disposing workflow to use new Hub clients");
           this.state.workflowManager.dispose();
           this.state.workflowDisposalPending = false;
         }
@@ -510,17 +568,42 @@ class VsCodeExtension {
 
       // Initialize hub connection manager with loaded config
       // This handles connecting to the solution server if enabled
+      let hubInitError: Error | undefined;
       await this.state.hubConnectionManager.initialize(hubConfig).catch((error) => {
         this.state.logger.error("Error initializing Hub connection", error);
+        hubInitError = error;
         this.state.mutateServerState((draft) => {
           draft.solutionServerConnected = false;
+          draft.profileSyncConnected = false;
         });
       });
 
       // Update connection state based on initialization result
       this.state.mutateServerState((draft) => {
         draft.solutionServerConnected = this.state.hubConnectionManager.isSolutionServerConnected();
+        draft.profileSyncConnected = this.state.hubConnectionManager.isProfileSyncConnected();
+
+        // Update LLM proxy state
+        const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
+        draft.llmProxyAvailable = llmProxyConfig?.available || false;
       });
+
+      // Show warning if Hub initialization failed
+      if (hubInitError && hubConfig.enabled) {
+        const errorMsg = hubInitError.message || String(hubInitError);
+        if (errorMsg.includes("404")) {
+          vscode.window.showWarningMessage(
+            `Hub connection failed: Authentication endpoint not found. ` +
+              `Check that the Hub URL is correct.`,
+          );
+        } else if (errorMsg.includes("401") || errorMsg.includes("403")) {
+          vscode.window.showWarningMessage(
+            `Hub connection failed: Authentication failed. Check your username and password.`,
+          );
+        } else {
+          vscode.window.showWarningMessage(`Hub connection failed: ${errorMsg}`);
+        }
+      }
 
       // Adaptive connection polling with exponential backoff
       let pollInterval = 10000; // Start at 10 seconds
@@ -545,9 +628,15 @@ class VsCodeExtension {
           }
 
           try {
-            await this.state.hubConnectionManager
-              .getSolutionServerClient()
-              ?.getServerCapabilities(true);
+            const solutionServerClient = this.state.hubConnectionManager.getSolutionServerClient();
+
+            // If client doesn't exist, treat as disconnected
+            if (!solutionServerClient) {
+              throw new Error("Solution server client not available");
+            }
+
+            await solutionServerClient.getServerCapabilities(true);
+
             // Success - reset failure count and use base interval
             if (consecutiveFailures > 0) {
               this.state.logger.info(
@@ -955,8 +1044,11 @@ class VsCodeExtension {
       const allProfiles = await getAllProfiles(this.context);
       const currentActiveId = this.state.data.activeProfileId;
 
-      // Check if active profile still exists
-      const activeStillExists = allProfiles.find((p) => p.id === currentActiveId);
+      // Check if active profile still exists (handle null, undefined, or empty string)
+      const hasActiveProfile = currentActiveId && currentActiveId.trim() !== "";
+      const activeStillExists = hasActiveProfile
+        ? allProfiles.find((p) => p.id === currentActiveId)
+        : null;
       const newActiveId =
         activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
@@ -965,6 +1057,11 @@ class VsCodeExtension {
         draft.profiles = allProfiles;
         draft.activeProfileId = newActiveId;
       });
+
+      // Persist active profile ID to workspace state if it changed
+      if (currentActiveId !== newActiveId && newActiveId) {
+        await this.context.workspaceState.update("activeProfileId", newActiveId);
+      }
 
       // Then update configuration errors
       this.state.mutateConfigErrors((draft) => {
@@ -1009,6 +1106,63 @@ class VsCodeExtension {
         this.state.workflowDisposalPending = false;
       }
       return createConfigError.genaiDisabled();
+    }
+
+    // Check if Hub LLM proxy is available - if so, use it instead of local config
+    const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
+    if (llmProxyConfig?.available) {
+      this.state.logger.info(
+        "Hub LLM proxy is available, using Hub proxy instead of local config",
+        {
+          endpoint: llmProxyConfig.endpoint,
+        },
+      );
+
+      try {
+        this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyConfig);
+
+        // Clear GenAI/provider-related config errors now that we're using the Hub proxy
+        this.state.mutateConfigErrors((draft) => {
+          draft.configErrors = draft.configErrors.filter(
+            (e) =>
+              e.type !== "provider-not-configured" &&
+              e.type !== "provider-connection-failed" &&
+              e.type !== "genai-disabled",
+          );
+        });
+
+        // Dispose workflow if we're changing an existing provider and not currently fetching
+        if (
+          hadPreviousProvider &&
+          !this.state.data.isFetchingSolution &&
+          this.state.workflowManager &&
+          this.state.workflowManager.dispose
+        ) {
+          this.state.logger.info("Disposing workflow manager - switching to Hub LLM proxy");
+          this.state.workflowManager.dispose();
+          this.state.workflowDisposalPending = false;
+        } else if (hadPreviousProvider && this.state.data.isFetchingSolution) {
+          this.state.logger.info(
+            "Hub proxy configured but workflow disposal deferred - solution in progress",
+          );
+          this.state.workflowDisposalPending = true;
+          vscode.window.showInformationMessage(
+            "Now using Hub LLM proxy. The proxy will be used for the next solution.",
+          );
+        }
+
+        return undefined;
+      } catch (err) {
+        this.state.logger.error("Error setting up Hub LLM proxy provider:", err);
+        this.state.modelProvider = undefined;
+
+        const configError = createConfigError.providerConnnectionFailed();
+        configError.error =
+          err instanceof Error
+            ? `Hub LLM Proxy: ${err.message.length > 150 ? err.message.slice(0, 150) + "..." : err.message}`
+            : String(err);
+        return configError;
+      }
     }
 
     let modelConfig: ParsedModelConfig;
@@ -1092,6 +1246,98 @@ class VsCodeExtension {
           : String(err);
       return configError;
     }
+  }
+
+  /**
+   * Create a model provider configured to use Hub's LLM proxy
+   */
+  private async createHubProxyModelProvider(llmProxyConfig: {
+    available: boolean;
+    endpoint: string;
+    model?: string;
+  }): Promise<KaiModelProvider> {
+    const bearerToken = this.state.hubConnectionManager.getBearerToken();
+    if (!bearerToken) {
+      throw new Error("No bearer token available for Hub LLM proxy authentication");
+    }
+
+    this.state.logger.info("Creating Hub LLM proxy model provider", {
+      endpoint: llmProxyConfig.endpoint,
+      model: llmProxyConfig.model,
+      hasToken: !!bearerToken,
+    });
+
+    // Create OpenAI-compatible chat models pointing to Hub proxy
+    // Use model from Hub configuration, fallback to gpt-4o if not specified
+    const modelName = llmProxyConfig.model || "gpt-4o";
+
+    const streamingModel = new ChatOpenAI({
+      openAIApiKey: bearerToken, // Use JWT as API key
+      configuration: {
+        baseURL: llmProxyConfig.endpoint, // Point to Hub's proxy endpoint
+      },
+      modelName,
+      temperature: 0,
+      streaming: true,
+    });
+
+    const nonStreamingModel = new ChatOpenAI({
+      openAIApiKey: bearerToken,
+      configuration: {
+        baseURL: llmProxyConfig.endpoint,
+      },
+      modelName,
+      temperature: 0,
+      streaming: false,
+    });
+
+    // Set up cache and tracer directories
+    const cacheDir = getConfigKaiDemoMode() ? getCacheDir(this.data.workspaceRoot) : undefined;
+    const traceDir = getTraceEnabled() ? getTraceDir(this.data.workspaceRoot) : undefined;
+
+    const subDir = (dir: string): string =>
+      pathlib.join(dir, "hub-proxy", modelName.replace(/[^a-zA-Z0-9_-]/g, "_"));
+
+    const cache = getCacheForModelProvider(
+      getConfigKaiDemoMode(),
+      this.state.logger,
+      subDir(cacheDir ?? ""),
+    );
+    const tracer = getCacheForModelProvider(
+      getTraceEnabled(),
+      this.state.logger,
+      subDir(traceDir ?? ""),
+      true,
+    );
+
+    // Assume Hub proxy supports tools (it's OpenAI-compatible)
+    let capabilities = {
+      supportsTools: true,
+      supportsToolsInStreaming: true,
+    };
+
+    // Check if we have cached healthcheck in demo mode
+    if (getConfigKaiDemoMode()) {
+      this.state.logger.info("Checking for cached Hub proxy healthcheck");
+      const cachedHealthcheck = await cache.get("capabilities", {
+        cacheSubDir: "healthcheck",
+      });
+      if (cachedHealthcheck && typeof (cachedHealthcheck as BaseMessage).content === "string") {
+        capabilities = JSON.parse((cachedHealthcheck as BaseMessage).content as string);
+        this.state.logger.info("Using cached Hub proxy capabilities", capabilities);
+      }
+    }
+
+    const options: ModelProviderOptions = {
+      streamingModel,
+      nonStreamingModel,
+      capabilities,
+      logger: this.state.logger,
+      cache,
+      tracer,
+    };
+
+    return new BaseModelProvider(options);
   }
 
   public async dispose() {

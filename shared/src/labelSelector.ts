@@ -1,6 +1,10 @@
 /**
- * Utility functions for building label selectors
+ * Builds a label selector string from included and excluded label arrays
  */
+export function buildLabelSelectorFromLabels(included: string[], excluded: string[] = []): string {
+  const excludedLabels = excluded.map((e) => `!${e}`).join(" && ");
+  return `(${included.join(" || ")}) && ${excludedLabels}`;
+}
 
 /**
  * Builds a label selector string from arrays of source and target technologies

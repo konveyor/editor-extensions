@@ -20,12 +20,17 @@ const defaultState: ExtensionData = {
   configErrors: [],
   profiles: [],
   activeProfileId: "",
+  isInTreeMode: false,
   isAgentMode: false,
   activeDecorators: {},
   solutionServerConnected: false,
   isWaitingForUserInteraction: false,
   llmErrors: [],
   hubConfig: undefined,
+  profileSyncEnabled: false,
+  profileSyncConnected: false,
+  isSyncingProfiles: false,
+  llmProxyAvailable: false,
 };
 
 // Safely merge window state with default state to ensure all arrays are defined

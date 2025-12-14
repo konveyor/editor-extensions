@@ -15,6 +15,7 @@ import {
   ServerState,
   AnalysisProfile,
   ConfigError,
+  HubConfig,
 } from "@editor-extensions/shared";
 import { ExtensionState } from "../extensionState";
 
@@ -112,6 +113,8 @@ export function broadcastServerState(
     isStartingServer: boolean;
     isInitializingServer: boolean;
     solutionServerConnected: boolean;
+    profileSyncConnected: boolean;
+    llmProxyAvailable: boolean;
   },
 ) {
   const message: ServerStateUpdateMessage = {
@@ -120,6 +123,8 @@ export function broadcastServerState(
     isStartingServer: data.isStartingServer,
     isInitializingServer: data.isInitializingServer,
     solutionServerConnected: data.solutionServerConnected,
+    profileSyncConnected: data.profileSyncConnected,
+    llmProxyAvailable: data.llmProxyAvailable,
     timestamp: new Date().toISOString(),
   };
   broadcastToAllWebviews(state, message);
@@ -132,11 +137,13 @@ export function broadcastProfiles(
   state: ExtensionState,
   profiles: AnalysisProfile[],
   activeProfileId: string | null,
+  isInTreeMode: boolean,
 ) {
   const message: ProfilesUpdateMessage = {
     type: "PROFILES_UPDATE",
     profiles,
     activeProfileId,
+    isInTreeMode,
     timestamp: new Date().toISOString(),
   };
   broadcastToAllWebviews(state, message);
@@ -178,6 +185,10 @@ export function broadcastSettings(
     solutionServerEnabled: boolean;
     isAgentMode: boolean;
     isContinueInstalled: boolean;
+    hubConfig?: HubConfig;
+    profileSyncEnabled: boolean;
+    isSyncingProfiles: boolean;
+    llmProxyAvailable: boolean;
   },
 ) {
   const message: SettingsUpdateMessage = {
@@ -185,6 +196,10 @@ export function broadcastSettings(
     solutionServerEnabled: data.solutionServerEnabled,
     isAgentMode: data.isAgentMode,
     isContinueInstalled: data.isContinueInstalled,
+    hubConfig: data.hubConfig,
+    profileSyncEnabled: data.profileSyncEnabled,
+    isSyncingProfiles: data.isSyncingProfiles,
+    llmProxyAvailable: data.llmProxyAvailable,
     timestamp: new Date().toISOString(),
   };
   broadcastToAllWebviews(state, message);

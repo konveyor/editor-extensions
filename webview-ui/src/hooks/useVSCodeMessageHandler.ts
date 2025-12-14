@@ -171,6 +171,8 @@ export function useVSCodeMessageHandler() {
             isStartingServer: message.isStartingServer,
             isInitializingServer: message.isInitializingServer,
             solutionServerConnected: message.solutionServerConnected,
+            profileSyncConnected: message.profileSyncConnected,
+            llmProxyAvailable: message.llmProxyAvailable,
           });
           return;
         }
@@ -180,6 +182,7 @@ export function useVSCodeMessageHandler() {
           store.batchUpdate({
             profiles: message.profiles,
             activeProfileId: message.activeProfileId,
+            isInTreeMode: message.isInTreeMode,
           });
           return;
         }
@@ -203,6 +206,9 @@ export function useVSCodeMessageHandler() {
             isAgentMode: message.isAgentMode,
             isContinueInstalled: message.isContinueInstalled,
             hubConfig: message.hubConfig,
+            profileSyncEnabled: message.profileSyncEnabled,
+            isSyncingProfiles: message.isSyncingProfiles,
+            llmProxyAvailable: message.llmProxyAvailable,
           });
           return;
         }
@@ -246,6 +252,10 @@ export function useVSCodeMessageHandler() {
                   ? message.chatMessages
                   : [],
             hubConfig: message.hubConfig,
+            profileSyncEnabled: message.profileSyncEnabled ?? false,
+            profileSyncConnected: message.profileSyncConnected ?? false,
+            isSyncingProfiles: message.isSyncingProfiles ?? false,
+            llmProxyAvailable: message.llmProxyAvailable ?? false,
           });
         }
       } catch (error) {

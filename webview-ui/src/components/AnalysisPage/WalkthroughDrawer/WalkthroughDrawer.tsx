@@ -40,13 +40,14 @@ export function WalkthroughDrawer({
   // ✅ Selective subscriptions
   const profiles = useExtensionStore((state) => state.profiles);
   const activeProfileId = useExtensionStore((state) => state.activeProfileId);
+  const isInTreeMode = useExtensionStore((state) => state.isInTreeMode);
   const configErrors = useExtensionStore((state) => state.configErrors);
   const hubConfig = useExtensionStore((state) => state.hubConfig);
+  const llmProxyAvailable = useExtensionStore((state) => state.llmProxyAvailable);
+  const profileSyncConnected = useExtensionStore((state) => state.profileSyncConnected);
+  const solutionServerConnected = useExtensionStore((state) => state.solutionServerConnected);
 
   const profile = profiles.find((p) => p.id === activeProfileId);
-
-  // Check if in in-tree mode (all profiles have source === 'local')
-  const isInTreeMode = profiles.length > 0 && profiles.every((p) => p.source === "local");
 
   const labelSelectorValid = !!profile?.labelSelector?.trim();
 
@@ -61,29 +62,63 @@ export function WalkthroughDrawer({
   const genaiDisabled = configErrors.some((error) => error.type === "genai-disabled");
   const providerConfigured = !providerConnectionError && !providerNotConfigured && !genaiDisabled;
 
-  // Check hub configuration status - must have URL and if auth is enabled, must have username and password
-  const hubConfigured =
+  // Check hub configuration status
+  // Must have URL, and if auth is enabled, must have credentials
+  const hubFieldsConfigured =
     hubConfig?.enabled &&
     !!hubConfig?.url?.trim() &&
     (!hubConfig?.auth.enabled ||
-      (!!hubConfig?.auth.realm?.trim() &&
-        !!hubConfig?.auth.username?.trim() &&
-        !!hubConfig?.auth.password?.trim()));
+      (!!hubConfig?.auth.username?.trim() && !!hubConfig?.auth.password?.trim()));
+
+  // Hub is "connected" if any feature is actually connected
+  const hubConnected = profileSyncConnected || solutionServerConnected;
+
+  // Check if any Hub features are enabled
+  const anyHubFeatureEnabled =
+    hubConfig?.features?.profileSync?.enabled || hubConfig?.features?.solutionServer?.enabled;
 
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
     "This feature is disabled because the values are managed by the in-tree profile currently selected.";
+  const genaiManagedByHubDescription = "GenAI is configured via Konveyor Hub.";
+  const genaiManagedByHubFullDescription =
+    "GenAI is configured via Konveyor Hub. The LLM proxy provides centralized AI capabilities without requiring local API key configuration. Your requests are routed through the Hub's managed service.";
+
+  // Determine hub status message
+  const getHubStatus = () => {
+    if (!hubConfig?.enabled) {
+      return "Not configured";
+    }
+    if (!hubConfig?.url?.trim()) {
+      return "URL not set";
+    }
+    if (
+      hubConfig?.auth.enabled &&
+      (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
+    ) {
+      return "Missing credentials";
+    }
+
+    if (hubFieldsConfigured && !anyHubFeatureEnabled) {
+      return "No features enabled";
+    }
+
+    if (hubFieldsConfigured && anyHubFeatureEnabled && !hubConnected) {
+      return "Connection failed";
+    }
+
+    if (hubFieldsConfigured && anyHubFeatureEnabled && hubConnected) {
+      return "Completed";
+    }
+
+    return "Not configured";
+  };
 
   const steps = [
     {
       id: "hub-config",
       title: "Hub Configuration",
-      status: hubConfigured
-        ? "Completed"
-        : hubConfig?.auth.enabled &&
-            (!hubConfig?.auth.username?.trim() || !hubConfig?.auth.password?.trim())
-          ? "Missing credentials"
-          : "Not configured",
+      status: getHubStatus(),
       description: "Connect to Konveyor Hub for advanced features.",
       fullDescription:
         "Connect to Konveyor Hub to enable profile synchronization, solution server capabilities, and other advanced features. The Hub provides centralized management and enhanced collaboration capabilities for your migration projects.",
@@ -121,20 +156,26 @@ export function WalkthroughDrawer({
     },
     {
       id: "genai",
-      title: genaiDisabled ? "Enable GenAI" : "Configure GenAI",
-      status: genaiDisabled
-        ? "GenAI is disabled"
-        : providerConfigured
-          ? "Completed"
-          : providerConnectionError
-            ? "Error connecting to the model"
-            : "Not configured",
-      description: genaiDisabled
-        ? "GenAI functionality is currently disabled in your settings."
-        : "Enable GenAI assistance using your API key.",
-      fullDescription: genaiDisabled
-        ? "GenAI functionality is currently disabled in your settings. When enabled, GenAI provides intelligent code suggestions, automated refactoring recommendations, and contextual explanations for migration issues. This feature enhances the analysis experience by offering AI-powered insights."
-        : "Enable GenAI assistance using your API key. Configure your preferred AI provider (OpenAI, Azure OpenAI, or other compatible services) to unlock intelligent code analysis, automated suggestions, and enhanced migration recommendations powered by large language models.",
+      title: genaiDisabled && !llmProxyAvailable ? "Enable GenAI" : "Configure GenAI",
+      status: llmProxyAvailable
+        ? "Disabled"
+        : genaiDisabled
+          ? "GenAI is disabled"
+          : providerConfigured
+            ? "Completed"
+            : providerConnectionError
+              ? "Error connecting to the model"
+              : "Not configured",
+      description: llmProxyAvailable
+        ? genaiManagedByHubDescription
+        : genaiDisabled
+          ? "GenAI functionality is currently disabled in your settings."
+          : "Enable GenAI assistance using your API key.",
+      fullDescription: llmProxyAvailable
+        ? genaiManagedByHubFullDescription
+        : genaiDisabled
+          ? "GenAI functionality is currently disabled in your settings. When enabled, GenAI provides intelligent code suggestions, automated refactoring recommendations, and contextual explanations for migration issues. This feature enhances the analysis experience by offering AI-powered insights."
+          : "Enable GenAI assistance using your API key. Configure your preferred AI provider (OpenAI, Azure OpenAI, or other compatible services) to unlock intelligent code analysis, automated suggestions, and enhanced migration recommendations powered by large language models.",
     },
   ];
 
@@ -161,6 +202,12 @@ export function WalkthroughDrawer({
         return "warning";
       case "Disabled":
         return "info";
+      case "Connection failed":
+        return "danger";
+      case "Missing credentials":
+        return "warning";
+      case "URL not set":
+        return "warning";
       default:
         return "info";
     }
@@ -225,7 +272,7 @@ export function WalkthroughDrawer({
                         </Button>
                       </StackItem>
                     )}
-                    {step.id === "genai" && (
+                    {step.id === "genai" && !llmProxyAvailable && (
                       <StackItem>
                         {genaiDisabled ? (
                           <Button variant="link" onClick={() => dispatch(enableGenAI())}>

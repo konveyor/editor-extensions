@@ -26,8 +26,6 @@ export const HubSettingsForm: React.FC<{
   // Validation state
   const [urlValidation, setUrlValidation] = useState<"default" | "error">("default");
   const [urlErrorMsg, setUrlErrorMsg] = useState<string | null>(null);
-  const [realmValidation, setRealmValidation] = useState<"default" | "error">("default");
-  const [realmErrorMsg, setRealmErrorMsg] = useState<string | null>(null);
   const [usernameValidation, setUsernameValidation] = useState<"default" | "error">("default");
   const [usernameErrorMsg, setUsernameErrorMsg] = useState<string | null>(null);
   const [passwordValidation, setPasswordValidation] = useState<"default" | "error">("default");
@@ -66,18 +64,6 @@ export const HubSettingsForm: React.FC<{
     return true;
   };
 
-  const validateRealm = (realm: string, authEnabled: boolean): boolean => {
-    if (authEnabled && !realm.trim()) {
-      setRealmValidation("error");
-      setRealmErrorMsg("Realm is required when authentication is enabled.");
-      return false;
-    }
-
-    setRealmValidation("default");
-    setRealmErrorMsg(null);
-    return true;
-  };
-
   const validateUsername = (username: string, authEnabled: boolean): boolean => {
     if (authEnabled && !username.trim()) {
       setUsernameValidation("error");
@@ -113,9 +99,6 @@ export const HubSettingsForm: React.FC<{
 
     // Check auth validation
     if (formData.auth.enabled) {
-      if (!formData.auth.realm.trim()) {
-        return false;
-      }
       if (!formData.auth.username.trim()) {
         return false;
       }
@@ -130,11 +113,10 @@ export const HubSettingsForm: React.FC<{
   const handleSave = () => {
     // Re-validate before saving to update error messages
     const urlValid = validateUrl(formData.url, formData.enabled);
-    const realmValid = validateRealm(formData.auth.realm, formData.auth.enabled);
     const usernameValid = validateUsername(formData.auth.username, formData.auth.enabled);
     const passwordValid = validatePassword(formData.auth.password, formData.auth.enabled);
 
-    if (!urlValid || !realmValid || !usernameValid || !passwordValid) {
+    if (!urlValid || !usernameValid || !passwordValid) {
       return;
     }
 
@@ -158,8 +140,6 @@ export const HubSettingsForm: React.FC<{
     setSaveSuccess(false);
     setUrlValidation("default");
     setUrlErrorMsg(null);
-    setRealmValidation("default");
-    setRealmErrorMsg(null);
     setUsernameValidation("default");
     setUsernameErrorMsg(null);
     setPasswordValidation("default");
@@ -267,37 +247,6 @@ export const HubSettingsForm: React.FC<{
           />
         </FormGroup>
 
-        <FormGroup label="Realm" fieldId="auth-realm" isRequired={formData.auth.enabled}>
-          <TextInput
-            id="auth-realm"
-            value={formData.auth.realm}
-            onChange={(_e, value) => {
-              updateAuthField("realm", value);
-              validateRealm(value, formData.auth.enabled);
-            }}
-            validated={realmValidation}
-            placeholder="tackle"
-            isDisabled={!formData.auth.enabled}
-          />
-          {realmErrorMsg ? (
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
-                  {realmErrorMsg}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          ) : (
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem icon={<InfoCircleIcon />}>
-                  The authentication realm name
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          )}
-        </FormGroup>
-
         <FormGroup label="Username" fieldId="auth-username" isRequired={formData.auth.enabled}>
           <TextInput
             id="auth-username"
@@ -401,8 +350,6 @@ export const HubSettingsForm: React.FC<{
           </FormHelperText>
         </FormGroup>
 
-        {/* 
-        TODO: Uncomment when the profile sync feature is implemented
         <FormGroup label="Profile Sync" fieldId="feature-profile-sync">
           <Switch
             id="feature-profile-sync"
@@ -417,7 +364,7 @@ export const HubSettingsForm: React.FC<{
               </HelperTextItem>
             </HelperText>
           </FormHelperText>
-        </FormGroup> */}
+        </FormGroup>
       </FormSection>
 
       <ActionGroup>

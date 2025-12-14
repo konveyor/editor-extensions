@@ -1,0 +1,132 @@
+name: Scheduled Prerelease Tag
+
+on:
+  schedule:
+    # Runs every Monday at 8:00 AM UTC
+    - cron: "0 8 * * 1"
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (do not create/push tag)"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  HUSKY: 0
+
+jobs:
+  check-week:
+    name: Check if Bi-weekly Release Week
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if odd week number
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "✓ Manual trigger - proceeding with release"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          WEEK=$(date +%V)
+          echo "Current week number: $WEEK"
+
+          if [ $((WEEK % 2)) -eq 1 ]; then
+            echo "✓ Odd week ($WEEK) - proceeding with release"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "⊘ Even week ($WEEK) - skipping release"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+  create-prerelease-tag:
+    name: Create Prerelease Tag
+    runs-on: ubuntu-latest
+    needs: check-week
+    if: needs.check-week.outputs.should_run == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history and tags
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Calculate next prerelease tag
+        id: calc_tag
+        run: |
+          # Calculate base prerelease version (current minor - 1)
+          VERSION=$(npm pkg get version | tr -d '"' | awk -F. '{print $1"."$2-1".0"}')
+          echo "Base prerelease version: ${VERSION}"
+
+          # Find next available tag by incrementing patch until no tag exists
+          while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+            echo "Tag v${VERSION} exists, incrementing patch version..."
+            VERSION=$(echo "${VERSION}" | awk -F. '{print $1"."$2"."$3+1}')
+          done
+
+          echo "Next available tag: v${VERSION}"
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Dry run summary
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## [DRY RUN] Prerelease Tag
+
+          **Tag:** \`${{ steps.calc_tag.outputs.tag }}\`
+          **Version:** \`${{ steps.calc_tag.outputs.version }}\`
+          **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          This is a dry run. No tag was created.
+          EOF
+
+      - name: Get Token
+        if: github.event.inputs.dry_run != 'true'
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v3
+        with:
+          application_id: ${{ vars.KONVEYOR_BOT_ID }}
+          application_private_key: ${{ secrets.KONVEYOR_BOT_KEY }}
+
+      - name: Create and push tag
+        if: github.event.inputs.dry_run != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.get_workflow_token.outputs.token }}
+          script: |
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.calc_tag.outputs.tag }}',
+              sha: context.sha
+            });
+            console.log('Created tag: ${{ steps.calc_tag.outputs.tag }}');
+
+      - name: Add tag info to summary
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Prerelease Tag Created
+
+          **Tag:** \`${{ steps.calc_tag.outputs.tag }}\`
+          **Version:** \`${{ steps.calc_tag.outputs.version }}\`
+          **Triggered by:** ${{ github.event_name }}
+          **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          This tag will trigger the CI/CD pipeline to:
+          1. Build and test the extension
+          2. Create a GitHub pre-release
+          3. Publish to VS Code Marketplace as pre-release (since minor version is odd)
+
+          [View Release Workflow](https://github.com/${{ github.repository }}/actions/workflows/ci-repo.yml)
+          EOF
