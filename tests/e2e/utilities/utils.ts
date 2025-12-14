@@ -166,43 +166,41 @@ export async function verifyAnalysisViewCleanState(
 
 export function parseLogEntries(rawContent: string): LogEntry[] {
   const entries: LogEntry[] = [];
-
-  let lines = rawContent.split('\n');
-
-  const allJsonStrings: string[] = [];
+  
+  const normalized = rawContent.replace(/\}\s*\{/g, '}\n{');
+  
+  const lines = normalized.split('\n');
+  let buffer = '';
+  
   for (const line of lines) {
-    if (!line.trim()) continue;
-
-    const parts = line.split(/}(\s*){/);
-
-    let reconstructed: string[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      if (i === 0) {
-        reconstructed.push(parts[i] + '}');
-      } else if (i === parts.length - 1) {
-        reconstructed.push('{' + parts[i]);
-      } else {
-        if (i % 2 === 1) {
-          continue;
-        }
-        reconstructed.push('{' + parts[i] + '}');
+    const trimmed = line.trim();
+    
+    if (!trimmed) continue;
+    
+    buffer += trimmed;
+    
+    try {
+      const parsed = JSON.parse(buffer);
+      entries.push(parsed);
+      buffer = '';
+    } catch (e) {
+      const openBraces = (buffer.match(/\{/g) || []).length;
+      const closeBraces = (buffer.match(/\}/g) || []).length;
+      if (closeBraces > openBraces) {
+        console.warn(`Discarding trailing fragment: ${buffer.substring(0, 50)}...`);
+        buffer = trimmed.startsWith('{') ? trimmed : '';
       }
     }
-
-    allJsonStrings.push(...reconstructed);
   }
-
-  for (const jsonStr of allJsonStrings) {
-    const trimmed = jsonStr.trim();
-    if (!trimmed || trimmed === '{}') continue;
-
+  
+  if (buffer.trim()) {
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed = JSON.parse(buffer);
       entries.push(parsed);
     } catch (e) {
-      console.warn(`Failed to parse JSON: ${trimmed.substring(0, 100)}...`, e);
+      console.warn(`Failed to parse remaining buffer: ${buffer.substring(0, 100)}...`);
     }
   }
-
+  
   return entries;
 }
