@@ -48,7 +48,13 @@ export class OutputPanel {
       console.log(`Output view already closed`);
       return;
     }
-    await this.window.locator('button[aria-label="Hide Panel (⌘J)"]').click();
+    // Try to close the panel via its aria-label, fallback to pressing Ctrl+J if not found
+    const closeBtn = this.window.getByRole('button', { name: /Hide Panel \(Ctrl\+J\)/i });
+    if (await closeBtn.count()) {
+      await closeBtn.first().click();
+    } else {
+      await this.window.keyboard.press('Control+J');
+    }
     console.log(`Output view closed`);
     this.outputOpened = false;
   }
