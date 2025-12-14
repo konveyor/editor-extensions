@@ -70,11 +70,25 @@ export class OutputPanel {
     filterText?: string
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
-    return (
-      (await this.window
-        .locator(`div.output-view-content[aria-label="${channel}"]`)
-        .textContent()) ?? ''
-    );
+
+    // Wait for content to be visible
+    await this.window.locator('div.view-lines').waitFor({ state: 'visible' });
+
+    // Get all line divs
+    const lineDivs = await this.window.locator('div.view-lines div.view-line').all();
+
+    const lines: string[] = [];
+    for (const lineDiv of lineDivs) {
+      // Get all spans within this line and concatenate them
+      const spans = await lineDiv.locator('span.mtk1').allTextContents();
+      const completeLine = spans.join('');
+      if (completeLine.trim()) {
+        // Only add non-empty lines
+        lines.push(completeLine);
+      }
+    }
+
+    return lines.join('\n');
   }
 
   /**

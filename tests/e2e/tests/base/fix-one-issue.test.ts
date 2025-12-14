@@ -24,7 +24,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.configureGenerativeAI(provider.config);
       await vscodeApp.startServer();
       await vscodeApp.waitDefault();
-      // set log levelto info
+      // set log level to info
       const configPage = await Configuration.open(vscodeApp);
       await configPage.setDropdownConfiguration(logLevel, LogLevel.INFO);
       // open output view and clear it
@@ -60,6 +60,7 @@ getAvailableProviders().forEach((provider) => {
       const allowedLevels: LogLevel[] = [LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
 
       for (const entry of logEntries) {
+        console.log(`Log entry: ${JSON.stringify(entry)}`);
         expect(
           allowedLevels.includes(entry.level as LogLevel),
           `Log entry had level "${entry.level}", expected one of: ${allowedLevels.join(', ')}. Full entry: ${JSON.stringify(entry)}`
