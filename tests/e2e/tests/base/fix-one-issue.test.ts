@@ -66,6 +66,7 @@ getAvailableProviders().forEach((provider) => {
           `Log entry had level "${entry.level}", expected one of: ${allowedLevels.join(', ')}. Full entry: ${JSON.stringify(entry)}`
         ).toBeTruthy();
       }
+      await vscodeApp.outputPanel.closeOutputView();
     });
 
     test.afterAll(async () => {

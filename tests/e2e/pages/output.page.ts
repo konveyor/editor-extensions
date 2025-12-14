@@ -48,7 +48,6 @@ export class OutputPanel {
       console.log(`Output view already closed`);
       return;
     }
-    // Try to close the panel via its aria-label, fallback to pressing Ctrl+J if not found
     const closeBtn = this.window.getByRole('button', { name: /Hide Panel \(Ctrl\+J\)/i });
     if (await closeBtn.count()) {
       await closeBtn.first().click();
@@ -71,24 +70,11 @@ export class OutputPanel {
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
 
-    // Wait for content to be visible
     await this.window.locator('div.view-lines').waitFor({ state: 'visible' });
 
-    // Get all line divs
-    const lineDivs = await this.window.locator('div.view-lines div.view-line').all();
+    const rawContent = await this.window.locator('div.view-lines').textContent();
 
-    const lines: string[] = [];
-    for (const lineDiv of lineDivs) {
-      // Get all spans within this line and concatenate them
-      const spans = await lineDiv.locator('span.mtk1').allTextContents();
-      const completeLine = spans.join('');
-      if (completeLine.trim()) {
-        // Only add non-empty lines
-        lines.push(completeLine);
-      }
-    }
-
-    return lines.join('\n');
+    return rawContent ?? '';
   }
 
   /**

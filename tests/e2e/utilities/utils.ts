@@ -164,21 +164,45 @@ export async function verifyAnalysisViewCleanState(
   console.log(`${logPrefix}: Final screenshot saved to ${screenshotPath}`);
 }
 
-export function parseLogEntries(logText: string): LogEntry[] {
-  const lines = logText.trim().split('\n');
-  const logEntries: LogEntry[] = [];
+export function parseLogEntries(rawContent: string): any[] {
+  const entries: any[] = [];
 
+  let lines = rawContent.split('\n');
+
+  const allJsonStrings: string[] = [];
   for (const line of lines) {
-    if (!line.trim()) continue; // Skip empty lines
+    if (!line.trim()) continue;
+
+    const parts = line.split(/}(\s*){/);
+
+    let reconstructed: string[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      if (i === 0) {
+        reconstructed.push(parts[i] + '}');
+      } else if (i === parts.length - 1) {
+        reconstructed.push('{' + parts[i]);
+      } else {
+        if (i % 2 === 1) {
+          continue;
+        }
+        reconstructed.push('{' + parts[i] + '}');
+      }
+    }
+
+    allJsonStrings.push(...reconstructed);
+  }
+
+  for (const jsonStr of allJsonStrings) {
+    const trimmed = jsonStr.trim();
+    if (!trimmed || trimmed === '{}') continue;
 
     try {
-      const entry = JSON.parse(line);
-      logEntries.push(entry as LogEntry);
-    } catch (error) {
-      console.warn('Failed to parse log line:', line, error);
-      // Skip lines that aren't valid JSON
+      const parsed = JSON.parse(trimmed);
+      entries.push(parsed);
+    } catch (e) {
+      console.warn(`Failed to parse JSON: ${trimmed.substring(0, 100)}...`, e);
     }
   }
 
-  return logEntries;
+  return entries;
 }
