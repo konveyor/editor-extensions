@@ -70,9 +70,9 @@ export class OutputPanel {
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
 
-    await this.window.locator('div.view-lines').waitFor({ state: 'visible' });
+    await this.window.locator('div.view-lines').first().waitFor({ state: 'visible' });
 
-    const rawContent = await this.window.locator('div.view-lines').textContent();
+    const rawContent = await this.window.locator('div.view-lines').first().textContent();
 
     return rawContent ?? '';
   }
