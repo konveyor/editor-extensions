@@ -164,8 +164,8 @@ export async function verifyAnalysisViewCleanState(
   console.log(`${logPrefix}: Final screenshot saved to ${screenshotPath}`);
 }
 
-export function parseLogEntries(rawContent: string): any[] {
-  const entries: any[] = [];
+export function parseLogEntries(rawContent: string): LogEntry[] {
+  const entries: LogEntry[] = [];
 
   let lines = rawContent.split('\n');
 
