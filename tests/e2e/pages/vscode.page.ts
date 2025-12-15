@@ -730,4 +730,12 @@ export abstract class VSCode {
 
     return results;
   }
+
+  public async getCUrrentActiveTab(): Promise<{ path: string } | undefined> {
+    const activeTab = await this.window.locator('.tab.active .label-name').textContent();
+    if (activeTab) {
+      return { path: activeTab };
+    }
+    return undefined;
+  }
 }

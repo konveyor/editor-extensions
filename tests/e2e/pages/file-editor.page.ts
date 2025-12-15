@@ -40,12 +40,4 @@ export class FileEditorPage {
     const tabSelector = `.tab[role="tab"][data-resource-name="${filename}"]`;
     await expect(this.window.locator(tabSelector)).toBeVisible({ timeout: 10000 });
   }
-
-  async getCurrentFile(): Promise<{ path: string } | undefined> {
-    const activeTab = await this.window.locator('.tab.active .label-name').textContent();
-    if (activeTab) {
-      return { path: activeTab };
-    }
-    return undefined;
-  }
 }
