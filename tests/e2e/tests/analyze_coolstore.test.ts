@@ -83,6 +83,9 @@ providers.forEach((config) => {
 
     test.afterAll(async ({ testRepoData }, testInfo) => {
       await vscodeApp.closeVSCode();
+      if (test.info().status !== test.info().expectedStatus) {
+        allOk = false;
+      }
       // Evaluation should be performed only if all tests under this suite passed
       if (allOk && process.env.CI) {
         test.setTimeout(300_000);

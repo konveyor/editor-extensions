@@ -48,7 +48,7 @@ export class VSCodeWeb extends VSCode {
       newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
     } else {
       console.log('Found existing workspace');
-      console.log(repoRow.innerHTML());
+      console.log(await repoRow.innerHTML());
 
       [newPage] = await Promise.all([
         context.waitForEvent('page'),
