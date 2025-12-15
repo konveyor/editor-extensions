@@ -74,6 +74,7 @@ export class VSCodeWeb extends VSCode {
 
     await expect(newPage.getByText('Waiting metrics...')).toBeVisible({ timeout: 300_000 });
     await expect(newPage.getByText('Waiting metrics...')).not.toBeVisible({ timeout: 300_000 });
+    console.log('VSCodeWeb.open: Metrics loaded');
 
     // TODO: Replace this waiting
     await newPage.waitForTimeout(30_000);
