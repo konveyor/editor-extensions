@@ -84,7 +84,10 @@ export class VSCodeWeb extends VSCode {
       vscode.getWindow().locator('.workspace-trust-limitations-title-text').first()
     ).toBeVisible();
     if (await trustBtn.isVisible()) {
+      console.log('VSCodeWeb.open: Workspace trusted');
       await trustBtn.click();
+    } else {
+      console.log('VSCodeWeb.open: Workspace was ALREADY trusted');
     }
     // TODO: After trusting the workspace the extensions are activated, need a way to handle it instead of just waiting
     await newPage.waitForTimeout(30_000);
@@ -101,7 +104,10 @@ export class VSCodeWeb extends VSCode {
     await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
     const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
     if (await javaLightSelector.isVisible()) {
+      console.log('VSCodeWeb.open: Change Java extension mode');
       await javaLightSelector.click();
+    } else {
+      console.log('VSCodeWeb.open: Java extension is NOT in lightweight mode');
     }
 
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
