@@ -11,12 +11,20 @@ export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
   allowH2: boolean = false,
+  logger?: Logger,
 ): Promise<UndiciTypesDispatcher> {
   let allCerts: string | undefined;
   if (bundlePath) {
-    const defaultCerts = tls.rootCertificates.join("\n");
-    const certs = await fs.readFile(bundlePath, "utf8");
-    allCerts = [defaultCerts, certs].join("\n");
+    try {
+      const defaultCerts = tls.rootCertificates.join("\n");
+      const certs = await fs.readFile(bundlePath, "utf8");
+      allCerts = [defaultCerts, certs].join("\n");
+    } catch (error) {
+      if (logger) {
+        logger.error(`Failed to read CA bundle from ${bundlePath}: ${String(error)}`);
+      }
+      allCerts = tls.rootCertificates.join("\n");
+    }
   }
 
   const proxyUrl =
@@ -45,23 +53,6 @@ export async function getDispatcherWithCertBundle(
   }) as unknown as UndiciTypesDispatcher;
 }
 
-export async function getHttpsAgentWithCertBundle(
-  bundlePath: string | undefined,
-  insecure: boolean = false,
-): Promise<HttpsAgent> {
-  let allCerts: string | undefined;
-  if (bundlePath) {
-    const defaultCerts = tls.rootCertificates.join("\n");
-    const certs = await fs.readFile(bundlePath, "utf8");
-    allCerts = [defaultCerts, certs].join("\n");
-  }
-
-  return new HttpsAgent({
-    ca: allCerts,
-    rejectUnauthorized: !insecure,
-  });
-}
-
 export function getFetchWithDispatcher(
   dispatcher: UndiciTypesDispatcher,
 ): (input: Request | URL | string, init?: RequestInit) => Promise<Response> {
@@ -82,10 +73,13 @@ export async function getNodeHttpHandler(
   httpVersion: "1.1" | "2.0" = "1.1",
 ): Promise<NodeHttpHandler | NodeHttp2Handler> {
   const caBundle = env["CA_BUNDLE"] || env["AWS_CA_BUNDLE"];
-  const insecureRaw =
-    env["ALLOW_INSECURE"] || env["NODE_TLS_REJECT_UNAUTHORIZED"] === "0" ? "true" : undefined;
+
   let insecure = false;
-  if (insecureRaw && insecureRaw.match(/^(true|1)$/i)) {
+  if (env["ALLOW_INSECURE"] !== undefined) {
+    if (env["ALLOW_INSECURE"].match(/^(true|1)$/i)) {
+      insecure = true;
+    }
+  } else if (env["NODE_TLS_REJECT_UNAUTHORIZED"] === "0") {
     insecure = true;
   }
 

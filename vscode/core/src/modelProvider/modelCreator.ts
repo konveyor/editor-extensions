@@ -257,7 +257,7 @@ async function getFetchFn(
 
   if (needsCustomDispatcher) {
     try {
-      const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure, allowH2);
+      const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure, allowH2, logger);
       return getFetchWithDispatcher(dispatcher);
     } catch (error) {
       logger.error(error);
