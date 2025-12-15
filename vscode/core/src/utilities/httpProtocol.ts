@@ -8,5 +8,9 @@ export function getConfigHttpProtocol(): "http1" | "http2" {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const vscode = require("vscode");
   const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
-  return config.get("genai.httpProtocol", "http1");
+  const value = config.get("genai.httpProtocol", "http1");
+
+  // Runtime validation to ensure the value matches the type signature
+  // This protects against manual edits to settings.json
+  return value === "http2" ? "http2" : "http1";
 }

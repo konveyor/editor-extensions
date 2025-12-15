@@ -30,12 +30,13 @@ class AzureChatOpenAICreator implements ModelCreator {
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
     const httpProtocol = getConfigHttpProtocol();
     const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new AzureChatOpenAI({
       openAIApiKey: env.AZURE_OPENAI_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,
-        fetch: await getFetchFn(env, this.logger, allowH2),
+        ...(fetchFn ? { fetch: fetchFn } : {}),
       },
     });
   }
@@ -111,12 +112,13 @@ class ChatDeepSeekCreator implements ModelCreator {
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
     const httpProtocol = getConfigHttpProtocol();
     const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatDeepSeek({
       apiKey: env.DEEPSEEK_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,
-        fetch: await getFetchFn(env, this.logger, allowH2),
+        ...(fetchFn ? { fetch: fetchFn } : {}),
       },
     });
   }
@@ -166,9 +168,10 @@ class ChatOllamaCreator implements ModelCreator {
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
     const httpProtocol = getConfigHttpProtocol();
     const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatOllama({
       ...args,
-      fetch: await getFetchFn(env, this.logger, allowH2),
+      ...(fetchFn ? { fetch: fetchFn } : {}),
     });
   }
 
@@ -190,12 +193,13 @@ class ChatOpenAICreator implements ModelCreator {
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
     const httpProtocol = getConfigHttpProtocol();
     const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatOpenAI({
       openAIApiKey: env.OPENAI_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,
-        fetch: await getFetchFn(env, this.logger, allowH2),
+        ...(fetchFn ? { fetch: fetchFn } : {}),
       },
     });
   }
