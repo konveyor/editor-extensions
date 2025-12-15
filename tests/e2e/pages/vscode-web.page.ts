@@ -35,7 +35,7 @@ export class VSCodeWeb extends VSCode {
 
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (await loginButton.isVisible()) {
-      throw new Error('User is not logged in.');
+      throw new Error('VSCodeWeb.open: User is not logged in.');
     }
 
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
@@ -46,11 +46,11 @@ export class VSCodeWeb extends VSCode {
 
     // Creates a new workspace or reuses one that already exists for the same repository
     if (!(await repoRow.isVisible())) {
-      console.log('Creating new workspace...');
+      console.log('VSCodeWeb.open: Creating new workspace...');
       newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
     } else {
-      console.log('Found existing workspace');
-      console.log(await repoRow.innerHTML());
+      console.log('VSCodeWeb.open: Found existing workspace');
+      console.log(await repoRow.allTextContents());
 
       [newPage] = await Promise.all([
         context.waitForEvent('page'),
@@ -67,7 +67,7 @@ export class VSCodeWeb extends VSCode {
         .getByRole('button', { name: 'Yes, I trust the authors' })
         .click({ timeout: 300_000 });
     } catch (error) {
-      console.log('Trust button not found, trying to continue', error);
+      console.log('VSCodeWeb.open: Trust button not found, trying to continue', error);
     }
 
     await expect(
