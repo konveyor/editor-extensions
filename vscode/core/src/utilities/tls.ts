@@ -121,10 +121,15 @@ export async function getNodeHttpHandler(
     ALPNProtocols: httpVersion === "2.0" ? ["h2", "http/1.1"] : ["http/1.1"],
   };
 
-  const handlerOptions = {
+  const http1HandlerOptions = {
     requestTimeout: 30000,
     connectionTimeout: 5000,
     socketTimeout: 30000,
+  };
+
+  const http2HandlerOptions = {
+    requestTimeout: 30000,
+    sessionTimeout: 30000,
   };
 
   if (proxyUrl) {
@@ -140,7 +145,7 @@ export async function getNodeHttpHandler(
         ALPNProtocols: ["http/1.1"],
       });
       return new NodeHttpHandler({
-        ...handlerOptions,
+        ...http1HandlerOptions,
         httpAgent: proxyAgent,
         httpsAgent: proxyAgent,
       });
@@ -148,7 +153,7 @@ export async function getNodeHttpHandler(
 
     const proxyAgent = new HttpsProxyAgent(proxyUrl, agentOptions);
     return new NodeHttpHandler({
-      ...handlerOptions,
+      ...http1HandlerOptions,
       httpAgent: proxyAgent,
       httpsAgent: proxyAgent,
     });
@@ -161,19 +166,17 @@ export async function getNodeHttpHandler(
           "Falling back to HTTP/1.1.",
       );
       return new NodeHttpHandler({
-        ...handlerOptions,
+        ...http1HandlerOptions,
         httpAgent: new HttpsAgent(agentOptions),
         httpsAgent: new HttpsAgent(agentOptions),
       });
     }
     logger.info("Using NodeHttp2Handler for HTTP/2");
-    return new NodeHttp2Handler({
-      ...handlerOptions,
-    }) as any;
+    return new NodeHttp2Handler(http2HandlerOptions);
   }
 
   return new NodeHttpHandler({
-    ...handlerOptions,
+    ...http1HandlerOptions,
     httpAgent: new HttpsAgent(agentOptions),
     httpsAgent: new HttpsAgent(agentOptions),
   });
