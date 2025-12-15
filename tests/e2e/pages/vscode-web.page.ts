@@ -7,6 +7,8 @@ import { BrowserContext } from 'playwright-core';
 import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { ExtensionTypes } from '../enums/extension-types.enum';
+import pathlib from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -108,7 +110,11 @@ export class VSCodeWeb extends VSCode {
       await javaLightSelector.click();
     } else {
       console.log('VSCodeWeb.open: Java extension is NOT in lightweight mode');
+      console.log(await newPage.getByRole('button', { name: 'Java:' }).allTextContents());
     }
+    await newPage.screenshot({
+      path: pathlib.join(SCREENSHOTS_FOLDER, `java-button.png`),
+    });
 
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
     await javaReadySelector.waitFor({ timeout: 180_000 });
