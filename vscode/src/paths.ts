@@ -146,17 +146,10 @@ export async function ensureKaiAnalyzerBinary(
   logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
-  // Create fetch function that handles corporate environments:
-  // - Proxy support (HTTPS_PROXY, HTTP_PROXY env vars)
-  // - Corporate CA certificates (NODE_EXTRA_CA_CERTS env var)
-  // - TLS/SSL configuration
-  // Note: undici requires explicit certificate passing, it doesn't automatically
-  // use NODE_EXTRA_CA_CERTS like Node.js's built-in https module does
   const extraCerts = process.env.NODE_EXTRA_CA_CERTS;
   const dispatcher = await getDispatcherWithCertBundle(extraCerts, false, false);
   const proxyAwareFetch = getFetchWithDispatcher(dispatcher);
 
-  // Log environment configuration for troubleshooting
   const proxyUrl =
     process.env.HTTPS_PROXY ||
     process.env.https_proxy ||
@@ -172,12 +165,10 @@ export async function ensureKaiAnalyzerBinary(
   if (!proxyUrl && !extraCerts) {
     logger.info("Using direct connection with default system certificates");
   }
-
-  // Download and parse sha256sum.txt to get expected SHA (with retries)
   let sha256Content: string;
   try {
     const sha256Response = await proxyAwareFetch(sha256sumUrl, {
-      signal: AbortSignal.timeout(30000), // 30 second timeout for small file
+      signal: AbortSignal.timeout(30000),
     });
     if (!sha256Response.ok) {
       throw new Error(`HTTP ${sha256Response.status}: ${sha256Response.statusText}`);
@@ -211,13 +202,10 @@ export async function ensureKaiAnalyzerBinary(
       // Create target directory
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
 
-      // Download zip file with retry logic for proxy environments
       const tempZipPath = join(dirname(kaiAnalyzerPath), assetConfig.file);
       const maxRetries = 3;
-      const retryDelays = [2000, 5000, 10000]; // ms
+      const retryDelays = [2000, 5000, 10000];
       let lastError: Error | null = null;
-
-      // Track progress interval across attempts so we can clean it up
       let progressInterval: NodeJS.Timeout | undefined;
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -230,10 +218,8 @@ export async function ensureKaiAnalyzerBinary(
 
           const fetchStartTime = Date.now();
 
-          // Show progress during potential firewall buffering delay
           let elapsed = 0;
           if (attempt === 0) {
-            // Only show "waiting" message on first attempt
             progressInterval = setInterval(() => {
               elapsed += 1;
               if (elapsed >= 5 && elapsed < 30) {
@@ -245,11 +231,7 @@ export async function ensureKaiAnalyzerBinary(
           }
 
           const response = await proxyAwareFetch(downloadUrl, {
-            // 5 minute timeout to handle:
-            // 1. High TTFB from firewall buffering/scanning (can be 10-30s)
-            // 2. Slow network connections
-            // 3. Large file size (~12MB)
-            signal: AbortSignal.timeout(300000), // 5 minutes
+            signal: AbortSignal.timeout(300000),
             headers: {
               "User-Agent": "vscode-mta-extension",
               Accept: "application/zip, application/octet-stream, */*",
@@ -286,7 +268,6 @@ export async function ensureKaiAnalyzerBinary(
             `Content-Length: ${contentLength ? `${(parseInt(contentLength) / 1024 / 1024).toFixed(2)} MB` : "unknown"}`,
           );
 
-          // Convert web ReadableStream to Node.js Readable for better compatibility
           const reader = response.body.getReader();
           const nodeStream = new (await import("stream")).Readable({
             async read() {
@@ -296,7 +277,6 @@ export async function ensureKaiAnalyzerBinary(
                   this.push(null);
                 } else {
                   downloadedBytes += value.length;
-                  // Update progress to keep connection alive
                   if (contentLength) {
                     const percent = Math.round((downloadedBytes / parseInt(contentLength)) * 100);
                     progress.report({
@@ -315,16 +295,14 @@ export async function ensureKaiAnalyzerBinary(
           await pipeline(nodeStream, fileStream);
           logger.info(`Successfully downloaded ${downloadedBytes} bytes`);
 
-          // Clean up progress interval on success
           if (progressInterval) {
             clearInterval(progressInterval);
             progressInterval = undefined;
           }
 
           lastError = null;
-          break; // Success, exit retry loop
+          break;
         } catch (error: any) {
-          // Clean up progress interval on error
           if (progressInterval) {
             clearInterval(progressInterval);
             progressInterval = undefined;
@@ -333,7 +311,6 @@ export async function ensureKaiAnalyzerBinary(
           lastError = error;
           logger.warn(`Download attempt ${attempt + 1} failed:`, error);
 
-          // Clean up partial download
           try {
             if (existsSync(tempZipPath)) {
               await unlink(tempZipPath);
@@ -343,44 +320,28 @@ export async function ensureKaiAnalyzerBinary(
           }
 
           if (attempt === maxRetries) {
-            // Last attempt failed - provide detailed troubleshooting information
             const errorDetails = [
               `Failed to download analyzer binary after ${maxRetries + 1} attempts.`,
               `URL: ${downloadUrl}`,
               `Error: ${error.message}`,
-              `Error type: ${error.name || "Unknown"}`,
             ];
 
-            // Add troubleshooting hints based on error type
             if (error.message.includes("CERT") || error.message.includes("certificate")) {
               errorDetails.push(
-                "Certificate error detected. For corporate environments with SSL inspection:",
-                "- Set NODE_EXTRA_CA_CERTS=/path/to/corporate-ca-bundle.pem",
-                "- Or contact IT to get the corporate CA certificate",
+                "Certificate error: Set NODE_EXTRA_CA_CERTS to your CA bundle path",
               );
             } else if (
               error.message.includes("ECONNREFUSED") ||
               error.message.includes("ETIMEDOUT")
             ) {
               errorDetails.push(
-                "Connection error detected. Possible causes:",
-                "- Proxy configuration required (set HTTPS_PROXY environment variable)",
-                "- Firewall blocking access to developers.redhat.com",
-                "- Network connectivity issues",
+                "Connection error: Check proxy settings (HTTPS_PROXY) and network access",
               );
             } else if (error.message.includes("aborted") || error.message.includes("UND_ERR")) {
-              errorDetails.push(
-                "Download was aborted. Possible causes:",
-                "- Proxy timeout (try setting a longer timeout on proxy)",
-                "- Unstable network connection",
-                "- Large file size (~12MB) may exceed network limits",
-              );
+              errorDetails.push("Download aborted: Check network stability and proxy timeout");
             } else {
               errorDetails.push(
-                "Troubleshooting steps:",
-                `- Verify ${downloadUrl} is accessible from a browser`,
-                "- Check if proxy is required (set HTTPS_PROXY if needed)",
-                "- For corporate environments, verify SSL certificates (NODE_EXTRA_CA_CERTS)",
+                "Verify network access and check proxy/certificate settings if needed",
               );
             }
 
