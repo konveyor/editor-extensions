@@ -1,6 +1,6 @@
 import { expect, Page } from '@playwright/test';
-import { VSCode } from '../pages/vscode.page';
-import { getOSInfo } from './utils';
+import { VSCode } from './vscode.page';
+import { getOSInfo } from '../utilities/utils';
 
 export class FileEditorPage {
   private readonly window: Page;

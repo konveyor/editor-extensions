@@ -173,7 +173,7 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await this.analysisIsRunning();
+      await expect(await this.analysisIsRunning()).resolves.toBe(true);
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);

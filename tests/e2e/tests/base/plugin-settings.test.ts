@@ -2,7 +2,7 @@ import { expect, test } from '../../fixtures/test-repo-fixture';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { Configuration } from '../../pages/configuration.page';
 import { analyzeOnSaveSettingKey } from '../../enums/configuration-options.enum';
-import { FileEditorPage } from '../../utilities/fileEditor';
+import { FileEditorPage } from '../../pages/file-editor.page';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
