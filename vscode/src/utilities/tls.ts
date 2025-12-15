@@ -7,25 +7,17 @@ import { NodeHttpHandler, NodeHttp2Handler } from "@smithy/node-http-handler";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import type { Logger } from "winston";
 
-/**
- * Creates an undici dispatcher for fetch-based HTTP clients.
- * Used by: OpenAI, Azure OpenAI, Ollama, DeepSeek
- *
- * @param allowH2 - Enable HTTP/2 support in undici client and proxy
- */
 export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
   allowH2: boolean = false,
 ): Promise<UndiciTypesDispatcher> {
-  let allCerts: string | undefined;
+  let allCerts: string[] | undefined;
   if (bundlePath) {
-    const defaultCerts = tls.rootCertificates.join("\n");
-    const certs = await fs.readFile(bundlePath, "utf8");
-    allCerts = [defaultCerts, certs].join("\n");
+    const customCert = await fs.readFile(bundlePath, "utf8");
+    allCerts = [...tls.rootCertificates, customCert];
   }
 
-  // Check for proxy configuration
   const proxyUrl =
     process.env.HTTPS_PROXY ||
     process.env.https_proxy ||
@@ -33,10 +25,9 @@ export async function getDispatcherWithCertBundle(
     process.env.http_proxy;
 
   if (proxyUrl) {
-    // Use ProxyAgent when proxy is configured
     return new ProxyAgent({
       uri: proxyUrl,
-      allowH2, // Pass through HTTP/2 preference!
+      allowH2,
       connect: {
         ca: allCerts,
         rejectUnauthorized: !insecure,
@@ -57,11 +48,10 @@ export async function getHttpsAgentWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
 ): Promise<HttpsAgent> {
-  let allCerts: string | undefined;
+  let allCerts: string[] | undefined;
   if (bundlePath) {
-    const defaultCerts = tls.rootCertificates.join("\n");
-    const certs = await fs.readFile(bundlePath, "utf8");
-    allCerts = [defaultCerts, certs].join("\n");
+    const customCert = await fs.readFile(bundlePath, "utf8");
+    allCerts = [...tls.rootCertificates, customCert];
   }
 
   return new HttpsAgent({
