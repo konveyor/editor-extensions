@@ -155,6 +155,17 @@ export async function getNodeHttpHandler(
   }
 
   if (httpVersion === "2.0") {
+    if (allCerts || insecure) {
+      logger.warn(
+        "HTTP/2 does not support custom CA bundle or insecure mode via NodeHttp2Handler. " +
+          "Falling back to HTTP/1.1.",
+      );
+      return new NodeHttpHandler({
+        ...handlerOptions,
+        httpAgent: new HttpsAgent(agentOptions),
+        httpsAgent: new HttpsAgent(agentOptions),
+      });
+    }
     logger.info("Using NodeHttp2Handler for HTTP/2");
     return new NodeHttp2Handler({
       ...handlerOptions,
