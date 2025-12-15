@@ -5,19 +5,25 @@ import { cwdToProjectRoot } from "./_util.js";
 
 cwdToProjectRoot();
 
-// Get the extension type from command line args (e.g., 'core', 'java', 'javascript', 'go')
-// Or package all extensions if no argument provided
-const extensionType = process.argv[2];
+// Parse command line args
+// Usage: node package-extensions.js [extension-type] [--pre-release]
+const args = process.argv.slice(2);
+const isPreRelease = args.includes("--pre-release");
+const extensionType = args.find((arg) => !arg.startsWith("--"));
+
+if (isPreRelease) {
+  console.log("📦 Packaging as PRE-RELEASE\n");
+}
 
 if (extensionType) {
   // Package a specific extension
-  packageExtension(extensionType);
+  packageExtension(extensionType, isPreRelease);
 } else {
   // Package all extensions
-  packageAllExtensions();
+  packageAllExtensions(isPreRelease);
 }
 
-function packageExtension(type) {
+function packageExtension(type, preRelease = false) {
   const packageJsonPath = `vscode/${type}/package.json`;
 
   if (!fs.existsSync(packageJsonPath)) {
@@ -37,10 +43,11 @@ function packageExtension(type) {
     process.exit(1);
   }
 
-  console.log(`Packaging ${extensionName}...`);
+  console.log(`Packaging ${extensionName}${preRelease ? " (pre-release)" : ""}...`);
 
   try {
-    execSync(`vsce package --out ../`, {
+    const preReleaseFlag = preRelease ? " --pre-release" : "";
+    execSync(`vsce package${preReleaseFlag} --out ../`, {
       cwd: extensionDir,
       stdio: "inherit",
     });
@@ -51,7 +58,7 @@ function packageExtension(type) {
   }
 }
 
-function packageAllExtensions() {
+function packageAllExtensions(preRelease = false) {
   console.log("Packaging all extensions...\n");
 
   // Find all directories in dist/ that contain a package.json
@@ -82,13 +89,14 @@ function packageAllExtensions() {
   console.log();
 
   // Package each extension
+  const preReleaseFlag = preRelease ? " --pre-release" : "";
   for (const extensionName of extensionDirs) {
     const extensionDir = `${distDir}/${extensionName}`;
 
-    console.log(`Packaging ${extensionName}...`);
+    console.log(`Packaging ${extensionName}${preRelease ? " (pre-release)" : ""}...`);
 
     try {
-      execSync(`vsce package --out ../`, {
+      execSync(`vsce package${preReleaseFlag} --out ../`, {
         cwd: extensionDir,
         stdio: "inherit",
       });

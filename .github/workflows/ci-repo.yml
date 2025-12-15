@@ -212,16 +212,36 @@ jobs:
         run: npm run dist
 
       - name: Package core extension
-        run: npm run package-core
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-core -- --pre-release
+          else
+            npm run package-core
+          fi
 
       - name: Package Java extension
-        run: npm run package-java
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-java -- --pre-release
+          else
+            npm run package-java
+          fi
 
       - name: Package JavaScript extension
-        run: npm run package-javascript
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-javascript -- --pre-release
+          else
+            npm run package-javascript
+          fi
 
       - name: Package Go extension
-        run: npm run package-go
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-go -- --pre-release
+          else
+            npm run package-go
+          fi
 
       - name: Upload VSIX artifacts
         uses: actions/upload-artifact@v4
