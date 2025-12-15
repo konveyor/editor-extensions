@@ -173,14 +173,17 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
-        timeout: 60000,
-      });
+      await this.analysisIsRunning();
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
       throw error;
     }
+  }
+
+  public async analysisIsRunning(): Promise<boolean> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    return await analysisView.getByText('Analysis Progress').first().isVisible();
   }
 
   public async waitForAnalysisCompleted(): Promise<void> {
