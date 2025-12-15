@@ -18,7 +18,8 @@ export class FileEditorPage {
   async saveFile(filename: string): Promise<void> {
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     const tabSelector = this.window.locator(`.tab[role="tab"][data-resource-name="${filename}"]`);
-    tabSelector.getByText(filename).click();
+    await tabSelector.waitFor({ state: 'visible', timeout: 10000 });
+    await tabSelector.getByText(filename).click();
     await this.window.keyboard.press(`${modifier}+S`, { delay: 500 });
   }
 
