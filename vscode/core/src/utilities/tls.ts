@@ -13,17 +13,15 @@ export async function getDispatcherWithCertBundle(
   allowH2: boolean = false,
   logger?: Logger,
 ): Promise<UndiciTypesDispatcher> {
-  let allCerts: string | undefined;
+  let allCerts: string[] | undefined;
   if (bundlePath) {
     try {
-      const defaultCerts = tls.rootCertificates.join("\n");
-      const certs = await fs.readFile(bundlePath, "utf8");
-      allCerts = [defaultCerts, certs].join("\n");
+      const customCert = await fs.readFile(bundlePath, "utf8");
+      allCerts = [...tls.rootCertificates, customCert];
     } catch (error) {
       if (logger) {
         logger.error(`Failed to read CA bundle from ${bundlePath}: ${String(error)}`);
       }
-      allCerts = tls.rootCertificates.join("\n");
     }
   }
 

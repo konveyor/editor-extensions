@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import AdmZip from "adm-zip";
+import { getDispatcherWithCertBundle, getFetchWithDispatcher } from "./utilities/tls";
 
 /**
  * Parse a sha256sum.txt file to extract the SHA256 hash for a specific filename
@@ -145,13 +146,42 @@ export async function ensureKaiAnalyzerBinary(
   logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
-  // Download and parse sha256sum.txt to get expected SHA
-  const sha256Response = await fetch(sha256sumUrl);
-  if (!sha256Response.ok) {
-    throw new Error(`Failed to download SHA256 checksums: HTTP ${sha256Response.status}`);
+  const extraCerts = process.env.NODE_EXTRA_CA_CERTS;
+  const dispatcher = await getDispatcherWithCertBundle(extraCerts, false, false);
+  const proxyAwareFetch = getFetchWithDispatcher(dispatcher);
+
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
+
+  if (proxyUrl) {
+    logger.info(`Using proxy: ${proxyUrl}`);
+  }
+  if (extraCerts) {
+    logger.info(`Using custom CA certificates from: ${extraCerts}`);
+  }
+  if (!proxyUrl && !extraCerts) {
+    logger.info("Using direct connection with default system certificates");
+  }
+  let sha256Content: string;
+  try {
+    const sha256Response = await proxyAwareFetch(sha256sumUrl, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!sha256Response.ok) {
+      throw new Error(`HTTP ${sha256Response.status}: ${sha256Response.statusText}`);
+    }
+    sha256Content = await sha256Response.text();
+  } catch (error: any) {
+    throw new Error(
+      `Failed to download SHA256 checksums from ${sha256sumUrl}. ` +
+        `Error: ${error.message}. ` +
+        `This may indicate network connectivity issues or firewall restrictions.`,
+    );
   }
 
-  const sha256Content = await sha256Response.text();
   const expectedSha256 = parseSha256Sum(sha256Content, assetConfig.file);
 
   if (!expectedSha256) {
@@ -172,19 +202,157 @@ export async function ensureKaiAnalyzerBinary(
       // Create target directory
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
 
-      // Download zip file
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      if (!response.body) {
-        throw new Error("Response body is null");
-      }
-
       const tempZipPath = join(dirname(kaiAnalyzerPath), assetConfig.file);
-      const fileStream = createWriteStream(tempZipPath);
-      await pipeline(response.body as any, fileStream);
+      const maxRetries = 3;
+      const retryDelays = [2000, 5000, 10000];
+      let lastError: Error | null = null;
+      let progressInterval: NodeJS.Timeout | undefined;
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            logger.info(`Retry attempt ${attempt}/${maxRetries} for ${downloadUrl}`);
+            progress.report({ message: `Retrying download (${attempt}/${maxRetries})...` });
+            await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt - 1]));
+          }
+
+          const fetchStartTime = Date.now();
+
+          let elapsed = 0;
+          if (attempt === 0) {
+            progressInterval = setInterval(() => {
+              elapsed += 1;
+              if (elapsed >= 5 && elapsed < 30) {
+                progress.report({
+                  message: `Downloading... (${elapsed}s - firewall may be scanning)`,
+                });
+              }
+            }, 1000);
+          }
+
+          const response = await proxyAwareFetch(downloadUrl, {
+            signal: AbortSignal.timeout(300000),
+            headers: {
+              "User-Agent": "vscode-mta-extension",
+              Accept: "application/zip, application/octet-stream, */*",
+            },
+          });
+
+          if (progressInterval) {
+            clearInterval(progressInterval);
+          }
+
+          const ttfb = Date.now() - fetchStartTime;
+          logger.info(`Time-To-First-Byte: ${ttfb}ms`);
+
+          if (ttfb > 10000) {
+            logger.warn(
+              `High TTFB detected (${(ttfb / 1000).toFixed(1)}s). ` +
+                `This indicates firewall buffering/scanning. ` +
+                `This is normal in corporate environments with anti-malware scanning.`,
+            );
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          if (!response.body) {
+            throw new Error("Response body is null");
+          }
+
+          const fileStream = createWriteStream(tempZipPath);
+          const contentLength = response.headers.get("content-length");
+          let downloadedBytes = 0;
+          logger.info(
+            `Content-Length: ${contentLength ? `${(parseInt(contentLength) / 1024 / 1024).toFixed(2)} MB` : "unknown"}`,
+          );
+
+          const reader = response.body.getReader();
+          const nodeStream = new (await import("stream")).Readable({
+            async read() {
+              try {
+                const { done, value } = await reader.read();
+                if (done) {
+                  this.push(null);
+                } else {
+                  downloadedBytes += value.length;
+                  if (contentLength) {
+                    const percent = Math.round((downloadedBytes / parseInt(contentLength)) * 100);
+                    progress.report({
+                      message: `Downloading... ${percent}%`,
+                      increment: percent,
+                    });
+                  }
+                  this.push(value);
+                }
+              } catch (error) {
+                this.destroy(error as Error);
+              }
+            },
+          });
+
+          await pipeline(nodeStream, fileStream);
+          logger.info(`Successfully downloaded ${downloadedBytes} bytes`);
+
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = undefined;
+          }
+
+          lastError = null;
+          break;
+        } catch (error: any) {
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = undefined;
+          }
+
+          lastError = error;
+          logger.warn(`Download attempt ${attempt + 1} failed:`, error);
+
+          try {
+            if (existsSync(tempZipPath)) {
+              await unlink(tempZipPath);
+            }
+          } catch (cleanupError) {
+            logger.warn(`Failed to clean up partial download: ${cleanupError}`);
+          }
+
+          if (attempt === maxRetries) {
+            const errorDetails = [
+              `Failed to download analyzer binary after ${maxRetries + 1} attempts.`,
+              `URL: ${downloadUrl}`,
+              `Error: ${error.message}`,
+            ];
+
+            if (error.message.includes("CERT") || error.message.includes("certificate")) {
+              errorDetails.push(
+                "Certificate error: Set NODE_EXTRA_CA_CERTS to your CA bundle path",
+              );
+            } else if (
+              error.message.includes("ECONNREFUSED") ||
+              error.message.includes("ETIMEDOUT")
+            ) {
+              errorDetails.push(
+                "Connection error: Check proxy settings (HTTPS_PROXY) and network access",
+              );
+            } else if (error.message.includes("aborted") || error.message.includes("UND_ERR")) {
+              errorDetails.push("Download aborted: Check network stability and proxy timeout");
+            } else {
+              errorDetails.push(
+                "Verify network access and check proxy/certificate settings if needed",
+              );
+            }
+
+            throw new Error(errorDetails.join("\n"));
+          }
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
 
       progress.report({ message: "Verifying..." });
 
