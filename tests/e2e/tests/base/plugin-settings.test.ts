@@ -3,11 +3,12 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { Configuration } from '../../pages/configuration.page';
 import { analyzeOnSaveSettingKey } from '../../enums/configuration-options.enum';
 import { FileEditorPage } from '../../pages/file-editor.page';
+import { VSCode } from '../../pages/vscode.page';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
 test.describe('Plugin Settings - Analyze on Save', () => {
-  let vscodeApp: any;
+  let vscodeApp: VSCode;
   let fileEditorPage: FileEditorPage;
 
   test.beforeAll(async ({ testRepoData }) => {
