@@ -7,6 +7,7 @@ import { rm } from 'node:fs/promises';
 import process from 'process';
 import { expect } from '@playwright/test';
 import type { VSCode } from '../pages/vscode.page';
+import { LogEntry } from '../types/log-entry';
 
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
@@ -161,4 +162,45 @@ export async function verifyAnalysisViewCleanState(
   // Take final screenshot showing the analysis view with table displayed
   await vscodeApp.getWindow().screenshot({ path: screenshotPath });
   console.log(`${logPrefix}: Final screenshot saved to ${screenshotPath}`);
+}
+
+export function parseLogEntries(rawContent: string): LogEntry[] {
+  const entries: LogEntry[] = [];
+
+  const normalized = rawContent.replace(/\}\s*\{/g, '}\n{');
+
+  const lines = normalized.split('\n');
+  let buffer = '';
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) continue;
+
+    buffer += trimmed;
+
+    try {
+      const parsed = JSON.parse(buffer);
+      entries.push(parsed);
+      buffer = '';
+    } catch (e) {
+      const openBraces = (buffer.match(/\{/g) || []).length;
+      const closeBraces = (buffer.match(/\}/g) || []).length;
+      if (closeBraces > openBraces) {
+        console.warn(`Discarding trailing fragment: ${buffer.substring(0, 50)}...`);
+        buffer = trimmed.startsWith('{') ? trimmed : '';
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    try {
+      const parsed = JSON.parse(buffer);
+      entries.push(parsed);
+    } catch (e) {
+      console.warn(`Failed to parse remaining buffer: ${buffer.substring(0, 100)}...`);
+    }
+  }
+
+  return entries;
 }

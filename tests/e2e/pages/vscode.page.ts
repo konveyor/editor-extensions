@@ -5,6 +5,7 @@ import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
+import { OutputPanel } from './output.page';
 import path from 'path';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
@@ -16,6 +17,14 @@ export abstract class VSCode {
   protected branch?: string;
   protected abstract window: Page;
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
+
+  /**
+   * Gets the OutputPanel instance for this VSCode instance.
+   * Provides access to output channel operations.
+   */
+  public get outputPanel(): OutputPanel {
+    return OutputPanel.getInstance(this);
+  }
 
   /**
    * Unzips all test data into workspace .vscode/ directory, only deletes the zip files if cleanup is true
