@@ -234,19 +234,24 @@ We follow a structured odd/even release scheme to keep prereleases and stable re
 
 This strategy intentionally works around the VS Code Marketplace not supporting SemVer pre-release identifiers. Per the official docs, only major.minor.patch is supported and pre-releases must use distinct versions published with the `--pre-release` flag; the docs recommend using even minor versions for stable and odd minor versions for pre-release series (for example, 0.2._ release vs 0.3._ pre-release). See: [VS Code – Pre-release extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions).
 
-- Main branch:
-  - package.json is always pinned to the next even minor version (e.g. 0.4.0, 0.6.0, …).
+- **Main branch:**
+  - `package.json` is always pinned to the next even minor version (e.g. 0.4.0, 0.6.0, …).
   - Merges to main do not change this version directly.
   - Prereleases are published from tags on main using odd minor numbers (0.3.Z, 0.5.Z, …).
-- Prereleases:
-  - Tagging a commit on main with an odd-minor version (e.g. v0.3.4) publishes a prerelease (vsce publish --pre-release).
+- **Automatic prereleases:**
+  - Every two weeks (on the first day of the sprint), the [scheduled-prerelease workflow](.github/workflows/scheduled-prerelease.yml) automatically tags and releases a new prerelease version.
+  - This enables regular sprint reviews with the latest changes.
+  - The workflow skips releases if there are no new commits since the last prerelease.
+  - Manual prereleases can also be triggered via `workflow_dispatch` when needed.
+- **Prerelease versioning:**
+  - Tagging a commit on main with an odd-minor version (e.g. v0.3.4) publishes a prerelease (`vsce publish --pre-release`).
   - CI computes patch numbers from the latest tag, so prereleases increment sequentially (0.3.1, 0.3.2, …).
-- Stable releases:
-  - When ready, cut a release/X.Y branch where Y is even. Example: release/0.4.
+- **Stable releases:**
+  - When ready, cut a `release/X.Y` branch where Y is even. Example: `release/0.4`.
   - Version in that branch becomes 0.4.0, and patch bumps (0.4.1, 0.4.2, …) are published as stable.
   - Marketplace will then show 0.4.Z as the latest stable.
-- Cycle:
-  - After cutting release/0.4, bump main’s package.json to 0.6.0.
+- **Cycle:**
+  - After cutting `release/0.4`, bump main’s `package.json` to 0.6.0.
   - Future prereleases are tagged as 0.5.Z.
   - This odd/even cadence repeats for each new cycle.
 

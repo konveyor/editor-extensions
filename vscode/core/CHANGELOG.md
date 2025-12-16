@@ -4,7 +4,50 @@ All notable changes to the "konveyor.konveyor" extension will be documented in t
 
 ## [Unreleased]
 
-- Future changes will be documented here
+### Added
+
+- Profile sync for centralized configuration management
+- RPC-based progress notifications for better analysis feedback
+- Hub connection manager for improved connectivity handling
+- Core API version compatibility checking with language extensions
+- Batch review system and state management improvements
+- Hub settings form for centralized Konveyor Hub configuration
+- Analysis progress display with rule IDs
+- Multi-language support - agent no longer hardcoded to Java
+- Surface solution server interactions in the UI
+- Handle and display LLM error messages from workflow
+- In-tree analysis configuration profiles support
+- Extension API for language provider registration
+- Adaptive polling for solution server connectivity
+- Improved file suggestions UX
+- Support for opening VS Code in web environment
+
+### Fixed
+
+- Socket ETIMEDOUT connection errors
+- settings.json config update error handling
+- Allow scheduled analysis cancellation
+- Provider check to fix race condition on server start
+- Windows compatibility improvements
+- Ensure analysis scheduled state is always reset
+- Disable manual analysis if analysis is already scheduled
+- Warnings about AI capabilities and limitations
+- Solution server client awareness of refresh windows
+- Custom rule changes handling
+- Duplicate ADD_PROFILE message when duplicating profiles
+- Handle max_tokens in Bedrock responses
+- Broken CSS overrides for SVG icons
+- Toolbar header responsiveness
+- Output parsing for analysis fix
+- Remove tooltip for config button
+
+### Changed
+
+- Moved core extension to `vscode/core/` directory structure
+- Improved logging throughout the extension
+- Cleanup unused memfs/localChanges/diffViewType configuration
+- Remove deprecated package.json commands
+- Add sourcemaps for agentic debugging
 
 ## [0.2.0] - 2025-09-30
 
