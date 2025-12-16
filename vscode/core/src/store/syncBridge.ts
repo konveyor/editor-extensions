@@ -60,7 +60,7 @@ const shallowEqual = <T>(prev: T, next: T): boolean => {
   }
 
   for (const key of keysA) {
-    if (!(prev as any)[key] === (next as any)[key]) {
+    if ((prev as any)[key] !== (next as any)[key]) {
       return false;
     }
   }
