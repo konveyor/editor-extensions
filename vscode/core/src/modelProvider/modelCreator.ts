@@ -3,11 +3,17 @@ import { ChatOllama } from "@langchain/ollama";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { AzureChatOpenAI, ChatOpenAI } from "@langchain/openai";
 import { ChatBedrockConverse, type ChatBedrockConverseInput } from "@langchain/aws";
+import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 import { ChatGoogleGenerativeAI, type GoogleGenerativeAIChatInput } from "@langchain/google-genai";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-import { getDispatcherWithCertBundle, getFetchWithDispatcher } from "../utilities/tls";
+import {
+  getDispatcherWithCertBundle,
+  getFetchWithDispatcher,
+  getNodeHttpHandler,
+} from "../utilities/tls";
 import { ModelCreator, PROVIDER_ENV_CA_BUNDLE, PROVIDER_ENV_INSECURE, type FetchFn } from "./types";
+import { getConfigHttpProtocol } from "../utilities/httpProtocol";
 
 export const ModelCreators: Record<string, (logger: Logger) => ModelCreator> = {
   AzureChatOpenAI: (logger) => new AzureChatOpenAICreator(logger),
@@ -22,12 +28,15 @@ class AzureChatOpenAICreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
+    const httpProtocol = getConfigHttpProtocol();
+    const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new AzureChatOpenAI({
       openAIApiKey: env.AZURE_OPENAI_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,
-        fetch: await getFetchFn(env, this.logger),
+        ...(fetchFn ? { fetch: fetchFn } : {}),
       },
     });
   }
@@ -59,6 +68,8 @@ class ChatBedrockCreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
+    const httpProtocol = getConfigHttpProtocol();
+
     const config: ChatBedrockConverseInput = {
       ...args,
       region: env.AWS_DEFAULT_REGION,
@@ -70,6 +81,16 @@ class ChatBedrockCreator implements ModelCreator {
         secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
       };
     }
+
+    const httpVersion = httpProtocol === "http2" ? "2.0" : "1.1";
+    const requestHandler = await getNodeHttpHandler(env, this.logger, httpVersion);
+    const runtimeClient = new BedrockRuntimeClient({
+      region: env.AWS_DEFAULT_REGION,
+      credentials: config.credentials,
+      requestHandler,
+    });
+    config.client = runtimeClient;
+
     return new ChatBedrockConverse(config);
   }
 
@@ -89,12 +110,15 @@ class ChatDeepSeekCreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
+    const httpProtocol = getConfigHttpProtocol();
+    const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatDeepSeek({
       apiKey: env.DEEPSEEK_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,
-        fetch: await getFetchFn(env, this.logger),
+        ...(fetchFn ? { fetch: fetchFn } : {}),
       },
     });
   }
@@ -142,9 +166,12 @@ class ChatOllamaCreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
+    const httpProtocol = getConfigHttpProtocol();
+    const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatOllama({
       ...args,
-      fetch: await getFetchFn(env, this.logger),
+      ...(fetchFn ? { fetch: fetchFn } : {}),
     });
   }
 
@@ -164,12 +191,15 @@ class ChatOpenAICreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
+    const httpProtocol = getConfigHttpProtocol();
+    const allowH2 = httpProtocol === "http2";
+    const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatOpenAI({
       openAIApiKey: env.OPENAI_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,
-        fetch: await getFetchFn(env, this.logger),
+        ...(fetchFn ? { fetch: fetchFn } : {}),
       },
     });
   }
@@ -220,19 +250,20 @@ function getCaBundleAndInsecure(env: Record<string, string>): {
 async function getFetchFn(
   env: Record<string, string>,
   logger: Logger,
+  allowH2: boolean = false,
 ): Promise<FetchFn | undefined> {
   const { caBundle, insecure } = getCaBundleAndInsecure(env);
-  if (caBundle) {
+  const needsCustomDispatcher = caBundle || insecure || !allowH2;
+
+  if (needsCustomDispatcher) {
     try {
-      const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure);
+      const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure, allowH2, logger);
       return getFetchWithDispatcher(dispatcher);
     } catch (error) {
       logger.error(error);
-      throw new Error(`Failed to setup CA bundle ${String(error)}`);
+      throw new Error(`Failed to setup dispatcher: ${String(error)}`);
     }
-  } else if (insecure) {
-    const dispatcher = await getDispatcherWithCertBundle(undefined, insecure);
-    return getFetchWithDispatcher(dispatcher);
   }
+
   return undefined;
 }
