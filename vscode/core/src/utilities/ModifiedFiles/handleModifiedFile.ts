@@ -6,34 +6,59 @@ import {
 import { createTwoFilesPatch, createPatch } from "diff";
 import { ExtensionState } from "src/extensionState";
 import { Uri } from "vscode";
-import { ModifiedFileState, ChatMessageType } from "@editor-extensions/shared";
+import { ModifiedFileState, ChatMessageType, cleanDiff } from "@editor-extensions/shared";
 import { processModifiedFile } from "./processModifiedFile";
 
 /**
  * Creates a diff for UI display based on the file state and path.
+ * Uses ignoreNewlineAtEof to prevent noisy diffs from trailing newline differences,
+ * and cleanDiff to filter out line-ending-only and whitespace-only changes.
+ *
  * @param fileState The state of the modified file.
  * @param filePath The path of the file for diff creation.
- * @returns The diff string for UI display.
+ * @returns The cleaned diff string for UI display.
  */
 const createFileDiff = (fileState: ModifiedFileState, filePath: string): string => {
-  // Note: Use path module for any directory path extraction to ensure platform independence.
-  // For example, use path.dirname(filePath) instead of string manipulation with lastIndexOf.
   const isNew = fileState.originalContent === undefined;
   const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
   let diff: string;
 
   if (isNew) {
-    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent);
+    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent, undefined, undefined, {
+      ignoreNewlineAtEof: true,
+    });
   } else if (isDeleted) {
-    diff = createTwoFilesPatch(filePath, "", fileState.originalContent as string, "");
+    diff = createTwoFilesPatch(
+      filePath,
+      "",
+      fileState.originalContent as string,
+      "",
+      undefined,
+      undefined,
+      {
+        ignoreNewlineAtEof: true,
+      },
+    );
   } else {
     try {
-      diff = createPatch(filePath, fileState.originalContent as string, fileState.modifiedContent);
+      diff = createPatch(
+        filePath,
+        fileState.originalContent as string,
+        fileState.modifiedContent,
+        undefined,
+        undefined,
+        {
+          ignoreNewlineAtEof: true,
+        },
+      );
     } catch {
       diff = `// Error creating diff for ${filePath}`;
     }
   }
-  return diff;
+
+  // Apply cleanDiff to filter out line-ending-only and whitespace-only changes,
+  // and collapse identical trimmed -/+ pairs into context lines
+  return cleanDiff(diff);
 };
 
 /**

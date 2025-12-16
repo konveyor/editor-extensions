@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Button, Label, Flex, FlexItem, Progress, ProgressSize } from "@patternfly/react-core";
 import { FileIcon, AngleUpIcon, AngleDownIcon } from "@patternfly/react-icons";
-import { isOnlyLineEndingDiff, hasNoMeaningfulDiffContent } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../../store/store";
 import "./batchReviewExpandable.css";
 
@@ -105,18 +104,9 @@ export const BatchReviewExpandable: React.FC = () => {
 
   const currentFileName = currentFile.path.split("/").pop() || currentFile.path;
 
-  // Check if diff has no meaningful changes
-  const isOnlyLineEndingChanges = Boolean(
-    currentFile.diff && isOnlyLineEndingDiff(currentFile.diff),
-  );
-  const hasNoMeaningfulChanges = Boolean(
-    currentFile.diff && hasNoMeaningfulDiffContent(currentFile.diff),
-  );
-  const shouldShowNoChangesNeeded =
-    !currentFile.diff ||
-    currentFile.diff.trim() === "" ||
-    isOnlyLineEndingChanges ||
-    hasNoMeaningfulChanges;
+  // Diff is already cleaned by cleanDiff() in handleModifiedFile.ts
+  // which returns "" for line-ending-only or no meaningful changes
+  const shouldShowNoChangesNeeded = !currentFile.diff || currentFile.diff.trim() === "";
 
   // Check if processing: either this specific file OR global batch processing
   const isProcessing = processingFiles.has(currentFile.messageToken) || isGlobalProcessing;
