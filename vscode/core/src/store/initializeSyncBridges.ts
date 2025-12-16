@@ -117,6 +117,21 @@ export function initializeSyncBridges(
     debugName: "settings",
   });
 
+  // Phase 4: Chat metadata bridge (Issue 10 - lightweight metadata, NOT full messages)
+  // Broadcasts only message count and latest token to enable UI notifications
+  // Full messages are fetched on-demand via GET_CHAT_MESSAGES
+  manager.createBridge({
+    selector: (state) => ({
+      messageCount: state.chatMessages.length,
+      latestMessageToken:
+        state.chatMessages.length > 0
+          ? state.chatMessages[state.chatMessages.length - 1].messageToken
+          : undefined,
+    }),
+    messageType: "CHAT_METADATA_UPDATE",
+    debugName: "chatMetadata",
+  });
+
   if (logger) {
     logger.info(`[SyncBridge] Initialized ${manager.getDebugInfo().totalBridges} sync bridges`);
   }

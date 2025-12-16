@@ -26,6 +26,7 @@ const BATCH_UPDATE_MESSAGE_TYPES = [
   "SETTINGS_UPDATE",
   "CONFIG_ERRORS_UPDATE",
   "DECORATORS_UPDATE",
+  "CHAT_METADATA_UPDATE", // Chat metadata (count + latest token, not full messages)
   // Expensive data updates (from sync bridges)
   "ANALYSIS_STATE_UPDATE",
   "PROFILES_UPDATE",

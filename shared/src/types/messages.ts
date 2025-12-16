@@ -57,6 +57,14 @@ export interface ChatMessageStreamingUpdateMessage {
   timestamp: string;
 }
 
+// Chat metadata update (lightweight - only count and latest token, not full messages)
+export interface ChatMetadataUpdateMessage {
+  type: "CHAT_METADATA_UPDATE";
+  messageCount: number;
+  latestMessageToken?: string;
+  timestamp: string;
+}
+
 // Solution workflow updates
 export interface SolutionWorkflowUpdateMessage {
   type: "SOLUTION_WORKFLOW_UPDATE";
@@ -141,6 +149,7 @@ export type WebviewMessage =
   | ChatMessagesUpdateMessage
   | ChatMessageStreamingUpdateMessage
   | ChatStreamingChunkMessage
+  | ChatMetadataUpdateMessage
   | SolutionWorkflowUpdateMessage
   | SolutionLoadingUpdateMessage
   | AnalysisFlagsUpdateMessage
@@ -169,6 +178,10 @@ export function isChatMessageStreamingUpdate(
 
 export function isChatStreamingChunk(msg: WebviewMessage): msg is ChatStreamingChunkMessage {
   return (msg as any).type === "CHAT_STREAMING_CHUNK";
+}
+
+export function isChatMetadataUpdate(msg: WebviewMessage): msg is ChatMetadataUpdateMessage {
+  return (msg as any).type === "CHAT_METADATA_UPDATE";
 }
 
 export function isSolutionWorkflowUpdate(
@@ -211,6 +224,7 @@ export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMe
     !isChatMessagesUpdate(msg) &&
     !isChatMessageStreamingUpdate(msg) &&
     !isChatStreamingChunk(msg) &&
+    !isChatMetadataUpdate(msg) &&
     !isSolutionWorkflowUpdate(msg) &&
     !isSolutionLoadingUpdate(msg) &&
     !isAnalysisFlagsUpdate(msg) &&
