@@ -6,7 +6,7 @@
  */
 
 import { extensionStore } from "./extensionStore";
-import { SyncBridgeManager } from "./syncBridge";
+import { SyncBridgeManager, equalityFns } from "./syncBridge";
 import type { KonveyorGUIWebviewViewProvider } from "../KonveyorGUIWebviewViewProvider";
 import type winston from "winston";
 
@@ -57,55 +57,50 @@ export function initializeSyncBridges(
   });
 
   // Phase 3: Expensive updates with equality checking
-  // Issue 7: RuleSets (uncomment when ready to migrate)
-  // manager.createBridge({
-  //   selector: (state) => ({
-  //     ruleSets: state.ruleSets,
-  //   }),
-  //   messageType: "RULESETS_UPDATE",
-  //   equalityFn: equalityFns.shallow,
-  //   debugName: "ruleSets",
-  // });
+  // Issue 7: RuleSets - Use existing ANALYSIS_STATE_UPDATE with shallow equality
+  manager.createBridge({
+    selector: (state) => ({
+      ruleSets: state.ruleSets,
+      enhancedIncidents: state.enhancedIncidents,
+      isAnalyzing: state.isAnalyzing,
+      isAnalysisScheduled: state.isAnalysisScheduled,
+      analysisProgress: state.analysisProgress,
+      analysisProgressMessage: state.analysisProgressMessage,
+    }),
+    messageType: "ANALYSIS_STATE_UPDATE",
+    equalityFn: equalityFns.shallow,
+    debugName: "analysisState",
+  });
 
-  // Issue 8: Enhanced incidents (uncomment when ready to migrate)
-  // manager.createBridge({
-  //   selector: (state) => ({
-  //     enhancedIncidents: state.enhancedIncidents,
-  //   }),
-  //   messageType: "INCIDENTS_UPDATE",
-  //   equalityFn: equalityFns.shallow,
-  //   debugName: "enhancedIncidents",
-  // });
+  // Issue 9: Profiles
+  manager.createBridge({
+    selector: (state) => ({
+      profiles: state.profiles,
+      activeProfileId: state.activeProfileId,
+      isInTreeMode: state.isInTreeMode,
+    }),
+    messageType: "PROFILES_UPDATE",
+    equalityFn: equalityFns.shallow,
+    debugName: "profiles",
+  });
 
-  // Issue 9: Profiles (uncomment when ready to migrate)
-  // manager.createBridge({
-  //   selector: (state) => ({
-  //     profiles: state.profiles,
-  //     activeProfileId: state.activeProfileId,
-  //     isInTreeMode: state.isInTreeMode,
-  //   }),
-  //   messageType: "PROFILES_UPDATE",
-  //   equalityFn: equalityFns.shallow,
-  //   debugName: "profiles",
-  // });
+  // Issue 11: Config errors
+  manager.createBridge({
+    selector: (state) => ({
+      configErrors: state.configErrors,
+    }),
+    messageType: "CONFIG_ERRORS_UPDATE",
+    debugName: "configErrors",
+  });
 
-  // Issue 11: Config errors (uncomment when ready to migrate)
-  // manager.createBridge({
-  //   selector: (state) => ({
-  //     configErrors: state.configErrors,
-  //   }),
-  //   messageType: "CONFIG_ERRORS_UPDATE",
-  //   debugName: "configErrors",
-  // });
-
-  // Issue 12: Active decorators (uncomment when ready to migrate)
-  // manager.createBridge({
-  //   selector: (state) => ({
-  //     activeDecorators: state.activeDecorators,
-  //   }),
-  //   messageType: "DECORATORS_UPDATE",
-  //   debugName: "activeDecorators",
-  // });
+  // Issue 12: Active decorators
+  manager.createBridge({
+    selector: (state) => ({
+      activeDecorators: state.activeDecorators,
+    }),
+    messageType: "DECORATORS_UPDATE",
+    debugName: "activeDecorators",
+  });
 
   // Settings bridge
   manager.createBridge({

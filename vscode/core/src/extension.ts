@@ -58,6 +58,7 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
 import { ProviderRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { extensionStore, initializeSyncBridges, SyncBridgeManager } from "./store";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -66,6 +67,7 @@ class VsCodeExtension {
   readonly onDidChangeData = this._onDidChange.event;
   private listeners: vscode.Disposable[] = [];
   private diffStatusBarItem: vscode.StatusBarItem;
+  private syncBridgeManager?: SyncBridgeManager;
 
   constructor(
     public readonly paths: ExtensionPaths,
@@ -516,12 +518,37 @@ class VsCodeExtension {
         });
 
       this.registerWebviewProvider();
+
+      // Initialize Zustand sync bridges for declarative state management
+      // Phase 2: Wire up sync bridges to automatically broadcast state changes to webviews
+      this.syncBridgeManager = initializeSyncBridges(
+        this.state.webviewProviders,
+        this.state.logger,
+      );
+
+      // Initialize store with current extension state
+      extensionStore.getState().setWorkspaceRoot(this.paths.workspaceRepo.toString(true));
+      extensionStore.getState().updateSettings({
+        solutionServerEnabled: hubConfig?.features?.solutionServer?.enabled ?? false,
+        profileSyncEnabled: hubConfig?.features?.profileSync?.enabled ?? false,
+        isAgentMode: getConfigAgentMode(),
+        isContinueInstalled: false, // Will be updated later
+      });
+
       // Diff view removed - using unified decorator flow instead
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();
 
       this.context.subscriptions.push(this.diffStatusBarItem);
+
+      // Register sync bridge disposal
+      this.context.subscriptions.push({
+        dispose: () => {
+          this.syncBridgeManager?.disposeAll();
+        },
+      });
+
       this.checkContinueInstalled();
 
       // Set up workflow disposal callback for when Hub clients reconnect
