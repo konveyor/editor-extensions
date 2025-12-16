@@ -8,6 +8,7 @@ import { ExtensionState } from "src/extensionState";
 import { Uri } from "vscode";
 import { ModifiedFileState, ChatMessageType, cleanDiff } from "@editor-extensions/shared";
 import { processModifiedFile } from "./processModifiedFile";
+import { extensionStore } from "../../store";
 
 /**
  * Creates a diff for UI display based on the file state and path.
@@ -116,24 +117,22 @@ export const handleModifiedFileMessage = async (
       const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
       const diff = createFileDiff(fileState, filePath);
 
-      // Part 1: Add read-only diff to chat for context
-      state.mutateChatMessages((draft) => {
-        draft.chatMessages.push({
-          kind: ChatMessageType.ModifiedFile,
+      // Part 1: Add read-only diff to chat for context using domain action
+      extensionStore.getState().chat.addMessage({
+        kind: ChatMessageType.ModifiedFile,
+        messageToken: msg.id,
+        timestamp: new Date().toISOString(),
+        value: {
+          path: filePath,
+          content: fileState.modifiedContent,
+          originalContent: fileState.originalContent,
+          isNew: isNew,
+          isDeleted: isDeleted,
+          diff: diff,
           messageToken: msg.id,
-          timestamp: new Date().toISOString(),
-          value: {
-            path: filePath,
-            content: fileState.modifiedContent,
-            originalContent: fileState.originalContent,
-            isNew: isNew,
-            isDeleted: isDeleted,
-            diff: diff,
-            messageToken: msg.id,
-            userInteraction: msg.data.userInteraction,
-            readOnly: true, // Always read-only - actions happen in BatchReviewModal
-          },
-        });
+          userInteraction: msg.data.userInteraction,
+          readOnly: true, // Always read-only - actions happen in BatchReviewModal
+        },
       });
 
       // Part 2: Accumulate for batch review at the end

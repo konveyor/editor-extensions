@@ -12,7 +12,7 @@ import { ExtensionState } from "../../extensionState";
 import { ChatMessageType, ToolMessageValue, createLLMError } from "@editor-extensions/shared";
 import { handleModifiedFileMessage } from "./handleModifiedFile";
 import { MessageQueueManager, handleUserInteractionComplete } from "./queueManager";
-
+import { extensionStore } from "../../store";
 // Helper function to wait for analysis completion with timeout
 const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> => {
   return new Promise<void>((resolve) => {
@@ -127,21 +127,19 @@ const handleTasksInteraction = async (
     taskCount: rawTasks.currentTasks.length,
   });
 
-  // Show tasks to user and wait for response
-  state.mutateChatMessages((draft) => {
-    draft.chatMessages.push({
-      kind: ChatMessageType.String,
-      messageToken: msg.id,
-      timestamp: new Date().toISOString(),
-      value: {
-        message: createTasksMessage(rawTasks),
-        tasksData: flattenCurrentTasks(rawTasks),
-      },
-      quickResponses: [
-        { id: "yes", content: "Yes" },
-        { id: "no", content: "No" },
-      ],
-    });
+  // Show tasks to user and wait for response using domain action
+  extensionStore.getState().chat.addMessage({
+    kind: ChatMessageType.String,
+    messageToken: msg.id,
+    timestamp: new Date().toISOString(),
+    value: {
+      message: createTasksMessage(rawTasks),
+      tasksData: flattenCurrentTasks(rawTasks),
+    },
+    quickResponses: [
+      { id: "yes", content: "Yes" },
+      { id: "no", content: "No" },
+    ],
   });
 
   await handleUserInteractionPromise(msg, state, queueManager, pendingInteractions);
@@ -225,22 +223,18 @@ export const processMessageByType = async (
             // Get the message from the interaction
             const message = interaction.systemMessage.yesNo || "Would you like to proceed?";
 
-            // Add the question to chat with quick responses
-            state.mutateChatMessages((draft) => {
-              // Always add the interaction message - don't skip based on existing interactions
-              // Multiple interactions can be pending at the same time
-              draft.chatMessages.push({
-                kind: ChatMessageType.String,
-                messageToken: msg.id,
-                timestamp: new Date().toISOString(),
-                value: {
-                  message: message,
-                },
-                quickResponses: [
-                  { id: "yes", content: "Yes" },
-                  { id: "no", content: "No" },
-                ],
-              });
+            // Add the question to chat with quick responses using domain action
+            extensionStore.getState().chat.addMessage({
+              kind: ChatMessageType.String,
+              messageToken: msg.id,
+              timestamp: new Date().toISOString(),
+              value: {
+                message: message,
+              },
+              quickResponses: [
+                { id: "yes", content: "Yes" },
+                { id: "no", content: "No" },
+              ],
             });
 
             // Handle user interaction promise
@@ -256,19 +250,18 @@ export const processMessageByType = async (
         case "choice": {
           try {
             const choices = interaction.systemMessage.choice || [];
-            state.mutateChatMessages((draft) => {
-              draft.chatMessages.push({
-                kind: ChatMessageType.String,
-                messageToken: msg.id,
-                timestamp: new Date().toISOString(),
-                value: {
-                  message: "Please select an option:",
-                },
-                quickResponses: choices.map((choice: string, index: number) => ({
-                  id: `choice-${index}`,
-                  content: choice,
-                })),
-              });
+            // Add choice message using domain action
+            extensionStore.getState().chat.addMessage({
+              kind: ChatMessageType.String,
+              messageToken: msg.id,
+              timestamp: new Date().toISOString(),
+              value: {
+                message: "Please select an option:",
+              },
+              quickResponses: choices.map((choice: string, index: number) => ({
+                id: `choice-${index}`,
+                content: choice,
+              })),
             });
 
             // Handle user interaction promise
@@ -317,15 +310,14 @@ export const processMessageByType = async (
           messageId: msg.id,
           preview: content.substring(0, 50),
         });
-        state.mutateChatMessages((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: msg.id,
-            timestamp: new Date().toISOString(),
-            value: {
-              message: content,
-            },
-          });
+        // Add new message using domain action
+        extensionStore.getState().chat.addMessage({
+          kind: ChatMessageType.String,
+          messageToken: msg.id,
+          timestamp: new Date().toISOString(),
+          value: {
+            message: content,
+          },
         });
         state.lastMessageId = msg.id;
       } else {
@@ -401,16 +393,14 @@ export const processMessageByType = async (
           draft.llmErrors.push(llmError);
         });
       } else {
-        // For non-LLM errors, just add to chat messages
-        state.mutateChatMessages((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: msg.id,
-            timestamp: new Date().toISOString(),
-            value: {
-              message: `Error: ${errorMessage}`,
-            },
-          });
+        // For non-LLM errors, just add to chat messages using domain action
+        extensionStore.getState().chat.addMessage({
+          kind: ChatMessageType.String,
+          messageToken: msg.id,
+          timestamp: new Date().toISOString(),
+          value: {
+            message: `Error: ${errorMessage}`,
+          },
         });
       }
       break;

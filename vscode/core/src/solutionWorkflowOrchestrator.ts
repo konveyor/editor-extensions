@@ -16,6 +16,7 @@ import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 import { v4 as uuidv4 } from "uuid";
 import type { Logger } from "winston";
+import { extensionStore } from "./store";
 
 /**
  * Manages the lifecycle of a solution workflow session
@@ -121,9 +122,8 @@ export class SolutionWorkflowOrchestrator {
       draft.isWaitingForUserInteraction = false;
       draft.isProcessingQueuedMessages = false;
     });
-    this.state.mutateChatMessages((draft) => {
-      draft.chatMessages = [];
-    });
+    // Clear chat messages using domain action
+    extensionStore.getState().chat.clearAll();
   }
 
   /**
@@ -335,18 +335,16 @@ export class SolutionWorkflowOrchestrator {
       }
     });
 
-    // Add error message to chat
-    this.state.mutateChatMessages((draft) => {
-      draft.chatMessages.push({
-        messageToken: `error-${Date.now()}`,
-        kind: ChatMessageType.String,
-        value: {
-          message: isStringLengthError
-            ? "Error: Workflow failed due to internal logging issue. This typically happens with large analysis runs. Please try with fewer incidents at once."
-            : `Error: ${errorMessage}`,
-        },
-        timestamp: new Date().toISOString(),
-      });
+    // Add error message to chat using domain action
+    extensionStore.getState().chat.addMessage({
+      messageToken: `error-${Date.now()}`,
+      kind: ChatMessageType.String,
+      value: {
+        message: isStringLengthError
+          ? "Error: Workflow failed due to internal logging issue. This typically happens with large analysis runs. Please try with fewer incidents at once."
+          : `Error: ${errorMessage}`,
+      },
+      timestamp: new Date().toISOString(),
     });
 
     // Clean up queue manager if string length error
@@ -490,9 +488,8 @@ export class SolutionWorkflowOrchestrator {
       draft.pendingBatchReview = [];
     });
 
-    this.state.mutateChatMessages((draft) => {
-      draft.chatMessages = [];
-    });
+    // Clear chat messages using domain action
+    extensionStore.getState().chat.clearAll();
 
     this.state.mutateDecorators((draft) => {
       draft.activeDecorators = {};
@@ -569,13 +566,12 @@ export class SolutionWorkflowOrchestrator {
         draft.isFetchingSolution = false;
       });
 
-      this.state.mutateChatMessages((draft) => {
-        draft.chatMessages.push({
-          messageToken: `m${Date.now()}`,
-          kind: ChatMessageType.String,
-          value: { message: `Error: ${error instanceof Error ? error.message : String(error)}` },
-          timestamp: new Date().toISOString(),
-        });
+      // Add error message using domain action
+      extensionStore.getState().chat.addMessage({
+        messageToken: `m${Date.now()}`,
+        kind: ChatMessageType.String,
+        value: { message: `Error: ${error instanceof Error ? error.message : String(error)}` },
+        timestamp: new Date().toISOString(),
       });
 
       executeDeferredWorkflowDisposal(this.state, this.logger);
