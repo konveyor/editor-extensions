@@ -69,6 +69,21 @@ export interface SolutionWorkflowUpdateMessage {
   timestamp: string;
 }
 
+// Solution loading update (Issue 4 - granular loading flag update)
+export interface SolutionLoadingUpdateMessage {
+  type: "SOLUTION_LOADING_UPDATE";
+  isFetchingSolution: boolean;
+  timestamp: string;
+}
+
+// Analysis flags update (Issue 5 - granular analysis flags update)
+export interface AnalysisFlagsUpdateMessage {
+  type: "ANALYSIS_FLAGS_UPDATE";
+  isAnalyzing: boolean;
+  isAnalysisScheduled: boolean;
+  timestamp: string;
+}
+
 // Server state updates
 export interface ServerStateUpdateMessage {
   type: "SERVER_STATE_UPDATE";
@@ -127,6 +142,8 @@ export type WebviewMessage =
   | ChatMessageStreamingUpdateMessage
   | ChatStreamingChunkMessage
   | SolutionWorkflowUpdateMessage
+  | SolutionLoadingUpdateMessage
+  | AnalysisFlagsUpdateMessage
   | ServerStateUpdateMessage
   | ProfilesUpdateMessage
   | ConfigErrorsUpdateMessage
@@ -160,6 +177,14 @@ export function isSolutionWorkflowUpdate(
   return (msg as any).type === "SOLUTION_WORKFLOW_UPDATE";
 }
 
+export function isSolutionLoadingUpdate(msg: WebviewMessage): msg is SolutionLoadingUpdateMessage {
+  return (msg as any).type === "SOLUTION_LOADING_UPDATE";
+}
+
+export function isAnalysisFlagsUpdate(msg: WebviewMessage): msg is AnalysisFlagsUpdateMessage {
+  return (msg as any).type === "ANALYSIS_FLAGS_UPDATE";
+}
+
 export function isServerStateUpdate(msg: WebviewMessage): msg is ServerStateUpdateMessage {
   return (msg as any).type === "SERVER_STATE_UPDATE";
 }
@@ -187,6 +212,8 @@ export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMe
     !isChatMessageStreamingUpdate(msg) &&
     !isChatStreamingChunk(msg) &&
     !isSolutionWorkflowUpdate(msg) &&
+    !isSolutionLoadingUpdate(msg) &&
+    !isAnalysisFlagsUpdate(msg) &&
     !isServerStateUpdate(msg) &&
     !isProfilesUpdate(msg) &&
     !isConfigErrorsUpdate(msg) &&

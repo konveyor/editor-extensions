@@ -6,6 +6,8 @@ import {
   isChatMessageStreamingUpdate,
   isAnalysisStateUpdate,
   isSolutionWorkflowUpdate,
+  isSolutionLoadingUpdate,
+  isAnalysisFlagsUpdate,
   isServerStateUpdate,
   isProfilesUpdate,
   isConfigErrorsUpdate,
@@ -130,6 +132,21 @@ export function useVSCodeMessageHandler() {
             isAnalysisScheduled: message.isAnalysisScheduled,
             analysisProgress: message.analysisProgress ?? 0,
             analysisProgressMessage: message.analysisProgressMessage ?? "",
+          });
+          return;
+        }
+
+        // Handle granular solution loading update (Issue 4)
+        if (isSolutionLoadingUpdate(message)) {
+          store.setIsFetchingSolution(message.isFetchingSolution);
+          return;
+        }
+
+        // Handle granular analysis flags update (Issue 5)
+        if (isAnalysisFlagsUpdate(message)) {
+          store.batchUpdate({
+            isAnalyzing: message.isAnalyzing,
+            isAnalysisScheduled: message.isAnalysisScheduled,
           });
           return;
         }

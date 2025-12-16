@@ -7,3 +7,4 @@
 
 export * from "./extensionStore";
 export * from "./syncBridge";
+export * from "./initializeSyncBridges";
