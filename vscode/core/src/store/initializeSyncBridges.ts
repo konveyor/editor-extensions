@@ -75,7 +75,7 @@ export function initializeSyncBridges(
   // Issue 9: Profiles
   manager.createBridge({
     selector: (state) => ({
-      profiles: state.profiles,
+      profiles: state.profilesList,
       activeProfileId: state.activeProfileId,
       isInTreeMode: state.isInTreeMode,
     }),

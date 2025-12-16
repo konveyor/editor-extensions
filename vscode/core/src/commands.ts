@@ -37,6 +37,7 @@ import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
 import { getRepositoryInfo } from "./utilities/git";
+import { extensionStore } from "./store";
 
 const isWindows = process.platform === "win32";
 const PROFILES_DIR = ".konveyor/profiles";
@@ -189,14 +190,12 @@ const commandsMap: (
         // Let HubConnectionManager handle the reconnection logic
         await state.hubConnectionManager.connect();
 
-        // Update connection state
-        state.mutateServerState((draft) => {
-          draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
-        });
-
+        // Update connection state - use domain action
         if (state.hubConnectionManager.isSolutionServerConnected()) {
+          extensionStore.getState().hub.solutionServer.markConnected();
           window.showInformationMessage("Solution server connected successfully");
         } else {
+          extensionStore.getState().hub.solutionServer.markDisconnected();
           window.showWarningMessage(
             "Failed to connect solution server. Check your Hub configuration and network connection.",
           );
@@ -207,9 +206,7 @@ const commandsMap: (
         window.showErrorMessage(`Failed to connect solution server: ${errorMessage}`);
 
         // Update state to reflect failed connection
-        state.mutateServerState((draft) => {
-          draft.solutionServerConnected = false;
-        });
+        extensionStore.getState().hub.solutionServer.markDisconnected();
       }
     },
     [`${EXTENSION_NAME}.retryProfileSync`]: async () => {
@@ -221,16 +218,14 @@ const commandsMap: (
         // Let HubConnectionManager handle the reconnection logic
         await state.hubConnectionManager.connect();
 
-        // Update connection state
-        state.mutateServerState((draft) => {
-          draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
-        });
-
+        // Update connection state - use domain action
         if (state.hubConnectionManager.isProfileSyncConnected()) {
+          extensionStore.getState().hub.profileSync.markConnected();
           window.showInformationMessage("Profile sync connected successfully");
           // Trigger an initial sync (HubConnectionManager already does this, but be explicit)
           await executeExtensionCommand("syncHubProfiles", true); // silent sync
         } else {
+          extensionStore.getState().hub.profileSync.markDisconnected();
           window.showWarningMessage(
             "Failed to connect profile sync. Check your Hub configuration and network connection.",
           );
@@ -241,9 +236,7 @@ const commandsMap: (
         window.showErrorMessage(`Failed to connect profile sync: ${errorMessage}`);
 
         // Update state to reflect failed connection
-        state.mutateServerState((draft) => {
-          draft.profileSyncConnected = false;
-        });
+        extensionStore.getState().hub.profileSync.markDisconnected();
       }
     },
     [`${EXTENSION_NAME}.runAnalysis`]: async () => {
@@ -637,9 +630,7 @@ const commandsMap: (
 
       // Update state to show syncing (only if not silent)
       if (!silent) {
-        state.mutateSettings((draft) => {
-          draft.isSyncingProfiles = true;
-        });
+        extensionStore.getState().hub.profileSync.begin();
       }
 
       try {
@@ -710,9 +701,7 @@ const commandsMap: (
       } finally {
         // Clear syncing state (only if not silent)
         if (!silent) {
-          state.mutateSettings((draft) => {
-            draft.isSyncingProfiles = false;
-          });
+          extensionStore.getState().hub.profileSync.complete();
         }
       }
     },

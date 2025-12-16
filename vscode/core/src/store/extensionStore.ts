@@ -28,6 +28,26 @@ import type {
   HubConfig,
   LLMError,
 } from "@editor-extensions/shared";
+import {
+  createHubActions,
+  createAnalysisActions,
+  createProfilesActions,
+  createSolutionWorkflowActions,
+  createServerActions,
+  createDecoratorsActions,
+  createConfigActions,
+  createSettingsActions,
+  createChatActions,
+  type HubDomainActions,
+  type AnalysisDomainActions,
+  type ProfilesDomainActions,
+  type SolutionWorkflowDomainActions,
+  type ServerDomainActions,
+  type DecoratorsDomainActions,
+  type ConfigDomainActions,
+  type SettingsDomainActions,
+  type ChatDomainActions,
+} from "./domains";
 
 /**
  * Extension store state interface matching ExtensionData
@@ -44,8 +64,8 @@ export interface ExtensionStoreState {
   analysisProgressMessage?: string;
   isAnalysisScheduled: boolean;
 
-  // Profiles
-  profiles: AnalysisProfile[];
+  // Profiles (Note: domain actions use 'profiles' namespace)
+  profilesList: AnalysisProfile[];
   activeProfileId: string | null;
   isInTreeMode: boolean;
 
@@ -85,16 +105,25 @@ export interface ExtensionStoreState {
 }
 
 /**
- * Extension store actions
+ * Legacy CRUD actions
+ *
+ * These are low-level state setters used primarily for:
+ * - Extension initialization (loading persisted state)
+ * - Backward compatibility during migration
+ * - Direct state access when domain actions don't apply
+ *
+ * ⚠️ For new code, prefer domain actions (hub.*, analysis.*, etc.)
+ *   Domain actions encapsulate business logic and are self-documenting.
  */
 export interface ExtensionStoreActions {
-  // Analysis actions
-  setRuleSets: (ruleSets: RuleSet[]) => void;
-  setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
-  setIsAnalyzing: (isAnalyzing: boolean) => void;
-  setAnalysisProgress: (progress: number | undefined) => void;
-  setAnalysisProgressMessage: (message: string | undefined) => void;
-  setIsAnalysisScheduled: (isScheduled: boolean) => void;
+  // ============================================
+  // BATCH UPDATE ACTIONS (Preferred for initialization)
+  // ============================================
+
+  /**
+   * Batch update analysis state (used during initialization)
+   * ⚠️ Prefer: analysis.complete() for business operations
+   */
   updateAnalysisState: (updates: {
     ruleSets?: RuleSet[];
     enhancedIncidents?: EnhancedIncident[];
@@ -104,23 +133,20 @@ export interface ExtensionStoreActions {
     isAnalysisScheduled?: boolean;
   }) => void;
 
-  // Profile actions
-  setProfiles: (profiles: AnalysisProfile[]) => void;
-  setActiveProfileId: (profileId: string | null) => void;
-  setIsInTreeMode: (isInTreeMode: boolean) => void;
+  /**
+   * Batch update profile state (used during initialization)
+   * ⚠️ Prefer: profiles.load() for business operations
+   */
   updateProfiles: (updates: {
-    profiles?: AnalysisProfile[];
+    profilesList?: AnalysisProfile[];
     activeProfileId?: string | null;
     isInTreeMode?: boolean;
   }) => void;
 
-  // Server actions
-  setServerState: (state: ServerState) => void;
-  setIsStartingServer: (isStarting: boolean) => void;
-  setIsInitializingServer: (isInitializing: boolean) => void;
-  setSolutionServerConnected: (connected: boolean) => void;
-  setProfileSyncConnected: (connected: boolean) => void;
-  setLlmProxyAvailable: (available: boolean) => void;
+  /**
+   * Batch update server state (used during initialization)
+   * ⚠️ Prefer: hub.connection.syncStatus() for business operations
+   */
   updateServerState: (updates: {
     serverState?: ServerState;
     isStartingServer?: boolean;
@@ -130,13 +156,10 @@ export interface ExtensionStoreActions {
     llmProxyAvailable?: boolean;
   }) => void;
 
-  // Solution workflow actions
-  setIsFetchingSolution: (isFetching: boolean) => void;
-  setSolutionState: (state: SolutionState) => void;
-  setSolutionScope: (scope: Scope | undefined) => void;
-  setIsWaitingForUserInteraction: (isWaiting: boolean) => void;
-  setIsProcessingQueuedMessages: (isProcessing: boolean) => void;
-  setPendingBatchReview: (files: PendingBatchReviewFile[]) => void;
+  /**
+   * Batch update solution workflow state (used during initialization)
+   * ⚠️ Prefer: solutionWorkflow.* actions for business operations (future)
+   */
   updateSolutionWorkflow: (updates: {
     isFetchingSolution?: boolean;
     solutionState?: SolutionState;
@@ -146,28 +169,10 @@ export interface ExtensionStoreActions {
     pendingBatchReview?: PendingBatchReviewFile[];
   }) => void;
 
-  // Chat actions (stored locally, not synced)
-  addChatMessage: (message: ChatMessage) => void;
-  setChatMessages: (messages: ChatMessage[]) => void;
-  clearChatMessages: () => void;
-
-  // Config and error actions
-  setConfigErrors: (errors: ConfigError[]) => void;
-  addConfigError: (error: ConfigError) => void;
-  removeConfigError: (type: ConfigError["type"]) => void;
-  clearConfigErrors: () => void;
-  setLlmErrors: (errors: LLMError[]) => void;
-  addLlmError: (error: LLMError) => void;
-  clearLlmErrors: () => void;
-
-  // Settings actions
-  setSolutionServerEnabled: (enabled: boolean) => void;
-  setIsAgentMode: (isAgentMode: boolean) => void;
-  setIsContinueInstalled: (isInstalled: boolean) => void;
-  setHubConfig: (config: HubConfig | undefined) => void;
-  setProfileSyncEnabled: (enabled: boolean) => void;
-  setIsSyncingProfiles: (isSyncing: boolean) => void;
-  setWorkspaceRoot: (root: string) => void;
+  /**
+   * Batch update settings (used during initialization)
+   * ⚠️ Prefer: hub.applyConfigurationFromUI() for business operations
+   */
   updateSettings: (updates: {
     solutionServerEnabled?: boolean;
     isAgentMode?: boolean;
@@ -178,21 +183,65 @@ export interface ExtensionStoreActions {
     llmProxyAvailable?: boolean;
   }) => void;
 
-  // Decorator actions
+  // ============================================
+  // SINGLE-FIELD SETTERS (Use sparingly)
+  // ============================================
+
+  // Chat messages (no domain actions yet - uses on-demand fetching)
+  setChatMessages: (messages: ChatMessage[]) => void;
+  addChatMessage: (message: ChatMessage) => void;
+  clearChatMessages: () => void;
+
+  // Config errors (no domain actions yet)
+  setConfigErrors: (errors: ConfigError[]) => void;
+  addConfigError: (error: ConfigError) => void;
+  removeConfigError: (type: ConfigError["type"]) => void;
+  clearConfigErrors: () => void;
+
+  // LLM errors (no domain actions yet)
+  setLlmErrors: (errors: LLMError[]) => void;
+  addLlmError: (error: LLMError) => void;
+  clearLlmErrors: () => void;
+
+  // Decorators (no domain actions yet)
   setActiveDecorators: (decorators: Record<string, string>) => void;
   addActiveDecorator: (streamId: string, value: string) => void;
   removeActiveDecorator: (streamId: string) => void;
   clearActiveDecorators: () => void;
 
-  // Utility actions
+  // Workspace
+  setWorkspaceRoot: (root: string) => void;
+
+  // ============================================
+  // UTILITY ACTIONS
+  // ============================================
+
+  /**
+   * Clear all analysis data
+   * ⚠️ Prefer: analysis.clearResults() when domain is created
+   */
   clearAnalysisData: () => void;
+
+  /**
+   * Reset entire store to initial state
+   */
   reset: () => void;
 }
 
 /**
- * Combined store type
+ * Combined store type with all domain actions
  */
-export type ExtensionStore = ExtensionStoreState & ExtensionStoreActions;
+export type ExtensionStore = ExtensionStoreState &
+  ExtensionStoreActions &
+  HubDomainActions &
+  AnalysisDomainActions &
+  ProfilesDomainActions &
+  SolutionWorkflowDomainActions &
+  ServerDomainActions &
+  DecoratorsDomainActions &
+  ConfigDomainActions &
+  SettingsDomainActions &
+  ChatDomainActions;
 
 /**
  * Initial state
@@ -205,7 +254,7 @@ const initialState: ExtensionStoreState = {
   analysisProgress: undefined,
   analysisProgressMessage: undefined,
   isAnalysisScheduled: false,
-  profiles: [],
+  profilesList: [],
   activeProfileId: null,
   isInTreeMode: false,
   serverState: "initial",
@@ -237,62 +286,38 @@ const initialState: ExtensionStoreState = {
  *
  * This uses subscribeWithSelector middleware to enable selective subscriptions
  * and immer middleware for convenient mutable updates.
+ *
+ * The store is composed of:
+ * - Initial state
+ * - Legacy CRUD actions (being phased out)
+ * - Domain-driven actions (new pattern)
  */
 export const extensionStore = createStore<ExtensionStore>()(
   subscribeWithSelector(
-    immer((set) => ({
+    immer((set, get, store) => ({
       ...initialState,
 
-      // Analysis actions
-      setRuleSets: (ruleSets) =>
-        set((state) => {
-          state.ruleSets = ruleSets;
-        }),
+      // ============================================
+      // DOMAIN ACTIONS (Merged from domain modules)
+      // ============================================
+      ...createHubActions(set, get, store),
+      ...createAnalysisActions(set, get, store),
+      ...createProfilesActions(set, get, store),
+      ...createSolutionWorkflowActions(set, get, store),
+      ...createServerActions(set, get, store),
+      ...createDecoratorsActions(set, get, store),
+      ...createConfigActions(set, get, store),
+      ...createSettingsActions(set, get, store),
+      ...createChatActions(set, get, store),
 
-      setEnhancedIncidents: (incidents) =>
-        set((state) => {
-          state.enhancedIncidents = incidents;
-        }),
+      // ============================================
+      // LEGACY CRUD ACTIONS (For initialization & backward compatibility)
+      // ============================================
 
-      setIsAnalyzing: (isAnalyzing) =>
-        set((state) => {
-          state.isAnalyzing = isAnalyzing;
-        }),
-
-      setAnalysisProgress: (progress) =>
-        set((state) => {
-          state.analysisProgress = progress;
-        }),
-
-      setAnalysisProgressMessage: (message) =>
-        set((state) => {
-          state.analysisProgressMessage = message;
-        }),
-
-      setIsAnalysisScheduled: (isScheduled) =>
-        set((state) => {
-          state.isAnalysisScheduled = isScheduled;
-        }),
-
+      // Batch updates (preferred for initialization)
       updateAnalysisState: (updates) =>
         set((state) => {
           Object.assign(state, updates);
-        }),
-
-      // Profile actions
-      setProfiles: (profiles) =>
-        set((state) => {
-          state.profiles = profiles;
-        }),
-
-      setActiveProfileId: (profileId) =>
-        set((state) => {
-          state.activeProfileId = profileId;
-        }),
-
-      setIsInTreeMode: (isInTreeMode) =>
-        set((state) => {
-          state.isInTreeMode = isInTreeMode;
         }),
 
       updateProfiles: (updates) =>
@@ -300,71 +325,9 @@ export const extensionStore = createStore<ExtensionStore>()(
           Object.assign(state, updates);
         }),
 
-      // Server actions
-      setServerState: (serverState) =>
-        set((state) => {
-          state.serverState = serverState;
-        }),
-
-      setIsStartingServer: (isStarting) =>
-        set((state) => {
-          state.isStartingServer = isStarting;
-        }),
-
-      setIsInitializingServer: (isInitializing) =>
-        set((state) => {
-          state.isInitializingServer = isInitializing;
-        }),
-
-      setSolutionServerConnected: (connected) =>
-        set((state) => {
-          state.solutionServerConnected = connected;
-        }),
-
-      setProfileSyncConnected: (connected) =>
-        set((state) => {
-          state.profileSyncConnected = connected;
-        }),
-
-      setLlmProxyAvailable: (available) =>
-        set((state) => {
-          state.llmProxyAvailable = available;
-        }),
-
       updateServerState: (updates) =>
         set((state) => {
           Object.assign(state, updates);
-        }),
-
-      // Solution workflow actions
-      setIsFetchingSolution: (isFetching) =>
-        set((state) => {
-          state.isFetchingSolution = isFetching;
-        }),
-
-      setSolutionState: (solutionState) =>
-        set((state) => {
-          state.solutionState = solutionState;
-        }),
-
-      setSolutionScope: (scope) =>
-        set((state) => {
-          state.solutionScope = scope;
-        }),
-
-      setIsWaitingForUserInteraction: (isWaiting) =>
-        set((state) => {
-          state.isWaitingForUserInteraction = isWaiting;
-        }),
-
-      setIsProcessingQueuedMessages: (isProcessing) =>
-        set((state) => {
-          state.isProcessingQueuedMessages = isProcessing;
-        }),
-
-      setPendingBatchReview: (files) =>
-        set((state) => {
-          state.pendingBatchReview = files;
         }),
 
       updateSolutionWorkflow: (updates) =>
@@ -372,7 +335,12 @@ export const extensionStore = createStore<ExtensionStore>()(
           Object.assign(state, updates);
         }),
 
-      // Chat actions
+      updateSettings: (updates) =>
+        set((state) => {
+          Object.assign(state, updates);
+        }),
+
+      // Chat actions (no domain yet - uses on-demand fetching)
       addChatMessage: (message) =>
         set((state) => {
           state.chatMessages.push(message);
@@ -428,48 +396,7 @@ export const extensionStore = createStore<ExtensionStore>()(
           state.llmErrors = [];
         }),
 
-      // Settings actions
-      setSolutionServerEnabled: (enabled) =>
-        set((state) => {
-          state.solutionServerEnabled = enabled;
-        }),
-
-      setIsAgentMode: (isAgentMode) =>
-        set((state) => {
-          state.isAgentMode = isAgentMode;
-        }),
-
-      setIsContinueInstalled: (isInstalled) =>
-        set((state) => {
-          state.isContinueInstalled = isInstalled;
-        }),
-
-      setHubConfig: (config) =>
-        set((state) => {
-          state.hubConfig = config;
-        }),
-
-      setProfileSyncEnabled: (enabled) =>
-        set((state) => {
-          state.profileSyncEnabled = enabled;
-        }),
-
-      setIsSyncingProfiles: (isSyncing) =>
-        set((state) => {
-          state.isSyncingProfiles = isSyncing;
-        }),
-
-      setWorkspaceRoot: (root) =>
-        set((state) => {
-          state.workspaceRoot = root;
-        }),
-
-      updateSettings: (updates) =>
-        set((state) => {
-          Object.assign(state, updates);
-        }),
-
-      // Decorator actions
+      // Decorator actions (legacy - prefer decorators.* domain actions)
       setActiveDecorators: (decorators) =>
         set((state) => {
           state.activeDecorators = decorators;
@@ -488,6 +415,12 @@ export const extensionStore = createStore<ExtensionStore>()(
       clearActiveDecorators: () =>
         set((state) => {
           state.activeDecorators = {};
+        }),
+
+      // Workspace
+      setWorkspaceRoot: (root) =>
+        set((state) => {
+          state.workspaceRoot = root;
         }),
 
       // Utility actions

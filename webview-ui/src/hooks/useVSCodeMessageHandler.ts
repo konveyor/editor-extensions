@@ -1,316 +1,242 @@
 import { useEffect, useRef } from "react";
-import {
-  WebviewMessage,
-  isFullStateUpdate,
-  isChatMessagesUpdate,
-  isChatMessageStreamingUpdate,
-  isAnalysisStateUpdate,
-  isSolutionWorkflowUpdate,
-  isSolutionLoadingUpdate,
-  isAnalysisFlagsUpdate,
-  isServerStateUpdate,
-  isProfilesUpdate,
-  isConfigErrorsUpdate,
-  isDecoratorsUpdate,
-  isSettingsUpdate,
-  ConfigErrorType,
-} from "@editor-extensions/shared";
+import { ConfigErrorType } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
 
 /**
  * Maximum number of chat messages to keep in memory.
- *
- * When this limit is reached, older messages are automatically removed
- * to maintain a rolling window of the most recent messages.
- *
- * Default: 50,000 messages (supports ~5x typical session usage of 10,000 messages)
- *
- * Memory usage estimate:
- * - Average message size: ~1KB
- * - Total memory at limit: ~50MB
- *
- * Adjust based on your application's memory constraints and usage patterns.
+ * When this limit is reached, older messages are automatically removed.
  */
 const MAX_CHAT_MESSAGES = 50000;
 
-// Throttle streaming updates to prevent UI death spiral
-// Updates will batch until this interval passes
+/**
+ * Throttle streaming updates to prevent UI death spiral.
+ * Updates will batch until this interval passes.
+ */
 const STREAMING_THROTTLE_MS = 100;
 
 /**
- * Hook that handles messages from VSCode extension and syncs them to Zustand store
+ * Message types that can be handled with simple batchUpdate.
+ * These messages have payloads that directly map to store state.
+ */
+const BATCH_UPDATE_MESSAGE_TYPES = [
+  // Cheap flag updates (from sync bridges)
+  "SOLUTION_LOADING_UPDATE",
+  "ANALYSIS_FLAGS_UPDATE",
+  "SERVER_STATE_UPDATE",
+  "SETTINGS_UPDATE",
+  "CONFIG_ERRORS_UPDATE",
+  "DECORATORS_UPDATE",
+  // Expensive data updates (from sync bridges)
+  "ANALYSIS_STATE_UPDATE",
+  "PROFILES_UPDATE",
+] as const;
+
+/**
+ * Hook that handles messages from VSCode extension and syncs them to Zustand store.
  *
- * Uses granular message types for selective state updates instead of full state broadcasts
+ * Architecture:
+ * - Extension Host (vanilla Zustand) = Source of truth with domain actions
+ * - Webview (React Zustand) = Dumb replica for UI rendering
+ * - Sync Bridges = Automatic one-way sync (Extension → Webview)
+ *
+ * Most messages just need batchUpdate() since the sync bridges send payloads
+ * that directly match the store shape.
  */
 export function useVSCodeMessageHandler() {
   // Throttling state for streaming updates
-  const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingStreamingUpdateRef = useRef<{
     messageIndex: number;
     message: any;
   } | null>(null);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent<WebviewMessage>) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
-        const message = event.data;
+        // Extract type and payload, ignoring timestamp from sync bridges
+        const { type, ...payload } = event.data;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { timestamp, ...cleanPayload } = payload as {
+          timestamp?: string;
+          [key: string]: any;
+        };
         const store = useExtensionStore.getState();
 
-        // Handle streaming update (incremental - just one message changed)
-        if (isChatMessageStreamingUpdate(message)) {
-          // Throttle streaming updates to prevent render death spiral
-          // Store the latest update and batch them
-          pendingStreamingUpdateRef.current = {
-            messageIndex: message.messageIndex,
-            message: message.message,
-          };
+        // ============================================
+        // SIMPLE BATCH UPDATES (most common case)
+        // Sync bridges send payloads that match store shape
+        // ============================================
+        if (BATCH_UPDATE_MESSAGE_TYPES.includes(type)) {
+          store.batchUpdate(cleanPayload);
+          return;
+        }
 
-          // If there's already a timer, let it handle the batched update
-          if (throttleTimerRef.current) {
+        // ============================================
+        // SPECIAL CASES (need custom handling)
+        // ============================================
+
+        switch (type) {
+          // Chat message streaming (throttled to prevent render death spiral)
+          case "CHAT_MESSAGE_STREAMING_UPDATE": {
+            pendingStreamingUpdateRef.current = {
+              messageIndex: cleanPayload.messageIndex,
+              message: cleanPayload.message,
+            };
+
+            // If there's already a timer, let it handle the batched update
+            if (throttleTimerRef.current) {
+              return;
+            }
+
+            // Set a timer to apply the batched update
+            throttleTimerRef.current = setTimeout(() => {
+              const pending = pendingStreamingUpdateRef.current;
+              if (pending) {
+                const latestStore = useExtensionStore.getState();
+                const currentMessages = latestStore.chatMessages;
+
+                if (pending.messageIndex < currentMessages.length) {
+                  const updatedMessages = [...currentMessages];
+                  updatedMessages[pending.messageIndex] = {
+                    ...currentMessages[pending.messageIndex],
+                    ...pending.message,
+                    value: {
+                      ...currentMessages[pending.messageIndex]?.value,
+                      ...pending.message.value,
+                    },
+                  };
+                  latestStore.setChatMessages(updatedMessages);
+                }
+              }
+
+              throttleTimerRef.current = null;
+              pendingStreamingUpdateRef.current = null;
+            }, STREAMING_THROTTLE_MS);
             return;
           }
 
-          // Set a timer to apply the batched update
-          throttleTimerRef.current = setTimeout(() => {
-            const pending = pendingStreamingUpdateRef.current;
-            if (pending) {
-              // Re-read the latest store state to avoid stale data
-              const latestStore = useExtensionStore.getState();
-              const currentMessages = latestStore.chatMessages;
+          // Chat messages update (with memory limit)
+          case "CHAT_MESSAGES_UPDATE": {
+            const limitedMessages =
+              cleanPayload.chatMessages.length > MAX_CHAT_MESSAGES
+                ? cleanPayload.chatMessages.slice(-MAX_CHAT_MESSAGES)
+                : cleanPayload.chatMessages;
 
-              // Verify the index is still valid
-              if (pending.messageIndex < currentMessages.length) {
-                const updatedMessages = [...currentMessages];
-                // Merge fields instead of replacing the entire message
-                // This preserves any concurrent updates to other fields
-                updatedMessages[pending.messageIndex] = {
-                  ...currentMessages[pending.messageIndex],
-                  ...pending.message,
-                  value: {
-                    ...currentMessages[pending.messageIndex]?.value,
-                    ...pending.message.value,
-                  },
-                };
-                latestStore.setChatMessages(updatedMessages);
-              }
+            if (limitedMessages.length < cleanPayload.chatMessages.length) {
+              console.warn(
+                `[useVSCodeMessageHandler] Chat messages exceeded limit. Dropping oldest messages.`,
+              );
             }
 
-            // Clear the throttle state
-            throttleTimerRef.current = null;
-            pendingStreamingUpdateRef.current = null;
-          }, STREAMING_THROTTLE_MS);
-
-          return;
-        }
-
-        // Handle full chat messages update (structure changed)
-        if (isChatMessagesUpdate(message)) {
-          // Limit chat messages to prevent memory issues
-          const limitedMessages =
-            message.chatMessages.length > MAX_CHAT_MESSAGES
-              ? message.chatMessages.slice(-MAX_CHAT_MESSAGES)
-              : message.chatMessages;
-
-          if (limitedMessages.length < message.chatMessages.length) {
-            const droppedCount = message.chatMessages.length - MAX_CHAT_MESSAGES;
-            console.warn(
-              `Chat messages exceeded limit (${message.chatMessages.length} > ${MAX_CHAT_MESSAGES}). ` +
-                `Dropping ${droppedCount} oldest messages, keeping the most recent ${MAX_CHAT_MESSAGES}.`,
-            );
+            store.setChatMessages(limitedMessages);
+            return;
           }
 
-          store.setChatMessages(limitedMessages);
-          return;
-        }
+          // Solution workflow update (has side effect logic for batch operation tracking)
+          case "SOLUTION_WORKFLOW_UPDATE": {
+            const pendingCount = cleanPayload.pendingBatchReview?.length || 0;
+            const previousPendingCount = store.pendingBatchReview?.length || 0;
+            const wasProcessing = store.isProcessingQueuedMessages;
+            const isNowProcessing = cleanPayload.isProcessingQueuedMessages;
 
-        // Handle analysis state updates
-        if (isAnalysisStateUpdate(message)) {
-          store.batchUpdate({
-            ruleSets: message.ruleSets,
-            enhancedIncidents: message.enhancedIncidents,
-            isAnalyzing: message.isAnalyzing,
-            isAnalysisScheduled: message.isAnalysisScheduled,
-            analysisProgress: message.analysisProgress ?? 0,
-            analysisProgressMessage: message.analysisProgressMessage ?? "",
-          });
-          return;
-        }
+            store.batchUpdate({
+              isFetchingSolution: cleanPayload.isFetchingSolution,
+              solutionState: cleanPayload.solutionState,
+              solutionScope: cleanPayload.solutionScope,
+              isWaitingForUserInteraction: cleanPayload.isWaitingForUserInteraction,
+              isProcessingQueuedMessages: cleanPayload.isProcessingQueuedMessages,
+              pendingBatchReview: cleanPayload.pendingBatchReview || [],
+            });
 
-        // Handle granular solution loading update (Issue 4)
-        if (isSolutionLoadingUpdate(message)) {
-          store.setIsFetchingSolution(message.isFetchingSolution);
-          return;
-        }
+            // Side effect: Reset batch operation flag when work completes
+            const shouldResetBatchOperation =
+              store.isBatchOperationInProgress &&
+              ((previousPendingCount > 0 && pendingCount === 0) ||
+                (wasProcessing && !isNowProcessing));
 
-        // Handle granular analysis flags update (Issue 5)
-        if (isAnalysisFlagsUpdate(message)) {
-          store.batchUpdate({
-            isAnalyzing: message.isAnalyzing,
-            isAnalysisScheduled: message.isAnalysisScheduled,
-          });
-          return;
-        }
-
-        // Handle solution workflow updates
-        if (isSolutionWorkflowUpdate(message)) {
-          const pendingCount = message.pendingBatchReview?.length || 0;
-          const previousPendingCount = store.pendingBatchReview?.length || 0;
-          const wasProcessing = store.isProcessingQueuedMessages;
-          const isNowProcessing = message.isProcessingQueuedMessages;
-          console.log(
-            `[useVSCodeMessageHandler] SOLUTION_WORKFLOW_UPDATE received, pendingBatchReview: ${pendingCount} files, isProcessingQueuedMessages: ${wasProcessing} -> ${isNowProcessing}`,
-          );
-          store.batchUpdate({
-            isFetchingSolution: message.isFetchingSolution,
-            solutionState: message.solutionState,
-            solutionScope: message.solutionScope,
-            isWaitingForUserInteraction: message.isWaitingForUserInteraction,
-            isProcessingQueuedMessages: message.isProcessingQueuedMessages,
-            pendingBatchReview: message.pendingBatchReview || [],
-          });
-
-          const shouldResetBatchOperation =
-            store.isBatchOperationInProgress &&
-            ((previousPendingCount > 0 && pendingCount === 0) ||
-              (wasProcessing && !isNowProcessing));
-
-          if (shouldResetBatchOperation) {
-            store.setBatchOperationInProgress(false);
-            console.log(
-              `[useVSCodeMessageHandler] Batch operation completed, resetting isBatchOperationInProgress (pendingCount: ${pendingCount}, processingChanged: ${wasProcessing} -> ${isNowProcessing})`,
-            );
+            if (shouldResetBatchOperation) {
+              store.setBatchOperationInProgress(false);
+            }
+            return;
           }
 
-          console.log(
-            `[useVSCodeMessageHandler] Store updated with pendingBatchReview: ${pendingCount} files`,
-          );
-          return;
-        }
+          // Full state update (initial load - needs safe defaults)
+          case "FULL_STATE_UPDATE": {
+            const safePayload = {
+              ruleSets: Array.isArray(cleanPayload.ruleSets) ? cleanPayload.ruleSets : [],
+              enhancedIncidents: Array.isArray(cleanPayload.enhancedIncidents)
+                ? cleanPayload.enhancedIncidents
+                : [],
+              profiles: Array.isArray(cleanPayload.profiles) ? cleanPayload.profiles : [],
+              configErrors: Array.isArray(cleanPayload.configErrors)
+                ? cleanPayload.configErrors
+                : [],
+              pendingBatchReview: Array.isArray(cleanPayload.pendingBatchReview)
+                ? cleanPayload.pendingBatchReview
+                : [],
+              chatMessages: Array.isArray(cleanPayload.chatMessages)
+                ? cleanPayload.chatMessages.slice(-MAX_CHAT_MESSAGES)
+                : [],
+              activeDecorators: cleanPayload.activeDecorators ?? {},
+              // Booleans with safe defaults
+              isAnalyzing: cleanPayload.isAnalyzing ?? false,
+              isFetchingSolution: cleanPayload.isFetchingSolution ?? false,
+              isStartingServer: cleanPayload.isStartingServer ?? false,
+              isInitializingServer: cleanPayload.isInitializingServer ?? false,
+              isAnalysisScheduled: cleanPayload.isAnalysisScheduled ?? false,
+              isContinueInstalled: cleanPayload.isContinueInstalled ?? false,
+              solutionServerEnabled: cleanPayload.solutionServerEnabled ?? false,
+              solutionServerConnected: cleanPayload.solutionServerConnected ?? false,
+              isAgentMode: cleanPayload.isAgentMode ?? false,
+              isWaitingForUserInteraction: cleanPayload.isWaitingForUserInteraction ?? false,
+              isProcessingQueuedMessages: cleanPayload.isProcessingQueuedMessages ?? false,
+              profileSyncEnabled: cleanPayload.profileSyncEnabled ?? false,
+              profileSyncConnected: cleanPayload.profileSyncConnected ?? false,
+              isSyncingProfiles: cleanPayload.isSyncingProfiles ?? false,
+              llmProxyAvailable: cleanPayload.llmProxyAvailable ?? false,
+              // Numbers with safe defaults
+              analysisProgress: cleanPayload.analysisProgress ?? 0,
+              analysisProgressMessage: cleanPayload.analysisProgressMessage ?? "",
+              // Strings/enums with safe defaults
+              serverState: cleanPayload.serverState ?? "initial",
+              solutionState: cleanPayload.solutionState ?? "none",
+              workspaceRoot: cleanPayload.workspaceRoot ?? "/",
+              activeProfileId: cleanPayload.activeProfileId ?? null,
+              // Optional objects
+              solutionScope: cleanPayload.solutionScope,
+              hubConfig: cleanPayload.hubConfig,
+            };
 
-        if (isServerStateUpdate(message)) {
-          store.batchUpdate({
-            serverState: message.serverState,
-            isStartingServer: message.isStartingServer,
-            isInitializingServer: message.isInitializingServer,
-            solutionServerConnected: message.solutionServerConnected,
-            profileSyncConnected: message.profileSyncConnected,
-            llmProxyAvailable: message.llmProxyAvailable,
-          });
-          return;
-        }
+            store.batchUpdate(safePayload);
+            return;
+          }
 
-        // Handle profile updates
-        if (isProfilesUpdate(message)) {
-          store.batchUpdate({
-            profiles: message.profiles,
-            activeProfileId: message.activeProfileId,
-            isInTreeMode: message.isInTreeMode,
-          });
-          return;
-        }
-
-        // Handle config errors updates
-        if (isConfigErrorsUpdate(message)) {
-          store.setConfigErrors(message.configErrors);
-          return;
-        }
-
-        // Handle decorators updates
-        if (isDecoratorsUpdate(message)) {
-          store.setActiveDecorators(message.activeDecorators);
-          return;
-        }
-
-        // Handle settings updates
-        if (isSettingsUpdate(message)) {
-          store.batchUpdate({
-            solutionServerEnabled: message.solutionServerEnabled,
-            isAgentMode: message.isAgentMode,
-            isContinueInstalled: message.isContinueInstalled,
-            hubConfig: message.hubConfig,
-            profileSyncEnabled: message.profileSyncEnabled,
-            isSyncingProfiles: message.isSyncingProfiles,
-            llmProxyAvailable: message.llmProxyAvailable,
-          });
-          return;
-        }
-
-        // Handle full state updates (used on initial load)
-        if (isFullStateUpdate(message)) {
-          // Batch update all state at once for efficiency
-          store.batchUpdate({
-            ruleSets: Array.isArray(message.ruleSets) ? message.ruleSets : [],
-            enhancedIncidents: Array.isArray(message.enhancedIncidents)
-              ? message.enhancedIncidents
-              : [],
-            isAnalyzing: message.isAnalyzing ?? false,
-            analysisProgress: message.analysisProgress ?? 0,
-            analysisProgressMessage: message.analysisProgressMessage ?? "",
-            isFetchingSolution: message.isFetchingSolution ?? false,
-            isStartingServer: message.isStartingServer ?? false,
-            isInitializingServer: message.isInitializingServer ?? false,
-            isAnalysisScheduled: message.isAnalysisScheduled ?? false,
-            isContinueInstalled: message.isContinueInstalled ?? false,
-            serverState: message.serverState ?? "initial",
-            solutionState: message.solutionState ?? "none",
-            solutionScope: message.solutionScope,
-            solutionServerEnabled: message.solutionServerEnabled ?? false,
-            solutionServerConnected: message.solutionServerConnected ?? false,
-            isAgentMode: message.isAgentMode ?? false,
-            workspaceRoot: message.workspaceRoot ?? "/",
-            activeProfileId: message.activeProfileId ?? null,
-            isWaitingForUserInteraction: message.isWaitingForUserInteraction ?? false,
-            isProcessingQueuedMessages: message.isProcessingQueuedMessages ?? false,
-            activeDecorators: message.activeDecorators ?? {},
-            profiles: Array.isArray(message.profiles) ? message.profiles : [],
-            configErrors: Array.isArray(message.configErrors) ? message.configErrors : [],
-            pendingBatchReview: Array.isArray(message.pendingBatchReview)
-              ? message.pendingBatchReview
-              : [],
-            chatMessages:
-              Array.isArray(message.chatMessages) && message.chatMessages.length > MAX_CHAT_MESSAGES
-                ? message.chatMessages.slice(-MAX_CHAT_MESSAGES)
-                : Array.isArray(message.chatMessages)
-                  ? message.chatMessages
-                  : [],
-            hubConfig: message.hubConfig,
-            profileSyncEnabled: message.profileSyncEnabled ?? false,
-            profileSyncConnected: message.profileSyncConnected ?? false,
-            isSyncingProfiles: message.isSyncingProfiles ?? false,
-            llmProxyAvailable: message.llmProxyAvailable ?? false,
-          });
+          default:
+            // Unknown message type - ignore silently
+            // This allows for forward compatibility with new message types
+            break;
         }
       } catch (error) {
-        // Log the error and the problematic message for debugging
         console.error("[useVSCodeMessageHandler] Error handling message:", error);
         console.error("[useVSCodeMessageHandler] Offending message:", event.data);
 
-        // Clean up any pending throttle operations to avoid stuck state
+        // Clean up any pending throttle operations
         if (throttleTimerRef.current) {
           clearTimeout(throttleTimerRef.current);
           throttleTimerRef.current = null;
         }
         pendingStreamingUpdateRef.current = null;
 
-        // Optionally update error state in the store (could be used for user notification)
+        // Surface error to UI
         try {
           const store = useExtensionStore.getState();
-          if (store.setConfigErrors) {
-            // Add error to config errors as a way to surface it to the UI
-            store.setConfigErrors([
-              ...store.configErrors,
-              {
-                type: "provider-connection-failed" as ConfigErrorType,
-                message: `Message handler error: ${error instanceof Error ? error.message : String(error)}`,
-              },
-            ]);
-          }
-        } catch (storeError) {
-          // Even if store update fails, don't let it break the handler
-          console.error("[useVSCodeMessageHandler] Failed to update error state:", storeError);
+          store.addConfigError({
+            type: "provider-connection-failed" as ConfigErrorType,
+            message: `Message handler error: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        } catch {
+          // Ignore - don't let error handling break the handler
         }
-
-        // Do not re-throw - this ensures the message handler continues working
       }
     };
 
@@ -318,7 +244,6 @@ export function useVSCodeMessageHandler() {
 
     return () => {
       window.removeEventListener("message", handleMessage);
-      // Clean up throttle timer on unmount
       if (throttleTimerRef.current) {
         clearTimeout(throttleTimerRef.current);
       }

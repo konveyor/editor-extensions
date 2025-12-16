@@ -249,7 +249,7 @@ class VsCodeExtension {
       // Update store - profiles bridge will broadcast
       // Cast to mutable type since Immer returns readonly
       extensionStore.getState().updateProfiles({
-        profiles: this.data.profiles as any,
+        profilesList: this.data.profiles as any,
         activeProfileId: this.data.activeProfileId,
         isInTreeMode: this.data.isInTreeMode,
       });

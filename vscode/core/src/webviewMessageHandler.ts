@@ -249,28 +249,13 @@ const actions: {
     // Save to VS Code Secret Storage
     await saveHubConfig(state.extensionContext, config);
 
-    // Update state
-    state.mutateSettings((draft) => {
-      draft.hubConfig = config;
-      draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
-      draft.profileSyncEnabled = config.enabled && config.features.profileSync.enabled;
-    });
-
     // Update hub connection manager - it handles all connection logic internally
     await state.hubConnectionManager.updateConfig(config);
 
-    // Update connection state based on actual connection status
-    state.mutateServerState((draft) => {
-      draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
-      draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
-    });
-
-    // Clear syncing state if profile sync is disabled or disconnected
-    if (!state.hubConnectionManager.isProfileSyncConnected()) {
-      state.mutateSettings((draft) => {
-        draft.isSyncingProfiles = false;
-      });
-    }
+    // Domain-driven action: User configured Hub from UI
+    // This encapsulates all business logic: config updates, feature enablement,
+    // connection status sync, and clearing sync flags
+    extensionStore.getState().hub.applyConfigurationFromUI(config, state.hubConnectionManager);
   },
   [SYNC_HUB_PROFILES]: async (_payload, _state) => {
     // Delegate to the command which already has all the sync logic
