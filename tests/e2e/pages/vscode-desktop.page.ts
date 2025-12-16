@@ -94,11 +94,6 @@ export class VSCodeDesktop extends VSCode {
       prepareOfflineWorkspace(repoDir);
     }
 
-    // set the log level prior to starting vscode
-    writeOrUpdateSettingsJson(path.join(repoDir ?? '', '.vscode', 'settings.json'), {
-      'konveyor.logLevel': 'silly',
-    });
-
     let executablePath = process.env.VSCODE_EXECUTABLE_PATH;
     if (!executablePath) {
       if (getOSInfo() === 'linux') {
