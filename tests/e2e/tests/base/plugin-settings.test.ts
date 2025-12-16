@@ -23,7 +23,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, true);
     await vscodeApp.startServer();
 
-    await fileEditorPage.openFile(FILES_NAMES[0], true);
+    await vscodeApp.openFile(FILES_NAMES[0], true);
     await fileEditorPage.saveFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitForAnalysisCompleted();
@@ -31,7 +31,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     let files = (await vscodeApp.getListNames('files')) as string[];
     expect(files).toContain(FILES_NAMES[0]);
 
-    await fileEditorPage.openFile(FILES_NAMES[1], true);
+    await vscodeApp.openFile(FILES_NAMES[1], true);
     await fileEditorPage.saveFile(FILES_NAMES[1]);
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitForAnalysisCompleted();
@@ -45,7 +45,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
     await vscodeApp.startServer();
 
-    await fileEditorPage.openFile(FILES_NAMES[0], true);
+    await vscodeApp.openFile(FILES_NAMES[0], true);
     await fileEditorPage.saveFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
     await expect(vscodeApp.analysisIsRunning()).resolves.toBe(false);
