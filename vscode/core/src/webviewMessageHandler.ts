@@ -9,6 +9,7 @@ import {
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
   GET_SUCCESS_RATE,
+  GET_CHAT_MESSAGES,
   OPEN_FILE,
   OPEN_GENAI_SETTINGS,
   OVERRIDE_ANALYZER_BINARIES,
@@ -47,6 +48,7 @@ import { runPartialAnalysis } from "./analysis/runAnalysis";
 import winston from "winston";
 import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
 import { saveHubConfig } from "./utilities/hubConfigStorage";
+import { extensionStore } from "./store";
 
 export function setupWebviewMessageListener(
   webview: vscode.Webview,
@@ -388,6 +390,34 @@ const actions: {
   },
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");
+  },
+  // Phase 4, Issue 10: On-demand chat message fetching
+  // Instead of syncing all chat messages via bridge (which can be 50k+ messages),
+  // we fetch them on-demand when the chat panel is opened
+  [GET_CHAT_MESSAGES]: async ({ offset = 0, limit = 100 }, state, logger) => {
+    logger.info(`Fetching chat messages: offset=${offset}, limit=${limit}`);
+
+    // Get chat messages from the store
+    const chatMessages = extensionStore.getState().chatMessages;
+    const totalCount = chatMessages.length;
+
+    // Return paginated slice
+    const slice = chatMessages.slice(offset, offset + limit);
+
+    // Send response back to webview
+    state.webviewProviders.forEach((provider) => {
+      provider.sendMessageToWebview({
+        type: "CHAT_MESSAGES_RESPONSE",
+        chatMessages: slice,
+        offset,
+        limit,
+        totalCount,
+        hasMore: offset + limit < totalCount,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    logger.info(`Sent ${slice.length} chat messages (total: ${totalCount})`);
   },
   [TOGGLE_AGENT_MODE]() {
     toggleAgentMode();

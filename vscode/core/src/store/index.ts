@@ -8,3 +8,4 @@
 export * from "./extensionStore";
 export * from "./syncBridge";
 export * from "./initializeSyncBridges";
+export * from "./debugMiddleware";
