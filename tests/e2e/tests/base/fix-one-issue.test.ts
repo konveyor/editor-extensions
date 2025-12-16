@@ -7,7 +7,7 @@ import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { Configuration } from '../../pages/configuration.page';
 import { logLevel } from '../../enums/configuration-options.enum';
-import { LogLevel } from '../../enums/LogLevel.enum';
+import { LogLevel } from '../../enums/Log-level.enum';
 import { OutputChannel } from '../../enums/output.enum';
 
 getAvailableProviders().forEach((provider) => {

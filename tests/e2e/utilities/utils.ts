@@ -7,7 +7,7 @@ import { rm } from 'node:fs/promises';
 import process from 'process';
 import { expect } from '@playwright/test';
 import type { VSCode } from '../pages/vscode.page';
-import { LogEntry } from '../types/logEntry';
+import { LogEntry } from '../types/log-entry';
 
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
