@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test';
+import { Page } from '@playwright/test';
 import { VSCode } from './vscode.page';
 import { getOSInfo } from '../utilities/utils';
 
@@ -9,24 +9,14 @@ export class FileEditorPage {
     this.window = vsCode.getWindow();
   }
 
-  async readFile(filename: string): Promise<string> {
-    const currentActiveTab = await this.getCurrentActiveTab(); // check if the file is opened
-    if (currentActiveTab?.name !== filename) {
-      throw new Error(
-        `File ${filename} is not the current active tab, current active tab is ${currentActiveTab?.name}`
-      );
-    }
+  public async readFile(filename: string): Promise<string> {
+    await this.ensureFileIsActiveTab(filename);
     const content = await this.window.locator('.monaco-editor textarea').inputValue();
     return content;
   }
 
   async saveFile(filename: string): Promise<void> {
-    const currentActiveTab = await this.getCurrentActiveTab(); // check if the file is opened
-    if (currentActiveTab?.name !== filename) {
-      throw new Error(
-        `File ${filename} is not the current active tab, current active tab is ${currentActiveTab?.name}`
-      );
-    }
+    await this.ensureFileIsActiveTab(filename);
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     const tabSelector = this.window.locator(`.tab[role="tab"][data-resource-name="${filename}"]`);
     await tabSelector.waitFor({ state: 'visible', timeout: 10000 });
@@ -40,5 +30,14 @@ export class FileEditorPage {
       return { name: activeTab };
     }
     return undefined;
+  }
+
+  private async ensureFileIsActiveTab(filename: string): Promise<void> {
+    const currentActiveTab = await this.getCurrentActiveTab();
+    if (currentActiveTab?.name !== filename) {
+      throw new Error(
+        `File ${filename} is not the current active tab, current active tab is ${currentActiveTab?.name}`
+      );
+    }
   }
 }
