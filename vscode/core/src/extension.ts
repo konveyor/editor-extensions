@@ -124,36 +124,30 @@ class VsCodeExtension {
     );
     const getData = () => this.data;
 
-    // Update chat messages without triggering global state change (sends only chat delta to webview)
+    // DEPRECATED: Mutate functions are being phased out in favor of direct store actions
+    // These now act as thin wrappers that update both legacy state and Zustand store
+    // The store triggers sync bridges which handle broadcasting to webviews
+
+    // Update chat messages - delegates to store, bridge handles broadcast
     const mutateChatMessages = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
-      const oldMessages = getData().chatMessages;
       const data = produce(getData(), recipe);
+      this.data = data; // Keep legacy state in sync
 
-      // Update internal state WITHOUT firing global change event
-      this.data = data;
+      // Update store - chat messages are NOT synced via bridge (on-demand fetch)
+      // Cast to mutable type since Immer returns readonly
+      extensionStore.getState().setChatMessages(data.chatMessages as any);
 
-      // Optimize: Only send changed messages to reduce webview overhead
-      // If we're streaming (same number of messages), send just the last message
-      // Otherwise send the full array (for new messages, deletions, etc.)
+      // For backward compatibility, still do manual broadcasts for streaming
+      // TODO: Remove this once webview uses on-demand chat fetching
+      const oldMessages = getData().chatMessages;
       const isStreamingUpdate =
         data.chatMessages.length === oldMessages.length && data.chatMessages.length > 0;
 
       if (isStreamingUpdate) {
-        // Streaming chunk - send only the last message for efficiency
         const lastMessage = data.chatMessages[data.chatMessages.length - 1];
-        logger.info(`[Streaming] Sending incremental update`, {
-          messageIndex: data.chatMessages.length - 1,
-          messageLength: (lastMessage.value as any)?.message?.length || 0,
-          messageToken: lastMessage.messageToken,
-        });
-
-        // CRITICAL: Create a plain object copy to avoid Immer proxy issues
-        // Immer's immutable data might reuse object references internally
         const plainMessage = JSON.parse(JSON.stringify(lastMessage));
-
-        // Broadcast streaming update to all webviews
         broadcastToWebviews((provider) => {
           provider.sendMessageToWebview({
             type: "CHAT_MESSAGE_STREAMING_UPDATE",
@@ -162,106 +156,84 @@ class VsCodeExtension {
             timestamp: new Date().toISOString(),
           });
         });
-      } else {
-        // Structure change - send full array
-        broadcastToWebviews((provider) => {
-          provider.sendMessageToWebview({
-            type: "CHAT_MESSAGES_UPDATE",
-            chatMessages: data.chatMessages,
-            previousLength: oldMessages.length,
-            timestamp: new Date().toISOString(),
-          });
-        });
       }
 
       return data;
     };
 
-    // Update analysis state and notify all listeners
+    // Update analysis state - delegates to store, bridge handles broadcast
     const mutateAnalysisState = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+      this.data = data; // Keep legacy state in sync
 
-      // Send only analysis state to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "ANALYSIS_STATE_UPDATE",
-          ruleSets: data.ruleSets,
-          enhancedIncidents: data.enhancedIncidents,
-          isAnalyzing: data.isAnalyzing,
-          isAnalysisScheduled: data.isAnalysisScheduled,
-          analysisProgress: data.analysisProgress,
-          analysisProgressMessage: data.analysisProgressMessage,
-          timestamp: new Date().toISOString(),
-        });
+      // Update store - analysis state bridge will broadcast
+      // Cast to mutable types since Immer returns readonly
+      extensionStore.getState().updateAnalysisState({
+        ruleSets: data.ruleSets as any,
+        enhancedIncidents: data.enhancedIncidents as any,
+        isAnalyzing: data.isAnalyzing,
+        isAnalysisScheduled: data.isAnalysisScheduled,
+        analysisProgress: data.analysisProgress,
+        analysisProgressMessage: data.analysisProgressMessage,
       });
 
-      // Fire the global change event to notify extension listeners
+      // Fire the global change event for legacy listeners
       this._onDidChange.fire(this.data);
 
       return data;
     };
 
-    // Update solution workflow state without triggering global state change
+    // Update solution workflow - delegates to store, bridge handles broadcast
     const mutateSolutionWorkflow = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+      this.data = data; // Keep legacy state in sync
 
-      // Send only solution workflow state to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "SOLUTION_WORKFLOW_UPDATE",
-          isFetchingSolution: data.isFetchingSolution,
-          solutionState: data.solutionState,
-          solutionScope: data.solutionScope,
-          isWaitingForUserInteraction: data.isWaitingForUserInteraction,
-          isProcessingQueuedMessages: data.isProcessingQueuedMessages,
-          pendingBatchReview: data.pendingBatchReview || [],
-          timestamp: new Date().toISOString(),
-        });
+      // Update store - solution workflow bridge will broadcast
+      // Cast to mutable types since Immer returns readonly
+      extensionStore.getState().updateSolutionWorkflow({
+        isFetchingSolution: data.isFetchingSolution,
+        solutionState: data.solutionState,
+        solutionScope: data.solutionScope as any,
+        isWaitingForUserInteraction: data.isWaitingForUserInteraction,
+        isProcessingQueuedMessages: data.isProcessingQueuedMessages,
+        pendingBatchReview: data.pendingBatchReview as any,
       });
 
       return data;
     };
 
-    // Update server state without triggering global state change
+    // Update server state - delegates to store, bridge handles broadcast
     const mutateServerState = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+      this.data = data; // Keep legacy state in sync
 
-      // Send only server state to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "SERVER_STATE_UPDATE",
-          serverState: data.serverState,
-          isStartingServer: data.isStartingServer,
-          isInitializingServer: data.isInitializingServer,
-          solutionServerConnected: data.solutionServerConnected,
-          profileSyncConnected: data.profileSyncConnected,
-          llmProxyAvailable: data.llmProxyAvailable,
-          timestamp: new Date().toISOString(),
-        });
+      // Update store - server state bridge will broadcast
+      extensionStore.getState().updateServerState({
+        serverState: data.serverState,
+        isStartingServer: data.isStartingServer,
+        isInitializingServer: data.isInitializingServer,
+        solutionServerConnected: data.solutionServerConnected,
+        profileSyncConnected: data.profileSyncConnected,
+        llmProxyAvailable: data.llmProxyAvailable,
       });
 
       return data;
     };
 
-    // Update profiles without triggering global state change
+    // Update profiles - delegates to store, bridge handles broadcast
     const mutateProfiles = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
 
       // Compute isInTreeMode: true when hub profiles are present
-      // This means profiles are managed by Hub, not created in the webview
       const isInTreeMode = data.profiles.some((p) => p.source === "hub");
 
       // Warn user if they have hub profiles but profile sync is disabled
-      // They need to delete the synced profiles to regain control
       if (isInTreeMode && !data.hubConfig?.features?.profileSync?.enabled) {
         this.state?.logger?.warn(
           "Hub-synced profiles detected but profile sync is disabled. " +
@@ -274,74 +246,56 @@ class VsCodeExtension {
         draft.isInTreeMode = isInTreeMode;
       });
 
-      // Send only profiles to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "PROFILES_UPDATE",
-          profiles: this.data.profiles,
-          activeProfileId: this.data.activeProfileId,
-          isInTreeMode: this.data.isInTreeMode,
-          timestamp: new Date().toISOString(),
-        });
+      // Update store - profiles bridge will broadcast
+      // Cast to mutable type since Immer returns readonly
+      extensionStore.getState().updateProfiles({
+        profiles: this.data.profiles as any,
+        activeProfileId: this.data.activeProfileId,
+        isInTreeMode: this.data.isInTreeMode,
       });
 
       return this.data;
     };
 
-    // Update config errors without triggering global state change
+    // Update config errors - delegates to store, bridge handles broadcast
     const mutateConfigErrors = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+      this.data = data; // Keep legacy state in sync
 
-      // Send only config errors to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "CONFIG_ERRORS_UPDATE",
-          configErrors: data.configErrors,
-          timestamp: new Date().toISOString(),
-        });
-      });
+      // Update store - config errors bridge will broadcast
+      // Cast to mutable type since Immer returns readonly
+      extensionStore.getState().setConfigErrors(data.configErrors as any);
 
       return data;
     };
 
-    // Update decorators without triggering global state change
+    // Update decorators - delegates to store, bridge handles broadcast
     const mutateDecorators = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+      this.data = data; // Keep legacy state in sync
 
-      // Send only decorators to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "DECORATORS_UPDATE",
-          activeDecorators: data.activeDecorators || {},
-          timestamp: new Date().toISOString(),
-        });
-      });
+      // Update store - decorators bridge will broadcast
+      extensionStore.getState().setActiveDecorators(data.activeDecorators || {});
 
       return data;
     };
 
-    // Update settings without triggering global state change
+    // Update settings - delegates to store, bridge handles broadcast
     const mutateSettings = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
       const data = produce(getData(), recipe);
-      this.data = data;
+      this.data = data; // Keep legacy state in sync
 
-      // Send only settings to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: "SETTINGS_UPDATE",
-          solutionServerEnabled: data.solutionServerEnabled,
-          isAgentMode: data.isAgentMode,
-          isContinueInstalled: data.isContinueInstalled,
-          hubConfig: data.hubConfig,
-          profileSyncEnabled: data.profileSyncEnabled,
-          isSyncingProfiles: data.isSyncingProfiles,
-          llmProxyAvailable: data.llmProxyAvailable,
-          timestamp: new Date().toISOString(),
-        });
+      // Update store - settings bridge will broadcast
+      extensionStore.getState().updateSettings({
+        solutionServerEnabled: data.solutionServerEnabled,
+        isAgentMode: data.isAgentMode,
+        isContinueInstalled: data.isContinueInstalled,
+        hubConfig: data.hubConfig,
+        profileSyncEnabled: data.profileSyncEnabled,
+        isSyncingProfiles: data.isSyncingProfiles,
+        llmProxyAvailable: data.llmProxyAvailable,
       });
 
       return data;
