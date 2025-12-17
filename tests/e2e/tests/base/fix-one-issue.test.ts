@@ -2,7 +2,6 @@ import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { getAvailableProviders } from '../../fixtures/provider-configs.fixture';
 import { generateRandomString, parseLogEntries } from '../../utilities/utils';
-import { KAIViews } from '../../enums/views.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { Configuration } from '../../pages/configuration.page';
