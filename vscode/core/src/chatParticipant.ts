@@ -25,10 +25,7 @@ interface KonveyorChatResult extends vscode.ChatResult {
 /**
  * Build a system prompt with migration context
  */
-function buildMigrationSystemPrompt(
-  incidents: readonly EnhancedIncident[],
-  activeProfile?: string,
-): string {
+function buildMigrationSystemPrompt(incidents: EnhancedIncident[], activeProfile?: string): string {
   const incidentSummary =
     incidents.length > 0
       ? incidents
@@ -62,11 +59,8 @@ Be concise but thorough. Use markdown formatting for code blocks.`;
 /**
  * Get incidents relevant to the current context (active file or selection)
  */
-function getRelevantIncidents(
-  state: ExtensionState,
-  currentFileUri?: string,
-): readonly EnhancedIncident[] {
-  const allIncidents = state.data.enhancedIncidents;
+function getRelevantIncidents(state: ExtensionState, currentFileUri?: string): EnhancedIncident[] {
+  const allIncidents = state.data.enhancedIncidents as EnhancedIncident[];
 
   if (currentFileUri) {
     // Filter to current file
@@ -256,7 +250,7 @@ async function handleIssuesCommand(
 
   const incidents = fileOnly
     ? getRelevantIncidents(state, currentFile)
-    : state.data.enhancedIncidents;
+    : (state.data.enhancedIncidents as EnhancedIncident[]);
 
   if (incidents.length === 0) {
     stream.markdown(
@@ -369,7 +363,7 @@ async function handleGeneralQuestion(
  */
 function findMatchingIncident(
   query: string,
-  incidents: readonly EnhancedIncident[],
+  incidents: EnhancedIncident[],
 ): EnhancedIncident | undefined {
   if (!query || query.trim().length === 0) {
     return undefined;
@@ -405,9 +399,7 @@ function findMatchingIncident(
 /**
  * Group incidents by category
  */
-function groupByCategory(
-  incidents: readonly EnhancedIncident[],
-): Record<string, EnhancedIncident[]> {
+function groupByCategory(incidents: EnhancedIncident[]): Record<string, EnhancedIncident[]> {
   const groups: Record<string, EnhancedIncident[]> = {};
   for (const incident of incidents) {
     const category = incident.violation_category || "uncategorized";
@@ -422,7 +414,7 @@ function groupByCategory(
 /**
  * Group incidents by file
  */
-function groupByFile(incidents: readonly EnhancedIncident[]): Record<string, EnhancedIncident[]> {
+function groupByFile(incidents: EnhancedIncident[]): Record<string, EnhancedIncident[]> {
   const groups: Record<string, EnhancedIncident[]> = {};
   for (const incident of incidents) {
     const file = incident.uri;
