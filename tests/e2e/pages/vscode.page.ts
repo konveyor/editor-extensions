@@ -8,6 +8,7 @@ import { ProfileActions } from '../enums/profile-action-types.enum';
 import { OutputPanel } from './output.page';
 import path from 'path';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
+import { ResolutionAction } from '../enums/resolution-action.enum';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -437,16 +438,46 @@ export abstract class VSCode {
     }
   }
 
-  public async searchAndRequestFix(searchTerm: string, fixType: FixTypes) {
+  public async searchAndRequestFix(
+    searchTerm?: string,
+    fixType?: FixTypes,
+    resolutionAction?: ResolutionAction
+  ) {
     const analysisView = await this.getView(KAIViews.analysisView);
-    await this.searchViolation(searchTerm);
-    await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
-    await analysisView.locator('button#get-solution-button').nth(fixType).click();
-  }
 
-  public async searchViolationAndAcceptAllSolutions(violation: string) {
-    await this.searchAndRequestFix(violation, FixTypes.Issue);
-    await this.acceptAllSolutions();
+    if (searchTerm) {
+      await this.searchViolation(searchTerm);
+    }
+    await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
+
+    if (fixType) {
+      await analysisView.locator('button#get-solution-button').nth(fixType).click();
+    }
+
+    if (resolutionAction) {
+      const resolutionView = await this.getView(KAIViews.resolutionDetails);
+      const fixLocator = resolutionView.getByRole('button', { name: resolutionAction });
+
+      if (resolutionAction === ResolutionAction.ACCEPT) {
+        const loadingIndicator = resolutionView.locator('.loading-indicator');
+        await this.waitDefault();
+        // Avoid fixing issues forever
+        const MAX_FIXES = 500;
+        for (let i = 0; i < MAX_FIXES; i++) {
+          await expect(fixLocator.first()).toBeVisible({ timeout: 300_000 });
+          // Ensures the button is clicked even if there are notifications overlaying it due to screen size
+          await fixLocator.first().dispatchEvent('click');
+          await this.waitDefault();
+
+          if ((await loadingIndicator.count()) === 0) {
+            return;
+          }
+        }
+        throw new Error('MAX_FIXES limit reached while requesting solutions');
+      }
+      await fixLocator.waitFor({ state: 'visible', timeout: 30000 });
+      await fixLocator.click();
+    }
   }
 
   public async waitForSolutionConfirmation(): Promise<void> {
@@ -462,29 +493,6 @@ export abstract class VSCode {
       // 2. Wait for the blocking overlay to disappear
       expect(backdrop).not.toBeVisible({ timeout: 3600000 }),
     ]);
-  }
-
-  public async acceptAllSolutions() {
-    const resolutionView = await this.getView(KAIViews.resolutionDetails);
-    const fixLocator = resolutionView.getByRole('button', { name: 'Accept' });
-    const loadingIndicator = resolutionView.locator('.loading-indicator');
-
-    await this.waitDefault();
-    // Avoid fixing issues forever
-    const MAX_FIXES = 500;
-
-    for (let i = 0; i < MAX_FIXES; i++) {
-      await expect(fixLocator.first()).toBeVisible({ timeout: 300_000 });
-      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
-      await fixLocator.first().dispatchEvent('click');
-      await this.waitDefault();
-
-      if ((await loadingIndicator.count()) === 0) {
-        return;
-      }
-    }
-
-    throw new Error('MAX_FIXES limit reached while requesting solutions');
   }
 
   public async waitDefault() {
