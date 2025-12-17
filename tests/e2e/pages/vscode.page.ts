@@ -447,8 +447,8 @@ export abstract class VSCode {
 
     if (searchTerm) {
       await this.searchViolation(searchTerm);
+      await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
     }
-    await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
 
     if (fixType) {
       await analysisView.locator('button#get-solution-button').nth(fixType).click();
