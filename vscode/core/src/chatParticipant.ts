@@ -74,10 +74,10 @@ function getRelevantIncidents(state: ExtensionState, currentFileUri?: string): E
  * Handle the /analyze slash command
  */
 async function handleAnalyzeCommand(
-  request: vscode.ChatRequest,
+  _request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
   state: ExtensionState,
-  token: vscode.CancellationToken,
+  _token: vscode.CancellationToken,
 ): Promise<KonveyorChatResult> {
   stream.progress("Running migration analysis...");
 
@@ -123,7 +123,7 @@ async function handleFixCommand(
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
   state: ExtensionState,
-  token: vscode.CancellationToken,
+  _token: vscode.CancellationToken,
 ): Promise<KonveyorChatResult> {
   const currentFile = vscode.window.activeTextEditor?.document.uri.toString();
   const incidents = getRelevantIncidents(state, currentFile);
@@ -186,7 +186,7 @@ async function handleExplainCommand(
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
   state: ExtensionState,
-  token: vscode.CancellationToken,
+  _token: vscode.CancellationToken,
 ): Promise<KonveyorChatResult> {
   const currentFile = vscode.window.activeTextEditor?.document.uri.toString();
   const incidents = getRelevantIncidents(state, currentFile);
@@ -243,7 +243,7 @@ async function handleIssuesCommand(
   request: vscode.ChatRequest,
   stream: vscode.ChatResponseStream,
   state: ExtensionState,
-  token: vscode.CancellationToken,
+  _token: vscode.CancellationToken,
 ): Promise<KonveyorChatResult> {
   const currentFile = vscode.window.activeTextEditor?.document.uri.toString();
   const fileOnly = request.prompt.toLowerCase().includes("file");
@@ -473,8 +473,8 @@ export function registerChatParticipant(
   participant.followupProvider = {
     provideFollowups(
       result: KonveyorChatResult,
-      context: vscode.ChatContext,
-      token: vscode.CancellationToken,
+      _context: vscode.ChatContext,
+      _token: vscode.CancellationToken,
     ): vscode.ProviderResult<vscode.ChatFollowup[]> {
       const followups: vscode.ChatFollowup[] = [];
 
