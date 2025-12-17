@@ -455,28 +455,17 @@ export abstract class VSCode {
     }
 
     if (resolutionAction) {
+      // todo: add filesToFix to the function, so that we can fix a specific list of files
       const resolutionView = await this.getView(KAIViews.resolutionDetails);
-      const fixLocator = resolutionView.getByRole('button', { name: resolutionAction });
-
-      if (resolutionAction === ResolutionAction.ACCEPT) {
-        const loadingIndicator = resolutionView.locator('.loading-indicator');
-        await this.waitDefault();
-        // Avoid fixing issues forever
-        const MAX_FIXES = 500;
-        for (let i = 0; i < MAX_FIXES; i++) {
-          await expect(fixLocator.first()).toBeVisible({ timeout: 300_000 });
-          // Ensures the button is clicked even if there are notifications overlaying it due to screen size
-          await fixLocator.first().dispatchEvent('click');
-          await this.waitDefault();
-
-          if ((await loadingIndicator.count()) === 0) {
-            return;
-          }
-        }
-        throw new Error('MAX_FIXES limit reached while requesting solutions');
-      }
+      const fixLocator = resolutionView.getByRole('button', { name: new RegExp(resolutionAction) });
+      const headerLocator = resolutionView.locator('h1.pf-v6-c-title.pf-m-2xl', {
+        hasText: 'Generative AI Results',
+      });
+      await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
+        timeout: 600_000,
+      }); // 10 minutes
       await fixLocator.waitFor({ state: 'visible', timeout: 30000 });
-      await fixLocator.click();
+      await fixLocator.dispatchEvent('click');
     }
   }
 

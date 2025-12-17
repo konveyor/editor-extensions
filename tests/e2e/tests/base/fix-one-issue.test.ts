@@ -9,6 +9,7 @@ import { Configuration } from '../../pages/configuration.page';
 import { logLevel } from '../../enums/configuration-options.enum';
 import { LogLevel } from '../../enums/Log-level.enum';
 import { OutputChannel } from '../../enums/output.enum';
+import { ResolutionAction } from '../../enums/resolution-action.enum';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -40,12 +41,11 @@ getAvailableProviders().forEach((provider) => {
     test('Fix one issue', async () => {
       test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchAndRequestFix('InventoryEntity', FixTypes.Incident);
-      const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-      const fixLocator = resolutionView.getByRole('button', { name: 'Accept' }).first();
-      await expect(fixLocator).toBeVisible({ timeout: 60000 });
-      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
-      await fixLocator.dispatchEvent('click');
+      await vscodeApp.searchAndRequestFix(
+        'InventoryEntity',
+        FixTypes.Incident,
+        ResolutionAction.ACCEPT
+      );
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 600000,
       });
