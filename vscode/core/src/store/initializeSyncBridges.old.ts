@@ -3,15 +3,12 @@
  *
  * This module sets up declarative sync bridges between the vanilla Zustand store
  * and webviews. Each bridge automatically broadcasts state changes to all connected webviews.
- *
- * NOTE: Using MessageTypes constants instead of string literals to prevent typos.
  */
 
 import { extensionStore } from "./extensionStore";
 import { SyncBridgeManager, equalityFns } from "./syncBridge";
 import type { KonveyorGUIWebviewViewProvider } from "../KonveyorGUIWebviewViewProvider";
 import type winston from "winston";
-import { MessageTypes } from "@editor-extensions/shared";
 
 /**
  * Initialize all sync bridges for the extension
@@ -31,7 +28,7 @@ export function initializeSyncBridges(
     selector: (state) => ({
       isFetchingSolution: state.isFetchingSolution,
     }),
-    messageType: MessageTypes.SOLUTION_LOADING_UPDATE,
+    messageType: "SOLUTION_LOADING_UPDATE",
     debugName: "isFetchingSolution",
   });
 
@@ -41,7 +38,7 @@ export function initializeSyncBridges(
       isAnalyzing: state.isAnalyzing,
       isAnalysisScheduled: state.isAnalysisScheduled,
     }),
-    messageType: MessageTypes.ANALYSIS_FLAGS_UPDATE,
+    messageType: "ANALYSIS_FLAGS_UPDATE",
     debugName: "analysisFlags",
   });
 
@@ -55,7 +52,7 @@ export function initializeSyncBridges(
       profileSyncConnected: state.profileSyncConnected,
       llmProxyAvailable: state.llmProxyAvailable,
     }),
-    messageType: MessageTypes.SERVER_STATE_UPDATE,
+    messageType: "SERVER_STATE_UPDATE",
     debugName: "serverState",
   });
 
@@ -70,7 +67,7 @@ export function initializeSyncBridges(
       analysisProgress: state.analysisProgress,
       analysisProgressMessage: state.analysisProgressMessage,
     }),
-    messageType: MessageTypes.ANALYSIS_STATE_UPDATE,
+    messageType: "ANALYSIS_STATE_UPDATE",
     equalityFn: equalityFns.shallow,
     debugName: "analysisState",
   });
@@ -82,7 +79,7 @@ export function initializeSyncBridges(
       activeProfileId: state.activeProfileId,
       isInTreeMode: state.isInTreeMode,
     }),
-    messageType: MessageTypes.PROFILES_UPDATE,
+    messageType: "PROFILES_UPDATE",
     equalityFn: equalityFns.shallow,
     debugName: "profiles",
   });
@@ -92,7 +89,7 @@ export function initializeSyncBridges(
     selector: (state) => ({
       configErrors: state.configErrors,
     }),
-    messageType: MessageTypes.CONFIG_ERRORS_UPDATE,
+    messageType: "CONFIG_ERRORS_UPDATE",
     debugName: "configErrors",
   });
 
@@ -101,7 +98,7 @@ export function initializeSyncBridges(
     selector: (state) => ({
       activeDecorators: state.activeDecorators,
     }),
-    messageType: MessageTypes.DECORATORS_UPDATE,
+    messageType: "DECORATORS_UPDATE",
     debugName: "activeDecorators",
   });
 
@@ -116,7 +113,7 @@ export function initializeSyncBridges(
       isSyncingProfiles: state.isSyncingProfiles,
       llmProxyAvailable: state.llmProxyAvailable,
     }),
-    messageType: MessageTypes.SETTINGS_UPDATE,
+    messageType: "SETTINGS_UPDATE",
     debugName: "settings",
   });
 
@@ -131,7 +128,7 @@ export function initializeSyncBridges(
           ? state.chatMessages[state.chatMessages.length - 1].messageToken
           : undefined,
     }),
-    messageType: MessageTypes.CHAT_METADATA_UPDATE,
+    messageType: "CHAT_METADATA_UPDATE",
     debugName: "chatMetadata",
   });
 

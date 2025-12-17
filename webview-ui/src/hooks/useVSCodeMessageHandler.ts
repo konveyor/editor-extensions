@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ConfigErrorType } from "@editor-extensions/shared";
+import { ConfigErrorType, BATCH_UPDATE_MESSAGES } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
 
 /**
@@ -17,20 +17,10 @@ const STREAMING_THROTTLE_MS = 100;
 /**
  * Message types that can be handled with simple batchUpdate.
  * These messages have payloads that directly map to store state.
+ *
+ * Imported from shared package to ensure consistency with sync bridges.
  */
-const BATCH_UPDATE_MESSAGE_TYPES = [
-  // Cheap flag updates (from sync bridges)
-  "SOLUTION_LOADING_UPDATE",
-  "ANALYSIS_FLAGS_UPDATE",
-  "SERVER_STATE_UPDATE",
-  "SETTINGS_UPDATE",
-  "CONFIG_ERRORS_UPDATE",
-  "DECORATORS_UPDATE",
-  "CHAT_METADATA_UPDATE", // Chat metadata (count + latest token, not full messages)
-  // Expensive data updates (from sync bridges)
-  "ANALYSIS_STATE_UPDATE",
-  "PROFILES_UPDATE",
-] as const;
+const BATCH_UPDATE_MESSAGE_TYPES = BATCH_UPDATE_MESSAGES;
 
 /**
  * Hook that handles messages from VSCode extension and syncs them to Zustand store.
