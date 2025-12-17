@@ -8,7 +8,9 @@ vscode/jdtls-plugin/
 .idea/
 *.vsix
 CLAUDE.md
-.claude*
+# Keep .claude/ directories but ignore local settings
+.claude/settings.local.json
+*/.claude/settings.local.json
 
 # TypeScript build info
 **/tsconfig.tsbuildinfo
