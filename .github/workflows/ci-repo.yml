@@ -464,13 +464,29 @@ jobs:
 
       - name: Cleanup old development builds
         run: |
-          # Keep last 28 assets (7 builds x 4 extensions)
-          c=1
-          for i in $(gh release view -R ${{ github.repository }} development-builds --json assets | jq -r .assets[].name | sort -r); do
-            if [ "$c" -gt 28 ]; then
-              gh release delete-asset -y -R ${{ github.repository }} development-builds $i
-            fi
-            c=$((c+1))
+          # Keep last N builds per extension type
+          BUILDS_TO_KEEP=7
+
+          # Process each extension type
+          for ext in konveyor konveyor-java konveyor-javascript konveyor-go; do
+            echo "Processing ${ext}..."
+
+            # Match pattern: {ext}-{version} where version starts with a digit
+            # This handles "konveyor-0.4.0..." and "konveyor-java-0.4.0..." correctly
+            assets=$(gh release view -R ${{ github.repository }} development-builds --json assets | \
+              jq -r ".assets[].name | select(test(\"^${ext}-[0-9]\"))" | \
+              sort -r)
+
+            count=0
+            for asset in $assets; do
+              count=$((count + 1))
+              if [ "$count" -gt "$BUILDS_TO_KEEP" ]; then
+                echo "Deleting old asset: $asset"
+                gh release delete-asset -y -R ${{ github.repository }} development-builds "$asset"
+              else
+                echo "Keeping: $asset"
+              fi
+            done
           done
         env:
           GH_TOKEN: ${{ github.token }}
