@@ -3,7 +3,12 @@ import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import { ConfigError, createConfigError, ExtensionData } from "@editor-extensions/shared";
+import {
+  ConfigError,
+  createConfigError,
+  ExtensionData,
+  MessageTypes,
+} from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import {
@@ -154,7 +159,7 @@ class VsCodeExtension {
         // Broadcast streaming update to all webviews
         broadcastToWebviews((provider) => {
           provider.sendMessageToWebview({
-            type: "CHAT_MESSAGE_STREAMING_UPDATE",
+            type: MessageTypes.CHAT_MESSAGE_STREAMING_UPDATE,
             message: plainMessage,
             messageIndex: data.chatMessages.length - 1,
             timestamp: new Date().toISOString(),
@@ -164,7 +169,7 @@ class VsCodeExtension {
         // Structure change - send full array
         broadcastToWebviews((provider) => {
           provider.sendMessageToWebview({
-            type: "CHAT_MESSAGES_UPDATE",
+            type: MessageTypes.CHAT_MESSAGES_UPDATE,
             chatMessages: data.chatMessages,
             previousLength: oldMessages.length,
             timestamp: new Date().toISOString(),
@@ -185,7 +190,7 @@ class VsCodeExtension {
       // Send only analysis state to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "ANALYSIS_STATE_UPDATE",
+          type: MessageTypes.ANALYSIS_STATE_UPDATE,
           ruleSets: data.ruleSets,
           enhancedIncidents: data.enhancedIncidents,
           isAnalyzing: data.isAnalyzing,
@@ -212,7 +217,7 @@ class VsCodeExtension {
       // Send only solution workflow state to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "SOLUTION_WORKFLOW_UPDATE",
+          type: MessageTypes.SOLUTION_WORKFLOW_UPDATE,
           isFetchingSolution: data.isFetchingSolution,
           solutionState: data.solutionState,
           solutionScope: data.solutionScope,
@@ -236,7 +241,7 @@ class VsCodeExtension {
       // Send only server state to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "SERVER_STATE_UPDATE",
+          type: MessageTypes.SERVER_STATE_UPDATE,
           serverState: data.serverState,
           isStartingServer: data.isStartingServer,
           isInitializingServer: data.isInitializingServer,
@@ -275,7 +280,7 @@ class VsCodeExtension {
       // Send only profiles to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "PROFILES_UPDATE",
+          type: MessageTypes.PROFILES_UPDATE,
           profiles: this.data.profiles,
           activeProfileId: this.data.activeProfileId,
           isInTreeMode: this.data.isInTreeMode,
@@ -296,7 +301,7 @@ class VsCodeExtension {
       // Send only config errors to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "CONFIG_ERRORS_UPDATE",
+          type: MessageTypes.CONFIG_ERRORS_UPDATE,
           configErrors: data.configErrors,
           timestamp: new Date().toISOString(),
         });
@@ -313,7 +318,7 @@ class VsCodeExtension {
       // Send only decorators to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "DECORATORS_UPDATE",
+          type: MessageTypes.DECORATORS_UPDATE,
           activeDecorators: data.activeDecorators || {},
           timestamp: new Date().toISOString(),
         });
@@ -330,7 +335,7 @@ class VsCodeExtension {
       // Send only settings to webviews
       broadcastToWebviews((provider) => {
         provider.sendMessageToWebview({
-          type: "SETTINGS_UPDATE",
+          type: MessageTypes.SETTINGS_UPDATE,
           solutionServerEnabled: data.solutionServerEnabled,
           isAgentMode: data.isAgentMode,
           isContinueInstalled: data.isContinueInstalled,
