@@ -58,6 +58,7 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
 import { ProviderRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { registerChatParticipant } from "./chatParticipant";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -520,6 +521,7 @@ class VsCodeExtension {
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
       this.registerCommands();
       this.registerLanguageProviders();
+      this.registerChatParticipant();
 
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
@@ -1016,6 +1018,17 @@ class VsCodeExtension {
         },
       ),
     );
+  }
+
+  private registerChatParticipant(): void {
+    try {
+      const chatParticipant = registerChatParticipant(this.context, this.state);
+      this.context.subscriptions.push(chatParticipant);
+      this.state.logger.info("Konveyor Chat Participant registered successfully");
+    } catch (error) {
+      // Chat API might not be available in older VS Code versions or without Copilot
+      this.state.logger.warn("Could not register Chat Participant:", error);
+    }
   }
 
   private setupProfileWatcher(): void {

@@ -36,7 +36,8 @@
   ],
   "activationEvents": [
     "onFileSystem:konveyorMemFs",
-    "onFileSystem:konveyorReadOnly"
+    "onFileSystem:konveyorReadOnly",
+    "onChatParticipant:konveyor.chat"
   ],
   "contributes": {
     "commands": [
@@ -396,7 +397,34 @@
         }
       }
     },
-    "keybindings": []
+    "keybindings": [],
+    "chatParticipants": [
+      {
+        "id": "konveyor.chat",
+        "fullName": "Konveyor Migration Assistant",
+        "name": "konveyor",
+        "description": "Get help with code migration and modernization issues",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "analyze",
+            "description": "Run migration analysis on your codebase"
+          },
+          {
+            "name": "fix",
+            "description": "Generate a fix for a migration issue"
+          },
+          {
+            "name": "explain",
+            "description": "Explain a migration violation and how to resolve it"
+          },
+          {
+            "name": "issues",
+            "description": "List all detected migration issues"
+          }
+        ]
+      }
+    ]
   },
   "includedAssetPaths": {
     "kai": "../../downloaded_assets/kai",
