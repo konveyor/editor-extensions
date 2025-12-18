@@ -31,6 +31,9 @@ npx playwright test --ui
 
 # Debug mode
 npx playwright test --debug
+
+# Headed mode (Applies to runs on VSCode Web only)
+npx playwright test --headed
 ```
 
 ## Test Projects
@@ -64,7 +67,7 @@ Key settings:
 - Timeout: 120 seconds per test
 - Workers: 1 (sequential execution)
 - Viewport: 1920x1080
-- Screenshot: on failure
+- Screenshot: on failure (Applies to web mode only)
 - Trace: on failure
 
 ## Test Structure
@@ -255,3 +258,4 @@ await writeTestFile(page, "path/to/file", newContent);
 3. **Set Timeouts** - For long operations
 4. **Clean State** - Each test should be independent
 5. **Meaningful Names** - Describe what's being tested
+6. **Avoid accessing local files** - When the tests are executed in VSCode Web, the tests won't be able to open files locally
