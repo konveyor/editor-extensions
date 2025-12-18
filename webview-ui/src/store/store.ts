@@ -55,6 +55,9 @@ interface ExtensionStore {
 
   // Chat state
   chatMessages: ChatMessage[];
+  // Chat metadata (lightweight sync from extension)
+  messageCount: number;
+  latestMessageToken?: string;
 
   // UI state
   isFetchingSolution: boolean;
@@ -153,6 +156,8 @@ export const useExtensionStore = create<ExtensionStore>()(
         isAnalysisScheduled: false,
         serverState: "initial",
         chatMessages: [],
+        messageCount: 0,
+        latestMessageToken: undefined,
         isFetchingSolution: false,
         isStartingServer: false,
         isInitializingServer: false,

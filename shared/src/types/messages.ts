@@ -57,6 +57,14 @@ export interface ChatMessageStreamingUpdateMessage {
   timestamp: string;
 }
 
+// Chat metadata update (lightweight - only count and latest token, not full messages)
+export interface ChatMetadataUpdateMessage {
+  type: "CHAT_METADATA_UPDATE";
+  messageCount: number;
+  latestMessageToken?: string;
+  timestamp: string;
+}
+
 // Solution workflow updates
 export interface SolutionWorkflowUpdateMessage {
   type: "SOLUTION_WORKFLOW_UPDATE";
@@ -66,6 +74,21 @@ export interface SolutionWorkflowUpdateMessage {
   isWaitingForUserInteraction?: boolean;
   isProcessingQueuedMessages?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
+  timestamp: string;
+}
+
+// Solution loading update (Issue 4 - granular loading flag update)
+export interface SolutionLoadingUpdateMessage {
+  type: "SOLUTION_LOADING_UPDATE";
+  isFetchingSolution: boolean;
+  timestamp: string;
+}
+
+// Analysis flags update (Issue 5 - granular analysis flags update)
+export interface AnalysisFlagsUpdateMessage {
+  type: "ANALYSIS_FLAGS_UPDATE";
+  isAnalyzing: boolean;
+  isAnalysisScheduled: boolean;
   timestamp: string;
 }
 
@@ -126,7 +149,10 @@ export type WebviewMessage =
   | ChatMessagesUpdateMessage
   | ChatMessageStreamingUpdateMessage
   | ChatStreamingChunkMessage
+  | ChatMetadataUpdateMessage
   | SolutionWorkflowUpdateMessage
+  | SolutionLoadingUpdateMessage
+  | AnalysisFlagsUpdateMessage
   | ServerStateUpdateMessage
   | ProfilesUpdateMessage
   | ConfigErrorsUpdateMessage
@@ -154,10 +180,22 @@ export function isChatStreamingChunk(msg: WebviewMessage): msg is ChatStreamingC
   return (msg as any).type === "CHAT_STREAMING_CHUNK";
 }
 
+export function isChatMetadataUpdate(msg: WebviewMessage): msg is ChatMetadataUpdateMessage {
+  return (msg as any).type === "CHAT_METADATA_UPDATE";
+}
+
 export function isSolutionWorkflowUpdate(
   msg: WebviewMessage,
 ): msg is SolutionWorkflowUpdateMessage {
   return (msg as any).type === "SOLUTION_WORKFLOW_UPDATE";
+}
+
+export function isSolutionLoadingUpdate(msg: WebviewMessage): msg is SolutionLoadingUpdateMessage {
+  return (msg as any).type === "SOLUTION_LOADING_UPDATE";
+}
+
+export function isAnalysisFlagsUpdate(msg: WebviewMessage): msg is AnalysisFlagsUpdateMessage {
+  return (msg as any).type === "ANALYSIS_FLAGS_UPDATE";
 }
 
 export function isServerStateUpdate(msg: WebviewMessage): msg is ServerStateUpdateMessage {
@@ -186,7 +224,10 @@ export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMe
     !isChatMessagesUpdate(msg) &&
     !isChatMessageStreamingUpdate(msg) &&
     !isChatStreamingChunk(msg) &&
+    !isChatMetadataUpdate(msg) &&
     !isSolutionWorkflowUpdate(msg) &&
+    !isSolutionLoadingUpdate(msg) &&
+    !isAnalysisFlagsUpdate(msg) &&
     !isServerStateUpdate(msg) &&
     !isProfilesUpdate(msg) &&
     !isConfigErrorsUpdate(msg) &&

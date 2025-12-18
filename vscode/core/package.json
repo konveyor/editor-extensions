@@ -451,6 +451,7 @@
     "mustache": "^4.2.0",
     "undici": "^7.14.0",
     "winston": "^3.17.0",
-    "winston-transport-vscode": "^0.1.0"
+    "winston-transport-vscode": "^0.1.0",
+    "zustand": "^5.0.8"
   }
 }

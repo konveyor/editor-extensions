@@ -2,6 +2,7 @@ import { KaiWorkflowMessage, KaiInteractiveWorkflow } from "@editor-extensions/a
 import { ExtensionState } from "src/extensionState";
 import { ChatMessageType } from "@editor-extensions/shared";
 import { Logger } from "winston";
+import { extensionStore } from "../../store";
 
 /**
  * Centralized queue manager for handling message queuing and processing
@@ -155,16 +156,14 @@ export class MessageQueueManager {
     } catch (error) {
       this.logger.error("Error in queue processing:", error);
 
-      // Add an error indicator to the chat
-      this.state.mutateChatMessages((draft) => {
-        draft.chatMessages.push({
-          kind: ChatMessageType.String,
-          messageToken: `queue-error-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          value: {
-            message: `Error processing queued messages: ${error}`,
-          },
-        });
+      // Add an error indicator to the chat using domain action
+      extensionStore.getState().chat.addMessage({
+        kind: ChatMessageType.String,
+        messageToken: `queue-error-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        value: {
+          message: `Error processing queued messages: ${error}`,
+        },
       });
     } finally {
       this.isProcessingQueue = false;
