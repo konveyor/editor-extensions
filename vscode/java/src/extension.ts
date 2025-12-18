@@ -169,18 +169,40 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // Start LSP proxy server (JSON-RPC over UDS)
+  let lspProxyServer: LspProxyServer;
+  let providerManager: JavaExternalProviderManager;
+
   try {
-    const lspProxyServer = new LspProxyServer(lspProxySocketPath, logger);
+    lspProxyServer = new LspProxyServer(lspProxySocketPath, logger);
     await lspProxyServer.start();
     context.subscriptions.push(lspProxyServer);
+  } catch (err) {
+    const message =
+      "Failed to start Java LSP proxy server. Java analysis will be disabled. " +
+      `Error: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message, err);
+    vscode.window.showWarningMessage(
+      "Java provider could not start: LSP proxy server failed. Java analysis will be disabled.",
+    );
+    return;
+  }
 
+  try {
     // Start java-external-provider subprocess (GRPC over UDS)
-    const providerManager = new JavaExternalProviderManager(providerSocketPath, context, logger);
+    providerManager = new JavaExternalProviderManager(providerSocketPath, context, logger);
     await providerManager.start();
     context.subscriptions.push(providerManager);
   } catch (err) {
-    logger.error("Failed to start java provider", err);
-    vscode.window.showErrorMessage("Failed to start java provider.");
+    const message =
+      "Failed to start java-external-provider. Java analysis will be disabled. " +
+      `Error: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message, err);
+    vscode.window.showWarningMessage(
+      "Java provider could not start. Java analysis will be disabled. " +
+        "This may occur if your project has no supported Java build tools.",
+    );
+    // Clean up LSP proxy server since we won't be using it
+    lspProxyServer.dispose();
     return;
   }
 
