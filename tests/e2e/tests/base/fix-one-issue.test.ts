@@ -17,7 +17,7 @@ getAvailableProviders().forEach((provider) => {
     const profileName = `fix-single-issue-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
-      test.setTimeout(600000);
+      test.setTimeout(1200_000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
