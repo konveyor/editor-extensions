@@ -98,18 +98,41 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // Start LSP proxy server (JSON-RPC over UDS)
-  const lspProxyServer = new vscodeProxyServer(lspProxySocketPath, logger);
-  await lspProxyServer.start();
-  context.subscriptions.push(lspProxyServer);
+  let lspProxyServer: vscodeProxyServer;
+  let providerManager: JavaScriptExternalProviderManager;
 
-  // Start generic-external-provider subprocess (GRPC over UDS)
-  const providerManager = new JavaScriptExternalProviderManager(
-    providerSocketPath,
-    context,
-    logger,
-  );
-  await providerManager.start();
-  context.subscriptions.push(providerManager);
+  try {
+    lspProxyServer = new vscodeProxyServer(lspProxySocketPath, logger);
+    await lspProxyServer.start();
+    context.subscriptions.push(lspProxyServer);
+  } catch (err) {
+    const message =
+      "Failed to start JavaScript LSP proxy server. JavaScript analysis will be disabled. " +
+      `Error: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message, err);
+    vscode.window.showWarningMessage(
+      "JavaScript provider could not start: LSP proxy server failed. JavaScript analysis will be disabled.",
+    );
+    return;
+  }
+
+  try {
+    // Start generic-external-provider subprocess (GRPC over UDS)
+    providerManager = new JavaScriptExternalProviderManager(providerSocketPath, context, logger);
+    await providerManager.start();
+    context.subscriptions.push(providerManager);
+  } catch (err) {
+    const message =
+      "Failed to start javascript-external-provider. JavaScript analysis will be disabled. " +
+      `Error: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message, err);
+    vscode.window.showWarningMessage(
+      "JavaScript provider could not start. JavaScript analysis will be disabled.",
+    );
+    // Clean up LSP proxy server since we won't be using it
+    lspProxyServer.dispose();
+    return;
+  }
 
   // Get workspace location for analysis
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
