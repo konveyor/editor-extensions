@@ -1,7 +1,7 @@
 export enum ResolutionAction {
-  ACCEPT = 'Accept',
-  REJECT = 'Reject',
-  REVIEW_IN_EDITOR = 'Review in Editor',
-  APPLY_ALL = '^Apply All \\(\\d+\\)$',
-  REJECT_ALL = 'Reject All',
+  Accept = 'Accept',
+  Reject = 'Reject',
+  ReviewInEditor = 'Review in Editor',
+  ApplyAll = '^Apply All \\(\\d+\\)$',
+  RejectAll = 'Reject All',
 }
