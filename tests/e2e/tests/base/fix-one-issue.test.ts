@@ -43,7 +43,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.searchAndRequestAction(
         'InventoryEntity',
         FixTypes.Incident,
-        ResolutionAction.ACCEPT
+        ResolutionAction.Accept
       );
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 600000,

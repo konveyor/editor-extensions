@@ -210,7 +210,7 @@ class SolutionServerWorkflowHelper {
       await vsCode.searchAndRequestAction(
         violationText,
         FixTypes.Incident,
-        ResolutionAction.ACCEPT
+        ResolutionAction.Accept
       );
 
       const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
@@ -259,7 +259,7 @@ class SolutionServerWorkflowHelper {
       await vsCode.searchAndRequestAction(
         violationText,
         FixTypes.Incident,
-        ResolutionAction.ACCEPT
+        ResolutionAction.Accept
       );
 
       const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);

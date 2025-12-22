@@ -87,7 +87,7 @@ test.describe(`Solution server analysis validations`, () => {
     await vsCode.searchAndRequestAction(
       'Replace the `javax.persistence` import statement with `jakarta.persistence`',
       FixTypes.Incident,
-      ResolutionAction.ACCEPT
+      ResolutionAction.Accept
     );
 
     const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);

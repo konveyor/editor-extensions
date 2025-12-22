@@ -465,7 +465,7 @@ export abstract class VSCode {
       await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
         timeout: 600_000,
       }); // 10 minutes
-      if (resolutionAction === ResolutionAction.ACCEPT) {
+      if (resolutionAction === ResolutionAction.Accept) {
         let fixedFiles: string[] = [];
         // Parse the "(current of total)" from the header to get file count
         const reviewHeaderLocator = resolutionView.locator(
@@ -476,19 +476,15 @@ export abstract class VSCode {
         const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
         const totalFiles = match ? parseInt(match[2], 10) : 1;
 
-        let extractedFileName = '';
-        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
-        extractedFileName = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
-
         for (let i = 0; i < totalFiles; i++) {
-          const titleLocator = resolutionView.locator(
-            '.batch-review-expandable-header .batch-review-title'
-          );
-          const titleText = await titleLocator.textContent();
-          console.log('Accepting solution for file: ', extractedFileName);
-          fixedFiles.push(titleText || '');
+          const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
+          const extractedFileName =
+            fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
+          console.log('Reviewing file: ', extractedFileName);
+          fixedFiles.push(extractedFileName);
           await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
           await actionLocator.dispatchEvent('click');
+          console.log('Accepted solution for file: ', extractedFileName);
         }
         return fixedFiles;
       } else {
