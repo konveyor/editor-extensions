@@ -40,7 +40,7 @@ getAvailableProviders().forEach((provider) => {
     test('Fix one issue', async () => {
       test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchAndRequestFix(
+      await vscodeApp.searchAndRequestAction(
         'InventoryEntity',
         FixTypes.Incident,
         ResolutionAction.ACCEPT

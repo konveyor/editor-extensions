@@ -58,7 +58,7 @@ getAvailableProviders().forEach((provider) => {
       const violation = "The package 'javax' has been replaced by 'jakarta'";
 
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchAndRequestFix(violation, FixTypes.Issue, ResolutionAction.ACCEPT);
+      await vscodeApp.searchAndRequestAction(violation, FixTypes.Issue, ResolutionAction.ACCEPT);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitForSolutionConfirmation();
 
@@ -71,7 +71,7 @@ getAvailableProviders().forEach((provider) => {
         'Implicit name determination for sequences and tables associated with identifier generation has changed';
 
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchAndRequestFix(violation, FixTypes.Issue, ResolutionAction.ACCEPT);
+      await vscodeApp.searchAndRequestAction(violation, FixTypes.Issue, ResolutionAction.ACCEPT);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitForSolutionConfirmation();
 

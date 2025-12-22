@@ -83,7 +83,7 @@ test.describe(`Solution server analysis validations`, () => {
    * 7. Asserts that the UI displays the correct success rate counts
    */
   async function requestFixAndAssertSolution(accept: boolean) {
-    await vsCode.searchAndRequestFix(
+    await vsCode.searchAndRequestAction(
       'Replace the `javax.persistence` import statement with `jakarta.persistence`',
       FixTypes.Incident
     );

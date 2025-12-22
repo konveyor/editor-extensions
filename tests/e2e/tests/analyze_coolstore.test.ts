@@ -65,7 +65,7 @@ providers.forEach((config) => {
     test('Fix all issues', async () => {
       test.setTimeout(3600000);
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchAndRequestFix(undefined, FixTypes.Issue, ResolutionAction.APPLY_ALL);
+      await vscodeApp.searchAndRequestAction(undefined, FixTypes.Issue, ResolutionAction.APPLY_ALL);
     });
 
     test.afterEach(async () => {
