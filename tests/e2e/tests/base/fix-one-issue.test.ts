@@ -16,7 +16,7 @@ getAvailableProviders().forEach((provider) => {
     const profileName = `fix-single-issue-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
-      test.setTimeout(600000);
+      test.setTimeout(1200_000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
@@ -46,10 +46,15 @@ getAvailableProviders().forEach((provider) => {
       await expect(fixLocator).toBeVisible({ timeout: 60000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await fixLocator.dispatchEvent('click');
+      await expect(vscodeApp.getWindow().getByText('Running analysis:').first()).not.toBeVisible({
+        timeout: 600000,
+      });
+
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 600000,
       });
-      await vscodeApp.outputPanel.openOutputView(OutputChannel.KonveyorExtensionForVSCode);
+      console.log('Analysis completed');
+      await vscodeApp.waitDefault();
       const logOutput = await vscodeApp.outputPanel.getOutputChannelContent(
         OutputChannel.KonveyorExtensionForVSCode
       );

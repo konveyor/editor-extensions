@@ -356,7 +356,7 @@ const AnalysisPage: React.FC = () => {
                     >
                       <Flex className="header-layout">
                         <FlexItem>
-                          <CardTitle>Analysis Results</CardTitle>
+                          <CardTitle style={{ overflow: "visible" }}>Analysis Results</CardTitle>
                           {!isAnalyzing && (
                             <ViolationsCount
                               violationsCount={violations.length}

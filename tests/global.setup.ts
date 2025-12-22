@@ -2,8 +2,14 @@ import { generateRandomString, getOSInfo } from './e2e/utilities/utils';
 import { KAIViews } from './e2e/enums/views.enum';
 import * as VSCodeFactory from './e2e/utilities/vscode.factory';
 import { VSCodeDesktop } from './e2e/pages/vscode-desktop.page';
+import { existsSync } from 'node:fs';
+import fs from 'fs';
 
 async function globalSetup() {
+  // Removes the browser's context if the test are running in VSCode Web
+  if (process.env.WEB && existsSync('./web-state.json')) {
+    fs.rmSync('./web-state.json');
+  }
   const repoUrl = process.env.TEST_REPO_URL ?? 'https://github.com/konveyor-ecosystem/coolstore';
   const repoName = process.env.TEST_REPO_NAME ?? 'coolstore';
   console.log('Running global setup...');
