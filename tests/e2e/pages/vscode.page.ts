@@ -443,6 +443,7 @@ export abstract class VSCode {
     fixType?: FixTypes,
     resolutionAction?: ResolutionAction
   ) {
+    // (midays) todo: add a filesToFix: string[] parameter to define which files to fix
     const analysisView = await this.getView(KAIViews.analysisView);
 
     if (searchTerm) {
