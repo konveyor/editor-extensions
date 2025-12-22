@@ -660,18 +660,26 @@ export class ProfileSyncClient {
       await tar.extract({
         file: tempTarFile,
         cwd: profileDir,
-        strip: 0, // Keep full paths from tar
+        strip: 0,
         filter: (path) => {
+          // Security filter: prevent path traversal attacks
           const normalized = path.replace(/\\/g, "/");
-          if (
-            normalized.startsWith("/") ||
-            normalized.includes("../") ||
-            normalized.startsWith("..")
-          ) {
+
+          // Block relative path traversal attempts
+          if (normalized.includes("../") || normalized.startsWith("..")) {
             return false;
           }
+
           return true;
         },
+      });
+
+      // Log extracted files for debugging
+      const extractedFiles = await fs.readdir(profileDir, { recursive: true });
+      this.logger.debug("Profile bundle extracted contents", {
+        profileId,
+        fileCount: extractedFiles.length,
+        files: extractedFiles,
       });
     } finally {
       // Clean up temp file
@@ -788,14 +796,6 @@ export class ProfileSyncClient {
     );
 
     this.logger.info("Profile bundle extracted", { profileId, profileDir });
-  }
-
-  /**
-   * Parse YAML response from Hub API
-   */
-  private async parseYamlResponse<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    return this.parseYamlText<T>(text);
   }
 
   /**
