@@ -28,6 +28,7 @@ import * as fs from 'fs';
 import { TestLogger } from '../../utilities/logger';
 import { solutionServerEnabled } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { ResolutionAction } from '../../enums/resolution-action.enum';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -206,7 +207,11 @@ class SolutionServerWorkflowHelper {
 
       const violationText =
         'Replace `FileSystemAuditLogger` instantiation with `StreamableAuditLogger` over TCP';
-      await vsCode.searchAndRequestAction(violationText, FixTypes.Incident);
+      await vsCode.searchAndRequestAction(
+        violationText,
+        FixTypes.Incident,
+        ResolutionAction.ACCEPT
+      );
 
       const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
 
@@ -251,7 +256,11 @@ class SolutionServerWorkflowHelper {
 
       const violationText =
         'The java.annotation (Common Annotations) module has been removed from OpenJDK 11';
-      await vsCode.searchAndRequestAction(violationText, FixTypes.Incident);
+      await vsCode.searchAndRequestAction(
+        violationText,
+        FixTypes.Incident,
+        ResolutionAction.ACCEPT
+      );
 
       const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
 

@@ -456,9 +456,17 @@ export abstract class VSCode {
 
     if (resolutionAction) {
       const resolutionView = await this.getView(KAIViews.resolutionDetails);
-      let fixedFiles: string[] = [];
-
+      const actionLocator = resolutionView.getByRole('button', {
+        name: new RegExp(resolutionAction),
+      });
+      const headerLocator = resolutionView.locator('h1.pf-v6-c-title.pf-m-2xl', {
+        hasText: 'Generative AI Results',
+      });
+      await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
+        timeout: 600_000,
+      }); // 10 minutes
       if (resolutionAction === ResolutionAction.ACCEPT) {
+        let fixedFiles: string[] = [];
         const nextLocator = resolutionView.getByRole('button', { name: '→' }).first();
         await nextLocator.waitFor({ state: 'visible', timeout: 10000 });
         // Parse the "(current of total)" from the header to get file count
@@ -475,26 +483,14 @@ export abstract class VSCode {
           const titleText = await titleLocator.textContent();
           console.log('Accepting solution for file: ', titleText);
           fixedFiles.push(titleText || '');
-          const acceptLocator = resolutionView.getByRole('button', {
-            name: new RegExp(ResolutionAction.ACCEPT),
-          });
-          await acceptLocator.waitFor({ state: 'visible', timeout: 10000 });
-          await acceptLocator.click();
-          await acceptLocator.waitFor({ state: 'visible', timeout: 10000 });
+          await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
+          await actionLocator.dispatchEvent('click');
+          await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
         }
         return fixedFiles;
       } else {
-        const fixLocator = resolutionView.getByRole('button', {
-          name: new RegExp(resolutionAction),
-        });
-        const headerLocator = resolutionView.locator('h1.pf-v6-c-title.pf-m-2xl', {
-          hasText: 'Generative AI Results',
-        });
-        await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
-          timeout: 600_000,
-        }); // 10 minutes
-        await fixLocator.waitFor({ state: 'visible', timeout: 30000 });
-        await fixLocator.dispatchEvent('click');
+        await actionLocator.waitFor({ state: 'visible', timeout: 30000 });
+        await actionLocator.dispatchEvent('click');
         return [];
       }
     }

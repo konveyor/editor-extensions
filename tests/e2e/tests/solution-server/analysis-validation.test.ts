@@ -11,6 +11,7 @@ import {
   SuccessRateResponse,
 } from '../../../mcp-client/mcp-client-responses.model';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { ResolutionAction } from '../../enums/resolution-action.enum';
 
 test.describe(`Solution server analysis validations`, () => {
   let vsCode: VSCode;
@@ -85,7 +86,8 @@ test.describe(`Solution server analysis validations`, () => {
   async function requestFixAndAssertSolution(accept: boolean) {
     await vsCode.searchAndRequestAction(
       'Replace the `javax.persistence` import statement with `jakarta.persistence`',
-      FixTypes.Incident
+      FixTypes.Incident,
+      ResolutionAction.ACCEPT
     );
 
     const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
