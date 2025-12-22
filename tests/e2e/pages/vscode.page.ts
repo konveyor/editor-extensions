@@ -473,19 +473,19 @@ export abstract class VSCode {
           '.batch-review-expandable-header .batch-review-title'
         );
         await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
-        const headerText = await reviewHeaderLocator.textContent();
+        let headerText = await reviewHeaderLocator.textContent();
         const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
         const totalFiles = match ? parseInt(match[2], 10) : 1;
 
         for (let i = 0; i < totalFiles; i++) {
+          headerText = await reviewHeaderLocator.textContent();
           const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
-          const extractedFileName =
-            fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
-          console.log('Reviewing file: ', extractedFileName);
-          fixedFiles.push(extractedFileName);
+          const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
+          console.log('Reviewing file: ', fileToFix);
+          fixedFiles.push(fileToFix);
           await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
           await actionLocator.dispatchEvent('click');
-          console.log('Accepted solution for file: ', extractedFileName);
+          console.log('Accepted solution for file: ', fileToFix);
         }
         return fixedFiles;
       } else {
