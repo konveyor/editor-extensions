@@ -476,7 +476,7 @@ export abstract class VSCode {
         let headerText = await reviewHeaderLocator.textContent();
         const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
         const totalFiles = match ? parseInt(match[2], 10) : 1;
-
+        console.log('Total files found to accept solutions for: ', totalFiles);
         for (let i = 0; i < totalFiles; i++) {
           headerText = await reviewHeaderLocator.textContent();
           const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
