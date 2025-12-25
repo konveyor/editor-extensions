@@ -115,7 +115,7 @@
   },
   "dependencies": {
     "@langchain/aws": "^0.1.8",
-    "@langchain/core": "^0.3.45",
+    "@langchain/core": "^0.3.80",
     "@langchain/deepseek": "^0.0.1",
     "@langchain/google-genai": "^0.2.4",
     "@langchain/ollama": "^0.2.0",
