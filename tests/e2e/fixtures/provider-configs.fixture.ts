@@ -97,5 +97,5 @@ export function getAvailableProviders(): ProviderConfig[] {
     providers.push(AWS_PROVIDER);
   }
 
-  return providers;
+  return [AWS_PROVIDER];
 }
