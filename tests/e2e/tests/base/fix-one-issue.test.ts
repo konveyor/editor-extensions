@@ -9,6 +9,7 @@ import { logLevel } from '../../enums/configuration-options.enum';
 import { LogLevel } from '../../enums/Log-level.enum';
 import { OutputChannel } from '../../enums/output.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -34,6 +35,9 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.runAnalysis();
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 600000,
+      });
+      await vscodeApp.getWindow().screenshot({
+        path: `${SCREENSHOTS_FOLDER}/analysis-finished-fix-one-issue.png`,
       });
     });
 
