@@ -473,7 +473,7 @@ export abstract class VSCode {
         return [];
       }
 
-      await vscodeApp.getWindow().screenshot({
+      await this.window.screenshot({
         path: `${SCREENSHOTS_FOLDER}/solution-requested.png`,
       });
 
