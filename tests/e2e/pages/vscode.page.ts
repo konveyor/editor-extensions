@@ -466,33 +466,38 @@ export abstract class VSCode {
       await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
         timeout: 600_000,
       }); // 10 minutes
-      if (resolutionAction === ResolutionAction.Accept) {
-        let fixedFiles: string[] = [];
-        // Parse the "(current of total)" from the header to get file count
-        const reviewHeaderLocator = resolutionView.locator(
-          '.batch-review-expandable-header .batch-review-title'
-        );
-        await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
-        let headerText = await reviewHeaderLocator.textContent();
-        const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
-        const totalFiles = match ? parseInt(match[2], 10) : 1;
-        console.log('Total files found to accept solutions for: ', totalFiles);
-        for (let i = 0; i < totalFiles; i++) {
-          headerText = await reviewHeaderLocator.textContent();
-          const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
-          const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
-          console.log('Reviewing file: ', fileToFix);
-          fixedFiles.push(fileToFix);
-          await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
-          await actionLocator.dispatchEvent('click');
-          console.log('Accepted solution for file: ', fileToFix);
-        }
-        return fixedFiles;
-      } else {
+
+      if (resolutionAction !== ResolutionAction.Accept) {
         await actionLocator.waitFor({ state: 'visible', timeout: 30000 });
         await actionLocator.dispatchEvent('click');
         return [];
       }
+
+      await vscodeApp.getWindow().screenshot({
+        path: `${SCREENSHOTS_FOLDER}/solution-requested.png`,
+      });
+
+      const fixedFiles: string[] = [];
+      // Parse the "(current of total)" from the header to get file count
+      const reviewHeaderLocator = resolutionView.locator(
+        '.batch-review-expandable-header .batch-review-title'
+      );
+      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
+      let headerText = await reviewHeaderLocator.textContent();
+      const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
+      const totalFiles = match ? parseInt(match[2], 10) : 1;
+      console.log('Total files found to accept solutions for: ', totalFiles);
+      for (let i = 0; i < totalFiles; i++) {
+        headerText = await reviewHeaderLocator.textContent();
+        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
+        const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
+        console.log('Reviewing file: ', fileToFix);
+        fixedFiles.push(fileToFix);
+        await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
+        await actionLocator.dispatchEvent('click');
+        console.log('Accepted solution for file: ', fileToFix);
+      }
+      return fixedFiles;
     }
   }
 
@@ -503,7 +508,7 @@ export abstract class VSCode {
 
     // Wait for both conditions to be true concurrently
     await Promise.all([
-      // 1. Wait for the button to be enabled (color is back to default)
+      // 1. Wait for the button to be enabled
       expect(solutionButton.first()).not.toBeDisabled({ timeout: 3600000 }),
 
       // 2. Wait for the blocking overlay to disappear
