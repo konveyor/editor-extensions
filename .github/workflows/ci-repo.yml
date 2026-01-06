@@ -132,6 +132,8 @@ jobs:
     name: Package (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     needs: test
+    outputs:
+      is_prerelease: ${{ steps.check_prerelease.outputs.is_prerelease }}
     strategy:
       matrix:
         include:
@@ -154,15 +156,32 @@ jobs:
           npm ci
           npm run build
 
-      - name: Collect runtime assets
+      - name: Check if pre-release and collect runtime assets
+        id: check_prerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Tagged release: use release artifacts
-            npm run collect-assets -- --use-release
+            # Extract minor version to check if pre-release
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+            MINOR=$(echo "$VERSION" | cut -d'.' -f2)
+
+            if [ $((MINOR % 2)) -eq 1 ]; then
+              echo "Minor version $MINOR is odd - this is a pre-release"
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+              # Pre-release: use main branch artifacts
+              npm run collect-assets -- --use-workflow-artifacts --branch=main
+            else
+              echo "Minor version $MINOR is even - this is a stable release"
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+              # Stable release: use release artifacts
+              npm run collect-assets -- --use-release
+            fi
           else
             # Development build: use workflow artifacts from current branch
+            # We should never make it to publish if this is a development build
+            echo "is_prerelease=development" >> $GITHUB_OUTPUT
             npm run collect-assets -- --use-workflow-artifacts --branch=main
           fi
 
@@ -193,16 +212,36 @@ jobs:
         run: npm run dist
 
       - name: Package core extension
-        run: npm run package-core
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-core -- --pre-release
+          else
+            npm run package-core
+          fi
 
       - name: Package Java extension
-        run: npm run package-java
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-java -- --pre-release
+          else
+            npm run package-java
+          fi
 
       - name: Package JavaScript extension
-        run: npm run package-javascript
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-javascript -- --pre-release
+          else
+            npm run package-javascript
+          fi
 
       - name: Package Go extension
-        run: npm run package-go
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-go -- --pre-release
+          else
+            npm run package-go
+          fi
 
       - name: Upload VSIX artifacts
         uses: actions/upload-artifact@v4
@@ -425,24 +464,40 @@ jobs:
 
       - name: Cleanup old development builds
         run: |
-          # Keep last 28 assets (7 builds x 4 extensions)
-          c=1
-          for i in $(gh release view -R ${{ github.repository }} development-builds --json assets | jq -r .assets[].name | sort -r); do
-            if [ "$c" -gt 28 ]; then
-              gh release delete-asset -y -R ${{ github.repository }} development-builds $i
-            fi
-            c=$((c+1))
+          # Keep last N builds per extension type
+          BUILDS_TO_KEEP=7
+
+          # Process each extension type
+          for ext in konveyor konveyor-java konveyor-javascript konveyor-go; do
+            echo "Processing ${ext}..."
+
+            # Match pattern: {ext}-{version} where version starts with a digit
+            # This handles "konveyor-0.4.0..." and "konveyor-java-0.4.0..." correctly
+            assets=$(gh release view -R ${{ github.repository }} development-builds --json assets | \
+              jq -r ".assets[].name | select(test(\"^${ext}-[0-9]\"))" | \
+              sort -r)
+
+            count=0
+            for asset in $assets; do
+              count=$((count + 1))
+              if [ "$count" -gt "$BUILDS_TO_KEEP" ]; then
+                echo "Deleting old asset: $asset"
+                gh release delete-asset -y -R ${{ github.repository }} development-builds "$asset"
+              else
+                echo "Keeping: $asset"
+              fi
+            done
           done
         env:
           GH_TOKEN: ${{ github.token }}
 
   release:
     name: Create Release
-    needs: test-e2e
+    needs: [test-e2e, package]
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     uses: ./.github/workflows/release.yml
     with:
       tag_name: ${{ github.ref_name }}
-      prerelease: ${{ contains(github.ref_name, '-') }}
+      prerelease: ${{ needs.package.outputs.is_prerelease == 'true' }}
       vsix_artifact_name: "vsix-artifacts"
     secrets: inherit

@@ -138,8 +138,10 @@ export function useVSCodeMessageHandler() {
         if (isSolutionWorkflowUpdate(message)) {
           const pendingCount = message.pendingBatchReview?.length || 0;
           const previousPendingCount = store.pendingBatchReview?.length || 0;
+          const wasProcessing = store.isProcessingQueuedMessages;
+          const isNowProcessing = message.isProcessingQueuedMessages;
           console.log(
-            `[useVSCodeMessageHandler] SOLUTION_WORKFLOW_UPDATE received, pendingBatchReview: ${pendingCount} files`,
+            `[useVSCodeMessageHandler] SOLUTION_WORKFLOW_UPDATE received, pendingBatchReview: ${pendingCount} files, isProcessingQueuedMessages: ${wasProcessing} -> ${isNowProcessing}`,
           );
           store.batchUpdate({
             isFetchingSolution: message.isFetchingSolution,
@@ -150,11 +152,15 @@ export function useVSCodeMessageHandler() {
             pendingBatchReview: message.pendingBatchReview || [],
           });
 
-          // Reset batch operation state when pendingBatchReview becomes empty (batch operation completed)
-          if (previousPendingCount > 0 && pendingCount === 0 && store.isBatchOperationInProgress) {
+          const shouldResetBatchOperation =
+            store.isBatchOperationInProgress &&
+            ((previousPendingCount > 0 && pendingCount === 0) ||
+              (wasProcessing && !isNowProcessing));
+
+          if (shouldResetBatchOperation) {
             store.setBatchOperationInProgress(false);
             console.log(
-              `[useVSCodeMessageHandler] Batch operation completed, resetting isBatchOperationInProgress`,
+              `[useVSCodeMessageHandler] Batch operation completed, resetting isBatchOperationInProgress (pendingCount: ${pendingCount}, processingChanged: ${wasProcessing} -> ${isNowProcessing})`,
             );
           }
 
@@ -164,13 +170,14 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
-        // Handle server state updates
         if (isServerStateUpdate(message)) {
           store.batchUpdate({
             serverState: message.serverState,
             isStartingServer: message.isStartingServer,
             isInitializingServer: message.isInitializingServer,
             solutionServerConnected: message.solutionServerConnected,
+            profileSyncConnected: message.profileSyncConnected,
+            llmProxyAvailable: message.llmProxyAvailable,
           });
           return;
         }
@@ -180,6 +187,7 @@ export function useVSCodeMessageHandler() {
           store.batchUpdate({
             profiles: message.profiles,
             activeProfileId: message.activeProfileId,
+            isInTreeMode: message.isInTreeMode,
           });
           return;
         }
@@ -203,6 +211,9 @@ export function useVSCodeMessageHandler() {
             isAgentMode: message.isAgentMode,
             isContinueInstalled: message.isContinueInstalled,
             hubConfig: message.hubConfig,
+            profileSyncEnabled: message.profileSyncEnabled,
+            isSyncingProfiles: message.isSyncingProfiles,
+            llmProxyAvailable: message.llmProxyAvailable,
           });
           return;
         }
@@ -246,6 +257,10 @@ export function useVSCodeMessageHandler() {
                   ? message.chatMessages
                   : [],
             hubConfig: message.hubConfig,
+            profileSyncEnabled: message.profileSyncEnabled ?? false,
+            profileSyncConnected: message.profileSyncConnected ?? false,
+            isSyncingProfiles: message.isSyncingProfiles ?? false,
+            llmProxyAvailable: message.llmProxyAvailable ?? false,
           });
         }
       } catch (error) {

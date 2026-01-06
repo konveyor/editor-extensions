@@ -7,6 +7,8 @@ import { generateRandomString } from '../../utilities/utils';
 import path from 'path';
 import { getFileImports } from '../../utilities/file.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { FixTypes } from '../../enums/fix-types.enum';
+import { ResolutionAction } from '../../enums/resolution-action.enum';
 /**
  * Automates https://github.com/konveyor/kai/issues/798
  * Tests that fixes applied by the LLM do not unintentionally revert .
@@ -56,7 +58,7 @@ getAvailableProviders().forEach((provider) => {
       const violation = "The package 'javax' has been replaced by 'jakarta'";
 
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchViolationAndAcceptAllSolutions(violation);
+      await vscodeApp.searchAndRequestAction(violation, FixTypes.Issue, ResolutionAction.Accept);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitForSolutionConfirmation();
 
@@ -69,7 +71,7 @@ getAvailableProviders().forEach((provider) => {
         'Implicit name determination for sequences and tables associated with identifier generation has changed';
 
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchViolationAndAcceptAllSolutions(violation);
+      await vscodeApp.searchAndRequestAction(violation, FixTypes.Issue, ResolutionAction.Accept);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitForSolutionConfirmation();
 

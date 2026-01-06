@@ -4,7 +4,7 @@
 //    a. For a build file, applies the edit directly to disk
 
 import { KaiModifiedFile } from "@editor-extensions/agentic";
-import { ModifiedFileState } from "@editor-extensions/shared";
+import { ModifiedFileState, normalizeLineEndings } from "@editor-extensions/shared";
 import { Uri, workspace } from "vscode";
 
 //    b. For a non-build file, applies the edit to the file in-memory
@@ -16,6 +16,11 @@ export async function processModifiedFile(
   const { path, content } = modifiedFile;
   const uri = Uri.file(path);
   const alreadyModified = modifiedFilesState.has(uri.fsPath);
+
+  // Normalize line endings to LF to prevent CRLF-related diff issues
+  // This is critical for cross-platform compatibility and proper diff rendering
+  const normalizedContent = normalizeLineEndings(content);
+
   // check if this is a newly created file
   let isNew = false;
   let originalContent: undefined | string = undefined;
@@ -29,11 +34,14 @@ export async function processModifiedFile(
         throw err;
       }
     }
-    originalContent = isNew
+    // Normalize original content as well to ensure consistent comparison
+    const rawOriginal = isNew
       ? undefined
       : new TextDecoder().decode(await workspace.fs.readFile(uri));
+    originalContent = rawOriginal ? normalizeLineEndings(rawOriginal) : undefined;
+
     modifiedFilesState.set(uri.fsPath, {
-      modifiedContent: content,
+      modifiedContent: normalizedContent,
       originalContent,
       editType: "inMemory", // Default value to satisfy type requirement
     });
@@ -47,7 +55,7 @@ export async function processModifiedFile(
     if (existingState) {
       modifiedFilesState.set(uri.fsPath, {
         ...existingState,
-        modifiedContent: content,
+        modifiedContent: normalizedContent,
       });
 
       // Emit event when a file is updated in modifiedFiles

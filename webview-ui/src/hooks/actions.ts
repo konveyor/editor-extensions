@@ -67,3 +67,13 @@ export const openResolutionPanel = (): WebviewAction<WebviewActionType, unknown>
   type: "OPEN_RESOLUTION_PANEL",
   payload: {},
 });
+
+export const syncHubProfiles = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "SYNC_HUB_PROFILES",
+  payload: {},
+});
+
+export const retryProfileSync = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "RETRY_PROFILE_SYNC",
+  payload: {},
+});

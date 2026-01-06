@@ -30,6 +30,8 @@ import {
   OPEN_RESOLUTION_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
+  SYNC_HUB_PROFILES,
+  RETRY_PROFILE_SYNC,
   HubConfig,
 } from "@editor-extensions/shared";
 
@@ -41,6 +43,7 @@ import {
 } from "./utilities/profiles/profileService";
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
 import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
+import { runPartialAnalysis } from "./analysis/runAnalysis";
 import winston from "winston";
 import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
 import { saveHubConfig } from "./utilities/hubConfigStorage";
@@ -65,19 +68,18 @@ const actions: {
   ) => void | Promise<void>;
 } = {
   [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
+    // Only allow adding profiles if we're not in in-tree mode (profiles from filesystem or Hub)
+    if (state.data.isInTreeMode) {
+      vscode.window.showWarningMessage(
+        "Cannot add profiles while using in-tree or Hub-synced configuration. Profiles are managed externally.",
+      );
+      return;
+    }
+
     const allProfiles = await getAllProfiles(state.extensionContext);
 
     if (allProfiles.some((p) => p.name === profile.name)) {
       vscode.window.showErrorMessage(`A profile named "${profile.name}" already exists.`);
-      return;
-    }
-
-    // Only allow adding profiles if we're not in in-tree mode
-    const isInTreeMode = allProfiles.length > 0 && allProfiles[0]?.source === "local";
-    if (isInTreeMode) {
-      vscode.window.showWarningMessage(
-        "Cannot add profiles while using in-tree configuration. Profiles are managed in .konveyor/profiles/.",
-      );
       return;
     }
 
@@ -104,13 +106,10 @@ const actions: {
   },
 
   [DELETE_PROFILE]: async (profileId: string, state) => {
-    const allProfiles = await getAllProfiles(state.extensionContext);
-
-    // Prevent deletion if in in-tree mode
-    const isInTreeMode = allProfiles.length > 0 && allProfiles[0]?.source === "local";
-    if (isInTreeMode) {
+    // Prevent deletion if in in-tree mode (profiles from filesystem or Hub)
+    if (state.data.isInTreeMode) {
       vscode.window.showWarningMessage(
-        "Cannot delete profiles while using in-tree configuration. Profiles are managed in .konveyor/profiles/.",
+        "Cannot delete profiles while using in-tree or Hub-synced configuration. Profiles are managed externally.",
       );
       return;
     }
@@ -120,23 +119,23 @@ const actions: {
 
     saveUserProfiles(state.extensionContext, filtered);
 
-    const fullProfiles = await getAllProfiles(state.extensionContext);
+    const allProfiles = await getAllProfiles(state.extensionContext);
     const currentActiveProfileId = state.data.activeProfileId;
 
     // Update active profile if the deleted profile was active
     if (currentActiveProfileId === profileId) {
-      const newActiveProfileId = fullProfiles[0]?.id ?? "";
+      const newActiveProfileId = allProfiles[0]?.id ?? "";
       state.extensionContext.workspaceState.update("activeProfileId", newActiveProfileId);
 
       // Broadcast profile update with new active profile
       state.mutateProfiles((draft) => {
-        draft.profiles = fullProfiles;
+        draft.profiles = allProfiles;
         draft.activeProfileId = newActiveProfileId;
       });
     } else {
       // Just update profiles list
       state.mutateProfiles((draft) => {
-        draft.profiles = fullProfiles;
+        draft.profiles = allProfiles;
       });
     }
 
@@ -252,6 +251,7 @@ const actions: {
     state.mutateSettings((draft) => {
       draft.hubConfig = config;
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
+      draft.profileSyncEnabled = config.enabled && config.features.profileSync.enabled;
     });
 
     // Update hub connection manager - it handles all connection logic internally
@@ -260,7 +260,23 @@ const actions: {
     // Update connection state based on actual connection status
     state.mutateServerState((draft) => {
       draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
+      draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
     });
+
+    // Clear syncing state if profile sync is disabled or disconnected
+    if (!state.hubConnectionManager.isProfileSyncConnected()) {
+      state.mutateSettings((draft) => {
+        draft.isSyncingProfiles = false;
+      });
+    }
+  },
+  [SYNC_HUB_PROFILES]: async (_payload, _state) => {
+    // Delegate to the command which already has all the sync logic
+    await executeExtensionCommand("syncHubProfiles");
+  },
+  [RETRY_PROFILE_SYNC]: async (_payload, _state) => {
+    // Delegate to the command which attempts to reconnect profile sync
+    await executeExtensionCommand("retryProfileSync");
   },
   [WEBVIEW_READY](_payload, _state, logger) {
     logger.info("Webview is ready");
@@ -385,15 +401,12 @@ const actions: {
 
       const uri = vscode.Uri.file(path);
 
-      // Get the current file content
       const currentContent = await vscode.workspace.fs.readFile(uri);
       const currentText = currentContent.toString();
 
-      // Get the original content to compare against
       const modifiedFileState = state.modifiedFiles.get(path);
       const originalContent = modifiedFileState?.originalContent || "";
 
-      // Simple logic: if file changed from original = accepted, if unchanged = rejected
       const normalize = (text: string) => text.replace(/\r\n/g, "\n").replace(/\n$/, "");
       const hasChanges = normalize(currentText) !== normalize(originalContent);
 
@@ -407,7 +420,6 @@ const actions: {
 
       await handleFileResponse(messageToken, responseId, path, finalContent, state, true); // Skip analysis - it runs on save
 
-      // Remove from pendingBatchReview after processing
       state.mutateSolutionWorkflow((draft) => {
         if (draft.pendingBatchReview) {
           draft.pendingBatchReview = draft.pendingBatchReview.filter(
@@ -421,13 +433,11 @@ const actions: {
         messageToken,
       });
 
-      // Check if workflow cleanup should happen
       checkBatchReviewComplete(state, logger);
     } catch (error) {
       logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
       await handleFileResponse(messageToken, "reject", path, content, state, true); // Skip analysis - it runs on save
 
-      // Remove from pendingBatchReview after error handling
       state.mutateSolutionWorkflow((draft) => {
         if (draft.pendingBatchReview) {
           draft.pendingBatchReview = draft.pendingBatchReview.filter(
@@ -436,30 +446,36 @@ const actions: {
         }
       });
 
-      // Check if workflow cleanup should happen
       checkBatchReviewComplete(state, logger);
     }
   },
 
   BATCH_APPLY_ALL: async ({ files }, state, logger) => {
     const failures: Array<{ path: string; error: string }> = [];
+    const appliedFileUris: vscode.Uri[] = [];
 
     try {
       logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
       console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
 
-      // Set processing flag at the start
       state.mutateSolutionWorkflow((draft) => {
         draft.isProcessingQueuedMessages = true;
       });
 
-      // Process files one by one with individual error handling
       for (const file of files) {
         try {
           logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
-          await handleFileResponse(file.messageToken, "apply", file.path, file.content, state);
+          await handleFileResponse(
+            file.messageToken,
+            "apply",
+            file.path,
+            file.content,
+            state,
+            true,
+          );
 
-          // Remove this file from pendingBatchReview only on success
+          appliedFileUris.push(vscode.Uri.file(file.path));
+
           state.mutateSolutionWorkflow((draft) => {
             if (draft.pendingBatchReview) {
               draft.pendingBatchReview = draft.pendingBatchReview.filter(
@@ -475,7 +491,6 @@ const actions: {
           logger.error(`BATCH_APPLY_ALL: Failed to apply file ${file.path}:`, fileError);
           failures.push({ path: file.path, error: errorMessage });
 
-          // Mark the file as having an error in pendingBatchReview
           state.mutateSolutionWorkflow((draft) => {
             if (draft.pendingBatchReview) {
               const fileIndex = draft.pendingBatchReview.findIndex(
@@ -489,13 +504,23 @@ const actions: {
         }
       }
 
-      // Report results
+      if (appliedFileUris.length > 0) {
+        try {
+          logger.info(
+            `BATCH_APPLY_ALL: Running combined analysis for ${appliedFileUris.length} files`,
+          );
+          await runPartialAnalysis(state, appliedFileUris);
+          logger.info(`BATCH_APPLY_ALL: Combined analysis completed`);
+        } catch (analysisError) {
+          logger.warn(`BATCH_APPLY_ALL: Failed to run combined analysis:`, analysisError);
+        }
+      }
+
       const successCount = files.length - failures.length;
       logger.info(
         `BATCH_APPLY_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
       );
 
-      // Notify user if there were failures
       if (failures.length > 0) {
         const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
         logger.error(`BATCH_APPLY_ALL: Failures:\n${failureDetails}`);

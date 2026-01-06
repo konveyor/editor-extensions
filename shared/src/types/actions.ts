@@ -25,6 +25,8 @@ export const TOGGLE_AGENT_MODE = "TOGGLE_AGENT_MODE";
 export const OPEN_RESOLUTION_PANEL = "OPEN_RESOLUTION_PANEL";
 export const OPEN_HUB_SETTINGS = "OPEN_HUB_SETTINGS";
 export const UPDATE_HUB_CONFIG = "UPDATE_HUB_CONFIG";
+export const SYNC_HUB_PROFILES = "SYNC_HUB_PROFILES";
+export const RETRY_PROFILE_SYNC = "RETRY_PROFILE_SYNC";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -54,7 +56,9 @@ export type WebviewActionType =
   | typeof TOGGLE_AGENT_MODE
   | typeof OPEN_RESOLUTION_PANEL
   | typeof OPEN_HUB_SETTINGS
-  | typeof UPDATE_HUB_CONFIG;
+  | typeof UPDATE_HUB_CONFIG
+  | typeof SYNC_HUB_PROFILES
+  | typeof RETRY_PROFILE_SYNC;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

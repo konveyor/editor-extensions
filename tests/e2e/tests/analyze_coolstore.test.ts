@@ -6,9 +6,10 @@ import { DEFAULT_PROVIDER, getAvailableProviders } from '../fixtures/provider-co
 import path from 'path';
 import { runEvaluation } from '../../kai-evaluator/core';
 import { prepareEvaluationData, saveOriginalAnalysisFile } from '../utilities/evaluation.utils';
-import { KAIViews } from '../enums/views.enum';
 import { isAWSConfigured } from '../../kai-evaluator/utils/s3.utils';
 import * as VSCodeFactory from '../utilities/vscode.factory';
+import { ResolutionAction } from '../enums/resolution-action.enum';
+import { FixTypes } from '../enums/fix-types.enum';
 
 const providers = process.env.CI ? getAvailableProviders() : [DEFAULT_PROVIDER];
 
@@ -61,13 +62,10 @@ providers.forEach((config) => {
       });
     });
 
-    test('Fix all issues with default (Low) effort', async () => {
+    test('Fix all issues', async () => {
       test.setTimeout(3600000);
       await vscodeApp.openAnalysisView();
-      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-      await analysisView.locator('button#get-solution-button').first().click({ timeout: 300000 });
-
-      await vscodeApp.acceptAllSolutions();
+      await vscodeApp.searchAndRequestAction(undefined, FixTypes.Issue, ResolutionAction.Accept);
     });
 
     test.afterEach(async () => {
@@ -83,8 +81,12 @@ providers.forEach((config) => {
 
     test.afterAll(async ({ testRepoData }, testInfo) => {
       await vscodeApp.closeVSCode();
+      if (test.info().status !== test.info().expectedStatus) {
+        allOk = false;
+      }
       // Evaluation should be performed only if all tests under this suite passed
       if (allOk && process.env.CI) {
+        test.setTimeout(300_000);
         if (!isAWSConfigured()) {
           console.warn('Skipping evaluation: AWS credentials are not configured.');
           return;

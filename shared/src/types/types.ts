@@ -28,7 +28,6 @@ export interface HubConfig {
   url: string;
   auth: {
     enabled: boolean;
-    realm: string;
     username: string;
     password: string;
     insecure: boolean;
@@ -153,6 +152,7 @@ export interface ExtensionData {
   llmErrors: LLMError[];
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
+  isInTreeMode: boolean;
   solutionServerEnabled: boolean;
   isAgentMode: boolean;
   activeDecorators?: Record<string, string>;
@@ -161,6 +161,10 @@ export interface ExtensionData {
   hubConfig: HubConfig | undefined;
   isProcessingQueuedMessages?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
+  profileSyncEnabled: boolean;
+  profileSyncConnected: boolean;
+  isSyncingProfiles: boolean;
+  llmProxyAvailable: boolean;
 }
 
 export type ConfigErrorType =
@@ -172,7 +176,9 @@ export type ConfigErrorType =
   | "no-custom-rules"
   | "missing-auth-credentials"
   | "genai-disabled"
-  | "solution-server-disconnected";
+  | "solution-server-disconnected"
+  | "no-hub-profiles"
+  | "hub-profile-sync-failed";
 
 export type LLMErrorType =
   | "workflow-initialization-failed"
@@ -241,6 +247,21 @@ export const createConfigError = {
     message: "Solution server is not connected",
     error:
       "The solution server is enabled but not connected. AI-powered solution suggestions may not work properly.",
+  }),
+
+  noHubProfiles: (): ConfigError => ({
+    type: "no-hub-profiles",
+    message: "No profiles available from Hub",
+    error:
+      "Profile sync is enabled but no profiles were found. Either the application is not registered in Hub, or it has no profiles configured. You can create local profiles or configure profiles in Hub.",
+  }),
+
+  hubProfileSyncFailed: (failedCount: number, totalCount: number, error?: string): ConfigError => ({
+    type: "hub-profile-sync-failed",
+    message: `Failed to sync ${failedCount} of ${totalCount} profiles from Hub`,
+    error:
+      error ||
+      "Some profiles could not be downloaded from Hub. The profile bundles may not be ready yet.",
   }),
 };
 

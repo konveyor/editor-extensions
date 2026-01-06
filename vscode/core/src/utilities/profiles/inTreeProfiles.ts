@@ -58,6 +58,16 @@ export async function discoverInTreeProfiles(workspaceRoot: string): Promise<Ana
         const profileContent = await fs.readFile(profileYamlPath, "utf-8");
         const profile = parseProfileYaml(profileContent, profileDir);
         if (profile) {
+          // Check for .hub-metadata.json to mark Hub-synced profiles as read-only
+          const hubMetadataPath = path.join(profileDir, ".hub-metadata.json");
+          try {
+            await fs.access(hubMetadataPath);
+            // Hub-managed profile - force read-only and set source
+            profile.readOnly = true;
+            profile.source = "hub";
+          } catch {
+            // No hub metadata, profile is local (readOnly already set from YAML)
+          }
           profiles.push(profile);
         }
       } catch (error) {
@@ -109,7 +119,7 @@ function parseProfileYaml(yamlContent: string, profileDir: string): AnalysisProf
 
     // Transform to AnalysisProfile interface
     const profile: AnalysisProfile = {
-      id: parsed.metadata.id,
+      id: String(parsed.metadata.id),
       name: parsed.metadata.name,
       labelSelector: parsed.spec.labelSelector,
       customRules,

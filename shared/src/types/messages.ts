@@ -12,6 +12,28 @@ import {
   HubConfig,
 } from "./types";
 
+export const MessageTypes = {
+  FULL_STATE_UPDATE: "FULL_STATE_UPDATE",
+
+  ANALYSIS_STATE_UPDATE: "ANALYSIS_STATE_UPDATE",
+
+  CHAT_MESSAGES_UPDATE: "CHAT_MESSAGES_UPDATE",
+  CHAT_MESSAGE_STREAMING_UPDATE: "CHAT_MESSAGE_STREAMING_UPDATE",
+  CHAT_STREAMING_CHUNK: "CHAT_STREAMING_CHUNK",
+
+  PROFILES_UPDATE: "PROFILES_UPDATE",
+
+  SERVER_STATE_UPDATE: "SERVER_STATE_UPDATE",
+
+  SOLUTION_WORKFLOW_UPDATE: "SOLUTION_WORKFLOW_UPDATE",
+
+  CONFIG_ERRORS_UPDATE: "CONFIG_ERRORS_UPDATE",
+  DECORATORS_UPDATE: "DECORATORS_UPDATE",
+  SETTINGS_UPDATE: "SETTINGS_UPDATE",
+} as const;
+
+export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
+
 /**
  * Granular message types for VSCode extension -> Webview communication
  *
@@ -76,6 +98,8 @@ export interface ServerStateUpdateMessage {
   isStartingServer: boolean;
   isInitializingServer: boolean;
   solutionServerConnected: boolean;
+  profileSyncConnected: boolean;
+  llmProxyAvailable: boolean;
   timestamp: string;
 }
 
@@ -84,6 +108,7 @@ export interface ProfilesUpdateMessage {
   type: "PROFILES_UPDATE";
   profiles: AnalysisProfile[];
   activeProfileId: string | null;
+  isInTreeMode: boolean;
   timestamp: string;
 }
 
@@ -108,6 +133,9 @@ export interface SettingsUpdateMessage {
   isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
+  profileSyncEnabled: boolean;
+  isSyncingProfiles: boolean;
+  llmProxyAvailable: boolean;
   timestamp: string;
 }
 

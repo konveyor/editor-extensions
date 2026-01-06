@@ -5,8 +5,10 @@ import { DEFAULT_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
+import { OutputPanel } from './output.page';
 import path from 'path';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
+import { ResolutionAction } from '../enums/resolution-action.enum';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -16,6 +18,14 @@ export abstract class VSCode {
   protected branch?: string;
   protected abstract window: Page;
   public static readonly COMMAND_CATEGORY = process.env.TEST_CATEGORY || 'Konveyor';
+
+  /**
+   * Gets the OutputPanel instance for this VSCode instance.
+   * Provides access to output channel operations.
+   */
+  public get outputPanel(): OutputPanel {
+    return OutputPanel.getInstance(this);
+  }
 
   /**
    * Unzips all test data into workspace .vscode/ directory, only deletes the zip files if cleanup is true
@@ -173,14 +183,17 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
-        timeout: 60000,
-      });
+      await expect(this.analysisIsRunning()).resolves.toBe(true);
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
       throw error;
     }
+  }
+
+  public async analysisIsRunning(): Promise<boolean> {
+    const analysisView = await this.getView(KAIViews.analysisView);
+    return await analysisView.getByText('Analysis Progress').first().isVisible();
   }
 
   public async waitForAnalysisCompleted(): Promise<void> {
@@ -425,16 +438,67 @@ export abstract class VSCode {
     }
   }
 
-  public async searchAndRequestFix(searchTerm: string, fixType: FixTypes) {
+  public async searchAndRequestAction(
+    searchTerm?: string,
+    fixType?: FixTypes,
+    resolutionAction?: ResolutionAction
+  ) {
+    // (midays) todo: add a filesToFix: string[] parameter to define which files to fix
     const analysisView = await this.getView(KAIViews.analysisView);
-    await this.searchViolation(searchTerm);
-    await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
-    await analysisView.locator('button#get-solution-button').nth(fixType).click();
-  }
 
-  public async searchViolationAndAcceptAllSolutions(violation: string) {
-    await this.searchAndRequestFix(violation, FixTypes.Issue);
-    await this.acceptAllSolutions();
+    if (searchTerm) {
+      await this.searchViolation(searchTerm);
+      await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
+    }
+
+    if (fixType) {
+      await analysisView.locator('button#get-solution-button').nth(fixType).click();
+    }
+
+    if (resolutionAction) {
+      const resolutionView = await this.getView(KAIViews.resolutionDetails);
+      const actionLocator = resolutionView.getByRole('button', {
+        name: new RegExp(resolutionAction),
+      });
+      const headerLocator = resolutionView.locator('h1.pf-v6-c-title.pf-m-2xl', {
+        hasText: 'Generative AI Results',
+      });
+      await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
+        timeout: 600_000,
+      }); // 10 minutes
+
+      if (resolutionAction !== ResolutionAction.Accept) {
+        await actionLocator.waitFor({ state: 'visible', timeout: 30000 });
+        await actionLocator.dispatchEvent('click');
+        return [];
+      }
+
+      await this.window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/solution-requested.png`,
+      });
+
+      const fixedFiles: string[] = [];
+      // Parse the "(current of total)" from the header to get file count
+      const reviewHeaderLocator = resolutionView.locator(
+        '.batch-review-expandable-header .batch-review-title'
+      );
+      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
+      let headerText = await reviewHeaderLocator.textContent();
+      const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
+      const totalFiles = match ? parseInt(match[2], 10) : 1;
+      console.log('Total files found to accept solutions for: ', totalFiles);
+      for (let i = 0; i < totalFiles; i++) {
+        headerText = await reviewHeaderLocator.textContent();
+        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
+        const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
+        console.log('Reviewing file: ', fileToFix);
+        fixedFiles.push(fileToFix);
+        await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
+        await actionLocator.dispatchEvent('click');
+        console.log('Accepted solution for file: ', fileToFix);
+      }
+      return fixedFiles;
+    }
   }
 
   public async waitForSolutionConfirmation(): Promise<void> {
@@ -444,35 +508,12 @@ export abstract class VSCode {
 
     // Wait for both conditions to be true concurrently
     await Promise.all([
-      // 1. Wait for the button to be enabled (color is back to default)
+      // 1. Wait for the button to be enabled
       expect(solutionButton.first()).not.toBeDisabled({ timeout: 3600000 }),
 
       // 2. Wait for the blocking overlay to disappear
       expect(backdrop).not.toBeVisible({ timeout: 3600000 }),
     ]);
-  }
-
-  public async acceptAllSolutions() {
-    const resolutionView = await this.getView(KAIViews.resolutionDetails);
-    const fixLocator = resolutionView.locator('button[aria-label="Accept all changes"]');
-    const loadingIndicator = resolutionView.locator('.loading-indicator');
-
-    await this.waitDefault();
-    // Avoid fixing issues forever
-    const MAX_FIXES = 500;
-
-    for (let i = 0; i < MAX_FIXES; i++) {
-      await expect(fixLocator.first()).toBeVisible({ timeout: 300_000 });
-      // Ensures the button is clicked even if there are notifications overlaying it due to screen size
-      await fixLocator.first().dispatchEvent('click');
-      await this.waitDefault();
-
-      if (!(await loadingIndicator.isVisible())) {
-        return;
-      }
-    }
-
-    throw new Error('MAX_FIXES limit reached while requesting solutions');
   }
 
   public async waitDefault() {
@@ -726,5 +767,23 @@ export abstract class VSCode {
     }
 
     return results;
+  }
+
+  public async openFile(filename: string, closeOtherEditors: boolean = false): Promise<void> {
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    await this.window.keyboard.press(`${modifier}+P`, { delay: 500 });
+    const input = this.window.getByPlaceholder(
+      'Search files by name (append : to go to line or @ to go to symbol)'
+    );
+    await input.waitFor({ state: 'visible', timeout: 5000 });
+    await input.fill(filename);
+    const fileLocator = await this.window.locator('a').filter({ hasText: filename }).first();
+    await expect(fileLocator).toBeVisible({ timeout: 10000 });
+    await fileLocator.click();
+    if (closeOtherEditors) {
+      await this.executeQuickCommand('View: Close Other Editors in Group');
+    }
+    const tabSelector = `.tab[role="tab"][data-resource-name="${filename}"]`;
+    await expect(this.window.locator(tabSelector)).toBeVisible({ timeout: 10000 });
   }
 }

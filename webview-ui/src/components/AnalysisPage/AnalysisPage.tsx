@@ -3,6 +3,7 @@ import "./styles.css";
 import React, { useState, useEffect } from "react";
 import {
   Alert,
+  AlertActionCloseButton,
   AlertGroup,
   Backdrop,
   Button,
@@ -79,6 +80,7 @@ const AnalysisPage: React.FC = () => {
   const rawConfigErrors = useExtensionStore((state) => state.configErrors);
   const profiles = useExtensionStore((state) => state.profiles);
   const activeProfileId = useExtensionStore((state) => state.activeProfileId);
+  const isInTreeMode = useExtensionStore((state) => state.isInTreeMode);
   const serverState = useExtensionStore((state) => state.serverState);
   const solutionServerEnabled = useExtensionStore((state) => state.solutionServerEnabled);
   const isAgentMode = useExtensionStore((state) => state.isAgentMode);
@@ -87,6 +89,9 @@ const AnalysisPage: React.FC = () => {
     (state) => state.isWaitingForUserInteraction,
   );
   const isProcessingQueuedMessages = useExtensionStore((state) => state.isProcessingQueuedMessages);
+  const profileSyncEnabled = useExtensionStore((state) => state.profileSyncEnabled);
+  const profileSyncConnected = useExtensionStore((state) => state.profileSyncConnected);
+  const isSyncingProfiles = useExtensionStore((state) => state.isSyncingProfiles);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
@@ -221,6 +226,8 @@ const AnalysisPage: React.FC = () => {
               configErrors={rawConfigErrors}
               solutionServerEnabled={solutionServerEnabled}
               solutionServerConnected={solutionServerConnected}
+              profileSyncEnabled={profileSyncEnabled}
+              profileSyncConnected={profileSyncConnected}
               onOpenProfileManager={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
               dispatch={dispatch}
             />
@@ -231,9 +238,7 @@ const AnalysisPage: React.FC = () => {
                     variant="info"
                     title="Generative AI is enabled"
                     actionClose={
-                      <Button variant="link" onClick={() => setIsGenAIAlertDismissed(true)}>
-                        Close
-                      </Button>
+                      <AlertActionCloseButton onClose={() => setIsGenAIAlertDismissed(true)} />
                     }
                   >
                     This feature uses AI technology. Do not include any personal information or
@@ -268,6 +273,7 @@ const AnalysisPage: React.FC = () => {
                             dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
                           }
                           isDisabled={isStartingServer || isAnalyzing}
+                          isInTreeMode={isInTreeMode}
                         />
                       </Flex>
                       <div className="analysis-button-wrapper">
@@ -279,7 +285,8 @@ const AnalysisPage: React.FC = () => {
                             isAnalyzing ||
                             isStartingServer ||
                             !serverRunning ||
-                            isWaitingForSolution
+                            isWaitingForSolution ||
+                            isSyncingProfiles
                           }
                         >
                           {isAnalyzing ? "Analyzing..." : "Run Analysis"}

@@ -7,6 +7,8 @@ import { BrowserContext } from 'playwright-core';
 import { generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { ExtensionTypes } from '../enums/extension-types.enum';
+import pathlib from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
@@ -33,7 +35,7 @@ export class VSCodeWeb extends VSCode {
 
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (await loginButton.isVisible()) {
-      throw new Error('User is not logged in.');
+      throw new Error('VSCodeWeb.open: User is not logged in.');
     }
 
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
@@ -44,8 +46,12 @@ export class VSCodeWeb extends VSCode {
 
     // Creates a new workspace or reuses one that already exists for the same repository
     if (!(await repoRow.isVisible())) {
+      console.log('VSCodeWeb.open: Creating new workspace...');
       newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
     } else {
+      console.log('VSCodeWeb.open: Found existing workspace');
+      console.log(await repoRow.allTextContents());
+
       [newPage] = await Promise.all([
         context.waitForEvent('page'),
         repoRow.getByRole('button', { name: 'Open' }).first().click(),
@@ -55,15 +61,22 @@ export class VSCodeWeb extends VSCode {
     const vscode = new VSCodeWeb(newPage, repoDir, branch);
     await newPage.waitForLoadState();
     await page.close();
-    await newPage
-      .getByRole('button', { name: 'Yes, I trust the authors' })
-      .click({ timeout: 300_000 });
+
+    try {
+      await newPage
+        .getByRole('button', { name: 'Yes, I trust the authors' })
+        .click({ timeout: 300_000 });
+    } catch (error) {
+      console.log('VSCodeWeb.open: Trust button not found, trying to continue', error);
+    }
+
     await expect(
       newPage.locator('h2').filter({ hasText: 'Get Started with VS Code for' })
     ).toBeVisible();
 
     await expect(newPage.getByText('Waiting metrics...')).toBeVisible({ timeout: 300_000 });
     await expect(newPage.getByText('Waiting metrics...')).not.toBeVisible({ timeout: 300_000 });
+    console.log('VSCodeWeb.open: Metrics loaded');
 
     // TODO: Replace this waiting
     await newPage.waitForTimeout(30_000);
@@ -73,7 +86,10 @@ export class VSCodeWeb extends VSCode {
       vscode.getWindow().locator('.workspace-trust-limitations-title-text').first()
     ).toBeVisible();
     if (await trustBtn.isVisible()) {
+      console.log('VSCodeWeb.open: Workspace trusted');
       await trustBtn.click();
+    } else {
+      console.log('VSCodeWeb.open: Workspace was ALREADY trusted');
     }
     // TODO: After trusting the workspace the extensions are activated, need a way to handle it instead of just waiting
     await newPage.waitForTimeout(30_000);
@@ -90,8 +106,15 @@ export class VSCodeWeb extends VSCode {
     await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
     const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
     if (await javaLightSelector.isVisible()) {
+      console.log('VSCodeWeb.open: Change Java extension mode');
       await javaLightSelector.click();
+    } else {
+      console.log('VSCodeWeb.open: Java extension is NOT in lightweight mode');
+      console.log(await newPage.getByRole('button', { name: 'Java:' }).allTextContents());
     }
+    await newPage.screenshot({
+      path: pathlib.join(SCREENSHOTS_FOLDER, `java-button.png`),
+    });
 
     const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
     await javaReadySelector.waitFor({ timeout: 180_000 });

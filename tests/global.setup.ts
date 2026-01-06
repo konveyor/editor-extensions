@@ -25,7 +25,7 @@ async function globalSetup() {
   console.log('Completed global setup.');
 
   if (getOSInfo() === 'windows' && process.env.CI) {
-    const vscodeApp = await VSCodeFactory.open(repoUrl, repoName);
+    const vscodeApp = await VSCodeFactory.open(repoUrl, repoName, 'main', true);
     await vscodeApp.createProfile([], ['openjdk17'], generateRandomString());
     await vscodeApp.configureGenerativeAI();
     await vscodeApp.openAnalysisView();
