@@ -14,3 +14,146 @@ jobs:
         uses: konveyor/release-tools/cmd/verify-pr@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  changelog:
+    runs-on: ubuntu-latest
+    name: Verify CHANGELOG updates
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check CHANGELOG updates
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Check if PR title requires changelog update
+          if [[ "$PR_TITLE" =~ ^:(bug|sparkles): ]]; then
+            echo "PR title starts with :bug: or :sparkles: - checking for CHANGELOG updates..."
+
+            # Get list of changed files
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+
+            # Determine which extensions were modified
+            CORE_MODIFIED=false
+            JAVA_MODIFIED=false
+            JS_MODIFIED=false
+            GO_MODIFIED=false
+
+            while IFS= read -r file; do
+              if [[ "$file" =~ ^vscode/core/ ]]; then
+                CORE_MODIFIED=true
+              elif [[ "$file" =~ ^vscode/java/ ]]; then
+                JAVA_MODIFIED=true
+              elif [[ "$file" =~ ^vscode/javascript/ ]]; then
+                JS_MODIFIED=true
+              elif [[ "$file" =~ ^vscode/go/ ]]; then
+                GO_MODIFIED=true
+              fi
+            done <<< "$CHANGED_FILES"
+
+            # Check if corresponding CHANGELOGs were updated
+            MISSING_CHANGELOGS=()
+            UPDATED_CHANGELOGS=()
+
+            if [[ "$CORE_MODIFIED" == "true" ]]; then
+              if ! echo "$CHANGED_FILES" | grep -q "^vscode/core/CHANGELOG.md$"; then
+                MISSING_CHANGELOGS+=("vscode/core/CHANGELOG.md")
+              else
+                UPDATED_CHANGELOGS+=("vscode/core/CHANGELOG.md")
+              fi
+            fi
+
+            if [[ "$JAVA_MODIFIED" == "true" ]]; then
+              if ! echo "$CHANGED_FILES" | grep -q "^vscode/java/CHANGELOG.md$"; then
+                MISSING_CHANGELOGS+=("vscode/java/CHANGELOG.md")
+              else
+                UPDATED_CHANGELOGS+=("vscode/java/CHANGELOG.md")
+              fi
+            fi
+
+            if [[ "$JS_MODIFIED" == "true" ]]; then
+              if ! echo "$CHANGED_FILES" | grep -q "^vscode/javascript/CHANGELOG.md$"; then
+                MISSING_CHANGELOGS+=("vscode/javascript/CHANGELOG.md")
+              else
+                UPDATED_CHANGELOGS+=("vscode/javascript/CHANGELOG.md")
+              fi
+            fi
+
+            if [[ "$GO_MODIFIED" == "true" ]]; then
+              if ! echo "$CHANGED_FILES" | grep -q "^vscode/go/CHANGELOG.md$"; then
+                MISSING_CHANGELOGS+=("vscode/go/CHANGELOG.md")
+              else
+                UPDATED_CHANGELOGS+=("vscode/go/CHANGELOG.md")
+              fi
+            fi
+
+            # Report results
+            if [ ${#MISSING_CHANGELOGS[@]} -gt 0 ]; then
+              echo "❌ ERROR: PR modifies extension code but missing CHANGELOG updates:"
+              for changelog in "${MISSING_CHANGELOGS[@]}"; do
+                echo "  - $changelog"
+              done
+              echo ""
+              echo "Please update the CHANGELOG(s) for the modified extension(s)."
+
+              # Generate GitHub Step Summary
+              {
+                echo "## ❌ Missing CHANGELOG Updates"
+                echo ""
+                echo "This PR title starts with \`:bug:\` or \`:sparkles:\`, which requires CHANGELOG updates for modified extensions."
+                echo ""
+                echo "### Missing CHANGELOG files:"
+                echo ""
+                for changelog in "${MISSING_CHANGELOGS[@]}"; do
+                  echo "- \`$changelog\`"
+                done
+                echo ""
+                if [ ${#UPDATED_CHANGELOGS[@]} -gt 0 ]; then
+                  echo "### Already updated:"
+                  echo ""
+                  for changelog in "${UPDATED_CHANGELOGS[@]}"; do
+                    echo "- ✅ \`$changelog\`"
+                  done
+                  echo ""
+                fi
+                echo "### What to do:"
+                echo ""
+                echo "Please add an entry to the \`## [Unreleased]\` section of each missing CHANGELOG file describing your changes."
+                echo ""
+                echo "See the [Keep a Changelog](https://keepachangelog.com/) format for guidance."
+              } >> "$GITHUB_STEP_SUMMARY"
+
+              exit 1
+            else
+              echo "✅ All required CHANGELOGs have been updated"
+
+              # Generate success summary
+              {
+                echo "## ✅ CHANGELOG Check Passed"
+                echo ""
+                echo "All modified extensions have corresponding CHANGELOG updates:"
+                echo ""
+                for changelog in "${UPDATED_CHANGELOGS[@]}"; do
+                  echo "- ✅ \`$changelog\`"
+                done
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "PR title does not start with :bug: or :sparkles: - skipping CHANGELOG check"
+
+            # Generate summary for skipped check
+            {
+              echo "## ℹ️ CHANGELOG Check Skipped"
+              echo ""
+              echo "This PR title does not start with \`:bug:\` or \`:sparkles:\`, so CHANGELOG updates are not required."
+              echo ""
+              echo "**PR Title:** $PR_TITLE"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
