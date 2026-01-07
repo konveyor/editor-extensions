@@ -255,7 +255,6 @@ export const HubSettingsForm: React.FC<{
             </HelperText>
           </FormHelperText>
         </FormGroup>
-
       </FormSection>
 
       <FormSection title="Authentication">
