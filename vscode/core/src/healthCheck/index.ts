@@ -97,9 +97,9 @@ export async function runHealthCheck(
 
   for (const module of applicableModules) {
     logger.debug(`Running health check: ${module.name}`);
+    // Track duration for each individual health check
+    const checkStartTime = performance.now();
     try {
-      // Automatically track duration for each health check
-      const checkStartTime = performance.now();
       const result = await module.check(context);
       const duration = performance.now() - checkStartTime;
 
@@ -118,7 +118,7 @@ export async function runHealthCheck(
         message: "Health check encountered an unexpected error",
         details: error instanceof Error ? error.message : String(error),
         extensionSource: module.extensionSource,
-        duration: performance.now() - startTime, // Use overall startTime for error case
+        duration: performance.now() - checkStartTime,
       });
     }
   }
