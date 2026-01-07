@@ -198,7 +198,7 @@ export abstract class VSCode {
 
   public async waitForAnalysisCompleted(): Promise<void> {
     const notificationLocator = this.window.locator('.notification-list-item-message span', {
-      hasText: 'Solution accepted successfully!',
+      hasText: 'Analysis completed successfully!',
     });
     await expect(notificationLocator).toBeVisible({ timeout: 10 * 60 * 1000 }); // up to 10 minutes
   }

@@ -44,7 +44,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await vscodeApp.waitForAnalysisCompleted();
     await vscodeApp.setListKindAndSort('files', 'ascending');
     files = (await vscodeApp.getListNames('files')) as string[];
-    expect(files).toEqual(expect.arrayContaining([FILES_NAMES[0], FILES_NAMES[1]]));
+    await expect(files).toEqual(expect.arrayContaining([FILES_NAMES[0], FILES_NAMES[1]]));
   });
 
   test('Disable "Analyze on Save" setting', async () => {
