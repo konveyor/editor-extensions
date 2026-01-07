@@ -204,3 +204,25 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
 
   return entries;
 }
+
+/**
+ * Gets a list of all files with uncommitted changes.
+ * @returns Array of filenames that have changes (both staged and unstaged)
+ */
+export function getChangedFiles(): string[] {
+  try {
+    // Get all files with changes (both staged and unstaged)
+    const changedFiles = execSync('git status --short', { encoding: 'utf-8' });
+
+    return changedFiles
+      .split('\n')
+      .filter((line) => line.trim() !== '')
+      .map((line) => {
+        const filePath = line.substring(3).trim();
+        return filePath.split(/[\\/]/).pop() || filePath;
+      });
+  } catch (error) {
+    console.error('Error getting changed files:', error);
+    return [];
+  }
+}

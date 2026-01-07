@@ -1,22 +1,28 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { Configuration } from '../../pages/configuration.page';
-import { analyzeOnSaveSettingKey } from '../../enums/configuration-options.enum';
-import { FileEditorPage } from '../../pages/file-editor.page';
+import {
+  acceptOnSaveSettingKey,
+  analyzeOnSaveSettingKey,
+} from '../../enums/configuration-options.enum';
+import { TabManager } from '../../pages/tab-manager.page';
 import { VSCode } from '../../pages/vscode.page';
+import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { FixTypes } from '../../enums/fix-types.enum';
+import { getChangedFiles } from '../../utilities/utils';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
 test.describe('Plugin Settings - Analyze on Save', () => {
   let vscodeApp: VSCode;
-  let fileEditorPage: FileEditorPage;
+  let tabManager: TabManager;
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(300000);
     const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
     await vscodeApp.waitDefault();
-    fileEditorPage = new FileEditorPage(vscodeApp);
+    tabManager = new TabManager(vscodeApp);
   });
 
   test('Enable "Analyze on Save" setting', async () => {
@@ -25,7 +31,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await vscodeApp.startServer();
 
     await vscodeApp.openFile(FILES_NAMES[0], true);
-    await fileEditorPage.saveFile(FILES_NAMES[0]);
+    await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitForAnalysisCompleted();
     await vscodeApp.setListKindAndSort('files', 'ascending');
@@ -33,7 +39,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     expect(files).toContain(FILES_NAMES[0]);
 
     await vscodeApp.openFile(FILES_NAMES[1], true);
-    await fileEditorPage.saveFile(FILES_NAMES[1]);
+    await tabManager.saveTabFile(FILES_NAMES[1]);
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitForAnalysisCompleted();
     await vscodeApp.setListKindAndSort('files', 'ascending');
@@ -47,9 +53,30 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await vscodeApp.startServer();
 
     await vscodeApp.openFile(FILES_NAMES[0], true);
-    await fileEditorPage.saveFile(FILES_NAMES[0]);
+    await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
     await expect(vscodeApp.analysisIsRunning()).resolves.toBe(false);
+  });
+
+  test('Enable "Auto Accept on Save" setting', async () => {
+    const configurationPage = await Configuration.open(vscodeApp);
+    await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, true);
+    await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
+    await vscodeApp.startServer();
+
+    await vscodeApp.runAnalysis();
+    await vscodeApp.waitForAnalysisCompleted();
+
+    await vscodeApp.setListKindAndSort('files', 'ascending');
+    await vscodeApp.searchAndRequestAction(
+      FILES_NAMES[0],
+      FixTypes.IncidentGroup,
+      ResolutionAction.ReviewInEditor
+    );
+    await tabManager.saveTabFile(FILES_NAMES[0]);
+    await vscodeApp.waitForFileSolutionAccepted(FILES_NAMES[0]);
+    await tabManager.closeTabByName(FILES_NAMES[0]);
+    expect(getChangedFiles()).toContain(FILES_NAMES[0]);
   });
 
   test.afterAll(async () => {

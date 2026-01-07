@@ -198,9 +198,18 @@ export abstract class VSCode {
 
   public async waitForAnalysisCompleted(): Promise<void> {
     const notificationLocator = this.window.locator('.notification-list-item-message span', {
-      hasText: 'Analysis completed successfully!',
+      hasText: 'Solution accepted successfully!',
     });
     await expect(notificationLocator).toBeVisible({ timeout: 10 * 60 * 1000 }); // up to 10 minutes
+  }
+
+  public async waitForFileSolutionAccepted(fileName: string): Promise<void> {
+    const notificationLocator = this.window.locator('.notification-list-item-message span', {
+      hasText: new RegExp(
+        `Auto-accepted all diff changes for .*${fileName}.* - saving final state`
+      ),
+    });
+    await expect(notificationLocator).toBeVisible({ timeout: 1 * 60 * 1000 }); // up to 1 minute
   }
 
   /**
