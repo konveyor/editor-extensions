@@ -235,6 +235,26 @@ export const HubSettingsForm: React.FC<{
             </FormHelperText>
           )}
         </FormGroup>
+        <FormGroup label="Insecure connection" fieldId="auth-insecure">
+          <Switch
+            id="auth-insecure"
+            label="Skip SSL certificate verification"
+            isChecked={formData.auth.insecure}
+            onChange={(_e, checked) => updateAuthField("insecure", checked)}
+          />
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem
+                icon={<ExclamationCircleIcon />}
+                variant={formData.auth.insecure ? "warning" : "default"}
+              >
+                {formData.auth.insecure
+                  ? "Warning: Insecure connections skip SSL certificate verification"
+                  : "Not recommended for production environments"}
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        </FormGroup>
       </FormSection>
 
       <FormSection title="Authentication">
@@ -308,28 +328,6 @@ export const HubSettingsForm: React.FC<{
               </HelperText>
             </FormHelperText>
           )}
-        </FormGroup>
-
-        <FormGroup label="Insecure connection" fieldId="auth-insecure">
-          <Switch
-            id="auth-insecure"
-            label="Skip SSL certificate verification"
-            isChecked={formData.auth.insecure}
-            onChange={(_e, checked) => updateAuthField("insecure", checked)}
-            isDisabled={!formData.auth.enabled}
-          />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem
-                icon={<ExclamationCircleIcon />}
-                variant={formData.auth.insecure ? "warning" : "default"}
-              >
-                {formData.auth.insecure
-                  ? "Warning: Insecure connections skip SSL certificate verification"
-                  : "Not recommended for production environments"}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
         </FormGroup>
       </FormSection>
 
