@@ -79,6 +79,26 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     expect(getChangedFiles()).toContain(FILES_NAMES[0]);
   });
 
+  test('Disable "Auto Accept on Save" setting', async () => {
+    const configurationPage = await Configuration.open(vscodeApp);
+    await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, false);
+    await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
+    await vscodeApp.startServer();
+
+    await vscodeApp.runAnalysis();
+    await vscodeApp.waitForAnalysisCompleted();
+
+    await vscodeApp.setListKindAndSort('files', 'ascending');
+    await vscodeApp.searchAndRequestAction(
+      FILES_NAMES[1],
+      FixTypes.IncidentGroup,
+      ResolutionAction.ReviewInEditor
+    );
+    await tabManager.saveTabFile(FILES_NAMES[1]);
+    await tabManager.closeTabByName(FILES_NAMES[1]);
+    expect(getChangedFiles()).toContain(FILES_NAMES[1]);
+  });
+
   test.afterAll(async () => {
     await vscodeApp.closeVSCode();
   });
