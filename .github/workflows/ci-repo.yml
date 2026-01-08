@@ -243,6 +243,14 @@ jobs:
             npm run package-go
           fi
 
+      - name: Package C# extension
+        run: |
+          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
+            npm run package-csharp -- --pre-release
+          else
+            npm run package-csharp
+          fi
+
       - name: Upload VSIX artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -342,12 +350,14 @@ jobs:
           JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
           JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
           GO_NAME=$(node -p "require('./vscode/go/package.json').name")
+          CSHARP_NAME=$(node -p "require('./vscode/csharp/package.json').name")
 
           # Find the actual VSIX files using glob patterns
           CORE_VSIX=$(ls ./dist/${CORE_NAME}-*.vsix | head -n 1)
           JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
           JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
           GO_VSIX=$(ls ./dist/${GO_NAME}-*.vsix | head -n 1)
+          CSHARP_VSIX=$(ls ./dist/${CSHARP_NAME}-*.vsix | head -n 1)
 
           # Verify files exist
           if [ ! -f "$CORE_VSIX" ]; then
@@ -370,18 +380,25 @@ jobs:
             ls -la ./dist/
             exit 1
           fi
+          if [ ! -f "$CSHARP_VSIX" ]; then
+            echo "Error: C# VSIX not found for ${CSHARP_NAME}"
+            ls -la ./dist/
+            exit 1
+          fi
 
           # Output to GitHub Actions
           echo "core_vsix=${CORE_VSIX}" >> $GITHUB_OUTPUT
           echo "java_vsix=${JAVA_VSIX}" >> $GITHUB_OUTPUT
           echo "javascript_vsix=${JS_VSIX}" >> $GITHUB_OUTPUT
           echo "go_vsix=${GO_VSIX}" >> $GITHUB_OUTPUT
+          echo "csharp_vsix=${CSHARP_VSIX}" >> $GITHUB_OUTPUT
 
           echo "VSIX files found:"
           echo "  Core: ${CORE_VSIX}"
           echo "  Java: ${JAVA_VSIX}"
           echo "  JavaScript: ${JS_VSIX}"
           echo "  Go: ${GO_VSIX}"
+          echo "  C#: ${CSHARP_VSIX}"
 
       - name: Run e2e tests (Linux)
         run: npx playwright test e2e/tests/base/configure-and-run-analysis.test.ts
@@ -468,7 +485,7 @@ jobs:
           BUILDS_TO_KEEP=7
 
           # Process each extension type
-          for ext in konveyor konveyor-java konveyor-javascript konveyor-go; do
+          for ext in konveyor konveyor-java konveyor-javascript konveyor-go konveyor-csharp; do
             echo "Processing ${ext}..."
 
             # Match pattern: {ext}-{version} where version starts with a digit

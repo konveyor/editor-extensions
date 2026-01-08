@@ -28,7 +28,7 @@ function packageExtension(type, preRelease = false) {
 
   if (!fs.existsSync(packageJsonPath)) {
     console.error(`Error: Extension package.json not found at ${packageJsonPath}`);
-    console.error(`Valid extension types: core, java, javascript, go`);
+    console.error(`Valid extension types: core, java, javascript, go, csharp`);
     process.exit(1);
   }
 

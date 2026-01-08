@@ -10,6 +10,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/java",
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/javascript",
         "--extensionDevelopmentPath=${workspaceFolder}/vscode/go",
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode/csharp",
         "--enable-proposed-api=konveyor.konveyor-ai",
         "--verbose"
       ],
@@ -19,6 +20,7 @@
         "${workspaceFolder}/vscode/java/out/**/*.js",
         "${workspaceFolder}/vscode/javascript/out/**/*.js",
         "${workspaceFolder}/vscode/go/out/**/*.js",
+        "${workspaceFolder}/vscode/csharp/out/**/*.js",
         "${workspaceFolder}/agentic/dist/**/*.js",
         "${workspaceFolder}/shared/dist/**/*.js"
       ],
@@ -28,6 +30,7 @@
         "${workspaceFolder}/vscode/java/out/**",
         "${workspaceFolder}/vscode/javascript/out/**",
         "${workspaceFolder}/vscode/go/out/**",
+        "${workspaceFolder}/vscode/csharp/out/**",
         "${workspaceFolder}/agentic/dist/**",
         "${workspaceFolder}/shared/dist/**",
         "!**/node_modules/**"

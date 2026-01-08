@@ -18,6 +18,9 @@ const cli = parseCli(
     rulesetOrg: "konveyor",
     rulesetRepo: "rulesets",
     releaseTag: "v0.8.0-beta.5",
+    // C# provider specific defaults
+    csharpBranch: "main",
+    csharpReleaseTag: undefined, // Set when c-sharp-analyzer-provider has releases
   },
   "release",
 );
@@ -28,7 +31,18 @@ const cwd = cwdToProjectRoot();
 
 // Setup download target
 const [DOWNLOAD_CACHE, DOWNLOAD_DIR] = await ensureDirs(["downloaded_cache", "downloaded_assets"]);
-const { useWorkflow, useRelease, org, repo, releaseTag, branch, pr, workflow } = cli;
+const {
+  useWorkflow,
+  useRelease,
+  org,
+  repo,
+  releaseTag,
+  branch,
+  pr,
+  workflow,
+  csharpBranch,
+  csharpReleaseTag,
+} = cli;
 const bearerToken = process.env.GITHUB_TOKEN ?? undefined;
 
 // TODO(djzager): This is just to make it so the linter doesn't complain about the variables being unused
@@ -325,6 +339,112 @@ const actions = [
           chmod: true,
         },
         { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
+
+  // Download c-sharp-analyzer-provider release assets
+  useRelease &&
+    csharpReleaseTag &&
+    (async () => ({
+      id: "download c-sharp-analyzer-provider release assets",
+      meta: await downloadGitHubReleaseAssets({
+        targetDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
+        org: "konveyor",
+        repo: "c-sharp-analyzer-provider",
+        releaseTag: csharpReleaseTag,
+        bearerToken,
+        assets: [
+          { name: "c-sharp-analyzer-provider-linux-x86_64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-linux-aarch64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-darwin-x86_64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-darwin-aarch64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-windows-x86_64.zip" },
+          { name: "c-sharp-analyzer-provider-windows-aarch64.zip" },
+        ],
+      }),
+    })),
+
+  // Download c-sharp-analyzer-provider from workflow artifacts
+  useWorkflow &&
+    csharpBranch &&
+    (async () => ({
+      id: "download c-sharp-analyzer-provider workflow artifacts",
+      meta: await downloadWorkflowArtifactsAndExtractAssets({
+        downloadDirectory: join(DOWNLOAD_CACHE, "csharp-provider-artifacts"),
+        targetDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
+        org: "konveyor",
+        repo: "c-sharp-analyzer-provider",
+        branch: csharpBranch,
+        workflow: "release-binaries.yml",
+        bearerToken,
+
+        artifacts: [
+          {
+            name: "c-sharp-analyzer-provider-linux-x86_64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-linux-aarch64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-darwin-x86_64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-darwin-aarch64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-windows-x86_64",
+            contents: ["c-sharp-analyzer-provider-*.zip"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-windows-aarch64",
+            contents: ["c-sharp-analyzer-provider-*.zip"],
+          },
+        ],
+      }),
+    })),
+
+  // Extract c-sharp-analyzer-provider binaries to platform-specific directories
+  async () => ({
+    id: "c-sharp-analyzer-provider binaries",
+    meta: await unpackAssets({
+      title: "c-sharp-analyzer-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "c-sharp-analyzer-provider", `${platform}-${arch}`),
+
+      globs: ["c-sharp-analyzer-provider-cli*"],
+      assets: [
+        {
+          name: "c-sharp-analyzer-provider-linux-x86_64.tar.gz",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "c-sharp-analyzer-provider-linux-aarch64.tar.gz",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "c-sharp-analyzer-provider-darwin-x86_64.tar.gz",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "c-sharp-analyzer-provider-darwin-aarch64.tar.gz",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "c-sharp-analyzer-provider-windows-x86_64.zip", platform: "win32", arch: "x64" },
+        { name: "c-sharp-analyzer-provider-windows-aarch64.zip", platform: "win32", arch: "arm64" },
       ],
     }),
   }),
