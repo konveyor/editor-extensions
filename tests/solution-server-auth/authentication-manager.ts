@@ -1,5 +1,4 @@
 import { generateRandomString } from '../e2e/utilities/utils';
-
 interface TokenResponse {
   access_token: string;
   refresh_token?: string;
@@ -30,16 +29,14 @@ export class AuthenticationManager {
   private refreshToken: string | null = null;
   private tokenExpiresAt: number | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
-  private refreshPromise: Promise<void> | null = null;
-  private isRefreshing = false;
+  private tokenPromise: Promise<void> | null = null;
 
   constructor(
     private readonly baseUrl: string,
     private readonly realm: string,
     private readonly username: string,
     private readonly password: string,
-    private readonly isLocal: boolean,
-    private readonly onTokenRefresh?: (token: string) => Promise<void>
+    private readonly isLocal: boolean
   ) {}
 
   /**
@@ -48,7 +45,7 @@ export class AuthenticationManager {
    * when using the local server it sets a mock token from environment variable.
    * when using the remote server it exchanges username/password for access and refresh tokens.
    */
-  public async authenticate(): Promise<void> {
+  private async authenticate(): Promise<void> {
     if (this.isLocal) {
       this.bearerToken = this.bearerToken || generateRandomString();
       return;
@@ -64,18 +61,18 @@ export class AuthenticationManager {
     const tokenData = await this.fetchToken(tokenUrl, params);
     this.setTokenData(tokenData);
   }
-
-  public async waitForRefresh(): Promise<void> {
-    if (this.isRefreshing && this.refreshPromise) {
-      await this.refreshPromise;
+  public async getBearerToken(forceRefresh = false): Promise<string> {
+    if (forceRefresh) {
+      this.tokenExpiresAt = 0;
     }
-  }
-
-  public getBearerToken(): string | null {
+    await this.ensureAuthenticated();
+    if (!this.bearerToken) {
+      throw new Error('Authentication failed: no token available');
+    }
     return this.bearerToken;
   }
 
-  public startAutoRefresh(): void {
+  private startAutoRefresh(): void {
     if (this.isLocal || !this.tokenExpiresAt || !this.refreshToken) {
       return;
     }
@@ -87,23 +84,17 @@ export class AuthenticationManager {
     const timeUntilRefresh = this.tokenExpiresAt - Date.now();
     this.refreshTimer = setTimeout(
       async () => {
-        if (!this.refreshPromise) {
-          this.refreshPromise = this.refreshTokenFlow();
-
-          try {
-            await this.refreshPromise;
-          } catch (error) {
-            console.error('Auto-refresh failed:', error);
-          } finally {
-            this.refreshPromise = null;
-          }
+        try {
+          await this.ensureAuthenticated();
+        } catch (error) {
+          console.error('Auto-refresh failed:', error);
         }
       },
       Math.max(0, timeUntilRefresh)
     );
   }
 
-  public stopAutoRefresh(): void {
+  private stopAutoRefresh(): void {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -111,44 +102,25 @@ export class AuthenticationManager {
   }
 
   private async refreshTokenFlow(): Promise<void> {
-    this.isRefreshing = true;
-    this.stopAutoRefresh();
+    if (this.isLocal) return;
 
-    try {
-      const tokenUrl = this.getTokenUrl();
-      const params = new URLSearchParams();
-      params.append('grant_type', 'refresh_token');
-      params.append('client_id', `${this.realm}-ui`);
-      params.append('refresh_token', this.refreshToken!);
-
-      const tokenData = await this.fetchToken(tokenUrl, params);
-      this.setTokenData(tokenData);
-
-      if (this.onTokenRefresh) {
-        await this.onTokenRefresh(this.bearerToken!);
-      }
-
-      this.startAutoRefresh();
-    } catch (error: any) {
-      if (error.message.includes('401')) {
-        console.warn('Refresh token expired - reauthenticating...');
-        await this.authenticate();
-        if (this.onTokenRefresh) {
-          await this.onTokenRefresh(this.bearerToken!);
-        }
-        this.startAutoRefresh();
-      } else {
-        console.error('Token refresh error:', error);
-      }
-    } finally {
-      this.isRefreshing = false;
+    if (!this.refreshToken) {
+      throw new Error('No refresh token available');
     }
+    const tokenUrl = this.getTokenUrl();
+    const params = new URLSearchParams();
+    params.append('grant_type', 'refresh_token');
+    params.append('client_id', `${this.realm}-ui`);
+    params.append('refresh_token', this.refreshToken!);
+    const tokenData = await this.fetchToken(tokenUrl, params);
+    this.setTokenData(tokenData);
   }
 
   private setTokenData(tokenData: TokenResponse): void {
     this.bearerToken = tokenData.access_token;
     this.refreshToken = tokenData.refresh_token || this.refreshToken;
     this.tokenExpiresAt = Date.now() + tokenData.expires_in * 1000 * TOKEN_EXPIRY_RATIO;
+    this.startAutoRefresh();
   }
 
   private getTokenUrl(): string {
@@ -186,6 +158,33 @@ export class AuthenticationManager {
     } finally {
       clearTimeout(timeout);
     }
+  }
+  private hasValidToken(): boolean {
+    return (
+      this.bearerToken !== null && this.tokenExpiresAt !== null && Date.now() < this.tokenExpiresAt
+    );
+  }
+
+  private async ensureAuthenticated(): Promise<void> {
+    if (this.tokenPromise) {
+      return this.tokenPromise;
+    }
+    if (this.bearerToken && !this.hasValidToken()) {
+      return;
+    }
+    if (!this.refreshToken || this.isLocal) {
+      this.tokenPromise = this.authenticate().finally(() => {
+        this.tokenPromise = null;
+      });
+      return this.tokenPromise;
+    }
+    this.tokenPromise = this.refreshTokenFlow()
+      .catch(() => this.authenticate())
+      .finally(() => {
+        this.tokenPromise = null;
+      });
+
+    return this.tokenPromise;
   }
 
   public dispose(): void {
