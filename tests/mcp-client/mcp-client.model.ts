@@ -10,6 +10,7 @@ export class MCPClient {
   private transport?: StreamableHTTPClientTransport;
   private client?: Client;
   private authManager: AuthenticationManager;
+  private currentToken: string | null = null;
 
   constructor(url: string, authManager: AuthenticationManager) {
     this.url = url;
@@ -19,36 +20,25 @@ export class MCPClient {
   public static async connect(url?: string): Promise<MCPClient> {
     const config = validateSolutionServerConfig(url);
     const fullUrl = url || config.url;
-    let mcpClient: MCPClient;
 
     const authManager = new AuthenticationManager(
       fullUrl,
       config.realm,
       config.username,
       config.password,
-      config.isLocal,
-      async (token: string) => {
-        await mcpClient.reconnectWithNewToken(token);
-      }
+      config.isLocal
     );
-
-    mcpClient = new MCPClient(fullUrl, authManager);
-    await mcpClient.initialize();
+    const mcpClient = new MCPClient(fullUrl, authManager);
+    await mcpClient.connectTransport();
     return mcpClient;
   }
 
-  private async initialize(): Promise<void> {
-    await this.authManager.authenticate();
-    await this.connectTransport();
-    this.authManager.startAutoRefresh();
-  }
-
   private async connectTransport(): Promise<void> {
-    const headers: Record<string, string> = {};
-    const token = this.authManager.getBearerToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    const token = await this.authManager.getBearerToken();
+    this.currentToken = token;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+    };
 
     this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
       requestInit: { headers },
@@ -113,31 +103,47 @@ export class MCPClient {
       pending_solutions: z.number(),
       unknown_solutions: z.number(),
     });
+    const responseSchema = z.array(successRateSchema);
 
-    const response = await this.request<SuccessRateResponse>(
+    const response = await this.request<SuccessRateResponse[]>(
       'get_success_rate',
       { violation_ids: violationIds },
-      successRateSchema
+      responseSchema
     );
 
-    return (
-      response || {
-        counted_solutions: 0,
-        accepted_solutions: 0,
-        rejected_solutions: 0,
-        modified_solutions: 0,
-        pending_solutions: 0,
-        unknown_solutions: 0,
-      }
-    );
+    if (response && response.length > 0) {
+      return response[0];
+    }
+
+    return {
+      counted_solutions: 0,
+      accepted_solutions: 0,
+      rejected_solutions: 0,
+      modified_solutions: 0,
+      pending_solutions: 0,
+      unknown_solutions: 0,
+    };
+  }
+  private isUnauthorized(result: any): boolean {
+    const msg = JSON.stringify(result?.content || '');
+    return msg.includes('401') || msg.includes('403') || msg.includes('unauthorized');
   }
 
   private async request<T>(
     endpoint: string,
     params: any,
-    schema: z.ZodSchema<T>
+    schema: z.ZodSchema<T>,
+    retries = 1
   ): Promise<T | null> {
-    await this.authManager.waitForRefresh();
+    if (!this.client) {
+      throw new Error('MCP client is not connected');
+    }
+    const token = await this.authManager.getBearerToken();
+    if (token !== this.currentToken) {
+      await this.reconnectWithNewToken(token);
+      this.currentToken = token;
+    }
+
     const result = await this.client?.callTool({
       name: endpoint,
       arguments: params,
@@ -146,6 +152,14 @@ export class MCPClient {
     console.log(result);
 
     if (result?.isError) {
+      if (this.isUnauthorized(result) && retries > 0) {
+        console.warn('Received auth error — attempting token refresh...');
+        const newToken = await this.authManager.getBearerToken(true);
+        await this.reconnectWithNewToken(newToken);
+        this.currentToken = newToken;
+        return await this.request(endpoint, params, schema, retries - 1);
+      }
+
       const errorMessage = Array.isArray(result.content)
         ? result.content
             .filter((item: any) => item.type === 'text')
@@ -179,8 +193,6 @@ export class MCPClient {
   }
 
   public async dispose(): Promise<void> {
-    this.authManager.stopAutoRefresh();
-    await this.authManager.waitForRefresh().catch(() => {});
     this.authManager.dispose();
 
     if (this.transport) {
@@ -189,5 +201,6 @@ export class MCPClient {
 
     this.client = undefined;
     this.transport = undefined;
+    this.currentToken = null;
   }
 }
