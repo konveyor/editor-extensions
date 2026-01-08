@@ -13,11 +13,11 @@ export class TabManager {
   /**
    * Reads the content of the active tab.
    * Throws an error if the file is not the current active tab.
-   * @param filename The name of the file to read.
+   * @param tabName The name of the file to read.
    * @returns The content of the file.
    */
-  public async readFile(filename: string): Promise<string> {
-    await this.ensureTabIsActive(filename);
+  public async readTabFile(tabName: string): Promise<string> {
+    await this.ensureTabIsActive(tabName);
     const content = await this.window.locator('.monaco-editor textarea').inputValue();
     return content;
   }
@@ -37,10 +37,10 @@ export class TabManager {
    * Gets the name of the current active tab.
    * @returns The name of the current active tab.
    */
-  public async getCurrentActiveTab(): Promise<{ name: string } | undefined> {
+  public async getCurrentActiveTab(): Promise<string | undefined> {
     const activeTab = await this.window.locator('.tab.active .label-name').textContent();
     if (activeTab) {
-      return { name: activeTab };
+      return activeTab;
     }
     return undefined;
   }
@@ -52,7 +52,7 @@ export class TabManager {
    */
   public async ensureTabIsActive(tabName: string): Promise<void> {
     const currentActiveTab = await this.getCurrentActiveTab();
-    if (currentActiveTab?.name !== tabName) {
+    if (currentActiveTab !== tabName) {
       await this.focusTabByName(tabName);
     }
   }
