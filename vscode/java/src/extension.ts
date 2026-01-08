@@ -3,7 +3,12 @@ import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import * as rpc from "vscode-jsonrpc/node";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
-import { EXTENSION_DISPLAY_NAME, EXTENSION_ID, EXTENSION_VERSION } from "./utilities/constants";
+import {
+  CORE_EXTENSION_ID,
+  EXTENSION_DISPLAY_NAME,
+  EXTENSION_ID,
+  EXTENSION_VERSION,
+} from "./utilities/constants";
 import { LspProxyServer } from "./lspProxyServer";
 import { JavaExternalProviderManager } from "./javaExternalProviderManager";
 import { execFile } from "child_process";
@@ -119,21 +124,21 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Maven installation detected");
 
   // Get core extension API
-  const coreExtension = vscode.extensions.getExtension("konveyor.konveyor");
+  const coreExtension = vscode.extensions.getExtension(CORE_EXTENSION_ID);
   if (!coreExtension) {
-    const message = "Konveyor Java extension requires Konveyor Core extension to be installed";
+    const message = `${EXTENSION_DISPLAY_NAME} requires the core extension to be installed`;
     logger.error(message);
     vscode.window.showErrorMessage(message);
     return;
   }
 
-  logger.info("Found Konveyor Core extension, activating...");
+  logger.info("Found core extension, activating...");
 
   let coreApi: KonveyorCoreApi;
   try {
     coreApi = await coreExtension.activate();
   } catch (err) {
-    const message = "Failed to activate Konveyor Core extension.";
+    const message = "Failed to activate core extension.";
     logger.error(message, err);
     vscode.window.showErrorMessage(message);
     return;
