@@ -77,6 +77,50 @@ export interface Disposable {
 }
 
 /**
+ * Health check types
+ */
+export type CheckStatus = "pass" | "fail" | "warning" | "skip";
+export type Platform = "win32" | "darwin" | "linux" | "all";
+
+export interface CheckResult {
+  /** Name of the check */
+  name: string;
+  /** Status of the check */
+  status: CheckStatus;
+  /** Detailed message about the check result */
+  message: string;
+  /** Optional error or additional details */
+  details?: string;
+  /** Optional suggestions for fixing issues */
+  suggestion?: string;
+  /** Duration of the check in milliseconds */
+  duration?: number;
+}
+
+export interface HealthCheckContext {
+  logger: any;
+  state: any;
+  vscode: any;
+}
+
+export interface HealthCheckModule {
+  /** Unique identifier for this check */
+  id: string;
+  /** Display name for this check */
+  name: string;
+  /** Description of what this check does */
+  description: string;
+  /** Platforms this check runs on */
+  platforms: Platform[];
+  /** Whether this check is enabled by default */
+  enabled: boolean;
+  /** Source extension name (e.g., "core", "java", "python") */
+  extensionSource?: string;
+  /** Function that performs the health check */
+  check: (context: HealthCheckContext) => Promise<CheckResult>;
+}
+
+/**
  * Core extension API exported to language extensions
  */
 export interface KonveyorCoreApi {
@@ -99,4 +143,11 @@ export interface KonveyorCoreApi {
    * @returns Disposable to unsubscribe
    */
   onAnalysisComplete(handler: (results: AnalysisResults) => void): Disposable;
+
+  /**
+   * Register a health check module
+   * @param module Health check module to register
+   * @returns Disposable to unregister the health check
+   */
+  registerHealthCheck(module: HealthCheckModule): Disposable;
 }

@@ -61,7 +61,7 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
-import { ProviderRegistry, createCoreApi } from "./api";
+import { ProviderRegistry, HealthCheckRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
 
 class VsCodeExtension {
@@ -77,6 +77,7 @@ class VsCodeExtension {
     public readonly context: vscode.ExtensionContext,
     logger: winston.Logger,
     private readonly providerRegistry: ProviderRegistry,
+    private readonly healthCheckRegistry: HealthCheckRegistry,
   ) {
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
@@ -523,6 +524,7 @@ class VsCodeExtension {
       this.registerWebviewProvider();
       // Diff view removed - using unified decorator flow instead
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
+      this.registerCoreHealthChecks();
       this.registerCommands();
       this.registerLanguageProviders();
 
@@ -985,6 +987,17 @@ class VsCodeExtension {
     );
   }
 
+  private registerCoreHealthChecks(): void {
+    try {
+      const { registerCoreHealthChecks } = require("./healthCheck");
+      registerCoreHealthChecks(this.healthCheckRegistry);
+      this.state.logger.info("Core health checks registered successfully");
+    } catch (error) {
+      this.state.logger.error("Error registering core health checks", error);
+      // Don't throw - health checks are not critical for extension activation
+    }
+  }
+
   private registerCommands(): void {
     try {
       registerAllCommands(this.state);
@@ -1376,6 +1389,14 @@ class VsCodeExtension {
 
 let extension: VsCodeExtension | undefined;
 let providerRegistry: ProviderRegistry | undefined;
+let healthCheckRegistry: HealthCheckRegistry | undefined;
+
+/**
+ * Get the health check registry (for use in commands)
+ */
+export function getHealthCheckRegistry(): HealthCheckRegistry | undefined {
+  return healthCheckRegistry;
+}
 
 export async function activate(context: vscode.ExtensionContext): Promise<KonveyorCoreApi> {
   // Logger is our bae...before anything else
@@ -1406,15 +1427,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     const paths = await ensurePaths(context, logger);
     await copySampleProviderSettings();
 
-    // Create provider registry
+    // Create registries
     providerRegistry = new ProviderRegistry(logger);
     context.subscriptions.push(providerRegistry);
 
-    extension = new VsCodeExtension(paths, context, logger, providerRegistry);
+    healthCheckRegistry = new HealthCheckRegistry(logger);
+    context.subscriptions.push(healthCheckRegistry);
+
+    extension = new VsCodeExtension(paths, context, logger, providerRegistry, healthCheckRegistry);
     await extension.initialize();
 
     // Create and return the API for language extensions
-    const api = createCoreApi(providerRegistry, EXTENSION_VERSION);
+    const api = createCoreApi(providerRegistry, healthCheckRegistry, EXTENSION_VERSION);
     logger.info("Core extension API created and ready for language extensions", {
       version: EXTENSION_VERSION,
     });
@@ -1424,6 +1448,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     extension = undefined;
     providerRegistry?.dispose();
     providerRegistry = undefined;
+    healthCheckRegistry?.dispose();
+    healthCheckRegistry = undefined;
     logger.error("Failed to activate Konveyor extension", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate

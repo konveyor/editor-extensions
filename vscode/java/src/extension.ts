@@ -8,6 +8,7 @@ import { LspProxyServer } from "./lspProxyServer";
 import { JavaExternalProviderManager } from "./javaExternalProviderManager";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { javaHealthChecks } from "./healthCheck";
 
 /**
  * Check if a command is available on the system
@@ -248,6 +249,13 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(providerDisposable);
+
+  // Register Java-specific health checks
+  javaHealthChecks.forEach((healthCheck) => {
+    const healthCheckDisposable = coreApi.registerHealthCheck(healthCheck);
+    context.subscriptions.push(healthCheckDisposable);
+    logger.info(`Java health check registered: ${healthCheck.id}`);
+  });
 
   // Subscribe to analysis completion events
   const analysisCompleteDisposable = coreApi.onAnalysisComplete((results) => {
