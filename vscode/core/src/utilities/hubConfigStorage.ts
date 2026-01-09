@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import { HubConfig } from "@editor-extensions/shared";
+import { EXTENSION_NAME } from "./constants";
 
-const HUB_CONFIG_SECRET_KEY = "konveyor.hub.config";
+const HUB_CONFIG_SECRET_KEY = `${EXTENSION_NAME}.hub.config`;
 
 /**
  * Save hub configuration to VS Code Secret Storage

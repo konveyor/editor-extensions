@@ -834,7 +834,7 @@ class VsCodeExtension {
             this.state.logger.info(`Log level changed to ${newLogLevel}`);
           }
 
-          if (event.affectsConfiguration("konveyor.analyzerPath")) {
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.analyzerPath`)) {
             this.state.logger.info("Analyzer path configuration modified!");
 
             // Check if server is currently running
