@@ -1,6 +1,7 @@
 import { expect, Page } from '@playwright/test';
 import { OutputChannel } from '../enums/output.enum';
 import { VSCode } from './vscode.page';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class OutputPanel {
   private static instance: OutputPanel;
