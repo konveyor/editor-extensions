@@ -183,7 +183,7 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(this.analysisIsRunning()).resolves.toBe(true);
+      await expect(this.isAnalysisRunning()).resolves.toBe(true);
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
@@ -191,7 +191,7 @@ export abstract class VSCode {
     }
   }
 
-  public async analysisIsRunning(): Promise<boolean> {
+  public async isAnalysisRunning(): Promise<boolean> {
     const analysisView = await this.getView(KAIViews.analysisView);
     return await analysisView.getByText('Analysis Progress').first().isVisible();
   }

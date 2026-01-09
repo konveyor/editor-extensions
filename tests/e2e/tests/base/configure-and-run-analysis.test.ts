@@ -1,13 +1,8 @@
 import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import {
-  GOOGLE_GEMINI_PROVIDER,
-  OPENAI_GPT4O_PROVIDER,
-} from '../../fixtures/provider-configs.fixture';
-import * as fs from 'fs/promises';
+import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../../utilities/utils';
-import { extractZip } from '../../utilities/archive';
 import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
@@ -36,7 +31,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(GOOGLE_GEMINI_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(DEFAULT_PROVIDER.config);
   });
 
   test('Start server', async () => {

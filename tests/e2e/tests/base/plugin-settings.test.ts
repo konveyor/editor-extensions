@@ -49,7 +49,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await vscodeApp.openFile(FILES_NAMES[0], true);
     await fileEditorPage.saveFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
-    await expect(vscodeApp.analysisIsRunning()).resolves.toBe(false);
+    await expect(vscodeApp.isAnalysisRunning()).resolves.toBe(false);
   });
 
   test.afterAll(async () => {
