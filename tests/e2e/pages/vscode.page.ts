@@ -203,6 +203,15 @@ export abstract class VSCode {
     await expect(notificationLocator).toBeVisible({ timeout: 10 * 60 * 1000 }); // up to 10 minutes
   }
 
+  public async waitForFileSolutionAccepted(fileName: string): Promise<void> {
+    const notificationLocator = this.window.locator('.notification-list-item-message span', {
+      hasText: new RegExp(
+        `Auto-accepted all diff changes for .*${fileName}.* - saving final state`
+      ),
+    });
+    await expect(notificationLocator).toBeVisible({ timeout: 1 * 60 * 1000 }); // up to 1 minute
+  }
+
   /**
    * Sets the list kind (issues or files) and sort order (ascending or descending) in the analysis view.
    * @param kind - The kind of list to display ('issues' or 'files').
