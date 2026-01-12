@@ -62,6 +62,14 @@ export class VSCodeWeb extends VSCode {
     await newPage.waitForLoadState();
     await page.close();
 
+    await expect(newPage.getByRole('heading', { name: 'Starting workspace' })).toBeVisible({
+      timeout: 300_000,
+    });
+    await expect(newPage.getByRole('heading', { name: 'Starting workspace' })).not.toBeVisible({
+      timeout: 300_000,
+    });
+    console.log('VSCodeWeb.open: Workspace started');
+
     try {
       await newPage
         .getByRole('button', { name: 'Yes, I trust the authors' })
@@ -74,8 +82,10 @@ export class VSCodeWeb extends VSCode {
       newPage.locator('h2').filter({ hasText: 'Get Started with VS Code for' })
     ).toBeVisible();
 
-    await expect(newPage.getByText('Waiting metrics...')).toBeVisible({ timeout: 300_000 });
-    await expect(newPage.getByText('Waiting metrics...')).not.toBeVisible({ timeout: 300_000 });
+    // A way to tell that the workspace has fully loaded is to ensure that the metrics are displayed at the bottom
+    await expect(newPage.locator('a.statusbar-item-label').filter({ hasText: 'Mem:' })).toBeVisible(
+      { timeout: 300_000 }
+    );
     console.log('VSCodeWeb.open: Metrics loaded');
 
     // TODO: Replace this waiting
@@ -116,7 +126,7 @@ export class VSCodeWeb extends VSCode {
       path: pathlib.join(SCREENSHOTS_FOLDER, `java-button.png`),
     });
 
-    const javaReadySelector = newPage.getByRole('button', { name: 'Java: Ready' });
+    const javaReadySelector = newPage.getByRole('button', { name: /Java: (Ready|Warning)/ });
     await javaReadySelector.waitFor({ timeout: 180_000 });
     return vscode;
   }

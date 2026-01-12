@@ -17,7 +17,7 @@ const cli = parseCli(
     workflow: "build-and-push-binaries.yml",
     rulesetOrg: "konveyor",
     rulesetRepo: "rulesets",
-    releaseTag: "v0.8.0-beta.5",
+    releaseTag: "v0.9.0-alpha.4",
   },
   "release",
 );

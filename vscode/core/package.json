@@ -181,6 +181,12 @@
         "icon": "$(diff)"
       },
       {
+        "command": "konveyor.runHealthCheck",
+        "title": "Run Health Check",
+        "category": "Konveyor",
+        "icon": "$(pulse)"
+      },
+      {
         "command": "konveyor.syncHubProfiles",
         "title": "Sync Profiles from Hub",
         "category": "Konveyor",

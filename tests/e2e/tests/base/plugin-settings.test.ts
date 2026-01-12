@@ -55,7 +55,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await vscodeApp.openFile(FILES_NAMES[0], true);
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
-    await expect(vscodeApp.analysisIsRunning()).resolves.toBe(false);
+    await expect(vscodeApp.isAnalysisRunning()).resolves.toBe(false);
   });
 
   test('Enable "Auto Accept on Save" setting', async () => {
