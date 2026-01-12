@@ -29,7 +29,7 @@ export class OutputPanel {
       return;
     }
     await this.vsCode.executeQuickCommand(`Output: Show Output Channels...`);
-    await this.window.getByText(channel).first().click();
+    await this.window.locator('div.quick-input-list').getByText(channel).first().click();
 
     if (filterText) {
       await this.window.getByPlaceholder('Filter').fill(filterText);
@@ -69,8 +69,7 @@ export class OutputPanel {
     filterText?: string
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
-
-    await this.window.locator('div.view-lines').first().waitFor({ state: 'visible' });
+    await this.window.locator('li[role="tab"].action-item.checked a:has-text("Output")').waitFor();
 
     const rawContent = await this.window.locator('div.view-lines').first().textContent();
 
