@@ -7,6 +7,7 @@ export class OutputPanel {
   private static instance: OutputPanel;
   private readonly vsCode: VSCode;
   private readonly window: Page;
+  // TODO: replace boolean for assertions
   private outputOpened: boolean = false;
 
   private constructor(vsCode: VSCode) {
@@ -49,12 +50,7 @@ export class OutputPanel {
       console.log(`Output view already closed`);
       return;
     }
-    const closeBtn = this.window.getByRole('button', { name: /Hide Panel \(Ctrl\+J\)/i });
-    if (await closeBtn.count()) {
-      await closeBtn.first().click();
-    } else {
-      await this.window.keyboard.press('Control+J');
-    }
+    await this.vsCode.executeQuickCommand('View: Hide Panel');
     console.log(`Output view closed`);
     this.outputOpened = false;
   }

@@ -402,7 +402,7 @@ export abstract class VSCode {
       const profileCount = await targetProfile.count();
       if (profileCount === 0) {
         console.log(`Profile '${profileName}' not found in the list`);
-        return; // Profile doesn't exist, nothing to delete
+        return;
       }
 
       console.log(`Found profile '${profileName}', proceeding with deletion`);
@@ -412,12 +412,14 @@ export abstract class VSCode {
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await deleteButton.first().dispatchEvent('click');
-
+      await this.window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/profile-deletion.png`,
+      });
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
       await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
-      await confirmButton.click();
+      await confirmButton.dispatchEvent('click');
 
       // Wait for profile to be removed from the list
       await manageProfileView
