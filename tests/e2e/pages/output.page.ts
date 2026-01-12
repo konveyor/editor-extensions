@@ -70,9 +70,12 @@ export class OutputPanel {
     filterText?: string
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
-    await this.window.locator('li[role="tab"].action-item.checked a:has-text("Output")').waitFor();
+    const viewLines = this.window.locator('div.view-lines').first();
+    await viewLines.waitFor({ state: 'visible' });
 
-    const rawContent = await this.window.locator('div.view-lines').first().textContent();
+    await expect(viewLines).not.toBeEmpty({ timeout: 10000 });
+
+    const rawContent = await viewLines.textContent();
 
     return rawContent ?? '';
   }
