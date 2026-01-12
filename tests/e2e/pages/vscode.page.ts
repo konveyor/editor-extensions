@@ -413,9 +413,7 @@ export abstract class VSCode {
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await deleteButton.first().dispatchEvent('click');
-      await this.window.screenshot({
-        path: `${SCREENSHOTS_FOLDER}/profile-deletion.png`,
-      });
+
       const confirmButton = manageProfileView
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
