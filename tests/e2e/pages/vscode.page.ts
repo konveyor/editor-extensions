@@ -630,7 +630,7 @@ export abstract class VSCode {
     await passwordInput.press('Enter');
   }
 
-  public async executeTerminalCommand(command: string, expectedOutput?: string): Promise<void> {
+  public async executeTerminalCommand(command: string, expectedOutput?: string, outputShouldBeVisible: boolean = true): Promise<void> {
     if (!this.repoDir || !this.branch) {
       throw new Error('executeTerminalCommand requires repoDir and branch to be set');
     }
@@ -645,7 +645,11 @@ export abstract class VSCode {
     await this.window.keyboard.type(command);
     await this.window.keyboard.press('Enter');
     if (expectedOutput) {
-      await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
+      if (outputShouldBeVisible) {
+        await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
+      } else {
+        await expect(this.window.getByText(expectedOutput).first()).not.toBeVisible();
+      }
     }
 
     await this.executeQuickCommand(`View: Toggle Terminal`);

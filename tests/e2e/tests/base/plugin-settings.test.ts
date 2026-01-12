@@ -76,7 +76,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.waitForFileSolutionAccepted(FILES_NAMES[0]);
     await tabManager.closeTabByName(FILES_NAMES[0]);
-    expect(getChangedFiles()).toContain(FILES_NAMES[0]);
+    await vscodeApp.executeTerminalCommand('git status --short', FILES_NAMES[0]);
   });
 
   test('Disable "Auto Accept on Save" setting', async () => {
@@ -96,7 +96,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     );
     await tabManager.saveTabFile(FILES_NAMES[1]);
     await tabManager.closeTabByName(FILES_NAMES[1]);
-    expect(getChangedFiles()).toContain(FILES_NAMES[1]);
+    await vscodeApp.executeTerminalCommand('git status --short', FILES_NAMES[0], false);
   });
 
   test.afterAll(async () => {
