@@ -73,6 +73,10 @@ export class OutputPanel {
     const viewLines = this.window.locator('div.view-lines').first();
     await viewLines.waitFor({ state: 'visible' });
 
+    await this.window.screenshot({
+      path: `${SCREENSHOTS_FOLDER}/extension-output.png`,
+    });
+
     await expect(viewLines).not.toBeEmpty({ timeout: 10000 });
 
     const rawContent = await viewLines.textContent();
