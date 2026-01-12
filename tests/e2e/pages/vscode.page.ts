@@ -389,7 +389,10 @@ export abstract class VSCode {
       console.log(`Attempting to delete profile: ${profileName}`);
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
       const manageProfileView = await this.getView(KAIViews.manageProfiles);
-
+      await expect(
+        manageProfileView.getByText('Profile editing is temporarily disabled'),
+        'Profile editing is still disabled after waiting for 1 minute'
+      ).not.toBeVisible({ timeout: 60_000 });
       const profileList = manageProfileView.getByRole('list', {
         name: 'Profile list',
       });
@@ -404,8 +407,6 @@ export abstract class VSCode {
         console.log(`Profile '${profileName}' not found in the list`);
         return;
       }
-
-      console.log(`Found profile '${profileName}', proceeding with deletion`);
       await targetProfile.click({ timeout: 60000 });
 
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
