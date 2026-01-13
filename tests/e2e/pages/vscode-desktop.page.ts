@@ -47,11 +47,12 @@ export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
   protected window: Page;
 
-  constructor(app: ElectronApplication, window: Page, repoDir?: string) {
+  constructor(app: ElectronApplication, window: Page, repoDir?: string, branch?: string) {
     super();
     this.app = app;
     this.window = window;
     this.repoDir = repoDir;
+    this.branch = branch;
   }
 
   public static async open(
@@ -127,9 +128,9 @@ export class VSCodeDesktop extends VSCode {
       width: screen.width,
       height: screen.height,
     }));
-    await window.setViewportSize(screenSize);
+    //await window.setViewportSize(screenSize);
     console.log('VSCode opened');
-    const vscode = new VSCodeDesktop(vscodeApp, window, repoDir);
+    const vscode = new VSCodeDesktop(vscodeApp, window, repoDir, branch);
 
     if (waitForInitialization) {
       // Wait for extension initialization
