@@ -19,7 +19,7 @@ const App: React.FC = () => {
       const windowData = window["konveyorInitialData"] as Partial<ExtensionData>;
       const store = useExtensionStore.getState();
 
-      // Initialize store with window data
+      // Initialize store with window data from extension
       store.batchUpdate({
         ruleSets: Array.isArray(windowData.ruleSets) ? windowData.ruleSets : [],
         enhancedIncidents: Array.isArray(windowData.enhancedIncidents)
@@ -37,6 +37,7 @@ const App: React.FC = () => {
         solutionServerEnabled: windowData.solutionServerEnabled ?? false,
         solutionServerConnected: windowData.solutionServerConnected ?? false,
         isAgentMode: windowData.isAgentMode ?? false,
+        isInTreeMode: windowData.isInTreeMode ?? false,
         workspaceRoot: windowData.workspaceRoot ?? "/",
         activeProfileId: windowData.activeProfileId ?? null,
         isWaitingForUserInteraction: windowData.isWaitingForUserInteraction ?? false,
