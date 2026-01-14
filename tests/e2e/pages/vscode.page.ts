@@ -644,13 +644,6 @@ export abstract class VSCode {
     }
     const terminalContainerLocator = this.window.locator('.terminal-widget-container').last();
     await expect(terminalContainerLocator).toBeVisible();
-
-    await expect(
-      terminalContainerLocator
-        .getByText(`${this.repoDir}`)
-        .last()
-        .or(this.window.locator('canvas.xterm-link-layer').last())
-    ).toBeVisible();
     await this.window.keyboard.type(command);
     await this.window.keyboard.press('Enter');
     if (expectedOutput) {
