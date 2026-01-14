@@ -59,6 +59,9 @@ interface ExtensionStore {
   pendingBatchReview: PendingBatchReviewFile[];
   isBatchOperationInProgress: boolean;
 
+  // Focus/filter state (from tree view "Open Details")
+  focusedViolationFilter: string | null;
+
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
   setIsAnalyzing: (isAnalyzing: boolean) => void;
@@ -97,6 +100,7 @@ interface ExtensionStore {
   setProfileSyncConnected: (connected: boolean) => void;
   setIsSyncingProfiles: (isSyncing: boolean) => void;
   setLlmProxyAvailable: (available: boolean) => void;
+  setFocusedViolationFilter: (filter: string | null) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -143,6 +147,9 @@ export const useExtensionStore = create<ExtensionStore>()(
       // Batch review state
       pendingBatchReview: [],
       isBatchOperationInProgress: false,
+
+      // Focus/filter state
+      focusedViolationFilter: null,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -328,6 +335,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setLlmProxyAvailable: (available) =>
         set((state) => {
           state.llmProxyAvailable = available;
+        }),
+
+      setFocusedViolationFilter: (filter) =>
+        set((state) => {
+          state.focusedViolationFilter = filter;
         }),
 
       clearAnalysisData: () =>

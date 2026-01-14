@@ -30,6 +30,7 @@ export const MessageTypes = {
   CONFIG_ERRORS_UPDATE: "CONFIG_ERRORS_UPDATE",
   DECORATORS_UPDATE: "DECORATORS_UPDATE",
   SETTINGS_UPDATE: "SETTINGS_UPDATE",
+  FOCUS_VIOLATION: "FOCUS_VIOLATION",
 } as const;
 
 export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
@@ -139,6 +140,13 @@ export interface SettingsUpdateMessage {
   timestamp: string;
 }
 
+export interface FocusViolationMessage {
+  type: "FOCUS_VIOLATION";
+  violationId: string;
+  violationMessage: string;
+  timestamp: string;
+}
+
 /**
  * Union type of all possible webview messages
  */
@@ -153,7 +161,8 @@ export type WebviewMessage =
   | ProfilesUpdateMessage
   | ConfigErrorsUpdateMessage
   | DecoratorsUpdateMessage
-  | SettingsUpdateMessage;
+  | SettingsUpdateMessage
+  | FocusViolationMessage;
 
 /**
  * Type guards for message discrimination
@@ -204,4 +213,8 @@ export function isSettingsUpdate(msg: WebviewMessage): msg is SettingsUpdateMess
 
 export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMessage {
   return (msg as any).type === MessageTypes.FULL_STATE_UPDATE;
+}
+
+export function isFocusViolation(msg: WebviewMessage): msg is FocusViolationMessage {
+  return (msg as any).type === MessageTypes.FOCUS_VIOLATION;
 }
