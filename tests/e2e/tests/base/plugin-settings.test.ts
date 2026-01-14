@@ -105,7 +105,7 @@ test.describe('Plugin Settings - Analyze on Save', () => {
     await vscodeApp.executeTerminalCommand('git status --short', FILES_NAMES[0], false);
   });
 
-  test.only('Exclude diagnostic sources in agent mode', async ({ testRepoData }) => {
+  test('Exclude diagnostic sources in agent mode', async ({ testRepoData }) => {
     test.setTimeout(600000);
     const repoInfo = testRepoData['coolstore'];
 
