@@ -18,7 +18,7 @@ export interface ProviderInitConfig {
   providerSpecificConfig?: Record<string, unknown>;
 
   /** Named pipe/socket path for LSP proxy communication (JSON-RPC) */
-  pipeName: string;
+  pipeName?: string;
 }
 
 /**

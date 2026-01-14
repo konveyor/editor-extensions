@@ -41,7 +41,8 @@
     "vscode/core",
     "vscode/java",
     "vscode/javascript",
-    "vscode/go"
+    "vscode/go",
+    "vscode/csharp"
   ],
   "scripts": {
     "prepare": "husky",
@@ -54,7 +55,7 @@
     "dev:shared": "npm run dev -w shared",
     "dev:agentic": "npm run dev -w agentic",
     "dev:webview-ui": "wait-on -d 500 shared/dist/index.mjs && npm run start -w webview-ui",
-    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && concurrently -c auto 'npm run dev -w vscode/core' 'npm run dev -w vscode/javascript' 'npm run dev -w vscode/java' 'npm run dev -w vscode/go'",
+    "dev:vscode": "wait-on -d 500 shared/dist/index.mjs && concurrently -c auto 'npm run dev -w vscode/core' 'npm run dev -w vscode/javascript' 'npm run dev -w vscode/java' 'npm run dev -w vscode/go' 'npm run dev -w vscode/csharp'",
     "prebuild": "[ -f scripts/prebuild.js ] && node scripts/prebuild.js || echo 'No prebuild script found'",
     "build": "npm run build --workspaces --if-present",
     "postbuild": "[ -f scripts/postbuild.js ] && node scripts/postbuild.js || echo 'No postbuild script found'",
@@ -66,6 +67,7 @@
     "package-java": "node ./scripts/package-extensions.js java",
     "package-javascript": "node ./scripts/package-extensions.js javascript",
     "package-go": "node ./scripts/package-extensions.js go",
+    "package-csharp": "node ./scripts/package-extensions.js csharp",
     "test": "npm run build && npm run test --workspaces --if-present"
   },
   "lint-staged": {

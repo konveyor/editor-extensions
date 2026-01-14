@@ -1,0 +1,72 @@
+{
+  "name": "konveyor-csharp",
+  "displayName": "Konveyor C# Extension",
+  "description": "C# language support for Konveyor migration and modernization",
+  "author": "Konveyor",
+  "icon": "resources/icon.png",
+  "license": "Apache-2.0",
+  "version": "0.4.0",
+  "main": "./out/extension.js",
+  "publisher": "konveyor",
+  "coreExtensionId": "konveyor.konveyor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/konveyor/editor-extensions"
+  },
+  "bugs": "https://github.com/konveyor/editor-extensions/issues",
+  "preview": false,
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "C#",
+    "CSharp",
+    "DotNet",
+    ".NET",
+    "Migration",
+    "Modernization"
+  ],
+  "engines": {
+    "vscode": "^1.93.0",
+    "node": ">=22.9.0",
+    "npm": "^9.5.0 || >=10.5.2"
+  },
+  "extensionDependencies": [
+    "konveyor.konveyor"
+  ],
+  "activationEvents": [
+    "onLanguage:csharp",
+    "onStartupFinished",
+    "workspaceContains:*.csproj",
+    "workspaceContains:**/*.csproj",
+    "workspaceContains:*.sln",
+    "workspaceContains:**/*.sln"
+  ],
+  "contributes": {},
+  "includedAssetPaths": {
+    "csharpAnalyzerProvider": "../../downloaded_assets/c-sharp-analyzer-provider"
+  },
+  "scripts": {
+    "clean": "rimraf out",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prebuild": "npm run clean",
+    "build": "webpack --mode production",
+    "dev": "webpack --watch --mode development"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
+    "*.{css,json,md,yaml,yml}": "prettier --write"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.93.0",
+    "ts-loader": "^9.5.1",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "winston": "^3.17.0",
+    "winston-transport-vscode": "^0.1.0",
+    "vscode-jsonrpc": "^8.2.1"
+  }
+}

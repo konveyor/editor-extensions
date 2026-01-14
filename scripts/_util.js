@@ -64,7 +64,18 @@ export async function ensureDirs(directories) {
 }
 
 export function parseCli(
-  { org, repo, releaseTag, workflow, branch, rulesetOrg, rulesetRepo, rulesetReleaseTag },
+  {
+    org,
+    repo,
+    releaseTag,
+    workflow,
+    branch,
+    rulesetOrg,
+    rulesetRepo,
+    rulesetReleaseTag,
+    csharpBranch,
+    csharpReleaseTag,
+  },
   useDefault = "release",
 ) {
   const { values } = parseArgs({
@@ -122,6 +133,15 @@ export function parseCli(
         type: "string",
         default: rulesetReleaseTag,
       },
+      // C# provider specific options
+      "csharp-branch": {
+        type: "string",
+        default: csharpBranch,
+      },
+      "csharp-release-tag": {
+        type: "string",
+        default: csharpReleaseTag,
+      },
     },
     allowNegative: true,
   });
@@ -130,6 +150,12 @@ export function parseCli(
     rulesetOrg: values["ruleset-org"],
     rulesetRepo: values["ruleset-repo"],
     releaseTag: values["release-tag"],
+  };
+
+  // C# provider specific config
+  const csharp = {
+    csharpBranch: values["csharp-branch"],
+    csharpReleaseTag: values["csharp-release-tag"],
   };
 
   if (values["use-workflow-artifacts"] && values.workflow && values.pr) {
@@ -141,6 +167,7 @@ export function parseCli(
       workflow: values.workflow,
       pr: values.pr,
       ...ruleset,
+      ...csharp,
     };
   }
   if (values["use-workflow-artifacts"] && values.workflow && values.branch) {
@@ -151,6 +178,7 @@ export function parseCli(
       workflow: values.workflow,
       branch: values.branch,
       ...ruleset,
+      ...csharp,
     };
   }
   if (values["use-release"] && values["release-tag"]) {
@@ -160,11 +188,13 @@ export function parseCli(
       repo: values.repo,
       releaseTag: values["release-tag"],
       ...ruleset,
+      ...csharp,
     };
   }
   return {
     org: values.org,
     repo: values.repo,
     ...ruleset,
+    ...csharp,
   };
 }
