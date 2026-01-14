@@ -1,6 +1,6 @@
 {
-  "name": "konveyor",
-  "displayName": "Konveyor Extension for VSCode",
+  "name": "konveyor-core",
+  "displayName": "Konveyor Core Extension",
   "description": "Open-source migration and modernization tool",
   "author": "Konveyor",
   "icon": "resources/icon.png",

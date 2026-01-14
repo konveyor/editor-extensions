@@ -42,7 +42,8 @@
     "vscode/java",
     "vscode/javascript",
     "vscode/go",
-    "vscode/csharp"
+    "vscode/csharp",
+    "vscode/konveyor"
   ],
   "scripts": {
     "prepare": "husky",
@@ -68,6 +69,7 @@
     "package-javascript": "node ./scripts/package-extensions.js javascript",
     "package-go": "node ./scripts/package-extensions.js go",
     "package-csharp": "node ./scripts/package-extensions.js csharp",
+    "package-pack": "node ./scripts/package-extensions.js konveyor",
     "test": "npm run build && npm run test --workspaces --if-present"
   },
   "lint-staged": {

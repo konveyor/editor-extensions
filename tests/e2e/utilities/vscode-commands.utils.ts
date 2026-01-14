@@ -105,7 +105,7 @@ export async function installExtension(): Promise<void> {
     // In CI environments, we might not be able to verify due to V8/ESM loader issues
     // so we'll be more lenient with the verification
     try {
-      if (!isExtensionInstalled('konveyor.konveyor')) {
+      if (!isExtensionInstalled('konveyor.konveyor-core')) {
         if (process.env.CI) {
           console.warn('Warning: Could not verify core extension installation in CI environment');
           console.warn(
@@ -113,7 +113,7 @@ export async function installExtension(): Promise<void> {
           );
           // Don't throw error in CI - assume installation worked if we got this far
         } else {
-          throw new Error('Core extension (konveyor.konveyor) was not installed successfully');
+          throw new Error('Core extension (konveyor.konveyor-core) was not installed successfully');
         }
       }
     } catch (error: any) {

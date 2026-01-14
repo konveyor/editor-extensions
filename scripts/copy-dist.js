@@ -11,12 +11,14 @@ const javaPackage = JSON.parse(fs.readFileSync("vscode/java/package.json", "utf8
 const jsPackage = JSON.parse(fs.readFileSync("vscode/javascript/package.json", "utf8"));
 const goPackage = JSON.parse(fs.readFileSync("vscode/go/package.json", "utf8"));
 const csharpPackage = JSON.parse(fs.readFileSync("vscode/csharp/package.json", "utf8"));
+const konveyorPackage = JSON.parse(fs.readFileSync("vscode/konveyor/package.json", "utf8"));
 
 const CORE_EXTENSION_NAME = corePackage.name; // e.g., "konveyor" or "migration-toolkit-runtimes"
 const JAVA_EXTENSION_NAME = javaPackage.name; // e.g., "konveyor-java" or "migration-toolkit-runtimes-java"
 const JS_EXTENSION_NAME = jsPackage.name; // e.g., "konveyor-javascript" or "migration-toolkit-runtimes-javascript"
 const GO_EXTENSION_NAME = goPackage.name; // e.g., "konveyor-go" or "migration-toolkit-runtimes-go"
 const CSHARP_EXTENSION_NAME = csharpPackage.name; // e.g., "konveyor-csharp"
+const KONVEYOR_PACK_NAME = konveyorPackage.name; // e.g., "konveyor"
 
 console.log(`Building dist for ${CORE_EXTENSION_NAME} (core) extension...`);
 
@@ -353,9 +355,39 @@ await copy({
   ],
 });
 
+console.log(`Building dist for ${KONVEYOR_PACK_NAME} extension pack...`);
+
+// Copy files to `dist/{konveyor-pack-name}/`
+await copy({
+  verbose: true,
+  targets: [
+    {
+      src: "vscode/konveyor/package.json",
+      dest: `dist/${KONVEYOR_PACK_NAME}/`,
+      transform: (contents) => {
+        const packageJson = JSON.parse(contents.toString());
+
+        packageJson.dependencies = undefined;
+        packageJson.devDependencies = undefined;
+        packageJson["lint-staged"] = undefined;
+
+        return JSON.stringify(packageJson, null, 2);
+      },
+    },
+
+    // files from vscode/konveyor
+    {
+      context: "vscode/konveyor",
+      src: ["LICENSE.md", "README.md", "resources/**/*"],
+      dest: `dist/${KONVEYOR_PACK_NAME}/`,
+    },
+  ],
+});
+
 console.log("\nAll extensions built successfully!");
 console.log(`  - dist/${CORE_EXTENSION_NAME}/`);
 console.log(`  - dist/${JAVA_EXTENSION_NAME}/`);
 console.log(`  - dist/${JS_EXTENSION_NAME}/`);
 console.log(`  - dist/${GO_EXTENSION_NAME}/`);
 console.log(`  - dist/${CSHARP_EXTENSION_NAME}/`);
+console.log(`  - dist/${KONVEYOR_PACK_NAME}/`);
