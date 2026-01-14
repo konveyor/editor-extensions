@@ -8,7 +8,7 @@
   "version": "0.4.0",
   "main": "./out/extension.js",
   "publisher": "konveyor",
-  "coreExtensionId": "konveyor.konveyor",
+  "coreExtensionId": "konveyor.konveyor-core",
   "repository": {
     "type": "git",
     "url": "https://github.com/konveyor/editor-extensions"
@@ -32,7 +32,7 @@
     "npm": "^9.5.0 || >=10.5.2"
   },
   "extensionDependencies": [
-    "konveyor.konveyor"
+    "konveyor.konveyor-core"
   ],
   "activationEvents": [
     "onLanguage:csharp",
