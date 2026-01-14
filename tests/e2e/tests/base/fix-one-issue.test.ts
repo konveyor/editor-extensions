@@ -49,10 +49,23 @@ getAvailableProviders().forEach((provider) => {
         FixTypes.Incident,
         ResolutionAction.Accept
       );
-      await expect(vscodeApp.getWindow().getByText('Running analysis:').first()).not.toBeVisible({
+      await expect(
+        vscodeApp
+          .getWindow()
+          .locator('div.notification-list-item')
+          .getByText('Running Analysis')
+          .first()
+      ).toBeVisible({
         timeout: 600000,
       });
-      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
+
+      await expect(
+        vscodeApp
+          .getWindow()
+          .locator('div.notification-list-item')
+          .getByText('Analysis completed')
+          .first()
+      ).toBeVisible({
         timeout: 600000,
       });
       console.log('Analysis completed');
@@ -61,13 +74,11 @@ getAvailableProviders().forEach((provider) => {
         OutputChannel.KonveyorExtensionForVSCode
       );
       const logEntries = parseLogEntries(logOutput);
-
       expect(logEntries.length).toBeGreaterThanOrEqual(1);
 
       const allowedLevels: LogLevel[] = [LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
 
       for (const entry of logEntries) {
-        console.log(`Log entry: ${JSON.stringify(entry)}`);
         expect(
           allowedLevels.includes(entry.level as LogLevel),
           `Log entry had level "${entry.level}", expected one of: ${allowedLevels.join(', ')}. Full entry: ${JSON.stringify(entry)}`

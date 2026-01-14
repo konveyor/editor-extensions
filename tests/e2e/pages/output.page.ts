@@ -1,11 +1,13 @@
 import { expect, Page } from '@playwright/test';
 import { OutputChannel } from '../enums/output.enum';
 import { VSCode } from './vscode.page';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class OutputPanel {
   private static instance: OutputPanel;
   private readonly vsCode: VSCode;
   private readonly window: Page;
+  // TODO: replace boolean for assertions
   private outputOpened: boolean = false;
 
   private constructor(vsCode: VSCode) {
@@ -48,12 +50,7 @@ export class OutputPanel {
       console.log(`Output view already closed`);
       return;
     }
-    const closeBtn = this.window.getByRole('button', { name: /Hide Panel \(Ctrl\+J\)/i });
-    if (await closeBtn.count()) {
-      await closeBtn.first().click();
-    } else {
-      await this.window.keyboard.press('Control+J');
-    }
+    await this.vsCode.executeQuickCommand('View: Hide Panel');
     console.log(`Output view closed`);
     this.outputOpened = false;
   }
@@ -69,9 +66,16 @@ export class OutputPanel {
     filterText?: string
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
-    await this.window.locator('li[role="tab"].action-item.checked a:has-text("Output")').waitFor();
+    const viewLines = this.window.locator('div.view-lines').first();
+    await viewLines.waitFor({ state: 'visible' });
 
-    const rawContent = await this.window.locator('div.view-lines').first().textContent();
+    await this.window.screenshot({
+      path: `${SCREENSHOTS_FOLDER}/extension-output.png`,
+    });
+
+    await expect(viewLines).not.toBeEmpty({ timeout: 10000 });
+
+    const rawContent = await viewLines.textContent();
 
     return rawContent ?? '';
   }

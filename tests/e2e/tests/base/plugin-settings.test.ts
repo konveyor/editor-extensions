@@ -9,7 +9,6 @@ import { TabManager } from '../../pages/tab-manager.page';
 import { VSCode } from '../../pages/vscode.page';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
-import { getChangedFiles } from '../../utilities/utils';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
