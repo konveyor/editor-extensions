@@ -2,8 +2,21 @@
  * Builds a label selector string from included and excluded label arrays
  */
 export function buildLabelSelectorFromLabels(included: string[], excluded: string[] = []): string {
-  const excludedLabels = excluded.map((e) => `!${e}`).join(" && ");
-  return `(${included.join(" || ")}) && ${excludedLabels}`;
+  const includedPart = included.length > 0 ? included.join(" || ") : "";
+  const excludedPart = excluded.length > 0 ? excluded.map((e) => `!${e}`).join(" && ") : "";
+  if (!includedPart && !excludedPart) {
+    return "";
+  }
+
+  if (includedPart && !excludedPart) {
+    return `(${includedPart})`;
+  }
+
+  if (!includedPart && excludedPart) {
+    return excludedPart;
+  }
+
+  return `(${includedPart}) && ${excludedPart}`;
 }
 
 /**
