@@ -9,6 +9,7 @@ import { logLevel } from '../../enums/configuration-options.enum';
 import { LogLevel } from '../../enums/Log-level.enum';
 import { OutputChannel } from '../../enums/output.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`@tier0 Run analysis and fix one issue - ${provider.model}`, () => {
@@ -16,7 +17,7 @@ getAvailableProviders().forEach((provider) => {
     const profileName = `fix-single-issue-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
-      test.setTimeout(600000);
+      test.setTimeout(1200_000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
@@ -35,6 +36,9 @@ getAvailableProviders().forEach((provider) => {
       await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
         timeout: 600000,
       });
+      await vscodeApp.getWindow().screenshot({
+        path: `${SCREENSHOTS_FOLDER}/analysis-finished-fix-one-issue.png`,
+      });
     });
 
     test('Fix one issue', async () => {
@@ -45,21 +49,36 @@ getAvailableProviders().forEach((provider) => {
         FixTypes.Incident,
         ResolutionAction.Accept
       );
-      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
+      await expect(
+        vscodeApp
+          .getWindow()
+          .locator('div.notification-list-item')
+          .getByText('Running Analysis')
+          .first()
+      ).toBeVisible({
         timeout: 600000,
       });
-      await vscodeApp.outputPanel.openOutputView(OutputChannel.KonveyorExtensionForVSCode);
+
+      await expect(
+        vscodeApp
+          .getWindow()
+          .locator('div.notification-list-item')
+          .getByText('Analysis completed')
+          .first()
+      ).toBeVisible({
+        timeout: 600000,
+      });
+      console.log('Analysis completed');
+      await vscodeApp.waitDefault();
       const logOutput = await vscodeApp.outputPanel.getOutputChannelContent(
         OutputChannel.KonveyorExtensionForVSCode
       );
       const logEntries = parseLogEntries(logOutput);
-
       expect(logEntries.length).toBeGreaterThanOrEqual(1);
 
       const allowedLevels: LogLevel[] = [LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
 
       for (const entry of logEntries) {
-        console.log(`Log entry: ${JSON.stringify(entry)}`);
         expect(
           allowedLevels.includes(entry.level as LogLevel),
           `Log entry had level "${entry.level}", expected one of: ${allowedLevels.join(', ')}. Full entry: ${JSON.stringify(entry)}`

@@ -203,16 +203,5 @@ export function isSettingsUpdate(msg: WebviewMessage): msg is SettingsUpdateMess
 }
 
 export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMessage {
-  return (
-    !isAnalysisStateUpdate(msg) &&
-    !isChatMessagesUpdate(msg) &&
-    !isChatMessageStreamingUpdate(msg) &&
-    !isChatStreamingChunk(msg) &&
-    !isSolutionWorkflowUpdate(msg) &&
-    !isServerStateUpdate(msg) &&
-    !isProfilesUpdate(msg) &&
-    !isConfigErrorsUpdate(msg) &&
-    !isDecoratorsUpdate(msg) &&
-    !isSettingsUpdate(msg)
-  );
+  return (msg as any).type === MessageTypes.FULL_STATE_UPDATE;
 }

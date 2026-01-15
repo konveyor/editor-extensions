@@ -112,7 +112,12 @@ export async function unpackAsset({ sourceFile, context, globs, targetDirectory,
   console.group(bold("Unpacking:"), yellow(sourceFile));
   console.log("Destination:", targetDirectory);
   try {
-    meta = await unpackZip({ sourceFile, context, globs, targetDirectory });
+    // Detect archive type based on file extension
+    if (sourceFile.endsWith(".tar.gz") || sourceFile.endsWith(".tgz")) {
+      meta = await unpackTarGz({ sourceFile, globs, targetDirectory });
+    } else {
+      meta = await unpackZip({ sourceFile, context, globs, targetDirectory });
+    }
     console.log(`Extracted ${green(meta.fileSet.length)} items`);
 
     if (chmod) {

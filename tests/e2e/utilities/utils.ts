@@ -8,6 +8,7 @@ import process from 'process';
 import { expect } from '@playwright/test';
 import type { VSCode } from '../pages/vscode.page';
 import { LogEntry } from '../types/log-entry';
+import { HubConfiguration } from '../types/hub-configuration';
 
 export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
@@ -203,4 +204,44 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
   }
 
   return entries;
+}
+
+export function getHubConfig(
+  toEnableSolutionServer: boolean,
+  toEnableAuth: boolean,
+  toSyncProfiles: boolean
+): HubConfiguration {
+  const url = process.env.SOLUTION_SERVER_URL;
+  if (!url) {
+    throw new Error('Missing required URL');
+  }
+
+  const baseConfig: HubConfiguration = {
+    enabled: true,
+    url,
+    skipSSL: true,
+    solutionServerEnabled: toEnableSolutionServer,
+    profileSyncEnabled: toSyncProfiles,
+  };
+
+
+  if (!toEnableAuth) {
+    return baseConfig;
+  }
+
+  const username = process.env.SOLUTION_SERVER_USERNAME;
+  const password = process.env.SOLUTION_SERVER_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error('Missing solution server credentials');
+  }
+
+  return {
+    ...baseConfig,
+    auth: {
+      enabled: true,
+      username,
+      password,
+    },
+  };
 }

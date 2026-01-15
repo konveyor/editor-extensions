@@ -183,7 +183,7 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(this.analysisIsRunning()).resolves.toBe(true);
+      await expect(this.isAnalysisRunning()).resolves.toBe(true);
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
@@ -191,7 +191,7 @@ export abstract class VSCode {
     }
   }
 
-  public async analysisIsRunning(): Promise<boolean> {
+  public async isAnalysisRunning(): Promise<boolean> {
     const analysisView = await this.getView(KAIViews.analysisView);
     return await analysisView.getByText('Analysis Progress').first().isVisible();
   }
@@ -201,6 +201,15 @@ export abstract class VSCode {
       hasText: 'Analysis completed successfully!',
     });
     await expect(notificationLocator).toBeVisible({ timeout: 10 * 60 * 1000 }); // up to 10 minutes
+  }
+
+  public async waitForFileSolutionAccepted(fileName: string): Promise<void> {
+    const notificationLocator = this.window.locator('.notification-list-item-message span', {
+      hasText: new RegExp(
+        `Auto-accepted all diff changes for .*${fileName}.* - saving final state`
+      ),
+    });
+    await expect(notificationLocator).toBeVisible({ timeout: 1 * 60 * 1000 }); // up to 1 minute
   }
 
   /**
@@ -380,7 +389,10 @@ export abstract class VSCode {
       console.log(`Attempting to delete profile: ${profileName}`);
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
       const manageProfileView = await this.getView(KAIViews.manageProfiles);
-
+      await expect(
+        manageProfileView.getByText('Profile editing is temporarily disabled'),
+        'Profile editing is still disabled after waiting for 1 minute'
+      ).not.toBeVisible({ timeout: 60_000 });
       const profileList = manageProfileView.getByRole('list', {
         name: 'Profile list',
       });
@@ -393,10 +405,8 @@ export abstract class VSCode {
       const profileCount = await targetProfile.count();
       if (profileCount === 0) {
         console.log(`Profile '${profileName}' not found in the list`);
-        return; // Profile doesn't exist, nothing to delete
+        return;
       }
-
-      console.log(`Found profile '${profileName}', proceeding with deletion`);
       await targetProfile.click({ timeout: 60000 });
 
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
@@ -408,7 +418,7 @@ export abstract class VSCode {
         .getByRole('dialog', { name: 'Delete profile?' })
         .getByRole('button', { name: 'Confirm' });
       await confirmButton.waitFor({ state: 'visible', timeout: 10000 });
-      await confirmButton.click();
+      await confirmButton.dispatchEvent('click');
 
       // Wait for profile to be removed from the list
       await manageProfileView
@@ -466,33 +476,38 @@ export abstract class VSCode {
       await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
         timeout: 600_000,
       }); // 10 minutes
-      if (resolutionAction === ResolutionAction.Accept) {
-        let fixedFiles: string[] = [];
-        // Parse the "(current of total)" from the header to get file count
-        const reviewHeaderLocator = resolutionView.locator(
-          '.batch-review-expandable-header .batch-review-title'
-        );
-        await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
-        let headerText = await reviewHeaderLocator.textContent();
-        const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
-        const totalFiles = match ? parseInt(match[2], 10) : 1;
-        console.log('Total files found to accept solutions for: ', totalFiles);
-        for (let i = 0; i < totalFiles; i++) {
-          headerText = await reviewHeaderLocator.textContent();
-          const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
-          const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
-          console.log('Reviewing file: ', fileToFix);
-          fixedFiles.push(fileToFix);
-          await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
-          await actionLocator.dispatchEvent('click');
-          console.log('Accepted solution for file: ', fileToFix);
-        }
-        return fixedFiles;
-      } else {
+
+      if (resolutionAction !== ResolutionAction.Accept) {
         await actionLocator.waitFor({ state: 'visible', timeout: 30000 });
         await actionLocator.dispatchEvent('click');
         return [];
       }
+
+      await this.window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/solution-requested.png`,
+      });
+
+      const fixedFiles: string[] = [];
+      // Parse the "(current of total)" from the header to get file count
+      const reviewHeaderLocator = resolutionView.locator(
+        '.batch-review-expandable-header .batch-review-title'
+      );
+      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
+      let headerText = await reviewHeaderLocator.textContent();
+      const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
+      const totalFiles = match ? parseInt(match[2], 10) : 1;
+      console.log('Total files found to accept solutions for: ', totalFiles);
+      for (let i = 0; i < totalFiles; i++) {
+        headerText = await reviewHeaderLocator.textContent();
+        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
+        const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
+        console.log('Reviewing file: ', fileToFix);
+        fixedFiles.push(fileToFix);
+        await actionLocator.waitFor({ state: 'visible', timeout: 10000 });
+        await actionLocator.dispatchEvent('click');
+        console.log('Accepted solution for file: ', fileToFix);
+      }
+      return fixedFiles;
     }
   }
 
@@ -503,7 +518,7 @@ export abstract class VSCode {
 
     // Wait for both conditions to be true concurrently
     await Promise.all([
-      // 1. Wait for the button to be enabled (color is back to default)
+      // 1. Wait for the button to be enabled
       expect(solutionButton.first()).not.toBeDisabled({ timeout: 3600000 }),
 
       // 2. Wait for the blocking overlay to disappear
@@ -616,26 +631,31 @@ export abstract class VSCode {
     await passwordInput.press('Enter');
   }
 
-  public async executeTerminalCommand(command: string, expectedOutput?: string): Promise<void> {
+  public async executeTerminalCommand(
+    command: string,
+    expectedOutput?: string,
+    outputShouldBeVisible: boolean = true
+  ): Promise<void> {
     if (!this.repoDir || !this.branch) {
       throw new Error('executeTerminalCommand requires repoDir and branch to be set');
     }
     if (!(await this.window.getByRole('tab', { name: 'Terminal' }).isVisible())) {
-      await this.executeQuickCommand(`View: Toggle Terminal`);
+      await this.executeQuickCommand(`Terminal: Create New Terminal`);
     }
-
-    await expect(this.window.locator('.terminal-widget-container')).toBeVisible();
-    await this.window.keyboard.type(`cd /projects/${this.repoDir}`);
-    await this.window.keyboard.press('Enter');
-    await expect(this.window.getByText(`${this.repoDir} (${this.branch})`).last()).toBeVisible();
+    const terminalContainerLocator = this.window.locator('.terminal-widget-container').last();
+    await expect(terminalContainerLocator).toBeVisible();
     await this.window.keyboard.type(command);
     await this.window.keyboard.press('Enter');
     if (expectedOutput) {
-      await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
+      if (outputShouldBeVisible) {
+        await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
+      } else {
+        await expect(this.window.getByText(expectedOutput).first()).not.toBeVisible();
+      }
     }
 
     await this.executeQuickCommand(`View: Toggle Terminal`);
-    await expect(this.window.locator('.terminal-widget-container')).not.toBeVisible();
+    await expect(terminalContainerLocator).not.toBeVisible();
   }
 
   public async getIssuesCount(): Promise<number> {

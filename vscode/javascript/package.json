@@ -3,6 +3,7 @@
   "displayName": "Konveyor JavaScript",
   "description": "JavaScript language support for Konveyor migration and modernization",
   "author": "Konveyor",
+  "coreExtensionId": "konveyor.konveyor",
   "icon": "../resources/icon.png",
   "license": "Apache-2.0",
   "version": "0.4.0",

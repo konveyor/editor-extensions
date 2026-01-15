@@ -36,6 +36,9 @@ import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
 import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
+import { runHealthCheck, formatHealthCheckReport } from "./healthCheck";
+import { getHealthCheckRegistry } from "./extension";
+import type { CheckStatus } from "./healthCheck/types";
 import { getRepositoryInfo } from "./utilities/git";
 
 const isWindows = process.platform === "win32";
@@ -949,6 +952,119 @@ const commandsMap: (
         await executeExtensionCommand("acceptDiff", filePath);
       } else if (action?.value === "reject") {
         await executeExtensionCommand("rejectDiff", filePath);
+      }
+    },
+
+    [`${EXTENSION_NAME}.runHealthCheck`]: async () => {
+      logger.info("Running health check command...");
+
+      try {
+        const registry = getHealthCheckRegistry();
+        if (!registry) {
+          const errorMessage = "Health check registry not initialized";
+          logger.error(errorMessage);
+          window.showErrorMessage(`${EXTENSION_NAME}: ${errorMessage}`);
+          return;
+        }
+
+        // Show progress notification
+        await window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Running ${EXTENSION_NAME} Health Check...`,
+            cancellable: false,
+          },
+          async (progress) => {
+            progress.report({ increment: 0, message: "Starting checks..." });
+
+            // Run health checks
+            const healthCheckContext = {
+              logger,
+              state,
+              vscode,
+            };
+
+            const report = await runHealthCheck(healthCheckContext, registry);
+
+            progress.report({ increment: 100, message: "Health check complete" });
+
+            // Format the report
+            const formattedReport = formatHealthCheckReport(report);
+
+            // Write to output channel via logger - split into individual lines
+            // so each line is its own log message (prevents \n from being escaped in JSON)
+            const reportLines = formattedReport.split("\n");
+            reportLines.forEach((line) => logger.info(line));
+
+            // Write report to file in .vscode/konveyor directory
+            let reportFileName: string | null = null;
+            let reportFilePath: vscode.Uri | null = null;
+            try {
+              const dataFolderPath = paths().data;
+              if (dataFolderPath) {
+                const dateString = new Date()
+                  .toISOString()
+                  .replaceAll(":", "")
+                  .replaceAll("-", "")
+                  .substring(0, 15);
+                reportFilePath = vscode.Uri.joinPath(
+                  dataFolderPath,
+                  `health-check_${dateString}.txt`,
+                );
+
+                await vscode.workspace.fs.writeFile(
+                  reportFilePath,
+                  Buffer.from(formattedReport, "utf8"),
+                );
+
+                reportFileName = `health-check_${dateString}.txt`;
+                logger.info(`Health check report written to: ${reportFilePath.fsPath}`);
+              }
+            } catch (fileError) {
+              logger.error("Failed to write health check report to file", { error: fileError });
+            }
+
+            // Show summary notification
+            const detailsText = reportFileName
+              ? `View the Output panel or the log file ${reportFileName} for details.`
+              : "View the Output panel for details.";
+
+            const statusMessages: Record<CheckStatus, string> = {
+              pass: `All checks passed! ${detailsText}`,
+              warning: `Some checks have warnings. ${detailsText}`,
+              fail: `Some checks failed. ${detailsText}`,
+              skip: `Health check completed. ${detailsText}`,
+            };
+
+            const message = `Health Check: ${statusMessages[report.overallStatus]}`;
+
+            const handleSelection = async (selection: string | undefined) => {
+              if (selection === "Open Output Panel") {
+                commands.executeCommand("workbench.action.output.toggleOutput");
+              } else if (selection === "Open Log File" && reportFilePath) {
+                const doc = await vscode.workspace.openTextDocument(reportFilePath);
+                await vscode.window.showTextDocument(doc, { preview: false });
+              }
+            };
+
+            const buttons = reportFilePath
+              ? ["Open Output Panel", "Open Log File"]
+              : ["Open Output Panel"];
+
+            if (report.overallStatus === "pass") {
+              window.showInformationMessage(message, ...buttons).then(handleSelection);
+            } else if (report.overallStatus === "warning") {
+              window.showWarningMessage(message, ...buttons).then(handleSelection);
+            } else {
+              window.showErrorMessage(message, ...buttons).then(handleSelection);
+            }
+          },
+        );
+      } catch (error) {
+        logger.error("Error running health check", { error });
+        window.showErrorMessage(
+          `Health check failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     },
   };
