@@ -11,6 +11,7 @@ import {
   isConfigErrorsUpdate,
   isDecoratorsUpdate,
   isSettingsUpdate,
+  isFocusViolation,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -215,6 +216,12 @@ export function useVSCodeMessageHandler() {
             isSyncingProfiles: message.isSyncingProfiles,
             llmProxyAvailable: message.llmProxyAvailable,
           });
+          return;
+        }
+
+        // Handle focus violation (from tree view "Open Details" action)
+        if (isFocusViolation(message)) {
+          store.setFocusedViolationFilter(message.violationMessage);
           return;
         }
 

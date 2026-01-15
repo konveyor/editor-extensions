@@ -454,10 +454,16 @@ const commandsMap: (
       resolutionProvider?.showWebviewPanel();
     },
     [`${EXTENSION_NAME}.openAnalysisDetails`]: async (item: IncidentTypeItem) => {
-      //TODO: pass the item to webview and move the focus
       logger.info("Open details for item", { item });
-      const resolutionProvider = state.webviewProviders?.get("sidebar");
-      resolutionProvider?.showWebviewPanel();
+      const sidebarProvider = state.webviewProviders?.get("sidebar");
+      sidebarProvider?.showWebviewPanel();
+
+      sidebarProvider?.sendMessageToWebview({
+        type: "FOCUS_VIOLATION",
+        violationId: item.msg,
+        violationMessage: item.msg,
+        timestamp: new Date().toISOString(),
+      });
     },
     [`${EXTENSION_NAME}.fixGroupOfIncidents`]: fixGroupOfIncidents,
     [`${EXTENSION_NAME}.fixIncident`]: fixGroupOfIncidents,

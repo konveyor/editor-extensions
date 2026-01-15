@@ -37,6 +37,7 @@ import { IncidentTableGroup } from "./IncidentTable";
 import { EnhancedIncident, Incident, Category } from "@editor-extensions/shared";
 import GetSolutionDropdown from "./GetSolutionDropdown";
 import { getIncidentFile } from "../utils/incident";
+import { useExtensionStore } from "../store/store";
 
 type GroupByOption = "none" | "file" | "violation";
 
@@ -66,6 +67,29 @@ const ViolationIncidentsList = ({
     groupBy: "violation" as GroupByOption,
     hasSuccessRate: false,
   });
+
+  const focusedViolationFilter = useExtensionStore((state) => state.focusedViolationFilter);
+  const setFocusedViolationFilter = useExtensionStore((state) => state.setFocusedViolationFilter);
+
+  React.useEffect(() => {
+    if (focusedViolationFilter) {
+      setSearchTerm(focusedViolationFilter);
+
+      const matchingIds = enhancedIncidents
+        .filter(
+          (incident) =>
+            incident.message.toLowerCase().includes(focusedViolationFilter.toLowerCase()) ||
+            incident.violation_description?.toLowerCase().includes(focusedViolationFilter.toLowerCase()),
+        )
+        .map((incident) => incident.violationId);
+
+      if (matchingIds.length > 0) {
+        setExpandedViolations(new Set(matchingIds));
+      }
+
+      setFocusedViolationFilter(null);
+    }
+  }, [focusedViolationFilter, setFocusedViolationFilter, enhancedIncidents, setExpandedViolations]);
 
   const onCategorySelect = (
     _event: React.MouseEvent | undefined,
