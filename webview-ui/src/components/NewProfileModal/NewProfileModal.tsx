@@ -4,6 +4,9 @@ import {
   Form,
   FormGroup,
   FormGroupLabelHelp,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   Modal,
   ModalBody,
   ModalFooter,
@@ -16,6 +19,8 @@ import {
   SelectOption,
   Checkbox,
 } from "@patternfly/react-core";
+
+const MAX_PROFILE_NAME_LENGTH = 24;
 
 interface NewProfileModalProps {
   isOpen: boolean;
@@ -82,9 +87,17 @@ export const NewProfileModal: React.FC<NewProfileModalProps> = ({ isOpen, onClos
             <TextInput
               id="profile-name"
               value={name}
-              onChange={(_, val) => setName(val)}
+              onChange={(_, val) => setName(val.slice(0, MAX_PROFILE_NAME_LENGTH))}
               isRequired
+              maxLength={MAX_PROFILE_NAME_LENGTH}
             />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  {name.length}/{MAX_PROFILE_NAME_LENGTH} characters
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           </FormGroup>
 
           <FormGroup

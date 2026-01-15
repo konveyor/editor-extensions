@@ -34,6 +34,8 @@ import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 import { buildLabelSelector } from "@editor-extensions/shared";
 import { getBrandName } from "../../utils/branding";
 
+const MAX_PROFILE_NAME_LENGTH = 24;
+
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -113,7 +115,8 @@ export const ProfileEditorForm: React.FC<{
   }, [profile]);
 
   const handleInputChange = (value: string, field: keyof AnalysisProfile) => {
-    const updated = { ...localProfile, [field]: value };
+    const processedValue = field === "name" ? value.slice(0, MAX_PROFILE_NAME_LENGTH) : value;
+    const updated = { ...localProfile, [field]: processedValue };
     setLocalProfile(updated);
   };
 
@@ -264,12 +267,21 @@ export const ProfileEditorForm: React.FC<{
           onChange={(_e, value) => handleInputChange(value, "name")}
           onBlur={handleBlur}
           validated={nameValidation}
+          maxLength={MAX_PROFILE_NAME_LENGTH}
         />
-        {nameErrorMsg && (
+        {nameErrorMsg ? (
           <FormHelperText>
             <HelperText>
               <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
                 {nameErrorMsg}
+              </HelperTextItem>
+            </HelperText>
+          </FormHelperText>
+        ) : (
+          <FormHelperText>
+            <HelperText>
+              <HelperTextItem>
+                {localProfile.name.length}/{MAX_PROFILE_NAME_LENGTH} characters
               </HelperTextItem>
             </HelperText>
           </FormHelperText>
