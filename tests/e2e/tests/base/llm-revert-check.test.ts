@@ -18,7 +18,7 @@ import { ResolutionAction } from '../../enums/resolution-action.enum';
  * - Ensures earlier fixes are not reverted by later ones.
  */
 getAvailableProviders().forEach((provider) => {
-  test.describe(`@tier1 LLM Revertion tests | ${provider.model}`, () => {
+  test.describe(`LLM Revertion tests | ${provider.model}`, { tag: ['@tier1'] }, () => {
     let vscodeApp: VSCode;
     const profileName = `llm-reversion-${generateRandomString()}`;
     let repoInfo: RepoData[string];

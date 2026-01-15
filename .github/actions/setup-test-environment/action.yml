@@ -1,0 +1,77 @@
+name: "Setup E2E Test Environment"
+description: "Sets up the common environment for E2E tests"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ".nvmrc"
+        cache: "npm"
+
+    - name: Install VSCode dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y wget
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: "oracle"
+        java-version: "17"
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.23"
+
+    - name: Download and Install VSCode
+      shell: bash
+      run: |
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+        sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+        echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+        rm -f packages.microsoft.gpg
+        sudo apt install apt-transport-https -y
+        sudo apt update
+        sudo apt install code -y
+
+    - name: Set up virtual X11
+      shell: bash
+      run: |
+        sudo apt-get install -y \
+          xvfb x11-xserver-utils dbus-x11 \
+          xfonts-100dpi xfonts-75dpi libxrender1 \
+          libxext6 libx11-6 xfonts-base \
+          nickle cairo-5c xorg-docs-core
+
+    - name: Set DISPLAY environment variable
+      shell: bash
+      run: |
+        Xvfb :99 -screen 0 1920x1080x24 &
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
+    - name: Start Dbus
+      shell: bash
+      run: |
+        dbus-launch --exit-with-session &
+        sudo service dbus start
+        export XDG_RUNTIME_DIR=/run/user/$(id -u)
+        sudo mkdir -p $XDG_RUNTIME_DIR
+        sudo chmod 700 $XDG_RUNTIME_DIR
+        sudo chown $(id -un):$(id -gn) $XDG_RUNTIME_DIR
+        export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
+        dbus-daemon --session --address=$DBUS_SESSION_BUS_ADDRESS --nofork --nopidfile --syslog-only &
+        mkdir -p ~/.vscode && echo '{ "disable-hardware-acceleration": true }' > ~/.vscode/argv.json
+
+    - name: Verify Installation
+      shell: bash
+      run: code --version
+
+    - name: Ensure no VSCode instances are running
+      shell: bash
+      run: pkill -f code || true
+
+    - name: Install test dependencies
+      shell: bash
+      run: npm ci
+      working-directory: ./tests
