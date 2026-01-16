@@ -53,7 +53,7 @@ test.describe(
 
       // Verify local profile is NOT visible
       const localProfile = analysisView.getByRole('button', {
-        name: 'local profile',
+        name: /local profile-.*/i,
       });
       await expect(localProfile).not.toBeVisible();
 
