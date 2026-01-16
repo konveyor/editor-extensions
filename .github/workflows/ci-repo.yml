@@ -28,6 +28,26 @@ env:
   HUSKY: 0
 
 jobs:
+  validate-test-tags:
+    runs-on: ubuntu-latest
+    name: Validate E2E Test Tags
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install test dependencies
+        run: npm ci
+        working-directory: ./tests
+
+      - name: Validate test tags
+        run: scripts/validate-test-tags.sh
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
