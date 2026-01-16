@@ -268,6 +268,7 @@ export function useVSCodeMessageHandler() {
             profileSyncConnected: message.profileSyncConnected ?? false,
             isSyncingProfiles: message.isSyncingProfiles ?? false,
             llmProxyAvailable: message.llmProxyAvailable ?? false,
+            isWebEnvironment: message.isWebEnvironment ?? false,
           });
         }
       } catch (error) {

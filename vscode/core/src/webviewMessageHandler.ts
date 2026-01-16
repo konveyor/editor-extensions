@@ -5,6 +5,7 @@ import {
   ADD_PROFILE,
   AnalysisProfile,
   CONFIGURE_CUSTOM_RULES,
+  UPLOAD_CUSTOM_RULES,
   DELETE_PROFILE,
   GET_SOLUTION,
   GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
@@ -293,6 +294,100 @@ const actions: {
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
+  },
+
+  /**
+   * Handle custom rules uploaded from the webview (used in web environments like DevSpaces)
+   * Files are uploaded from the user's local PC and saved to the workspace
+   */
+  [UPLOAD_CUSTOM_RULES]: async ({ profileId, files }, state, logger) => {
+    try {
+      if (!files || files.length === 0) {
+        logger.warn("No files provided for upload");
+        return;
+      }
+
+      const profile = state.data.profiles.find((p) => p.id === profileId);
+      if (!profile) {
+        vscode.window.showErrorMessage("Profile not found.");
+        return;
+      }
+
+      // Get workspace folder to save custom rules
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("No workspace folder open.");
+        return;
+      }
+
+      const workspaceRoot = workspaceFolders[0].uri;
+      const customRulesDir = vscode.Uri.joinPath(workspaceRoot, ".konveyor", "custom-rules");
+
+      try {
+        await vscode.workspace.fs.createDirectory(customRulesDir);
+      } catch {
+        // Directory may already exist
+      }
+
+      const savedPaths: string[] = [];
+
+      for (const file of files) {
+        const { name, content } = file;
+
+        if (!name.endsWith(".yaml") && !name.endsWith(".yml")) {
+          logger.warn(`Skipping non-YAML file: ${name}`);
+          continue;
+        }
+
+        const fileUri = vscode.Uri.joinPath(customRulesDir, name);
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(fileUri, encoder.encode(content));
+
+        savedPaths.push(fileUri.fsPath);
+        logger.info(`Saved custom rule file: ${fileUri.fsPath}`);
+      }
+
+      if (savedPaths.length === 0) {
+        vscode.window.showWarningMessage("No valid YAML rule files were uploaded.");
+        return;
+      }
+
+      const updated = {
+        ...profile,
+        customRules: Array.from(new Set([...(profile.customRules ?? []), ...savedPaths])),
+      };
+
+      const isActiveProfile = state.data.activeProfileId === profileId;
+
+      const userProfiles = getUserProfiles(state.extensionContext).map((p) =>
+        p.id === updated.id ? updated : p,
+      );
+      await saveUserProfiles(state.extensionContext, userProfiles);
+
+      state.mutateProfiles((draft) => {
+        const target = draft.profiles.find((p) => p.id === updated.id);
+        if (target) {
+          Object.assign(target, updated);
+        }
+      });
+
+      vscode.window.showInformationMessage(
+        `Uploaded ${savedPaths.length} custom rule file(s) to "${updated.name}"`,
+      );
+
+      if (isActiveProfile && state.analyzerClient.isServerRunning()) {
+        logger.info(
+          "Custom rules updated for active profile, stopping analyzer server to apply changes",
+        );
+        await state.analyzerClient.stop();
+        vscode.window.showInformationMessage(
+          "Custom rules updated. Analyzer server stopped. Please restart the server to apply changes.",
+        );
+      }
+    } catch (error) {
+      logger.error("Failed to upload custom rules:", error);
+      vscode.window.showErrorMessage(`Failed to upload custom rules: ${error}`);
+    }
   },
 
   [OVERRIDE_ANALYZER_BINARIES]() {

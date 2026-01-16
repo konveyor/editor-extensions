@@ -83,6 +83,8 @@ class VsCodeExtension {
       vscode.StatusBarAlignment.Right,
       100,
     );
+    const isWebEnvironment = vscode.env.uiKind === vscode.UIKind.Web;
+
     this.data = produce(
       {
         ruleSets: [],
@@ -116,6 +118,7 @@ class VsCodeExtension {
         profileSyncConnected: false,
         isSyncingProfiles: false,
         llmProxyAvailable: false, // Will be updated after hub initialization
+        isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
