@@ -136,10 +136,10 @@ Manages Konveyor Hub:
 
 All extension commands:
 
-- `konveyor.runAnalysis` - Start analysis
-- `konveyor.startServer` / `stopServer` - Manage server
-- `konveyor.fixIncident` - Get AI solution
-- `konveyor.showAnalysisPanel` - Open analysis view
+- `konveyor-core.runAnalysis` - Start analysis
+- `konveyor-core.startServer` / `stopServer` - Manage server
+- `konveyor-core.fixIncident` - Get AI solution
+- `konveyor-core.showAnalysisPanel` - Open analysis view
 - And many more...
 
 **Adding a command**:
@@ -193,17 +193,17 @@ webview.onDidReceiveMessage((message) => {
 ```typescript
 import * as vscode from "vscode";
 
-const config = vscode.workspace.getConfiguration("konveyor");
+const config = vscode.workspace.getConfiguration("konveyor-core");
 const logLevel = config.get<string>("logLevel", "debug");
 const agentMode = config.get<boolean>("genai.agentMode", false);
 ```
 
 **Key settings**:
 
-- `konveyor.logLevel` - Logging verbosity
-- `konveyor.genai.enabled` - Enable AI features
-- `konveyor.genai.agentMode` - Automated fixes
-- `konveyor.analysis.analyzeOnSave` - Auto-analyze on save
+- `konveyor-core.logLevel` - Logging verbosity
+- `konveyor-core.genai.enabled` - Enable AI features
+- `konveyor-core.genai.agentMode` - Automated fixes
+- `konveyor-core.analysis.analyzeOnSave` - Auto-analyze on save
 
 ## Model Providers
 

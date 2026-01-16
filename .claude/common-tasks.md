@@ -201,7 +201,7 @@ You need to add a new command that users can run.
      "contributes": {
        "commands": [
          {
-           "command": "konveyor.myNewCommand",
+           "command": "konveyor-core.myNewCommand",
            "title": "My New Command",
            "category": "Konveyor",
            "icon": "$(symbol-event)"
@@ -242,7 +242,7 @@ You need to add a new command that users can run.
      extension: VsCodeExtension,
    ) {
      context.subscriptions.push(
-       vscode.commands.registerCommand("konveyor.myNewCommand", () => myNewCommand(extension)),
+       vscode.commands.registerCommand("konveyor-core.myNewCommand", () => myNewCommand(extension)),
      );
      // ... other commands
    }

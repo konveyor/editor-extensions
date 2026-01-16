@@ -1,6 +1,6 @@
 {
-  "name": "konveyor",
-  "displayName": "Konveyor Extension for VSCode",
+  "name": "konveyor-core",
+  "displayName": "Konveyor Core Extension",
   "description": "Open-source migration and modernization tool",
   "author": "Konveyor",
   "icon": "resources/icon.png",
@@ -41,159 +41,159 @@
   "contributes": {
     "commands": [
       {
-        "command": "konveyor.openProfilesPanel",
+        "command": "konveyor-core.openProfilesPanel",
         "title": "Manage Analysis Profile",
         "category": "Konveyor",
         "icon": "$(settings-gear)"
       },
       {
-        "command": "konveyor.modelProviderSettingsOpen",
+        "command": "konveyor-core.modelProviderSettingsOpen",
         "title": "Open the GenAI model provider configuration file",
         "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.modelProviderSettingsBackupReset",
+        "command": "konveyor-core.modelProviderSettingsBackupReset",
         "title": "Open the default the GenAI model provider configuration file and backup the current file",
         "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.showAnalysisPanel",
+        "command": "konveyor-core.showAnalysisPanel",
         "title": "Open Analysis View",
         "category": "Konveyor",
         "icon": "$(book)"
       },
       {
-        "command": "konveyor.showResolutionPanel",
+        "command": "konveyor-core.showResolutionPanel",
         "title": "Open Resolution View",
         "category": "Konveyor",
         "icon": "$(beaker)"
       },
       {
-        "command": "konveyor.expandAllIssues",
+        "command": "konveyor-core.expandAllIssues",
         "title": "Expand All",
         "category": "Konveyor",
         "icon": "$(expand-all)"
       },
       {
-        "command": "konveyor.expandSingleIssue",
+        "command": "konveyor-core.expandSingleIssue",
         "title": "Expand All",
         "category": "Konveyor",
         "icon": "$(expand-all)"
       },
       {
-        "command": "konveyor.fixGroupOfIncidents",
+        "command": "konveyor-core.fixGroupOfIncidents",
         "title": "Resolve incidents",
         "category": "Konveyor",
         "icon": "$(debug-console)"
       },
       {
-        "command": "konveyor.fixIncident",
+        "command": "konveyor-core.fixIncident",
         "title": "Resolve incident",
         "category": "Konveyor",
         "icon": "$(debug-console)"
       },
       {
-        "command": "konveyor.openAnalysisDetails",
+        "command": "konveyor-core.openAnalysisDetails",
         "title": "Open Details",
         "category": "Konveyor",
         "icon": "$(book)"
       },
       {
-        "command": "konveyor.overrideAnalyzerBinaries",
+        "command": "konveyor-core.overrideAnalyzerBinaries",
         "title": "Override Analyzer Binary",
         "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.configureCustomRules",
+        "command": "konveyor-core.configureCustomRules",
         "title": "Configure Custom Rules",
         "category": "Konveyor",
         "icon": "$(gear)"
       },
       {
-        "command": "konveyor.startServer",
+        "command": "konveyor-core.startServer",
         "title": "Start Server",
         "category": "Konveyor",
         "icon": "$(play)"
       },
       {
-        "command": "konveyor.stopServer",
+        "command": "konveyor-core.stopServer",
         "title": "Stop Server",
         "category": "Konveyor",
         "icon": "$(stop)"
       },
       {
-        "command": "konveyor.restartServer",
+        "command": "konveyor-core.restartServer",
         "title": "Restart Server",
         "category": "Konveyor",
         "icon": "$(restart)"
       },
       {
-        "command": "konveyor.restartSolutionServer",
+        "command": "konveyor-core.restartSolutionServer",
         "title": "Restart Solution Server",
         "category": "Konveyor",
         "icon": "$(restart)"
       },
       {
-        "command": "konveyor.runAnalysis",
+        "command": "konveyor-core.runAnalysis",
         "title": "Run Analysis",
         "category": "Konveyor",
         "icon": "$(play)"
       },
       {
-        "command": "konveyor.loadStaticResults",
+        "command": "konveyor-core.loadStaticResults",
         "title": "Load results from files",
         "category": "Konveyor"
       },
       {
-        "command": "konveyor.loadResultsFromDataFolder",
+        "command": "konveyor-core.loadResultsFromDataFolder",
         "title": "Reload results",
         "category": "Konveyor"
       },
       {
-        "command": "konveyor.cleanRuleSets",
+        "command": "konveyor-core.cleanRuleSets",
         "title": "Reset analysis results",
         "category": "Konveyor"
       },
       {
-        "command": "konveyor.loadRuleSets",
+        "command": "konveyor-core.loadRuleSets",
         "title": "Load analysis results",
         "category": "Konveyor"
       },
       {
-        "command": "konveyor.generateDebugArchive",
+        "command": "konveyor-core.generateDebugArchive",
         "title": "Generate Debug Archive",
         "category": "Konveyor",
         "icon": "$(bug)"
       },
       {
-        "command": "konveyor.configureSolutionServerCredentials",
+        "command": "konveyor-core.configureSolutionServerCredentials",
         "title": "Configure Solution Server Credentials",
         "category": "Konveyor",
         "icon": "$(key)"
       },
       {
-        "command": "konveyor.showDiffActions",
+        "command": "konveyor-core.showDiffActions",
         "title": "Show Diff Actions",
         "category": "Konveyor",
         "icon": "$(diff)"
       },
       {
-        "command": "konveyor.runHealthCheck",
+        "command": "konveyor-core.runHealthCheck",
         "title": "Run Health Check",
         "category": "Konveyor",
         "icon": "$(pulse)"
       },
       {
-        "command": "konveyor.syncHubProfiles",
+        "command": "konveyor-core.syncHubProfiles",
         "title": "Sync Profiles from Hub",
         "category": "Konveyor",
         "icon": "$(sync)"
       },
       {
-        "command": "konveyor.retryProfileSync",
+        "command": "konveyor-core.retryProfileSync",
         "title": "Retry Profile Sync Connection",
         "category": "Konveyor",
         "icon": "$(debug-restart)"
@@ -201,7 +201,7 @@
     ],
     "submenus": [
       {
-        "id": "konveyor.submenu",
+        "id": "konveyor-core.submenu",
         "label": "Konveyor Actions"
       }
     ],
@@ -217,7 +217,7 @@
     "views": {
       "konveyor": [
         {
-          "id": "konveyor.issueView",
+          "id": "konveyor-core.issueView",
           "name": "Issues"
         }
       ]
@@ -225,57 +225,57 @@
     "menus": {
       "view/title": [
         {
-          "command": "konveyor.showAnalysisPanel",
+          "command": "konveyor-core.showAnalysisPanel",
           "group": "navigation@1",
-          "when": "view == konveyor.issueView"
+          "when": "view == konveyor-core.issueView"
         },
         {
-          "command": "konveyor.showResolutionPanel",
+          "command": "konveyor-core.showResolutionPanel",
           "group": "navigation@2",
-          "when": "view == konveyor.issueView"
+          "when": "view == konveyor-core.issueView"
         },
         {
-          "command": "konveyor.expandAllIssues",
+          "command": "konveyor-core.expandAllIssues",
           "group": "navigation@3",
-          "when": "view == konveyor.issueView"
+          "when": "view == konveyor-core.issueView"
         }
       ],
       "view/item/context": [
         {
-          "command": "konveyor.fixGroupOfIncidents",
+          "command": "konveyor-core.fixGroupOfIncidents",
           "group": "inline@3",
-          "when": "view == konveyor.issueView && viewItem == incident-type-item"
+          "when": "view == konveyor-core.issueView && viewItem == incident-type-item"
         },
         {
-          "command": "konveyor.fixIncident",
+          "command": "konveyor-core.fixIncident",
           "group": "inline@1",
-          "when": "view == konveyor.issueView && viewItem == reference-item"
+          "when": "view == konveyor-core.issueView && viewItem == reference-item"
         },
         {
-          "command": "konveyor.expandSingleIssue",
+          "command": "konveyor-core.expandSingleIssue",
           "group": "inline@2",
-          "when": "view == konveyor.issueView && viewItem == incident-type-item"
+          "when": "view == konveyor-core.issueView && viewItem == incident-type-item"
         },
         {
-          "command": "konveyor.openAnalysisDetails",
+          "command": "konveyor-core.openAnalysisDetails",
           "group": "inline@1",
-          "when": "view == konveyor.issueView && viewItem == incident-type-item"
+          "when": "view == konveyor-core.issueView && viewItem == incident-type-item"
         }
       ],
       "explorer/context": [
         {
-          "submenu": "konveyor.submenu",
+          "submenu": "konveyor-core.submenu",
           "group": "navigation@1"
         }
       ],
-      "konveyor.submenu": [],
+      "konveyor-core.submenu": [],
       "commandPalette": [
         {
-          "command": "konveyor.expandSingleIssue",
+          "command": "konveyor-core.expandSingleIssue",
           "when": "never"
         },
         {
-          "command": "konveyor.loadRuleSets",
+          "command": "konveyor-core.loadRuleSets",
           "when": "never"
         }
       ]
@@ -284,7 +284,7 @@
       "type": "object",
       "title": "Konveyor",
       "properties": {
-        "konveyor.logLevel": {
+        "konveyor-core.logLevel": {
           "type": "string",
           "enum": [
             "error",
@@ -300,42 +300,42 @@
           "scope": "window",
           "order": 1
         },
-        "konveyor.analyzerPath": {
+        "konveyor-core.analyzerPath": {
           "type": "string",
           "default": "",
           "description": "Path to the analyzer binary. If not set, the extension will use the bundled binary.",
           "scope": "resource",
           "order": 2
         },
-        "konveyor.diff.autoAcceptOnSave": {
+        "konveyor-core.diff.autoAcceptOnSave": {
           "type": "boolean",
           "default": false,
           "description": "Automatically apply diff changes when saving files.",
           "scope": "window",
           "order": 3
         },
-        "konveyor.analysis.analyzeOnSave": {
+        "konveyor-core.analysis.analyzeOnSave": {
           "type": "boolean",
           "default": true,
           "description": "Should analysis of file be run when it is saved? (Automatically enabled when Agent Mode is active)",
           "scope": "window",
           "order": 10
         },
-        "konveyor.genai.enabled": {
+        "konveyor-core.genai.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable GenAI functionality for solution generation.",
           "scope": "window",
           "order": 20
         },
-        "konveyor.genai.agentMode": {
+        "konveyor-core.genai.agentMode": {
           "type": "boolean",
           "default": false,
           "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
           "scope": "window",
           "order": 21
         },
-        "konveyor.genai.excludedDiagnosticSources": {
+        "konveyor-core.genai.excludedDiagnosticSources": {
           "type": "array",
           "default": [
             "trunk"
@@ -344,7 +344,7 @@
           "scope": "window",
           "order": 22
         },
-        "konveyor.genai.cacheDir": {
+        "konveyor-core.genai.cacheDir": {
           "type": [
             "string",
             "null"
@@ -354,7 +354,7 @@
           "scope": "window",
           "order": 23
         },
-        "konveyor.genai.traceDir": {
+        "konveyor-core.genai.traceDir": {
           "type": [
             "string",
             "null"
@@ -364,21 +364,21 @@
           "scope": "window",
           "order": 24
         },
-        "konveyor.genai.traceEnabled": {
+        "konveyor-core.genai.traceEnabled": {
           "type": "boolean",
           "default": false,
           "description": "Whether to create traces of the communication with the model",
           "scope": "window",
           "order": 25
         },
-        "konveyor.genai.demoMode": {
+        "konveyor-core.genai.demoMode": {
           "type": "boolean",
           "default": false,
           "description": "Whether to run GenAI in demo mode i.e. use cached LLM responses",
           "scope": "window",
           "order": 26
         },
-        "konveyor.genai.httpProtocol": {
+        "konveyor-core.genai.httpProtocol": {
           "type": "string",
           "enum": [
             "http1",
@@ -393,7 +393,7 @@
           "scope": "window",
           "order": 27
         },
-        "konveyor.debug.webview": {
+        "konveyor-core.debug.webview": {
           "type": "boolean",
           "default": false,
           "description": "Enable debug logging for webview message handling",

@@ -228,11 +228,11 @@ Extension settings are defined in `vscode/core/package.json` under `contributes.
 
 ```json
 {
-  "konveyor.logLevel": "debug",
-  "konveyor.analyzerPath": "",
-  "konveyor.genai.enabled": true,
-  "konveyor.genai.agentMode": false,
-  "konveyor.analysis.analyzeOnSave": true
+  "konveyor-core.logLevel": "debug",
+  "konveyor-core.analyzerPath": "",
+  "konveyor-core.genai.enabled": true,
+  "konveyor-core.genai.agentMode": false,
+  "konveyor-core.analysis.analyzeOnSave": true
 }
 ```
 
@@ -241,7 +241,7 @@ Extension settings are defined in `vscode/core/package.json` under `contributes.
 ```typescript
 import * as vscode from "vscode";
 
-const config = vscode.workspace.getConfiguration("konveyor");
+const config = vscode.workspace.getConfiguration("konveyor-core");
 const logLevel = config.get<string>("logLevel", "debug");
 const agentMode = config.get<boolean>("genai.agentMode", false);
 ```
@@ -299,17 +299,17 @@ All commands are registered in `vscode/core/src/commands/`:
 
 Key commands:
 
-- `konveyor.runAnalysis` - Start analysis
-- `konveyor.startServer` / `konveyor.stopServer` - Manage server
-- `konveyor.fixIncident` - Get AI solution for incident
-- `konveyor.showAnalysisPanel` - Open analysis webview
-- `konveyor.showResolutionPanel` - Open solution webview
+- `konveyor-core.runAnalysis` - Start analysis
+- `konveyor-core.startServer` / `konveyor-core.stopServer` - Manage server
+- `konveyor-core.fixIncident` - Get AI solution for incident
+- `konveyor-core.showAnalysisPanel` - Open analysis webview
+- `konveyor-core.showResolutionPanel` - Open solution webview
 
 **Command registration**:
 
 ```typescript
 context.subscriptions.push(
-  vscode.commands.registerCommand("konveyor.runAnalysis", async () => {
+  vscode.commands.registerCommand("konveyor-core.runAnalysis", async () => {
     await extension.runAnalysis();
   }),
 );

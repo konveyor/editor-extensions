@@ -3,7 +3,7 @@
   "displayName": "Konveyor Java",
   "description": "Java language support for Konveyor migration and modernization",
   "author": "Konveyor",
-  "coreExtensionId": "konveyor.konveyor",
+  "coreExtensionId": "konveyor.konveyor-core",
   "icon": "../resources/icon.png",
   "license": "Apache-2.0",
   "version": "0.4.0",
@@ -29,7 +29,7 @@
     "npm": "^9.5.0 || >=10.5.2"
   },
   "extensionDependencies": [
-    "konveyor.konveyor",
+    "konveyor.konveyor-core",
     "redhat.java"
   ],
   "activationEvents": [
