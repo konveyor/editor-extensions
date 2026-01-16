@@ -5,14 +5,10 @@ import { extensionName } from '../../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
-const SOLUTION_SERVER_URL = process.env.SOLUTION_SERVER_URL;
+const SOLUTION_SERVER_URL = process.env.SOLUTION_SERVER_URL ?? '';
 const SOLUTION_SERVER_REALM = process.env.SOLUTION_SERVER_REALM ?? 'tackle';
 const SOLUTION_SERVER_USERNAME = process.env.SOLUTION_SERVER_USERNAME ?? 'admin';
 const SOLUTION_SERVER_PASSWORD = process.env.SOLUTION_SERVER_PASSWORD ?? 'Dog8code';
-
-if (!SOLUTION_SERVER_URL) {
-  throw new Error('SOLUTION_SERVER_URL environment variable is required');
-}
 
 type SolutionServerConfig = {
   name: string;
@@ -67,44 +63,53 @@ const buildSettings = (config: SolutionServerConfig) => ({
   },
 });
 
-test.describe(`Configure Solution Server settings`, () => {
-  let vscodeApp: VSCode;
-  let repoInfo: RepoData[string];
+test.describe(
+  `Configure Solution Server settings`,
+  { tag: ['@tier1', '@requires-minikube'] },
+  () => {
+    let vscodeApp: VSCode;
+    let repoInfo: RepoData[string];
 
-  test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(900000);
-    repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
-    await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
-    await vscodeApp.openWorkspaceSettingsAndWrite(buildSettings(solutionServerConfigs[0]), true);
-    await vscodeApp.waitDefault();
-    await vscodeApp.configureSolutionServerCredentials(
-      SOLUTION_SERVER_USERNAME,
-      SOLUTION_SERVER_PASSWORD
-    );
-    await vscodeApp.startServer();
-  });
+    test.beforeAll(async ({ testRepoData }) => {
+      test.setTimeout(900000);
 
-  test('Different solution server settings', async () => {
-    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-
-    for (const scenario of solutionServerConfigs) {
-      console.log(`🔧 Testing scenario: ${scenario.name}`);
-      const settings = buildSettings(scenario);
-      await vscodeApp.openWorkspaceSettingsAndWrite(settings, true);
-      await vscodeApp.waitDefault();
-
-      if (scenario.shouldConnect) {
-        await expect(
-          analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
-        ).not.toBeVisible();
-        console.log(`✅ PASSED: ${scenario.name} — Solution Server connected successfully`);
-      } else {
-        await expect(
-          analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
-        ).toBeVisible();
-        console.log(`✅ PASSED: ${scenario.name} — Warning displayed as expected`);
+      if (!SOLUTION_SERVER_URL) {
+        throw new Error('SOLUTION_SERVER_URL environment variable is required');
       }
-    }
-  });
-});
+
+      repoInfo = testRepoData['coolstore'];
+      vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
+      await vscodeApp.openWorkspaceSettingsAndWrite(buildSettings(solutionServerConfigs[0]));
+      await vscodeApp.waitDefault();
+      await vscodeApp.configureSolutionServerCredentials(
+        SOLUTION_SERVER_USERNAME,
+        SOLUTION_SERVER_PASSWORD
+      );
+      await vscodeApp.startServer();
+    });
+
+    test('Different solution server settings', async () => {
+      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+
+      for (const scenario of solutionServerConfigs) {
+        console.log(`🔧 Testing scenario: ${scenario.name}`);
+        const settings = buildSettings(scenario);
+        await vscodeApp.openWorkspaceSettingsAndWrite(settings);
+        await vscodeApp.waitDefault();
+
+        if (scenario.shouldConnect) {
+          await expect(
+            analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
+          ).not.toBeVisible();
+          console.log(`✅ PASSED: ${scenario.name} — Solution Server connected successfully`);
+        } else {
+          await expect(
+            analysisView.getByRole('heading', { name: 'Warning alert: Solution' })
+          ).toBeVisible();
+          console.log(`✅ PASSED: ${scenario.name} — Warning displayed as expected`);
+        }
+      }
+    });
+  }
+);

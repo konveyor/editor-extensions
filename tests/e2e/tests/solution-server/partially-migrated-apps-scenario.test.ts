@@ -444,7 +444,7 @@ class SolutionServerWorkflowHelper {
   }
 }
 
-test.describe.serial('Solution Server Workflow', () => {
+test.describe.serial('Solution Server Workflow', { tag: ['@tier1', '@requires-minikube'] }, () => {
   let helper: SolutionServerWorkflowHelper;
   let mcpClient: MCPClient;
   let vsCode: VSCode | undefined;

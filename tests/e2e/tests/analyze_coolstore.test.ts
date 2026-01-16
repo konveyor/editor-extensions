@@ -14,7 +14,7 @@ import { FixTypes } from '../enums/fix-types.enum';
 const providers = process.env.CI ? getAvailableProviders() : [DEFAULT_PROVIDER];
 
 providers.forEach((config) => {
-  test.describe(`Coolstore app tests | ${config.model}`, () => {
+  test.describe(`Coolstore app tests | ${config.model}`, { tag: ['@tier3'] }, () => {
     let vscodeApp: VSCode;
     let allOk = true;
     const randomString = generateRandomString();

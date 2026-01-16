@@ -7,7 +7,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 const testReposPath = pathlib.join(__dirname, '../../fixtures/test-repos.json');
 const testReposData: RepoData = JSON.parse(readFileSync(testReposPath, 'utf-8'));
 
-test.describe('Run analysis for different repositories', () => {
+test.describe('Run analysis for different repositories', { tag: ['@tier2'] }, () => {
   const entries = Object.entries(testReposData) as [keyof RepoData, RepoData[keyof RepoData]][];
 
   for (const [repoKey, repoInfo] of entries) {
