@@ -188,6 +188,7 @@ const AnalysisPage: React.FC = () => {
                             onClick={() => setIsConfigOpen(true)}
                             hasWarning={rawConfigErrors.length > 0}
                             warningMessage="Please review your configuration before running analysis."
+                            id="analysis-configuration-button"
                           />
                         </ToolbarItem>
                       </ToolbarGroup>

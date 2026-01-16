@@ -53,6 +53,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
       onOpenChange={setIsOpen}
       toggle={(ref) => (
         <MenuToggle
+          id="profile-selector-dropdown"
           ref={ref || toggleRef}
           onClick={() => setIsOpen((prev) => !prev)}
           isExpanded={isOpen}
@@ -62,7 +63,6 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
           {selected?.name ?? "Select a profile"}
         </MenuToggle>
       )}
-      id="profile-selector-dropdown"
     >
       <MenuSearch>
         <MenuSearchInput>
@@ -114,6 +114,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({
 
           <DropdownItem
             key="manage-profiles"
+            id="manage-profiles-dropdown-item"
             onClick={() => {
               setIsOpen(false);
               onManageProfiles();

@@ -294,6 +294,7 @@ export function WalkthroughDrawer({
                           variant="link"
                           icon={<PencilAltIcon />}
                           onClick={() => dispatch({ type: "OPEN_HUB_SETTINGS", payload: {} })}
+                          id="configure-hub-settings-button"
                         >
                           Configure Hub Settings
                         </Button>

@@ -8,12 +8,14 @@ interface ConfigButtonProps {
   onClick: () => void;
   hasWarning?: boolean;
   warningMessage?: string | null;
+  id?: string;
 }
 
 export function ConfigButton({
   onClick,
   hasWarning = false,
   warningMessage = "Configuration needs attention",
+  id,
 }: ConfigButtonProps) {
   return (
     <Button
@@ -23,6 +25,7 @@ export function ConfigButton({
         hasWarning ? (warningMessage ?? "Configuration needs attention") : "Configuration"
       }
       className="config-button"
+      {...(id && { id })}
     >
       <span className="config-button__icon-wrapper">
         <Icon isInline>

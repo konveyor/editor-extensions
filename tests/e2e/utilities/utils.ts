@@ -207,41 +207,46 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
   return entries;
 }
 
-export function getHubConfig(
-  toEnableSolutionServer: boolean,
-  toEnableAuth: boolean,
-  toSyncProfiles: boolean
-): HubConfiguration {
-  const url = process.env.SOLUTION_SERVER_URL;
+export function getHubConfig(overrides?: Partial<HubConfiguration>): HubConfiguration {
+  // Get values from env with defaults
+  const url = overrides?.url ?? process.env.HUB_URL;
+  const skipSSL = overrides?.skipSSL ?? (!!process.env.HUB_INSECURE || true);
+  const solutionServerEnabled = overrides?.solutionServerEnabled ?? false;
+  const profileSyncEnabled = overrides?.profileSyncEnabled ?? false;
+
   if (!url) {
-    throw new Error('Missing required URL');
+    throw new Error('Missing required HUB_URL environment variable');
   }
 
-  const baseConfig: HubConfiguration = {
-    enabled: true,
+  const config: HubConfiguration = {
+    enabled: overrides?.enabled ?? true,
     url,
-    skipSSL: true,
-    solutionServerEnabled: toEnableSolutionServer,
-    profileSyncEnabled: toSyncProfiles,
+    skipSSL,
+    solutionServerEnabled,
+    profileSyncEnabled,
   };
 
-  if (!toEnableAuth) {
-    return baseConfig;
+  if (overrides?.auth !== undefined) {
+    config.auth = overrides.auth;
+  } else {
+    const username = process.env.HUB_USERNAME;
+    const password = process.env.HUB_PASSWORD;
+    const authEnabled = !!process.env.HUB_AUTH_ENABLED || !!(username && password);
+
+    if (authEnabled) {
+      if (!username || !password) {
+        throw new Error(
+          'HUB_AUTH_ENABLED is true or credentials provided, but missing HUB_USERNAME or HUB_PASSWORD'
+        );
+      }
+
+      config.auth = {
+        enabled: true,
+        username,
+        password,
+      };
+    }
   }
 
-  const username = process.env.SOLUTION_SERVER_USERNAME;
-  const password = process.env.SOLUTION_SERVER_PASSWORD;
-
-  if (!username || !password) {
-    throw new Error('Missing solution server credentials');
-  }
-
-  return {
-    ...baseConfig,
-    auth: {
-      enabled: true,
-      username,
-      password,
-    },
-  };
+  return config;
 }
