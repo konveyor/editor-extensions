@@ -7,7 +7,7 @@ import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
-test.describe.serial(`Configure extension and run analysis`, () => {
+test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `automation-${randomString}`;
