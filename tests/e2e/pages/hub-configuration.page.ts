@@ -1,7 +1,9 @@
 import { VSCode } from './vscode.page';
 import { HubConfiguration } from '../types/hub-configuration';
 import { KAIViews } from '../enums/views.enum';
-import { expect } from '@playwright/test';
+import { expect, Locator } from '@playwright/test';
+import pathlib from 'path';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 /**
  * Page object for automating the Hub Configuration form in VS Code.
@@ -17,9 +19,10 @@ export class HubConfigurationPage {
   }
 
   public async openHubConfiguration() {
+    await this.vsCode.openAnalysisView();
     await this.vsCode.openConfiguration();
     const view = await this.vsCode.getView(KAIViews.analysisView);
-    await view.getByRole('button', { name: 'Configure Hub Settings' }).click();
+    await view.locator('#configure-hub-settings-button').click();
   }
 
   /**
@@ -28,15 +31,14 @@ export class HubConfigurationPage {
    */
   public async fillForm(config: HubConfiguration) {
     const view = await this.vsCode.getView(KAIViews.hubConfiguration);
-    const hubGroup = view
-      .locator('.pf-v6-c-form__group')
-      .filter({ has: view.getByText('Enable Hub', { exact: true }) })
-      .first();
 
-    const hubInput = hubGroup.locator('input#hub-enabled');
-    const label = hubGroup.locator('label.pf-v6-c-switch[for="hub-enabled"]');
+    const hubInput = view.locator('input#hub-enabled');
 
-    await hubInput.setChecked(config.enabled);
+    if ((await hubInput.isChecked()) !== config.enabled) {
+      await hubInput.click({ force: true });
+    }
+
+    // check if this works with pf switches
     await expect(hubInput).toBeChecked({ checked: config.enabled });
 
     if (!config.enabled) {
@@ -47,14 +49,11 @@ export class HubConfigurationPage {
     await view.locator('#hub-url').fill(config.url);
 
     if (config.auth) {
-      const authGroup = view
-        .locator('.pf-v6-c-form__group')
-        .filter({ has: view.getByText('Enable authentication', { exact: true }) })
-        .first();
+      const authInput = view.locator('input#auth-enabled');
 
-      const authInput = authGroup.locator('input#auth-enabled');
-      await authInput.setChecked(config.auth.enabled);
-
+      if ((await authInput.isChecked()) !== config.auth.enabled) {
+        await authInput.click({ force: true });
+      }
       await expect(authInput).toBeChecked({ checked: config.auth.enabled });
 
       if (config.auth.enabled) {
@@ -63,26 +62,28 @@ export class HubConfigurationPage {
       }
     }
 
-    //SSL Settings
-    const insecureGroup = view
-      .locator('.pf-v6-c-form__group')
-      .filter({ has: view.getByText('Insecure connection', { exact: true }) })
-      .first();
+    // SSL Settings
+    const insecureInput = view.locator('input#auth-insecure');
 
-    const insecureInput = insecureGroup.locator('input#auth-insecure');
-    await insecureInput.setChecked(config.skipSSL);
+    if ((await insecureInput.isChecked()) !== config.skipSSL) {
+      await insecureInput.click({ force: true });
+    }
     await expect(insecureInput).toBeChecked({ checked: config.skipSSL });
 
-    await expect(insecureInput).toBeChecked({ checked: config.skipSSL });
+    // Solution Server
+    const solutionServerInput = view.locator('input#feature-solution-server');
 
-    await view.locator('#feature-solution-server').setChecked(config.solutionServerEnabled);
-    const group = view
-      .locator('.pf-v6-c-form__group')
-      .filter({ has: view.getByText('Profile Sync', { exact: true }) })
-      .first();
+    if ((await solutionServerInput.isChecked()) !== config.solutionServerEnabled) {
+      await solutionServerInput.click({ force: true });
+    }
+    await expect(solutionServerInput).toBeChecked({ checked: config.solutionServerEnabled });
 
-    const profileSyncInput = group.locator('input#feature-profile-sync');
-    await profileSyncInput.setChecked(config.profileSyncEnabled);
+    // Profile Sync
+    const profileSyncInput = view.locator('input#feature-profile-sync');
+
+    if ((await profileSyncInput.isChecked()) !== config.profileSyncEnabled) {
+      await profileSyncInput.click({ force: true });
+    }
     await expect(profileSyncInput).toBeChecked({ checked: config.profileSyncEnabled });
 
     const saveBtn = view.getByRole('button', { name: 'Save' });
@@ -92,5 +93,9 @@ export class HubConfigurationPage {
     } else {
       console.log('Hub configuration unchanged; Save is disabled, skipping click');
     }
+
+    await view.owner().screenshot({
+      path: pathlib.join(SCREENSHOTS_FOLDER, `last-hub-configuration.png`),
+    });
   }
 }

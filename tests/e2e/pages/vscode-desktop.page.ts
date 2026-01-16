@@ -106,7 +106,11 @@ export class VSCodeDesktop extends VSCode {
 
     if (!process.env.CORE_VSIX_FILE_PATH && !process.env.CORE_VSIX_DOWNLOAD_URL) {
       args.push(
-        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode')}`,
+        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode/core')}`,
+        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode/java')}`,
+        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode/javascript')}`,
+        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode/go')}`,
+        `--extensionDevelopmentPath=${path.resolve(__dirname, '../../../vscode/csharp')}`,
         `--enable-proposed-api=${extensionId}`
       );
       console.log('Running in DEV mode...');
@@ -124,11 +128,6 @@ export class VSCodeDesktop extends VSCode {
     });
     await vscodeApp.firstWindow();
     const window = await vscodeApp.firstWindow({ timeout: 60000 });
-    const screenSize = await window.evaluate(() => ({
-      width: screen.width,
-      height: screen.height,
-    }));
-    //await window.setViewportSize(screenSize);
     console.log('VSCode opened');
     const vscode = new VSCodeDesktop(vscodeApp, window, repoDir, branch);
 

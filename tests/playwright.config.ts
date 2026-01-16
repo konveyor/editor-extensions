@@ -34,6 +34,10 @@ export default defineConfig({
       testMatch: ['**/base/**/*.test.ts'],
     },
     {
+      name: 'ccm',
+      testMatch: ['**/ccm/**/*.test.ts'],
+    },
+    {
       name: 'solution-server-tests',
       testMatch: ['**/solution-server/**/*.test.ts'],
     },
