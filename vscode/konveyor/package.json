@@ -30,6 +30,7 @@
     "konveyor.konveyor-core",
     "konveyor.konveyor-java",
     "konveyor.konveyor-go",
-    "konveyor.konveyor-javascript"
+    "konveyor.konveyor-javascript",
+    "konveyor.konveyor-csharp"
   ]
 }

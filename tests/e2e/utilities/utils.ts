@@ -10,7 +10,8 @@ import type { VSCode } from '../pages/vscode.page';
 import { LogEntry } from '../types/log-entry';
 import { HubConfiguration } from '../types/hub-configuration';
 
-export const extensionName = process.env.EXTENSION_NAME || 'konveyor';
+// Default to the core extension ID (the extension pack is `konveyor`, core is `konveyor-core`)
+export const extensionName = process.env.EXTENSION_NAME || 'konveyor-core';
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
 export const extensionId = `${extensionPublisher}.${extensionName}`;
 export const extensionShortName = process.env.TEST_CATEGORY || 'Konveyor';
@@ -223,7 +224,6 @@ export function getHubConfig(
     solutionServerEnabled: toEnableSolutionServer,
     profileSyncEnabled: toSyncProfiles,
   };
-
 
   if (!toEnableAuth) {
     return baseConfig;

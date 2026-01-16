@@ -189,7 +189,7 @@ this._onDidChange.fire(this.data);
 ```typescript
 import * as vscode from "vscode";
 
-const config = vscode.workspace.getConfiguration("konveyor");
+const config = vscode.workspace.getConfiguration("konveyor-core");
 const setting = config.get<boolean>("genai.enabled", true);
 ```
 
