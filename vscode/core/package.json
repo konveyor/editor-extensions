@@ -268,7 +268,7 @@
           "group": "navigation@1"
         }
       ],
-      "konveyor.submenu": [],
+      "konveyor-core.submenu": [],
       "commandPalette": [
         {
           "command": "konveyor-core.expandSingleIssue",
