@@ -229,7 +229,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     # Only run on releases
-    if: inputs.trigger_context == 'release' || inputs.trigger_context == 'pr'
+    if: inputs.trigger_context == 'release'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
