@@ -7,8 +7,9 @@ import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import { OutputPanel } from './output.page';
 import path from 'path';
-import { SCREENSHOTS_FOLDER } from '../utilities/consts';
+import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
+import pathlib from 'path';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -197,19 +198,14 @@ export abstract class VSCode {
   }
 
   public async waitForAnalysisCompleted(): Promise<void> {
-    const notificationLocator = this.window.locator('.notification-list-item-message span', {
-      hasText: 'Analysis completed successfully!',
-    });
-    await expect(notificationLocator).toBeVisible({ timeout: 10 * 60 * 1000 }); // up to 10 minutes
+    return this.assertNotification('Analysis completed successfully!', { timeout: 10 * 60 * 1000 });
   }
 
   public async waitForFileSolutionAccepted(fileName: string): Promise<void> {
-    const notificationLocator = this.window.locator('.notification-list-item-message span', {
-      hasText: new RegExp(
-        `Auto-accepted all diff changes for .*${fileName}.* - saving final state`
-      ),
-    });
-    await expect(notificationLocator).toBeVisible({ timeout: 1 * 60 * 1000 }); // up to 1 minute
+    return this.assertNotification(
+      new RegExp(`Auto-accepted all diff changes for .*${fileName}.* - saving final state`),
+      { timeout: 60 * SEC }
+    );
   }
 
   /**
@@ -411,6 +407,10 @@ export abstract class VSCode {
 
       const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
+      await expect(deleteButton).toBeEnabled();
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `last-profile-deletion.png`),
+      });
       // Ensures the button is clicked even if there are notifications overlaying it due to screen size
       await deleteButton.first().dispatchEvent('click');
 
@@ -499,7 +499,7 @@ export abstract class VSCode {
       console.log('Total files found to accept solutions for: ', totalFiles);
       for (let i = 0; i < totalFiles; i++) {
         headerText = await reviewHeaderLocator.textContent();
-        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^\(]+)\s*\(/);
+        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^(]+)\s*\(/);
         const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
         console.log('Reviewing file: ', fileToFix);
         fixedFiles.push(fileToFix);
@@ -800,5 +800,16 @@ export abstract class VSCode {
     }
     const tabSelector = `.tab[role="tab"][data-resource-name="${filename}"]`;
     await expect(this.window.locator(tabSelector)).toBeVisible({ timeout: 10000 });
+  }
+
+  public async assertNotification(
+    text: string | RegExp,
+    options: { timeout: number } = { timeout: 10000 }
+  ) {
+    await expect(
+      this.window.locator('.notification-list-item-message span', {
+        hasText: text,
+      })
+    ).toBeVisible({ timeout: options.timeout });
   }
 }
