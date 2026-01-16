@@ -630,7 +630,11 @@ export abstract class VSCode {
     await passwordInput.press('Enter');
   }
 
-  public async executeTerminalCommand(command: string, expectedOutput?: string, outputShouldBeVisible: boolean = true): Promise<void> {
+  public async executeTerminalCommand(
+    command: string,
+    expectedOutput?: string,
+    outputShouldBeVisible: boolean = true
+  ): Promise<void> {
     if (!this.repoDir || !this.branch) {
       throw new Error('executeTerminalCommand requires repoDir and branch to be set');
     }

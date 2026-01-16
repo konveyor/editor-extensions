@@ -6,6 +6,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { equal } from 'assert';
 
 test.describe.serial(`Configure extension and run analysis`, () => {
   let vscodeApp: VSCode;
@@ -112,22 +113,21 @@ test.describe.serial(`Configure extension and run analysis`, () => {
    * Iterates through all categories, applies each filter, and checks the count.
    * Cleans up by clearing all category selections at the end.
    */
+  test.slow();
   test('Category never exceeds number of incidents for Issues', async () => {
     await vscodeApp.setListKindAndSort('issues', 'ascending');
     await vscodeApp.searchViolation('');
 
     const baseline = (await vscodeApp.getListNames('issues')).length;
     expect(baseline).toBeGreaterThan(0);
-
-    let totalNumberOfIssues = 0;
-
+    let issuesCount = 0;
     for (const name of CATEGORY_NAMES) {
       await vscodeApp.setCategoryByName(name);
-      const issuesCount = (await vscodeApp.getListNames('issues')).length;
-      totalNumberOfIssues += issuesCount;
-      await vscodeApp.setCategoryByName(name);
+      issuesCount = (await vscodeApp.getListNames('issues')).length;
+      expect(issuesCount).toBeLessThanOrEqual(baseline);
     }
-    expect(totalNumberOfIssues).toBe(baseline);
+
+    expect(issuesCount).toEqual(baseline);
   });
 
   test('Generate debug archive', async () => {

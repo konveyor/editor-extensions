@@ -10,6 +10,7 @@ It bundles the **Konveyor Core** extension together with all supported **languag
 - Konveyor Java
 - Konveyor JavaScript
 - Konveyor Go
+- Konveyor C sharp
 
 ## How it works
 

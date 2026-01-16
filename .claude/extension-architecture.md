@@ -241,7 +241,7 @@ Extension settings are defined in `vscode/core/package.json` under `contributes.
 ```typescript
 import * as vscode from "vscode";
 
-const config = vscode.workspace.getConfiguration("konveyor");
+const config = vscode.workspace.getConfiguration("konveyor-core");
 const logLevel = config.get<string>("logLevel", "debug");
 const agentMode = config.get<boolean>("genai.agentMode", false);
 ```
