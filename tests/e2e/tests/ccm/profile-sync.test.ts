@@ -18,7 +18,6 @@ test.describe(
       test.setTimeout(300000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
-
       // Create a local profile before enabling profile sync
       await vscodeApp.createProfile([], ['camel'], `Local Profile-${generateRandomString()}`);
       console.log('Created local profile "Local Profile"');
@@ -58,6 +57,8 @@ test.describe(
       const manageProfilesButton = analysisView.locator('#manage-profiles-dropdown-item');
       await expect(manageProfilesButton).not.toBeVisible();
       console.log('Manage Profiles option is hidden');
+
+      // TODO (abrugaro) disable sync and delete local profile after https://github.com/konveyor/editor-extensions/issues/1185 gets fixed
     });
 
     test.afterAll(async () => {
