@@ -4,26 +4,64 @@ import * as VSCodeFactory from './e2e/utilities/vscode.factory';
 import { VSCodeDesktop } from './e2e/pages/vscode-desktop.page';
 import { existsSync } from 'node:fs';
 import fs from 'fs';
+import testReposData from './e2e/fixtures/test-repos.json';
+
+type RepoData = {
+  repoUrl?: string;
+  language?: string;
+};
+
+function getRepoData(repoName: string): RepoData {
+  return (testReposData as Record<string, RepoData>)[repoName] ?? {};
+}
+
+function getRepoUrl(repoName: string): string {
+  const repoData = getRepoData(repoName);
+  return repoData.repoUrl ?? process.env.TEST_REPO_URL ?? 'https://github.com/konveyor-ecosystem/coolstore';
+}
+
+function getRepoLanguage(repoName: string): string {
+  const repoData = getRepoData(repoName);
+  // Default to 'java' for backwards compatibility
+  return repoData.language ?? 'java';
+}
+
+function needsJavaInitialization(language: string): boolean {
+  return language === 'java';
+}
 
 async function globalSetup() {
   // Removes the browser's context if the test are running in VSCode Web
   if (process.env.WEB && existsSync('./web-state.json')) {
     fs.rmSync('./web-state.json');
   }
-  const repoUrl = process.env.TEST_REPO_URL ?? 'https://github.com/konveyor-ecosystem/coolstore';
   const repoName = process.env.TEST_REPO_NAME ?? 'coolstore';
-  console.log('Running global setup...');
-  const vscodeApp = await VSCodeFactory.init(repoUrl, repoName);
+  const repoUrl = process.env.TEST_REPO_URL ?? getRepoUrl(repoName);
+  const language = getRepoLanguage(repoName);
+  const isJava = needsJavaInitialization(language);
+  console.log(`Running global setup... (language: ${language}, Java init: ${isJava})`);
+
+  // For Java repos, use init() which installs extensions and waits for Java initialization
+  // For other languages, use open() which skips Java-specific initialization
+  const vscodeApp = isJava
+    ? await VSCodeFactory.init(repoUrl, repoName)
+    : await VSCodeFactory.open(repoUrl, repoName, 'main', false);
 
   if (getOSInfo() === 'windows' && process.env.CI) {
     await vscodeApp.getWindow().waitForTimeout(60000);
   }
 
-  // Wait for extension initialization
+  // Wait for extension initialization (Java only)
   // Both redhat.java and konveyor-java extensions will activate automatically
   // via workspaceContains activation events (pom.xml, build.gradle, etc.)
-  if (vscodeApp instanceof VSCodeDesktop) {
+  if (isJava && vscodeApp instanceof VSCodeDesktop) {
     await vscodeApp.waitForExtensionInitialization();
+  }
+
+  // For non-Java languages, just wait a bit for extensions to load
+  if (!isJava) {
+    console.log(`${language} mode: waiting for extensions to load...`);
+    await vscodeApp.getWindow().waitForTimeout(10000);
   }
 
   await vscodeApp.openAnalysisView();

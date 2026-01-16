@@ -1,0 +1,643 @@
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00000
+  description: leftBorderVariant usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: leftBorderVariant
+  message: 'The leftBorderVariant prop has been removed from MultiContentCard.
+
+
+
+    Remove usage of `leftBorderVariant` (API has been removed).
+
+
+
+    Before:
+
+
+    ```
+
+
+    <MultiContentCard leftBorderVariant="danger" />
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    <MultiContentCard />
+
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/react-component-groups/pull/145
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00010
+  description: withHeaderBorder usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: withHeaderBorder
+  message: 'The withHeaderBorder prop has been removed from MultiContentCard.
+
+    Remove usage of `withHeaderBorder` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <MultiContentCard withHeaderBorder />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <MultiContentCard />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/react-component-groups/pull/145
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00020
+  description: theme="dark" usage detected (removed API)
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: theme="dark"
+      filePattern: \.(j|t)sx?$
+  message: 'The theme prop is no longer supported in Nav. Use light/dark mode theming
+
+    instead.
+
+    Remove usage of `theme="dark"` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <Nav theme="dark" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Nav />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9948
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00030
+  description: theme="light" usage detected (removed API)
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: theme="light"
+      filePattern: \.(j|t)sx?$
+  message: 'The theme prop is no longer supported in Nav. Use light/dark mode theming
+
+    instead.
+
+    Remove usage of `theme="light"` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <Nav theme="light" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Nav />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9948
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00040
+  description: hasNavLinkWrapper usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: hasNavLinkWrapper
+  message: 'The hasNavLinkWrapper prop has been removed from NavItem.
+
+    Remove usage of `hasNavLinkWrapper` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <NavItem hasNavLinkWrapper />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <NavItem />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10687
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00050
+  description: isSelected usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: isSelected
+  message: 'The isSelected prop has been removed from PageHeaderToolsItem.
+
+    Remove usage of `isSelected` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <PageHeaderToolsItem isSelected />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <PageHeaderToolsItem />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9774
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00060
+  description: type='nav' usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: type='nav'
+      filePattern: \.(j|t)sx?$
+  message: 'The "nav" type for PageSection has been removed.
+
+    Remove usage of `type=''nav''` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <PageSection type=''nav'' />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <PageSection />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10650
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00070
+  description: type={PageSectionTypes.nav} usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: type={PageSectionTypes.nav}
+      filePattern: \.(j|t)sx?$
+  message: 'The "nav" type for PageSection has been removed.
+
+    Remove usage of `type={PageSectionTypes.nav}` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <PageSection type={PageSectionTypes.nav} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <PageSection />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10650
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00080
+  description: variant='dark' usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: variant='dark'
+      filePattern: \.(j|t)sx?$
+  message: 'The variant prop for PageSection now only accepts ''default'' or ''secondary''.
+
+    Other values are removed.
+
+    Remove usage of `variant=''dark''` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <PageSection variant=''dark'' />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <PageSection />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9774
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00090
+  description: variant={PageSectionVariants.dark} usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: variant={PageSectionVariants.dark}
+      filePattern: \.(j|t)sx?$
+  message: 'The variant prop for PageSection now only accepts ''default'' or ''secondary''.
+
+    Other values are removed.
+
+    Remove usage of `variant={PageSectionVariants.dark}` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <PageSection variant={PageSectionVariants.dark} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <PageSection />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9774
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00100
+  description: theme='dark' usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: theme='dark'
+      filePattern: \.(j|t)sx?$
+  message: 'The theme prop has been removed from PageSidebar as theming is no longer
+
+    handled React-side.
+
+    Remove usage of `theme=''dark''` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <PageSidebar theme=''dark'' />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <PageSidebar />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9774
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00110
+  description: labelOff usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: labelOff
+  message: 'The labelOff prop has been removed from Switch. The label for a Switch
+
+    should not dynamically update based on the on/off state.
+
+    Remove usage of `labelOff` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <Switch labelOff=''Some label'' />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Switch />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10646
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00120
+  description: usePageInsets usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: usePageInsets
+  message: 'The usePageInsets prop has been removed from Toolbar.
+
+    Remove usage of `usePageInsets` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <Toolbar usePageInsets />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Toolbar />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10674
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00130
+  description: alignSelf usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: alignSelf
+  message: 'The alignSelf prop has been removed from ToolbarContent.
+
+    Remove usage of `alignSelf` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <ToolbarContent alignSelf={{}} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarContent />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10674
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00140
+  description: widths usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: widths
+  message: 'The widths prop has been removed from ToolbarItem.
+
+    Remove usage of `widths` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <ToolbarItem widths={{}} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarItem />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10674
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00150
+  description: alignment usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: alignment
+  message: 'The alignment prop has been removed from ToolbarToggleGroup.
+
+    Remove usage of `alignment` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <ToolbarToggleGroup alignment={{}} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarToggleGroup />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10674
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-removed-props-00160
+  description: spaceItems usage detected (removed API)
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: spaceItems
+  message: 'The spaceItems property has been removed from ToolbarGroup and ToolbarToggleGroup.
+
+    Remove usage of `spaceItems` (API has been removed).
+
+
+    Before:
+
+    ```
+
+    <ToolbarGroup spaceItems={{ default: "spaceItemsNone", md: "spaceItemsSm", lg:
+
+    "spaceItemsMd" }} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarGroup />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10418
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

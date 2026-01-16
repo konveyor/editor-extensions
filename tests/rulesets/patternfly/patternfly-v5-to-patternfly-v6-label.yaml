@@ -1,0 +1,43 @@
+- ruleID: patternfly-v5-to-patternfly-v6-label-00000
+  description: Label color='gold' should be replaced with Label color='yellow'
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Label
+    - builtin.filecontent:
+        pattern: <Label[^>]*\bcolor=['"]gold['"]
+        filePattern: \.(j|t)sx?$
+  message: 'The color prop on Banner and Label has been updated to replace "gold"
+
+    with "yellow".
+
+
+    Replace `Label color="gold"` with `Label color="yellow"`.
+
+
+    Before:
+
+    ```
+
+    <Label color="gold" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Label color="yellow" />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10661
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

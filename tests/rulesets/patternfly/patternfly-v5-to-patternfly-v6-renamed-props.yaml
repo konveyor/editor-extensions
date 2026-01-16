@@ -1,0 +1,741 @@
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00000
+  description: variant="tertiary" should be replaced with variant="horizontal-subnav"
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: variant="tertiary"
+      filePattern: \.(j|t)sx?$
+  message: 'The "tertiary" Nav variant is no longer supported. Use variant="horizontal-subnav"
+
+    instead.
+
+
+
+    Replace `variant="tertiary"` with `variant="horizontal-subnav"`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    <Nav variant="tertiary" />
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    <Nav variant="horizontal-subnav" />
+
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9948
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00010
+  description: description should be replaced with bodyText
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: NotAuthorized
+    - builtin.filecontent:
+        pattern: <NotAuthorized[^>]*\bdescription\b
+        filePattern: \.(j|t)sx?$
+  message: 'In react-component-groups, NotAuthorized''s prop description has been
+
+    renamed to bodyText.
+
+
+    Replace `description` with `bodyText`.
+
+
+    Before:
+
+    ```
+
+    <NotAuthorized description="Description text" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <UnauthorizedAccess bodyText="Description text" />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/react-component-groups/pull/145
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00020
+  description: title should be replaced with titleText
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: NotAuthorized
+    - builtin.filecontent:
+        pattern: <NotAuthorized[^>]*\btitle\b
+        filePattern: \.(j|t)sx?$
+  message: 'In react-component-groups, NotAuthorized''s prop title has been renamed
+
+    to titleText.
+
+
+    Replace `title` with `titleText`.
+
+
+    Before:
+
+    ```
+
+    <NotAuthorized title="Title text" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <UnauthorizedAccess titleText="Title text" />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/react-component-groups/pull/145
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00030
+  description: header= should be replaced with masthead=
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - builtin.filecontent:
+        pattern: '@patternfly/react-core'
+        filePattern: \.(j|t)sx?$
+    - builtin.filecontent:
+        pattern: header=
+        filePattern: \.(j|t)sx?$
+  message: 'The header prop for Page has been renamed to masthead.
+
+
+    Replace `header=` with `masthead=`.
+
+
+    Before:
+
+    ```
+
+    <Page header={<Masthead />} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Page masthead={<Masthead />} />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10454
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00040
+  description: isTertiaryNavGrouped should be replaced with isHorizontalSubnavGrouped
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: isTertiaryNavGrouped
+  message: 'The isTertiaryNavGrouped prop has been renamed to isHorizontalSubnavGrouped.
+
+
+    Replace `isTertiaryNavGrouped` with `isHorizontalSubnavGrouped`.
+
+
+    Before:
+
+    ```
+
+    <Page isTertiaryNavGrouped />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Page isHorizontalSubnavGrouped />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9948
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00050
+  description: isTertiaryNavWidthLimited should be replaced with isHorizontalSubnavWidthLimited
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: isTertiaryNavWidthLimited
+  message: 'The isTertiaryNavWidthLimited prop has been renamed to isHorizontalSubnavWidthLimited.
+
+
+    Replace `isTertiaryNavWidthLimited` with `isHorizontalSubnavWidthLimited`.
+
+
+    Before:
+
+    ```
+
+    <Page isTertiaryNavWidthLimited />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Page isHorizontalSubnavWidthLimited />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9948
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00060
+  description: tertiaryNav should be replaced with horizontalSubnav
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: tertiaryNav
+  message: 'The tertiaryNav prop has been renamed to horizontalSubnav.
+
+
+    Replace `tertiaryNav` with `horizontalSubnav`.
+
+
+    Before:
+
+    ```
+
+    <Page tertiaryNav />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Page horizontalSubnav />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9948
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00070
+  description: isSecondary should be replaced with isSubtab
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: isSecondary
+  message: 'The isSecondary prop for Tabs has been renamed to isSubtab.
+
+
+    Replace `isSecondary` with `isSubtab`.
+
+
+    Before:
+
+    ```
+
+    <Tabs isSecondary />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Tabs isSubtab />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10044
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00080
+  description: variant='light300' should be replaced with variant="secondary"
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: variant='light300'
+      filePattern: \.(j|t)sx?$
+  message: 'The "light300" value for the variant prop on Tabs has been replaced with
+
+    the "secondary" value.
+
+
+    Replace `variant=''light300''` with `variant="secondary"`.
+
+
+    Before:
+
+    ```
+
+    <Tabs variant=''light300'' />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Tabs variant="secondary" />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9930
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00090
+  description: customChipGroupContent should be replaced with customLabelGroupContent
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: customChipGroupContent
+  message: 'The customChipGroupContent prop has been renamed to customLabelGroupContent.
+
+
+    Replace `customChipGroupContent` with `customLabelGroupContent`.
+
+
+    Before:
+
+    ```
+
+    <Toolbar customChipGroupContent />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Toolbar customLabelGroupContent />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00100
+  description: chipContainerRef should be replaced with labelContainerRef
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: chipContainerRef
+  message: 'The chipContainerRef prop has been renamed to labelContainerRef.
+
+
+    Replace `chipContainerRef` with `labelContainerRef`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarExpandableContent chipContainerRef />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarExpandableContent labelContainerRef />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00110
+  description: chips should be replaced with labels
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: chips
+  message: 'The chips prop has been renamed to labels.
+
+
+    Replace `chips` with `labels`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarFilter chips />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarFilter labels />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00120
+  description: deleteChipGroup should be replaced with deleteLabelGroup
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: deleteChipGroup
+  message: 'The deleteChipGroup prop has been renamed to deleteLabelGroup.
+
+
+    Replace `deleteChipGroup` with `deleteLabelGroup`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarFilter deleteChipGroup />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarFilter deleteLabelGroup />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00130
+  description: deleteChip should be replaced with deleteLabel
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: deleteChip
+  message: 'The deleteChip prop has been renamed to deleteLabel.
+
+
+    Replace `deleteChip` with `deleteLabel`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarFilter deleteChip />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarFilter deleteLabel />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00140
+  description: chipGroupExpandedText should be replaced with labelGroupExpandedText
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: chipGroupExpandedText
+  message: 'The chipGroupExpandedText prop has been renamed to labelGroupExpandedText.
+
+
+    Replace `chipGroupExpandedText` with `labelGroupExpandedText`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarFilter chipGroupExpandedText />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarFilter labelGroupExpandedText />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00150
+  description: chipGroupCollapsedText should be replaced with labelGroupCollapsedText
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: chipGroupCollapsedText
+  message: 'The chipGroupCollapsedText prop has been renamed to labelGroupCollapsedText.
+
+
+    Replace `chipGroupCollapsedText` with `labelGroupCollapsedText`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarFilter chipGroupCollapsedText />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarFilter labelGroupCollapsedText />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00160
+  description: expandableChipContainerRef should be replaced with expandableLabelContainerRef
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: expandableChipContainerRef
+  message: 'The expandableChipContainerRef prop has been renamed to expandableLabelContainerRef.
+
+
+    Replace `expandableChipContainerRef` with `expandableLabelContainerRef`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarFilter expandableChipContainerRef />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarFilter expandableLabelContainerRef />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00170
+  description: chipGroupContentRef should be replaced with labelGroupContentRef
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: chipGroupContentRef
+  message: 'The chipGroupContentRef prop has been renamed to labelGroupContentRef.
+
+
+    Replace `chipGroupContentRef` with `labelGroupContentRef`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarChipGroupContent chipGroupContentRef />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarLabelGroupContent labelGroupContentRef />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-props-00180
+  description: spacer should be replaced with gap
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: spacer
+  message: 'The spacer property has been removed from ToolbarGroup, ToolbarItem, and
+
+    ToolbarToggleGroup. Use gap, columnGap, or rowGap properties instead.
+
+
+    Replace `spacer` with `gap`.
+
+
+    Before:
+
+    ```
+
+    <ToolbarGroup spacer={{ default: "spacerNone", md: "spacerSm", lg: "spacerMd"
+
+    }} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <ToolbarGroup gap={{ default: "spacerNone", md: "spacerSm", lg: "spacerMd" }}
+
+    />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10418
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

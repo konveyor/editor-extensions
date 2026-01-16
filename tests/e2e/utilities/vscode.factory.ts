@@ -2,6 +2,28 @@ import { VSCodeWeb } from '../pages/vscode-web.page';
 import { VSCodeDesktop } from '../pages/vscode-desktop.page';
 import { VSCode } from '../pages/vscode.page';
 
+type RepoInfo = {
+  repoUrl: string;
+  repoName: string;
+  branch?: string;
+  language?: string;
+};
+
+/**
+ * Opens VS Code with the appropriate initialization based on the repo's language.
+ * Java repos use full initialization with extension wait, other languages skip Java-specific init.
+ */
+export async function openForRepo(repoInfo: RepoInfo, prepareOffline = false): Promise<VSCode> {
+  const { repoUrl, repoName, branch = 'main', language = 'java' } = repoInfo;
+  const needsJavaInit = language === 'java';
+
+  if (needsJavaInit) {
+    return init(repoUrl, repoName, branch, prepareOffline);
+  } else {
+    return open(repoUrl, repoName, branch, false, prepareOffline);
+  }
+}
+
 /**
  *
  * @param repoUrl

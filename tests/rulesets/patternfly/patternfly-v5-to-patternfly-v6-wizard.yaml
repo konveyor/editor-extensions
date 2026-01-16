@@ -1,0 +1,41 @@
+- ruleID: patternfly-v5-to-patternfly-v6-wizard-00000
+  description: WizardStep body={null} should be replaced with WizardStep
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: WizardStep
+    - builtin.filecontent:
+        pattern: <WizardStep[^>]*\bbody={null}
+        filePattern: \.(j|t)sx?$
+  message: 'The body prop on WizardStep no longer accepts a value of null
+
+
+    Replace `WizardStep body={null}` with `WizardStep`.
+
+
+    Before:
+
+    ```
+
+    <WizardStep body={null} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <WizardStep />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10637
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

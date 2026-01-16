@@ -1,0 +1,950 @@
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00000
+  description: import from @patternfly/react-core/dist/js/components should be replaced with import from @patternfly/react-core
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: import[\s\S]*from[\s\S]*['"]@patternfly/react-core/dist/js/components['"]
+      filePattern: \.(j|t)sx?$
+  message: 'Imports from @patternfly/react-core/dist/js/components should now be imported
+
+    from @patternfly/react-core
+
+
+
+    Replace `import { {{ component }} } from @patternfly/react-core/dist/js/components`
+
+    with `import { {{ component }} } from @patternfly/react-core`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    import { {{ component }} } from ''@patternfly/react-core/dist/js/components/Button''
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    import { {{ component }} } from ''@patternfly/react-core''
+
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables:
+  - pattern: import {(?P<imports>[A-Za-z,\s]+)}
+    name: component
+    nameOfCaptureGroup: imports
+    defaultValue: Component
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00010
+  description: import from @patternfly/react-core/dist/esm/components should be replaced with import from @patternfly/react-core
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: import[\s\S]*from[\s\S]*['"]@patternfly/react-core/dist/esm/components['"]
+      filePattern: \.(j|t)sx?$
+  message: 'Imports from @patternfly/react-core/dist/esm/components should now be
+
+    imported from @patternfly/react-core
+
+
+    Replace `import { {{ component }} } from @patternfly/react-core/dist/esm/components`
+
+    with `import { {{ component }} } from @patternfly/react-core`.
+
+
+    Before:
+
+    ```
+
+    import { {{ component }} } from ''@patternfly/react-core/dist/esm/components/Button''
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    import { {{ component }} } from "@patternfly/react-core"
+
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables:
+  - pattern: import {(?P<imports>[A-Za-z,\s]+)}
+    name: component
+    nameOfCaptureGroup: imports
+    defaultValue: Component
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00020
+  description: --pf-v5-global should be replaced with --pf-v6-global
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: --pf-v5-global
+      filePattern: \.(css|scss|less|js|jsx|ts|tsx)$
+  message: 'CSS variable prefix has been updated from --pf-v5-global to --pf-v6-global
+
+
+    Replace `--pf-v5-global` with `--pf-v6-global`.
+
+
+    Before:
+
+    ```
+
+    var(--pf-v5-global--Color--100)
+
+    ```
+
+
+    After:
+
+    ```
+
+    var(--pf-v6-global--Color--100)
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00030
+  description: Button isActive should be replaced with Button isPressed
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Button
+    - builtin.filecontent:
+        pattern: <Button[^>]*\bisActive\b
+        filePattern: \.(j|t)sx?$
+  message: 'Button''s isActive prop has been renamed to isPressed
+
+
+    Replace `Button isActive` with `Button isPressed`.
+
+
+    Before:
+
+    ```
+
+    <Button isActive />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Button isPressed />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00040
+  description: ButtonVariant.control should be replaced with ButtonVariant.plain
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: ButtonVariant.control
+      filePattern: \.(j|t)sx?$
+  message: 'ButtonVariant.control has been renamed to ButtonVariant.plain
+
+
+    Replace `ButtonVariant.control` with `ButtonVariant.plain`.
+
+
+    Before:
+
+    ```
+
+    ButtonVariant.control
+
+    ```
+
+
+    After:
+
+    ```
+
+    ButtonVariant.plain
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00050
+  description: ButtonVariant.buttonGroup should be replaced with ButtonVariant.actionGroup
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: ButtonVariant.buttonGroup
+      filePattern: \.(j|t)sx?$
+  message: 'ButtonVariant.buttonGroup has been renamed to ButtonVariant.actionGroup
+
+
+    Replace `ButtonVariant.buttonGroup` with `ButtonVariant.actionGroup`.
+
+
+    Before:
+
+    ```
+
+    ButtonVariant.buttonGroup
+
+    ```
+
+
+    After:
+
+    ```
+
+    ButtonVariant.actionGroup
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00060
+  description: AccordionToggle isExpanded should be replaced with AccordionItem isExpanded
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: AccordionToggle
+    - builtin.filecontent:
+        pattern: <AccordionToggle[^>]*\bisExpanded\b
+        filePattern: \.(j|t)sx?$
+  message: 'isExpanded prop has been moved from AccordionToggle to AccordionItem
+
+
+    Replace `AccordionToggle isExpanded` with `AccordionItem isExpanded`.
+
+
+    Before:
+
+    ```
+
+    <AccordionToggle isExpanded={isExpanded} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <AccordionItem isExpanded={isExpanded}><AccordionToggle /></AccordionItem>
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00070
+  description: AccordionContent isHidden should be replaced with AccordionContent
+  effort: 5
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: AccordionContent
+    - builtin.filecontent:
+        pattern: <AccordionContent[^>]*\bisHidden\b
+        filePattern: \.(j|t)sx?$
+  message: 'isHidden prop has been removed from AccordionContent, visibility is now
+
+    controlled by AccordionItem''s isExpanded prop
+
+
+    Replace `AccordionContent isHidden` with `AccordionContent`.
+
+
+    Before:
+
+    ```
+
+    <AccordionContent isHidden={!isExpanded} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <AccordionContent />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00080
+  description: Modal title should be replaced with Modal titleText
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Modal
+    - builtin.filecontent:
+        pattern: <Modal[^>]*\btitle\b
+        filePattern: \.(j|t)sx?$
+  message: 'Modal''s title prop has been renamed to titleText
+
+
+    Replace `Modal title` with `Modal titleText`.
+
+
+    Before:
+
+    ```
+
+    <Modal title="Modal Title" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Modal titleText="Modal Title" />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00090
+  description: Pagination isCompact should be replaced with Pagination variant="compact"
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Pagination
+    - builtin.filecontent:
+        pattern: <Pagination[^>]*\bisCompact\b
+        filePattern: \.(j|t)sx?$
+  message: 'Pagination''s isCompact prop has been replaced with variant="compact"
+
+
+    Replace `Pagination isCompact` with `Pagination variant="compact"`.
+
+
+    Before:
+
+    ```
+
+    <Pagination isCompact />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Pagination variant="compact" />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00100
+  description: TextInput isDisabled should be replaced with TextInput disabled
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: TextInput
+    - builtin.filecontent:
+        pattern: <TextInput[^>]*\bisDisabled\b
+        filePattern: \.(j|t)sx?$
+  message: 'TextInput''s isDisabled prop has been replaced with the standard HTML
+
+    disabled attribute
+
+
+    Replace `TextInput isDisabled` with `TextInput disabled`.
+
+
+    Before:
+
+    ```
+
+    <TextInput isDisabled />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <TextInput disabled />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00110
+  description: TextArea isDisabled should be replaced with TextArea disabled
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: TextArea
+    - builtin.filecontent:
+        pattern: <TextArea[^>]*\bisDisabled\b
+        filePattern: \.(j|t)sx?$
+  message: 'TextArea''s isDisabled prop has been replaced with the standard HTML disabled
+
+    attribute
+
+
+    Replace `TextArea isDisabled` with `TextArea disabled`.
+
+
+    Before:
+
+    ```
+
+    <TextArea isDisabled />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <TextArea disabled />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00120
+  description: Select isDisabled should be replaced with Select disabled
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Select
+    - builtin.filecontent:
+        pattern: <Select[^>]*\bisDisabled\b
+        filePattern: \.(j|t)sx?$
+  message: 'Select''s isDisabled prop has been replaced with the standard HTML disabled
+
+    attribute
+
+
+    Replace `Select isDisabled` with `Select disabled`.
+
+
+    Before:
+
+    ```
+
+    <Select isDisabled />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Select disabled />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00130
+  description: FormSelect isDisabled should be replaced with FormSelect disabled
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: FormSelect
+    - builtin.filecontent:
+        pattern: <FormSelect[^>]*\bisDisabled\b
+        filePattern: \.(j|t)sx?$
+  message: 'FormSelect''s isDisabled prop has been replaced with the standard HTML
+
+    disabled attribute
+
+
+    Replace `FormSelect isDisabled` with `FormSelect disabled`.
+
+
+    Before:
+
+    ```
+
+    <FormSelect isDisabled />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <FormSelect disabled />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00140
+  description: Radio isDisabled should be replaced with Radio disabled
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Radio
+    - builtin.filecontent:
+        pattern: <Radio[^>]*\bisDisabled\b
+        filePattern: \.(j|t)sx?$
+  message: 'Radio''s isDisabled prop has been replaced with the standard HTML disabled
+
+    attribute
+
+
+    Replace `Radio isDisabled` with `Radio disabled`.
+
+
+    Before:
+
+    ```
+
+    <Radio isDisabled />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Radio disabled />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00150
+  description: Checkbox isDisabled should be replaced with Checkbox disabled
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Checkbox
+    - builtin.filecontent:
+        pattern: <Checkbox[^>]*\bisDisabled\b
+        filePattern: \.(j|t)sx?$
+  message: 'Checkbox''s isDisabled prop has been replaced with the standard HTML disabled
+
+    attribute
+
+
+    Replace `Checkbox isDisabled` with `Checkbox disabled`.
+
+
+    Before:
+
+    ```
+
+    <Checkbox isDisabled />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Checkbox disabled />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00160
+  description: alignLeft should be replaced with alignStart
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: alignLeft
+      filePattern: \.(j|t)sx?$
+  message: 'alignLeft has been renamed to alignStart for better RTL support
+
+
+    Replace `alignLeft` with `alignStart`.
+
+
+    Before:
+
+    ```
+
+    alignLeft
+
+    ```
+
+
+    After:
+
+    ```
+
+    alignStart
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00170
+  description: alignRight should be replaced with alignEnd
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: alignRight
+      filePattern: \.(j|t)sx?$
+  message: 'alignRight has been renamed to alignEnd for better RTL support
+
+
+    Replace `alignRight` with `alignEnd`.
+
+
+    Before:
+
+    ```
+
+    alignRight
+
+    ```
+
+
+    After:
+
+    ```
+
+    alignEnd
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00180
+  description: 576px should be replaced with 36rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 576px
+      filePattern: \.(css|scss|less|js|jsx|ts|tsx)$
+  message: 'Breakpoint value 576px has been changed to 36rem
+
+
+    Replace `576px` with `36rem`.
+
+
+    Before:
+
+    ```
+
+    576px
+
+    ```
+
+
+    After:
+
+    ```
+
+    36rem
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00190
+  description: 768px should be replaced with 48rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 768px
+      filePattern: \.(css|scss|less|js|jsx|ts|tsx)$
+  message: 'Breakpoint value 768px has been changed to 48rem
+
+
+    Replace `768px` with `48rem`.
+
+
+    Before:
+
+    ```
+
+    768px
+
+    ```
+
+
+    After:
+
+    ```
+
+    48rem
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00200
+  description: 992px should be replaced with 62rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 992px
+      filePattern: \.(css|scss|less|js|jsx|ts|tsx)$
+  message: 'Breakpoint value 992px has been changed to 62rem
+
+
+    Replace `992px` with `62rem`.
+
+
+    Before:
+
+    ```
+
+    992px
+
+    ```
+
+
+    After:
+
+    ```
+
+    62rem
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00210
+  description: 1200px should be replaced with 75rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 1200px
+      filePattern: \.(css|scss|less|js|jsx|ts|tsx)$
+  message: 'Breakpoint value 1200px has been changed to 75rem
+
+
+    Replace `1200px` with `75rem`.
+
+
+    Before:
+
+    ```
+
+    1200px
+
+    ```
+
+
+    After:
+
+    ```
+
+    75rem
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-patternfly-v6-00220
+  description: 1450px should be replaced with 90.625rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 1450px
+      filePattern: \.(css|scss|less|js|jsx|ts|tsx)$
+  message: 'Breakpoint value 1450px has been changed to 90.625rem
+
+
+    Replace `1450px` with `90.625rem`.
+
+
+    Before:
+
+    ```
+
+    1450px
+
+    ```
+
+
+    After:
+
+    ```
+
+    90.625rem
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low

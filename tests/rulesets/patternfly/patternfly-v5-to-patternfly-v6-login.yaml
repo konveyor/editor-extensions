@@ -1,0 +1,39 @@
+- ruleID: patternfly-v5-to-patternfly-v6-login-00000
+  description: LoginMainFooterLinksItem structure should be replaced with LoginMainFooterLinksItem with Button
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: LoginMainFooterLinksItem
+    - builtin.filecontent:
+        pattern: <LoginMainFooterLinksItem[^>]*\bhref\b
+        filePattern: \.(j|t)sx?$
+  message: 'LoginMainFooterLinksItem structure has changed. Instead of passing it\
+
+    \ many properties, everything is now passed in a children component directly.\n\
+
+
+    \nReplace `LoginMainFooterLinksItem structure` with `LoginMainFooterLinksItem\
+
+
+    \ with Button`.\n\nBefore:\n```\n<LoginMainFooterLinksItem href="https://github.com/login"\
+
+    \ linkComponentProps={{ "aria-label": "Login with Github" }} >\n  <i>GitHub\
+
+
+    \ icon</i>\n</LoginMainFooterLinksItem>\n```\n\nAfter:\n```\n<LoginMainFooterLinksItem>\n\
+
+    \  <Button variant="link" component="a" href="https://github.com/login"\
+
+    \ {...{ "aria-label": "Login with Github" }} >\n    <i>GitHub icon</i>\n \
+
+    \ </Button>\n</LoginMainFooterLinksItem>\n```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10107
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium

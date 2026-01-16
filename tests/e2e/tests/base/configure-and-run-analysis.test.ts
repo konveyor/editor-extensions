@@ -49,7 +49,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
   });
 
   test('Disable and enable Generative AI', async () => {
-    await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: false }); // disable
+    await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: false }, true); // disable
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitDefault();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
@@ -59,7 +59,7 @@ test.describe.serial(`Configure extension and run analysis`, () => {
     await expect(analysisView.getByText('Agent Mode')).not.toBeVisible();
     await expect(solutionButton.first()).not.toBeVisible({ timeout: 36000 });
 
-    await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true }); // enable
+    await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true }, true); // enable
     await vscodeApp.waitDefault();
     await expect(
       analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })

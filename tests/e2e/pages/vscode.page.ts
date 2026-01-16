@@ -361,9 +361,29 @@ export abstract class VSCode {
 
     for (const target of targets) {
       await targetsInput.fill(target);
-      await manageProfileView
-        .getByRole('option', { name: target, exact: true })
-        .click({ timeout: 5000 });
+      // First try to find existing option, if not found look for "Create" option
+      const existingOption = manageProfileView.getByRole('option', { name: target, exact: true });
+      const createOption = manageProfileView.getByRole('option', {
+        name: `Create new option "${target}"`,
+      });
+
+      if ((await existingOption.count()) > 0) {
+        await existingOption.click({ timeout: 5000 });
+      } else if ((await createOption.count()) > 0) {
+        await createOption.click({ timeout: 5000 });
+        console.log(`Created new target: ${target}`);
+      } else {
+        // Wait a bit and retry
+        await this.window.waitForTimeout(1000);
+        if ((await existingOption.count()) > 0) {
+          await existingOption.click({ timeout: 5000 });
+        } else if ((await createOption.count()) > 0) {
+          await createOption.click({ timeout: 5000 });
+          console.log(`Created new target: ${target}`);
+        } else {
+          throw new Error(`Could not find or create target: ${target}`);
+        }
+      }
     }
     await this.window.keyboard.press('Escape');
 
@@ -555,9 +575,13 @@ export abstract class VSCode {
 
   /**
    * Writes or updates the VSCode settings.json file to current user @ .vscode/settings.json
-   * @param settings - Key - value: A pair of settings to write or update, if a setting already exists, the new values will be merged
+   * @param settings - Key - value: A pair of settings to write or update
+   * @param replaceAll - If true, replaces all settings instead of merging with existing ones
    */
-  public async openWorkspaceSettingsAndWrite(settings: Record<string, any>): Promise<void> {
+  public async openWorkspaceSettingsAndWrite(
+    settings: Record<string, any>,
+    replaceAll: boolean = false
+  ): Promise<void> {
     await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
 
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
@@ -566,18 +590,21 @@ export abstract class VSCode {
     await editor.click();
     await this.window.waitForTimeout(200);
 
-    let editorContent = '';
-    try {
-      editorContent = await editor.innerText();
-    } catch {
-      editorContent = '{}';
-    }
-
     let existingSettings: Record<string, any> = {};
-    try {
-      existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
-    } catch {
-      existingSettings = {};
+
+    if (!replaceAll) {
+      let editorContent = '';
+      try {
+        editorContent = await editor.innerText();
+      } catch {
+        editorContent = '{}';
+      }
+
+      try {
+        existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
+      } catch {
+        existingSettings = {};
+      }
     }
 
     const newContent = JSON.stringify(

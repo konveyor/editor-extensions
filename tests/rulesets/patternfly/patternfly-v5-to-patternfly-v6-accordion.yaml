@@ -1,0 +1,64 @@
+- ruleID: patternfly-v5-to-patternfly-v6-accordion-00000
+  description: AccordionContent isHidden should be replaced with AccordionContent
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: AccordionContent
+    - builtin.filecontent:
+        pattern: <AccordionContent[^>]*\bisHidden\b
+        filePattern: \.(j|t)sx?$
+  message: 'The isHidden prop has been removed from AccordionContent, as its visibility will now be set automatically based
+    on the isExpanded prop on AccordionItem.
+
+
+    Replace `AccordionContent isHidden` with `AccordionContent`.
+
+
+    Before:
+
+    ```
+
+    <AccordionContent isHidden />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <AccordionContent />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9876
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-accordion-00010
+  description: AccordionToggle isExpanded should be replaced with AccordionItem isExpanded
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: AccordionToggle
+    - builtin.filecontent:
+        pattern: <AccordionToggle[^>]*\bisExpanded\b
+        filePattern: \.(j|t)sx?$
+  message: "The isExpanded prop for AccordionToggle has been moved to AccordionItem.\n\nReplace `AccordionToggle isExpanded`\
+    \ with `AccordionItem isExpanded`.\n\nBefore:\n```\n<AccordionItem>\n  <AccordionToggle isExpanded />\n</AccordionItem>\n\
+    ```\n\nAfter:\n```\n<AccordionItem isExpanded>\n  <AccordionToggle />\n</AccordionItem>\n```"
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9876
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium

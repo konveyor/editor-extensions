@@ -1,0 +1,41 @@
+- ruleID: patternfly-v5-to-patternfly-v6-component-removal-00000
+  description: PageNavigation component should be replaced with Remove PageNavigation component
+  effort: 5
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: PageNavigation
+  message: 'The PageNavigation component has been removed from PatternFly.
+
+
+    Replace `PageNavigation component` with its content.
+
+
+    Before:
+
+    ```
+
+    <PageNavigation>
+
+      <div>Some internal content</div>
+
+    </PageNavigation>
+
+    ```
+
+
+    After:
+
+    ```
+
+    <div>Some internal content</div>
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10650
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium

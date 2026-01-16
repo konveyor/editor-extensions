@@ -3,6 +3,7 @@
     "repoUrl": "https://github.com/konveyor-ecosystem/coolstore",
     "repoName": "coolstore",
     "branch": "main",
+    "language": "java",
     "sources": [],
     "targets": ["cloud-readiness", "jakarta-ee", "jakarta-ee8", "jakarta-ee9", "quarkus"],
     "issuesCount": 32,
@@ -142,6 +143,7 @@
     "repoUrl": "https://github.com/konveyor-ecosystem/migrationex",
     "repoName": "migrationex",
     "branch": "main",
+    "language": "java",
     "sources": [],
     "targets": ["openjdk17"],
     "issuesCount": 1,
@@ -157,6 +159,7 @@
     "repoUrl": "https://github.com/savitharaghunathan/inventory_management",
     "repoName": "inventory_management",
     "branch": "partial",
+    "language": "java",
     "sources": [],
     "targets": ["openjdk21"],
     "customRulesFolder": "inventory_management/rules",
@@ -173,6 +176,7 @@
     "repoUrl": "https://github.com/hhpatel14/ehr_viewer",
     "repoName": "ehr_viewer",
     "branch": "partial",
+    "language": "java",
     "sources": [],
     "targets": ["openjdk21"],
     "customRulesFolder": "ehr_viewer/rules",
@@ -189,7 +193,133 @@
     "repoUrl": "https://github.com/abrugaro/jboss-eap-quickstarts-kitchensink",
     "repoName": "jboss-eap-quickstarts-kitchensink",
     "branch": "7.4.x",
+    "language": "java",
     "sources": [],
     "targets": ["eap7", "eap8"]
+  },
+  "static-report": {
+    "repoUrl": "https://github.com/konveyor/static-report",
+    "repoName": "static-report",
+    "branch": "main",
+    "language": "typescript",
+    "sources": [],
+    "targets": ["patternfly-v6"],
+    "customRulesFolder": "rulesets/patternfly",
+    "issuesCount": 36,
+    "incidentsCount": 350,
+    "issues": [
+      {
+        "title": "--pf-v5-global should be replaced with --pf-v6-global",
+        "incidentsCount": 4
+      },
+      {
+        "title": "--pf-v5-global-- should be replaced with --pf-t--global--",
+        "incidentsCount": 4
+      },
+      {
+        "title": "MastheadBrand should be replaced with MastheadLogo",
+        "incidentsCount": 4
+      },
+      {
+        "title": "<MenuToggle variant='plain'><EllipsisVIcon /></MenuToggle> should be replaced with <MenuToggle icon={EllipsisVIcon} variant='plain' />",
+        "incidentsCount": 3
+      },
+      {
+        "title": "768px should be replaced with 48rem",
+        "incidentsCount": 4
+      },
+      {
+        "title": "alignRight should be replaced with alignEnd",
+        "incidentsCount": 10
+      },
+      {
+        "title": "chips should be replaced with labels",
+        "incidentsCount": 7
+      },
+      {
+        "title": "deleteChip should be replaced with deleteLabel",
+        "incidentsCount": 7
+      },
+      {
+        "title": "deleteChipGroup should be replaced with deleteLabelGroup",
+        "incidentsCount": 7
+      },
+      {
+        "title": "EmptyStateIcon should be replaced with EmptyState with icon prop",
+        "incidentsCount": 11
+      },
+      {
+        "title": "header= should be replaced with masthead=",
+        "incidentsCount": 26
+      },
+      {
+        "title": "import { Modal } from \"@patternfly/react-core\" should be replaced with import { Modal } from '@patternfly/react-core/deprecated'",
+        "incidentsCount": 3
+      },
+      {
+        "title": "import { Modal } from \"@patternfly/react-core/next\" should be replaced with import { Modal } from '@patternfly/react-core'",
+        "incidentsCount": 3
+      },
+      {
+        "title": "isActive should be replaced with Remove isActive prop",
+        "incidentsCount": 5
+      },
+      {
+        "title": "isExpanded should be replaced with expanded",
+        "incidentsCount": 10
+      },
+      {
+        "title": "isOpen should be replaced with open",
+        "incidentsCount": 22
+      },
+      {
+        "title": "isSelected usage detected (removed API)",
+        "incidentsCount": 4
+      },
+      {
+        "title": "Page header should be replaced with Page masthead",
+        "incidentsCount": 11
+      },
+      {
+        "title": "PageSidebar theme should be replaced with PageSidebar without theme",
+        "incidentsCount": 2
+      },
+      {
+        "title": "pf-v5- should be replaced with pf-v6-",
+        "incidentsCount": 37
+      },
+      {
+        "title": "spacer should be replaced with gap",
+        "incidentsCount": 1
+      },
+      {
+        "title": "Text component should be replaced with Content component",
+        "incidentsCount": 57
+      },
+      {
+        "title": "TextContent component should be replaced with Content component",
+        "incidentsCount": 30
+      },
+      {
+        "title": "ToolbarChip component should be replaced with ToolbarLabel component",
+        "incidentsCount": 27
+      },
+      {
+        "title": "ToolbarChip should be replaced with ToolbarLabel",
+        "incidentsCount": 27
+      },
+      {
+        "title": "ToolbarChipGroup component should be replaced with ToolbarLabelGroup component",
+        "incidentsCount": 10
+      },
+      {
+        "title": "ToolbarChipGroup should be replaced with ToolbarLabelGroup",
+        "incidentsCount": 10
+      },
+      {
+        "title": "variant=\"search-filter\" should be replaced with variant removed",
+        "incidentsCount": 4
+      }
+    ]
   }
 }

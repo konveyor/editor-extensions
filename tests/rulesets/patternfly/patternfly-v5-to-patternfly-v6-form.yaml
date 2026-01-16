@@ -1,0 +1,91 @@
+- ruleID: patternfly-v5-to-patternfly-v6-form-00000
+  description: FormFiledGroupHeaderTitleTextObject should be replaced with FormFieldGroupHeaderTitleTextObject
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: FormFiledGroupHeaderTitleTextObject
+  message: 'There was a typo in FormFiledGroupHeaderTitleTextObject interface. It
+
+    was renamed to the intended FormFieldGroupHeaderTitleTextObject.
+
+
+
+    Replace `FormFiledGroupHeaderTitleTextObject` with `FormFieldGroupHeaderTitleTextObject`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    import { FormFiledGroupHeaderTitleTextObject } from "@patternfly/react-core";
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    import { FormFieldGroupHeaderTitleTextObject } from "@patternfly/react-core";
+
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10016
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-form-00010
+  description: FormGroup labelIcon should be replaced with FormGroup labelHelp
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: FormGroup
+    - builtin.filecontent:
+        pattern: <FormGroup[^>]*\blabelIcon\b
+        filePattern: \.(j|t)sx?$
+  message: 'The labelIcon prop for FormGroup has been renamed to labelHelp. We recommend
+
+    using FormGroupLabelHelp element for the labelHelp prop.
+
+
+    Replace `FormGroup labelIcon` with `FormGroup labelHelp`.
+
+
+    Before:
+
+    ```
+
+    <FormGroup labelIcon={<>Help icon</>} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <FormGroup labelHelp={<>Help icon</>} />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10016
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

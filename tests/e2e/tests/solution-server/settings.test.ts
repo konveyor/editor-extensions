@@ -76,7 +76,7 @@ test.describe(`Configure Solution Server settings`, () => {
     repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
     await vscodeApp.configureGenerativeAI(OPENAI_GPT4O_PROVIDER.config);
-    await vscodeApp.openWorkspaceSettingsAndWrite(buildSettings(solutionServerConfigs[0]));
+    await vscodeApp.openWorkspaceSettingsAndWrite(buildSettings(solutionServerConfigs[0]), true);
     await vscodeApp.waitDefault();
     await vscodeApp.configureSolutionServerCredentials(
       SOLUTION_SERVER_USERNAME,
@@ -91,7 +91,7 @@ test.describe(`Configure Solution Server settings`, () => {
     for (const scenario of solutionServerConfigs) {
       console.log(`🔧 Testing scenario: ${scenario.name}`);
       const settings = buildSettings(scenario);
-      await vscodeApp.openWorkspaceSettingsAndWrite(settings);
+      await vscodeApp.openWorkspaceSettingsAndWrite(settings, true);
       await vscodeApp.waitDefault();
 
       if (scenario.shouldConnect) {

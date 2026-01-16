@@ -1,0 +1,41 @@
+- ruleID: patternfly-v5-to-patternfly-v6-menu-00000
+  description: KebabToggle should be replaced with MenuToggle with EllipsisVIcon
+  effort: 5
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: KebabToggle
+  message: 'KebabToggle has been removed from PatternFly. We recommend using our MenuToggle
+
+    component instead.
+
+
+    Replace `KebabToggle` with `MenuToggle with EllipsisVIcon`.
+
+
+    Before:
+
+    ```
+
+    <KebabToggle onToggle={() => {}} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <MenuToggle variant="plain" icon={<EllipsisVIcon aria-hidden="true" />} onClick={()
+
+    => {}} />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10345
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium

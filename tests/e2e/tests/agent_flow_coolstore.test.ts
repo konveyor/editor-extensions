@@ -64,9 +64,12 @@ providers.forEach((config) => {
     test('Fix JMS Topic issue with agent mode enabled (offline)', async () => {
       test.setTimeout(3600000);
       // update java configuration to auto-reload
-      await vscodeApp.openWorkspaceSettingsAndWrite({
-        'java.configuration.updateBuildConfiguration': 'automatic',
-      });
+      await vscodeApp.openWorkspaceSettingsAndWrite(
+        {
+          'java.configuration.updateBuildConfiguration': 'automatic',
+        },
+        true
+      );
       // we need to run analysis before enabling agent mode
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();

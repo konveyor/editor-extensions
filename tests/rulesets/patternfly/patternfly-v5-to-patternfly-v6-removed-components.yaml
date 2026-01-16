@@ -1,0 +1,108 @@
+- ruleID: patternfly-v5-to-patternfly-v6-removed-components-00000
+  description: imports  from '@patternfly/react-core/deprecated'; should be replaced with imports from '@patternfly/react-core';
+  effort: 5
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: import[\s\S]*KebabToggle[\s\S]*from[\s\S]*['"]@patternfly/react-core/deprecated['"]
+      filePattern: \.(j|t)sx?$
+  message: 'KebabToggle has been removed from PatternFly. Use MenuToggle component
+
+    instead.
+
+
+    Replace `import { {{ component }} } from "@patternfly/react-core/deprecated"` with `import { {{ component }} } from "@patternfly/react-core"`.
+
+
+    Before:
+
+    ```
+
+    import { {{ component }} } from "@patternfly/react-core/deprecated"
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { {{ component }} } from "@patternfly/react-core"
+
+    import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon"
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10345
+    title: patternfly-v6 Documentation
+  customVariables:
+  - pattern: import {(?P<imports>[A-Za-z,\s]+)}
+    name: component
+    nameOfCaptureGroup: imports
+    defaultValue: Component
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-removed-components-00010
+  description: <KebabToggle should be replaced with <MenuToggle variant="plain" icon={<EllipsisVIcon aria-hidden="true" />}
+    and update onToggle to onClick
+  effort: 5
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: <KebabToggle[\s>]
+      filePattern: \.(j|t)sx?$
+  message: 'KebabToggle has been removed from PatternFly. Use MenuToggle component
+
+    instead with variant="plain" and an icon prop.
+
+
+    IMPORTANT: The event handler prop has changed from onToggle to onClick.
+
+
+    Replace `<KebabToggle onToggle={...}` with `<MenuToggle variant="plain" icon={<EllipsisVIcon aria-hidden="true" />} onClick={...}`.
+
+
+    Before:
+
+    ```
+
+    <KebabToggle onToggle={() => {}} />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <MenuToggle variant="plain" icon={<EllipsisVIcon aria-hidden="true" />} onClick={() => {}} />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10345
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium
+- ruleID: patternfly-v5-to-patternfly-v6-removed-components-00020
+  description: PageNavigation usage detected (removed API)
+  effort: 5
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: PageNavigation
+  message: 'The PageNavigation component has been removed from PatternFly.
+
+    Remove usage of `PageNavigation` (API has been removed).'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10650
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium

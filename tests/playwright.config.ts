@@ -46,5 +46,9 @@ export default defineConfig({
       name: 'agent-flow-tests',
       testMatch: /.*agent_flow.+\.test\.ts/,
     },
+    {
+      name: 'typescript-tests',
+      testMatch: ['**/typescript/**/*.test.ts'],
+    },
   ],
 });

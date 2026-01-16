@@ -1,0 +1,42 @@
+- ruleID: patternfly-v5-to-patternfly-v6-banner-00000
+  description: Banner variant='default' should be replaced with Banner
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Banner
+    - builtin.filecontent:
+        pattern: <Banner[^>]*\bvariant=['"]default['"]
+        filePattern: \.(j|t)sx?$
+  message: 'The variant property has been removed from Banner. We recommend using our new color or status properties, depending
+    on the original intent of the variant property.
+
+
+    Replace `Banner variant="default"` with `Banner`.
+
+
+    Before:
+
+    ```
+
+    <Banner variant="default" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Banner />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9891
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

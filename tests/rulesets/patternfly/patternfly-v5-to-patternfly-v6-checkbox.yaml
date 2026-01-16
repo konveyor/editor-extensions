@@ -1,0 +1,41 @@
+- ruleID: patternfly-v5-to-patternfly-v6-checkbox-00000
+  description: Checkbox isLabelBeforeButton should be replaced with Checkbox labelPosition="start"
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Checkbox
+    - builtin.filecontent:
+        pattern: <Checkbox[^>]*\bisLabelBeforeButton\b
+        filePattern: \.(j|t)sx?$
+  message: 'The isLabelBeforeButton prop in Checkbox and Radio has been replaced with labelPosition="start"
+
+
+    Replace `Checkbox isLabelBeforeButton` with `Checkbox labelPosition="start"`.
+
+
+    Before:
+
+    ```
+
+    <Checkbox isLabelBeforeButton />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Checkbox labelPosition="start" />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10016
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
