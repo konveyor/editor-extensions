@@ -223,7 +223,7 @@ await basePage.waitForExtensionReady();
 ```typescript
 import { executeVSCodeCommand } from "../utilities/vscode-commands.utils";
 
-await executeVSCodeCommand(page, "konveyor.runAnalysis");
+await executeVSCodeCommand(page, "konveyor-core.runAnalysis");
 ```
 
 ### File Operations

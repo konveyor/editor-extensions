@@ -37,8 +37,8 @@ export function prepareOfflineWorkspace(repoDir: string): void {
 
   // Set demoMode and cacheDir in settings BEFORE VS Code launches
   writeOrUpdateSettingsJson(path.join(repoDir, '.vscode', 'settings.json'), {
-    'konveyor.genai.demoMode': true,
-    'konveyor.genai.cacheDir': '.vscode/cache',
+    'konveyor-core.genai.demoMode': true,
+    'konveyor-core.genai.cacheDir': '.vscode/cache',
   });
   console.log('Set demoMode and cacheDir in workspace settings');
 }
