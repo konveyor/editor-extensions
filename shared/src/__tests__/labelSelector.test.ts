@@ -116,17 +116,17 @@ describe("buildLabelSelector", () => {
 describe("buildLabelSelectorFromLabels", () => {
   it("should return correct format when no labels are provided", () => {
     const result = buildLabelSelectorFromLabels([], []);
-    expect(result).toBe("() && ");
+    expect(result).toBe("");
   });
 
   it("should handle only sources", () => {
     const result = buildLabelSelectorFromLabels(["konveyor.io/source=java-ee"], []);
-    expect(result).toBe("(konveyor.io/source=java-ee) && ");
+    expect(result).toBe("(konveyor.io/source=java-ee)");
   });
 
   it("should handle only targets", () => {
     const result = buildLabelSelectorFromLabels(["konveyor.io/target=spring-boot"], []);
-    expect(result).toBe("(konveyor.io/target=spring-boot) && ");
+    expect(result).toBe("(konveyor.io/target=spring-boot)");
   });
 
   it("should handle sources and targets together", () => {
@@ -134,7 +134,7 @@ describe("buildLabelSelectorFromLabels", () => {
       ["konveyor.io/source=java-ee", "konveyor.io/target=spring-boot"],
       [],
     );
-    expect(result).toBe("(konveyor.io/source=java-ee || konveyor.io/target=spring-boot) && ");
+    expect(result).toBe("(konveyor.io/source=java-ee || konveyor.io/target=spring-boot)");
   });
 
   it("should handle excluded labels", () => {
@@ -162,7 +162,7 @@ describe("buildLabelSelectorFromLabels", () => {
       ["other.namespace/label=value", "konveyor.io/source=java-ee"],
       [],
     );
-    expect(result).toBe("(other.namespace/label=value || konveyor.io/source=java-ee) && ");
+    expect(result).toBe("(other.namespace/label=value || konveyor.io/source=java-ee)");
   });
 
   it("should handle other konveyor.io labels", () => {
@@ -170,7 +170,7 @@ describe("buildLabelSelectorFromLabels", () => {
       ["konveyor.io/other=value", "konveyor.io/source=java-ee"],
       [],
     );
-    expect(result).toBe("(konveyor.io/other=value || konveyor.io/source=java-ee) && ");
+    expect(result).toBe("(konveyor.io/other=value || konveyor.io/source=java-ee)");
   });
 
   it("should include duplicate labels as provided", () => {
