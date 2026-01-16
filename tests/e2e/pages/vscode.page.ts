@@ -532,7 +532,7 @@ export abstract class VSCode {
 
   public async openConfiguration() {
     const analysisView = await this.getView(KAIViews.analysisView);
-    await analysisView.locator('button[aria-label="Configuration"]').first().click();
+    await analysisView.locator('button#analysis-configuration-button').first().click();
   }
 
   public async closeConfiguration(): Promise<void> {

@@ -17,9 +17,10 @@ export class HubConfigurationPage {
   }
 
   public async openHubConfiguration() {
+    await this.vsCode.openAnalysisView();
     await this.vsCode.openConfiguration();
     const view = await this.vsCode.getView(KAIViews.analysisView);
-    await view.getByRole('button', { name: 'Configure Hub Settings' }).click();
+    await view.locator('#configure-hub-settings-button').click();
   }
 
   /**
