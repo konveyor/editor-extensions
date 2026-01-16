@@ -23,6 +23,7 @@ jobs:
       java_vsix: ${{ steps.set_vsix_paths.outputs.java_vsix }}
       javascript_vsix: ${{ steps.set_vsix_paths.outputs.javascript_vsix }}
       go_vsix: ${{ steps.set_vsix_paths.outputs.go_vsix }}
+      csharp_vsix: ${{ steps.set_vsix_paths.outputs.csharp_vsix }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,15 +48,17 @@ jobs:
           JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
           JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
           GO_NAME=$(node -p "require('./vscode/go/package.json').name")
+          CSHARP_NAME=$(node -p "require('./vscode/csharp/package.json').name")
 
           # Find the actual VSIX files
           CORE_VSIX=$(ls ./dist/${CORE_NAME}-*.vsix | head -n 1)
           JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
           JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
           GO_VSIX=$(ls ./dist/${GO_NAME}-*.vsix | head -n 1)
+          CSHARP_VSIX=$(ls ./dist/${CSHARP_NAME}-*.vsix | head -n 1)
 
           # Verify and output
-          for vsix in "$CORE_VSIX" "$JAVA_VSIX" "$JS_VSIX" "$GO_VSIX"; do
+          for vsix in "$CORE_VSIX" "$JAVA_VSIX" "$JS_VSIX" "$GO_VSIX" "$CSHARP_VSIX"; do
             [ ! -f "$vsix" ] && echo "Error: VSIX not found: $vsix" && exit 1
           done
 
@@ -63,6 +66,7 @@ jobs:
           echo "java_vsix=${JAVA_VSIX}" >> $GITHUB_OUTPUT
           echo "javascript_vsix=${JS_VSIX}" >> $GITHUB_OUTPUT
           echo "go_vsix=${GO_VSIX}" >> $GITHUB_OUTPUT
+          echo "csharp_vsix=${CSHARP_VSIX}" >> $GITHUB_OUTPUT
 
   # Critical tests - block PRs and releases
   test-tier0:
@@ -92,6 +96,7 @@ jobs:
           JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
 
       - name: Upload test results
         if: always()
@@ -136,6 +141,7 @@ jobs:
           JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
 
       - name: Upload test results
         if: always()
@@ -176,6 +182,7 @@ jobs:
           JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
 
       - name: Upload test results
         if: always()
@@ -214,6 +221,7 @@ jobs:
           JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
 
       - name: Upload test results
         if: always()
@@ -267,6 +275,7 @@ jobs:
           JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
           KONVEYOR_HUB_URL: ${{ steps.get_hub_url.outputs.hub_url }}
 
       - name: Collect infrastructure logs
