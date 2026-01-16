@@ -1,4 +1,4 @@
-import { relative, dirname, posix, join } from "node:path";
+import { relative, dirname, join } from "node:path";
 import { readFileSync, createWriteStream, createReadStream } from "node:fs";
 import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
@@ -11,6 +11,7 @@ import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
+import { parseIgnoreFileToGlobPatterns } from "./utilities/ignorePatterns";
 import AdmZip from "adm-zip";
 
 /**
@@ -404,10 +405,7 @@ export const ignoresToExcludedPaths = () => {
       _logger?.debug(`Using file: ${ignoreFiles[0]}`);
       const base = slash(relative(cwd, dirname(ignoreFiles[0])));
 
-      ignores = readFileSync(ignoreFiles[0], "utf-8")
-        .split(/\r?\n/)
-        .filter((line) => line && !line.startsWith("#"))
-        .map((pattern) => posix.join(pattern, base));
+      ignores = parseIgnoreFileToGlobPatterns(readFileSync(ignoreFiles[0], "utf-8"), base);
 
       break;
     }
