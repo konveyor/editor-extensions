@@ -54,6 +54,7 @@ interface ExtensionStore {
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  isWebEnvironment: boolean;
 
   // Batch review state
   pendingBatchReview: PendingBatchReviewFile[];
@@ -97,6 +98,7 @@ interface ExtensionStore {
   setProfileSyncConnected: (connected: boolean) => void;
   setIsSyncingProfiles: (isSyncing: boolean) => void;
   setLlmProxyAvailable: (available: boolean) => void;
+  setIsWebEnvironment: (isWeb: boolean) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -139,6 +141,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       profileSyncConnected: false,
       isSyncingProfiles: false,
       llmProxyAvailable: false,
+      isWebEnvironment: false,
 
       // Batch review state
       pendingBatchReview: [],
@@ -328,6 +331,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setLlmProxyAvailable: (available) =>
         set((state) => {
           state.llmProxyAvailable = available;
+        }),
+
+      setIsWebEnvironment: (isWeb) =>
+        set((state) => {
+          state.isWebEnvironment = isWeb;
         }),
 
       clearAnalysisData: () =>
