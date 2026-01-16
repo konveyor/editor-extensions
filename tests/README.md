@@ -136,7 +136,6 @@ npx playwright test --grep "@tier1"
 
 For complete guidelines including promotion criteria, tag combinations, and CI/CD integration, see:
 - **[Test Categorization Guidelines](../docs/test-categorization.md)** - Complete reference
-- **[Enhancement Proposal](../docs/enhancement-flexible-e2e-test-gating.md)** - Technical design
 
 # 🚀 Getting Started
 
