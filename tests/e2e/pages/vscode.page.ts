@@ -202,8 +202,9 @@ export abstract class VSCode {
   }
 
   public async waitForFileSolutionAccepted(fileName: string): Promise<void> {
+    const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return this.assertNotification(
-      new RegExp(`Auto-accepted all diff changes for .*${fileName}.* - saving final state`),
+      new RegExp(`Auto-accepted all diff changes for .*${escapedFileName}.* - saving final state`),
       { timeout: 60 * SEC }
     );
   }

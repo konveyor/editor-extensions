@@ -210,7 +210,9 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
 export function getHubConfig(overrides?: Partial<HubConfiguration>): HubConfiguration {
   // Get values from env with defaults
   const url = overrides?.url ?? process.env.HUB_URL;
-  const skipSSL = overrides?.skipSSL ?? (!!process.env.HUB_INSECURE || true);
+  const skipSSL =
+    overrides?.skipSSL ??
+    (process.env.HUB_INSECURE !== undefined ? process.env.HUB_INSECURE === 'true' : true);
   const solutionServerEnabled = overrides?.solutionServerEnabled ?? false;
   const profileSyncEnabled = overrides?.profileSyncEnabled ?? false;
 
