@@ -14,6 +14,9 @@ test.describe(
   () => {
     let vscodeApp: VSCode;
 
+    /**
+     * This test assumes an analysis profile named "Coolstore" exists in the hub
+     */
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(300000);
       const repoInfo = testRepoData['coolstore'];
