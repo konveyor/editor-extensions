@@ -32,8 +32,7 @@ export function parseIgnoreFileToGlobPatterns(content: string, base: string = ""
     .split(/\r?\n/)
     .filter((line) => line && !line.startsWith("#"))
     .map((pattern) => {
-      return posix.join(pattern, base);
-      //   const joined = posix.join(pattern, base);
-      //   return ignorePatternToGlob(joined);
+      const joined = posix.join(pattern, base);
+      return ignorePatternToGlob(joined);
     });
 }
