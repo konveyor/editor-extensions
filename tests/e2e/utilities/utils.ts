@@ -233,7 +233,8 @@ export function getHubConfig(overrides?: Partial<HubConfiguration>): HubConfigur
   } else {
     const username = process.env.HUB_USERNAME;
     const password = process.env.HUB_PASSWORD;
-    const authEnabled = !!process.env.HUB_AUTH_ENABLED || !!(username && password);
+    const envAuth = process.env.HUB_AUTH_ENABLED;
+    const authEnabled = envAuth !== undefined ? envAuth === 'true' : !!(username && password);
 
     if (authEnabled) {
       if (!username || !password) {
