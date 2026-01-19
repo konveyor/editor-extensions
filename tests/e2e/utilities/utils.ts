@@ -10,10 +10,93 @@ import type { VSCode } from '../pages/vscode.page';
 import { LogEntry } from '../types/log-entry';
 import { HubConfiguration } from '../types/hub-configuration';
 
-// Default to the core extension ID (the extension pack is `konveyor`, core is `konveyor-core`)
-export const extensionName = process.env.EXTENSION_NAME || 'konveyor-core';
+// ============================================================================
+// Extension ID Configuration
+// ============================================================================
+// This section defines all extension IDs used in tests. These can be overridden
+// via environment variables to support downstream rebranding.
+//
+// Pattern for adding new extensions:
+// 1. Add EXTENSION_NAME and EXTENSION_PUBLISHER env vars (if different from konveyor)
+// 2. Compute extensionId as `${publisher}.${name}`
+// 3. Add any external dependencies the extension requires
+// 4. Document the env vars below
+//
+// Environment Variables:
+// - EXTENSION_PUBLISHER: Publisher for all Konveyor extensions (default: 'konveyor')
+// - CORE_EXTENSION_NAME: Name of the core extension (default: 'konveyor-core')
+// - JAVA_EXTENSION_NAME: Name of the Java extension (default: 'konveyor-java')
+// - JAVASCRIPT_EXTENSION_NAME: Name of the JavaScript extension (default: 'konveyor-javascript')
+// - GO_EXTENSION_NAME: Name of the Go extension (default: 'konveyor-go')
+// - CSHARP_EXTENSION_NAME: Name of the C# extension (default: 'konveyor-csharp')
+// - PACK_EXTENSION_NAME: Name of the extension pack (default: 'konveyor')
+//
+// External dependency overrides:
+// - REDHAT_JAVA_EXTENSION_ID: Full ID of Red Hat Java extension (default: 'redhat.java')
+// - GOLANG_GO_EXTENSION_ID: Full ID of Golang extension (default: 'golang.go')
+// ============================================================================
+
+// Publisher (shared by all Konveyor extensions)
 export const extensionPublisher = process.env.EXTENSION_PUBLISHER || 'konveyor';
-export const extensionId = `${extensionPublisher}.${extensionName}`;
+
+// Core extension
+export const coreExtensionName = process.env.CORE_EXTENSION_NAME || 'konveyor-core';
+export const coreExtensionId = `${extensionPublisher}.${coreExtensionName}`;
+
+// Java extension
+export const javaExtensionName = process.env.JAVA_EXTENSION_NAME || 'konveyor-java';
+export const javaExtensionId = `${extensionPublisher}.${javaExtensionName}`;
+
+// JavaScript extension
+export const javascriptExtensionName =
+  process.env.JAVASCRIPT_EXTENSION_NAME || 'konveyor-javascript';
+export const javascriptExtensionId = `${extensionPublisher}.${javascriptExtensionName}`;
+
+// Go extension
+export const goExtensionName = process.env.GO_EXTENSION_NAME || 'konveyor-go';
+export const goExtensionId = `${extensionPublisher}.${goExtensionName}`;
+
+// C# extension
+export const csharpExtensionName = process.env.CSHARP_EXTENSION_NAME || 'konveyor-csharp';
+export const csharpExtensionId = `${extensionPublisher}.${csharpExtensionName}`;
+
+// Extension Pack
+export const packExtensionName = process.env.PACK_EXTENSION_NAME || 'konveyor';
+export const packExtensionId = `${extensionPublisher}.${packExtensionName}`;
+
+// External dependency extensions
+export const redhatJavaExtensionId = process.env.REDHAT_JAVA_EXTENSION_ID || 'redhat.java';
+export const golangGoExtensionId = process.env.GOLANG_GO_EXTENSION_ID || 'golang.go';
+
+// ============================================================================
+// Backward Compatibility Aliases
+// ============================================================================
+// Maintain backward compatibility with existing code
+export const extensionName = coreExtensionName;
+export const extensionId = coreExtensionId;
+
+// ============================================================================
+// Extension Dependency Map
+// ============================================================================
+// Maps each extension to its required dependencies for verification
+export const extensionDependencies: Record<string, string[]> = {
+  [coreExtensionId]: [],
+  [javaExtensionId]: [coreExtensionId, redhatJavaExtensionId],
+  [javascriptExtensionId]: [coreExtensionId],
+  [goExtensionId]: [coreExtensionId, golangGoExtensionId],
+  [csharpExtensionId]: [coreExtensionId],
+  [packExtensionId]: [
+    coreExtensionId,
+    javaExtensionId,
+    javascriptExtensionId,
+    goExtensionId,
+    csharpExtensionId,
+  ],
+};
+
+// ============================================================================
+// Other Configuration
+// ============================================================================
 export const extensionShortName = process.env.TEST_CATEGORY || 'Konveyor';
 
 // Function to get the analysis view title based on extension short name
