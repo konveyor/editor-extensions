@@ -205,26 +205,25 @@ export class VSCodeWeb extends VSCode {
 
   protected async selectCustomRules(customRulesPath: string) {
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
-    console.log(`Selecting custom rules from: ${customRulesPath}`);
+    console.log(`Uploading custom rules from: ${customRulesPath}`);
 
-    const customRulesButton = manageProfileView.getByRole('button', {
-      name: 'Select Custom Rules…',
-    });
-    await customRulesButton.click();
-    const pathInput = this.window.locator('.quick-input-box input');
-    await expect(pathInput).toHaveValue(`/projects/${this.repoDir}/`);
-    await pathInput.fill(`/projects/${this.repoDir}/${customRulesPath}/`);
-    await expect(
-      this.window.locator('.quick-input-list-entry').filter({ hasText: '.yaml' }).first()
-    ).toBeVisible();
-    await this.window
-      .locator('.quick-input-action')
-      .getByRole('button', { name: 'Select Custom Rules' })
-      .click();
+    const fileInput = manageProfileView.locator('input[type="file"][accept=".yaml,.yml"]');
+
+    const path = await import('path');
+    const glob = await import('glob');
+
+    const yamlFiles = glob.sync(path.join(customRulesPath, '**/*.yaml'));
+    if (yamlFiles.length === 0) {
+      throw new Error(`No YAML files found in ${customRulesPath}`);
+    }
+
+    console.log(`Found ${yamlFiles.length} YAML files to upload`);
+
+    await fileInput.setInputFiles(yamlFiles);
 
     const customRulesLabel = manageProfileView
       .locator('[class*="label"], [class*="Label"]')
-      .filter({ hasText: customRulesPath });
+      .filter({ hasText: '.yaml' });
     await expect(customRulesLabel.first()).toBeVisible({ timeout: 30000 });
   }
 
