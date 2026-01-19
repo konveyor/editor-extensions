@@ -13,7 +13,7 @@ import { ignorePatternToGlob, parseIgnoreFileToGlobPatterns } from "../ignorePat
  */
 
 describe("ignorePatternToGlob", () => {
-  it("should add **/ prefix to patterns without leading / or **", () => {
+  it("should add **/ prefix to patterns without leading **", () => {
     expect(ignorePatternToGlob("dist/")).toBe("**/dist/");
     expect(ignorePatternToGlob("node_modules/")).toBe("**/node_modules/");
     expect(ignorePatternToGlob("build")).toBe("**/build");
@@ -25,10 +25,10 @@ describe("ignorePatternToGlob", () => {
     expect(ignorePatternToGlob("**/*.log")).toBe("**/*.log");
   });
 
-  it("should preserve patterns that start with /", () => {
-    // Leading / in ignore files means "top-level only"
-    expect(ignorePatternToGlob("/dist/")).toBe("/dist/");
-    expect(ignorePatternToGlob("/build")).toBe("/build");
+  it("should NOT add **/ prefix when isRooted is true", () => {
+    // Rooted patterns should stay as-is (relative to ignore file location)
+    expect(ignorePatternToGlob("dist/", true)).toBe("dist/");
+    expect(ignorePatternToGlob("build", true)).toBe("build");
   });
 
   it("should handle patterns with wildcards", () => {
@@ -66,12 +66,21 @@ describe("parseIgnoreFileToGlobPatterns", () => {
     expect(result).toEqual(["**/dist/", "**/node_modules/", "**/build/"]);
   });
 
-  it("should preserve patterns with leading /", () => {
+  it("should handle rooted patterns (leading /) without **/ prefix", () => {
     const content = "/dist/\nnode_modules/";
     const result = parseIgnoreFileToGlobPatterns(content);
 
-    // /dist/ stays as-is (top-level only), node_modules/ gets **/ prefix
-    expect(result).toEqual(["/dist/", "**/node_modules/"]);
+    // /dist/ is rooted (no **/ prefix), node_modules/ gets **/ prefix
+    expect(result).toEqual(["dist/", "**/node_modules/"]);
+  });
+
+  it("should handle rooted patterns with base path", () => {
+    const content = "/dist/";
+    // When ignore file is in a subdirectory, rooted pattern is relative to that location
+    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
+
+    // /dist/ in subdir/.gitignore means subdir/dist/ (no **/ prefix)
+    expect(result).toEqual(["subdir/dist/"]);
   });
 
   it("should preserve patterns with leading **", () => {
@@ -81,14 +90,46 @@ describe("parseIgnoreFileToGlobPatterns", () => {
     expect(result).toEqual(["**/dist/", "**/node_modules/"]);
   });
 
-  it("should handle base path joining", () => {
+  it("should handle base path joining for non-rooted patterns", () => {
     const content = "dist/";
     // When ignore file is in a subdirectory, base would be that subdirectory
     const result = parseIgnoreFileToGlobPatterns(content, "subdir");
 
     // Pattern is relative to ignore file location: subdir/dist/
-    // Then gets **/ prefix since it doesn't start with / or **
+    // Then gets **/ prefix since it's not rooted
     expect(result).toEqual(["**/subdir/dist/"]);
+  });
+
+  it("should handle negation patterns", () => {
+    const content = "dist/\n!dist/keep/";
+    const result = parseIgnoreFileToGlobPatterns(content);
+
+    // Negation prefix should be preserved at the start
+    expect(result).toEqual(["**/dist/", "!**/dist/keep/"]);
+  });
+
+  it("should handle negation patterns with base path", () => {
+    const content = "!dist/";
+    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
+
+    // Negation should be at the start, after base path joining
+    expect(result).toEqual(["!**/subdir/dist/"]);
+  });
+
+  it("should handle negation with rooted patterns", () => {
+    const content = "!/dist/";
+    const result = parseIgnoreFileToGlobPatterns(content);
+
+    // Both negation and rooted: no **/ prefix, negation at start
+    expect(result).toEqual(["!dist/"]);
+  });
+
+  it("should handle negation with rooted patterns and base path", () => {
+    const content = "!/dist/";
+    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
+
+    // Rooted to subdir, negated, no **/ prefix
+    expect(result).toEqual(["!subdir/dist/"]);
   });
 
   it("should handle empty content", () => {
@@ -129,5 +170,23 @@ node_modules/
       "**/.vscode/",
       "**/*.log",
     ]);
+  });
+
+  it("should handle complex ignore file with negations and rooted patterns", () => {
+    const content = `# Ignore all logs
+*.log
+
+# But keep error logs
+!error.log
+
+# Only ignore root-level temp
+/temp/
+
+# Ignore all dist folders
+dist/
+`;
+    const result = parseIgnoreFileToGlobPatterns(content);
+
+    expect(result).toEqual(["**/*.log", "!**/error.log", "temp/", "**/dist/"]);
   });
 });
