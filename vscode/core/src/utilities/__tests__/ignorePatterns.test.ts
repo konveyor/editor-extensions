@@ -1,9 +1,20 @@
 import expect from "expect";
-import { ignorePatternToGlob, parseIgnoreFileToGlobPatterns } from "../ignorePatterns";
+import ignore from "ignore";
+import {
+  createIgnoreFromWorkspace,
+  filterIgnoredPaths,
+  isPathIgnored,
+  IGNORE_FILE_PRIORITY,
+  DEFAULT_IGNORE_PATTERNS,
+  ALWAYS_IGNORE_PATTERNS,
+} from "../ignorePatterns";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 /**
- * This test file verifies the behavior of ignore file pattern processing
- * for the ignoresToExcludedPaths function.
+ * This test file verifies the behavior of ignore file processing
+ * using the `ignore` npm package which properly implements gitignore semantics.
  *
  * Supports .gitignore, .konveyorignore, and similar ignore file formats.
  *
@@ -12,139 +23,186 @@ import { ignorePatternToGlob, parseIgnoreFileToGlobPatterns } from "../ignorePat
  * not just the top-level one.
  */
 
-describe("ignorePatternToGlob", () => {
-  it("should add **/ prefix to patterns without leading **", () => {
-    expect(ignorePatternToGlob("dist/")).toBe("**/dist/");
-    expect(ignorePatternToGlob("node_modules/")).toBe("**/node_modules/");
-    expect(ignorePatternToGlob("build")).toBe("**/build");
-    expect(ignorePatternToGlob(".cache/")).toBe("**/.cache/");
+describe("ignorePatterns module", () => {
+  describe("constants", () => {
+    it("should have correct priority order for ignore files", () => {
+      expect(IGNORE_FILE_PRIORITY).toEqual([".konveyorignore", ".gitignore"]);
+    });
+
+    it("should have sensible default patterns", () => {
+      expect(DEFAULT_IGNORE_PATTERNS).toContain(".git");
+      expect(DEFAULT_IGNORE_PATTERNS).toContain("node_modules");
+    });
+
+    it("should always ignore .konveyor directory", () => {
+      expect(ALWAYS_IGNORE_PATTERNS).toContain(".konveyor");
+    });
   });
 
-  it("should preserve patterns that already start with **", () => {
-    expect(ignorePatternToGlob("**/dist/")).toBe("**/dist/");
-    expect(ignorePatternToGlob("**/*.log")).toBe("**/*.log");
+  describe("createIgnoreFromWorkspace", () => {
+    let testDir: string;
+
+    beforeEach(() => {
+      testDir = mkdtempSync(join(tmpdir(), "konveyor-test-"));
+    });
+
+    afterEach(() => {
+      if (testDir) {
+        rmSync(testDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should load .konveyorignore when present", () => {
+      writeFileSync(join(testDir, ".konveyorignore"), "custom-ignore/\n");
+      writeFileSync(join(testDir, ".gitignore"), "git-ignore/\n");
+
+      const { ig, ignoreFile } = createIgnoreFromWorkspace(testDir);
+
+      expect(ignoreFile).toBe(join(testDir, ".konveyorignore"));
+      expect(ig.ignores("custom-ignore/")).toBe(true);
+      // .gitignore should NOT be loaded when .konveyorignore exists
+      expect(ig.ignores("git-ignore/")).toBe(false);
+    });
+
+    it("should fall back to .gitignore when .konveyorignore is not present", () => {
+      writeFileSync(join(testDir, ".gitignore"), "git-ignore/\n");
+
+      const { ig, ignoreFile } = createIgnoreFromWorkspace(testDir);
+
+      expect(ignoreFile).toBe(join(testDir, ".gitignore"));
+      expect(ig.ignores("git-ignore/")).toBe(true);
+    });
+
+    it("should use defaults when no ignore file exists", () => {
+      const { ig, ignoreFile } = createIgnoreFromWorkspace(testDir);
+
+      expect(ignoreFile).toBe(null);
+      // Should still ignore default patterns
+      expect(ig.ignores("node_modules/")).toBe(true);
+      expect(ig.ignores(".git/")).toBe(true);
+    });
+
+    it("should always ignore .konveyor directory", () => {
+      // Even with custom ignore file
+      writeFileSync(join(testDir, ".gitignore"), "dist/\n");
+
+      const { ig } = createIgnoreFromWorkspace(testDir);
+
+      expect(ig.ignores(".konveyor/")).toBe(true);
+      expect(ig.ignores(".konveyor/config.yaml")).toBe(true);
+    });
   });
 
-  it("should NOT add **/ prefix when isRooted is true", () => {
-    // Rooted patterns should stay as-is (relative to ignore file location)
-    expect(ignorePatternToGlob("dist/", true)).toBe("dist/");
-    expect(ignorePatternToGlob("build", true)).toBe("build");
+  describe("filterIgnoredPaths", () => {
+    it("should filter paths that match ignore patterns", () => {
+      const ig = ignore().add(["dist/", "*.log"]);
+      const paths = ["src/", "dist/", "app.log", "readme.md"];
+
+      const ignored = filterIgnoredPaths(paths, ig);
+
+      expect(ignored).toContain("dist/");
+      expect(ignored).toContain("app.log");
+      expect(ignored).not.toContain("src/");
+      expect(ignored).not.toContain("readme.md");
+    });
+
+    it("should handle nested directories correctly", () => {
+      const ig = ignore().add(["dist/"]);
+      const paths = ["dist/", "client/dist/", "packages/ui/dist/", "src/"];
+
+      const ignored = filterIgnoredPaths(paths, ig);
+
+      expect(ignored).toContain("dist/");
+      expect(ignored).toContain("client/dist/");
+      expect(ignored).toContain("packages/ui/dist/");
+      expect(ignored).not.toContain("src/");
+    });
+
+    it("should handle negation patterns", () => {
+      const ig = ignore().add(["*.log", "!important.log"]);
+      const paths = ["error.log", "debug.log", "important.log"];
+
+      const ignored = filterIgnoredPaths(paths, ig);
+
+      expect(ignored).toContain("error.log");
+      expect(ignored).toContain("debug.log");
+      expect(ignored).not.toContain("important.log");
+    });
+
+    it("should handle rooted patterns", () => {
+      const ig = ignore().add(["/dist/"]);
+      const paths = ["dist/", "client/dist/"];
+
+      const ignored = filterIgnoredPaths(paths, ig);
+
+      // Only root-level dist should be ignored
+      expect(ignored).toContain("dist/");
+      expect(ignored).not.toContain("client/dist/");
+    });
   });
 
-  it("should handle patterns with wildcards", () => {
-    expect(ignorePatternToGlob("*.log")).toBe("**/*.log");
-    expect(ignorePatternToGlob("*.tmp")).toBe("**/*.tmp");
-  });
-});
+  describe("isPathIgnored", () => {
+    it("should check if a single path is ignored", () => {
+      const ig = ignore().add(["dist/", "*.log"]);
 
-describe("parseIgnoreFileToGlobPatterns", () => {
-  it("should parse simple patterns and convert to glob format", () => {
-    const content = "dist/\nnode_modules/\nbuild/";
-    const result = parseIgnoreFileToGlobPatterns(content);
+      expect(isPathIgnored("dist/", ig)).toBe(true);
+      expect(isPathIgnored("app.log", ig)).toBe(true);
+      expect(isPathIgnored("src/", ig)).toBe(false);
+    });
 
-    expect(result).toEqual(["**/dist/", "**/node_modules/", "**/build/"]);
-  });
+    it("should handle paths with leading ./", () => {
+      const ig = ignore().add(["dist/"]);
 
-  it("should filter out empty lines", () => {
-    const content = "dist/\n\nnode_modules/\n\n";
-    const result = parseIgnoreFileToGlobPatterns(content);
-
-    expect(result).toEqual(["**/dist/", "**/node_modules/"]);
+      expect(isPathIgnored("./dist/", ig)).toBe(true);
+      expect(isPathIgnored("./src/", ig)).toBe(false);
+    });
   });
 
-  it("should filter out comment lines", () => {
-    const content = "# This is a comment\ndist/\n# Another comment\nnode_modules/";
-    const result = parseIgnoreFileToGlobPatterns(content);
+  describe("gitignore semantics (via ignore package)", () => {
+    it("should match patterns at any directory level by default", () => {
+      const ig = ignore().add(["dist/"]);
 
-    expect(result).toEqual(["**/dist/", "**/node_modules/"]);
-  });
+      expect(ig.ignores("dist/")).toBe(true);
+      expect(ig.ignores("client/dist/")).toBe(true);
+      expect(ig.ignores("a/b/c/dist/")).toBe(true);
+    });
 
-  it("should handle Windows-style line endings", () => {
-    const content = "dist/\r\nnode_modules/\r\nbuild/";
-    const result = parseIgnoreFileToGlobPatterns(content);
+    it("should respect rooted patterns with leading /", () => {
+      const ig = ignore().add(["/dist/"]);
 
-    expect(result).toEqual(["**/dist/", "**/node_modules/", "**/build/"]);
-  });
+      expect(ig.ignores("dist/")).toBe(true);
+      expect(ig.ignores("client/dist/")).toBe(false);
+    });
 
-  it("should handle rooted patterns (leading /) without **/ prefix", () => {
-    const content = "/dist/\nnode_modules/";
-    const result = parseIgnoreFileToGlobPatterns(content);
+    it("should handle complex negation scenarios", () => {
+      const ig = ignore().add(["*.log", "!important.log", "really-not-important.log"]);
 
-    // /dist/ is rooted (no **/ prefix), node_modules/ gets **/ prefix
-    expect(result).toEqual(["dist/", "**/node_modules/"]);
-  });
+      expect(ig.ignores("debug.log")).toBe(true);
+      expect(ig.ignores("important.log")).toBe(false);
+      // Pattern order matters in gitignore
+    });
 
-  it("should handle rooted patterns with base path", () => {
-    const content = "/dist/";
-    // When ignore file is in a subdirectory, rooted pattern is relative to that location
-    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
+    it("should handle directory vs file patterns", () => {
+      const ig = ignore().add(["logs/"]);
 
-    // /dist/ in subdir/.gitignore means subdir/dist/ (no **/ prefix)
-    expect(result).toEqual(["subdir/dist/"]);
-  });
+      // Directory pattern with trailing / only matches directories
+      expect(ig.ignores("logs/")).toBe(true);
+      expect(ig.ignores("logs/error.log")).toBe(true);
+      // But "logs" as a file should not match "logs/" pattern
+      // (though in practice files rarely have no extension)
+    });
 
-  it("should preserve patterns with leading **", () => {
-    const content = "**/dist/\n**/node_modules/";
-    const result = parseIgnoreFileToGlobPatterns(content);
+    it("should handle ** patterns", () => {
+      const ig = ignore().add(["**/dist/"]);
 
-    expect(result).toEqual(["**/dist/", "**/node_modules/"]);
-  });
+      expect(ig.ignores("dist/")).toBe(true);
+      expect(ig.ignores("client/dist/")).toBe(true);
+      expect(ig.ignores("a/b/c/dist/")).toBe(true);
+    });
 
-  it("should handle base path joining for non-rooted patterns", () => {
-    const content = "dist/";
-    // When ignore file is in a subdirectory, base would be that subdirectory
-    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
-
-    // Pattern is relative to ignore file location: subdir/dist/
-    // Then gets **/ prefix since it's not rooted
-    expect(result).toEqual(["**/subdir/dist/"]);
-  });
-
-  it("should handle negation patterns", () => {
-    const content = "dist/\n!dist/keep/";
-    const result = parseIgnoreFileToGlobPatterns(content);
-
-    // Negation prefix should be preserved at the start
-    expect(result).toEqual(["**/dist/", "!**/dist/keep/"]);
-  });
-
-  it("should handle negation patterns with base path", () => {
-    const content = "!dist/";
-    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
-
-    // Negation should be at the start, after base path joining
-    expect(result).toEqual(["!**/subdir/dist/"]);
-  });
-
-  it("should handle negation with rooted patterns", () => {
-    const content = "!/dist/";
-    const result = parseIgnoreFileToGlobPatterns(content);
-
-    // Both negation and rooted: no **/ prefix, negation at start
-    expect(result).toEqual(["!dist/"]);
-  });
-
-  it("should handle negation with rooted patterns and base path", () => {
-    const content = "!/dist/";
-    const result = parseIgnoreFileToGlobPatterns(content, "subdir");
-
-    // Rooted to subdir, negated, no **/ prefix
-    expect(result).toEqual(["!subdir/dist/"]);
-  });
-
-  it("should handle empty content", () => {
-    const result = parseIgnoreFileToGlobPatterns("");
-    expect(result).toEqual([]);
-  });
-
-  it("should handle content with only comments", () => {
-    const content = "# Comment 1\n# Comment 2";
-    const result = parseIgnoreFileToGlobPatterns(content);
-    expect(result).toEqual([]);
-  });
-
-  it("should handle realistic ignore file content", () => {
-    const content = `# Build outputs
+    it("should handle realistic .gitignore content", () => {
+      const content = `
+# Build outputs
 dist/
 build/
 out/
@@ -158,35 +216,65 @@ node_modules/
 
 # Logs
 *.log
-`;
-    const result = parseIgnoreFileToGlobPatterns(content);
-
-    expect(result).toEqual([
-      "**/dist/",
-      "**/build/",
-      "**/out/",
-      "**/node_modules/",
-      "**/.idea/",
-      "**/.vscode/",
-      "**/*.log",
-    ]);
-  });
-
-  it("should handle complex ignore file with negations and rooted patterns", () => {
-    const content = `# Ignore all logs
-*.log
 
 # But keep error logs
 !error.log
-
-# Only ignore root-level temp
-/temp/
-
-# Ignore all dist folders
-dist/
 `;
-    const result = parseIgnoreFileToGlobPatterns(content);
+      const ig = ignore().add(content);
 
-    expect(result).toEqual(["**/*.log", "!**/error.log", "temp/", "**/dist/"]);
+      expect(ig.ignores("dist/")).toBe(true);
+      expect(ig.ignores("client/dist/")).toBe(true);
+      expect(ig.ignores("node_modules/")).toBe(true);
+      expect(ig.ignores("debug.log")).toBe(true);
+      expect(ig.ignores("error.log")).toBe(false); // Negated
+      expect(ig.ignores("src/")).toBe(false);
+    });
+
+    it("should handle escaped negation character (\\!)", () => {
+      // \!important should match a literal file named "!important"
+      // NOT be treated as a negation pattern
+      const ig = ignore().add(["\\!important"]);
+
+      expect(ig.ignores("!important")).toBe(true);
+      // Regular files should not match
+      expect(ig.ignores("important")).toBe(false);
+    });
+
+    it("should handle escaped hash character (\\#)", () => {
+      // \#notes should match a literal file named "#notes"
+      // NOT be treated as a comment
+      const ig = ignore().add(["\\#notes"]);
+
+      expect(ig.ignores("#notes")).toBe(true);
+      expect(ig.ignores("notes")).toBe(false);
+    });
+
+    it("should handle escaped space character (\\ )", () => {
+      // "my\ file" should match a file with a space in the name
+      const ig = ignore().add(["my\\ file.txt"]);
+
+      expect(ig.ignores("my file.txt")).toBe(true);
+      expect(ig.ignores("myfile.txt")).toBe(false);
+    });
+
+    it("should distinguish between escaped and non-escaped patterns", () => {
+      const ig = ignore().add([
+        "*.log", // Ignore all .log files
+        "!keep.log", // But don't ignore keep.log (negation)
+        "\\!literal-bang.txt", // Ignore file literally named "!literal-bang.txt"
+      ]);
+
+      expect(ig.ignores("debug.log")).toBe(true);
+      expect(ig.ignores("keep.log")).toBe(false); // Negated
+      expect(ig.ignores("!literal-bang.txt")).toBe(true); // Escaped, matches literal
+    });
+
+    it("should handle trailing spaces correctly", () => {
+      // Trailing spaces are significant in gitignore when escaped
+      const ig = ignore().add(["trailing\\ "]);
+
+      expect(ig.ignores("trailing ")).toBe(true);
+      expect(ig.ignores("trailing")).toBe(false);
+    });
   });
 });
