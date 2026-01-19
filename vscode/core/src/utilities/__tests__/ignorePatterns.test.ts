@@ -86,9 +86,9 @@ describe("parseIgnoreFileToGlobPatterns", () => {
     // When ignore file is in a subdirectory, base would be that subdirectory
     const result = parseIgnoreFileToGlobPatterns(content, "subdir");
 
-    // Pattern gets joined with base: dist/ + subdir = dist/subdir
+    // Pattern is relative to ignore file location: subdir/dist/
     // Then gets **/ prefix since it doesn't start with / or **
-    expect(result).toEqual(["**/dist/subdir"]);
+    expect(result).toEqual(["**/subdir/dist/"]);
   });
 
   it("should handle empty content", () => {
