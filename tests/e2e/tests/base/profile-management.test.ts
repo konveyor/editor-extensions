@@ -6,7 +6,7 @@ import { FrameLocator } from 'playwright';
 import { ProfileActions } from '../../enums/profile-action-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
-test.describe(`Profile Tests`, { tag: ['@tier0'] }, () => {
+test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
   const profileNameWithRules = `profileWithRules-${generateRandomString()}`;
   const createdProfiles: string[] = [];

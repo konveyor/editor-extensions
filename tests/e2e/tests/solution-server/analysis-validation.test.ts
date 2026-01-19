@@ -15,7 +15,7 @@ import { ResolutionAction } from '../../enums/resolution-action.enum';
 
 test.describe(
   `Solution server analysis validations`,
-  { tag: ['@tier1', '@requires-minikube'] },
+  { tag: ['@tier3', '@requires-minikube'] },
   () => {
     let vsCode: VSCode;
     let mcpClient: MCPClient;

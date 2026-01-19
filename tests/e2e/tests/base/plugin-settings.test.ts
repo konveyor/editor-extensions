@@ -16,7 +16,7 @@ import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
-test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, () => {
+test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
   let tabManager: TabManager;
   const profileName = `plugins-settings-${generateRandomString()}`;

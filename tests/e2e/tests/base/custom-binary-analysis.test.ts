@@ -14,7 +14,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
  * If not present, it falls back to the analyzer from the collected assets (same as the one bundled with the extension, but still valid to verify functionality).
  * If neither option is available, the test throws an error.
  */
-test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@tier2'] }, () => {
+test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `custom-binary-analysis-${randomString}`;

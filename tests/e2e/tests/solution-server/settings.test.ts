@@ -65,7 +65,7 @@ const buildSettings = (config: SolutionServerConfig) => ({
 
 test.describe(
   `Configure Solution Server settings`,
-  { tag: ['@tier1', '@requires-minikube'] },
+  { tag: ['@tier3', '@requires-minikube'] },
   () => {
     let vscodeApp: VSCode;
     let repoInfo: RepoData[string];

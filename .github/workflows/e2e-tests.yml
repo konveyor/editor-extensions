@@ -86,12 +86,25 @@ jobs:
           name: ${{ inputs.vsix_artifact_name }}
           path: ./dist
 
-      - name: Run tier0 tests (excluding slow/infrastructure)
-        run: npx playwright test --grep "@tier0" --grep-invert "@slow|@requires-minikube"
+      - name: Run tier0 tests (excluding slow/infrastructure/offline)
+        run: npx playwright test --grep "@tier0" --grep-invert "@slow|@requires-minikube|@offline"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+
+      # This is intentionally kept in a separate step to avoid passing in credentials
+      - name: Run tier0 offline tests (no real API calls)
+        run: npx playwright test --grep "@tier0" --grep "@offline"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: <dummy> # this only exists to pass provider validation
           CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
           JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
@@ -128,10 +141,15 @@ jobs:
 
       - name: Run tier1 tests (excluding slow/infrastructure on PRs)
         run: |
-          if [ "${{ inputs.trigger_context }}" == "pr" ]; then
-            npx playwright test --grep "@tier1" --grep-invert "@slow|@requires-minikube"
+          # Check if any tier1 tests exist
+          if ! npx playwright test --list --grep "@tier1" 2>&1 | grep -q "Total: 0 tests"; then
+            if [ "${{ inputs.trigger_context }}" == "pr" ]; then
+              npx playwright test --grep "@tier1" --grep-invert "@slow|@requires-minikube"
+            else
+              npx playwright test --grep "@tier1" --grep-invert "@requires-minikube"
+            fi
           else
-            npx playwright test --grep "@tier1" --grep-invert "@requires-minikube"
+            echo "No @tier1 tests found, skipping"
           fi
         working-directory: ./tests
         env:

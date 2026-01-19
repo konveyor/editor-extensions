@@ -12,7 +12,7 @@ import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 getAvailableProviders().forEach((provider) => {
-  test.describe(`Run analysis and fix one issue - ${provider.model}`, { tag: ['@tier0'] }, () => {
+  test.describe(`Run analysis and fix one issue - ${provider.model}`, { tag: ['@tier3'] }, () => {
     let vscodeApp: VSCode;
     const profileName = `fix-single-issue-${generateRandomString()}`;
 

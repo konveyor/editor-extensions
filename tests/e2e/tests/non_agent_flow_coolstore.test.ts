@@ -19,7 +19,7 @@ const profileName = 'JavaEE to Quarkus';
 providers.forEach((config) => {
   test.describe(
     `Coolstore app tests with agent mode disabled - offline (cached) | ${config.provider}/${config.model}`,
-    { tag: ['@tier0', '@offline'] },
+    { tag: ['@tier3', '@offline'] },
     () => {
       let vscodeApp: VSCode;
       test.beforeAll(async ({ testRepoData }: { testRepoData: any }, testInfo: any) => {

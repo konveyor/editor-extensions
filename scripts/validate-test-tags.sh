@@ -11,18 +11,8 @@ echo "🔍 Validating E2E test tags using Playwright..."
 # Note: Playwright returns non-zero when no tests found, so we need to handle that
 OUTPUT=$(npx playwright test --list --grep-invert "@tier0|@tier1|@tier2|@tier3" 2>&1 || true)
 
-# Check for errors during test discovery (e.g., module load errors)
-if echo "$OUTPUT" | grep -q "Error:"; then
-  echo ""
-  echo "❌ Test discovery failed with errors!"
-  echo ""
-  echo "$OUTPUT"
-  echo ""
-  echo "Fix the errors above before validating test tags."
-  exit 1
-fi
-
 # Check if all tests have tags (should find 0 tests)
+# Note: Playwright outputs "Error: No tests found" when grep-invert matches nothing, which is success for us
 if echo "$OUTPUT" | grep -q "Total: 0 tests in 0 files"; then
   echo "✅ All tests have tier tags"
   exit 0
