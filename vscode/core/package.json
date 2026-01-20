@@ -222,6 +222,12 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "konveyor-core.issueView",
+        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs)."
+      }
+    ],
     "menus": {
       "view/title": [
         {

@@ -524,6 +524,9 @@ class VsCodeExtension {
       this.registerWebviewProvider();
       // Diff view removed - using unified decorator flow instead
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
+
+      await vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.hasIssues`, false);
+
       this.registerCoreHealthChecks();
       this.registerCommands();
       this.registerLanguageProviders();

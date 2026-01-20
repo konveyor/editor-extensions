@@ -4,7 +4,6 @@ import { FileItem, IncidentTypeItem, IssuesTreeDataProvider, ReferenceItem } fro
 import { Immutable } from "immer";
 import { ExtensionData, RuleSet } from "@editor-extensions/shared";
 import { expandAll, expandChildren } from "./expandCommands";
-import { executeExtensionCommand } from "../commands";
 import { EXTENSION_NAME } from "../utilities/constants";
 
 export function registerIssueView({
@@ -21,11 +20,11 @@ export function registerIssueView({
     },
   );
 
-  treeView.message = model.message;
+  treeView.message = model.message ?? undefined;
   treeView.badge = model.badge;
   context.subscriptions.push(treeView);
   provider.onDidChangeTreeData(() => {
-    treeView.message = model.message;
+    treeView.message = model.message ?? undefined;
     treeView.badge = model.badge;
   });
   // auto-expand nodes with only one child
@@ -44,7 +43,6 @@ export function registerIssueView({
     (item: IncidentTypeItem | FileItem | ReferenceItem) => expandChildren(item, treeView),
   );
 
-  let firstLoad = true;
   let lastRuleSets: Immutable<RuleSet[]> = [];
   let lastEnhancedIncidents: Immutable<ExtensionData["enhancedIncidents"]> = [];
   return (data: Immutable<ExtensionData>) => {
@@ -53,13 +51,8 @@ export function registerIssueView({
       model.updateIssues(data.ruleSets, data.enhancedIncidents);
       lastRuleSets = data.ruleSets;
       lastEnhancedIncidents = data.enhancedIncidents;
-    }
-
-    if (firstLoad) {
-      firstLoad = false;
-      // TODO: re-implement to be explicitly part of the extension lifecycle
-      // current code relies on the side effects
-      executeExtensionCommand("showAnalysisPanel");
+      const hasIssues = model.countIncidents() > 0;
+      vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.hasIssues`, hasIssues);
     }
   };
 }
