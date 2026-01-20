@@ -5,6 +5,7 @@
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import * as vscode from "vscode";
 import { CheckResultBuilder, withErrorHandling, formatDetails } from "../helpers";
+import { EXTENSION_NAME } from "../../utilities/constants";
 
 const PROXY_VARS = [
   "HTTPS_PROXY",
@@ -94,7 +95,7 @@ export const networkConfigCheck: HealthCheckModule = {
     const builder = new CheckResultBuilder("Network Configuration");
 
     return withErrorHandling("Network Configuration", logger, async () => {
-      const config = vscode.workspace.getConfiguration("konveyor");
+      const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
       const httpProtocol = config.get<string>("genai.httpProtocol") || "http1";
 
       const proxyConfig = collectEnvVars(PROXY_VARS);

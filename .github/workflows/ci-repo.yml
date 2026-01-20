@@ -45,6 +45,10 @@ jobs:
         run: |
           npm ci
 
+      - name: Validate extension names
+        run: |
+          scripts/validate-extension-names.sh
+
       - name: Lint sources
         run: |
           npm run lint
