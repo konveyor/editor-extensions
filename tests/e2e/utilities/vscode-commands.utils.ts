@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
 import { downloadFile } from './download.utils';
-import { extensionId } from './utils';
+import { extensionId, coreExtensionId, redhatJavaExtensionId } from './utils';
 
 /**
  * Helper function to get environment variables with Node.js loader options cleared
@@ -105,7 +105,7 @@ export async function installExtension(): Promise<void> {
     // In CI environments, we might not be able to verify due to V8/ESM loader issues
     // so we'll be more lenient with the verification
     try {
-      if (!isExtensionInstalled('konveyor.konveyor-core')) {
+      if (!isExtensionInstalled(coreExtensionId)) {
         if (process.env.CI) {
           console.warn('Warning: Could not verify core extension installation in CI environment');
           console.warn(
@@ -113,7 +113,7 @@ export async function installExtension(): Promise<void> {
           );
           // Don't throw error in CI - assume installation worked if we got this far
         } else {
-          throw new Error('Core extension (konveyor.konveyor-core) was not installed successfully');
+          throw new Error(`Core extension (${coreExtensionId}) was not installed successfully`);
         }
       }
     } catch (error: any) {
@@ -142,17 +142,21 @@ export async function installExtension(): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Verify that redhat.java was installed as a dependency
-      if (!isExtensionInstalled('redhat.java')) {
-        console.warn('Warning: redhat.java was not automatically installed as a dependency.');
+      if (!isExtensionInstalled(redhatJavaExtensionId)) {
+        console.warn(
+          `Warning: ${redhatJavaExtensionId} was not automatically installed as a dependency.`
+        );
         console.warn('This may indicate an issue with extension dependency resolution.');
-        console.warn('Installing redhat.java manually...');
-        execSync('code --install-extension redhat.java --force', {
+        console.warn(`Installing ${redhatJavaExtensionId} manually...`);
+        execSync(`code --install-extension ${redhatJavaExtensionId} --force`, {
           stdio: 'inherit',
           env: getCleanEnv(),
           shell: false,
         });
       } else {
-        console.log('Verified: redhat.java is installed (dependency of konveyor-java).');
+        console.log(
+          `Verified: ${redhatJavaExtensionId} is installed (dependency of konveyor-java).`
+        );
       }
     }
   } catch (error) {

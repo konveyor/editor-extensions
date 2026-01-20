@@ -53,18 +53,27 @@ export async function fetchFirstSuccessfulRun(octokit, branch, workflowFile) {
   );
 
   if (headWorkflowRunInfo.data.workflow_runs.length > 0) {
-    const workflowRun = headWorkflowRunInfo.data.workflow_runs[0];
-    if (workflowRun.status === "completed" && workflowRun.conclusion === "success") {
+    const workflowRun = headWorkflowRunInfo.data.workflow_runs.find(
+      (run) => run.head_branch === branch,
+    );
+    if (workflowRun && workflowRun.status === "completed" && workflowRun.conclusion === "success") {
       return {
         workflowRunId: workflowRun.id,
         workflowRunUrl: workflowRun.url,
         headSha: headSha,
       };
     }
-    console.warn(
-      `Workflow run ${workflowRun.id} for HEAD commit on ${branch} is not successful. status: ${workflowRun.status}, conclusion: ${workflowRun.conclusion}`,
-    );
-  } else {
+    if (workflowRun) {
+      console.warn(
+        `Workflow run ${workflowRun.id} for HEAD commit on ${branch} is not successful. status: ${workflowRun.status}, conclusion: ${workflowRun.conclusion}`,
+      );
+    }
+  }
+
+  if (
+    headWorkflowRunInfo.data.workflow_runs.length === 0 ||
+    !headWorkflowRunInfo.data.workflow_runs.find((run) => run.head_branch === branch)
+  ) {
     console.warn(`No workflow runs found for HEAD commit ${headSha} on ${branch}.`);
   }
 
@@ -81,7 +90,7 @@ export async function fetchFirstSuccessfulRun(octokit, branch, workflowFile) {
   );
 
   const successfulRun = recentWorkflowRunInfo.data.workflow_runs.find(
-    (run) => run.conclusion === "success",
+    (run) => run.conclusion === "success" && run.head_branch === branch,
   );
 
   if (!successfulRun) {
