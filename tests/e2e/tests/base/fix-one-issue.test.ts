@@ -7,7 +7,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { Configuration } from '../../pages/configuration.page';
 import { logLevel } from '../../enums/configuration-options.enum';
 import { LogLevel } from '../../enums/Log-level.enum';
-import { OutputChannel } from '../../enums/output.enum';
+import { OutputChannels } from '../../enums/output.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
@@ -29,7 +29,7 @@ getAvailableProviders().forEach((provider) => {
       const configPage = await Configuration.open(vscodeApp);
       await configPage.setDropdownConfiguration(logLevel, LogLevel.INFO);
       // open output view and clear it
-      await vscodeApp.outputPanel.openOutputView(OutputChannel.KonveyorExtensionForVSCode);
+      await vscodeApp.outputPanel.openOutputView(OutputChannels.CoreExtension);
       await vscodeApp.outputPanel.clearOutputChannel();
       await vscodeApp.outputPanel.closeOutputView();
       await vscodeApp.runAnalysis();
@@ -71,7 +71,7 @@ getAvailableProviders().forEach((provider) => {
       console.log('Analysis completed');
       await vscodeApp.waitDefault();
       const logOutput = await vscodeApp.outputPanel.getOutputChannelContent(
-        OutputChannel.KonveyorExtensionForVSCode
+        OutputChannels.CoreExtension
       );
       const logEntries = parseLogEntries(logOutput);
       expect(logEntries.length).toBeGreaterThanOrEqual(1);

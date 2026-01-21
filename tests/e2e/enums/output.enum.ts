@@ -1,4 +1,6 @@
-export enum OutputChannel {
-  KonveyorExtensionForVSCode = 'Konveyor Extension for VSCode',
-  ExtensionHost = 'Extension Host',
-}
+import { extensionShortName } from '../utilities/utils';
+
+export const OutputChannels = {
+  CoreExtension: `${extensionShortName} Core Extension`,
+  ExtensionHost: 'Extension Host',
+} as const;

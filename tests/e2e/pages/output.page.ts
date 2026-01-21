@@ -1,7 +1,7 @@
 import { expect, Page } from '@playwright/test';
-import { OutputChannel } from '../enums/output.enum';
 import { VSCode } from './vscode.page';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
+import { OutputChannels } from '../enums/output.enum';
 
 export class OutputPanel {
   private static instance: OutputPanel;
@@ -24,7 +24,10 @@ export class OutputPanel {
    * @param channel - The channel to open.
    * @param filterText - The text to filter the output.
    */
-  public async openOutputView(channel: OutputChannel, filterText?: string): Promise<void> {
+  public async openOutputView(
+    channel: (typeof OutputChannels)[keyof typeof OutputChannels],
+    filterText?: string
+  ): Promise<void> {
     console.log(`Opening output view for channel: [${channel}]`);
     if (this.outputOpened) {
       console.log(`Output view already opened for channel: [${channel}]`);
@@ -62,7 +65,7 @@ export class OutputPanel {
    * @returns The content of the output channel.
    */
   public async getOutputChannelContent(
-    channel: OutputChannel,
+    channel: (typeof OutputChannels)[keyof typeof OutputChannels],
     filterText?: string
   ): Promise<string> {
     await this.openOutputView(channel, filterText);
@@ -87,7 +90,7 @@ export class OutputPanel {
    * @returns The content of the output channel.
    */
   public async getOutputChannelContentByRegex(
-    channel: OutputChannel,
+    channel: (typeof OutputChannels)[keyof typeof OutputChannels],
     regex: RegExp
   ): Promise<string> {
     const content = await this.getOutputChannelContent(channel);
