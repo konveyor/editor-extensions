@@ -13,7 +13,7 @@ import {
   window,
 } from "vscode";
 import { getNonce } from "./utilities/getNonce";
-import { ExtensionData, WebviewType } from "@editor-extensions/shared";
+import { ExtensionData, MessageTypes, WebviewType } from "@editor-extensions/shared";
 import { Immutable } from "immer";
 import jsesc from "jsesc";
 import { EXTENSION_NAME, EXTENSION_SHORT_NAME } from "./utilities/constants";
@@ -66,7 +66,10 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     // When webview becomes visible again, refresh state to ensure latest data
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
-        this.sendMessageToWebview({ type: "UPDATE_STATE", payload: this._extensionState.data });
+        this.sendMessageToWebview({
+          type: MessageTypes.FULL_STATE_UPDATE,
+          ...this._extensionState.data,
+        });
       }
     });
   }
@@ -146,7 +149,10 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     // When panel becomes visible/active again, refresh state to ensure latest data
     this._panel.onDidChangeViewState((e) => {
       if (e.webviewPanel.visible && e.webviewPanel.active) {
-        this.sendMessageToWebview({ type: "UPDATE_STATE", payload: this._extensionState.data });
+        this.sendMessageToWebview({
+          type: MessageTypes.FULL_STATE_UPDATE,
+          ...this._extensionState.data,
+        });
       }
     });
 
