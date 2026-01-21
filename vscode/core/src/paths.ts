@@ -12,7 +12,7 @@ import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import {
   createIgnoreFromWorkspace,
-  filterIgnoredPaths,
+  getIgnorePatternsForGlob,
   DEFAULT_IGNORE_PATTERNS,
 } from "./utilities/ignorePatterns";
 import AdmZip from "adm-zip";
@@ -403,29 +403,26 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
 export const ignoresToExcludedPaths = () => {
   const cwd = fsPaths().workspaceRepo;
 
-  // Create ignore instance from workspace (handles file loading and defaults)
-  const { ig, ignoreFile } = createIgnoreFromWorkspace(cwd);
+  // Get ignore patterns from workspace
+  const { ignoreFile } = createIgnoreFromWorkspace(cwd);
+  const patterns = getIgnorePatternsForGlob(cwd);
+
   if (ignoreFile) {
     _logger?.debug(`Using ignore file: ${ignoreFile}`);
   } else {
     _logger?.debug(`No ignore file found, using defaults`);
   }
 
-  // Get all directories in the workspace
-  const allDirs = globbySync("**/*", {
+  // Use globby to find directories matching the ignore patterns
+  // This is much more efficient than scanning everything and filtering
+  const exclude = globbySync(patterns, {
     cwd,
-    onlyDirectories: true,
+    expandDirectories: false,
     dot: true,
+    onlyDirectories: true,
     markDirectories: true,
-  });
-
-  // Filter to find which directories are ignored
-  const ignoredRelativePaths = filterIgnoredPaths(allDirs, ig);
-
-  // Convert to absolute paths with trailing slash
-  const exclude = ignoredRelativePaths.map((dir) => {
-    const abs = join(cwd, dir);
-    return abs.endsWith("/") ? abs : abs + "/";
+    absolute: true,
+    unique: true,
   });
 
   return exclude;

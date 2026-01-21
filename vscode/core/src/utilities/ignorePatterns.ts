@@ -86,3 +86,38 @@ export function isPathIgnored(path: string, ig: Ignore): boolean {
   const normalized = path.startsWith("./") ? path.slice(2) : path;
   return ig.ignores(normalized) || ig.ignores(normalized + "/");
 }
+
+/**
+ * Extract the raw patterns from an ignore file for use with glob operations.
+ *
+ * This reads the ignore file directly and returns the patterns as an array.
+ * Unlike using the ignore instance for filtering, this is useful for glob-based
+ * directory discovery where we want to avoid traversing into ignored directories.
+ *
+ * @param workspaceRoot - The root directory of the workspace
+ * @returns Array of ignore patterns from the file, or defaults if no file found
+ */
+export function getIgnorePatternsForGlob(workspaceRoot: string): string[] {
+  // Start with always-ignore patterns
+  const patterns = [...ALWAYS_IGNORE_PATTERNS];
+
+  // Try to find and load an ignore file
+  for (const filename of IGNORE_FILE_PRIORITY) {
+    const filepath = join(workspaceRoot, filename);
+    if (existsSync(filepath)) {
+      try {
+        const content = readFileSync(filepath, "utf-8");
+        const filePatterns = content
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith("#"));
+        return [...patterns, ...filePatterns];
+      } catch {
+        // File exists but couldn't be read, try next
+      }
+    }
+  }
+
+  // No ignore file found, use defaults
+  return [...patterns, ...DEFAULT_IGNORE_PATTERNS];
+}
