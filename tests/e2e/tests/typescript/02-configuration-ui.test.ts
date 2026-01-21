@@ -7,7 +7,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
-test.describe.serial('TypeScript Extension - Configuration & UI', () => {
+test.describe.serial('TypeScript Extension - Configuration & UI', { tag: '@tier3' }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `ts-automation-${randomString}`;

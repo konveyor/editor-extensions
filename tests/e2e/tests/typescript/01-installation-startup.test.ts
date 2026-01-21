@@ -3,7 +3,7 @@ import { VSCode } from '../../pages/vscode.page';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
 
-test.describe('TypeScript Extension - Installation & Startup', () => {
+test.describe('TypeScript Extension - Installation & Startup', { tag: '@tier3' }, () => {
   let vscodeApp: VSCode;
   let repoInfo: RepoData[string];
 

@@ -7,7 +7,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
-test.describe.serial('TypeScript Extension - Kai Integration', () => {
+test.describe.serial('TypeScript Extension - Kai Integration', { tag: '@tier3' }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `ts-kai-${randomString}`;
