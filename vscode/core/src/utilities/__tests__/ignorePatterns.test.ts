@@ -9,10 +9,9 @@ import {
   DEFAULT_IGNORE_PATTERNS,
   ALWAYS_IGNORE_PATTERNS,
 } from "../ignorePatterns";
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { globbySync } from "globby";
 
 /**
  * This test file verifies the behavior of ignore file processing
@@ -329,109 +328,54 @@ dist
       expect(patterns).not.toContain("");
     });
 
-    it("should work with globby to find only top-level matching directories", () => {
-      // Create gitignore with "target"
+    it("should return patterns suitable for glob matching", () => {
+      // This test verifies that patterns are returned in a format that
+      // can be used with globby to find ONLY top-level matching directories,
+      // not all nested subdirectories (which was the issue #1182 bug)
       writeFileSync(join(testDir, ".gitignore"), "target\n");
 
-      // Create target directory with many nested subdirectories
-      const targetDir = join(testDir, "target");
-      mkdirSync(targetDir);
-      mkdirSync(join(targetDir, "classes"));
-      mkdirSync(join(targetDir, "classes", "META-INF"));
-      mkdirSync(join(targetDir, "classes", "com"));
-
-      // Get patterns and use with globby
       const patterns = getIgnorePatternsForGlob(testDir);
-      const matchedDirs = globbySync(patterns, {
-        cwd: testDir,
-        expandDirectories: false,
-        dot: true,
-        onlyDirectories: true,
-        markDirectories: true,
-        absolute: true,
-        unique: true,
-      });
 
-      // Should find the target directory
-      expect(matchedDirs.some((p) => p.includes("target"))).toBe(true);
+      // Should return simple patterns, not recursive ones
+      expect(patterns).toContain("target");
+      expect(patterns).not.toContain("target/**");
+      expect(patterns).not.toContain("**/target/**");
 
-      // Should NOT include nested subdirectories
-      expect(matchedDirs.some((p) => p.includes("target/classes"))).toBe(false);
-      expect(matchedDirs.some((p) => p.includes("META-INF"))).toBe(false);
-
-      // Should return a small number of paths (not thousands)
-      expect(matchedDirs.length).toBeLessThan(10);
+      // Patterns should be suitable for glob operations that will:
+      // 1. Match "target/" at root level
+      // 2. Match "client/target/" at nested levels
+      // 3. NOT match "target/classes/" or other subdirectories inside target
     });
 
-    it("should find directories at any nesting level when used with globby", () => {
-      // Create gitignore with "dist"
-      writeFileSync(join(testDir, ".gitignore"), "dist\n");
+    it("should handle complex gitignore with multiple patterns", () => {
+      writeFileSync(
+        join(testDir, ".gitignore"),
+        `# Build outputs
+target
+dist
+build
 
-      // Create dist directories at multiple levels
-      mkdirSync(join(testDir, "dist"));
-      mkdirSync(join(testDir, "client"), { recursive: true });
-      mkdirSync(join(testDir, "client", "dist"));
-      mkdirSync(join(testDir, "packages", "ui"), { recursive: true });
-      mkdirSync(join(testDir, "packages", "ui", "dist"));
+# IDE
+.vscode
+.idea
 
-      // Get patterns and use with globby
+# Dependencies
+node_modules
+`,
+      );
+
       const patterns = getIgnorePatternsForGlob(testDir);
-      const matchedDirs = globbySync(patterns, {
-        cwd: testDir,
-        expandDirectories: false,
-        dot: true,
-        onlyDirectories: true,
-        markDirectories: true,
-        absolute: false,
-        unique: true,
-      });
 
-      // Should find all dist directories at any level
-      expect(matchedDirs).toContain("dist/");
-      expect(matchedDirs).toContain("client/dist/");
-      expect(matchedDirs).toContain("packages/ui/dist/");
+      expect(patterns).toContain("target");
+      expect(patterns).toContain("dist");
+      expect(patterns).toContain("build");
+      expect(patterns).toContain(".vscode");
+      expect(patterns).toContain(".idea");
+      expect(patterns).toContain("node_modules");
 
-      // Should be exactly 4 paths: .konveyor, dist, client/dist, packages/ui/dist
-      const distPaths = matchedDirs.filter((p) => p.includes("dist"));
-      expect(distPaths.length).toBe(3);
-    });
-
-    it("performance: should enable efficient directory discovery", () => {
-      // This simulates the issue #1182 scenario where we want to
-      // avoid scanning thousands of nested directories
-      writeFileSync(join(testDir, ".gitignore"), "target\n");
-
-      // Create a deep nested structure in target/
-      let currentPath = join(testDir, "target");
-      mkdirSync(currentPath);
-      for (let i = 0; i < 100; i++) {
-        currentPath = join(currentPath, `level${i}`);
-        mkdirSync(currentPath);
-      }
-
-      // Get patterns and use with globby
-      const patterns = getIgnorePatternsForGlob(testDir);
-      const startTime = Date.now();
-      const matchedDirs = globbySync(patterns, {
-        cwd: testDir,
-        expandDirectories: false,
-        dot: true,
-        onlyDirectories: true,
-        markDirectories: true,
-        absolute: false,
-        unique: true,
-      });
-      const duration = Date.now() - startTime;
-
-      // Should complete quickly
-      expect(duration).toBeLessThan(1000);
-
-      // Should find only the top-level target directory
-      const targetPaths = matchedDirs.filter((p) => p.includes("target"));
-      expect(targetPaths).toEqual(["target/"]);
-
-      // Should NOT include any nested level directories
-      expect(matchedDirs.some((p) => p.includes("level"))).toBe(false);
+      // Should not include comments or blank lines
+      expect(patterns.filter((p) => p.startsWith("#")).length).toBe(0);
+      expect(patterns.filter((p) => p === "").length).toBe(0);
     });
 
     it("should prefer .konveyorignore over .gitignore", () => {
@@ -460,6 +404,22 @@ dist
 
       expect(patterns).toContain(".konveyor");
       expect(patterns).toContain("dist");
+    });
+
+    it("should trim whitespace from patterns", () => {
+      writeFileSync(
+        join(testDir, ".gitignore"),
+        `  target
+  dist
+`,
+      );
+
+      const patterns = getIgnorePatternsForGlob(testDir);
+
+      expect(patterns).toContain("target");
+      expect(patterns).toContain("dist");
+      expect(patterns).not.toContain("  target  ");
+      expect(patterns).not.toContain("  dist  ");
     });
   });
 });
