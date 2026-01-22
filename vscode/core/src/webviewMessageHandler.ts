@@ -278,8 +278,18 @@ const actions: {
     // Delegate to the command which attempts to reconnect profile sync
     await executeExtensionCommand("retryProfileSync");
   },
-  [WEBVIEW_READY](_payload, _state, logger) {
-    logger.info("Webview is ready");
+  [WEBVIEW_READY](_payload, state, logger) {
+    logger.info("Webview is ready - sending full state to ensure configuration is loaded");
+
+    // Send the full current state to the webview
+    // This ensures that all configuration (especially hubConfig) is properly loaded
+    // even if the webview was initialized after the extension sent initial updates
+    state.webviewProviders.forEach((provider) => {
+      provider.sendMessageToWebview({
+        type: "FULL_STATE_UPDATE",
+        ...state.data,
+      });
+    });
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
