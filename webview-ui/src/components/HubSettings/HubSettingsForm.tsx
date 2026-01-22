@@ -120,11 +120,12 @@ export const HubSettingsForm: React.FC<{
       return;
     }
 
-    formData.url = formData.url.endsWith("/") ? formData.url.slice(0, -1) : formData.url;
-
     dispatch({
       type: "UPDATE_HUB_CONFIG",
-      payload: formData,
+      payload: {
+        ...formData,
+        url: formData.url.endsWith("/") ? formData.url.slice(0, -1) : formData.url,
+      },
     });
 
     setSaveSuccess(true);
