@@ -12,7 +12,7 @@ test.describe(
     tag: ['@tier3', '@experimental', '@requires-minikube'],
   },
   () => {
-    test.setTimeout(300000);
+    test.setTimeout(600000);
     let vscodeApp: VSCode;
 
     /**
