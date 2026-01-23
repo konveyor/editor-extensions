@@ -244,8 +244,15 @@ const actions: {
     executeExtensionCommand("openHubSettingsPanel");
   },
   [UPDATE_HUB_CONFIG]: async (config: HubConfig, state) => {
+    const { isHubForced } = await import("./utilities/hubConfigStorage");
+
+    // Don't save enabled state if it's forced by environment variable
+    const configToSave = isHubForced()
+      ? { ...config, enabled: state.data.hubConfig?.enabled || false }
+      : config;
+
     // Save to VS Code Secret Storage
-    await saveHubConfig(state.extensionContext, config);
+    await saveHubConfig(state.extensionContext, configToSave);
 
     // Update state
     state.mutateSettings((draft) => {

@@ -18,7 +18,8 @@ import { HubConfig } from "@editor-extensions/shared";
 
 export const HubSettingsForm: React.FC<{
   initialConfig: HubConfig;
-}> = ({ initialConfig }) => {
+  hubForced?: boolean;
+}> = ({ initialConfig, hubForced = false }) => {
   const [formData, setFormData] = useState<HubConfig>(initialConfig);
   const [isDirty, setIsDirty] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -198,11 +199,14 @@ export const HubSettingsForm: React.FC<{
             label="Enable connection to Konveyor Hub"
             isChecked={formData.enabled}
             onChange={(_e, checked) => updateField("enabled", checked)}
+            isDisabled={hubForced}
           />
           <FormHelperText>
             <HelperText>
               <HelperTextItem icon={<InfoCircleIcon />}>
-                Enable connection to Konveyor Hub for advanced features
+                {hubForced
+                  ? "Hub connection is enforced by environment configuration"
+                  : "Enable connection to Konveyor Hub for advanced features"}
               </HelperTextItem>
             </HelperText>
           </FormHelperText>

@@ -50,6 +50,7 @@ interface ExtensionStore {
   isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
+  hubForced?: boolean;
   profileSyncEnabled: boolean;
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
@@ -95,6 +96,7 @@ interface ExtensionStore {
   setIsAgentMode: (isAgentMode: boolean) => void;
   setIsContinueInstalled: (isInstalled: boolean) => void;
   setHubConfig: (config: HubConfig | undefined) => void;
+  setHubForced: (forced: boolean | undefined) => void;
   setWorkspaceRoot: (root: string) => void;
   setProfileSyncEnabled: (enabled: boolean) => void;
   setProfileSyncConnected: (connected: boolean) => void;
@@ -139,6 +141,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       isAgentMode: false,
       isContinueInstalled: false,
       hubConfig: undefined,
+      hubForced: undefined,
       profileSyncEnabled: false,
       profileSyncConnected: false,
       isSyncingProfiles: false,
@@ -310,6 +313,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setHubConfig: (config) =>
         set((state) => {
           state.hubConfig = config;
+        }),
+
+      setHubForced: (forced) =>
+        set((state) => {
+          state.hubForced = forced;
         }),
 
       setWorkspaceRoot: (root) =>

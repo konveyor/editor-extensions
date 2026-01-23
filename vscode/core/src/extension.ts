@@ -111,6 +111,7 @@ class VsCodeExtension {
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
         hubConfig: getDefaultHubConfig(), // Will be updated after async initialization
+        hubForced: false, // Will be updated after checking env vars
         isProcessingQueuedMessages: false,
         profileSyncEnabled: false, // Will be updated after hub config loads
         profileSyncConnected: false,
@@ -341,6 +342,7 @@ class VsCodeExtension {
           isAgentMode: data.isAgentMode,
           isContinueInstalled: data.isContinueInstalled,
           hubConfig: data.hubConfig,
+          hubForced: data.hubForced,
           profileSyncEnabled: data.profileSyncEnabled,
           isSyncingProfiles: data.isSyncingProfiles,
           llmProxyAvailable: data.llmProxyAvailable,
@@ -471,8 +473,10 @@ class VsCodeExtension {
 
       // Initialize hub config from secret storage (with migration)
       const hubConfig = await initializeHubConfig(this.context);
+      const { isHubForced } = await import("./utilities/hubConfigStorage");
       this.state.mutateSettings((draft) => {
         draft.hubConfig = hubConfig;
+        draft.hubForced = isHubForced();
         draft.solutionServerEnabled =
           hubConfig.enabled && hubConfig.features.solutionServer.enabled;
         draft.profileSyncEnabled = hubConfig.enabled && hubConfig.features.profileSync.enabled;

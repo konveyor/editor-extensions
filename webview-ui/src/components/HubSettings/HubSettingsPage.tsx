@@ -5,6 +5,7 @@ import { HubSettingsForm } from "./HubSettingsForm";
 
 export const HubSettingsPage: React.FC = () => {
   const hubConfig = useExtensionStore((state) => state.hubConfig);
+  const hubForced = useExtensionStore((state) => state.hubForced);
 
   if (!hubConfig) {
     return (
@@ -24,7 +25,7 @@ export const HubSettingsPage: React.FC = () => {
         <Title headingLevel="h1" size="2xl" style={{ marginBottom: "1.5rem" }}>
           Hub Configuration
         </Title>
-        <HubSettingsForm initialConfig={hubConfig} />
+        <HubSettingsForm initialConfig={hubConfig} hubForced={hubForced} />
       </PageSection>
     </Page>
   );
