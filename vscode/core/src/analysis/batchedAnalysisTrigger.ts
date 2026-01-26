@@ -1,8 +1,8 @@
-import { FileChange } from "src/client/types";
+import { FileChange } from "../client/types";
 import { isUriIgnored } from "../paths";
 import * as vscode from "vscode";
 import { BackoffManager } from "./backoffManager";
-import { ExtensionState } from "src/extensionState";
+import { ExtensionState } from "../extensionState";
 import { runPartialAnalysis } from "./runAnalysis";
 
 export class BatchedAnalysisTrigger {
@@ -90,6 +90,25 @@ export class BatchedAnalysisTrigger {
     );
     if (changedFiles.length < 1) {
       // no changes to analyze
+      return;
+    }
+
+    const analyzerClient = this.extensionState.analyzerClient;
+    if (!analyzerClient) {
+      console.warn("Analyzer client is not initialized, skipping analysis.");
+      this.analysisFileChangesQueue.clear();
+      return;
+    }
+
+    if (analyzerClient.serverState !== "running") {
+      console.warn("Analyzer server is not running, skipping analysis.");
+      this.analysisFileChangesQueue.clear();
+      return;
+    }
+
+    if (!analyzerClient.canAnalyze()) {
+      console.warn("Analyzer is not configured properly, skipping analysis.");
+      this.analysisFileChangesQueue.clear();
       return;
     }
 
