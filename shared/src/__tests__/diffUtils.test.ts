@@ -117,9 +117,9 @@ describe("diffUtils", () => {
 
       it("should handle paired diffs with trailing whitespace differences", () => {
         const diff = `@@ -1,2 +1,2 @@
--line1
+-line1   
 +line1
--line2
+-line2   
 +line2`;
         expect(isOnlyLineEndingDiff(diff)).toBe(true);
       });
