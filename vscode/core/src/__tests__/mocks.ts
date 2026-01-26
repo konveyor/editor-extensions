@@ -4,12 +4,14 @@ import { Module } from "node:module";
 const originalRequire = (Module.prototype as any).require;
 (Module.prototype as any).require = function (id: string, ...args: any[]) {
   // Mock paths module to avoid loading globby
+  // Normalize to handle both Windows backslashes and Unix forward slashes
+  const normalizedId = id.replace(/\\/g, "/");
   if (
-    id === "../paths" ||
-    id === "../../paths" ||
-    id === "../../../paths" ||
-    id.endsWith("/paths.ts") ||
-    id.endsWith("/paths")
+    normalizedId === "../paths" ||
+    normalizedId === "../../paths" ||
+    normalizedId === "../../../paths" ||
+    normalizedId.endsWith("/paths.ts") ||
+    normalizedId.endsWith("/paths")
   ) {
     return {
       isUriIgnored: (_uri: any) => false,
