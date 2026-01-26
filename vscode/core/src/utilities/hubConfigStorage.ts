@@ -116,11 +116,13 @@ export async function initializeHubConfig(context: vscode.ExtensionContext): Pro
       enabled: authEnabled,
       username: env.username || savedConfig.auth.username,
       password: env.password || savedConfig.auth.password,
-      insecure: env.insecure || savedConfig.auth.insecure,
+      insecure: process.env.HUB_INSECURE !== undefined ? env.insecure : savedConfig.auth.insecure,
     },
     features: {
       solutionServer: {
-        enabled: env.solutionServerEnabled,
+        enabled: hubEnabled
+          ? env.solutionServerEnabled
+          : savedConfig.features.solutionServer.enabled,
       },
       profileSync: {
         enabled: hubEnabled ? env.profileSyncEnabled : savedConfig.features.profileSync.enabled,

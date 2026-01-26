@@ -42,7 +42,11 @@ import {
   getConfigAutoAcceptOnSave,
   updateConfigErrors,
 } from "./utilities";
-import { initializeHubConfig, getDefaultHubConfig } from "./utilities/hubConfigStorage";
+import {
+  initializeHubConfig,
+  getDefaultHubConfig,
+  isHubForced,
+} from "./utilities/hubConfigStorage";
 import { getAllProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
@@ -473,7 +477,6 @@ class VsCodeExtension {
 
       // Initialize hub config from secret storage (with migration)
       const hubConfig = await initializeHubConfig(this.context);
-      const { isHubForced } = await import("./utilities/hubConfigStorage");
       this.state.mutateSettings((draft) => {
         draft.hubConfig = hubConfig;
         draft.hubForced = isHubForced();
