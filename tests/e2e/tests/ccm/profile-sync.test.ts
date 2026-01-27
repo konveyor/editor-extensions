@@ -12,7 +12,7 @@ test.describe(
     tag: ['@tier3', '@experimental', '@requires-minikube'],
   },
   () => {
-    test.setTimeout(300000);
+    test.setTimeout(600000);
     let vscodeApp: VSCode;
 
     /**
@@ -60,6 +60,12 @@ test.describe(
       const manageProfilesButton = analysisView.locator('#manage-profiles-dropdown-item');
       await expect(manageProfilesButton).not.toBeVisible();
       console.log('Manage Profiles option is hidden');
+
+      console.log('Trying to run an analysis');
+      await vscodeApp.startServer();
+      await vscodeApp.runAnalysis();
+      await vscodeApp.waitForAnalysisCompleted();
+      console.log('Analysis completed successfully!');
     });
 
     test.afterAll(async () => {

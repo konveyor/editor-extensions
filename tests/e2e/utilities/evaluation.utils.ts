@@ -60,7 +60,7 @@ export async function saveOriginalAnalysisFile() {
 }
 
 async function getFirstAnalysisFile() {
-  const konveyorFolder = 'coolstore/.vscode/konveyor';
+  const konveyorFolder = 'coolstore/.vscode/konveyor-core';
   const files = await fs.promises.readdir(konveyorFolder);
 
   const analysisFiles = files.filter((file) => file.startsWith('analysis'));

@@ -159,6 +159,7 @@ export interface ExtensionData {
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
   hubConfig: HubConfig | undefined;
+  hubForced?: boolean;
   isProcessingQueuedMessages?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   profileSyncEnabled: boolean;

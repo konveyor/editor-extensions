@@ -134,6 +134,7 @@ export interface SettingsUpdateMessage {
   isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
+  hubForced?: boolean;
   profileSyncEnabled: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;

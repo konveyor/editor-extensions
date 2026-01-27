@@ -212,6 +212,7 @@ export function useVSCodeMessageHandler() {
             isAgentMode: message.isAgentMode,
             isContinueInstalled: message.isContinueInstalled,
             hubConfig: message.hubConfig,
+            hubForced: message.hubForced,
             profileSyncEnabled: message.profileSyncEnabled,
             isSyncingProfiles: message.isSyncingProfiles,
             llmProxyAvailable: message.llmProxyAvailable,
@@ -264,6 +265,7 @@ export function useVSCodeMessageHandler() {
                   ? message.chatMessages
                   : [],
             hubConfig: message.hubConfig,
+            hubForced: message.hubForced,
             profileSyncEnabled: message.profileSyncEnabled ?? false,
             profileSyncConnected: message.profileSyncConnected ?? false,
             isSyncingProfiles: message.isSyncingProfiles ?? false,

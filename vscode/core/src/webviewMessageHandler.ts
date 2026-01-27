@@ -47,7 +47,7 @@ import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse
 import { runPartialAnalysis } from "./analysis/runAnalysis";
 import winston from "winston";
 import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
-import { saveHubConfig } from "./utilities/hubConfigStorage";
+import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
 
 export function setupWebviewMessageListener(
   webview: vscode.Webview,
@@ -245,8 +245,11 @@ const actions: {
     executeExtensionCommand("openHubSettingsPanel");
   },
   [UPDATE_HUB_CONFIG]: async (config: HubConfig, state) => {
+    // Don't save enabled state if it's forced by environment variable
+    const configToSave = isHubForced() ? { ...config, enabled: true } : config;
+
     // Save to VS Code Secret Storage
-    await saveHubConfig(state.extensionContext, config);
+    await saveHubConfig(state.extensionContext, configToSave);
 
     // Update state
     state.mutateSettings((draft) => {
