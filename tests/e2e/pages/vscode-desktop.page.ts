@@ -214,8 +214,6 @@ export class VSCodeDesktop extends VSCode {
    */
   public async waitForExtensionInitialization(): Promise<void> {
     try {
-      console.log('Waiting for Konveyor extension initialization...');
-
       const javaReadySelector = this.getWindow().getByRole('button', { name: 'Java: Ready' });
 
       await javaReadySelector.waitFor({ timeout: 120000 });
@@ -225,18 +223,13 @@ export class VSCodeDesktop extends VSCode {
       await javaReadySelector.waitFor({ timeout: 1200000 });
 
       // Trigger extension activation by opening the analysis view
-      console.log('Opening Analysis View to trigger core extension activation...');
       await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Analysis View`);
 
       // Wait for Java extension initialization signal
       // The Java extension waits for core to activate, so this signal means both are ready
       // This is a persistent status bar item, so we can just wait for it to appear
-      console.log('Waiting for Java extension initialization signal...');
-
       const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__');
       await expect(javaInitStatusBar).toBeVisible({ timeout: 300_000 }); // 5 minute timeout
-
-      console.log('Konveyor extensions initialized successfully');
     } catch (error) {
       console.error('Failed to wait for extension initialization:', error);
       throw error;
@@ -255,38 +248,28 @@ export class VSCodeDesktop extends VSCode {
       absoluteRulesPath = customRulesPath;
     } else if (this.repoDir) {
       // For repos with workspacePath, resolve relative to repo root
-      // repoDir might be "repoName" or "repoName/workspacePath"
-      const repoRoot = this.repoDir.split(path.sep)[0];
+      // repoDir might be "repoName" or "repoName/workspacePath" or "repoName\\workspacePath" (Windows)
+      // Use regex to handle both forward slashes (Unix/Mac) and backslashes (Windows)
+      // This is necessary because fixture values use forward slashes even on Windows
+      const repoRoot = this.repoDir.split(/[\\/]/)[0];
       const testsDir = path.resolve(__dirname, '..', '..');
       const repoRootPath = path.resolve(testsDir, repoRoot);
       const rulesPath = path.resolve(repoRootPath, customRulesPath);
 
-      console.log(`Attempting to resolve custom rules path relative to repo root:`);
-      console.log(`  repoDir: ${this.repoDir}`);
-      console.log(`  repoRoot: ${repoRoot}`);
-      console.log(`  repoRootPath: ${repoRootPath}`);
-      console.log(`  customRulesPath: ${customRulesPath}`);
-      console.log(`  resolved rulesPath: ${rulesPath}`);
-      console.log(`  path exists: ${fs.existsSync(rulesPath)}`);
-
       // Check if path exists relative to repo root
       if (fs.existsSync(rulesPath)) {
         absoluteRulesPath = rulesPath;
-        console.log(`Using rules path relative to repo root: ${absoluteRulesPath}`);
       } else {
         // Fall back to tests directory
         const fallbackPath = path.resolve(testsDir, customRulesPath);
-        console.log(`Rules path not found in repo root, trying fallback: ${fallbackPath}`);
-        console.log(`  fallback path exists: ${fs.existsSync(fallbackPath)}`);
         absoluteRulesPath = fallbackPath;
       }
     } else {
       // Fall back to tests directory
       const testsDir = path.resolve(__dirname, '..', '..');
       absoluteRulesPath = path.resolve(testsDir, customRulesPath);
-      console.log(`No repoDir set, using tests directory: ${absoluteRulesPath}`);
     }
-    console.log(`Final resolved custom rules path: ${absoluteRulesPath}`);
+    console.log(`Resolved custom rules path: ${absoluteRulesPath}`);
 
     const customRulesButton = manageProfileView.getByRole('button', {
       name: 'Select Custom Rules…',

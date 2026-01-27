@@ -28,10 +28,6 @@ export async function openForRepo(repoInfo: RepoInfo, prepareOffline = false): P
   } else {
     // For non-Java languages, install extensions if VSIX paths are provided
     // This ensures C#, JavaScript, Go extensions are installed when needed
-    // if (process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL) {
-    //   const { installExtension } = await import('../utilities/vscode-commands.utils');
-    //   await installExtension();
-    // }
     return open(repoUrl, repoDir, branch, false, prepareOffline);
   }
 }

@@ -5,6 +5,7 @@ import { VSCodeDesktop } from './e2e/pages/vscode-desktop.page';
 import { existsSync } from 'node:fs';
 import fs from 'fs';
 import { execSync } from 'child_process';
+import path from 'node:path';
 import testReposData from './e2e/fixtures/test-repos.json';
 
 type RepoData = {
@@ -88,10 +89,12 @@ async function verifyCSharpTools(): Promise<void> {
 
   // Check if $HOME/.dotnet/tools is in PATH
   const dotnetToolsPath = process.env.HOME
-    ? `${process.env.HOME}/.dotnet/tools`
-    : `${process.env.USERPROFILE}/.dotnet/tools`;
+    ? path.join(process.env.HOME, '.dotnet', 'tools')
+    : path.join(process.env.USERPROFILE || '', '.dotnet', 'tools');
   const pathEnv = process.env.PATH || '';
-  const toolsInPath = pathEnv.includes('.dotnet/tools') || pathEnv.includes(dotnetToolsPath);
+  const pathEntries = pathEnv.split(path.delimiter).map((p) => path.normalize(p));
+  const toolsInPath = pathEntries.includes(path.normalize(dotnetToolsPath));
+  
   results.push(
     `${toolsInPath ? '✔' : '✖'} $HOME/.dotnet/tools ${toolsInPath ? 'in PATH' : 'NOT in PATH'}`
   );
