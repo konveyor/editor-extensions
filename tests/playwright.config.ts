@@ -54,5 +54,9 @@ export default defineConfig({
       name: 'typescript-tests',
       testMatch: ['**/typescript/**/*.test.ts'],
     },
+    {
+      name: 'csharp-tests',
+      testMatch: ['**/csharp/**/*.test.ts'],
+    },
   ],
 });

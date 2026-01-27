@@ -175,6 +175,16 @@ export async function installExtension(): Promise<void> {
       });
       console.log('JavaScript extension installed/updated successfully.');
     }
+    // Install konveyor-csharp extension if path provided
+    if (process.env.CSHARP_VSIX_FILE_PATH && fs.existsSync(process.env.CSHARP_VSIX_FILE_PATH)) {
+      console.log(`Installing Konveyor C# VSIX from ${process.env.CSHARP_VSIX_FILE_PATH}`);
+      execSync(`code --install-extension "${process.env.CSHARP_VSIX_FILE_PATH}" --force`, {
+        stdio: 'inherit',
+        env: getCleanEnv(),
+        shell: false,
+      });
+      console.log('C# extension installed/updated successfully.');
+    }
   } catch (error) {
     console.error('Error installing the VSIX extension:', error);
     throw error;

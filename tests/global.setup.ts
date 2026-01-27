@@ -4,6 +4,7 @@ import * as VSCodeFactory from './e2e/utilities/vscode.factory';
 import { VSCodeDesktop } from './e2e/pages/vscode-desktop.page';
 import { existsSync } from 'node:fs';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import testReposData from './e2e/fixtures/test-repos.json';
 
 type RepoData = {
@@ -30,6 +31,89 @@ function needsJavaInitialization(language: string): boolean {
   return language === 'java';
 }
 
+/**
+ * Verifies that required C# tools are installed and accessible.
+ * Checks for .NET SDK, ilspycmd, and paket.
+ */
+async function verifyCSharpTools(): Promise<void> {
+  const checks: Array<{ name: string; command: string; check: () => boolean }> = [
+    {
+      name: '.NET SDK',
+      command: 'dotnet --version',
+      check: () => {
+        try {
+          execSync('dotnet --version', { stdio: 'pipe' });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    },
+    {
+      name: 'ilspycmd',
+      command: 'ilspycmd --version',
+      check: () => {
+        try {
+          execSync('ilspycmd --version', { stdio: 'pipe' });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    },
+    {
+      name: 'paket',
+      command: 'paket --version',
+      check: () => {
+        try {
+          execSync('paket --version', { stdio: 'pipe' });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    },
+  ];
+
+  const results: string[] = [];
+  let allPassed = true;
+
+  for (const check of checks) {
+    const passed = check.check();
+    results.push(`${passed ? '✔' : '✖'} ${check.name} ${passed ? 'installed' : 'NOT found'}`);
+    if (!passed) {
+      allPassed = false;
+    }
+  }
+
+  // Check if $HOME/.dotnet/tools is in PATH
+  const dotnetToolsPath = process.env.HOME
+    ? `${process.env.HOME}/.dotnet/tools`
+    : `${process.env.USERPROFILE}/.dotnet/tools`;
+  const pathEnv = process.env.PATH || '';
+  const toolsInPath = pathEnv.includes('.dotnet/tools') || pathEnv.includes(dotnetToolsPath);
+  results.push(
+    `${toolsInPath ? '✔' : '✖'} $HOME/.dotnet/tools ${toolsInPath ? 'in PATH' : 'NOT in PATH'}`
+  );
+  if (!toolsInPath) {
+    allPassed = false;
+  }
+
+  console.log('C# Tools Verification:');
+  results.forEach((result) => console.log(`  ${result}`));
+
+  if (!allPassed) {
+    console.warn('\n⚠️  Warning: Some C# tools are missing. C# tests may fail.');
+    console.warn('Please install missing tools:');
+    console.warn('  - .NET SDK 8.0.x: https://dotnet.microsoft.com/download/dotnet/8.0');
+    console.warn('  - ilspycmd: dotnet tool install --global ilspycmd');
+    console.warn('  - paket: dotnet tool install --global paket');
+    console.warn('  - Add to PATH: export PATH="$HOME/.dotnet/tools:$PATH"\n');
+  } else {
+    console.log('✅ All C# tools verified successfully.\n');
+  }
+}
+
 async function globalSetup() {
   // Removes the browser's context if the test are running in VSCode Web
   if (process.env.WEB && existsSync('./web-state.json')) {
@@ -40,6 +124,13 @@ async function globalSetup() {
   const language = getRepoLanguage(repoName);
   const isJava = needsJavaInitialization(language);
   console.log(`Running global setup... (language: ${language}, Java init: ${isJava})`);
+
+  // Verify C# tools if running C# tests
+  // Check both language and CSHARP_VSIX_FILE_PATH to catch C# tests
+  const isCSharpTest = language === 'csharp' || !!process.env.CSHARP_VSIX_FILE_PATH;
+  if (isCSharpTest) {
+    await verifyCSharpTools();
+  }
 
   // For Java repos, use init() which installs extensions and waits for Java initialization
   // For other languages, use open() which skips Java-specific initialization

@@ -74,8 +74,11 @@ export class VSCodeDesktop extends VSCode {
 
     try {
       if (repoUrl) {
-        if (repoDir) {
-          await cleanupRepo(repoDir);
+        // Extract the top-level repo name from repoDir for cleanup
+        // repoDir might be "repoName" or "repoName/workspacePath"
+        const topLevelRepoName = repoDir ? repoDir.split('/')[0] : undefined;
+        if (topLevelRepoName) {
+          await cleanupRepo(topLevelRepoName);
         }
         console.log(`Cloning repository from ${repoUrl} -b ${branch}`);
         execSync(`git clone ${repoUrl} -b ${branch}`, { stdio: 'pipe' });
@@ -243,12 +246,46 @@ export class VSCodeDesktop extends VSCode {
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     console.log(`Selecting custom rules from: ${customRulesPath}`);
 
-    // Convert relative path to absolute path (relative to tests directory)
-    const testsDir = path.resolve(__dirname, '..', '..');
-    const absoluteRulesPath = path.isAbsolute(customRulesPath)
-      ? customRulesPath
-      : path.resolve(testsDir, customRulesPath);
-    console.log(`Resolved custom rules path: ${absoluteRulesPath}`);
+    // Convert relative path to absolute path
+    // First try relative to repo directory (for workspacePath scenarios like C#)
+    // Then fall back to tests directory (for other scenarios)
+    let absoluteRulesPath: string;
+    if (path.isAbsolute(customRulesPath)) {
+      absoluteRulesPath = customRulesPath;
+    } else if (this.repoDir) {
+      // For repos with workspacePath, resolve relative to repo root
+      // repoDir might be "repoName" or "repoName/workspacePath"
+      const repoRoot = this.repoDir.split(path.sep)[0];
+      const testsDir = path.resolve(__dirname, '..', '..');
+      const repoRootPath = path.resolve(testsDir, repoRoot);
+      const rulesPath = path.resolve(repoRootPath, customRulesPath);
+
+      console.log(`Attempting to resolve custom rules path relative to repo root:`);
+      console.log(`  repoDir: ${this.repoDir}`);
+      console.log(`  repoRoot: ${repoRoot}`);
+      console.log(`  repoRootPath: ${repoRootPath}`);
+      console.log(`  customRulesPath: ${customRulesPath}`);
+      console.log(`  resolved rulesPath: ${rulesPath}`);
+      console.log(`  path exists: ${fs.existsSync(rulesPath)}`);
+
+      // Check if path exists relative to repo root
+      if (fs.existsSync(rulesPath)) {
+        absoluteRulesPath = rulesPath;
+        console.log(`Using rules path relative to repo root: ${absoluteRulesPath}`);
+      } else {
+        // Fall back to tests directory
+        const fallbackPath = path.resolve(testsDir, customRulesPath);
+        console.log(`Rules path not found in repo root, trying fallback: ${fallbackPath}`);
+        console.log(`  fallback path exists: ${fs.existsSync(fallbackPath)}`);
+        absoluteRulesPath = fallbackPath;
+      }
+    } else {
+      // Fall back to tests directory
+      const testsDir = path.resolve(__dirname, '..', '..');
+      absoluteRulesPath = path.resolve(testsDir, customRulesPath);
+      console.log(`No repoDir set, using tests directory: ${absoluteRulesPath}`);
+    }
+    console.log(`Final resolved custom rules path: ${absoluteRulesPath}`);
 
     const customRulesButton = manageProfileView.getByRole('button', {
       name: 'Select Custom Rules…',
