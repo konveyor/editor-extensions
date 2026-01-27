@@ -81,16 +81,27 @@ export class ProfileSyncClient {
    */
   public async connect(): Promise<void> {
     try {
-      // Simple connectivity check - try to access the base Hub API
+      // Actually fetch applications to validate auth works
+      // Using GET instead of HEAD to validate response format and detect auth failures
       const response = await fetch(`${this.baseUrl}/hub/applications`, {
-        method: "HEAD",
-        headers: this.getHeaders(),
+        method: "GET",
+        headers: this.getHeaders("application/x-yaml"),
       });
+
+      const responseText = await response.text();
+      const contentType = response.headers.get("content-type") || "";
+
+      // Check if we got HTML instead of YAML - indicates auth failure or wrong endpoint
+      this.validateResponseFormat(responseText, contentType, "Hub connectivity check");
 
       if (!response.ok && response.status !== 404) {
         // 404 is ok - just means no applications, but Hub is reachable
+        const authHint =
+          response.status === 401 || response.status === 403
+            ? " Authentication required or credentials are invalid."
+            : "";
         throw new ProfileSyncClientError(
-          `Hub connectivity check failed: ${response.status} ${response.statusText}`,
+          `Hub connectivity check failed: ${response.status} ${response.statusText}.${authHint}`,
         );
       }
 
@@ -102,6 +113,10 @@ export class ProfileSyncClient {
     } catch (error) {
       this.isConnected = false;
       this.logger.error("Failed to connect profile sync client", error);
+      // Re-throw the original error to preserve the specific error message
+      if (error instanceof ProfileSyncClientError) {
+        throw error;
+      }
       throw new ProfileSyncClientError(
         `Failed to connect to Hub: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -335,19 +350,8 @@ export class ProfileSyncClient {
     const responseText = await response.text();
     const contentType = response.headers.get("content-type") || "";
 
-    // Check if we got HTML instead of YAML - indicates auth failure or wrong endpoint
-    if (contentType.includes("text/html") || responseText.trim().startsWith("<!DOCTYPE")) {
-      this.logger.error("Hub API returned HTML instead of YAML - likely authentication failure", {
-        url,
-        status: response.status,
-        contentType,
-        responsePreview: responseText.substring(0, 200),
-      });
-      throw new ProfileSyncClientError(
-        "Hub API returned HTML instead of YAML. This usually means authentication failed. " +
-          "Check that your Hub URL and credentials are correct for this Hub instance.",
-      );
-    }
+    // Use the shared validation method
+    this.validateResponseFormat(responseText, contentType, "Fetch applications");
 
     if (!response.ok) {
       this.logger.error("Failed to fetch Hub applications", {
@@ -355,8 +359,12 @@ export class ProfileSyncClient {
         statusText: response.statusText,
         responseBody: responseText.substring(0, 500),
       });
+      const authHint =
+        response.status === 401 || response.status === 403
+          ? " Authentication required or credentials are invalid."
+          : "";
       throw new ProfileSyncClientError(
-        `Failed to fetch applications: ${response.status} ${response.statusText}`,
+        `Failed to fetch applications: ${response.status} ${response.statusText}.${authHint}`,
       );
     }
 
@@ -796,6 +804,26 @@ export class ProfileSyncClient {
     );
 
     this.logger.info("Profile bundle extracted", { profileId, profileDir });
+  }
+
+  /**
+   * Validate that the response is not HTML (which indicates auth failure or wrong endpoint)
+   */
+  private validateResponseFormat(responseText: string, contentType: string, context: string): void {
+    // Check if we got HTML instead of YAML/JSON - indicates auth failure or wrong endpoint
+    if (contentType.includes("text/html") || responseText.trim().startsWith("<!DOCTYPE")) {
+      this.logger.error(
+        `${context} returned HTML instead of expected format - likely authentication failure`,
+        {
+          contentType,
+          responsePreview: responseText.substring(0, 200),
+        },
+      );
+      throw new ProfileSyncClientError(
+        "Hub API returned HTML instead of expected format. This usually means authentication failed. " +
+          "Check that your Hub URL and credentials are correct for this Hub instance.",
+      );
+    }
   }
 
   /**

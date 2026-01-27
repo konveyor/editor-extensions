@@ -215,8 +215,37 @@ export class HubConnectionManager {
         await this.startTokenRefreshTimer();
       } catch (error) {
         this.logger.error("Authentication failed", error);
+
+        // Extract meaningful error message and show to user
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(
+          `Failed to authenticate with Hub: ${errorMessage}, check your username and password.`,
+        );
+
         return; // Can't proceed without auth
       }
+    }
+
+    // Verify Hub connectivity and auth before connecting individual features
+    // This catches cases where auth is disabled in config but Hub requires it
+    try {
+      this.logger.info("Verifying Hub connectivity and authentication");
+      const testClient = new ProfileSyncClient(this.config.url, this.bearerToken, this.logger);
+      await testClient.connect();
+      await testClient.disconnect();
+      this.logger.info("Hub connectivity check passed");
+    } catch (error) {
+      this.logger.error("Hub connectivity check failed", error);
+
+      // Extract meaningful error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Show specific error to user - this is a blocker for all features
+      vscode.window.showErrorMessage(
+        `Failed to connect to Hub: ${errorMessage}, check your URL and credentials.`,
+      );
+
+      return; // Can't proceed if we can't connect to Hub
     }
 
     // Connect Solution Server
@@ -233,7 +262,13 @@ export class HubConnectionManager {
         vscode.window.showInformationMessage("Successfully connected to Hub solution server");
       } catch (error) {
         this.logger.error("Failed to connect solution server client", error);
-        vscode.window.showWarningMessage("Failed to connect to Hub solution server");
+
+        // Extract meaningful error message
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Show specific error to user
+        vscode.window.showErrorMessage(`Failed to connect to Hub solution server: ${errorMessage}`);
+
         this.solutionServerClient = null;
         // Continue - solution server is optional
       }
@@ -263,7 +298,13 @@ export class HubConnectionManager {
         this.startProfileSyncTimer();
       } catch (error) {
         this.logger.error("Failed to connect profile sync client", error);
-        vscode.window.showWarningMessage("Failed to connect to Hub profile sync");
+
+        // Extract meaningful error message
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Show specific error to user
+        vscode.window.showErrorMessage(`Failed to connect to Hub profile sync: ${errorMessage}`);
+
         this.profileSyncClient = null;
         // Continue - profile sync is optional
       }
