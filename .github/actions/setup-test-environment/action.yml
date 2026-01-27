@@ -24,6 +24,22 @@ runs:
       with:
         go-version: "1.23"
 
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "8.0.x"
+
+    - name: Install .NET global tools (ilspycmd and paket)
+      shell: bash
+      run: |
+        dotnet tool install --global ilspycmd || echo "ilspycmd may already be installed"
+        dotnet tool install --global paket || echo "paket may already be installed"
+        # Ensure ~/.dotnet/tools is in PATH
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+        # Verify tools are accessible
+        ilspycmd --version || echo "Warning: ilspycmd not in PATH"
+        paket --version || echo "Warning: paket not in PATH"
+
     - name: Download and Install VSCode
       shell: bash
       run: |

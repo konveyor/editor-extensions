@@ -8,6 +8,8 @@ export type RepoData = Record<
     repoUrl: string;
     repoName: string;
     branch: string;
+    language?: string;
+    workspacePath?: string;
     sources: string[];
     targets: string[];
     customRulesFolder?: string;
