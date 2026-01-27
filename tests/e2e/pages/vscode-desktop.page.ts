@@ -75,8 +75,9 @@ export class VSCodeDesktop extends VSCode {
     try {
       if (repoUrl) {
         // Extract the top-level repo name from repoDir for cleanup
-        // repoDir might be "repoName" or "repoName/workspacePath"
-        const topLevelRepoName = repoDir ? repoDir.split('/')[0] : undefined;
+        // repoDir might be "repoName" or "repoName/workspacePath" or "repoName\\workspacePath" (Windows)
+        // Use path.sep to handle both forward slashes (Unix/Mac) and backslashes (Windows)
+        const topLevelRepoName = repoDir ? repoDir.split(/[\\/]/)[0] : undefined;
         if (topLevelRepoName) {
           await cleanupRepo(topLevelRepoName);
         }

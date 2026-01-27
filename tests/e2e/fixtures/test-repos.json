@@ -363,8 +363,8 @@
     "sources": [],
     "targets": ["dotnet-core", "dotnet"],
     "customRulesFolder": "rulesets/dotnet-core-migration",
-    "issuesCount": 8,
-    "incidentsCount": 59,
+    "issuesCount": 4,
+    "incidentsCount": 40,
     "issues": []
   }
 }
