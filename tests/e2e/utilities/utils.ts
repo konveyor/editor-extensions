@@ -292,15 +292,15 @@ export function parseLogEntries(rawContent: string): LogEntry[] {
 
 export function getHubConfig(overrides?: Partial<HubConfiguration>): HubConfiguration {
   // Get values from env with defaults
-  const url = overrides?.url ?? process.env.HUB_URL;
+  const url = overrides?.url ?? process.env.TEST_HUB_URL;
   const skipSSL =
     overrides?.skipSSL ??
-    (process.env.HUB_INSECURE !== undefined ? process.env.HUB_INSECURE === 'true' : true);
+    (process.env.TEST_HUB_INSECURE !== undefined ? process.env.TEST_HUB_INSECURE === 'true' : true);
   const solutionServerEnabled = overrides?.solutionServerEnabled ?? false;
   const profileSyncEnabled = overrides?.profileSyncEnabled ?? false;
 
   if (!url) {
-    throw new Error('Missing required HUB_URL environment variable');
+    throw new Error('Missing required TEST_HUB_URL environment variable');
   }
 
   const config: HubConfiguration = {
@@ -314,15 +314,15 @@ export function getHubConfig(overrides?: Partial<HubConfiguration>): HubConfigur
   if (overrides?.auth !== undefined) {
     config.auth = overrides.auth;
   } else {
-    const username = process.env.HUB_USERNAME;
-    const password = process.env.HUB_PASSWORD;
-    const envAuth = process.env.HUB_AUTH_ENABLED;
+    const username = process.env.TEST_HUB_USERNAME;
+    const password = process.env.TEST_HUB_PASSWORD;
+    const envAuth = process.env.TEST_HUB_AUTH_ENABLED;
     const authEnabled = envAuth !== undefined ? envAuth === 'true' : !!(username && password);
 
     if (authEnabled) {
       if (!username || !password) {
         throw new Error(
-          'HUB_AUTH_ENABLED is true or credentials provided, but missing HUB_USERNAME or HUB_PASSWORD'
+          'TEST_HUB_AUTH_ENABLED is true or credentials provided, but missing TEST_HUB_USERNAME or TEST_HUB_PASSWORD'
         );
       }
 

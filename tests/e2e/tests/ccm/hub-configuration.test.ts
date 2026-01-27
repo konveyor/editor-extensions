@@ -65,7 +65,7 @@ test.describe(
     test('Disconnect from Hub', async () => {
       const disconnectConfig = {
         enabled: false,
-        url: process.env.HUB_URL || 'http://localhost:8080',
+        url: process.env.TEST_HUB_URL || 'http://localhost:8080',
         skipSSL: true,
         solutionServerEnabled: false,
         profileSyncEnabled: false,
