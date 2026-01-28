@@ -746,9 +746,10 @@ export class ProfileSyncClient {
           this.logger.warn("Failed to find ruleset files in bundle", { profileId, globError });
         }
 
-        // Determine useDefaultRules based on Hub profile mode
-        // If mode.withDeps is true, we likely want default rules too
-        const useDefaultRules = parsed.mode?.withDeps ?? false;
+        // Determine useDefaultRules based on whether targets are specified
+        // useDefaultRules should be true iff .rules.targets is not empty
+        const useDefaultRules =
+          Array.isArray(parsed.rules?.targets) && parsed.rules.targets.length > 0;
 
         // Transform to standard format matching the spec
         const standardProfile = {
