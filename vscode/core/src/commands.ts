@@ -26,7 +26,7 @@ import {
   getTraceDir,
   fileUriToPath,
 } from "./utilities/configuration";
-import { EXTENSION_NAME } from "./utilities/constants";
+import { EXTENSION_NAME, EXTENSION_SHORT_NAME } from "./utilities/constants";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -406,7 +406,7 @@ const commandsMap: (
         const isExecutable = await checkIfExecutable(filePath);
         if (!isExecutable) {
           window.showErrorMessage(
-            `The selected file "${filePath}" is not executable. Please select a valid executable file.`,
+            `GenAI is configured via ${EXTENSION_SHORT_NAME} Hub. Local settings are not used when Hub LLM proxy is available.`,
           );
           return;
         }
@@ -425,7 +425,7 @@ const commandsMap: (
       // Check if LLM proxy is available via Hub - if so, don't allow local configuration
       if (state.data.llmProxyAvailable) {
         window.showInformationMessage(
-          "GenAI is configured via Konveyor Hub. Local settings are not used when Hub LLM proxy is available.",
+          `GenAI is configured via ${EXTENSION_SHORT_NAME} Hub. Local settings are not used when Hub LLM proxy is available.`,
         );
         return;
       }
@@ -433,6 +433,13 @@ const commandsMap: (
       window.showTextDocument(settingsDocument);
     },
     [`${EXTENSION_NAME}.modelProviderSettingsBackupReset`]: async () => {
+      // Check if LLM proxy is available via Hub - if so, don't allow local configuration
+      if (state.data.llmProxyAvailable) {
+        window.showInformationMessage(
+          "GenAI is configured via Konveyor Hub. Local settings are not used when Hub LLM proxy is available.",
+        );
+        return;
+      }
       await copySampleProviderSettings(true);
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
