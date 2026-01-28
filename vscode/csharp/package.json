@@ -36,7 +36,6 @@
   ],
   "activationEvents": [
     "onLanguage:csharp",
-    "onStartupFinished",
     "workspaceContains:*.csproj",
     "workspaceContains:**/*.csproj",
     "workspaceContains:*.sln",
