@@ -85,10 +85,12 @@ export function getDefaultHubConfig(): HubConfig {
     },
     features: {
       solutionServer: {
-        enabled: env.solutionServerEnabled,
+        enabled:
+          process.env.HUB_SOLUTION_SERVER_ENABLED !== undefined ? env.solutionServerEnabled : true, // Default to true for new configs
       },
       profileSync: {
-        enabled: hubEnabled ? env.profileSyncEnabled : false,
+        enabled:
+          process.env.HUB_PROFILE_SYNC_ENABLED !== undefined ? env.profileSyncEnabled : hubEnabled, // Default to enabled when hub is enabled
       },
     },
   };
@@ -120,12 +122,16 @@ export async function initializeHubConfig(context: vscode.ExtensionContext): Pro
     },
     features: {
       solutionServer: {
-        enabled: hubEnabled
-          ? env.solutionServerEnabled
-          : savedConfig.features.solutionServer.enabled,
+        enabled:
+          process.env.HUB_SOLUTION_SERVER_ENABLED !== undefined
+            ? env.solutionServerEnabled
+            : savedConfig.features.solutionServer.enabled,
       },
       profileSync: {
-        enabled: hubEnabled ? env.profileSyncEnabled : savedConfig.features.profileSync.enabled,
+        enabled:
+          process.env.HUB_PROFILE_SYNC_ENABLED !== undefined
+            ? env.profileSyncEnabled
+            : savedConfig.features.profileSync.enabled,
       },
     },
   };
