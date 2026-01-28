@@ -406,7 +406,7 @@ const commandsMap: (
         const isExecutable = await checkIfExecutable(filePath);
         if (!isExecutable) {
           window.showErrorMessage(
-            `GenAI is configured via ${EXTENSION_SHORT_NAME} Hub. Local settings are not used when Hub LLM proxy is available.`,
+            `The selected file "${filePath}" is not executable. Please select a valid executable file.`,
           );
           return;
         }
@@ -436,7 +436,7 @@ const commandsMap: (
       // Check if LLM proxy is available via Hub - if so, don't allow local configuration
       if (state.data.llmProxyAvailable) {
         window.showInformationMessage(
-          "GenAI is configured via Konveyor Hub. Local settings are not used when Hub LLM proxy is available.",
+          `GenAI is configured via ${EXTENSION_SHORT_NAME} Hub. Local settings are not used when Hub LLM proxy is available.`,
         );
         return;
       }
