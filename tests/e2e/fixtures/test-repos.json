@@ -378,5 +378,18 @@
         "incidentsCount": 4
       }
     ]
+  },
+  "nerd-dinner": {
+    "repoUrl": "https://github.com/konveyor/c-sharp-analyzer-provider",
+    "repoName": "c-sharp-analyzer-provider",
+    "branch": "main",
+    "language": "csharp",
+    "workspacePath": "testdata/nerd-dinner",
+    "sources": [],
+    "targets": ["dotnet-core", "dotnet"],
+    "customRulesFolder": "rulesets/dotnet-core-migration",
+    "issuesCount": 4,
+    "incidentsCount": 40,
+    "issues": []
   }
 }

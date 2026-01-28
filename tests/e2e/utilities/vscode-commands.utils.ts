@@ -56,11 +56,11 @@ export function isExtensionInstalled(extension: string) {
 }
 
 /**
- * Determines if extension installation should proceed based on:
+ * Determines if core extension installation should proceed based on:
  * - Whether a VSIX file is explicitly provided (always install)
  * - Whether the extension is already installed (skip if no VSIX)
  */
-function shouldInstallExtension(): boolean {
+function shouldInstallCoreExtension(): boolean {
   const hasExplicitVsix = process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL;
 
   // Always install when VSIX is explicitly provided
@@ -74,56 +74,56 @@ function shouldInstallExtension(): boolean {
 
 export async function installExtension(): Promise<void> {
   try {
-    if (!shouldInstallExtension()) {
-      console.log(`Extension already installed`);
-      return;
-    }
+    // Install konveyor core extension (only if needed)
+    const shouldInstallCore = shouldInstallCoreExtension();
+    if (shouldInstallCore) {
+      let coreExtensionPath = '';
+      if (process.env.CORE_VSIX_FILE_PATH && fs.existsSync(process.env.CORE_VSIX_FILE_PATH)) {
+        console.log(`Installing core VSIX from ${process.env.CORE_VSIX_FILE_PATH}`);
+        coreExtensionPath = process.env.CORE_VSIX_FILE_PATH;
+      } else if (process.env.CORE_VSIX_DOWNLOAD_URL) {
+        console.log(`Downloading VSIX from ${process.env.CORE_VSIX_DOWNLOAD_URL}`);
+        coreExtensionPath = 'extension.vsix';
+        await downloadFile(process.env.CORE_VSIX_DOWNLOAD_URL, coreExtensionPath);
+      } else {
+        throw new Error(
+          `Extension installation failed: No valid core VSIX file path or download URL available`
+        );
+      }
 
-    // Install konveyor core extension
-    let coreExtensionPath = '';
-    if (process.env.CORE_VSIX_FILE_PATH && fs.existsSync(process.env.CORE_VSIX_FILE_PATH)) {
-      console.log(`Installing core VSIX from ${process.env.CORE_VSIX_FILE_PATH}`);
-      coreExtensionPath = process.env.CORE_VSIX_FILE_PATH;
-    } else if (process.env.CORE_VSIX_DOWNLOAD_URL) {
-      console.log(`Downloading VSIX from ${process.env.CORE_VSIX_DOWNLOAD_URL}`);
-      coreExtensionPath = 'extension.vsix';
-      await downloadFile(process.env.CORE_VSIX_DOWNLOAD_URL, coreExtensionPath);
-    } else {
-      throw new Error(
-        `Extension installation failed: No valid core VSIX file path or download URL available`
-      );
-    }
+      execSync(`code --install-extension "${coreExtensionPath}" --force`, {
+        stdio: 'inherit',
+        env: getCleanEnv(),
+        shell: false,
+      });
+      console.log('Konveyor core extension installed/updated successfully.');
 
-    execSync(`code --install-extension "${coreExtensionPath}" --force`, {
-      stdio: 'inherit',
-      env: getCleanEnv(),
-      shell: false,
-    });
-    console.log('Konveyor core extension installed/updated successfully.');
-
-    // Verify core extension is actually installed
-    // In CI environments, we might not be able to verify due to V8/ESM loader issues
-    // so we'll be more lenient with the verification
-    try {
-      if (!isExtensionInstalled(coreExtensionId)) {
+      // Verify core extension is actually installed
+      // In CI environments, we might not be able to verify due to V8/ESM loader issues
+      // so we'll be more lenient with the verification
+      try {
+        if (!isExtensionInstalled(coreExtensionId)) {
+          if (process.env.CI) {
+            console.warn('Warning: Could not verify core extension installation in CI environment');
+            console.warn(
+              'This may be due to VS Code/Node.js compatibility issues, but installation likely succeeded'
+            );
+            // Don't throw error in CI - assume installation worked if we got this far
+          } else {
+            throw new Error(`Core extension (${coreExtensionId}) was not installed successfully`);
+          }
+        }
+      } catch (error: any) {
+        // If we can't even run the verification, handle it gracefully in CI
         if (process.env.CI) {
-          console.warn('Warning: Could not verify core extension installation in CI environment');
-          console.warn(
-            'This may be due to VS Code/Node.js compatibility issues, but installation likely succeeded'
-          );
-          // Don't throw error in CI - assume installation worked if we got this far
+          console.warn('Warning: Extension verification failed in CI environment:', error.message);
+          console.warn('Continuing with assumption that installation succeeded');
         } else {
-          throw new Error(`Core extension (${coreExtensionId}) was not installed successfully`);
+          throw error;
         }
       }
-    } catch (error: any) {
-      // If we can't even run the verification, handle it gracefully in CI
-      if (process.env.CI) {
-        console.warn('Warning: Extension verification failed in CI environment:', error.message);
-        console.warn('Continuing with assumption that installation succeeded');
-      } else {
-        throw error;
-      }
+    } else {
+      console.log('Core extension already installed, skipping core installation');
     }
 
     // Install konveyor-java extension if path provided
@@ -175,7 +175,16 @@ export async function installExtension(): Promise<void> {
       });
       console.log('JavaScript extension installed/updated successfully.');
     }
-
+    // Install konveyor-csharp extension if path provided
+    if (process.env.CSHARP_VSIX_FILE_PATH && fs.existsSync(process.env.CSHARP_VSIX_FILE_PATH)) {
+      console.log(`Installing Konveyor C# VSIX from ${process.env.CSHARP_VSIX_FILE_PATH}`);
+      execSync(`code --install-extension "${process.env.CSHARP_VSIX_FILE_PATH}" --force`, {
+        stdio: 'inherit',
+        env: getCleanEnv(),
+        shell: false,
+      });
+      console.log('C# extension installed/updated successfully.');
+    }
     // Install konveyor-go extension if path provided
     if (process.env.GO_VSIX_FILE_PATH && fs.existsSync(process.env.GO_VSIX_FILE_PATH)) {
       console.log(`Installing Konveyor Go VSIX from ${process.env.GO_VSIX_FILE_PATH}`);
