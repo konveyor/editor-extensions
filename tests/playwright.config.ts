@@ -58,5 +58,9 @@ export default defineConfig({
       name: 'csharp-tests',
       testMatch: ['**/csharp/**/*.test.ts'],
     },
+    {
+      name: 'golang-tests',
+      testMatch: ['**/golang/**/*.test.ts'],
+    },
   ],
 });

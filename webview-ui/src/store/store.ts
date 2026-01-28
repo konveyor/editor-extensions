@@ -50,10 +50,12 @@ interface ExtensionStore {
   isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
+  hubForced?: boolean;
   profileSyncEnabled: boolean;
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  isWebEnvironment: boolean;
 
   // Batch review state
   pendingBatchReview: PendingBatchReviewFile[];
@@ -95,12 +97,14 @@ interface ExtensionStore {
   setIsAgentMode: (isAgentMode: boolean) => void;
   setIsContinueInstalled: (isInstalled: boolean) => void;
   setHubConfig: (config: HubConfig | undefined) => void;
+  setHubForced: (forced: boolean | undefined) => void;
   setWorkspaceRoot: (root: string) => void;
   setProfileSyncEnabled: (enabled: boolean) => void;
   setProfileSyncConnected: (connected: boolean) => void;
   setIsSyncingProfiles: (isSyncing: boolean) => void;
   setLlmProxyAvailable: (available: boolean) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
+  setIsWebEnvironment: (isWeb: boolean) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -139,10 +143,12 @@ export const useExtensionStore = create<ExtensionStore>()(
       isAgentMode: false,
       isContinueInstalled: false,
       hubConfig: undefined,
+      hubForced: undefined,
       profileSyncEnabled: false,
       profileSyncConnected: false,
       isSyncingProfiles: false,
       llmProxyAvailable: false,
+      isWebEnvironment: false,
 
       // Batch review state
       pendingBatchReview: [],
@@ -312,6 +318,11 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.hubConfig = config;
         }),
 
+      setHubForced: (forced) =>
+        set((state) => {
+          state.hubForced = forced;
+        }),
+
       setWorkspaceRoot: (root) =>
         set((state) => {
           state.workspaceRoot = root;
@@ -340,6 +351,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setFocusedViolationFilter: (filter) =>
         set((state) => {
           state.focusedViolationFilter = filter;
+        }),
+
+      setIsWebEnvironment: (isWeb) =>
+        set((state) => {
+          state.isWebEnvironment = isWeb;
         }),
 
       clearAnalysisData: () =>

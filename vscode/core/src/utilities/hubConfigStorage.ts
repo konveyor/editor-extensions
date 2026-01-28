@@ -4,6 +4,32 @@ import { EXTENSION_NAME } from "./constants";
 
 const HUB_CONFIG_SECRET_KEY = `${EXTENSION_NAME}.hub.config`;
 
+interface HubEnvVars {
+  url?: string;
+  username?: string;
+  password?: string;
+  forceEnabled: boolean;
+  insecure: boolean;
+  solutionServerEnabled: boolean;
+  profileSyncEnabled: boolean;
+}
+
+function getHubEnvVars(): HubEnvVars {
+  return {
+    url: process.env.HUB_URL,
+    username: process.env.HUB_USERNAME,
+    password: process.env.HUB_PASSWORD,
+    forceEnabled: process.env.FORCE_HUB_ENABLED === "true",
+    insecure: process.env.HUB_INSECURE === "true",
+    solutionServerEnabled: process.env.HUB_SOLUTION_SERVER_ENABLED !== "false", // defaults to true
+    profileSyncEnabled: process.env.HUB_PROFILE_SYNC_ENABLED !== "false", // defaults to true
+  };
+}
+
+export function isHubForced(): boolean {
+  return process.env.FORCE_HUB_ENABLED === "true";
+}
+
 /**
  * Save hub configuration to VS Code Secret Storage
  */
@@ -41,24 +67,28 @@ export async function deleteHubConfig(context: vscode.ExtensionContext): Promise
 }
 
 /**
- * Get default hub configuration
+ * Get default hub configuration with environment variable overrides
  */
 export function getDefaultHubConfig(): HubConfig {
+  const env = getHubEnvVars();
+  const authEnabled = !!(env.username || env.password);
+  const hubEnabled = env.forceEnabled || !!(env.url || authEnabled);
+
   return {
-    enabled: false,
-    url: "http://localhost:8080",
+    enabled: hubEnabled,
+    url: env.url || "http://localhost:8080",
     auth: {
-      enabled: false,
-      username: "admin",
-      password: "",
-      insecure: false,
+      enabled: authEnabled,
+      username: env.username || "admin",
+      password: env.password || "",
+      insecure: env.insecure,
     },
     features: {
       solutionServer: {
-        enabled: true,
+        enabled: env.solutionServerEnabled,
       },
       profileSync: {
-        enabled: false,
+        enabled: hubEnabled ? env.profileSyncEnabled : false,
       },
     },
   };
@@ -69,11 +99,34 @@ export function getDefaultHubConfig(): HubConfig {
  * This should be called once on extension activation
  */
 export async function initializeHubConfig(context: vscode.ExtensionContext): Promise<HubConfig> {
-  // Try to load from secret storage first
-  const config = await loadHubConfig(context);
+  const savedConfig = await loadHubConfig(context);
+  const env = getHubEnvVars();
 
-  if (config) {
-    return config;
+  if (!savedConfig) {
+    return getDefaultHubConfig();
   }
-  return getDefaultHubConfig();
+
+  const hubEnabled = env.forceEnabled || !!env.url || savedConfig.enabled;
+  const authEnabled = env.username || env.password ? true : savedConfig.auth.enabled;
+
+  return {
+    enabled: hubEnabled,
+    url: env.url || savedConfig.url,
+    auth: {
+      enabled: authEnabled,
+      username: env.username || savedConfig.auth.username,
+      password: env.password || savedConfig.auth.password,
+      insecure: process.env.HUB_INSECURE !== undefined ? env.insecure : savedConfig.auth.insecure,
+    },
+    features: {
+      solutionServer: {
+        enabled: hubEnabled
+          ? env.solutionServerEnabled
+          : savedConfig.features.solutionServer.enabled,
+      },
+      profileSync: {
+        enabled: hubEnabled ? env.profileSyncEnabled : savedConfig.features.profileSync.enabled,
+      },
+    },
+  };
 }

@@ -197,6 +197,31 @@
     "sources": [],
     "targets": ["eap7", "eap8"]
   },
+  "gotest": {
+    "repoUrl": "https://github.com/savitharaghunathan/gotest",
+    "repoName": "gotest",
+    "branch": "main",
+    "language": "go",
+    "sources": [],
+    "targets": ["go"],
+    "customRulesFolder": "gotest/rules",
+    "issuesCount": 3,
+    "incidentsCount": 9,
+    "issues": [
+      {
+        "title": "Migrate deprecated autoscaling/v2beta1 import to stable autoscaling/v2",
+        "incidentsCount": 7
+      },
+      {
+        "title": "Update HPA metric target structure for autoscaling/v2",
+        "incidentsCount": 1
+      },
+      {
+        "title": "Update Kubernetes client-go to v1.34 compatible version",
+        "incidentsCount": 1
+      }
+    ]
+  },
   "static-report": {
     "repoUrl": "https://github.com/konveyor/static-report",
     "repoName": "static-report",

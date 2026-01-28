@@ -54,6 +54,7 @@ const App: React.FC = () => {
         profileSyncConnected: windowData.profileSyncConnected ?? false,
         isSyncingProfiles: windowData.isSyncingProfiles ?? false,
         llmProxyAvailable: windowData.llmProxyAvailable ?? false,
+        isWebEnvironment: windowData.isWebEnvironment ?? false,
       });
     }
   }, []);

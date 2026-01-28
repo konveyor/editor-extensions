@@ -135,9 +135,9 @@ export class IssuesModel {
       : undefined;
   }
 
-  get message() {
+  get message(): string | undefined {
     if (this.items.length === 0) {
-      return vscode.l10n.t("No results.");
+      return undefined;
     }
     //unique files
     const files = this.items.reduce(
@@ -146,13 +146,13 @@ export class IssuesModel {
     ).size;
     const totalIncidents = this.countIncidents();
     if (totalIncidents === 1 && files === 1) {
-      return vscode.l10n.t("{0} result in {1} file", totalIncidents, files);
+      return vscode.l10n.t("Issues — {0} result in {1} file", totalIncidents, files);
     } else if (totalIncidents === 1) {
-      return vscode.l10n.t("{0} result in {1} files", totalIncidents, files);
+      return vscode.l10n.t("Issues — {0} result in {1} files", totalIncidents, files);
     } else if (files === 1) {
-      return vscode.l10n.t("{0} results in {1} file", totalIncidents, files);
+      return vscode.l10n.t("Issues — {0} results in {1} file", totalIncidents, files);
     } else {
-      return vscode.l10n.t("{0} results in {1} files", totalIncidents, files);
+      return vscode.l10n.t("Issues — {0} results in {1} files", totalIncidents, files);
     }
   }
 

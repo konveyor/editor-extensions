@@ -28,7 +28,12 @@ import {
   InfoCircleIcon,
 } from "@patternfly/react-icons";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
-import { AnalysisProfile, CONFIGURE_CUSTOM_RULES } from "@editor-extensions/shared";
+import {
+  AnalysisProfile,
+  CONFIGURE_CUSTOM_RULES,
+  UPLOAD_CUSTOM_RULES,
+} from "@editor-extensions/shared";
+import { useExtensionStore } from "../../store/store";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 import { buildLabelSelector } from "@editor-extensions/shared";
@@ -64,6 +69,8 @@ export const ProfileEditorForm: React.FC<{
   allProfiles: AnalysisProfile[];
   isDisabled?: boolean;
 }> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles, isDisabled = false }) => {
+  const isWebEnvironment = useExtensionStore((state) => state.isWebEnvironment);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [localProfile, setLocalProfile] = useState(profile);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
@@ -80,16 +87,21 @@ export const ProfileEditorForm: React.FC<{
   const { callback: debouncedChange, isPending: isSaving } = useDebouncedCallback(onChange, 300);
 
   useEffect(() => {
-    // Only reset localProfile if it's a different profile to prevent overwriting pending changes
-    if (profile.id !== localProfile.id || profile.customRules !== localProfile.customRules) {
+    // Handle profile prop changes
+    if (profile.id !== localProfile.id) {
+      // Complete profile switch - reset everything to new profile
       setLocalProfile(profile);
+      setNameValidation("default");
+      setNameErrorMsg(null);
+      setTargetsValidation("default");
+      setTargetsErrorMsg(null);
+      setRulesValidation("default");
+      setRulesErrorMsg(null);
+    } else if (profile.customRules !== localProfile.customRules) {
+      // Custom rules changed externally (e.g., via "Select Custom Rules..." button)
+      // Merge with local state to preserve any pending changes
+      setLocalProfile({ ...localProfile, customRules: profile.customRules });
     }
-    setNameValidation("default");
-    setNameErrorMsg(null);
-    setTargetsValidation("default");
-    setTargetsErrorMsg(null);
-    setRulesValidation("default");
-    setRulesErrorMsg(null);
 
     const parsedSources: string[] = [];
     const parsedTargets: string[] = [];
@@ -109,10 +121,15 @@ export const ProfileEditorForm: React.FC<{
     setSelectedSources(parsedSources);
     setSelectedTargets(parsedTargets);
 
-    // Validate initial state
+    // Validate targets when profile changes
     validateTargets(parsedTargets);
-    validateRules(profile);
   }, [profile]);
+
+  // Validate rules whenever useDefaultRules or customRules changes in local state
+  // This ensures validation is based on the actual UI state, not stale prop data
+  useEffect(() => {
+    validateRules(localProfile);
+  }, [localProfile.useDefaultRules, localProfile.customRules]);
 
   const handleInputChange = (value: string, field: keyof AnalysisProfile) => {
     const processedValue = field === "name" ? value.slice(0, MAX_PROFILE_NAME_LENGTH) : value;
@@ -346,7 +363,6 @@ export const ProfileEditorForm: React.FC<{
           onChange={(_e, checked) => {
             const updated = { ...localProfile, useDefaultRules: checked };
             setLocalProfile(updated);
-            validateRules(updated);
             debouncedChange(updated);
           }}
         />
@@ -372,25 +388,89 @@ export const ProfileEditorForm: React.FC<{
       <FormGroup label="Custom Rules" fieldId="custom-rules">
         <Stack hasGutter>
           <StackItem isFilled>
-            <Button
-              variant="secondary"
-              isDisabled={profile.readOnly || isDisabled}
-              onClick={() =>
-                dispatch({
-                  type: CONFIGURE_CUSTOM_RULES,
-                  payload: { profileId: profile.id },
-                })
-              }
-            >
-              Select Custom Rules…
-            </Button>
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem icon={<InfoCircleIcon />}>
-                  Add your own custom migration rules
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
+            {isWebEnvironment ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".yaml,.yml"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (!files || files.length === 0) {
+                      return;
+                    }
+
+                    const filePromises = Array.from(files).map((file) => {
+                      return new Promise<{ name: string; content: string }>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          resolve({
+                            name: file.name,
+                            content: reader.result as string,
+                          });
+                        };
+                        reader.onerror = () => reject(reader.error);
+                        reader.readAsText(file);
+                      });
+                    });
+
+                    Promise.all(filePromises)
+                      .then((uploadedFiles) => {
+                        dispatch({
+                          type: UPLOAD_CUSTOM_RULES,
+                          payload: {
+                            profileId: profile.id,
+                            files: uploadedFiles,
+                          },
+                        });
+                      })
+                      .catch((err) => {
+                        console.error("Failed to read files:", err);
+                      });
+
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  variant="secondary"
+                  isDisabled={profile.readOnly || isDisabled}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Upload Custom Rules…
+                </Button>
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<InfoCircleIcon />}>
+                      Upload YAML rule files from your local computer
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="secondary"
+                  isDisabled={profile.readOnly || isDisabled}
+                  onClick={() =>
+                    dispatch({
+                      type: CONFIGURE_CUSTOM_RULES,
+                      payload: { profileId: profile.id },
+                    })
+                  }
+                >
+                  Select Custom Rules…
+                </Button>
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<InfoCircleIcon />}>
+                      Add your own custom migration rules
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </>
+            )}
           </StackItem>
           <StackItem>
             <LabelGroup aria-label="Custom Rules">
@@ -411,7 +491,6 @@ export const ProfileEditorForm: React.FC<{
                           const updated = localProfile.customRules.filter((_, i) => i !== index);
                           const newProfile = { ...localProfile, customRules: updated };
                           setLocalProfile(newProfile);
-                          validateRules(newProfile);
                           debouncedChange(newProfile);
                         }
                   }

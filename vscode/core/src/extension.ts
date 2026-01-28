@@ -42,7 +42,11 @@ import {
   getConfigAutoAcceptOnSave,
   updateConfigErrors,
 } from "./utilities";
-import { initializeHubConfig, getDefaultHubConfig } from "./utilities/hubConfigStorage";
+import {
+  initializeHubConfig,
+  getDefaultHubConfig,
+  isHubForced,
+} from "./utilities/hubConfigStorage";
 import { getAllProfiles } from "./utilities/profiles/profileService";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
@@ -83,6 +87,8 @@ class VsCodeExtension {
       vscode.StatusBarAlignment.Right,
       100,
     );
+    const isWebEnvironment = vscode.env.uiKind === vscode.UIKind.Web;
+
     this.data = produce(
       {
         ruleSets: [],
@@ -111,11 +117,13 @@ class VsCodeExtension {
         solutionServerConnected: false,
         isWaitingForUserInteraction: false,
         hubConfig: getDefaultHubConfig(), // Will be updated after async initialization
+        hubForced: false, // Will be updated after checking env vars
         isProcessingQueuedMessages: false,
         profileSyncEnabled: false, // Will be updated after hub config loads
         profileSyncConnected: false,
         isSyncingProfiles: false,
         llmProxyAvailable: false, // Will be updated after hub initialization
+        isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -341,6 +349,7 @@ class VsCodeExtension {
           isAgentMode: data.isAgentMode,
           isContinueInstalled: data.isContinueInstalled,
           hubConfig: data.hubConfig,
+          hubForced: data.hubForced,
           profileSyncEnabled: data.profileSyncEnabled,
           isSyncingProfiles: data.isSyncingProfiles,
           llmProxyAvailable: data.llmProxyAvailable,
@@ -473,6 +482,7 @@ class VsCodeExtension {
       const hubConfig = await initializeHubConfig(this.context);
       this.state.mutateSettings((draft) => {
         draft.hubConfig = hubConfig;
+        draft.hubForced = isHubForced();
         draft.solutionServerEnabled =
           hubConfig.enabled && hubConfig.features.solutionServer.enabled;
         draft.profileSyncEnabled = hubConfig.enabled && hubConfig.features.profileSync.enabled;
@@ -524,6 +534,9 @@ class VsCodeExtension {
       this.registerWebviewProvider();
       // Diff view removed - using unified decorator flow instead
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
+
+      await vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.hasIssues`, false);
+
       this.registerCoreHealthChecks();
       this.registerCommands();
       this.registerLanguageProviders();

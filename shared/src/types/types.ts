@@ -159,12 +159,14 @@ export interface ExtensionData {
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
   hubConfig: HubConfig | undefined;
+  hubForced?: boolean;
   isProcessingQueuedMessages?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   profileSyncEnabled: boolean;
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  isWebEnvironment: boolean;
 }
 
 export type ConfigErrorType =

@@ -7,6 +7,7 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import path from 'node:path';
 import testReposData from './e2e/fixtures/test-repos.json';
+import { installExtension } from './e2e/utilities/vscode-commands.utils';
 
 type RepoData = {
   repoUrl?: string;
@@ -134,8 +135,13 @@ async function globalSetup() {
   if (isCSharpTest) {
     await verifyCSharpTools();
   }
-
-  // For Java repos, use init() which installs extensions and waits for Java initialization
+  
+  // Install extensions from VSIX if provided (VSCode Desktop only, not on devspaces)
+  if ((process.env.CORE_VSIX_FILE_PATH || process.env.CORE_VSIX_DOWNLOAD_URL) && !process.env.WEB) {
+    await installExtension();
+  }
+  
+  // For Java repos, use init() which waits for Java initialization
   // For other languages, use open() which skips Java-specific initialization
   const vscodeApp = isJava
     ? await VSCodeFactory.init(repoUrl, repoName)
