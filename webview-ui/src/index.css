@@ -142,7 +142,6 @@ body {
   --pf-t--global--text--color--brand--hover: var(--vscode-editor-foreground) !important;
   --pf-t--global--icon--color--brand--hover: var(--vscode-editor-foreground) !important;
   --pf-t--global--text--color--regular: var(--vscode-editor-foreground) !important;
-  --pf-t--global--border--color--default: var(--vscode-editor-foreground) !important;
   --pf-v6-c-content--Color: var(--vscode-editor-foreground) !important;
 
   --pf-t--global--text--color--link--100: #3794ff;
@@ -234,4 +233,12 @@ body {
 
 .pf-chatbot__jump {
   inset-inline-start: 95% !important;
+}
+
+.pf-v6-c-menu-toggle.pf-m-split-button.pf-m-primary > .pf-v6-c-menu-toggle__button {
+  border-inline-start-color: rgba(0, 0, 0, 0.25) !important;
+}
+
+.pf-v6-c-menu-toggle.pf-m-split-button.pf-m-primary .pf-v6-c-menu-toggle__button::before {
+  border-color: rgba(0, 0, 0, 0.25) !important;
 }

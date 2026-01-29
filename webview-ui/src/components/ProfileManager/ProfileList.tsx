@@ -1,23 +1,18 @@
 import React from "react";
 import {
-  DataList,
-  DataListItem,
-  DataListItemRow,
-  DataListItemCells,
-  DataListCell,
-  DataListAction,
+  SimpleList,
+  SimpleListItem,
   Dropdown,
   DropdownList,
   DropdownItem,
   MenuToggle,
   MenuToggleElement,
-  Button,
   Flex,
   FlexItem,
-  Icon,
 } from "@patternfly/react-core";
 import { AnalysisProfile } from "../../../../shared/dist/types";
 import LockIcon from "@patternfly/react-icons/dist/esm/icons/lock-icon";
+import StarIcon from "@patternfly/react-icons/dist/esm/icons/star-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
@@ -26,7 +21,6 @@ export const ProfileList: React.FC<{
   selected: string | null;
   active: string | null;
   onSelect: (id: string) => void;
-  onCreate: () => void;
   onMakeActive: (id: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (profile: AnalysisProfile) => void;
@@ -36,7 +30,6 @@ export const ProfileList: React.FC<{
   selected,
   active,
   onSelect,
-  onCreate,
   onDelete,
   onMakeActive,
   onDuplicate,
@@ -46,129 +39,124 @@ export const ProfileList: React.FC<{
   const [profileToDelete, setProfileToDelete] = React.useState<AnalysisProfile | null>(null);
 
   return (
-    <Flex direction={{ default: "column" }} spaceItems={{ default: "spaceItemsMd" }}>
-      <FlexItem>
-        <Button variant="primary" onClick={onCreate} isBlock isDisabled={isDisabled}>
-          + New Profile
-        </Button>
-      </FlexItem>
-      <FlexItem>
-        <DataList
-          aria-label="Profile list"
-          selectedDataListItemId={selected || ""}
-          onSelectDataListItem={(_e, id) => onSelect(id)}
-        >
-          {profiles.map((profile) => {
-            const isOpen = openDropdownProfileId === profile.id;
-            const setIsOpen = (nextOpen: boolean) => {
-              setOpenDropdownProfileId(nextOpen ? profile.id : null);
-            };
+    <>
+      <SimpleList aria-label="Profile list">
+        {profiles.map((profile) => {
+          const isOpen = openDropdownProfileId === profile.id;
+          const setIsOpen = (nextOpen: boolean) => {
+            setOpenDropdownProfileId(nextOpen ? profile.id : null);
+          };
+          const isActive = active === profile.id;
+          const isSelected = selected === profile.id;
 
-            return (
-              <DataListItem
-                key={profile.id}
-                id={profile.id}
-                aria-labelledby={`profile-${profile.id}`}
+          return (
+            <SimpleListItem
+              key={profile.id}
+              isActive={isSelected}
+              onClick={() => onSelect(profile.id)}
+            >
+              <Flex
+                justifyContent={{ default: "justifyContentSpaceBetween" }}
+                alignItems={{ default: "alignItemsCenter" }}
+                flexWrap={{ default: "nowrap" }}
+                style={{ width: "100%" }}
               >
-                <DataListItemRow>
-                  <DataListItemCells
-                    dataListCells={[
-                      <DataListCell key="name">
-                        <Flex alignItems={{ default: "alignItemsCenter" }}>
-                          {profile.readOnly && (
-                            <Icon
-                              style={{ marginRight: "0.5em" }}
-                              aria-label="Readonly profile"
-                              isInline
-                            >
-                              <LockIcon color="gray" />
-                            </Icon>
-                          )}
-                          <span id={`profile-${profile.id}`}>
-                            {profile.name} {active === profile.id && <em>(active)</em>}
-                          </span>
-                        </Flex>
-                      </DataListCell>,
-                    ]}
-                  />
-                  <DataListAction
-                    aria-labelledby={`profile-${profile.id}`}
-                    id={`profile-action-${profile.id}`}
-                    aria-label="Profile actions"
+                <FlexItem style={{ minWidth: 0, flex: "1 1 auto" }}>
+                  <Flex
+                    alignItems={{ default: "alignItemsCenter" }}
+                    spaceItems={{ default: "spaceItemsSm" }}
+                    flexWrap={{ default: "nowrap" }}
                   >
-                    <Dropdown
-                      popperProps={{ position: "right" }}
-                      isOpen={isOpen}
-                      onOpenChange={(nextOpen) => setIsOpen(nextOpen)}
-                      onSelect={() => setIsOpen(false)}
-                      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                        <MenuToggle
-                          ref={toggleRef}
-                          isExpanded={isOpen}
-                          onClick={() => setIsOpen(!isOpen)}
-                          variant="plain"
-                          icon={<EllipsisVIcon />}
-                          aria-label="Profile actions menu"
-                        />
-                      )}
-                    >
-                      <DropdownList>
+                    {profile.readOnly && (
+                      <FlexItem style={{ flexShrink: 0 }}>
+                        <LockIcon color="var(--pf-t--global--icon--color--subtle)" style={{ fontSize: "0.75rem" }} />
+                      </FlexItem>
+                    )}
+                    {isActive && (
+                      <FlexItem style={{ flexShrink: 0 }}>
+                        <StarIcon color="var(--pf-t--global--icon--color--brand--default)" style={{ fontSize: "0.75rem" }} />
+                      </FlexItem>
+                    )}
+                    <FlexItem style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: "0.875rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
+                        {profile.name}
+                      </span>
+                    </FlexItem>
+                  </Flex>
+                </FlexItem>
+                <FlexItem style={{ flexShrink: 0 }}>
+                  <Dropdown
+                    popperProps={{ position: "right", appendTo: "inline" }}
+                    isOpen={isOpen}
+                    onOpenChange={(nextOpen) => setIsOpen(nextOpen)}
+                    onSelect={() => setIsOpen(false)}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        isExpanded={isOpen}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(!isOpen);
+                        }}
+                        variant="plain"
+                        style={{ padding: "0.25rem" }}
+                      >
+                        <EllipsisVIcon />
+                      </MenuToggle>
+                    )}
+                  >
+                    <DropdownList>
+                      {!isActive && (
                         <DropdownItem
                           key="make-active"
                           onClick={() => onMakeActive(profile.id)}
-                          isDisabled={active === profile.id || isDisabled}
-                          description={
-                            active === profile.id
-                              ? "This profile is already active. No action needed."
-                              : isDisabled
-                                ? "Profile operations are blocked during analysis or solution generation."
-                                : ""
-                          }
-                        >
-                          {active === profile.id ? "Active" : "Make Active"}
-                        </DropdownItem>
-                        <DropdownItem
-                          key="duplicate"
-                          onClick={() => {
-                            onDuplicate(profile);
-                            setIsOpen(false);
-                          }}
                           isDisabled={isDisabled}
                         >
-                          Duplicate
+                          Make Active
                         </DropdownItem>
-                       <DropdownItem
-                          key="delete"
-                          onClick={() => {
-                            setProfileToDelete(profile);
-                            setIsOpen(false);
-                          }}
-                          isDisabled={profile.readOnly}
-                        >
-                          Delete
-                        </DropdownItem>
-                      </DropdownList>
-                    </Dropdown>
-                  </DataListAction>
-                </DataListItemRow>
-              </DataListItem>
-            );
-          })}
-          <ConfirmDialog
-            isOpen={profileToDelete !== null}
-            title="Delete profile?"
-            message={`Are you sure you want to delete the profile "${profileToDelete?.name}"? This action cannot be undone.`}
-            confirmButtonText="Delete"
-            onConfirm={() => {
-              if (profileToDelete) {
-                onDelete(profileToDelete.id);
-              }
-              setProfileToDelete(null);
-            }}
-            onCancel={() => setProfileToDelete(null)}
-          />
-        </DataList>
-      </FlexItem>
-    </Flex>
+                      )}
+                      <DropdownItem
+                        key="duplicate"
+                        onClick={() => {
+                          onDuplicate(profile);
+                          setIsOpen(false);
+                        }}
+                        isDisabled={isDisabled}
+                      >
+                        Duplicate
+                      </DropdownItem>
+                      <DropdownItem
+                        key="delete"
+                        onClick={() => {
+                          setProfileToDelete(profile);
+                          setIsOpen(false);
+                        }}
+                        isDisabled={profile.readOnly}
+                        isDanger
+                      >
+                        Delete
+                      </DropdownItem>
+                    </DropdownList>
+                  </Dropdown>
+                </FlexItem>
+              </Flex>
+            </SimpleListItem>
+          );
+        })}
+      </SimpleList>
+      <ConfirmDialog
+        isOpen={profileToDelete !== null}
+        title="Delete profile?"
+        message={`Are you sure you want to delete the profile "${profileToDelete?.name}"? This action cannot be undone.`}
+        confirmButtonText="Delete"
+        onConfirm={() => {
+          if (profileToDelete) {
+            onDelete(profileToDelete.id);
+          }
+          setProfileToDelete(null);
+        }}
+        onCancel={() => setProfileToDelete(null)}
+      />
+    </>
   );
 };
