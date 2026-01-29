@@ -49,7 +49,7 @@ test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
     const errorMessage = profileView.locator('.pf-m-error', {
       hasText: 'A profile with this name already exists.',
     });
-    await profileView.getByRole('button', { name: '+ New Profile' }).click();
+    await profileView.getByRole('button', { name: 'New Profile' }).click();
     await profileView.getByRole('textbox', { name: 'Profile Name' }).fill(existingProfileName);
     const sourceInput = profileView.getByRole('combobox', { name: 'Type to filter' }).nth(1);
     await sourceInput.click({ delay: 500 });

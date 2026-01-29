@@ -345,7 +345,7 @@ export abstract class VSCode {
 
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
-    await manageProfileView.getByRole('button', { name: '+ New Profile' }).click();
+    await manageProfileView.getByRole('button', { name: 'New Profile' }).click();
 
     const randomName = generateRandomString();
     const nameToUse = profileName ? profileName : randomName;
