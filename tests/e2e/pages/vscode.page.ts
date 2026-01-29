@@ -426,7 +426,7 @@ export abstract class VSCode {
       }
       await targetProfile.click({ timeout: 60000 });
 
-      const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
+      const deleteButton = manageProfileView.getByRole('button', { name: 'Delete' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
       await expect(deleteButton).toBeEnabled();
       await this.window.screenshot({
