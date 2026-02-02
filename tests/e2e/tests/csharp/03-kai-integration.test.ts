@@ -7,13 +7,14 @@ import { generateRandomString } from '../../utilities/utils';
 import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
-test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => {
+test.describe.serial('C# Extension - Kai Integration', { tag: ['@tier3', '@experimental'] }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `csharp-kai-${randomString}`;
   let repoInfo: RepoData[string];
   const screenshotDir = pathlib.join(SCREENSHOTS_FOLDER, 'csharp-kai-integration');
   let violationCountBefore: number;
+  let incidentsCountBefore: number;
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(1200000);
@@ -23,17 +24,7 @@ test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => 
     // Wait for extensions to load
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
-  });
 
-  test.beforeEach(async () => {
-    const testName = test.info().title.replace(/ /g, '-');
-    console.log(`Starting ${testName} at ${new Date()}`);
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, `before-${testName}.png`),
-    });
-  });
-
-  test('Create profile with dotnet-core-migration rulesets', async () => {
     await vscodeApp.waitDefault();
     await vscodeApp.createProfile(
       repoInfo.sources,
@@ -42,6 +33,14 @@ test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => 
       repoInfo.customRulesFolder
     );
     console.log(`Profile created: ${profileName} with custom rules`);
+  });
+
+  test.beforeEach(async () => {
+    const testName = test.info().title.replace(/ /g, '-');
+    console.log(`Starting ${testName} at ${new Date()}`);
+    await vscodeApp.getWindow().screenshot({
+      path: pathlib.join(screenshotDir, `before-${testName}.png`),
+    });
   });
 
   test('Configure GenAI Provider', async () => {
@@ -112,6 +111,8 @@ test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => 
     const violations = analysisView.locator('[class*="pf-v"][class*="-c-card__header-toggle"]');
     violationCountBefore = await violations.count();
     console.log(`Violations before fix: ${violationCountBefore}`);
+    incidentsCountBefore = await vscodeApp.getIncidentsCount();
+    console.log(`Incidents before fix: ${incidentsCountBefore}`);
 
     // Search for a violation to fix (adjust based on actual C# issues found)
     // If no issues are found, this test will need to be adjusted
@@ -183,11 +184,15 @@ test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => 
     const violations = analysisView.locator('[class*="pf-v"][class*="-c-card__header-toggle"]');
     const violationCountAfter = await violations.count();
     console.log(`Violations after fix: ${violationCountAfter}`);
+    const incidentsCountAfter = await vscodeApp.getIncidentsCount();
+    console.log(`Incidents after fix: ${incidentsCountAfter}`);
 
     // Verify violations decreased (if we had violations to fix)
     if (violationCountBefore > 0) {
       expect(violationCountAfter).toBeLessThan(violationCountBefore);
       console.log(`Violations reduced from ${violationCountBefore} to ${violationCountAfter}`);
+      expect(incidentsCountAfter).toBeLessThan(incidentsCountBefore);
+      console.log(`Incidents reduced from ${incidentsCountBefore} to ${incidentsCountAfter}`);
     } else {
       console.log('No violations were fixed (none were found initially)');
     }
@@ -199,11 +204,6 @@ test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => 
     console.log('Analysis view is functional after Kai integration');
   });
 
-  test('Delete profile', async () => {
-    await vscodeApp.deleteProfile(profileName);
-    console.log(`Profile deleted: ${profileName}`);
-  });
-
   test.afterEach(async () => {
     const testName = test.info().title.replace(/ /g, '-');
     console.log(`Finished ${testName} at ${new Date()}`);
@@ -213,6 +213,7 @@ test.describe.serial('C# Extension - Kai Integration', { tag: '@tier3' }, () => 
   });
 
   test.afterAll(async () => {
+    await vscodeApp.deleteProfile(profileName);
     await vscodeApp.closeVSCode();
   });
 });

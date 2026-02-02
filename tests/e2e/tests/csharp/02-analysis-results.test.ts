@@ -7,7 +7,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
-test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tier0' }, () => {
+test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `csharp-analysis-${randomString}`;
@@ -25,17 +25,7 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
     // Wait for extensions to load
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
-  });
 
-  test.beforeEach(async () => {
-    const testName = test.info().title.replace(/ /g, '-');
-    console.log(`Starting ${testName} at ${new Date()}`);
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, `before-${testName}.png`),
-    });
-  });
-
-  test('Create profile with dotnet-core-migration rulesets', async () => {
     await vscodeApp.waitDefault();
     await vscodeApp.createProfile(
       repoInfo.sources,
@@ -44,6 +34,14 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
       repoInfo.customRulesFolder
     );
     console.log(`Profile created: ${profileName} with custom rules`);
+  });
+
+  test.beforeEach(async () => {
+    const testName = test.info().title.replace(/ /g, '-');
+    console.log(`Starting ${testName} at ${new Date()}`);
+    await vscodeApp.getWindow().screenshot({
+      path: pathlib.join(screenshotDir, `before-${testName}.png`),
+    });
   });
 
   test('Configure GenAI Provider', async () => {
@@ -145,11 +143,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
     });
   });
 
-  test('Delete profile', async () => {
-    await vscodeApp.deleteProfile(profileName);
-    console.log(`Profile deleted: ${profileName}`);
-  });
-
   test.afterEach(async () => {
     const testName = test.info().title.replace(/ /g, '-');
     console.log(`Finished ${testName} at ${new Date()}`);
@@ -159,6 +152,7 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
   });
 
   test.afterAll(async () => {
+    await vscodeApp.deleteProfile(profileName);
     await vscodeApp.closeVSCode();
   });
 });

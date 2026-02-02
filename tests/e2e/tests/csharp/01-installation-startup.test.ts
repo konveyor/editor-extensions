@@ -3,7 +3,7 @@ import { VSCode } from '../../pages/vscode.page';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
 
-test.describe.serial('C# Extension - Installation & Startup', { tag: '@tier0' }, () => {
+test.describe.serial('C# Extension - Installation & Startup', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
   let repoInfo: RepoData[string];
 
