@@ -118,7 +118,7 @@
     "wait-on": "^8.0.2"
   },
   "dependencies": {
-    "@langchain/aws": "^0.1.8",
+    "@langchain/aws": "^0.1.12",
     "@langchain/core": "^0.3.45",
     "@langchain/deepseek": "^0.0.1",
     "@langchain/google-genai": "^0.2.4",

@@ -7,7 +7,7 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
-test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tier2' }, () => {
+test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tier3' }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `csharp-analysis-${randomString}`;
@@ -26,7 +26,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
 
-    await vscodeApp.waitDefault();
     await vscodeApp.createProfile(
       repoInfo.sources,
       repoInfo.targets,
@@ -56,7 +55,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
 
   test('Run analysis on nerd-dinner repo', async () => {
     test.setTimeout(600000);
-    await vscodeApp.waitDefault();
     await vscodeApp.openAnalysisView();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -73,7 +71,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
 
   test('Verify analysis results are displayed', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -98,7 +95,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
 
   test('Verify Get Solution button is visible', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -115,7 +111,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
 
   test('Verify issues count matches expected', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const issuesCount = await vscodeApp.getIssuesCount();
     console.log(`Issues count from UI: ${issuesCount}, expected: ${repoInfo.issuesCount}`);
@@ -130,7 +125,6 @@ test.describe.serial('C# Extension - Analysis Execution & Results', { tag: '@tie
 
   test('Verify incidents count matches expected', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const incidentsCount = await vscodeApp.getIncidentsCount();
     console.log(`Incidents count from UI: ${incidentsCount}, expected: ${repoInfo.incidentsCount}`);

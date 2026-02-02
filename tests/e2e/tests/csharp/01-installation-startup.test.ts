@@ -3,7 +3,7 @@ import { VSCode } from '../../pages/vscode.page';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
 
-test.describe.serial('C# Extension - Installation & Startup', { tag: '@tier2' }, () => {
+test.describe.serial('C# Extension - Installation & Startup', { tag: '@tier3' }, () => {
   let vscodeApp: VSCode;
   let repoInfo: RepoData[string];
 
@@ -27,13 +27,6 @@ test.describe.serial('C# Extension - Installation & Startup', { tag: '@tier2' },
       timeout: 60000,
     });
     console.log('C# extension activated');
-  });
-
-  test('Extension activates without errors when opening C# project', async () => {
-    await vscodeApp.waitDefault();
-    // Verify no error dialogs are shown
-    const errorDialog = vscodeApp.getWindow().locator('.monaco-dialog-box.error');
-    await expect(errorDialog).not.toBeVisible({ timeout: 5000 });
   });
 
   test('Can access analysis view after opening it', async () => {

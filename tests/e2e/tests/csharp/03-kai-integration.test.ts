@@ -33,29 +33,15 @@ test.describe.serial('C# Extension - Kai Integration', { tag: ['@tier3', '@exper
       repoInfo.customRulesFolder
     );
     console.log(`Profile created: ${profileName} with custom rules`);
-  });
 
-  test.beforeEach(async () => {
-    const testName = test.info().title.replace(/ /g, '-');
-    console.log(`Starting ${testName} at ${new Date()}`);
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, `before-${testName}.png`),
-    });
-  });
-
-  test('Configure GenAI Provider', async () => {
+    // Kai integration prerequisites (already covered in 02-analysis-results, but required here)
     await vscodeApp.configureGenerativeAI(DEFAULT_PROVIDER.config);
     console.log('GenAI provider configured');
-  });
 
-  test('Start server', async () => {
     await vscodeApp.startServer();
     console.log('Server started successfully');
-  });
 
-  test('Run analysis', async () => {
     test.setTimeout(600000);
-    await vscodeApp.waitDefault();
     await vscodeApp.openAnalysisView();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -68,24 +54,25 @@ test.describe.serial('C# Extension - Kai Integration', { tag: ['@tier3', '@exper
     // Wait for analysis completion notification
     await vscodeApp.waitForAnalysisCompleted();
     console.log('Analysis completed');
-  });
-
-  test('Verify issues are available for Kai processing', async () => {
-    await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     // Verify the Get Solution button is present
-    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const solutionButton = analysisView.locator('button#get-solution-button');
     await expect(solutionButton.first()).toBeVisible({ timeout: 30000 });
     console.log('Get Solution button is available');
+  });
+
+  test.beforeEach(async () => {
+    const testName = test.info().title.replace(/ /g, '-');
+    console.log(`Starting ${testName} at ${new Date()}`);
+    await vscodeApp.getWindow().screenshot({
+      path: pathlib.join(screenshotDir, `before-${testName}.png`),
+    });
   });
 
   // --- Non-Agent Mode Flow ---
 
   test('Ensure agent mode is disabled', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -103,7 +90,6 @@ test.describe.serial('C# Extension - Kai Integration', { tag: ['@tier3', '@exper
   test('Request and accept solution without agent mode', async () => {
     test.setTimeout(600000);
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -176,7 +162,6 @@ test.describe.serial('C# Extension - Kai Integration', { tag: ['@tier3', '@exper
 
   test('Return to analysis view and verify state', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
