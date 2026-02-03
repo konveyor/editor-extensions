@@ -2,8 +2,9 @@ import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
+import { extensionShortName } from '../../utilities/utils';
 
-test.describe('Welcome View', { tag: ['@tier3'] }, () => {
+test.describe('Welcome View', { tag: ['@tier3', '@experimental'] }, () => {
   let vscodeApp: VSCode;
 
   test.beforeAll(async ({ testRepoData }) => {
@@ -13,11 +14,8 @@ test.describe('Welcome View', { tag: ['@tier3'] }, () => {
   });
 
   test('Welcome message is visible in sidebar', async () => {
-    await vscodeApp.waitDefault();
-
-    // Open the Konveyor sidebar by clicking on the activity bar icon
+    // Open the sidebar by clicking on the activity bar icon
     await vscodeApp.openLeftBarElement(VSCode.COMMAND_CATEGORY);
-    await vscodeApp.waitDefault();
 
     const window = vscodeApp.getWindow();
 
@@ -26,18 +24,17 @@ test.describe('Welcome View', { tag: ['@tier3'] }, () => {
     await expect(welcomeContent).toBeVisible({ timeout: 30000 });
 
     // Verify the welcome message text is present
-    await expect(welcomeContent.getByText('Welcome to Konveyor!')).toBeVisible({ timeout: 10000 });
+    await expect(welcomeContent.getByText(`Welcome to ${extensionShortName}!`)).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
       welcomeContent.getByText('Get started with your migration analysis.')
     ).toBeVisible();
   });
 
   test('"Open Analysis Panel" link opens Analysis View', async () => {
-    await vscodeApp.waitDefault();
-
-    // Ensure we're on the Konveyor sidebar
+    // Ensure we're on the sidebar
     await vscodeApp.openLeftBarElement(VSCode.COMMAND_CATEGORY);
-    await vscodeApp.waitDefault();
 
     const window = vscodeApp.getWindow();
     const welcomeContent = window.locator('.welcome-view-content');
@@ -59,11 +56,8 @@ test.describe('Welcome View', { tag: ['@tier3'] }, () => {
   });
 
   test('"Manage Profiles" link opens Manage Profiles view', async () => {
-    await vscodeApp.waitDefault();
-
-    // Open the Konveyor sidebar again
+    // Open the sidebar again
     await vscodeApp.openLeftBarElement(VSCode.COMMAND_CATEGORY);
-    await vscodeApp.waitDefault();
 
     const window = vscodeApp.getWindow();
     const welcomeContent = window.locator('.welcome-view-content');
@@ -85,11 +79,8 @@ test.describe('Welcome View', { tag: ['@tier3'] }, () => {
   });
 
   test('Documentation link is present', async () => {
-    await vscodeApp.waitDefault();
-
-    // Open the Konveyor sidebar
+    // Open the sidebar
     await vscodeApp.openLeftBarElement(VSCode.COMMAND_CATEGORY);
-    await vscodeApp.waitDefault();
 
     const window = vscodeApp.getWindow();
     const welcomeContent = window.locator('.welcome-view-content');
@@ -98,7 +89,7 @@ test.describe('Welcome View', { tag: ['@tier3'] }, () => {
     await expect(welcomeContent.getByText('For more information, see the')).toBeVisible({
       timeout: 10000,
     });
-    await expect(welcomeContent.getByText('Konveyor documentation')).toBeVisible({
+    await expect(welcomeContent.getByText(`${extensionShortName} documentation`)).toBeVisible({
       timeout: 10000,
     });
   });
