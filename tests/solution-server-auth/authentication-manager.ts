@@ -111,7 +111,7 @@ export class AuthenticationManager {
     const params = new URLSearchParams();
     params.append('grant_type', 'refresh_token');
     params.append('client_id', `${this.realm}-ui`);
-    params.append('refresh_token', this.refreshToken!);
+    params.append('refresh_token', this.refreshToken);
     const tokenData = await this.fetchToken(tokenUrl, params);
     this.setTokenData(tokenData);
   }
@@ -169,7 +169,7 @@ export class AuthenticationManager {
     if (this.tokenPromise) {
       return this.tokenPromise;
     }
-    if (this.bearerToken && !this.hasValidToken()) {
+    if (this.hasValidToken()) {
       return;
     }
     if (!this.refreshToken || this.isLocal) {
@@ -189,6 +189,7 @@ export class AuthenticationManager {
 
   public dispose(): void {
     this.stopAutoRefresh();
+    this.tokenPromise = null
     this.bearerToken = null;
     this.refreshToken = null;
     this.tokenExpiresAt = null;

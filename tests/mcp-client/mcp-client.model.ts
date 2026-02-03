@@ -5,8 +5,69 @@ import { BestHintResponse, SuccessRateResponse } from './mcp-client-responses.mo
 import { AuthenticationManager } from '../solution-server-auth/authentication-manager';
 import { validateSolutionServerConfig } from '../solution-server-auth/utills';
 
+/**
+ * Creates a custom fetch function that handles redirects by preserving the original host
+ * and path prefix. This is necessary when the server redirects to internal K8s service
+ * names that cannot be resolved from outside the cluster.
+ *
+ * The server internally uses paths like /api but externally they're exposed at
+ * /hub/services/kai/api. This function maps internal paths back to external paths.
+ */
+function createRedirectAwareFetch(originalUrl: URL): typeof fetch {
+  const originalPath = originalUrl.pathname;
+  const apiIndex = originalPath.indexOf('/api');
+  const pathPrefix = apiIndex > 0 ? originalPath.substring(0, apiIndex) : '';
+  const maxRedirects = 10;
+
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    let currentUrl = input instanceof Request ? input.url : input.toString();
+
+    for (let redirectCount = 0; redirectCount < maxRedirects; redirectCount++) {
+      const parsedUrl = new URL(currentUrl);
+
+      // If the request is going to a different host than our original, rewrite it
+      if (parsedUrl.host !== originalUrl.host) {
+        let targetPath = parsedUrl.pathname;
+        if (pathPrefix && targetPath.startsWith('/api')) {
+          targetPath = pathPrefix + targetPath;
+        }
+        const rewrittenUrl = new URL(targetPath + parsedUrl.search, originalUrl);
+        console.log(`Rewriting URL from ${parsedUrl.href} to ${rewrittenUrl.href}`);
+        currentUrl = rewrittenUrl.toString();
+      }
+
+      const response = await fetch(currentUrl, {
+        ...init,
+        redirect: 'manual',
+      });
+
+      // If not a redirect, return the response
+      if (response.status < 300 || response.status >= 400) {
+        return response;
+      }
+
+      // Handle redirect
+      const location = response.headers.get('location');
+      if (!location) {
+        return response;
+      }
+
+      const redirectUrl = new URL(location, originalUrl);
+      let targetPath = redirectUrl.pathname;
+      if (pathPrefix && targetPath.startsWith('/api')) {
+        targetPath = pathPrefix + targetPath;
+      }
+      currentUrl = new URL(targetPath + redirectUrl.search, originalUrl).toString();
+      console.log(`Following redirect: ${location} -> ${currentUrl}`);
+    }
+
+    throw new Error('Maximum redirect limit reached');
+  };
+}
+
 export class MCPClient {
   private readonly url: string;
+  private readonly parsedUrl: URL;
   private transport?: StreamableHTTPClientTransport;
   private client?: Client;
   private authManager: AuthenticationManager;
@@ -14,6 +75,7 @@ export class MCPClient {
 
   constructor(url: string, authManager: AuthenticationManager) {
     this.url = url;
+    this.parsedUrl = new URL(url);
     this.authManager = authManager;
   }
 
@@ -35,6 +97,9 @@ export class MCPClient {
 
   private async connectTransport(): Promise<void> {
     const token = await this.authManager.getBearerToken();
+    if (!token) {
+      throw new Error('Failed to obtain authentication token');
+    }
     this.currentToken = token;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
@@ -42,11 +107,12 @@ export class MCPClient {
 
     this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
       requestInit: { headers },
+      fetch: createRedirectAwareFetch(this.parsedUrl),
     });
 
     this.client = new Client(
       { name: 'authenticated-mcp-client', version: '1.0.0' },
-      { capabilities: { tools: {}, resources: {} } }
+      { capabilities: { roots: { listChanged: false }, sampling: {} } }
     );
 
     await this.client.connect(this.transport);
@@ -62,6 +128,7 @@ export class MCPClient {
     };
     this.transport = new StreamableHTTPClientTransport(new URL(this.url), {
       requestInit: { headers },
+      fetch: createRedirectAwareFetch(this.parsedUrl),
     });
     await this.client.connect(this.transport);
   }
@@ -89,12 +156,10 @@ export class MCPClient {
     );
   }
 
-  public async getSuccessRate(
-    violationIds: {
-      violation_name: string;
-      ruleset_name: string;
-    }[]
-  ): Promise<SuccessRateResponse> {
+  public async getSuccessRate(violationId: {
+    violation_name: string;
+    ruleset_name: string;
+  }): Promise<SuccessRateResponse> {
     const successRateSchema = z.object({
       counted_solutions: z.number(),
       accepted_solutions: z.number(),
@@ -107,7 +172,7 @@ export class MCPClient {
 
     const response = await this.request<SuccessRateResponse[]>(
       'get_success_rate',
-      { violation_ids: violationIds },
+      { violation_ids: [violationId] },
       responseSchema
     );
 
@@ -126,7 +191,7 @@ export class MCPClient {
   }
   private isUnauthorized(result: any): boolean {
     const msg = JSON.stringify(result?.content || '');
-    return msg.includes('401') || msg.includes('403') || msg.includes('unauthorized');
+    return msg.includes('401') || msg.includes('403') || msg.toLowerCase().includes('unauthorized');
   }
 
   private async request<T>(
@@ -144,7 +209,7 @@ export class MCPClient {
       this.currentToken = token;
     }
 
-    const result = await this.client?.callTool({
+    const result = await this.client.callTool({
       name: endpoint,
       arguments: params,
     });
