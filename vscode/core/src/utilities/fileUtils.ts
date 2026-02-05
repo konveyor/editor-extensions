@@ -22,10 +22,33 @@ export const getBuildFilesForLanguage = (programmingLanguage: string): Array<str
   }
 };
 
-export const checkIfExecutable = async (filePath: string): Promise<boolean> => {
+export interface ExecutableCheckResult {
+  isExecutable: boolean;
+  error?: {
+    type: "not-found" | "not-executable" | "invalid-extension" | "unknown";
+    message: string;
+    suggestion: string;
+  };
+}
+
+export const checkIfExecutable = async (filePath: string): Promise<ExecutableCheckResult> => {
   try {
     // Normalize the path for cross-platform compatibility
     const normalizedPath = path.normalize(filePath);
+
+    // First check if file exists
+    try {
+      await access(normalizedPath, fs.constants.F_OK);
+    } catch {
+      return {
+        isExecutable: false,
+        error: {
+          type: "not-found",
+          message: `File not found: ${normalizedPath}`,
+          suggestion: "Verify the file path is correct and the file exists.",
+        },
+      };
+    }
 
     if (isWindows) {
       // On Windows, check if the file has a valid executable extension
@@ -33,20 +56,42 @@ export const checkIfExecutable = async (filePath: string): Promise<boolean> => {
       const fileExtension = path.extname(normalizedPath).toLowerCase();
 
       if (!executableExtensions.includes(fileExtension)) {
-        console.warn(`File does not have a valid Windows executable extension: ${normalizedPath}`);
-        return false;
+        return {
+          isExecutable: false,
+          error: {
+            type: "invalid-extension",
+            message: `File must have .exe extension on Windows: ${normalizedPath}`,
+            suggestion: "Select a Windows executable file (.exe).",
+          },
+        };
       }
     } else {
       // On Unix systems, check for execute permissions
-      await access(normalizedPath, fs.constants.X_OK);
+      try {
+        await access(normalizedPath, fs.constants.X_OK);
+      } catch {
+        return {
+          isExecutable: false,
+          error: {
+            type: "not-executable",
+            message: `File exists but does not have execute permissions: ${normalizedPath}`,
+            suggestion: `Verify the file has execute permissions.`,
+          },
+        };
+      }
     }
 
-    // Check if the file exists
-    await access(normalizedPath, fs.constants.F_OK);
-    return true;
+    return { isExecutable: true };
   } catch (err) {
     console.error("Error checking if file is executable:", err);
-    return false;
+    return {
+      isExecutable: false,
+      error: {
+        type: "unknown",
+        message: `Unable to validate file: ${err}`,
+        suggestion: "Verify the file path and permissions.",
+      },
+    };
   }
 };
 
