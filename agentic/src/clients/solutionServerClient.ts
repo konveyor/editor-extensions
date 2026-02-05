@@ -102,9 +102,21 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       this.tokenExpiresAt = null;
       this.clearTokenRefreshTimer();
     }
+
+    // Apply SSL bypass early if insecure mode is enabled
+    // This ensures fetch calls to Keycloak also bypass SSL verification
+    if (this.insecure) {
+      this.sslBypassCleanup = this.applySSLBypass();
+    }
   }
 
   public updateConfig(config: SolutionServerConfig): void {
+    // Restore SSL settings before updating config
+    if (this.sslBypassCleanup) {
+      this.sslBypassCleanup();
+      this.sslBypassCleanup = null;
+    }
+
     this.enabled = config.enabled;
     this.serverUrl = config.url;
     this.authEnabled = config.auth.enabled;
@@ -121,6 +133,13 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       this.tokenExpiresAt = null;
       this.clearTokenRefreshTimer();
     }
+
+    // Apply SSL bypass early if insecure mode is enabled
+    // This ensures fetch calls to Keycloak also bypass SSL verification
+    if (this.insecure) {
+      this.sslBypassCleanup = this.applySSLBypass();
+    }
+
     this.logger.info("Solution server configuration updated");
   }
 
@@ -157,10 +176,8 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       return;
     }
 
-    // Apply SSL bypass for development/testing if insecure flag is enabled
-    if (this.insecure) {
-      this.sslBypassCleanup = this.applySSLBypass();
-    }
+    // SSL bypass is now applied in constructor/updateConfig, so no need to apply again here
+    // This comment is kept for clarity about when SSL bypass happens
 
     // Handle authentication if required
     if (this.authEnabled) {

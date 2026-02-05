@@ -132,6 +132,9 @@ const AnalysisPage: React.FC = () => {
     !selectedProfile?.labelSelector?.trim() ||
     (!selectedProfile.useDefaultRules && (selectedProfile.customRules?.length ?? 0) === 0);
 
+  // Only show warning badge for non-informational config errors
+  const hasWarningConfigErrors = rawConfigErrors.some((error) => error.type !== "genai-disabled");
+
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -179,7 +182,7 @@ const AnalysisPage: React.FC = () => {
                         <ToolbarItem>
                           <ConfigButton
                             onClick={() => setIsConfigOpen(true)}
-                            hasWarning={rawConfigErrors.length > 0}
+                            hasWarning={hasWarningConfigErrors}
                             warningMessage="Please review your configuration before running analysis."
                           />
                         </ToolbarItem>

@@ -1,5 +1,5 @@
-import React from "react";
-import { Alert, AlertActionLink, PageSection, Card } from "@patternfly/react-core";
+import React, { useState } from "react";
+import { Alert, AlertActionLink, Button, PageSection, Card } from "@patternfly/react-core";
 import { ConfigError } from "@editor-extensions/shared";
 import { restartSolutionServer, enableGenAI } from "../../hooks/actions";
 
@@ -18,6 +18,8 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
   onOpenProfileManager,
   dispatch,
 }) => {
+  const [isGenAIAlertDismissed, setIsGenAIAlertDismissed] = useState(false);
+
   // Don't render anything if there are no alerts to show
   // Show alerts if: config errors exist OR (solution server enabled AND disconnected)
   const shouldShowAlerts =
@@ -32,31 +34,40 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
       {/* Regular config errors */}
       {configErrors.length > 0 && (
         <PageSection padding={{ default: "noPadding" }}>
-          {configErrors.map((error, index) => (
-            <Card
-              isCompact
-              style={{ maxWidth: "600px", margin: "1rem auto 1rem auto" }}
-              key={index}
-            >
-              <Alert
-                variant="warning"
-                title={error.message}
-                actionLinks={
-                  error.type === "no-active-profile" ? (
-                    <AlertActionLink onClick={onOpenProfileManager}>
-                      Manage Profiles
-                    </AlertActionLink>
-                  ) : error.type === "genai-disabled" ? (
-                    <AlertActionLink onClick={() => dispatch(enableGenAI())}>
-                      Enable GenAI
-                    </AlertActionLink>
-                  ) : undefined
-                }
+          {configErrors
+            .filter((error) => !(error.type === "genai-disabled" && isGenAIAlertDismissed))
+            .map((error, index) => (
+              <Card
+                isCompact
+                style={{ maxWidth: "600px", margin: "1rem auto 1rem auto" }}
+                key={index}
               >
-                {error.error ?? ""}
-              </Alert>
-            </Card>
-          ))}
+                <Alert
+                  variant={error.type === "genai-disabled" ? "info" : "warning"}
+                  title={error.message}
+                  actionLinks={
+                    error.type === "no-active-profile" ? (
+                      <AlertActionLink onClick={onOpenProfileManager}>
+                        Manage Profiles
+                      </AlertActionLink>
+                    ) : error.type === "genai-disabled" ? (
+                      <AlertActionLink onClick={() => dispatch(enableGenAI())}>
+                        Enable GenAI
+                      </AlertActionLink>
+                    ) : undefined
+                  }
+                  actionClose={
+                    error.type === "genai-disabled" ? (
+                      <Button variant="link" onClick={() => setIsGenAIAlertDismissed(true)}>
+                        Close
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {error.error ?? ""}
+                </Alert>
+              </Card>
+            ))}
         </PageSection>
       )}
 

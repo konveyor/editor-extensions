@@ -117,7 +117,7 @@ export function WalkthroughDrawer({
       case "Not configured":
         return "warning";
       case "GenAI is disabled":
-        return "warning";
+        return "info";
       default:
         return "info";
     }
