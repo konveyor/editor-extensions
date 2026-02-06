@@ -528,7 +528,8 @@ class VsCodeExtension {
               pollInterval = 10000;
               scheduleNextPoll(withJitter(pollInterval));
 
-              // Auth credentials will be prompted on next connection attempt if needed
+              // Connect with credential prompting
+              await this.connectToSolutionServer();
             }
           }
 

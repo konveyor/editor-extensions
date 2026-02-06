@@ -33,7 +33,7 @@ import {
   getConfigSolutionServer,
 } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
-import { promptForCredentials } from "./utilities/auth";
+import { checkAndPromptForCredentials, promptForCredentials } from "./utilities/auth";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -132,6 +132,15 @@ const commandsMap: (
         state.mutateData((draft) => {
           draft.solutionServerConnected = false;
         });
+
+        if (getConfigSolutionServerAuth()) {
+          const credentials = await checkAndPromptForCredentials(state.extensionContext, logger);
+          if (!credentials) {
+            logger.info("No credentials provided, cannot restart solution server");
+            return;
+          }
+          await solutionServerClient.authenticate(credentials.username, credentials.password);
+        }
 
         await solutionServerClient.connect();
 

@@ -307,12 +307,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
 
     this.cachedCapabilities = null;
 
-    // Restore SSL settings
-    if (this.sslBypassCleanup) {
-      this.sslBypassCleanup();
-      this.sslBypassCleanup = null;
-    }
-
     try {
       if (this.mcpClient) {
         await this.mcpClient.close();
