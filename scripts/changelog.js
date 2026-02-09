@@ -223,10 +223,10 @@ async function prependToChangelog(targetFile, section) {
   let changelog;
   if (existsSync(targetFile)) {
     changelog = await readFile(targetFile, "utf8");
-    const headingMatch = changelog.match(/^(# .+\n(\n)?)/);
-    if (headingMatch) {
-      const insertPos = headingMatch[0].length;
-      changelog = changelog.slice(0, insertPos) + "\n" + section + changelog.slice(insertPos);
+    const preambleMatch = changelog.match(/^([\s\S]*?)(?=\n## |\s*$)/);
+    if (preambleMatch) {
+      const insertPos = preambleMatch[0].length;
+      changelog = changelog.slice(0, insertPos) + "\n\n" + section + changelog.slice(insertPos);
     } else {
       changelog = `# Changelog\n\n${section}${changelog}`;
     }

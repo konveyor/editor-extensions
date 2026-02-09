@@ -145,6 +145,19 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
+      - name: Determine base branch
+        id: base
+        run: |
+          # For tags, find the branch that contains the tagged commit.
+          # Prefer release-* branches, fall back to main.
+          TAG_SHA=$(git rev-parse HEAD)
+          BASE_BRANCH=$(git branch -r --contains "$TAG_SHA" \
+            | sed 's|origin/||' | tr -d ' ' \
+            | grep -E '^(release-|main$)' \
+            | head -1)
+          echo "branch=${BASE_BRANCH:-main}" >> "$GITHUB_OUTPUT"
+          echo "Changelog PR will target: ${BASE_BRANCH:-main}"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -154,7 +167,7 @@ jobs:
         run: npm ci
 
       - name: Assemble changelog fragments
-        run: node scripts/changelog.js assemble "${{ inputs.tag_name }}"
+        run: npm run changelog:assemble -- "${{ inputs.tag_name }}"
 
       - name: Check for changes
         id: changes
@@ -176,4 +189,4 @@ jobs:
             Assembles changelog fragments into CHANGELOG.md for the ${{ inputs.tag_name }} release.
 
             This PR was automatically created by the release workflow.
-          base: ${{ github.ref_name }}
+          base: ${{ steps.base.outputs.branch }}
