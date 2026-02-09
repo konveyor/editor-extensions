@@ -70,7 +70,10 @@
     "package-go": "node ./scripts/package-extensions.js go",
     "package-csharp": "node ./scripts/package-extensions.js csharp",
     "package-pack": "node ./scripts/package-extensions.js konveyor",
-    "test": "npm run build && npm run test --workspaces --if-present"
+    "test": "npm run build && npm run test --workspaces --if-present",
+    "changelog:validate": "node scripts/changelog.js validate",
+    "changelog:create": "node scripts/changelog.js create",
+    "changelog:assemble": "node scripts/changelog.js assemble"
   },
   "lint-staged": {
     "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",

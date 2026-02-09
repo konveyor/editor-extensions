@@ -232,6 +232,9 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Build version: ${VERSION}"
 
+      - name: Assemble changelog fragments (ephemeral)
+        run: node scripts/changelog.js assemble --draft || true
+
       - name: Build dist
         run: npm run dist
 

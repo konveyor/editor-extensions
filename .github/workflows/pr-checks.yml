@@ -8,9 +8,36 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     name: Verify PR contents
+    outputs:
+      pr_type: ${{ steps.verifier.outputs.pr_type }}
     steps:
       - name: Check Title
         id: verifier
         uses: konveyor/release-tools/cmd/verify-pr@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  changelog:
+    runs-on: ubuntu-latest
+    needs: verify
+    if: contains(fromJSON('["feature", "bugfix", "breaking"]'), needs.verify.outputs.pr_type)
+    name: Verify changelog fragment
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check for changelog fragment
+        run: |
+          FRAGMENTS=$(git diff --name-only --diff-filter=AM origin/${{ github.event.pull_request.base.ref }}...HEAD -- 'changes/unreleased/*.yaml' 'changes/unreleased/*.yml')
+          if [ -z "$FRAGMENTS" ]; then
+            echo "::error::This is a ${{ needs.verify.outputs.pr_type }} PR — a changelog fragment is required in changes/unreleased/"
+            echo ""
+            echo "To create one:"
+            echo "  node scripts/changelog.js create <pr-number>-<short-description> <kind>"
+            echo ""
+            echo "See the contributing guide in README.md for details."
+            exit 1
+          fi
+          echo "Found changelog fragments:"
+          echo "$FRAGMENTS"
