@@ -1,0 +1,3 @@
+kind: feature
+description: >
+  Added adaptive polling for solution server connectivity.

@@ -1,0 +1,7 @@
+kind: feature
+description: >
+  Added core API version compatibility checking with language extensions.
+extensions:
+  - core
+  - java
+  - javascript

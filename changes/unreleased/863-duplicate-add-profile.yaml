@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed duplicate ADD_PROFILE message when duplicating profiles.

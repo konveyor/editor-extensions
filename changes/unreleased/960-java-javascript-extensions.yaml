@@ -1,0 +1,6 @@
+kind: feature
+description: >
+  Created separate Java and JavaScript language extensions.
+extensions:
+  - java
+  - javascript

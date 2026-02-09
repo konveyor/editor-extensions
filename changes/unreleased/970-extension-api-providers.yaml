@@ -1,0 +1,3 @@
+kind: feature
+description: >
+  Added extension API for language provider registration.

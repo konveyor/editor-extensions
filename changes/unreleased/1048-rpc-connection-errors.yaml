@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Added error handling for RPC connection failures in fireServerStateChange.

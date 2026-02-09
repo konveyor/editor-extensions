@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Added file input for uploading custom rules in web environments.
