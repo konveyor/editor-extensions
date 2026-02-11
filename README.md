@@ -89,6 +89,16 @@ Use the following npm command to run the extension and webview UI in watch mode:
 npm run dev
 ```
 
+### Local Development Configuration
+
+For personalized development workflows, you can create local configuration and skills:
+
+- **Local Skills**: Create `.claude/skills/` directory for custom Claude Code skills (automatically ignored by git)
+- **Local Settings**: Use `.claude/settings.local.json` for personal configuration
+- **Example**: See `.claude/skills.example/` for sample skill structures
+
+These local configurations allow you to customize your development environment without affecting the shared repository.
+
 ### Linting and formatting code
 
 The `eslint` and `prettier` packages are used across the repo to standardize formatting and enforce
