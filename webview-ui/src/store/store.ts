@@ -12,6 +12,8 @@ import type {
   Scope,
   PendingBatchReviewFile,
   HubConfig,
+  GooseAgentState,
+  GooseChatMessage,
 } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
@@ -64,6 +66,11 @@ interface ExtensionStore {
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
 
+  // Goose chat state (experimental)
+  gooseMessages: GooseChatMessage[];
+  gooseState: GooseAgentState;
+  gooseError?: string;
+
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
   setIsAnalyzing: (isAnalyzing: boolean) => void;
@@ -105,6 +112,13 @@ interface ExtensionStore {
   setLlmProxyAvailable: (available: boolean) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
+
+  // Goose chat setters
+  setGooseMessages: (messages: GooseChatMessage[]) => void;
+  setGooseState: (state: GooseAgentState) => void;
+  setGooseError: (error: string | undefined) => void;
+  appendGooseStreamingChunk: (messageId: string, content: string) => void;
+  finalizeGooseMessage: (messageId: string) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -156,6 +170,11 @@ export const useExtensionStore = create<ExtensionStore>()(
 
       // Focus/filter state
       focusedViolationFilter: null,
+
+      // Goose chat state
+      gooseMessages: [],
+      gooseState: "stopped" as GooseAgentState,
+      gooseError: undefined,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -356,6 +375,48 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsWebEnvironment: (isWeb) =>
         set((state) => {
           state.isWebEnvironment = isWeb;
+        }),
+
+      // Goose chat setters
+      setGooseMessages: (messages) =>
+        set((state) => {
+          state.gooseMessages = messages;
+        }),
+
+      setGooseState: (gooseState) =>
+        set((state) => {
+          state.gooseState = gooseState;
+        }),
+
+      setGooseError: (error) =>
+        set((state) => {
+          state.gooseError = error;
+        }),
+
+      appendGooseStreamingChunk: (messageId, content) =>
+        set((state) => {
+          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.content += content;
+            msg.isStreaming = true;
+          } else {
+            // Create a new assistant message for streaming
+            state.gooseMessages.push({
+              id: messageId,
+              role: "assistant",
+              content,
+              timestamp: new Date().toISOString(),
+              isStreaming: true,
+            });
+          }
+        }),
+
+      finalizeGooseMessage: (messageId) =>
+        set((state) => {
+          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.isStreaming = false;
+          }
         }),
 
       clearAnalysisData: () =>

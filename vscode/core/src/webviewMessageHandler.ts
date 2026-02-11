@@ -33,6 +33,9 @@ import {
   UPDATE_HUB_CONFIG,
   SYNC_HUB_PROFILES,
   RETRY_PROFILE_SYNC,
+  GOOSE_SEND_MESSAGE,
+  GOOSE_START_AGENT,
+  GOOSE_STOP_AGENT,
   HubConfig,
 } from "@editor-extensions/shared";
 
@@ -751,6 +754,51 @@ const actions: {
       state.mutateSolutionWorkflow((draft) => {
         draft.isProcessingQueuedMessages = false;
       });
+    }
+  },
+
+  // --- Goose chat actions (experimental) ---
+
+  [GOOSE_SEND_MESSAGE]: async (
+    { content, messageId }: { content: string; messageId: string },
+    state,
+    logger,
+  ) => {
+    if (!state.gooseClient) {
+      logger.warn("GOOSE_SEND_MESSAGE: Goose client not available");
+      return;
+    }
+
+    try {
+      await state.gooseClient.sendMessage(content, messageId);
+    } catch (err) {
+      logger.error("GOOSE_SEND_MESSAGE failed:", err);
+    }
+  },
+
+  [GOOSE_START_AGENT]: async (_payload, state, logger) => {
+    if (!state.gooseClient) {
+      logger.warn("GOOSE_START_AGENT: Goose client not available");
+      return;
+    }
+
+    try {
+      await state.gooseClient.start();
+    } catch (err) {
+      logger.error("GOOSE_START_AGENT failed:", err);
+    }
+  },
+
+  [GOOSE_STOP_AGENT]: async (_payload, state, logger) => {
+    if (!state.gooseClient) {
+      logger.warn("GOOSE_STOP_AGENT: Goose client not available");
+      return;
+    }
+
+    try {
+      await state.gooseClient.stop();
+    } catch (err) {
+      logger.error("GOOSE_STOP_AGENT failed:", err);
     }
   },
 };

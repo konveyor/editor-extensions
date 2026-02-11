@@ -1,4 +1,4 @@
-export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub";
+export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub" | "chat";
 
 export interface Incident {
   uri: string;
@@ -314,6 +314,24 @@ export const createLLMError = {
     timestamp: new Date().toISOString(),
   }),
 };
+
+// --- Goose agent types (experimental chat) ---
+
+export type GooseAgentState = "stopped" | "starting" | "running" | "error";
+
+export interface GooseChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  timestamp: string;
+  toolCall?: {
+    name: string;
+    arguments?: Record<string, unknown>;
+    status: "pending" | "running" | "succeeded" | "failed";
+    result?: string;
+  };
+  isStreaming?: boolean;
+}
 
 export type ServerState =
   | "initial"

@@ -10,6 +10,8 @@ import {
   Scope,
   PendingBatchReviewFile,
   HubConfig,
+  GooseAgentState,
+  GooseChatMessage,
 } from "./types";
 
 export const MessageTypes = {
@@ -31,6 +33,11 @@ export const MessageTypes = {
   DECORATORS_UPDATE: "DECORATORS_UPDATE",
   SETTINGS_UPDATE: "SETTINGS_UPDATE",
   FOCUS_VIOLATION: "FOCUS_VIOLATION",
+
+  // Goose chat messages (experimental)
+  GOOSE_CHAT_UPDATE: "GOOSE_CHAT_UPDATE",
+  GOOSE_STATE_UPDATE: "GOOSE_STATE_UPDATE",
+  GOOSE_CHAT_STREAMING: "GOOSE_CHAT_STREAMING",
 } as const;
 
 export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
@@ -148,6 +155,29 @@ export interface FocusViolationMessage {
   timestamp: string;
 }
 
+// --- Goose chat messages (experimental) ---
+
+export interface GooseChatUpdateMessage {
+  type: "GOOSE_CHAT_UPDATE";
+  messages: GooseChatMessage[];
+  timestamp: string;
+}
+
+export interface GooseStateUpdateMessage {
+  type: "GOOSE_STATE_UPDATE";
+  state: GooseAgentState;
+  error?: string;
+  timestamp: string;
+}
+
+export interface GooseChatStreamingMessage {
+  type: "GOOSE_CHAT_STREAMING";
+  messageId: string;
+  content: string;
+  done: boolean;
+  timestamp: string;
+}
+
 /**
  * Union type of all possible webview messages
  */
@@ -163,7 +193,10 @@ export type WebviewMessage =
   | ConfigErrorsUpdateMessage
   | DecoratorsUpdateMessage
   | SettingsUpdateMessage
-  | FocusViolationMessage;
+  | FocusViolationMessage
+  | GooseChatUpdateMessage
+  | GooseStateUpdateMessage
+  | GooseChatStreamingMessage;
 
 /**
  * Type guards for message discrimination
@@ -218,4 +251,16 @@ export function isFullStateUpdate(msg: WebviewMessage): msg is FullStateUpdateMe
 
 export function isFocusViolation(msg: WebviewMessage): msg is FocusViolationMessage {
   return (msg as any).type === MessageTypes.FOCUS_VIOLATION;
+}
+
+export function isGooseChatUpdate(msg: WebviewMessage): msg is GooseChatUpdateMessage {
+  return (msg as any).type === MessageTypes.GOOSE_CHAT_UPDATE;
+}
+
+export function isGooseStateUpdate(msg: WebviewMessage): msg is GooseStateUpdateMessage {
+  return (msg as any).type === MessageTypes.GOOSE_STATE_UPDATE;
+}
+
+export function isGooseChatStreaming(msg: WebviewMessage): msg is GooseChatStreamingMessage {
+  return (msg as any).type === MessageTypes.GOOSE_CHAT_STREAMING;
 }

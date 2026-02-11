@@ -212,6 +212,14 @@
           "title": "Konveyor",
           "icon": "resources/icon.png"
         }
+      ],
+      "panel": [
+        {
+          "id": "konveyor-chat",
+          "title": "Konveyor Chat",
+          "icon": "resources/icon.png",
+          "when": "config.konveyor-core.experimentalChat.enabled"
+        }
       ]
     },
     "views": {
@@ -219,6 +227,14 @@
         {
           "id": "konveyor-core.issueView",
           "name": "Konveyor"
+        }
+      ],
+      "konveyor-chat": [
+        {
+          "type": "webview",
+          "id": "konveyor-core.chatView",
+          "name": "Migration Assistant",
+          "when": "config.konveyor-core.experimentalChat.enabled"
         }
       ]
     },
@@ -399,6 +415,23 @@
           "scope": "window",
           "order": 27
         },
+        "konveyor-core.experimentalChat.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "(Experimental) Enable AI chat sidebar powered by Goose agent. Requires reload.",
+          "scope": "window",
+          "order": 30
+        },
+        "konveyor-core.experimentalChat.gooseBinaryPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "(Experimental) Path to the goose binary. If not set, the extension will search PATH and platform-specific locations.",
+          "scope": "window",
+          "order": 31
+        },
         "konveyor-core.debug.webview": {
           "type": "boolean",
           "default": false,
@@ -463,6 +496,7 @@
     "mustache": "^4.2.0",
     "undici": "^7.14.0",
     "winston": "^3.17.0",
-    "winston-transport-vscode": "^0.1.0"
+    "winston-transport-vscode": "^0.1.0",
+    "zustand": "^5.0.11"
   }
 }

@@ -38,6 +38,7 @@
     "shared",
     "webview-ui",
     "agentic",
+    "mcp-server",
     "vscode/core",
     "vscode/java",
     "vscode/javascript",

@@ -3,12 +3,7 @@ import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import {
-  ConfigError,
-  createConfigError,
-  ExtensionData,
-  MessageTypes,
-} from "@editor-extensions/shared";
+import { ConfigError, createConfigError, ExtensionData } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import {
@@ -25,7 +20,9 @@ import {
   type KaiModelProvider,
 } from "@editor-extensions/agentic";
 import { HubConnectionManager } from "./hub";
-import { Immutable, produce } from "immer";
+import { Immutable } from "immer";
+import { createExtensionStore, type ExtensionStore } from "./store/extensionStore";
+import { setupSyncBridges } from "./store/syncBridges";
 import { registerAnalysisTrigger } from "./analysis";
 import { IssuesModel, registerIssueView } from "./issueView";
 import { ExtensionPaths, ensurePaths, paths, ensureKaiAnalyzerBinary } from "./paths";
@@ -70,6 +67,7 @@ import { KonveyorCoreApi } from "@editor-extensions/shared";
 
 class VsCodeExtension {
   public state: ExtensionState;
+  public store: ExtensionStore;
   private data: Immutable<ExtensionData>;
   private _onDidChange = new vscode.EventEmitter<Immutable<ExtensionData>>();
   readonly onDidChangeData = this._onDidChange.event;
@@ -89,285 +87,131 @@ class VsCodeExtension {
     );
     const isWebEnvironment = vscode.env.uiKind === vscode.UIKind.Web;
 
-    this.data = produce(
-      {
-        ruleSets: [],
-        enhancedIncidents: [],
-        isAnalyzing: false,
-        analysisProgress: 0,
-        analysisProgressMessage: "",
-        isFetchingSolution: false,
-        isStartingServer: false,
-        isInitializingServer: false,
-        isAnalysisScheduled: false,
-        isContinueInstalled: false,
-        serverState: "initial",
-        solutionScope: undefined,
-        workspaceRoot: paths.workspaceRepo.toString(true),
-        chatMessages: [],
-        solutionState: "none",
-        solutionServerEnabled: false, // Will be updated after hub config loads
-        configErrors: [],
-        llmErrors: [],
-        activeProfileId: "",
-        profiles: [],
-        isInTreeMode: false, // Computed when profiles are set
-        isAgentMode: getConfigAgentMode(),
-        activeDecorators: {},
-        solutionServerConnected: false,
-        isWaitingForUserInteraction: false,
-        hubConfig: getDefaultHubConfig(), // Will be updated after async initialization
-        hubForced: false, // Will be updated after checking env vars
-        isProcessingQueuedMessages: false,
-        profileSyncEnabled: false, // Will be updated after hub config loads
-        profileSyncConnected: false,
-        isSyncingProfiles: false,
-        llmProxyAvailable: false, // Will be updated after hub initialization
-        isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
-        analysisConfig: {
-          labelSelector: "",
-          labelSelectorValid: false,
-          providerConfigured: false,
-          providerKeyMissing: false,
-          customRulesConfigured: false,
-        },
-      } as ExtensionData,
-      () => {},
-    );
-    const getData = () => this.data;
+    // Initialize Zustand vanilla store with initial state
+    const initialData: ExtensionData = {
+      ruleSets: [],
+      enhancedIncidents: [],
+      isAnalyzing: false,
+      analysisProgress: 0,
+      analysisProgressMessage: "",
+      isFetchingSolution: false,
+      isStartingServer: false,
+      isInitializingServer: false,
+      isAnalysisScheduled: false,
+      isContinueInstalled: false,
+      serverState: "initial",
+      solutionScope: undefined,
+      workspaceRoot: paths.workspaceRepo.toString(true),
+      chatMessages: [],
+      solutionState: "none",
+      solutionServerEnabled: false,
+      configErrors: [],
+      llmErrors: [],
+      activeProfileId: "",
+      profiles: [],
+      isInTreeMode: false,
+      isAgentMode: getConfigAgentMode(),
+      activeDecorators: {},
+      solutionServerConnected: false,
+      isWaitingForUserInteraction: false,
+      hubConfig: getDefaultHubConfig(),
+      hubForced: false,
+      isProcessingQueuedMessages: false,
+      profileSyncEnabled: false,
+      profileSyncConnected: false,
+      isSyncingProfiles: false,
+      llmProxyAvailable: false,
+      isWebEnvironment,
+    };
 
-    // Update chat messages without triggering global state change (sends only chat delta to webview)
+    this.store = createExtensionStore(initialData);
+    // Keep this.data as a getter for backward compatibility (used by onDidChangeData listeners)
+    this.data = this.store.getState() as Immutable<ExtensionData>;
+
+    const getData = () => this.store.getState() as Immutable<ExtensionData>;
+
+    // --- Mutate functions ---
+    // These are thin wrappers around store.setState(). The sync bridges
+    // (set up in initialize()) handle all webview broadcasting automatically
+    // via store subscriptions. All ~100 existing call sites remain unchanged.
+
     const mutateChatMessages = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
-      const oldMessages = getData().chatMessages;
-      const data = produce(getData(), recipe);
-
-      // Update internal state WITHOUT firing global change event
-      this.data = data;
-
-      // Optimize: Only send changed messages to reduce webview overhead
-      // If we're streaming (same number of messages), send just the last message
-      // Otherwise send the full array (for new messages, deletions, etc.)
-      const isStreamingUpdate =
-        data.chatMessages.length === oldMessages.length && data.chatMessages.length > 0;
-
-      if (isStreamingUpdate) {
-        // Streaming chunk - send only the last message for efficiency
-        const lastMessage = data.chatMessages[data.chatMessages.length - 1];
-        logger.info(`[Streaming] Sending incremental update`, {
-          messageIndex: data.chatMessages.length - 1,
-          messageLength: (lastMessage.value as any)?.message?.length || 0,
-          messageToken: lastMessage.messageToken,
-        });
-
-        // CRITICAL: Create a plain object copy to avoid Immer proxy issues
-        // Immer's immutable data might reuse object references internally
-        const plainMessage = JSON.parse(JSON.stringify(lastMessage));
-
-        // Broadcast streaming update to all webviews
-        broadcastToWebviews((provider) => {
-          provider.sendMessageToWebview({
-            type: MessageTypes.CHAT_MESSAGE_STREAMING_UPDATE,
-            message: plainMessage,
-            messageIndex: data.chatMessages.length - 1,
-            timestamp: new Date().toISOString(),
-          });
-        });
-      } else {
-        // Structure change - send full array
-        broadcastToWebviews((provider) => {
-          provider.sendMessageToWebview({
-            type: MessageTypes.CHAT_MESSAGES_UPDATE,
-            chatMessages: data.chatMessages,
-            previousLength: oldMessages.length,
-            timestamp: new Date().toISOString(),
-          });
-        });
-      }
-
-      return data;
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
-    // Update analysis state and notify all listeners
     const mutateAnalysisState = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      this.data = data;
-
-      // Send only analysis state to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.ANALYSIS_STATE_UPDATE,
-          ruleSets: data.ruleSets,
-          enhancedIncidents: data.enhancedIncidents,
-          isAnalyzing: data.isAnalyzing,
-          isAnalysisScheduled: data.isAnalysisScheduled,
-          analysisProgress: data.analysisProgress,
-          analysisProgressMessage: data.analysisProgressMessage,
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      // Fire the global change event to notify extension listeners
-      this._onDidChange.fire(this.data);
-
-      return data;
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
-    // Update solution workflow state without triggering global state change
     const mutateSolutionWorkflow = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      this.data = data;
-
-      // Send only solution workflow state to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.SOLUTION_WORKFLOW_UPDATE,
-          isFetchingSolution: data.isFetchingSolution,
-          solutionState: data.solutionState,
-          solutionScope: data.solutionScope,
-          isWaitingForUserInteraction: data.isWaitingForUserInteraction,
-          isProcessingQueuedMessages: data.isProcessingQueuedMessages,
-          pendingBatchReview: data.pendingBatchReview || [],
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      return data;
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
-    // Update server state without triggering global state change
     const mutateServerState = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      this.data = data;
-
-      // Send only server state to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.SERVER_STATE_UPDATE,
-          serverState: data.serverState,
-          isStartingServer: data.isStartingServer,
-          isInitializingServer: data.isInitializingServer,
-          solutionServerConnected: data.solutionServerConnected,
-          profileSyncConnected: data.profileSyncConnected,
-          llmProxyAvailable: data.llmProxyAvailable,
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      return data;
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
-    // Update profiles without triggering global state change
     const mutateProfiles = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
+      // Apply the recipe first
+      this.store.setState(recipe);
 
       // Compute isInTreeMode: true when hub profiles are present
-      // This means profiles are managed by Hub, not created in the webview
-      const isInTreeMode = data.profiles.some((p) => p.source === "hub");
+      const state = this.store.getState();
+      const isInTreeMode = state.profiles.some((p) => p.source === "hub");
 
       // Warn user if they have hub profiles but profile sync is disabled
-      // They need to delete the synced profiles to regain control
-      if (isInTreeMode && !data.hubConfig?.features?.profileSync?.enabled) {
+      if (isInTreeMode && !state.hubConfig?.features?.profileSync?.enabled) {
         this.state?.logger?.warn(
           "Hub-synced profiles detected but profile sync is disabled. " +
             "Delete the .konveyor/profiles directory to manage profiles in the webview.",
         );
       }
 
-      // Update isInTreeMode in state
-      this.data = produce(data, (draft) => {
-        draft.isInTreeMode = isInTreeMode;
-      });
-
-      // Send only profiles to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.PROFILES_UPDATE,
-          profiles: this.data.profiles,
-          activeProfileId: this.data.activeProfileId,
-          isInTreeMode: this.data.isInTreeMode,
-          timestamp: new Date().toISOString(),
+      // Update isInTreeMode if it changed
+      if (state.isInTreeMode !== isInTreeMode) {
+        this.store.setState((draft) => {
+          draft.isInTreeMode = isInTreeMode;
         });
-      });
+      }
 
+      this.data = getData();
       return this.data;
     };
 
-    // Update config errors without triggering global state change
     const mutateConfigErrors = (
       recipe: (draft: ExtensionData) => void,
     ): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      this.data = data;
-
-      // Send only config errors to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.CONFIG_ERRORS_UPDATE,
-          configErrors: data.configErrors,
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      return data;
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
-    // Update decorators without triggering global state change
     const mutateDecorators = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      this.data = data;
-
-      // Send only decorators to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.DECORATORS_UPDATE,
-          activeDecorators: data.activeDecorators || {},
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      return data;
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
-    // Update settings without triggering global state change
     const mutateSettings = (recipe: (draft: ExtensionData) => void): Immutable<ExtensionData> => {
-      const data = produce(getData(), recipe);
-      this.data = data;
-
-      // Send only settings to webviews
-      broadcastToWebviews((provider) => {
-        provider.sendMessageToWebview({
-          type: MessageTypes.SETTINGS_UPDATE,
-          solutionServerEnabled: data.solutionServerEnabled,
-          isAgentMode: data.isAgentMode,
-          isContinueInstalled: data.isContinueInstalled,
-          hubConfig: data.hubConfig,
-          hubForced: data.hubForced,
-          profileSyncEnabled: data.profileSyncEnabled,
-          isSyncingProfiles: data.isSyncingProfiles,
-          llmProxyAvailable: data.llmProxyAvailable,
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      return data;
-    };
-
-    // Helper to safely broadcast messages to webview providers
-    const broadcastToWebviews = (messageFn: (provider: KonveyorGUIWebviewViewProvider) => void) => {
-      const extensionState = (this as VsCodeExtension).state;
-      if (extensionState?.webviewProviders) {
-        extensionState.webviewProviders.forEach((provider) => {
-          messageFn(provider);
-        });
-      }
+      this.store.setState(recipe);
+      this.data = getData();
+      return this.data;
     };
 
     const taskManager = new DiagnosticTaskManager(getExcludedDiagnosticSources());
@@ -390,6 +234,7 @@ class VsCodeExtension {
       kaiFsCache: new InMemoryCacheWithRevisions(true),
       taskManager,
       logger,
+      store: this.store,
       get data() {
         return getData();
       },
@@ -532,6 +377,14 @@ class VsCodeExtension {
         });
 
       this.registerWebviewProvider();
+
+      // Set up sync bridges — these subscribe to store slices and automatically
+      // broadcast granular updates to webview providers when state changes.
+      const syncBridgeDisposable = setupSyncBridges(this.store, () => this.state.webviewProviders, {
+        onDidChangeEmitter: this._onDidChange as vscode.EventEmitter<unknown>,
+      });
+      this.listeners.push(syncBridgeDisposable);
+
       // Diff view removed - using unified decorator flow instead
       this.listeners.push(this.onDidChangeData(registerIssueView(this.state)));
 
@@ -880,6 +733,10 @@ class VsCodeExtension {
         }),
       );
 
+      // --- Experimental Chat (Goose agent) ---
+      // Only initialize when the feature flag is enabled.
+      await this.initializeGooseChat();
+
       this.state.logger.info("Extension initialized");
 
       // Setup diff status bar item
@@ -908,6 +765,145 @@ class VsCodeExtension {
     );
 
     this.state.logger.info("Vertical diff system initialized");
+  }
+
+  /**
+   * Conditionally initialize the Goose chat agent when the experimental
+   * chat feature flag is enabled.
+   */
+  private async initializeGooseChat(): Promise<void> {
+    const { getConfigExperimentalChatEnabled, getConfigGooseBinaryPath } = await import(
+      "./utilities/configuration"
+    );
+
+    if (!getConfigExperimentalChatEnabled()) {
+      return;
+    }
+
+    this.state.logger.info("Experimental chat enabled — initializing Goose agent");
+
+    try {
+      const { GooseClient } = await import("./client/gooseClient");
+      const { McpBridgeServer } = await import("./api/mcpBridgeServer");
+      const { MessageTypes } = await import("@editor-extensions/shared");
+
+      // 1. Start the MCP bridge server
+      const mcpBridgeServer = new McpBridgeServer({
+        store: this.store,
+        logger: this.state.logger,
+        runAnalysis: async () => {
+          if (
+            this.state.analyzerClient &&
+            (await this.state.analyzerClient.canAnalyzeInteractive())
+          ) {
+            await this.state.analyzerClient.start();
+          }
+        },
+      });
+
+      const bridgePort = await mcpBridgeServer.start();
+      this.state.mcpBridgeServer = mcpBridgeServer;
+      this.listeners.push({ dispose: () => mcpBridgeServer.dispose() });
+
+      // 2. Resolve the MCP server entry point
+      // The mcp-server workspace builds to mcp-server/dist/index.js
+      const { join } = await import("path");
+      const mcpServerEntry = join(
+        this.context.extensionPath,
+        "..",
+        "..",
+        "mcp-server",
+        "dist",
+        "index.js",
+      );
+
+      // 3. Create the Goose client
+      const gooseClient = new GooseClient({
+        workspaceDir: this.state.data.workspaceRoot,
+        logger: this.state.logger,
+        gooseBinaryPath: getConfigGooseBinaryPath(),
+        mcpServers: [
+          {
+            name: "konveyor",
+            type: "stdio",
+            cmd: "node",
+            args: [mcpServerEntry],
+            envs: { KONVEYOR_BRIDGE_PORT: String(bridgePort) },
+          },
+        ],
+      });
+
+      // 4. Wire up events → Zustand store → sync bridges → webview
+      gooseClient.on("stateChange", (agentState: string) => {
+        this.state.logger.info(`Goose agent state: ${agentState}`);
+        // Broadcast state to webview providers
+        for (const provider of this.state.webviewProviders.values()) {
+          provider.sendMessageToWebview({
+            type: MessageTypes.GOOSE_STATE_UPDATE,
+            state: agentState,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+      gooseClient.on("streamingChunk", (messageId: string, content: string) => {
+        for (const provider of this.state.webviewProviders.values()) {
+          provider.sendMessageToWebview({
+            type: MessageTypes.GOOSE_CHAT_STREAMING,
+            messageId,
+            content,
+            done: false,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+      gooseClient.on("streamingComplete", (messageId: string, stopReason: string) => {
+        for (const provider of this.state.webviewProviders.values()) {
+          provider.sendMessageToWebview({
+            type: MessageTypes.GOOSE_CHAT_STREAMING,
+            messageId,
+            content: "",
+            done: true,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+      gooseClient.on("error", (error: Error) => {
+        this.state.logger.error(`Goose error: ${error.message}`);
+        for (const provider of this.state.webviewProviders.values()) {
+          provider.sendMessageToWebview({
+            type: MessageTypes.GOOSE_STATE_UPDATE,
+            state: "error",
+            error: error.message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+      this.state.gooseClient = gooseClient;
+      this.listeners.push({ dispose: () => gooseClient.dispose() });
+
+      // 5. Start the Goose agent (async — don't block activation)
+      gooseClient.start().catch((err) => {
+        this.state.logger.error(`Failed to start Goose agent: ${err}`);
+        vscode.window
+          .showWarningMessage(
+            `Goose agent failed to start: ${err instanceof Error ? err.message : String(err)}`,
+            "View Logs",
+          )
+          .then((action) => {
+            if (action === "View Logs") {
+              vscode.commands.executeCommand("workbench.action.output.toggleOutput");
+            }
+          });
+      });
+
+      this.state.logger.info("Goose chat initialization complete");
+    } catch (err) {
+      this.state.logger.error(`Failed to initialize Goose chat: ${err}`);
+    }
   }
 
   private setupDiffStatusBar(): void {
@@ -998,6 +994,20 @@ class VsCodeExtension {
         },
       ),
     );
+
+    // Conditionally register the chat view provider when the experimental chat flag is enabled
+    const { getConfigExperimentalChatEnabled } = require("./utilities/configuration");
+    if (getConfigExperimentalChatEnabled()) {
+      const chatViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "chat");
+      this.state.webviewProviders.set("chat", chatViewProvider);
+      this.context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+          KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE,
+          chatViewProvider,
+          { webviewOptions: { retainContextWhenHidden: true } },
+        ),
+      );
+    }
   }
 
   private registerCoreHealthChecks(): void {

@@ -18,8 +18,12 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { BatchedAnalysisTrigger } from "./analysis/batchedAnalysisTrigger";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 import { HubConnectionManager } from "./hub";
+import { type ExtensionStore } from "./store/extensionStore";
+import { GooseClient } from "./client/gooseClient";
+import { McpBridgeServer } from "./api/mcpBridgeServer";
 
 export interface ExtensionState {
+  store: ExtensionStore;
   analyzerClient: AnalyzerClient;
   hubConnectionManager: HubConnectionManager;
   webviewProviders: Map<string, KonveyorGUIWebviewViewProvider>;
@@ -63,4 +67,6 @@ export interface ExtensionState {
   batchedAnalysisTrigger?: BatchedAnalysisTrigger;
   currentQueueManager?: MessageQueueManager;
   pendingInteractionsMap?: Map<string, (response: any) => void>;
+  gooseClient?: GooseClient;
+  mcpBridgeServer?: McpBridgeServer;
 }
