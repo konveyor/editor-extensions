@@ -51,6 +51,7 @@ extensions:
 
 ## Rules
 
+- **Ignore test-only changes**: If the changes are exclusively in the `tests/` folder (e.g. adding or updating E2E tests), do not create a changelog fragment — these are not user-facing changes
 - Description must be a single sentence, ending with a period
 - Use active voice: "Fixed X" not "X was fixed", "Added Y" not "Y has been added"
 - Be specific: "Fixed crash when analyzer encounters empty rulesets" not "Fixed a bug"
