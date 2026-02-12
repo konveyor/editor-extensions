@@ -4,6 +4,7 @@ import { SolutionServerClient } from "@editor-extensions/agentic";
 import { ProfileSyncClient, type LLMProxyConfig } from "../clients/ProfileSyncClient";
 import * as vscode from "vscode";
 import { executeExtensionCommand } from "../commands";
+import { getDispatcherWithCertBundle, getFetchWithDispatcher } from "../utilities/tls";
 
 export interface TokenResponse {
   access_token: string;
@@ -63,8 +64,8 @@ export class HubConnectionManager {
   // Profile sync state
   private profileSyncTimer: NodeJS.Timeout | null = null;
 
-  // SSL bypass cleanup
-  private sslBypassCleanup: (() => void) | null = null;
+  // Connection-scoped fetch for insecure Hub connections
+  private scopedFetch: typeof fetch | null = null;
 
   constructor(defaultConfig: HubConfig, logger: Logger) {
     this.config = defaultConfig;
@@ -207,9 +208,13 @@ export class HubConnectionManager {
       profileSyncEnabled: this.config.features.profileSync.enabled,
     });
 
-    // Apply SSL bypass if needed
+    // Create connection-scoped fetch for insecure mode
     if (this.config.auth.insecure) {
-      this.sslBypassCleanup = this.applySSLBypass();
+      this.logger.warn("SSL certificate verification is disabled for Hub connections");
+      const dispatcher = await getDispatcherWithCertBundle(undefined, true);
+      this.scopedFetch = getFetchWithDispatcher(dispatcher);
+    } else {
+      this.scopedFetch = null;
     }
 
     // Handle authentication
@@ -234,7 +239,12 @@ export class HubConnectionManager {
     // This catches cases where auth is disabled in config but Hub requires it
     try {
       this.logger.info("Verifying Hub connectivity and authentication");
-      const testClient = new ProfileSyncClient(this.config.url, this.bearerToken, this.logger);
+      const testClient = new ProfileSyncClient(
+        this.config.url,
+        this.bearerToken,
+        this.logger,
+        this.scopedFetch ?? undefined,
+      );
       await testClient.connect();
       await testClient.disconnect();
       this.logger.info("Hub connectivity check passed");
@@ -260,6 +270,7 @@ export class HubConnectionManager {
           this.config.url,
           this.bearerToken,
           this.logger,
+          this.scopedFetch ?? undefined,
         );
         await this.solutionServerClient.connect();
         this.logger.info("Successfully connected to Hub solution server");
@@ -286,6 +297,7 @@ export class HubConnectionManager {
           this.config.url,
           this.bearerToken,
           this.logger,
+          this.scopedFetch ?? undefined,
         );
         await this.profileSyncClient.connect();
         this.logger.info("Successfully connected to Hub profile sync");
@@ -362,11 +374,8 @@ export class HubConnectionManager {
       this.refreshToken = null;
       this.tokenExpiresAt = null;
 
-      // Restore SSL settings
-      if (this.sslBypassCleanup) {
-        this.sslBypassCleanup();
-        this.sslBypassCleanup = null;
-      }
+      // Clear scoped fetch
+      this.scopedFetch = null;
     }
 
     this.logger.info("Disconnected from Hub");
@@ -691,7 +700,8 @@ export class HubConnectionManager {
     const timeoutId = setTimeout(() => controller.abort(), TOKEN_EXCHANGE_TIMEOUT_MS);
 
     try {
-      const response = await fetch(url, {
+      const fetchFn = this.scopedFetch ?? fetch;
+      const response = await fetchFn(url, {
         ...options,
         signal: controller.signal,
       });
@@ -724,24 +734,5 @@ export class HubConnectionManager {
         `Request failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-  }
-
-  /**
-   * Apply SSL bypass for insecure connections
-   */
-  private applySSLBypass(): () => void {
-    this.logger.debug("Applying SSL bypass for insecure connections");
-    const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    this.logger.warn("SSL certificate verification is disabled");
-
-    return () => {
-      this.logger.debug("Restoring SSL settings");
-      if (originalRejectUnauthorized !== undefined) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
-      } else {
-        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      }
-    };
   }
 }

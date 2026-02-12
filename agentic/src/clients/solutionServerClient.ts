@@ -118,23 +118,23 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private mcpClient: Client | null = null;
   private serverUrl: string;
   private bearerToken: string | null;
+  private customFetch?: typeof fetch;
   private currentClientId: string = "";
   private logger: Logger;
   private cachedCapabilities: SolutionServerCapabilities | null = null;
   public isConnected: boolean = false;
 
-  /**
-   * Create a new SolutionServerClient.
-   * @param hubUrl The base Hub URL (e.g., https://hub.example.com)
-   * @param bearerToken Optional bearer token for authentication
-   * @param logger Logger instance
-   */
-  constructor(hubUrl: string, bearerToken: string | null, logger: Logger) {
+  constructor(
+    hubUrl: string,
+    bearerToken: string | null,
+    logger: Logger,
+    customFetch?: typeof fetch,
+  ) {
     super();
-    // Build full MCP endpoint URL from base Hub URL
     const baseUrl = hubUrl.endsWith("/") ? hubUrl.slice(0, -1) : hubUrl;
     this.serverUrl = `${baseUrl}${SOLUTION_SERVER_MCP_PATH}`;
     this.bearerToken = bearerToken;
+    this.customFetch = customFetch;
     this.logger = logger.child({
       component: "SolutionServerClient",
     });
@@ -196,6 +196,10 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
         },
       };
       this.logger.debug("Added bearer token authentication");
+    }
+
+    if (this.customFetch) {
+      transportOptions.fetch = this.customFetch;
     }
 
     // First attempt with original URL
