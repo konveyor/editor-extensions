@@ -4,7 +4,7 @@ import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
 import winston from "winston";
 import { createHash } from "node:crypto";
-import { mkdir, chmod, unlink } from "node:fs/promises";
+import { mkdir, chmod, unlink, readFile, writeFile } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
@@ -125,32 +125,78 @@ export async function ensureKaiAnalyzerBinary(
     `kai-analyzer-rpc${platform === "win32" ? ".exe" : ""}`,
   );
 
-  if (existsSync(kaiAnalyzerPath)) {
-    return; // Binary already exists
-  }
-
-  logger.info(`kai-analyzer-rpc not found at ${kaiAnalyzerPath}, downloading...`);
-
   const fallbackConfig = packageJson["fallbackAssets"];
   if (!fallbackConfig) {
+    if (existsSync(kaiAnalyzerPath)) {
+      return; // No fallback config but binary exists (bundled install), nothing to do
+    }
     throw new Error("No fallback asset configuration found in package.json");
   }
 
   const assetConfig = fallbackConfig.assets[platformKey];
   if (!assetConfig) {
+    if (existsSync(kaiAnalyzerPath)) {
+      return; // No asset config for this platform but binary exists, nothing to do
+    }
     throw new Error(`No fallback asset available for platform: ${platformKey}`);
   }
 
   const downloadUrl = `${fallbackConfig.baseUrl}${assetConfig.file}`;
   const sha256sumUrl = `${fallbackConfig.baseUrl}${fallbackConfig.sha256sumFile}`;
 
+  // Check if binary already exists and matches the expected version
+  const metadataPath = join(dirname(kaiAnalyzerPath), "kai-analyzer-rpc.meta.json");
+  if (existsSync(kaiAnalyzerPath)) {
+    try {
+      const metadata = JSON.parse(await readFile(metadataPath, "utf-8"));
+      if (metadata.downloadUrl === downloadUrl) {
+        logger.info("kai-analyzer-rpc binary is up to date");
+        return;
+      }
+      logger.info(
+        `kai-analyzer-rpc binary is outdated (expected ${downloadUrl}, have ${metadata.downloadUrl}), re-downloading...`,
+      );
+    } catch {
+      // No metadata file or invalid JSON — could be a legacy install.
+      // Write metadata so future version changes can be detected,
+      // but keep the existing binary rather than forcing a re-download
+      // that would fail in offline environments.
+      logger.info(
+        "kai-analyzer-rpc binary exists but has no version metadata, assuming up to date",
+      );
+      try {
+        await writeFile(metadataPath, JSON.stringify({ downloadUrl, sha256: "unknown" }), "utf-8");
+      } catch {
+        logger.warn(`Could not write version metadata to ${metadataPath}`);
+      }
+      return;
+    }
+  } else {
+    logger.info(`kai-analyzer-rpc not found at ${kaiAnalyzerPath}, downloading...`);
+  }
+
   logger.info(`Downloading analyzer binary from: ${downloadUrl}`);
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
+  const networkGuidance =
+    `If you are in a network-restricted environment, configure a local binary path via the "konveyor.analyzerPath" setting ` +
+    `or the "Override Analyzer Binary" command.`;
+
   // Download and parse sha256sum.txt to get expected SHA
-  const sha256Response = await fetch(sha256sumUrl);
+  let sha256Response: Response;
+  try {
+    sha256Response = await fetch(sha256sumUrl);
+  } catch (err) {
+    throw new Error(
+      `Failed to download analyzer checksums from ${sha256sumUrl}: ${err instanceof Error ? err.message : String(err)}. ` +
+        networkGuidance,
+    );
+  }
   if (!sha256Response.ok) {
-    throw new Error(`Failed to download SHA256 checksums: HTTP ${sha256Response.status}`);
+    throw new Error(
+      `Failed to download SHA256 checksums: HTTP ${sha256Response.status} from ${sha256sumUrl}. ` +
+        networkGuidance,
+    );
   }
 
   const sha256Content = await sha256Response.text();
@@ -175,9 +221,20 @@ export async function ensureKaiAnalyzerBinary(
       await mkdir(dirname(kaiAnalyzerPath), { recursive: true });
 
       // Download zip file
-      const response = await fetch(downloadUrl);
+      let response: Response;
+      try {
+        response = await fetch(downloadUrl);
+      } catch (err) {
+        throw new Error(
+          `Failed to download analyzer binary from ${downloadUrl}: ${err instanceof Error ? err.message : String(err)}. ` +
+            networkGuidance,
+        );
+      }
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(
+          `Failed to download analyzer binary: HTTP ${response.status} ${response.statusText} from ${downloadUrl}. ` +
+            networkGuidance,
+        );
       }
 
       if (!response.body) {
@@ -250,6 +307,17 @@ export async function ensureKaiAnalyzerBinary(
       // Make executable on Unix systems
       if (platform !== "win32") {
         await chmod(kaiAnalyzerPath, 0o755);
+      }
+
+      // Write version metadata so we can detect outdated binaries on next startup
+      try {
+        await writeFile(
+          metadataPath,
+          JSON.stringify({ downloadUrl, sha256: actualSha256 }),
+          "utf-8",
+        );
+      } catch (err) {
+        logger.warn(`Could not write version metadata to ${metadataPath}`, err);
       }
 
       progress.report({ message: "Complete!" });
