@@ -26,7 +26,8 @@ import {
   getTraceDir,
   fileUriToPath,
 } from "./utilities/configuration";
-import { EXTENSION_NAME, EXTENSION_SHORT_NAME } from "./utilities/constants";
+import { EXTENSION_NAME, EXTENSION_PUBLISHER, EXTENSION_SHORT_NAME } from "./utilities/constants";
+import { getInstalledLanguageExtensions, EXTENSION_PACK_ID } from "./languageExtensions";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -96,11 +97,37 @@ export function executeExtensionCommand(commandSuffix: string, ...args: any[]): 
 function checkProvidersRegistered(state: ExtensionState, logger: Logger): boolean {
   const providers = state.analyzerClient.getRegisteredProviders();
   if (providers.length === 0) {
-    const message =
-      "No language providers are registered yet. Please wait for language extensions " +
-      "(e.g., Konveyor Java) to finish loading before starting the analyzer.";
-    logger.warn(message);
-    vscode.window.showWarningMessage(message);
+    const installed = getInstalledLanguageExtensions();
+
+    if (installed.length === 0) {
+      const message =
+        "No Konveyor language extensions are installed. " +
+        "Install language extensions (e.g., Konveyor Java, Konveyor Go) " +
+        "to enable code analysis.";
+      logger.warn(message);
+      vscode.window
+        .showWarningMessage(message, "Install Extension Pack", "Browse Extensions")
+        .then((selection) => {
+          if (selection === "Install Extension Pack") {
+            vscode.commands.executeCommand(
+              "workbench.extensions.installExtension",
+              EXTENSION_PACK_ID,
+            );
+          } else if (selection === "Browse Extensions") {
+            vscode.commands.executeCommand(
+              "workbench.extensions.search",
+              `@publisher:${EXTENSION_PUBLISHER}`,
+            );
+          }
+        });
+    } else {
+      const installedNames = installed.map((e) => e.displayName).join(", ");
+      const message =
+        `Language extensions are still loading (${installedNames}). ` +
+        `Please wait for them to finish activating before starting the analyzer.`;
+      logger.warn(message);
+      vscode.window.showWarningMessage(message);
+    }
     return false;
   }
   return true;

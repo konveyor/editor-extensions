@@ -14,7 +14,20 @@ export class ProviderRegistry {
   private providers: Map<string, ProviderRegistration> = new Map();
   private analysisCompleteEmitter = new vscode.EventEmitter<AnalysisResults>();
 
-  constructor(private logger: Logger) {}
+  constructor(
+    private logger: Logger,
+    private extensionName?: string,
+  ) {}
+
+  private updateContextKey(): void {
+    if (this.extensionName) {
+      vscode.commands.executeCommand(
+        "setContext",
+        `${this.extensionName}.hasProviders`,
+        this.providers.size > 0,
+      );
+    }
+  }
 
   /**
    * Register a language provider
@@ -29,10 +42,12 @@ export class ProviderRegistry {
     }
 
     this.providers.set(config.name, config);
+    this.updateContextKey();
 
     return new vscode.Disposable(() => {
       this.logger.info(`Unregistering provider: ${config.name}`);
       this.providers.delete(config.name);
+      this.updateContextKey();
     });
   }
 
