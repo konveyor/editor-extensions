@@ -39,7 +39,9 @@ export class VSCodeWeb extends VSCode {
     }
 
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
-    await page.getByRole('heading', { name: 'Workspaces', exact: true }).waitFor();
+    await page
+      .getByRole('heading', { name: 'Workspaces', exact: true })
+      .waitFor({ timeout: 60_000 });
 
     let newPage;
     const repoRow = page.locator('tbody tr', { hasText: repoDir });

@@ -7,7 +7,7 @@ const releaseTag = 'development-builds';
 /**
  * Gets the latest dev builds from https://github.com/konveyor/editor-extensions/releases/tag/development-builds
  * and appends the links and vsix file names to the .env file for each extension type:
- * - CORE_VSIX_DOWNLOAD_URL (konveyor-X.X.X-dev.*.vsix)
+ * - CORE_VSIX_DOWNLOAD_URL (konveyor-core-X.X.X-dev.*.vsix)
  * - JAVA_VSIX_DOWNLOAD_URL (konveyor-java-X.X.X-dev.*.vsix)
  * - JAVASCRIPT_VSIX_DOWNLOAD_URL (konveyor-javascript-X.X.X-dev.*.vsix)
  * - GO_VSIX_DOWNLOAD_URL (konveyor-go-X.X.X-dev.*.vsix)
