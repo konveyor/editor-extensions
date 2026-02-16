@@ -333,6 +333,10 @@ export function getHubConfig(overrides?: Partial<HubConfiguration>): HubConfigur
       };
     }
   }
-  console.log('utils.getHubConfig: Hub config', config);
+  const { auth, ...safeConfig } = config;
+  console.log('utils.getHubConfig: Hub config', {
+    ...safeConfig,
+    auth: auth ? { enabled: auth.enabled, username: '***', password: '***' } : undefined,
+  });
   return config;
 }
