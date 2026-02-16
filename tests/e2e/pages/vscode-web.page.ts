@@ -39,9 +39,7 @@ export class VSCodeWeb extends VSCode {
     }
 
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
-    await page
-      .getByRole('heading', { name: 'Workspaces', exact: true })
-      .waitFor({ timeout: 60_000 });
+    await page.getByRole('heading', { name: 'Workspaces', exact: true }).waitFor();
 
     let newPage;
     const repoRow = page.locator('tbody tr', { hasText: repoDir });
@@ -164,8 +162,10 @@ export class VSCodeWeb extends VSCode {
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (!(await loginButton.isVisible())) {
       await page.close();
+      console.log('VSCodeWeb.init: User already logged in');
       return VSCodeWeb.open(repoUrl, repoDir, branch);
     }
+    console.log('VSCodeWeb.init: User not logged in, go to login');
     await expect(loginButton).toBeVisible();
     await loginButton.click();
     const kubeadminBtn = page.getByRole('link', { name: 'kube:admin' }).first();
