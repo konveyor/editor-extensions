@@ -101,9 +101,8 @@ function checkProvidersRegistered(state: ExtensionState, logger: Logger): boolea
 
     if (installed.length === 0) {
       const message =
-        "No Konveyor language extensions are installed. " +
-        "Install language extensions (e.g., Konveyor Java, Konveyor Go) " +
-        "to enable code analysis.";
+        "No language extensions are installed. " +
+        "Install language extensions to enable code analysis.";
       logger.warn(message);
       vscode.window
         .showWarningMessage(message, "Install Extension Pack", "Browse Extensions")
