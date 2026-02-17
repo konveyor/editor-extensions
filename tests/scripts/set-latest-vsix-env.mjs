@@ -1,16 +1,26 @@
 import { appendFileSync } from 'fs';
 
-const repoOwner = 'konveyor';
+// Determine repo owner and extension prefix based on TEST_CATEGORY env var
+const testCategory = process.env.TEST_CATEGORY || 'konveyor';
+const repoOwner = testCategory.toLowerCase() !== 'konveyor' ? 'migtools' : 'konveyor';
+const extensionPrefix = testCategory.toLowerCase();
 const repoName = 'editor-extensions';
 const releaseTag = 'development-builds';
 
 /**
- * Gets the latest dev builds from https://github.com/konveyor/editor-extensions/releases/tag/development-builds
- * and appends the links and vsix file names to the .env file for each extension type:
- * - CORE_VSIX_DOWNLOAD_URL (konveyor-core-X.X.X-dev.*.vsix)
- * - JAVA_VSIX_DOWNLOAD_URL (konveyor-java-X.X.X-dev.*.vsix)
- * - JAVASCRIPT_VSIX_DOWNLOAD_URL (konveyor-javascript-X.X.X-dev.*.vsix)
- * - GO_VSIX_DOWNLOAD_URL (konveyor-go-X.X.X-dev.*.vsix)
+ * Gets the latest dev builds from GitHub releases and appends the links and vsix file names
+ * to the .env file for each extension type.
+ *
+ * The repo owner and extension prefix are determined by the TEST_CATEGORY env var:
+ * - If TEST_CATEGORY is not "konveyor" (case-insensitive), uses "migtools" as repo owner
+ *   and TEST_CATEGORY.toLowerCase() as extension prefix
+ * - Otherwise, uses "konveyor" for both
+ *
+ * Generated env vars:
+ * - CORE_VSIX_DOWNLOAD_URL ({prefix}-core-X.X.X-dev.*.vsix)
+ * - JAVA_VSIX_DOWNLOAD_URL ({prefix}-java-X.X.X-dev.*.vsix)
+ * - JAVASCRIPT_VSIX_DOWNLOAD_URL ({prefix}-javascript-X.X.X-dev.*.vsix)
+ * - GO_VSIX_DOWNLOAD_URL ({prefix}-go-X.X.X-dev.*.vsix)
  * @return {Promise<void>}
  */
 async function main() {
@@ -26,13 +36,25 @@ async function main() {
   const vsixAssets = data.assets.filter((a) => a.name.endsWith('.vsix'));
 
   // Define the patterns for each extension type
-  // Core: konveyor-X.X.X-dev.*.vsix (no language suffix after "konveyor-")
-  // Language-specific: konveyor-{language}-X.X.X-dev.*.vsix
+  // Core: {prefix}-core-X.X.X-dev.*.vsix
+  // Language-specific: {prefix}-{language}-X.X.X-dev.*.vsix
   const extensions = [
-    { name: 'CORE', pattern: /^konveyor-core-\d+\.\d+\.\d+-dev\..*\.vsix$/ },
-    { name: 'JAVA', pattern: /^konveyor-java-\d+\.\d+\.\d+-dev\..*\.vsix$/ },
-    { name: 'JAVASCRIPT', pattern: /^konveyor-javascript-\d+\.\d+\.\d+-dev\..*\.vsix$/ },
-    { name: 'GO', pattern: /^konveyor-go-\d+\.\d+\.\d+-dev\..*\.vsix$/ },
+    {
+      name: 'CORE',
+      pattern: new RegExp(`^${extensionPrefix}-core-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+    },
+    {
+      name: 'JAVA',
+      pattern: new RegExp(`^${extensionPrefix}-java-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+    },
+    {
+      name: 'JAVASCRIPT',
+      pattern: new RegExp(`^${extensionPrefix}-javascript-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+    },
+    {
+      name: 'GO',
+      pattern: new RegExp(`^${extensionPrefix}-go-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+    },
   ];
 
   let envContent = '\n';
