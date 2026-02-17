@@ -96,14 +96,12 @@ export async function ensureKaiAnalyzerBinary(
     // Import checkIfExecutable dynamically to avoid circular imports
     const { checkIfExecutable } = await import("./utilities/fileUtils");
 
-    const isValid = await checkIfExecutable(userAnalyzerPath);
-    if (!isValid) {
-      logger.warn(
-        `Invalid analyzer path detected at startup: ${userAnalyzerPath}. Using bundled binary.`,
-      );
+    const checkResult = await checkIfExecutable(userAnalyzerPath);
+    if (!checkResult.isExecutable) {
+      const error = checkResult.error!;
+      logger.warn(`Invalid analyzer path at startup: ${error.message}`);
       vscode.window.showErrorMessage(
-        `The configured analyzer binary path is invalid: ${userAnalyzerPath}. ` +
-          `Using bundled binary.`,
+        `The configured analyzer binary is invalid.\n\n${error.message}\n\n${error.suggestion}\n\nUsing bundled binary instead.`,
       );
     } else {
       logger.info(`User-configured analyzer path is valid: ${userAnalyzerPath}`);
