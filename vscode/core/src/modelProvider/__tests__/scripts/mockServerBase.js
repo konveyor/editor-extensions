@@ -50,17 +50,6 @@ function createAndStart(app, port) {
     });
   });
 
-  srv.on("newSession", (sessionId, sessionData, callback) => {
-    console.log("TLS handshake starting - new session");
-    const sessionTimer = setTimeout(() => {
-      console.log(
-        "TLS session establishment timeout - this may indicate certificate validation issues",
-      );
-    }, 1500);
-    callback();
-    clearTimeout(sessionTimer);
-  });
-
   srv.on("error", (err) => {
     console.error("Server error:", err.message);
     if (err.code === "EADDRINUSE") {
