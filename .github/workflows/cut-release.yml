@@ -1,0 +1,171 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview actions without making changes"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  HUSKY: 0
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      branch: ${{ steps.v.outputs.branch }}
+      next_version: ${{ steps.v.outputs.next_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release
+        id: v
+        run: |
+          VERSION=$(npm pkg get version | tr -d '"')
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          TAG="v${VERSION}"
+          BRANCH="release-${MAJOR}.${MINOR}"
+          NEXT_MINOR=$((MINOR + 2))
+          NEXT_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+
+          # Validate even minor
+          if [ $((MINOR % 2)) -ne 0 ]; then
+            echo "::error::Version ${VERSION} has odd minor — cannot cut stable release"
+            exit 1
+          fi
+
+          # Check branch doesn't exist
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::Branch ${BRANCH} already exists"
+            exit 1
+          fi
+
+          # Check tag doesn't exist
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Release Validation
+
+          | | |
+          |---|---|
+          | Version | \`${VERSION}\` |
+          | Tag | \`${TAG}\` |
+          | Release branch | \`${BRANCH}\` |
+          | Next main version | \`${NEXT_VERSION}\` |
+          EOF
+
+      - name: Dry run — stop here
+        if: inputs.dry_run
+        run: echo "::notice::Dry run complete — no changes made"
+
+  release:
+    name: Release
+    needs: validate
+    if: ${{ !inputs.dry_run }}
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.validate.outputs.version }}
+      tag: ${{ needs.validate.outputs.tag }}
+      prerelease: false
+      ref: main
+    secrets: inherit
+
+  housekeeping:
+    name: Post-Release Housekeeping
+    runs-on: ubuntu-latest
+    needs: [validate, release]
+    if: ${{ !inputs.dry_run }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Get Token
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v3
+        with:
+          application_id: ${{ vars.KONVEYOR_BOT_ID }}
+          application_private_key: ${{ secrets.KONVEYOR_BOT_KEY }}
+
+      - name: Configure git
+        run: |
+          git config user.name "konveyor-bot"
+          git config user.email "konveyor-bot@users.noreply.github.com"
+          git remote set-url origin \
+            "https://x-access-token:${{ steps.get_workflow_token.outputs.token }}@github.com/${{ github.repository }}.git"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assemble changelog on main
+        run: |
+          npm run changelog:assemble -- "${{ needs.validate.outputs.tag }}"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "assemble changelog for ${{ needs.validate.outputs.tag }}"
+          else
+            echo "No changelog fragments to assemble"
+          fi
+
+      - name: Bump version on main
+        run: |
+          npm version ${{ needs.validate.outputs.next_version }} \
+            --workspaces --include-workspace-root \
+            --no-git-tag-version --allow-same-version
+          git add -A
+          git commit -m "bump version to ${{ needs.validate.outputs.next_version }}"
+
+      - name: Push main
+        run: git push origin main
+
+      - name: Create release branch and clean up fragments
+        run: |
+          git checkout -b ${{ needs.validate.outputs.branch }} ${{ needs.validate.outputs.tag }}
+
+          # Assemble changelog on the release branch too so fragment files
+          # are cleaned up for future patch releases
+          npm run changelog:assemble -- "${{ needs.validate.outputs.tag }}"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "assemble changelog for ${{ needs.validate.outputs.tag }}"
+          fi
+
+          git push origin ${{ needs.validate.outputs.branch }}
+
+      - name: Summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Post-Release Housekeeping
+
+          | Step | Result |
+          |------|--------|
+          | Changelog | assembled and committed to main |
+          | Version bump | main → \`${{ needs.validate.outputs.next_version }}\` |
+          | Release branch | \`${{ needs.validate.outputs.branch }}\` created from \`${{ needs.validate.outputs.tag }}\` |
+          | Branch changelog | assembled on \`${{ needs.validate.outputs.branch }}\` |
+          EOF

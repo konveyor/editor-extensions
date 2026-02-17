@@ -5,8 +5,6 @@ on:
     branches:
       - "main"
       - "release-*"
-    tags:
-      - "v*"
 
   pull_request:
     paths-ignore:
@@ -16,8 +14,6 @@ on:
       - "release-*"
 
   workflow_dispatch:
-
-  workflow_call:
 
 concurrency:
   group: ci-repo-${{ github.event_name }}-${{ github.ref }}
@@ -153,17 +149,9 @@ jobs:
         run: npm test
 
   package:
-    name: Package (${{ matrix.arch }})
-    runs-on: ${{ matrix.os }}
+    name: Package
+    runs-on: ubuntu-latest
     needs: test
-    outputs:
-      is_prerelease: ${{ steps.check_prerelease.outputs.is_prerelease }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            arch: linux
-      max-parallel: 1
 
     steps:
       - name: Checkout code
@@ -180,76 +168,28 @@ jobs:
           npm ci
           npm run build
 
-      - name: Check if pre-release and collect runtime assets
-        id: check_prerelease
+      - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+
+      - name: Set development version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Extract minor version to check if pre-release
-            TAG="${{ github.ref_name }}"
-            VERSION="${TAG#v}"
-            MINOR=$(echo "$VERSION" | cut -d'.' -f2)
+          CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          VERSION="${CURRENT_VERSION}-dev.${TIMESTAMP}.${SHA}"
+          echo "Setting development version: $VERSION"
+          npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
 
-            if [ $((MINOR % 2)) -eq 1 ]; then
-              echo "Minor version $MINOR is odd - this is a pre-release"
-              echo "is_prerelease=true" >> $GITHUB_OUTPUT
-              # Pre-release: use main branch artifacts
-              npm run collect-assets -- --use-workflow-artifacts --branch=main
-            else
-              echo "Minor version $MINOR is even - this is a stable release"
-              echo "is_prerelease=false" >> $GITHUB_OUTPUT
-              # Stable release: use release artifacts
-              npm run collect-assets -- --use-release
-            fi
-          else
-            # Development build: use workflow artifacts from current branch
-            # We should never make it to publish if this is a development build
-            echo "is_prerelease=development" >> $GITHUB_OUTPUT
-            npm run collect-assets -- --use-workflow-artifacts --branch=main
-          fi
-
-      - name: Set version for build
-        id: set_version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Tagged release: use tag version
-            VERSION="${{ github.ref_name }}"
-            VERSION="${VERSION#v}"  # Strip 'v' prefix
-            echo "Setting release version: $VERSION"
-            npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
-          else
-            # Development build: add timestamp and SHA
-            CURRENT_VERSION=$(npm pkg get version | tr -d '"')
-            TIMESTAMP=$(date +%Y%m%d%H%M%S)
-            SHA=$(git rev-parse --short HEAD)
-            VERSION="${CURRENT_VERSION}-dev.${TIMESTAMP}.${SHA}"
-            echo "Setting development version: $VERSION"
-            npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
-          fi
-
-          # Export version to be used in later steps
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Build version: ${VERSION}"
-
-      - name: Assemble changelog fragments (ephemeral)
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            npm run changelog:assemble -- "${{ github.ref_name }}"
-          else
-            npm run changelog:assemble -- --draft
-          fi
+      - name: Assemble changelog (draft)
+        run: npm run changelog:assemble -- --draft
 
       - name: Build dist
         run: npm run dist
 
       - name: Package extensions
-        run: |
-          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package -- --pre-release
-          else
-            npm run package
-          fi
+        run: npm run package
 
       - name: Upload VSIX artifacts
         uses: actions/upload-artifact@v4
@@ -263,16 +203,16 @@ jobs:
     uses: ./.github/workflows/e2e-tests.yml
     with:
       vsix_artifact_name: "vsix-artifacts"
-      trigger_context: ${{ github.event_name == 'pull_request' && 'pr' || startsWith(github.ref, 'refs/tags/v') && 'release' || 'manual' }}
+      trigger_context: ${{ github.event_name == 'pull_request' && 'pr' || 'manual' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-  publish:
+  dev-builds:
     name: Publish Development Build
     runs-on: ubuntu-latest
     needs: test-e2e
-    # Only publish development builds (not tagged releases)
-    if: ${{ ! (github.event_name == 'pull_request' && ! github.event.pull_request.merged) && ! startsWith(github.ref, 'refs/tags/v') }}
+    # Only publish development builds on push events (not PRs)
+    if: ${{ github.event_name != 'pull_request' }}
 
     steps:
       - name: Checkout code
@@ -322,14 +262,3 @@ jobs:
           done
         env:
           GH_TOKEN: ${{ github.token }}
-
-  release:
-    name: Create Release
-    needs: [test-e2e, package]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    uses: ./.github/workflows/release.yml
-    with:
-      tag_name: ${{ github.ref_name }}
-      prerelease: ${{ needs.package.outputs.is_prerelease == 'true' }}
-      vsix_artifact_name: "vsix-artifacts"
-    secrets: inherit

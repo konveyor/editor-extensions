@@ -3,190 +3,239 @@ name: Release
 on:
   workflow_call:
     inputs:
-      tag_name:
-        description: "Tag name for the release"
+      version:
+        description: "Version to release (e.g., 0.4.0)"
+        required: true
+        type: string
+      tag:
+        description: "Tag name (e.g., v0.4.0)"
         required: true
         type: string
       prerelease:
         description: "Is this a pre-release?"
         required: true
         type: boolean
-      vsix_artifact_name:
-        description: "Name of the VSIX artifact to download"
-        required: false
-        type: string
-        default: "vsix-artifacts"
-      workflow_run_id:
-        description: "Workflow run ID to download artifacts from"
-        required: false
+      ref:
+        description: "Git ref to build from (e.g., main, release-0.4)"
+        required: true
         type: string
 
 env:
   HUSKY: 0
 
 jobs:
-  generate_changelog:
-    name: Generate Changelog
-    uses: konveyor/release-tools/.github/workflows/generate-changelog.yml@main
-    with:
-      version: ${{ inputs.tag_name }}
-      prev_version: $(gh api repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
-      repository: ${{ github.repository }}
-      ref: ${{ github.sha }}
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
-
-  release:
-    name: Final Release
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
-    needs: generate_changelog
     steps:
-      - name: Add release details to the step summary
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Release Information
-          Tag: __${{ inputs.tag_name }}__
-          Pre-Release: __${{ inputs.prerelease }}__
-          VSIX Artifact: __${{ inputs.vsix_artifact_name }}__
-          Workflow Run ID: __${{ inputs.workflow_run_id || github.run_id }}__
-          EOF
-
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download Changelog Artifact
-        uses: actions/download-artifact@v4
         with:
-          name: changelog-artifact
-          path: ./artifacts
+          ref: ${{ inputs.ref }}
 
-      - name: Download VSIX Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.vsix_artifact_name }}
-          path: ./artifacts
-
-      - name: Verify Downloaded Artifacts
-        run: ls -R ./artifacts/
-
-      - name: Find and set VSIX filenames
-        id: vsix_info
-        run: |
-          VSIX_FILES=$(find ./artifacts -name "*.vsix" -type f)
-          echo "Found VSIX files:"
-          echo "$VSIX_FILES"
-
-          # Store all VSIX paths for GitHub release
-          echo "vsix_files<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$VSIX_FILES" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Node.js for publishing
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
+          cache: "npm"
 
-      - name: Publish to VS Code Marketplace (Stable Release)
-        if: ${{ inputs.prerelease == false }}
-        run: |
-          for vsix in ./artifacts/*.vsix; do
-            echo "Publishing $vsix as stable release"
-            npx @vscode/vsce publish --packagePath "$vsix"
-          done
-        env:
-          VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Publish to VS Code Marketplace (Pre-release)
-        if: ${{ inputs.prerelease == true }}
-        run: |
-          for vsix in ./artifacts/*.vsix; do
-            echo "Publishing $vsix as pre-release"
-            npx @vscode/vsce publish --pre-release --packagePath "$vsix"
-          done
-        env:
-          VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      - name: Build
+        run: npm run build
 
-      - name: Publish to Open-vsx registry (Stable Release)
-        if: ${{ inputs.prerelease == false }}
-        run: |
-          for vsix in ./artifacts/*.vsix; do
-            echo "Publishing $vsix to Open-vsx as stable release"
-            npx ovsx publish --packagePath "$vsix" --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
-          done
+      - name: Run tests
+        run: xvfb-run -a npm test
 
-      - name: Publish to Open-vsx registry (Pre-release)
-        if: ${{ inputs.prerelease == true }}
-        run: |
-          for vsix in ./artifacts/*.vsix; do
-            echo "Publishing $vsix to Open-vsx as pre-release"
-            npx ovsx publish --pre-release --packagePath "$vsix" --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
-          done
-
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ inputs.tag_name }}
-          commit: ${{ github.sha }}
-          bodyFile: ./artifacts/release.md
-          artifacts: "./artifacts/*.vsix"
-          prerelease: ${{ inputs.prerelease }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  assemble-changelog:
-    name: Assemble Changelog
+  package:
+    name: Package
     runs-on: ubuntu-latest
-    needs: release
-    if: ${{ inputs.prerelease == false }}
+    needs: build-and-test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
+          ref: ${{ inputs.ref }}
 
-      - name: Determine base branch
-        id: base
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies and build
         run: |
-          # For tags, find the branch that contains the tagged commit.
-          # Prefer release-* branches, fall back to main.
-          TAG_SHA=$(git rev-parse HEAD)
-          BASE_BRANCH=$(git branch -r --contains "$TAG_SHA" \
-            | sed 's|origin/||' | tr -d ' ' \
-            | grep -E '^(release-|main$)' \
-            | head -1)
-          echo "branch=${BASE_BRANCH:-main}" >> "$GITHUB_OUTPUT"
-          echo "Changelog PR will target: ${BASE_BRANCH:-main}"
+          npm ci
+          npm run build
+
+      - name: Collect runtime assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          else
+            npm run collect-assets -- --use-release
+          fi
+
+      - name: Set version
+        run: |
+          npm version "${{ inputs.version }}" \
+            --workspaces --include-workspace-root \
+            --no-git-tag-version --allow-same-version
+
+      - name: Assemble changelog (ephemeral, for VSIX content)
+        run: npm run changelog:assemble -- "${{ inputs.tag }}"
+
+      - name: Build dist
+        run: npm run dist
+
+      - name: Package extensions
+        run: |
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            npm run package -- --pre-release
+          else
+            npm run package
+          fi
+
+      - name: Upload VSIX artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-artifacts
+          path: ./dist/*.vsix
+
+  e2e:
+    name: E2E Tests
+    needs: package
+    uses: ./.github/workflows/e2e-tests.yml
+    with:
+      vsix_artifact_name: "vsix-artifacts"
+      trigger_context: "release"
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  publish:
+    name: Publish to Marketplaces
+    runs-on: ubuntu-latest
+    needs: e2e
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Assemble changelog fragments
-        run: npm run changelog:assemble -- "${{ inputs.tag_name }}"
-
-      - name: Check for changes
-        id: changes
-        run: |
-          if git diff --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create pull request
-        if: steps.changes.outputs.has_changes == 'true'
-        uses: peter-evans/create-pull-request@v7
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
         with:
-          branch: changelog/${{ inputs.tag_name }}
-          commit-message: "assemble changelog for ${{ inputs.tag_name }}"
-          title: ":book: Assemble changelog for ${{ inputs.tag_name }}"
-          body: |
-            Assembles changelog fragments into CHANGELOG.md for the ${{ inputs.tag_name }} release.
+          name: vsix-artifacts
+          path: ./artifacts
 
-            This PR was automatically created by the release workflow.
-          base: ${{ steps.base.outputs.branch }}
+      - name: Verify artifacts
+        run: ls -R ./artifacts/
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+        run: |
+          for vsix in ./artifacts/*.vsix; do
+            if [ "${{ inputs.prerelease }}" = "true" ]; then
+              echo "Publishing $(basename "$vsix") as pre-release"
+              npx @vscode/vsce publish --pre-release --packagePath "$vsix"
+            else
+              echo "Publishing $(basename "$vsix") as stable release"
+              npx @vscode/vsce publish --packagePath "$vsix"
+            fi
+          done
+
+      - name: Publish to Open VSX
+        run: |
+          for vsix in ./artifacts/*.vsix; do
+            if [ "${{ inputs.prerelease }}" = "true" ]; then
+              echo "Publishing $(basename "$vsix") to Open VSX as pre-release"
+              npx ovsx publish --pre-release --packagePath "$vsix" \
+                --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
+            else
+              echo "Publishing $(basename "$vsix") to Open VSX as stable release"
+              npx ovsx publish --packagePath "$vsix" \
+                --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
+            fi
+          done
+
+  github-release:
+    name: Create Tag & GitHub Release
+    runs-on: ubuntu-latest
+    needs: [package, publish]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Compute previous release tag
+        id: prev
+        run: |
+          PREV=$(git tag --sort=-v:refname | head -1)
+          echo "tag=${PREV:-}" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: ${PREV:-none}"
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-artifacts
+          path: ./artifacts
+
+      - name: Generate release notes
+        id: notes
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const prev = '${{ steps.prev.outputs.tag }}';
+            const current = '${{ inputs.tag }}';
+            try {
+              const { data } = await github.rest.repos.generateReleaseNotes({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: current,
+                previous_tag_name: prev || undefined,
+                target_commitish: '${{ inputs.ref }}'
+              });
+              return data.body;
+            } catch (e) {
+              console.log('Could not auto-generate notes:', e.message);
+              return `Release ${current}`;
+            }
+
+      - name: Get Token
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v3
+        with:
+          application_id: ${{ vars.KONVEYOR_BOT_ID }}
+          application_private_key: ${{ secrets.KONVEYOR_BOT_KEY }}
+
+      - name: Create tag and release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.tag }}
+          commit: ${{ github.sha }}
+          body: ${{ steps.notes.outputs.result }}
+          artifacts: "./artifacts/*.vsix"
+          prerelease: ${{ inputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+
+      - name: Add release info to summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Release Published
+
+          **Tag:** \`${{ inputs.tag }}\`
+          **Version:** \`${{ inputs.version }}\`
+          **Pre-release:** ${{ inputs.prerelease }}
+          **Ref:** \`${{ inputs.ref }}\`
+          EOF

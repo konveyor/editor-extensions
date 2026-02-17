@@ -1,0 +1,70 @@
+name: "Compute Next Version"
+description: >
+  Finds the next available version by iterating existing tags and checks for new
+  commits since the last tag. Requires the repository to be checked out with
+  fetch-depth: 0.
+
+inputs:
+  base_version:
+    description: "Base major.minor version (e.g., 0.3 or 0.4)"
+    required: true
+
+outputs:
+  version:
+    description: "Next available version (e.g., 0.3.5)"
+    value: ${{ steps.calc.outputs.version }}
+  tag:
+    description: "Tag name with v prefix (e.g., v0.3.5)"
+    value: ${{ steps.calc.outputs.tag }}
+  has_changes:
+    description: "Whether there are new commits since the last tag"
+    value: ${{ steps.calc.outputs.has_changes }}
+  prev_tag:
+    description: "Most recent existing tag in the series (empty if none)"
+    value: ${{ steps.calc.outputs.prev_tag }}
+  commit_count:
+    description: "Number of new commits since the last tag"
+    value: ${{ steps.calc.outputs.commit_count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Calculate next version
+      id: calc
+      shell: bash
+      run: |
+        VERSION="${{ inputs.base_version }}.0"
+        echo "Base version: ${VERSION}"
+
+        # Find next available tag by incrementing patch until no tag exists
+        PREV_TAG=""
+        while git rev-parse "v${VERSION}" >/dev/null 2>&1; do
+          PREV_TAG="v${VERSION}"
+          echo "Tag v${VERSION} exists, incrementing patch version..."
+          VERSION=$(echo "${VERSION}" | awk -F. '{print $1"."$2"."$3+1}')
+        done
+
+        # Check if there are new commits since the last tag
+        COMMIT_COUNT=0
+        if [ -n "$PREV_TAG" ]; then
+          PREV_TAG_SHA=$(git rev-parse "$PREV_TAG^{commit}")
+          HEAD_SHA=$(git rev-parse HEAD)
+
+          if [ "$PREV_TAG_SHA" = "$HEAD_SHA" ]; then
+            echo "No new commits since $PREV_TAG — skipping"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+            echo "commit_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          COMMIT_COUNT=$(git rev-list --count "$PREV_TAG..HEAD")
+          echo "Found $COMMIT_COUNT new commit(s) since $PREV_TAG"
+        fi
+
+        echo "Next available version: v${VERSION}"
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "has_changes=true" >> "$GITHUB_OUTPUT"
+        echo "prev_tag=${PREV_TAG:-}" >> "$GITHUB_OUTPUT"
+        echo "commit_count=${COMMIT_COUNT}" >> "$GITHUB_OUTPUT"

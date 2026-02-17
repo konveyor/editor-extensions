@@ -239,19 +239,21 @@ This strategy intentionally works around the VS Code Marketplace not supporting 
   - Merges to main do not change this version directly.
   - Prereleases are published from tags on main using odd minor numbers (0.3.Z, 0.5.Z, …).
 - **Automatic prereleases:**
-  - Every two weeks (on the first day of the sprint), the [scheduled-prerelease workflow](.github/workflows/scheduled-prerelease.yml) automatically tags and releases a new prerelease version.
-  - This enables regular sprint reviews with the latest changes.
+  - Daily, the [scheduled-prerelease workflow](.github/workflows/scheduled-prerelease.yml) automatically builds, tests, publishes, and tags a new prerelease version.
   - The workflow skips releases if there are no new commits since the last prerelease.
   - Manual prereleases can also be triggered via `workflow_dispatch` when needed.
 - **Prerelease versioning:**
-  - Tagging a commit on main with an odd-minor version (e.g. v0.3.4) publishes a prerelease (`vsce publish --pre-release`).
-  - CI computes patch numbers from the latest tag, so prereleases increment sequentially (0.3.1, 0.3.2, …).
+  - Prereleases use odd minor versions (e.g. v0.3.4) and are published with `vsce publish --pre-release`.
+  - Patch numbers increment sequentially (0.3.1, 0.3.2, …) based on existing tags.
 - **Stable releases:**
-  - When ready, cut a `release/X.Y` branch where Y is even. Example: `release/0.4`.
+  - Use the **[Cut Release](.github/workflows/cut-release.yml)** workflow (`Actions → Cut Release → Run workflow`).
+  - This builds, tests, publishes to the marketplaces, creates the tag and GitHub Release,
+    then assembles the changelog, creates the `release-X.Y` branch, and bumps main to the next version.
   - Version in that branch becomes 0.4.0, and patch bumps (0.4.1, 0.4.2, …) are published as stable.
+  - For patch releases on a release branch, use the **[Patch Release](.github/workflows/patch-release.yml)** workflow.
   - Marketplace will then show 0.4.Z as the latest stable.
 - **Cycle:**
-  - After cutting `release/0.4`, bump main’s `package.json` to 0.6.0.
+  - After cutting `release-0.4`, main's `package.json` is automatically bumped to 0.6.0.
   - Future prereleases are tagged as 0.5.Z.
   - This odd/even cadence repeats for each new cycle.
 

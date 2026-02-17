@@ -269,8 +269,12 @@ async function assemble(version, { draft = false, output = null, extension = nul
   for (const ext of targetExtensions) {
     const changelogFile = output || EXTENSIONS[ext];
 
-    // Filter fragments for this extension
-    const extFragments = fragments.filter((f) => getFragmentExtensions(f).includes(ext));
+    // Filter fragments for this extension.
+    // The "konveyor" extension pack aggregates ALL fragments since it bundles every extension.
+    const extFragments =
+      ext === "konveyor"
+        ? fragments
+        : fragments.filter((f) => getFragmentExtensions(f).includes(ext));
 
     if (extFragments.length === 0) {
       continue;

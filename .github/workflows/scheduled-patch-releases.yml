@@ -1,0 +1,64 @@
+name: Scheduled Patch Releases
+
+on:
+  schedule:
+    # Runs daily at 9:00 AM UTC (1h after prereleases)
+    - cron: "0 9 * * *"
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only — dispatch with dry_run to each branch"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  dispatch:
+    name: Dispatch Patch Releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dispatch patch releases for release branches
+        run: |
+          BRANCHES=$(git branch -r --list 'origin/release-*' | sed 's|origin/||' | tr -d ' ')
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No release branches found"
+            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+            ## Scheduled Patch Releases
+
+            No \`release-*\` branches found. Nothing to dispatch.
+            EOF
+            exit 0
+          fi
+
+          DRY_RUN="${{ inputs.dry_run || 'false' }}"
+          DISPATCHED=""
+
+          for branch in $BRANCHES; do
+            echo "Dispatching patch-release.yml for $branch (dry_run=$DRY_RUN)"
+            gh workflow run patch-release.yml \
+              -f branch="$branch" \
+              -f dry_run="$DRY_RUN"
+            DISPATCHED="${DISPATCHED}\n| \`${branch}\` | dispatched |"
+          done
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Scheduled Patch Releases
+
+          Dispatched \`patch-release.yml\` for each release branch.
+          Each run will independently check for changes and release if needed.
+
+          | Branch | Status |
+          |--------|--------|
+          $(echo -e "$DISPATCHED")
+
+          **Dry run:** ${DRY_RUN}
+          EOF
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
