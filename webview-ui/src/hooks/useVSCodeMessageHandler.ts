@@ -12,6 +12,9 @@ import {
   isDecoratorsUpdate,
   isSettingsUpdate,
   isFocusViolation,
+  isGooseChatUpdate,
+  isGooseStateUpdate,
+  isGooseChatStreaming,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -219,6 +222,29 @@ export function useVSCodeMessageHandler() {
             availableTargets: message.availableTargets ?? [],
             availableSources: message.availableSources ?? [],
           });
+          return;
+        }
+
+        // Handle Goose chat updates (experimental)
+        if (isGooseChatUpdate(message)) {
+          store.setGooseMessages(message.messages);
+          return;
+        }
+
+        if (isGooseStateUpdate(message)) {
+          store.setGooseState(message.state);
+          if (message.error) {
+            store.setGooseError(message.error);
+          }
+          return;
+        }
+
+        if (isGooseChatStreaming(message)) {
+          if (message.done) {
+            store.finalizeGooseMessage(message.messageId);
+          } else {
+            store.appendGooseStreamingChunk(message.messageId, message.content);
+          }
           return;
         }
 

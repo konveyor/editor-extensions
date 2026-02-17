@@ -25,6 +25,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly RESOLUTION_VIEW_TYPE = `${EXTENSION_NAME}.resolutionView`;
   public static readonly PROFILES_VIEW_TYPE = `${EXTENSION_NAME}.profilesView`;
   public static readonly HUB_VIEW_TYPE = `${EXTENSION_NAME}.hubView`;
+  public static readonly CHAT_VIEW_TYPE = `${EXTENSION_NAME}.chatView`;
 
   private static activePanels: Map<string, WebviewPanel> = new Map();
 
@@ -124,6 +125,11 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
           return {
             viewType: KonveyorGUIWebviewViewProvider.HUB_VIEW_TYPE,
             title: `${EXTENSION_SHORT_NAME} Hub Configuration`,
+          };
+        case "chat":
+          return {
+            viewType: KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE,
+            title: `${EXTENSION_SHORT_NAME} Migration Assistant`,
           };
         default:
           throw new Error(`Unsupported view type: ${this._viewType}`);

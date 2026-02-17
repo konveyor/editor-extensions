@@ -30,6 +30,11 @@ export const SYNC_HUB_PROFILES = "SYNC_HUB_PROFILES";
 export const RETRY_PROFILE_SYNC = "RETRY_PROFILE_SYNC";
 export const STOP_WORKFLOW = "STOP_WORKFLOW";
 
+// Goose chat actions (experimental)
+export const GOOSE_SEND_MESSAGE = "GOOSE_SEND_MESSAGE";
+export const GOOSE_START_AGENT = "GOOSE_START_AGENT";
+export const GOOSE_STOP_AGENT = "GOOSE_STOP_AGENT";
+
 export type WebviewActionType =
   | typeof SET_STATE
   | typeof RUN_ANALYSIS
@@ -62,7 +67,11 @@ export type WebviewActionType =
   | typeof UPDATE_HUB_CONFIG
   | typeof SYNC_HUB_PROFILES
   | typeof RETRY_PROFILE_SYNC
-  | typeof STOP_WORKFLOW;
+  | typeof STOP_WORKFLOW
+  | typeof GOOSE_SEND_MESSAGE
+  | typeof GOOSE_START_AGENT
+  | typeof GOOSE_STOP_AGENT;
+
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

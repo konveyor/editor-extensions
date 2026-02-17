@@ -6,6 +6,7 @@ import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType, ExtensionData } from "@editor-extensions/shared";
 import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
 import { HubSettingsPage } from "./components/HubSettings/HubSettingsPage";
+import ChatPage from "./components/ChatPage/ChatPage";
 import { getBrandName } from "./utils/branding";
 import { useVSCodeMessageHandler } from "./hooks/useVSCodeMessageHandler";
 import { useExtensionStore } from "./store/store";
@@ -76,6 +77,7 @@ const App: React.FC = () => {
       {currentView === "resolution" && <ResolutionPage />}
       {currentView === "profiles" && <ProfileManagerPage />}
       {currentView === "hub" && <HubSettingsPage />}
+      {currentView === "chat" && <ChatPage />}
     </div>
   );
 };
