@@ -80,7 +80,7 @@ class VsCodeExtension {
     public readonly paths: ExtensionPaths,
     public readonly context: vscode.ExtensionContext,
     logger: winston.Logger,
-    private readonly providerRegistry: ProviderRegistry,
+    providerRegistry: ProviderRegistry,
     private readonly healthCheckRegistry: HealthCheckRegistry,
   ) {
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
