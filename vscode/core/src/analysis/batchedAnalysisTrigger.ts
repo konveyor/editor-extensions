@@ -23,7 +23,7 @@ export class BatchedAnalysisTrigger {
 
   async notifyFileChanges(change: FileChange) {
     if (this.enableHotRerun) {
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalysisScheduled = true;
       });
       // hot re-run if enabled
@@ -78,7 +78,7 @@ export class BatchedAnalysisTrigger {
         return;
       }
       await this.runPartialAnalysis();
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalysisScheduled = false;
       });
     });
@@ -113,7 +113,7 @@ export class BatchedAnalysisTrigger {
     }
 
     // Set isAnalyzing immediately to prevent button from being enabled
-    this.extensionState.mutateAnalysisState((draft) => {
+    this.extensionState.mutate((draft) => {
       draft.isAnalyzing = true;
       draft.isAnalysisScheduled = false;
     });
@@ -126,7 +126,7 @@ export class BatchedAnalysisTrigger {
     } catch (error) {
       console.error("error running analysis", error);
       // Reset isAnalyzing on error since analyzerClient won't do it
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalyzing = false;
       });
     }
@@ -142,7 +142,7 @@ export class BatchedAnalysisTrigger {
 
     // Reset the scheduled flag
     if (this.extensionState.data.isAnalysisScheduled) {
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalysisScheduled = false;
       });
     }

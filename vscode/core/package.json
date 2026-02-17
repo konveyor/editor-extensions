@@ -41,6 +41,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor-core.openChat",
+        "title": "Open Migration Chat",
+        "category": "Konveyor",
+        "icon": "resources/icon.png"
+      },
+      {
         "command": "konveyor-core.openProfilesPanel",
         "title": "Manage Analysis Profile",
         "category": "Konveyor",
@@ -212,6 +218,13 @@
           "title": "Konveyor",
           "icon": "resources/icon.png"
         }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "konveyor-chat",
+          "title": "Konveyor Chat",
+          "icon": "resources/icon.png"
+        }
       ]
     },
     "views": {
@@ -219,6 +232,13 @@
         {
           "id": "konveyor-core.issueView",
           "name": "Konveyor"
+        }
+      ],
+      "konveyor-chat": [
+        {
+          "type": "webview",
+          "id": "konveyor-core.chatView",
+          "name": "Migration Assistant"
         }
       ]
     },
@@ -240,6 +260,13 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "konveyor-core.openChat",
+          "group": "navigation",
+          "when": "config.konveyor-core.experimentalChat.enabled"
+        }
+      ],
       "view/title": [
         {
           "command": "konveyor-core.showAnalysisPanel",
@@ -347,10 +374,34 @@
         },
         "konveyor-core.genai.agentMode": {
           "type": "boolean",
-          "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
+          "default": true,
+          "description": "When enabled, an AI agent (Goose/OpenCode) explores the codebase and fixes issues autonomously using tools. When disabled, the configured LLM produces targeted fixes directly without an agent backend.",
           "scope": "window",
           "order": 21
+        },
+        "konveyor-core.genai.autonomyLevel": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "smart",
+            "ask"
+          ],
+          "enumDescriptions": [
+            "Auto-approve all tool actions without prompting",
+            "Auto-approve reads, ask before file edits and commands",
+            "Ask before every tool action"
+          ],
+          "default": "smart",
+          "description": "How much autonomy the agent has when using tools. 'smart' is recommended — it auto-approves reads but asks before writing files or running commands.",
+          "scope": "window",
+          "order": 22
+        },
+        "konveyor-core.genai.permissionOverrides": {
+          "type": "object",
+          "default": {},
+          "description": "Per-category permission overrides. Keys: fileEditing, commandExecution, webAccess, mcpTools. Values: auto, ask, deny. Empty means inherit from autonomy level.",
+          "scope": "window",
+          "order": 23
         },
         "konveyor-core.genai.excludedDiagnosticSources": {
           "type": "array",
@@ -410,6 +461,44 @@
           "scope": "window",
           "order": 27
         },
+        "konveyor-core.experimentalChat.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "(Experimental) Enable AI chat sidebar powered by Goose agent. Requires reload.",
+          "scope": "window",
+          "order": 30
+        },
+        "konveyor-core.experimentalChat.agentBackend": {
+          "type": "string",
+          "enum": [
+            "goose",
+            "opencode"
+          ],
+          "default": "goose",
+          "description": "(Experimental) Which AI agent backend to use for the Migration Assistant chat. Only used when genai.agentMode is enabled.",
+          "scope": "window",
+          "order": 31
+        },
+        "konveyor-core.experimentalChat.gooseBinaryPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "(Experimental) Path to the goose binary. Only used when genai.agentMode is enabled. If not set, the extension will search PATH.",
+          "scope": "window",
+          "order": 32
+        },
+        "konveyor-core.experimentalChat.opencodeBinaryPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "(Experimental) Path to the opencode binary. Only used when genai.agentMode is enabled. If not set, the extension will search PATH.",
+          "scope": "window",
+          "order": 33
+        },
         "konveyor-core.debug.webview": {
           "type": "boolean",
           "default": false,
@@ -464,6 +553,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "@opencode-ai/sdk": "^1.2.24",
     "@types/mustache": "^4.2.5",
     "adm-zip": "^0.5.16",
     "diff": "^8.0.3",
@@ -473,6 +563,7 @@
     "mustache": "^4.2.0",
     "undici": "^7.14.0",
     "winston": "^3.17.0",
-    "winston-transport-vscode": "^0.1.0"
+    "winston-transport-vscode": "^0.1.0",
+    "zustand": "^5.0.11"
   }
 }
