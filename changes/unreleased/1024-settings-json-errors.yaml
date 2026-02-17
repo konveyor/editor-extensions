@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed settings.json config update error handling.

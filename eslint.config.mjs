@@ -56,7 +56,7 @@ const tsConfig = {
         jsx: true,
       },
       projectService: true,
-      tsconfigRootDir: ".",
+      tsconfigRootDir: import.meta.dirname,
     },
   },
   rules: {

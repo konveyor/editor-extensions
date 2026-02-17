@@ -587,9 +587,29 @@ const commandsMap: (
         );
       }
       // add logs and write zip
+      const LANGUAGE_EXTENSION_IDS = [
+        "konveyor.konveyor-javascript",
+        "konveyor.konveyor-java",
+        "konveyor.konveyor-go",
+        "konveyor.konveyor-csharp",
+      ];
       try {
         const zipArchive = new AdmZip();
-        zipArchive.addLocalFolder(fileUriToPath(state.extensionContext.logUri.fsPath), "logs"); // add logs folder
+        const coreLogPath = fileUriToPath(state.extensionContext.logUri.fsPath);
+        zipArchive.addLocalFolder(coreLogPath, "logs"); // add core extension logs
+        // add language extension logs from sibling directories
+        const parentLogDir = pathlib.dirname(coreLogPath);
+        for (const extId of LANGUAGE_EXTENSION_IDS) {
+          const extLogDir = pathlib.join(parentLogDir, extId);
+          try {
+            const stat = await fs.stat(extLogDir);
+            if (stat.isDirectory()) {
+              zipArchive.addLocalFolder(extLogDir, `logs/${extId}`);
+            }
+          } catch {
+            logger.debug(`Language extension log directory not found: ${extLogDir}`);
+          }
+        }
         if (traceDirFound && includeLLMTraces === "Yes") {
           zipArchive.addLocalFolder(traceDir as string, "traces");
         }

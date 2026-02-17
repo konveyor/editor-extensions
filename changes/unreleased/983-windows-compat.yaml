@@ -1,0 +1,7 @@
+kind: bugfix
+description: >
+  Improved Windows compatibility across extensions.
+extensions:
+  - core
+  - java
+  - javascript

@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed analyzer profile bundle filtering out all files.

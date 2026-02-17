@@ -1,0 +1,5 @@
+kind: feature
+description: >
+  Added health check command for language providers.
+extensions:
+  - java

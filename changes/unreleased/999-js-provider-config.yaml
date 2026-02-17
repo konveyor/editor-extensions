@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Fixed JavaScript extension to pass config correctly to provider.
+extensions:
+  - javascript

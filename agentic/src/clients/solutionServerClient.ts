@@ -11,6 +11,69 @@ import { KaiWorkflowMessageType } from "../types";
 // MCP endpoint path for Konveyor Hub solution server
 const SOLUTION_SERVER_MCP_PATH = "/hub/services/kai/api";
 
+/**
+ * Creates a custom fetch function that handles redirects by preserving the original host
+ * and path prefix. This is necessary when the server redirects to internal K8s service
+ * names that cannot be resolved from outside the cluster.
+ *
+ * The server internally uses paths like /api but externally they're exposed at
+ * /hub/services/kai/api. This function maps internal paths back to external paths.
+ */
+export function createRedirectAwareFetch(
+  originalUrl: URL,
+  logger?: { debug: (msg: string) => void },
+): typeof fetch {
+  const originalPath = originalUrl.pathname;
+  const apiIndex = originalPath.indexOf("/api");
+  const pathPrefix = apiIndex > 0 ? originalPath.substring(0, apiIndex) : "";
+  const maxRedirects = 10;
+
+  return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    let currentUrl = input instanceof Request ? input.url : input.toString();
+
+    for (let redirectCount = 0; redirectCount < maxRedirects; redirectCount++) {
+      const parsedUrl = new URL(currentUrl);
+
+      // If the request is going to a different host than our original, rewrite it
+      if (parsedUrl.host !== originalUrl.host) {
+        let targetPath = parsedUrl.pathname;
+        if (pathPrefix && targetPath.startsWith("/api")) {
+          targetPath = pathPrefix + targetPath;
+        }
+        const rewrittenUrl = new URL(targetPath + parsedUrl.search, originalUrl);
+        logger?.debug(`Rewriting URL from ${parsedUrl.href} to ${rewrittenUrl.href}`);
+        currentUrl = rewrittenUrl.toString();
+      }
+
+      const response = await fetch(currentUrl, {
+        ...init,
+        redirect: "manual",
+      });
+
+      // If not a redirect, return the response
+      if (response.status < 300 || response.status >= 400) {
+        return response;
+      }
+
+      // Handle redirect
+      const location = response.headers.get("location");
+      if (!location) {
+        return response;
+      }
+
+      const redirectUrl = new URL(location, originalUrl);
+      let targetPath = redirectUrl.pathname;
+      if (pathPrefix && targetPath.startsWith("/api")) {
+        targetPath = pathPrefix + targetPath;
+      }
+      currentUrl = new URL(targetPath + redirectUrl.search, originalUrl).toString();
+      logger?.debug(`Following redirect: ${location} -> ${currentUrl}`);
+    }
+
+    throw new Error("Maximum redirect limit reached");
+  };
+}
+
 export interface SolutionServerCapabilities {
   tools: Tool[];
   resources: Resource[];
@@ -119,7 +182,12 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   private async attemptConnectionWithSlashRetry(): Promise<boolean> {
-    const transportOptions: any = {};
+    const serverUrlObj = new URL(this.serverUrl);
+    const redirectAwareFetch = createRedirectAwareFetch(serverUrlObj, this.logger);
+
+    const transportOptions: any = {
+      fetch: redirectAwareFetch,
+    };
 
     if (this.bearerToken) {
       transportOptions.requestInit = {
@@ -134,7 +202,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     try {
       this.logger.debug(`Connecting to MCP server at: ${this.serverUrl}`);
       await this.mcpClient?.connect(
-        new StreamableHTTPClientTransport(new URL(this.serverUrl), transportOptions),
+        new StreamableHTTPClientTransport(serverUrlObj, transportOptions),
       );
       this.logger.info("Connected to MCP solution server");
       this.isConnected = true;
@@ -146,10 +214,20 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     // Second attempt with trailing slash behavior toggled
     const alternativeUrl = this.getAlternativeUrl(this.serverUrl);
     if (alternativeUrl !== this.serverUrl) {
+      const alternativeUrlObj = new URL(alternativeUrl);
+      const alternativeRedirectAwareFetch = createRedirectAwareFetch(
+        alternativeUrlObj,
+        this.logger,
+      );
+      const alternativeTransportOptions = {
+        ...transportOptions,
+        fetch: alternativeRedirectAwareFetch,
+      };
+
       try {
         this.logger.debug(`Retrying connection to MCP server at: ${alternativeUrl}`);
         await this.mcpClient?.connect(
-          new StreamableHTTPClientTransport(new URL(alternativeUrl), transportOptions),
+          new StreamableHTTPClientTransport(alternativeUrlObj, alternativeTransportOptions),
         );
         this.logger.info(
           `Connected to MCP solution server using alternative URL: ${alternativeUrl}`,

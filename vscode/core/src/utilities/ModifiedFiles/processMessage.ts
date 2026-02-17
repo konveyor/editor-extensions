@@ -301,6 +301,11 @@ export const processMessageByType = async (
       let content: string;
       if (typeof chunk.content === "string") {
         content = chunk.content;
+      } else if (Array.isArray(chunk.content)) {
+        content = chunk.content
+          .filter((part: any) => part.type === "text" && typeof part.text === "string")
+          .map((part: any) => part.text)
+          .join("");
       } else {
         try {
           content = JSON.stringify(chunk.content);

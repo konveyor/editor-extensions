@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed workflowManager to update model provider when model changes.

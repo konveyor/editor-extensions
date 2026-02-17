@@ -70,12 +70,14 @@ export class KaiInteractiveWorkflow
 {
   // workflow that generates the initial fixes for analysis issues
   // spits out modified files and summary of changes & additional information
-  private analysisFixWorkflow: CompiledStateGraph<any, any, any, any, any> | undefined;
+  private analysisFixWorkflow:
+    | CompiledStateGraph<any, any, any, any, any, any, any, any, any>
+    | undefined;
   // workflow that starts after initial analysis fixes are done, it uses
   // additional info as starting input to make more changes, also waits
   // on diagnostics info to arrive from IDE to make any more changes afterwards
   private followUpInteractiveWorkflow:
-    | CompiledStateGraph<any, any, string, any, any, any>
+    | CompiledStateGraph<any, any, any, any, any, any, any, any, any>
     | undefined;
   private diagnosticsNodes: DiagnosticsIssueFix | undefined;
 
@@ -280,10 +282,9 @@ export class KaiInteractiveWorkflow
     };
 
     // first run the analysis fix workflow
-    const analysisFixOutputState: typeof AnalysisWorkflowOutputState.State =
-      await this.analysisFixWorkflow.invoke(graphInput, {
-        recursionLimit: incidentsByUris.length * 2 + 10,
-      });
+    const analysisFixOutputState = (await this.analysisFixWorkflow.invoke(graphInput, {
+      recursionLimit: incidentsByUris.length * 2 + 10,
+    })) as typeof AnalysisWorkflowOutputState.State;
 
     let shouldAddressAdditionalInfo = false;
     // if there is any additional information spit by analysis workflow, capture that

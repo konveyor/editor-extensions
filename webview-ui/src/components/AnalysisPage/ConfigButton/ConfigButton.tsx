@@ -1,6 +1,6 @@
 import "./configButton.css";
 import React from "react";
-import { Button, Icon } from "@patternfly/react-core";
+import { Button, Icon, Tooltip } from "@patternfly/react-core";
 import CogIcon from "@patternfly/react-icons/dist/esm/icons/cog-icon";
 import ExclamationTriangleIcon from "@patternfly/react-icons/dist/esm/icons/exclamation-triangle-icon";
 
@@ -17,7 +17,7 @@ export function ConfigButton({
   warningMessage = "Configuration needs attention",
   id,
 }: ConfigButtonProps) {
-  return (
+  const button = (
     <Button
       variant="plain"
       onClick={onClick}
@@ -35,4 +35,10 @@ export function ConfigButton({
       </span>
     </Button>
   );
+
+  if (hasWarning && warningMessage) {
+    return <Tooltip content={warningMessage}>{button}</Tooltip>;
+  }
+
+  return button;
 }

@@ -1,0 +1,5 @@
+kind: feature
+description: >
+  Added Go language extension support.
+extensions:
+  - go

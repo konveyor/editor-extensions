@@ -1,0 +1,7 @@
+kind: bugfix
+description: >
+  Gracefully handle provider errors when dependencies are missing.
+extensions:
+  - java
+  - javascript
+  - go

@@ -1,0 +1,3 @@
+kind: enhancement
+description: >
+  Cleaned up unused memfs/localChanges/diffViewType configuration.

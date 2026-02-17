@@ -259,6 +259,79 @@ This strategy intentionally works around the VS Code Marketplace not supporting 
 
 Please read our [Contributing Guide](https://github.com/konveyor/community/blob/main/CONTRIBUTING.md) before submitting a pull request.
 
+### Changelog Fragments
+
+This project uses **changelog fragments** to track user-facing changes. Instead of editing
+a single `CHANGELOG.md` file (which causes merge conflicts), each PR that introduces a
+user-facing change adds a small YAML file to `changes/unreleased/`.
+
+**When is a fragment required?**
+
+CI requires a changelog fragment for PRs with these title prefixes:
+
+- `:sparkles:` (feature)
+- `:bug:` (bugfix)
+- `:warning:` (breaking change)
+
+PRs with other prefixes (`:seedling:`, `:test_tube:`, `:book:`, `:ghost:`) do not require
+a fragment.
+
+**How to create a fragment:**
+
+1. Copy the template or use the helper script:
+
+   ```bash
+   node scripts/changelog.js create <pr-number>-<short-description> <kind>
+   ```
+
+2. Fill in the `kind` and `description` fields:
+
+   ```yaml
+   kind: bugfix
+   description: >
+     Fixed authentication flow when using SSO providers.
+   ```
+
+   Valid kinds: `feature`, `bugfix`, `enhancement`, `deprecation`, `breaking`
+
+3. Optionally add `extensions` to target specific extension changelogs:
+
+   ```yaml
+   kind: bugfix
+   description: >
+     Fixed authentication flow when using SSO providers.
+   extensions:
+     - core
+     - java
+   ```
+
+   Valid extensions: `core`, `java`, `javascript`, `go`, `csharp`, `konveyor`
+
+   If `extensions` is omitted, the fragment defaults to `core` only. A single fragment
+   can target multiple extensions when the change applies across them.
+
+4. Commit the fragment file with your PR.
+
+**Helper script:**
+
+```bash
+# Create a fragment for core (default)
+node scripts/changelog.js create 1234-fix-auth bugfix
+
+# Create a fragment targeting specific extensions
+node scripts/changelog.js create 1234-fix-auth bugfix --extension java --extension core
+
+# Validate fragments are well-formed
+node scripts/changelog.js validate
+
+# Assemble fragments into per-extension CHANGELOG.md files (used during releases)
+node scripts/changelog.js assemble v0.4.0
+```
+
+At release time, all fragments are assembled into each extension's `CHANGELOG.md`
+(e.g. `vscode/core/CHANGELOG.md`, `vscode/java/CHANGELOG.md`) and the individual
+fragment files are removed.
+
 ## Code of Conduct
 
 This project follows the Konveyor [Code of Conduct](https://github.com/konveyor/community/blob/main/CODE_OF_CONDUCT.md).
