@@ -22,7 +22,9 @@ const SOLUTION_SERVER_MCP_PATH = "/hub/services/kai/api";
 export function createRedirectAwareFetch(
   originalUrl: URL,
   logger?: { debug: (msg: string) => void },
+  baseFetch?: typeof fetch,
 ): typeof fetch {
+  const fetchFn = baseFetch ?? fetch;
   const originalPath = originalUrl.pathname;
   const apiIndex = originalPath.indexOf("/api");
   const pathPrefix = apiIndex > 0 ? originalPath.substring(0, apiIndex) : "";
@@ -45,7 +47,7 @@ export function createRedirectAwareFetch(
         currentUrl = rewrittenUrl.toString();
       }
 
-      const response = await fetch(currentUrl, {
+      const response = await fetchFn(currentUrl, {
         ...init,
         redirect: "manual",
       });
@@ -183,7 +185,11 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
 
   private async attemptConnectionWithSlashRetry(): Promise<boolean> {
     const serverUrlObj = new URL(this.serverUrl);
-    const redirectAwareFetch = createRedirectAwareFetch(serverUrlObj, this.logger);
+    const redirectAwareFetch = createRedirectAwareFetch(
+      serverUrlObj,
+      this.logger,
+      this.customFetch,
+    );
 
     const transportOptions: any = {
       fetch: redirectAwareFetch,
@@ -196,10 +202,6 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
         },
       };
       this.logger.debug("Added bearer token authentication");
-    }
-
-    if (this.customFetch) {
-      transportOptions.fetch = this.customFetch;
     }
 
     // First attempt with original URL
@@ -222,6 +224,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       const alternativeRedirectAwareFetch = createRedirectAwareFetch(
         alternativeUrlObj,
         this.logger,
+        this.customFetch,
       );
       const alternativeTransportOptions = {
         ...transportOptions,
