@@ -8,6 +8,16 @@ on:
         required: false
         type: boolean
         default: false
+      skip_vscode_publish:
+        description: "Skip publishing to VS Code Marketplace"
+        required: false
+        type: boolean
+        default: false
+      skip_openvsx_publish:
+        description: "Skip publishing to Open VSX"
+        required: false
+        type: boolean
+        default: false
 
 env:
   HUSKY: 0
@@ -86,6 +96,8 @@ jobs:
       tag: ${{ needs.validate.outputs.tag }}
       prerelease: false
       ref: main
+      skip_vscode_publish: ${{ inputs.skip_vscode_publish }}
+      skip_openvsx_publish: ${{ inputs.skip_openvsx_publish }}
     secrets: inherit
 
   housekeeping:
