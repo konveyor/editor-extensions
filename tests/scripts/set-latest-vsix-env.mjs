@@ -5,22 +5,24 @@ const testCategory = process.env.TEST_CATEGORY || 'konveyor';
 const repoOwner = testCategory.toLowerCase() !== 'konveyor' ? 'migtools' : 'konveyor';
 const extensionPrefix = testCategory.toLowerCase();
 const repoName = 'editor-extensions';
-const releaseTag = 'development-builds';
+const releaseTag = process.env.TEST_VERSION_TAG || 'development-builds';
 
 /**
- * Gets the latest dev builds from GitHub releases and appends the links and vsix file names
+ * Gets the latest builds from GitHub releases and appends the links and vsix file names
  * to the .env file for each extension type.
  *
- * The repo owner and extension prefix are determined by the TEST_CATEGORY env var:
- * - If TEST_CATEGORY is not "konveyor" (case-insensitive), uses "migtools" as repo owner
- *   and TEST_CATEGORY.toLowerCase() as extension prefix
- * - Otherwise, uses "konveyor" for both
+ * Environment variables:
+ * - TEST_CATEGORY: Determines repo owner and extension prefix
+ *   - If not "konveyor" (case-insensitive), uses "migtools" as repo owner
+ *     and TEST_CATEGORY.toLowerCase() as extension prefix
+ *   - Otherwise, uses "konveyor" for both
+ * - TEST_VERSION_TAG: Release tag to fetch from (default: "development-builds")
  *
  * Generated env vars:
- * - CORE_VSIX_DOWNLOAD_URL ({prefix}-core-X.X.X-dev.*.vsix)
- * - JAVA_VSIX_DOWNLOAD_URL ({prefix}-java-X.X.X-dev.*.vsix)
- * - JAVASCRIPT_VSIX_DOWNLOAD_URL ({prefix}-javascript-X.X.X-dev.*.vsix)
- * - GO_VSIX_DOWNLOAD_URL ({prefix}-go-X.X.X-dev.*.vsix)
+ * - CORE_VSIX_DOWNLOAD_URL ({prefix}-core-X.X.X*.vsix)
+ * - JAVA_VSIX_DOWNLOAD_URL ({prefix}-java-X.X.X*.vsix)
+ * - JAVASCRIPT_VSIX_DOWNLOAD_URL ({prefix}-javascript-X.X.X*.vsix)
+ * - GO_VSIX_DOWNLOAD_URL ({prefix}-go-X.X.X*.vsix)
  * @return {Promise<void>}
  */
 async function main() {
@@ -36,24 +38,24 @@ async function main() {
   const vsixAssets = data.assets.filter((a) => a.name.endsWith('.vsix'));
 
   // Define the patterns for each extension type
-  // Core: {prefix}-core-X.X.X-dev.*.vsix
-  // Language-specific: {prefix}-{language}-X.X.X-dev.*.vsix
+  // Core: {prefix}-core-X.X.X*.vsix
+  // Language-specific: {prefix}-{language}-X.X.X*.vsix
   const extensions = [
     {
       name: 'CORE',
-      pattern: new RegExp(`^${extensionPrefix}-core-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+      pattern: new RegExp(`^${extensionPrefix}-core-\\d+\\.\\d+\\.\\d+.*\\.vsix$`),
     },
     {
       name: 'JAVA',
-      pattern: new RegExp(`^${extensionPrefix}-java-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+      pattern: new RegExp(`^${extensionPrefix}-java-\\d+\\.\\d+\\.\\d+.*\\.vsix$`),
     },
     {
       name: 'JAVASCRIPT',
-      pattern: new RegExp(`^${extensionPrefix}-javascript-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+      pattern: new RegExp(`^${extensionPrefix}-javascript-\\d+\\.\\d+\\.\\d+.*\\.vsix$`),
     },
     {
       name: 'GO',
-      pattern: new RegExp(`^${extensionPrefix}-go-\\d+\\.\\d+\\.\\d+-dev\\..*\\.vsix$`),
+      pattern: new RegExp(`^${extensionPrefix}-go-\\d+\\.\\d+\\.\\d+.*\\.vsix$`),
     },
   ];
 
