@@ -70,7 +70,10 @@
     "package-go": "node ./scripts/package-extensions.js go",
     "package-csharp": "node ./scripts/package-extensions.js csharp",
     "package-pack": "node ./scripts/package-extensions.js konveyor",
-    "test": "npm run build && npm run test --workspaces --if-present"
+    "test": "npm run build && npm run test --workspaces --if-present",
+    "changelog:validate": "node scripts/changelog.js validate",
+    "changelog:create": "node scripts/changelog.js create",
+    "changelog:assemble": "node scripts/changelog.js assemble"
   },
   "lint-staged": {
     "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",
@@ -118,12 +121,12 @@
     "wait-on": "^8.0.2"
   },
   "dependencies": {
-    "@langchain/aws": "^0.1.12",
-    "@langchain/core": "^0.3.45",
-    "@langchain/deepseek": "^0.0.1",
-    "@langchain/google-genai": "^0.2.4",
-    "@langchain/ollama": "^0.2.0",
-    "@langchain/openai": "^0.5.6",
+    "@langchain/aws": "^1.2.2",
+    "@langchain/core": "^1.1.7",
+    "@langchain/deepseek": "^1.0.11",
+    "@langchain/google-genai": "^2.1.17",
+    "@langchain/ollama": "^1.2.2",
+    "@langchain/openai": "^1.2.7",
     "fast-deep-equal": "^3.1.3",
     "fs-extra": "^11.2.0",
     "globby": "^14.0.2",
@@ -150,6 +153,7 @@
     },
     "@patternfly/react-core": "^6.3.0",
     "@patternfly/react-table": "^6.3.0",
-    "fast-xml-parser": "^5.3.4"
+    "fast-xml-parser": "^5.3.4",
+    "@langchain/core": "$@langchain/core"
   }
 }

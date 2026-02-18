@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Do not run auto analysis on save if analysis pre-reqs are not met.

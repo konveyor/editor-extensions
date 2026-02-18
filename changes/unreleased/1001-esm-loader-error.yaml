@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed VS Code ESM loader error.

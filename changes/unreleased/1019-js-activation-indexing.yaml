@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Fixed JavaScript extension activation to trigger indexing and wait for completion.
+extensions:
+  - javascript

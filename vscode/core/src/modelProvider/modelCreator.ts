@@ -195,7 +195,7 @@ class ChatOpenAICreator implements ModelCreator {
     const allowH2 = httpProtocol === "http2";
     const fetchFn = await getFetchFn(env, this.logger, allowH2);
     return new ChatOpenAI({
-      openAIApiKey: env.OPENAI_API_KEY,
+      apiKey: env.OPENAI_API_KEY,
       ...args,
       configuration: {
         ...args.configuration,

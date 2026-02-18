@@ -1,0 +1,3 @@
+kind: feature
+description: >
+  Handle and display LLM error messages from workflow.

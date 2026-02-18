@@ -135,9 +135,14 @@ const AnalysisPage: React.FC = () => {
 
   const selectedProfile = profiles.find((p) => p.id === activeProfileId);
 
-  const configInvalid =
-    !selectedProfile?.labelSelector?.trim() ||
-    (!selectedProfile.useDefaultRules && (selectedProfile.customRules?.length ?? 0) === 0);
+  // Profile validation errors that should block server start
+  const profileValidationErrors = rawConfigErrors.filter(
+    (e) =>
+      e.type === "no-active-profile" ||
+      e.type === "invalid-label-selector" ||
+      e.type === "no-custom-rules",
+  );
+  const hasProfileValidationErrors = profileValidationErrors.length > 0;
 
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -164,7 +169,7 @@ const AnalysisPage: React.FC = () => {
                             isStarting={isStartingServer}
                             isInitializing={isInitializingServer}
                             onToggle={handleServerToggle}
-                            hasWarning={configInvalid}
+                            hasWarning={hasProfileValidationErrors}
                           />
                         </ToolbarItem>
                         {!isGenAIDisabled && (

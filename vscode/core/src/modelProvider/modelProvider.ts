@@ -105,7 +105,7 @@ export class BaseModelProvider implements KaiModelProvider {
         cacheSubDir: options.cacheKey,
       });
       if (cachedResult) {
-        return cachedResult;
+        return cachedResult as AIMessage;
       }
     }
 
@@ -335,7 +335,7 @@ export class BedrockModelProvider extends BaseModelProvider {
         cacheSubDir: options.cacheKey,
       });
       if (cachedResult) {
-        return cachedResult;
+        return cachedResult as AIMessage;
       }
     }
 

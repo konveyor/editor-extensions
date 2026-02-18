@@ -1,0 +1,3 @@
+kind: feature
+description: >
+  Added support for setting hub configuration via environment variables.

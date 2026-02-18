@@ -232,55 +232,23 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Build version: ${VERSION}"
 
+      - name: Assemble changelog fragments (ephemeral)
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            npm run changelog:assemble -- "${{ github.ref_name }}"
+          else
+            npm run changelog:assemble -- --draft
+          fi
+
       - name: Build dist
         run: npm run dist
 
-      - name: Package core extension
+      - name: Package extensions
         run: |
           if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package-core -- --pre-release
+            npm run package -- --pre-release
           else
-            npm run package-core
-          fi
-
-      - name: Package Java extension
-        run: |
-          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package-java -- --pre-release
-          else
-            npm run package-java
-          fi
-
-      - name: Package JavaScript extension
-        run: |
-          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package-javascript -- --pre-release
-          else
-            npm run package-javascript
-          fi
-
-      - name: Package Go extension
-        run: |
-          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package-go -- --pre-release
-          else
-            npm run package-go
-          fi
-
-      - name: Package C# extension
-        run: |
-          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package-csharp -- --pre-release
-          else
-            npm run package-csharp
-          fi
-
-      - name: Package Konveyor extension pack
-        run: |
-          if [ "${{ steps.check_prerelease.outputs.is_prerelease }}" = "true" ]; then
-            npm run package-pack -- --pre-release
-          else
-            npm run package-pack
+            npm run package
           fi
 
       - name: Upload VSIX artifacts

@@ -23,6 +23,7 @@ import {
 } from "@patternfly/react-core";
 import {
   ExclamationCircleIcon,
+  ExclamationTriangleIcon,
   CheckCircleIcon,
   StarIcon,
   InfoCircleIcon,
@@ -137,9 +138,9 @@ export const ProfileEditorForm: React.FC<{
     setLocalProfile(updated);
   };
 
-  const handleBlur = () => {
-    const trimmedName = localProfile.name.trim();
-
+  // Validates profile name and updates validation state
+  const validateName = (profileToCheck: AnalysisProfile): boolean => {
+    const trimmedName = profileToCheck.name.trim();
     const isDuplicate =
       trimmedName !== profile.name && allProfiles.some((p) => p.name === trimmedName);
     const isEmpty = trimmedName === "";
@@ -147,18 +148,33 @@ export const ProfileEditorForm: React.FC<{
     if (isEmpty) {
       setNameValidation("error");
       setNameErrorMsg("Profile name is required.");
-      return;
+      return false;
     }
 
     if (isDuplicate) {
       setNameValidation("error");
       setNameErrorMsg("A profile with this name already exists.");
-      return;
+      return false;
     }
 
     setNameValidation("default");
     setNameErrorMsg(null);
-    debouncedChange({ ...localProfile, name: trimmedName });
+    return true;
+  };
+
+  // Checks name validity without updating state (for canSaveProfile)
+  const isNameValid = (profileToCheck: AnalysisProfile): boolean => {
+    const trimmedName = profileToCheck.name.trim();
+    const isDuplicate =
+      trimmedName !== profile.name && allProfiles.some((p) => p.name === trimmedName);
+    const isEmpty = trimmedName === "";
+    return !isEmpty && !isDuplicate;
+  };
+
+  const handleBlur = () => {
+    if (validateName(localProfile)) {
+      debouncedChange({ ...localProfile, name: localProfile.name.trim() });
+    }
   };
 
   const validateTargets = (targets: string[]) => {
@@ -186,15 +202,51 @@ export const ProfileEditorForm: React.FC<{
     return true;
   };
 
+  // Helper to check if a profile can be saved (all validation passes)
+  const canSaveProfile = (profileToCheck: AnalysisProfile, targets: string[]): boolean => {
+    const hasValidName = isNameValid(profileToCheck);
+    const hasTargets = targets.length > 0;
+    const hasRules =
+      profileToCheck.useDefaultRules || (profileToCheck.customRules?.length ?? 0) > 0;
+    return hasValidName && hasTargets && hasRules;
+  };
+
+  // Validates and optionally saves if valid
+  const validateAndSave = (updatedProfile: AnalysisProfile, targets: string[]) => {
+    const isProfileNameValid = isNameValid(updatedProfile);
+    const isTargetsValid = validateTargets(targets);
+    const isRulesValid = validateRules(updatedProfile);
+
+    if (isProfileNameValid && isTargetsValid && isRulesValid) {
+      debouncedChange(updatedProfile);
+    }
+  };
+
   const updateLabelSelector = (sources: string[], targets: string[]) => {
     const selector = buildLabelSelector(sources, targets);
     const updatedProfile = { ...localProfile, labelSelector: selector };
     setLocalProfile(updatedProfile);
+    validateAndSave(updatedProfile, targets);
+  };
 
-    // Validate targets
-    validateTargets(targets);
+  const handleDefaultRulesChange = (_e: React.FormEvent, checked: boolean) => {
+    const updated = { ...localProfile, useDefaultRules: checked };
+    setLocalProfile(updated);
+    if (canSaveProfile(updated, selectedTargets)) {
+      debouncedChange(updated);
+    }
+  };
 
-    debouncedChange(updatedProfile);
+  const handleRemoveCustomRule = (index: number) => {
+    if (profile.readOnly || isDisabled) {
+      return;
+    }
+    const updatedRules = localProfile.customRules.filter((_, i) => i !== index);
+    const newProfile = { ...localProfile, customRules: updatedRules };
+    setLocalProfile(newProfile);
+    if (canSaveProfile(newProfile, selectedTargets)) {
+      debouncedChange(newProfile);
+    }
   };
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -251,12 +303,24 @@ export const ProfileEditorForm: React.FC<{
           <Flex alignItems={{ default: "alignItemsCenter" }}>
             <FlexItem>
               <Icon>
-                <CheckCircleIcon color="var(--pf-v5-global--success-color--100)" />
+                {nameValidation === "error" ||
+                targetsValidation === "error" ||
+                rulesValidation === "error" ? (
+                  <ExclamationTriangleIcon color="var(--pf-v5-global--warning-color--100)" />
+                ) : (
+                  <CheckCircleIcon color="var(--pf-v5-global--success-color--100)" />
+                )}
               </Icon>
             </FlexItem>
             <FlexItem>
               <span style={{ fontSize: "0.875rem", color: "var(--pf-v5-global--Color--200)" }}>
-                {isSaving ? "Saving..." : "Changes saved automatically"}
+                {nameValidation === "error" ||
+                targetsValidation === "error" ||
+                rulesValidation === "error"
+                  ? "Fix errors to save"
+                  : isSaving
+                    ? "Saving..."
+                    : "Changes saved automatically"}
               </span>
             </FlexItem>
           </Flex>
@@ -360,11 +424,7 @@ export const ProfileEditorForm: React.FC<{
           id="use-default-rules"
           isChecked={localProfile.useDefaultRules}
           isDisabled={profile.readOnly || isDisabled}
-          onChange={(_e, checked) => {
-            const updated = { ...localProfile, useDefaultRules: checked };
-            setLocalProfile(updated);
-            debouncedChange(updated);
-          }}
+          onChange={handleDefaultRulesChange}
         />
         {rulesErrorMsg ? (
           <FormHelperText>
@@ -485,14 +545,7 @@ export const ProfileEditorForm: React.FC<{
                   }
                   closeBtnAriaLabel="Remove rule"
                   onClose={
-                    isDisabled
-                      ? undefined
-                      : () => {
-                          const updated = localProfile.customRules.filter((_, i) => i !== index);
-                          const newProfile = { ...localProfile, customRules: updated };
-                          setLocalProfile(newProfile);
-                          debouncedChange(newProfile);
-                        }
+                    profile.readOnly || isDisabled ? undefined : () => handleRemoveCustomRule(index)
                   }
                 >
                   {truncateMiddle(path.split("/").pop() || path, 30)}
