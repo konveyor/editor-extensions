@@ -179,7 +179,7 @@ jobs:
       - name: Compute previous release tag
         id: prev
         run: |
-          PREV=$(git tag --sort=-v:refname | head -1)
+          PREV=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || true)
           echo "tag=${PREV:-}" >> "$GITHUB_OUTPUT"
           echo "Previous tag: ${PREV:-none}"
 
