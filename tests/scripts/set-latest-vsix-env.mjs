@@ -26,9 +26,19 @@ const releaseTag = process.env.TEST_VERSION_TAG || 'development-builds';
  * @return {Promise<void>}
  */
 async function main() {
-  const res = await fetch(
-    `https://api.github.com/repos/${repoOwner}/${repoName}/releases/tags/${releaseTag}`
+  console.log('VSIX Fetch Configuration:');
+  console.log(
+    `  TEST_CATEGORY: ${process.env.TEST_CATEGORY || '(not set)'} -> extensionPrefix: ${extensionPrefix}`
   );
+  console.log(
+    `  TEST_VERSION_TAG: ${process.env.TEST_VERSION_TAG || '(not set)'} -> releaseTag: ${releaseTag}`
+  );
+  console.log(`  Repository owner: ${repoOwner}`);
+
+  const fetchUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/tags/${releaseTag}`;
+  console.log(`\nFetching from: ${fetchUrl}`);
+
+  const res = await fetch(fetchUrl);
   if (!res.ok) {
     throw new Error(`GitHub API request failed: ${res.status} ${res.statusText}`);
   }
