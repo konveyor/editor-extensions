@@ -260,7 +260,8 @@ async function assemble(version, { draft = false, output = null, extension = nul
   }
 
   const date = new Date().toISOString().split("T")[0];
-  const heading = draft ? "Unreleased" : `[${version}] - ${date}`;
+  const displayVersion = version?.replace(/^v/, "");
+  const heading = draft ? "Unreleased" : `[${displayVersion}] - ${date}`;
 
   // Determine which extensions to assemble
   const targetExtensions = extension ? [extension] : VALID_EXTENSIONS;

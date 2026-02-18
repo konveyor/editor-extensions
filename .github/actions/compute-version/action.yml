@@ -52,6 +52,8 @@ runs:
 
           if [ "$PREV_TAG_SHA" = "$HEAD_SHA" ]; then
             echo "No new commits since $PREV_TAG — skipping"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
             echo "commit_count=0" >> "$GITHUB_OUTPUT"
