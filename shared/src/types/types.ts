@@ -169,6 +169,8 @@ export interface ExtensionData {
   isWebEnvironment: boolean;
   availableTargets: string[];
   availableSources: string[];
+  gooseState: GooseAgentState;
+  gooseError: string | undefined;
 }
 
 export type ConfigErrorType =

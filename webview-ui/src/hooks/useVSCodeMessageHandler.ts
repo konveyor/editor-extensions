@@ -1,20 +1,13 @@
 import { useEffect, useRef } from "react";
 import {
   WebviewMessage,
-  isFullStateUpdate,
-  isChatMessagesUpdate,
-  isChatMessageStreamingUpdate,
-  isAnalysisStateUpdate,
-  isSolutionWorkflowUpdate,
-  isServerStateUpdate,
-  isProfilesUpdate,
-  isConfigErrorsUpdate,
-  isDecoratorsUpdate,
-  isSettingsUpdate,
+  isStateChange,
   isFocusViolation,
-  isGooseChatUpdate,
-  isGooseStateUpdate,
-  isGooseChatStreaming,
+  isChatStateChange,
+  isChatStreamingUpdate,
+  isGooseStateChange,
+  isGooseChatStateChange,
+  isGooseChatStreamingUpdate,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -59,7 +52,7 @@ export function useVSCodeMessageHandler() {
         const store = useExtensionStore.getState();
 
         // Handle streaming update (incremental - just one message changed)
-        if (isChatMessageStreamingUpdate(message)) {
+        if (isChatStreamingUpdate(message)) {
           // Throttle streaming updates to prevent render death spiral
           // Store the latest update and batch them
           pendingStreamingUpdateRef.current = {
@@ -106,7 +99,7 @@ export function useVSCodeMessageHandler() {
         }
 
         // Handle full chat messages update (structure changed)
-        if (isChatMessagesUpdate(message)) {
+        if (isChatStateChange(message)) {
           // Limit chat messages to prevent memory issues
           const limitedMessages =
             message.chatMessages.length > MAX_CHAT_MESSAGES
@@ -125,121 +118,48 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
-        // Handle analysis state updates
-        if (isAnalysisStateUpdate(message)) {
-          store.batchUpdate({
-            ruleSets: message.ruleSets,
-            enhancedIncidents: message.enhancedIncidents,
-            isAnalyzing: message.isAnalyzing,
-            isAnalysisScheduled: message.isAnalysisScheduled,
-            analysisProgress: message.analysisProgress ?? 0,
-            analysisProgressMessage: message.analysisProgressMessage ?? "",
-          });
-          return;
-        }
+        // Handle consolidated state change (replaces individual analysis, solution,
+        // server, profiles, config errors, decorators, and settings handlers)
+        if (isStateChange(message)) {
+          const { data } = message;
 
-        // Handle solution workflow updates
-        if (isSolutionWorkflowUpdate(message)) {
-          const pendingCount = message.pendingBatchReview?.length || 0;
-          const previousPendingCount = store.pendingBatchReview?.length || 0;
-          const wasProcessing = store.isProcessingQueuedMessages;
-          const isNowProcessing = message.isProcessingQueuedMessages;
-          console.log(
-            `[useVSCodeMessageHandler] SOLUTION_WORKFLOW_UPDATE received, pendingBatchReview: ${pendingCount} files, isProcessingQueuedMessages: ${wasProcessing} -> ${isNowProcessing}`,
-          );
-          store.batchUpdate({
-            isFetchingSolution: message.isFetchingSolution,
-            solutionState: message.solutionState,
-            solutionScope: message.solutionScope,
-            isWaitingForUserInteraction: message.isWaitingForUserInteraction,
-            isProcessingQueuedMessages: message.isProcessingQueuedMessages,
-            pendingBatchReview: message.pendingBatchReview || [],
-          });
+          // Check batch review reset before applying updates
+          if ("pendingBatchReview" in data || "isProcessingQueuedMessages" in data) {
+            const pendingCount = data.pendingBatchReview?.length || 0;
+            const previousPendingCount = store.pendingBatchReview?.length || 0;
+            const wasProcessing = store.isProcessingQueuedMessages;
+            const isNowProcessing = data.isProcessingQueuedMessages;
 
-          const shouldResetBatchOperation =
-            store.isBatchOperationInProgress &&
-            ((previousPendingCount > 0 && pendingCount === 0) ||
-              (wasProcessing && !isNowProcessing));
+            store.batchUpdate(data);
 
-          if (shouldResetBatchOperation) {
-            store.setBatchOperationInProgress(false);
-            console.log(
-              `[useVSCodeMessageHandler] Batch operation completed, resetting isBatchOperationInProgress (pendingCount: ${pendingCount}, processingChanged: ${wasProcessing} -> ${isNowProcessing})`,
-            );
+            const shouldResetBatchOperation =
+              store.isBatchOperationInProgress &&
+              ((previousPendingCount > 0 && pendingCount === 0) ||
+                (wasProcessing && !isNowProcessing));
+
+            if (shouldResetBatchOperation) {
+              store.setBatchOperationInProgress(false);
+            }
+          } else {
+            store.batchUpdate(data);
           }
-
-          console.log(
-            `[useVSCodeMessageHandler] Store updated with pendingBatchReview: ${pendingCount} files`,
-          );
           return;
         }
 
-        if (isServerStateUpdate(message)) {
-          store.batchUpdate({
-            serverState: message.serverState,
-            isStartingServer: message.isStartingServer,
-            isInitializingServer: message.isInitializingServer,
-            solutionServerConnected: message.solutionServerConnected,
-            profileSyncConnected: message.profileSyncConnected,
-            llmProxyAvailable: message.llmProxyAvailable,
-          });
-          return;
-        }
-
-        // Handle profile updates
-        if (isProfilesUpdate(message)) {
-          store.batchUpdate({
-            profiles: message.profiles,
-            activeProfileId: message.activeProfileId,
-            isInTreeMode: message.isInTreeMode,
-          });
-          return;
-        }
-
-        // Handle config errors updates
-        if (isConfigErrorsUpdate(message)) {
-          store.setConfigErrors(message.configErrors);
-          return;
-        }
-
-        // Handle decorators updates
-        if (isDecoratorsUpdate(message)) {
-          store.setActiveDecorators(message.activeDecorators);
-          return;
-        }
-
-        // Handle settings updates
-        if (isSettingsUpdate(message)) {
-          store.batchUpdate({
-            solutionServerEnabled: message.solutionServerEnabled,
-            isAgentMode: message.isAgentMode,
-            isContinueInstalled: message.isContinueInstalled,
-            hubConfig: message.hubConfig,
-            hubForced: message.hubForced,
-            profileSyncEnabled: message.profileSyncEnabled,
-            isSyncingProfiles: message.isSyncingProfiles,
-            llmProxyAvailable: message.llmProxyAvailable,
-            availableTargets: message.availableTargets ?? [],
-            availableSources: message.availableSources ?? [],
-          });
+        // Handle Goose state change (experimental)
+        if (isGooseStateChange(message)) {
+          store.setGooseState(message.gooseState);
+          store.setGooseError(message.gooseError);
           return;
         }
 
         // Handle Goose chat updates (experimental)
-        if (isGooseChatUpdate(message)) {
+        if (isGooseChatStateChange(message)) {
           store.setGooseMessages(message.messages);
           return;
         }
 
-        if (isGooseStateUpdate(message)) {
-          store.setGooseState(message.state);
-          if (message.error) {
-            store.setGooseError(message.error);
-          }
-          return;
-        }
-
-        if (isGooseChatStreaming(message)) {
+        if (isGooseChatStreamingUpdate(message)) {
           if (message.done) {
             store.finalizeGooseMessage(message.messageId);
           } else {
@@ -252,60 +172,6 @@ export function useVSCodeMessageHandler() {
         if (isFocusViolation(message)) {
           store.setFocusedViolationFilter(message.violationMessage);
           return;
-        }
-
-        // Handle full state updates (used on initial load)
-        if (isFullStateUpdate(message)) {
-          // Batch update all state at once for efficiency
-          store.batchUpdate({
-            ruleSets: Array.isArray(message.ruleSets) ? message.ruleSets : [],
-            enhancedIncidents: Array.isArray(message.enhancedIncidents)
-              ? message.enhancedIncidents
-              : [],
-            isAnalyzing: message.isAnalyzing ?? false,
-            analysisProgress: message.analysisProgress ?? 0,
-            analysisProgressMessage: message.analysisProgressMessage ?? "",
-            isFetchingSolution: message.isFetchingSolution ?? false,
-            isStartingServer: message.isStartingServer ?? false,
-            isInitializingServer: message.isInitializingServer ?? false,
-            isAnalysisScheduled: message.isAnalysisScheduled ?? false,
-            isContinueInstalled: message.isContinueInstalled ?? false,
-            serverState: message.serverState ?? "initial",
-            solutionState: message.solutionState ?? "none",
-            solutionScope: message.solutionScope,
-            solutionServerEnabled: message.solutionServerEnabled ?? false,
-            solutionServerConnected: message.solutionServerConnected ?? false,
-            isAgentMode: message.isAgentMode ?? false,
-            workspaceRoot: message.workspaceRoot ?? "/",
-            activeProfileId: message.activeProfileId ?? null,
-            isWaitingForUserInteraction: message.isWaitingForUserInteraction ?? false,
-            isProcessingQueuedMessages: message.isProcessingQueuedMessages ?? false,
-            activeDecorators: message.activeDecorators ?? {},
-            profiles: Array.isArray(message.profiles) ? message.profiles : [],
-            configErrors: Array.isArray(message.configErrors) ? message.configErrors : [],
-            pendingBatchReview: Array.isArray(message.pendingBatchReview)
-              ? message.pendingBatchReview
-              : [],
-            chatMessages:
-              Array.isArray(message.chatMessages) && message.chatMessages.length > MAX_CHAT_MESSAGES
-                ? message.chatMessages.slice(-MAX_CHAT_MESSAGES)
-                : Array.isArray(message.chatMessages)
-                  ? message.chatMessages
-                  : [],
-            hubConfig: message.hubConfig,
-            hubForced: message.hubForced,
-            profileSyncEnabled: message.profileSyncEnabled ?? false,
-            profileSyncConnected: message.profileSyncConnected ?? false,
-            isSyncingProfiles: message.isSyncingProfiles ?? false,
-            llmProxyAvailable: message.llmProxyAvailable ?? false,
-            isWebEnvironment: message.isWebEnvironment ?? false,
-            availableTargets: Array.isArray(message.availableTargets)
-              ? message.availableTargets
-              : [],
-            availableSources: Array.isArray(message.availableSources)
-              ? message.availableSources
-              : [],
-          });
         }
       } catch (error) {
         // Log the error and the problematic message for debugging

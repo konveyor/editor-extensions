@@ -31,14 +31,7 @@ export interface ExtensionState {
   diagnosticCollection: vscode.DiagnosticCollection;
   issueModel: IssuesModel;
   data: Immutable<ExtensionData>;
-  mutateChatMessages: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateAnalysisState: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateSolutionWorkflow: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateServerState: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateProfiles: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateConfigErrors: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateDecorators: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
-  mutateSettings: (recipe: (draft: ExtensionData) => void) => Immutable<ExtensionData>;
+  mutate: (recipe: (draft: ExtensionData) => void) => void;
   profiles?: AnalysisProfile[];
   activeProfileId?: string;
   kaiFsCache: InMemoryCacheWithRevisions<string, string>;

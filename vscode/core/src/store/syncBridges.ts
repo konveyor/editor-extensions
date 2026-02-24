@@ -17,30 +17,64 @@ function broadcast(
 }
 
 /**
- * Shallow equality check for plain objects.
- * Returns true if all enumerable own properties are strictly equal.
+ * Fields tracked by the consolidated state change bridge.
+ * Excludes chatMessages (handled by a dedicated streaming bridge)
+ * and goose state (handled by a dedicated goose bridge).
  */
-function shallowEqual<T extends Record<string, unknown>>(a: T, b: T): boolean {
-  if (a === b) {
-    return true;
-  }
-  const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
-  if (keysA.length !== keysB.length) {
-    return false;
-  }
-  for (const key of keysA) {
-    if (a[key] !== b[key]) {
-      return false;
-    }
-  }
-  return true;
-}
+const STATE_CHANGE_KEYS: readonly string[] = [
+  // Analysis
+  "ruleSets",
+  "enhancedIncidents",
+  "isAnalyzing",
+  "isAnalysisScheduled",
+  "analysisProgress",
+  "analysisProgressMessage",
+  // Solution workflow
+  "isFetchingSolution",
+  "solutionState",
+  "solutionScope",
+  "isWaitingForUserInteraction",
+  "isProcessingQueuedMessages",
+  "pendingBatchReview",
+  // Server
+  "serverState",
+  "isStartingServer",
+  "isInitializingServer",
+  "solutionServerConnected",
+  "profileSyncConnected",
+  "llmProxyAvailable",
+  // Profiles
+  "profiles",
+  "activeProfileId",
+  "isInTreeMode",
+  // Config errors
+  "configErrors",
+  // Decorators
+  "activeDecorators",
+  // Settings
+  "solutionServerEnabled",
+  "isAgentMode",
+  "isContinueInstalled",
+  "hubConfig",
+  "hubForced",
+  "profileSyncEnabled",
+  "isSyncingProfiles",
+];
+
+/** Keys that, when changed, should fire the onDidChange event for the issue view tree. */
+const ANALYSIS_KEYS = new Set([
+  "ruleSets",
+  "enhancedIncidents",
+  "isAnalyzing",
+  "isAnalysisScheduled",
+  "analysisProgress",
+  "analysisProgressMessage",
+]);
 
 export interface SyncBridgeOptions {
   /**
    * Event emitter for the global onDidChange event.
-   * Fired only by the analysis state bridge (used by the issue view tree provider).
+   * Fired when analysis-related state changes (used by the issue view tree provider).
    */
   onDidChangeEmitter?: vscode.EventEmitter<unknown>;
 }
@@ -48,13 +82,12 @@ export interface SyncBridgeOptions {
 /**
  * Sets up subscription-based sync bridges between the Zustand store and webview providers.
  *
- * Each bridge subscribes to a slice of the store and broadcasts the corresponding
- * message type to all webview providers when that slice changes.
- *
- * Design:
- * - Cheap bridges (UI flags): individual subscriptions with shallow equality → tiny payloads
- * - Expensive bridges (data collections): reference equality → only sync on real change
- * - Streaming bridge (chat messages): detects streaming vs structural changes, sends deltas
+ * Three bridges:
+ * 1. Consolidated state bridge — watches all non-chat, non-goose fields and sends a single
+ *    STATE_CHANGE message containing only the fields that actually changed.
+ * 2. Chat messages bridge — detects streaming vs structural changes and sends deltas.
+ * 3. Goose state bridge — watches gooseState/gooseError and sends GOOSE_STATE_CHANGE.
+ *    All goose messaging (state, chat, streaming) is self-contained outside of STATE_CHANGE.
  *
  * Returns a disposable that unsubscribes all bridges.
  */
@@ -65,155 +98,77 @@ export function setupSyncBridges(
 ): { dispose: () => void } {
   const unsubscribers: (() => void)[] = [];
 
-  // --- Analysis state bridge ---
-  // Watches both UI flags and data collections for analysis.
-  // Also fires the global onDidChange event (used by issue view tree provider).
+  // --- Consolidated state bridge ---
+  // Selects all non-chat fields into one object. On change, computes a delta
+  // of only the fields that differ and sends a single STATE_CHANGE message.
+  type StateSlice = Record<string, unknown>;
+
+  const selectStateSlice = (s: any): StateSlice => {
+    const slice: StateSlice = {};
+    for (const key of STATE_CHANGE_KEYS) {
+      slice[key] = s[key];
+    }
+    return slice;
+  };
+
   unsubscribers.push(
     store.subscribe(
-      (s) => ({
-        ruleSets: s.ruleSets,
-        enhancedIncidents: s.enhancedIncidents,
-        isAnalyzing: s.isAnalyzing,
-        isAnalysisScheduled: s.isAnalysisScheduled,
-        analysisProgress: s.analysisProgress,
-        analysisProgressMessage: s.analysisProgressMessage,
-      }),
-      (slice) => {
+      selectStateSlice,
+      (current, previous) => {
+        const data: Record<string, unknown> = {};
+        let hasChanges = false;
+        let hasAnalysisChanges = false;
+
+        for (const key of STATE_CHANGE_KEYS) {
+          if (current[key] !== previous[key]) {
+            data[key] = current[key];
+            hasChanges = true;
+            if (ANALYSIS_KEYS.has(key)) {
+              hasAnalysisChanges = true;
+            }
+          }
+        }
+
+        if (!hasChanges) {
+          return;
+        }
+
+        // Normalize: ensure pendingBatchReview is always an array when present
+        if ("pendingBatchReview" in data && !data.pendingBatchReview) {
+          data.pendingBatchReview = [];
+        }
+
+        // Normalize: ensure activeDecorators is always an object when present
+        if ("activeDecorators" in data && !data.activeDecorators) {
+          data.activeDecorators = {};
+        }
+
         broadcast(getProviders, {
-          type: MessageTypes.ANALYSIS_STATE_UPDATE,
-          ...slice,
+          type: MessageTypes.STATE_CHANGE,
+          data,
           timestamp: new Date().toISOString(),
         });
 
-        // Fire global change event for extension-internal listeners (issue view)
-        if (options.onDidChangeEmitter) {
+        // Fire global change event for extension-internal listeners (issue view tree)
+        if (hasAnalysisChanges && options.onDidChangeEmitter) {
           options.onDidChangeEmitter.fire(store.getState());
         }
       },
-      { equalityFn: shallowEqual },
-    ),
-  );
-
-  // --- Solution workflow bridge ---
-  unsubscribers.push(
-    store.subscribe(
-      (s) => ({
-        isFetchingSolution: s.isFetchingSolution,
-        solutionState: s.solutionState,
-        solutionScope: s.solutionScope,
-        isWaitingForUserInteraction: s.isWaitingForUserInteraction,
-        isProcessingQueuedMessages: s.isProcessingQueuedMessages,
-        pendingBatchReview: s.pendingBatchReview,
-      }),
-      (slice) => {
-        broadcast(getProviders, {
-          type: MessageTypes.SOLUTION_WORKFLOW_UPDATE,
-          ...slice,
-          pendingBatchReview: slice.pendingBatchReview || [],
-          timestamp: new Date().toISOString(),
-        });
+      {
+        equalityFn: (a, b) => {
+          for (const key of STATE_CHANGE_KEYS) {
+            if (a[key] !== b[key]) {
+              return false;
+            }
+          }
+          return true;
+        },
       },
-      { equalityFn: shallowEqual },
-    ),
-  );
-
-  // --- Server state bridge ---
-  unsubscribers.push(
-    store.subscribe(
-      (s) => ({
-        serverState: s.serverState,
-        isStartingServer: s.isStartingServer,
-        isInitializingServer: s.isInitializingServer,
-        solutionServerConnected: s.solutionServerConnected,
-        profileSyncConnected: s.profileSyncConnected,
-        llmProxyAvailable: s.llmProxyAvailable,
-      }),
-      (slice) => {
-        broadcast(getProviders, {
-          type: MessageTypes.SERVER_STATE_UPDATE,
-          ...slice,
-          timestamp: new Date().toISOString(),
-        });
-      },
-      { equalityFn: shallowEqual },
-    ),
-  );
-
-  // --- Profiles bridge ---
-  unsubscribers.push(
-    store.subscribe(
-      (s) => ({
-        profiles: s.profiles,
-        activeProfileId: s.activeProfileId,
-        isInTreeMode: s.isInTreeMode,
-      }),
-      (slice) => {
-        broadcast(getProviders, {
-          type: MessageTypes.PROFILES_UPDATE,
-          ...slice,
-          timestamp: new Date().toISOString(),
-        });
-      },
-      { equalityFn: shallowEqual },
-    ),
-  );
-
-  // --- Config errors bridge ---
-  unsubscribers.push(
-    store.subscribe(
-      (s) => s.configErrors,
-      (configErrors) => {
-        broadcast(getProviders, {
-          type: MessageTypes.CONFIG_ERRORS_UPDATE,
-          configErrors,
-          timestamp: new Date().toISOString(),
-        });
-      },
-      { equalityFn: (a, b) => a === b },
-    ),
-  );
-
-  // --- Decorators bridge ---
-  unsubscribers.push(
-    store.subscribe(
-      (s) => s.activeDecorators,
-      (activeDecorators) => {
-        broadcast(getProviders, {
-          type: MessageTypes.DECORATORS_UPDATE,
-          activeDecorators: activeDecorators || {},
-          timestamp: new Date().toISOString(),
-        });
-      },
-      { equalityFn: (a, b) => a === b },
-    ),
-  );
-
-  // --- Settings bridge ---
-  unsubscribers.push(
-    store.subscribe(
-      (s) => ({
-        solutionServerEnabled: s.solutionServerEnabled,
-        isAgentMode: s.isAgentMode,
-        isContinueInstalled: s.isContinueInstalled,
-        hubConfig: s.hubConfig,
-        hubForced: s.hubForced,
-        profileSyncEnabled: s.profileSyncEnabled,
-        isSyncingProfiles: s.isSyncingProfiles,
-        llmProxyAvailable: s.llmProxyAvailable,
-      }),
-      (slice) => {
-        broadcast(getProviders, {
-          type: MessageTypes.SETTINGS_UPDATE,
-          ...slice,
-          timestamp: new Date().toISOString(),
-        });
-      },
-      { equalityFn: shallowEqual },
     ),
   );
 
   // --- Chat messages bridge ---
-  // This bridge preserves the existing streaming optimization:
+  // Preserves the existing streaming optimization:
   // - If message count is unchanged and > 0, it's a streaming update → send only the last message
   // - Otherwise it's a structural change → send the full array
   let previousChatMessagesLength = store.getState().chatMessages.length;
@@ -232,7 +187,7 @@ export function setupSyncBridges(
           const plainMessage = JSON.parse(JSON.stringify(lastMessage));
 
           broadcast(getProviders, {
-            type: MessageTypes.CHAT_MESSAGE_STREAMING_UPDATE,
+            type: MessageTypes.CHAT_STREAMING_UPDATE,
             message: plainMessage,
             messageIndex: currentLength - 1,
             timestamp: new Date().toISOString(),
@@ -240,7 +195,7 @@ export function setupSyncBridges(
         } else {
           // Structural change — send full array
           broadcast(getProviders, {
-            type: MessageTypes.CHAT_MESSAGES_UPDATE,
+            type: MessageTypes.CHAT_STATE_CHANGE,
             chatMessages,
             previousLength: previousChatMessagesLength,
             timestamp: new Date().toISOString(),
@@ -250,6 +205,33 @@ export function setupSyncBridges(
         previousChatMessagesLength = currentLength;
       },
       { equalityFn: (a, b) => a === b },
+    ),
+  );
+
+  // --- Goose state bridge ---
+  // Watches gooseState and gooseError, sends a self-contained GOOSE_STATE_CHANGE message.
+  // Keeps all goose messaging outside of the core STATE_CHANGE channel.
+  unsubscribers.push(
+    store.subscribe(
+      (s) => ({ gooseState: s.gooseState, gooseError: s.gooseError }),
+      (current, previous) => {
+        if (
+          current.gooseState === previous.gooseState &&
+          current.gooseError === previous.gooseError
+        ) {
+          return;
+        }
+
+        broadcast(getProviders, {
+          type: MessageTypes.GOOSE_STATE_CHANGE,
+          gooseState: current.gooseState,
+          gooseError: current.gooseError,
+          timestamp: new Date().toISOString(),
+        });
+      },
+      {
+        equalityFn: (a, b) => a.gooseState === b.gooseState && a.gooseError === b.gooseError,
+      },
     ),
   );
 

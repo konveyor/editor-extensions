@@ -215,7 +215,7 @@ export async function handleFileResponse(
       }
 
       // Update the chat message status in the centralized state (for Accept/Reject All consistency)
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -229,7 +229,7 @@ export async function handleFileResponse(
         }
       });
     } else if (responseId === "noChanges") {
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -249,7 +249,7 @@ export async function handleFileResponse(
       } catch (error) {
         logger.error("Error notifying solution server of rejection:", error);
       }
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -311,7 +311,7 @@ export async function handleFileResponse(
         logger.info("Successfully resolved workflow interaction for modifiedFile");
 
         // Reset the waiting flag since we've resolved the interaction
-        state.mutateSolutionWorkflow((draft) => {
+        state.mutate((draft) => {
           draft.isWaitingForUserInteraction = false;
         });
       } catch (error) {

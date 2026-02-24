@@ -67,9 +67,18 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     // When webview becomes visible again, refresh state to ensure latest data
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
+        const { chatMessages, ...stateFields } = this._extensionState.data;
+        const timestamp = new Date().toISOString();
         this.sendMessageToWebview({
-          type: MessageTypes.FULL_STATE_UPDATE,
-          ...this._extensionState.data,
+          type: MessageTypes.STATE_CHANGE,
+          data: stateFields,
+          timestamp,
+        });
+        this.sendMessageToWebview({
+          type: MessageTypes.CHAT_STATE_CHANGE,
+          chatMessages,
+          previousLength: 0,
+          timestamp,
         });
       }
     });
@@ -155,9 +164,18 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
     // When panel becomes visible/active again, refresh state to ensure latest data
     this._panel.onDidChangeViewState((e) => {
       if (e.webviewPanel.visible && e.webviewPanel.active) {
+        const { chatMessages, ...stateFields } = this._extensionState.data;
+        const timestamp = new Date().toISOString();
         this.sendMessageToWebview({
-          type: MessageTypes.FULL_STATE_UPDATE,
-          ...this._extensionState.data,
+          type: MessageTypes.STATE_CHANGE,
+          data: stateFields,
+          timestamp,
+        });
+        this.sendMessageToWebview({
+          type: MessageTypes.CHAT_STATE_CHANGE,
+          chatMessages,
+          previousLength: 0,
+          timestamp,
         });
       }
     });

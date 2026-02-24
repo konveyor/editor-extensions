@@ -122,7 +122,7 @@ export const handleModifiedFileMessage = async (
       const diff = createFileDiff(fileState, filePath);
 
       // Part 1: Add read-only diff to chat for context
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         draft.chatMessages.push({
           kind: ChatMessageType.ModifiedFile,
           messageToken: msg.id,
@@ -142,7 +142,7 @@ export const handleModifiedFileMessage = async (
       });
 
       // Part 2: Accumulate for batch review at the end
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         if (!draft.pendingBatchReview) {
           draft.pendingBatchReview = [];
         }

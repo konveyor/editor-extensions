@@ -233,7 +233,7 @@ const commandsMap: (
         await state.hubConnectionManager.connect();
 
         // Update connection state
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
         });
 
@@ -250,7 +250,7 @@ const commandsMap: (
         window.showErrorMessage(`Failed to connect solution server: ${errorMessage}`);
 
         // Update state to reflect failed connection
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.solutionServerConnected = false;
         });
       }
@@ -265,7 +265,7 @@ const commandsMap: (
         await state.hubConnectionManager.connect();
 
         // Update connection state
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
           draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
         });
@@ -285,7 +285,7 @@ const commandsMap: (
         window.showErrorMessage(`Failed to connect profile sync: ${errorMessage}`);
 
         // Update state to reflect failed connection
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.profileSyncConnected = false;
         });
       }
@@ -346,7 +346,7 @@ const commandsMap: (
         const updatedIncidents = await solutionServerClient.getSuccessRate(currentIncidents);
 
         // Update the state with the enhanced incidents
-        state.mutateAnalysisState((draft) => {
+        state.mutate((draft) => {
           draft.enhancedIncidents = updatedIncidents;
         });
       } catch (error: any) {
@@ -366,7 +366,7 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.resetFetchingState`]: async () => {
       logger.warn("Manually resetting isFetchingSolution state");
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isFetchingSolution = false;
         if (draft.solutionState === "started") {
           draft.solutionState = "failedOnSending";
@@ -714,7 +714,7 @@ const commandsMap: (
 
       // Update state to show syncing (only if not silent)
       if (!silent) {
-        state.mutateSettings((draft) => {
+        state.mutate((draft) => {
           draft.isSyncingProfiles = true;
         });
       }
@@ -737,7 +737,7 @@ const commandsMap: (
         const result = await profileSyncClient.syncProfiles(repoInfo, syncDir);
 
         // Manage ConfigErrors based on result
-        state.mutateConfigErrors((draft) => {
+        state.mutate((draft) => {
           // Clear previous profile sync errors
           draft.configErrors = draft.configErrors.filter(
             (e) => e.type !== "no-hub-profiles" && e.type !== "hub-profile-sync-failed",
@@ -787,7 +787,7 @@ const commandsMap: (
       } finally {
         // Clear syncing state (only if not silent)
         if (!silent) {
-          state.mutateSettings((draft) => {
+          state.mutate((draft) => {
             draft.isSyncingProfiles = false;
           });
         }
@@ -820,7 +820,7 @@ const commandsMap: (
         }
 
         // Set activeDecorators to indicate decorators are being applied
-        state.mutateDecorators((draft) => {
+        state.mutate((draft) => {
           if (!draft.activeDecorators) {
             draft.activeDecorators = {};
           }
@@ -854,7 +854,7 @@ const commandsMap: (
           logger.info(`Skipping decorator view for new file: ${filePath}`);
           // For new files, we can't show decorators since there's no file to decorate
           // Just clear the activeDecorators to indicate completion
-          state.mutateDecorators((draft) => {
+          state.mutate((draft) => {
             if (draft.activeDecorators) {
               delete draft.activeDecorators[messageToken];
             }
@@ -875,7 +875,7 @@ const commandsMap: (
         logger.error("Error in vertical diff:", error);
 
         // Clear activeDecorators on error
-        state.mutateDecorators((draft) => {
+        state.mutate((draft) => {
           if (draft.activeDecorators) {
             delete draft.activeDecorators[messageToken];
           }

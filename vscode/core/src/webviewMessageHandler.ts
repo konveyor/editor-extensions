@@ -29,6 +29,7 @@ import {
   WebviewActionType,
   ScopeWithKonveyorContext,
   ExtensionData,
+  MessageTypes,
   OPEN_RESOLUTION_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
@@ -96,17 +97,17 @@ const actions: {
     const updatedAllProfiles = await getAllProfiles(state.extensionContext);
     setActiveProfileId(profile.id, state);
 
-    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
+    // Save active profile ID to workspace state
     await state.extensionContext.workspaceState.update("activeProfileId", profile.id);
 
-    // Use mutateProfiles to broadcast profile updates to webview
-    state.mutateProfiles((draft) => {
+    // Broadcast profile updates to webview
+    state.mutate((draft) => {
       draft.profiles = updatedAllProfiles;
       draft.activeProfileId = profile.id;
     });
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
@@ -134,19 +135,19 @@ const actions: {
       state.extensionContext.workspaceState.update("activeProfileId", newActiveProfileId);
 
       // Broadcast profile update with new active profile
-      state.mutateProfiles((draft) => {
+      state.mutate((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = newActiveProfileId;
       });
     } else {
       // Just update profiles list
-      state.mutateProfiles((draft) => {
+      state.mutate((draft) => {
         draft.profiles = allProfiles;
       });
     }
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
@@ -184,7 +185,7 @@ const actions: {
     const isActiveProfile = currentActiveProfileId === originalId;
 
     // Update profiles and active profile ID if necessary
-    state.mutateProfiles((draft) => {
+    state.mutate((draft) => {
       draft.profiles = fullProfiles;
       if (currentActiveProfileId === originalId) {
         draft.activeProfileId = updatedProfile.id;
@@ -192,7 +193,7 @@ const actions: {
     });
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
 
@@ -219,16 +220,16 @@ const actions: {
     const currentActiveProfileId = state.data.activeProfileId;
     const isProfileChanging = currentActiveProfileId !== profileId;
 
-    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
+    // Save active profile ID to workspace state
     await state.extensionContext.workspaceState.update("activeProfileId", profileId);
 
     // Broadcast active profile change to webview
-    state.mutateProfiles((draft) => {
+    state.mutate((draft) => {
       draft.activeProfileId = profileId;
     });
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
 
@@ -257,7 +258,7 @@ const actions: {
     await saveHubConfig(state.extensionContext, configToSave);
 
     // Update state
-    state.mutateSettings((draft) => {
+    state.mutate((draft) => {
       draft.hubConfig = config;
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
       draft.profileSyncEnabled = config.enabled && config.features.profileSync.enabled;
@@ -267,7 +268,7 @@ const actions: {
     await state.hubConnectionManager.updateConfig(config);
 
     // Update connection state based on actual connection status
-    state.mutateServerState((draft) => {
+    state.mutate((draft) => {
       draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
       draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
       draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
@@ -275,7 +276,7 @@ const actions: {
 
     // Clear syncing state if profile sync is disabled or disconnected
     if (!state.hubConnectionManager.isProfileSyncConnected()) {
-      state.mutateSettings((draft) => {
+      state.mutate((draft) => {
         draft.isSyncingProfiles = false;
       });
     }
@@ -294,10 +295,19 @@ const actions: {
     // Send the full current state to the webview
     // This ensures that all configuration (especially hubConfig) is properly loaded
     // even if the webview was initialized after the extension sent initial updates
+    const { chatMessages, ...stateFields } = state.data;
+    const timestamp = new Date().toISOString();
     state.webviewProviders.forEach((provider) => {
       provider.sendMessageToWebview({
-        type: "FULL_STATE_UPDATE",
-        ...state.data,
+        type: MessageTypes.STATE_CHANGE,
+        data: stateFields,
+        timestamp,
+      });
+      provider.sendMessageToWebview({
+        type: MessageTypes.CHAT_STATE_CHANGE,
+        chatMessages,
+        previousLength: 0,
+        timestamp,
       });
     });
   },
@@ -373,7 +383,7 @@ const actions: {
       );
       await saveUserProfiles(state.extensionContext, userProfiles);
 
-      state.mutateProfiles((draft) => {
+      state.mutate((draft) => {
         const target = draft.profiles.find((p) => p.id === updated.id);
         if (target) {
           Object.assign(target, updated);
@@ -423,7 +433,7 @@ const actions: {
 
       // Clear the processing state for this file on error
       // This prevents the UI from getting stuck in "Processing changes..."
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         // Clear from pendingBatchReview if there's an error
         if (draft.pendingBatchReview) {
           const fileIndex = draft.pendingBatchReview.findIndex(
@@ -447,7 +457,7 @@ const actions: {
     await handleFileResponse(messageToken, responseId, path, content, state);
 
     // Remove from pendingBatchReview after processing individual file
-    state.mutateSolutionWorkflow((draft) => {
+    state.mutate((draft) => {
       if (draft.pendingBatchReview) {
         draft.pendingBatchReview = draft.pendingBatchReview.filter(
           (file) => file.messageToken !== messageToken,
@@ -592,7 +602,7 @@ const actions: {
 
       await handleFileResponse(messageToken, responseId, path, finalContent, state, true); // Skip analysis - it runs on save
 
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         if (draft.pendingBatchReview) {
           draft.pendingBatchReview = draft.pendingBatchReview.filter(
             (file) => file.messageToken !== messageToken,
@@ -610,7 +620,7 @@ const actions: {
       logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
       await handleFileResponse(messageToken, "reject", path, content, state, true); // Skip analysis - it runs on save
 
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         if (draft.pendingBatchReview) {
           draft.pendingBatchReview = draft.pendingBatchReview.filter(
             (file) => file.messageToken !== messageToken,
@@ -630,7 +640,7 @@ const actions: {
       logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
       console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
 
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isProcessingQueuedMessages = true;
       });
 
@@ -648,7 +658,7 @@ const actions: {
 
           appliedFileUris.push(vscode.Uri.file(file.path));
 
-          state.mutateSolutionWorkflow((draft) => {
+          state.mutate((draft) => {
             if (draft.pendingBatchReview) {
               draft.pendingBatchReview = draft.pendingBatchReview.filter(
                 (f) => f.messageToken !== file.messageToken,
@@ -663,7 +673,7 @@ const actions: {
           logger.error(`BATCH_APPLY_ALL: Failed to apply file ${file.path}:`, fileError);
           failures.push({ path: file.path, error: errorMessage });
 
-          state.mutateSolutionWorkflow((draft) => {
+          state.mutate((draft) => {
             if (draft.pendingBatchReview) {
               const fileIndex = draft.pendingBatchReview.findIndex(
                 (f) => f.messageToken === file.messageToken,
@@ -722,7 +732,7 @@ const actions: {
       );
     } finally {
       // Always reset processing flag
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isProcessingQueuedMessages = false;
       });
     }
@@ -736,7 +746,7 @@ const actions: {
       console.log(`[BATCH_REJECT_ALL] Processing ${files.length} files`);
 
       // Set processing flag at the start
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isProcessingQueuedMessages = true;
       });
 
@@ -747,7 +757,7 @@ const actions: {
           await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
 
           // Remove this file from pendingBatchReview only on success
-          state.mutateSolutionWorkflow((draft) => {
+          state.mutate((draft) => {
             if (draft.pendingBatchReview) {
               draft.pendingBatchReview = draft.pendingBatchReview.filter(
                 (f) => f.messageToken !== file.messageToken,
@@ -763,7 +773,7 @@ const actions: {
           failures.push({ path: file.path, error: errorMessage });
 
           // Mark the file as having an error in pendingBatchReview
-          state.mutateSolutionWorkflow((draft) => {
+          state.mutate((draft) => {
             if (draft.pendingBatchReview) {
               const fileIndex = draft.pendingBatchReview.findIndex(
                 (f) => f.messageToken === file.messageToken,
@@ -812,7 +822,7 @@ const actions: {
       );
     } finally {
       // Always reset processing flag
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isProcessingQueuedMessages = false;
       });
     }
@@ -873,7 +883,7 @@ const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger)
     logger.info("Batch review complete");
 
     // Clear any remaining state
-    state.mutateSolutionWorkflow((draft) => {
+    state.mutate((draft) => {
       draft.pendingBatchReview = [];
     });
   }

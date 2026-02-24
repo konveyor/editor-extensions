@@ -39,7 +39,7 @@ const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> =
 const resetStuckAnalysisFlags = (state: ExtensionState): void => {
   if (state.data.isAnalyzing || state.data.isAnalysisScheduled) {
     console.warn("Tasks interaction: Force resetting stuck analysis flags");
-    state.mutateAnalysisState((draft) => {
+    state.mutate((draft) => {
       draft.isAnalyzing = false;
       draft.isAnalysisScheduled = false;
     });
@@ -58,7 +58,7 @@ const handleUserInteractionPromise = async (
   queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
-  state.mutateSolutionWorkflow((draft) => {
+  state.mutate((draft) => {
     draft.isWaitingForUserInteraction = true;
   });
 
@@ -66,7 +66,7 @@ const handleUserInteractionPromise = async (
     const timeout = setTimeout(() => {
       console.warn(`User interaction timeout for message ${msg.id}`);
       pendingInteractions.delete(msg.id);
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isWaitingForUserInteraction = false;
       });
       resolve();
@@ -128,7 +128,7 @@ const handleTasksInteraction = async (
   });
 
   // Show tasks to user and wait for response
-  state.mutateChatMessages((draft) => {
+  state.mutate((draft) => {
     draft.chatMessages.push({
       kind: ChatMessageType.String,
       messageToken: msg.id,
@@ -180,7 +180,7 @@ export const processMessageByType = async (
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
       // Add or update tool call notification in chat
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const toolName = msg.data.name || "unnamed tool";
         const toolStatus = msg.data.status;
         // Check if the most recent message is a tool message with the same name
@@ -226,7 +226,7 @@ export const processMessageByType = async (
             const message = interaction.systemMessage.yesNo || "Would you like to proceed?";
 
             // Add the question to chat with quick responses
-            state.mutateChatMessages((draft) => {
+            state.mutate((draft) => {
               // Always add the interaction message - don't skip based on existing interactions
               // Multiple interactions can be pending at the same time
               draft.chatMessages.push({
@@ -256,7 +256,7 @@ export const processMessageByType = async (
         case "choice": {
           try {
             const choices = interaction.systemMessage.choice || [];
-            state.mutateChatMessages((draft) => {
+            state.mutate((draft) => {
               draft.chatMessages.push({
                 kind: ChatMessageType.String,
                 messageToken: msg.id,
@@ -322,7 +322,7 @@ export const processMessageByType = async (
           messageId: msg.id,
           preview: content.substring(0, 50),
         });
-        state.mutateChatMessages((draft) => {
+        state.mutate((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
@@ -335,7 +335,7 @@ export const processMessageByType = async (
         state.lastMessageId = msg.id;
       } else {
         // Continuation - append directly to last message
-        state.mutateChatMessages((draft) => {
+        state.mutate((draft) => {
           if (draft.chatMessages.length > 0) {
             const lastMessage = draft.chatMessages[draft.chatMessages.length - 1];
             if (lastMessage.messageToken === msg.id) {
@@ -402,12 +402,12 @@ export const processMessageByType = async (
           llmError = createLLMError.llmRequestFailed(actualError);
         }
 
-        state.mutateConfigErrors((draft) => {
+        state.mutate((draft) => {
           draft.llmErrors.push(llmError);
         });
       } else {
         // For non-LLM errors, just add to chat messages
-        state.mutateChatMessages((draft) => {
+        state.mutate((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
