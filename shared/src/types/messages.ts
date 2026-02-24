@@ -11,6 +11,7 @@ import {
   HubConfig,
   GooseAgentState,
   GooseChatMessage,
+  GooseContentBlockType,
 } from "./types";
 
 export const MessageTypes = {
@@ -130,6 +131,12 @@ export interface GooseChatStreamingUpdateMessage {
   content: string;
   done: boolean;
   timestamp: string;
+  contentType?: GooseContentBlockType;
+  stopReason?: string;
+  resourceUri?: string;
+  resourceName?: string;
+  resourceMimeType?: string;
+  resourceContent?: string;
 }
 
 /**

@@ -1,15 +1,40 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { Message, MessageBar, Chatbot, ChatbotContent, ChatbotDisplayMode } from "@patternfly/chatbot";
 import { useExtensionStore } from "../../store/store";
 import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
+import { ResourceLink } from "./ResourceLink";
+import { ResourceBlock } from "./ResourceBlock";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 import { v4 as uuidv4 } from "uuid";
+import type { GooseChatMessage } from "@editor-extensions/shared";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import "./ChatPage.css";
 
+const ContentBlocks: React.FC<{ msg: GooseChatMessage }> = ({ msg }) => {
+  if (!msg.contentBlocks || msg.contentBlocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="goose-content-blocks">
+      {msg.contentBlocks.map((block, i) => {
+        switch (block.type) {
+          case "resource_link":
+            return <ResourceLink key={`rl-${i}`} block={block} />;
+          case "resource":
+            return <ResourceBlock key={`r-${i}`} block={block} />;
+          case "thinking":
+            return null;
+          default:
+            return null;
+        }
+      })}
+    </div>
+  );
+};
+
 const ChatPage: React.FC = () => {
-  const [inputValue, setInputValue] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const gooseMessages = useExtensionStore((s) => s.gooseMessages);
@@ -33,7 +58,6 @@ const ChatPage: React.FC = () => {
 
       const messageId = uuidv4();
 
-      // Add user message to local store
       const store = useExtensionStore.getState();
       store.setGooseMessages([
         ...store.gooseMessages,
@@ -45,27 +69,19 @@ const ChatPage: React.FC = () => {
         },
       ]);
 
-      // Send to extension
       window.vscode.postMessage({
         type: "GOOSE_SEND_MESSAGE",
         payload: { content, messageId },
       });
-
-      setInputValue("");
-      setIsSending(true);
     },
     [gooseState],
   );
 
-  // Reset sending state when streaming completes
-  useEffect(() => {
-    const lastMsg = gooseMessages[gooseMessages.length - 1];
-    if (lastMsg && lastMsg.role === "assistant" && !lastMsg.isStreaming) {
-      setIsSending(false);
-    }
-  }, [gooseMessages]);
-
   const handleStartAgent = useCallback(() => {
+    const store = useExtensionStore.getState();
+    if (store.gooseState === "error") {
+      store.setGooseError(undefined);
+    }
     window.vscode.postMessage({
       type: "GOOSE_START_AGENT",
       payload: {},
@@ -115,7 +131,12 @@ const ChatPage: React.FC = () => {
 
           {/* Error display */}
           {isError && gooseError && (
-            <div className="chat-error-banner">{gooseError}</div>
+            <div className="chat-error-banner">
+              <div className="chat-error-banner__message">{gooseError}</div>
+              <div className="chat-error-banner__hint">
+                Click Start to retry. Your conversation history is preserved.
+              </div>
+            </div>
           )}
 
           {/* Welcome message when no messages */}
@@ -152,12 +173,33 @@ const ChatPage: React.FC = () => {
               }
 
               if (msg.role === "assistant") {
+                const hasContentBlocks =
+                  msg.contentBlocks && msg.contentBlocks.length > 0;
+
+                const extraContent =
+                  hasContentBlocks || msg.isCancelled || msg.isThinking
+                    ? {
+                        afterMainContent: (
+                          <>
+                            {msg.isThinking && <ThinkingIndicator />}
+                            <ContentBlocks msg={msg} />
+                            {msg.isCancelled && (
+                              <div className="goose-cancelled-label">
+                                Generation cancelled
+                              </div>
+                            )}
+                          </>
+                        ),
+                      }
+                    : undefined;
+
                 return (
                   <ReceivedMessage
                     key={msg.id}
-                    content={msg.content}
+                    content={msg.content || (msg.isThinking ? " " : "")}
                     timestamp={msg.timestamp}
                     isLoading={msg.isStreaming}
+                    extraContent={extraContent}
                   />
                 );
               }
@@ -167,14 +209,14 @@ const ChatPage: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* Input — send button enabled during streaming to allow cancel-and-send */}
           <div className="chat-input-area">
             <MessageBar
               onSendMessage={(message) => {
                 handleSend(String(message));
               }}
               hasAttachButton={false}
-              isSendButtonDisabled={!isRunning || isSending}
+              isSendButtonDisabled={!isRunning}
             />
           </div>
         </div>

@@ -78,6 +78,16 @@
   flex-shrink: 0;
 }
 
+.chat-error-banner__message {
+  font-weight: 500;
+}
+
+.chat-error-banner__hint {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
 .chat-welcome {
   padding: 16px;
 }
@@ -92,4 +102,158 @@
   flex-shrink: 0;
   border-top: 1px solid var(--vscode-panel-border, #333);
   padding: 8px;
+}
+
+/* --- Resource Link --- */
+
+.goose-resource-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin: 2px 4px 2px 0;
+  border-radius: 4px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.goose-resource-link:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-resource-link--file {
+  cursor: pointer;
+}
+
+.goose-resource-link__icon {
+  font-size: 12px;
+}
+
+.goose-resource-link__name {
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+/* --- Resource Block --- */
+
+.goose-resource-block {
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goose-resource-block__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  width: 100%;
+  border: none;
+  background: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+
+.goose-resource-block__header:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-resource-block__toggle {
+  font-size: 10px;
+  width: 12px;
+}
+
+.goose-resource-block__name {
+  font-family: var(--vscode-editor-font-family, monospace);
+  flex-grow: 1;
+}
+
+.goose-resource-block__mime {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.goose-resource-block__content {
+  margin: 0;
+  padding: 10px;
+  background: var(--vscode-editor-background, #1e1e1e);
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  font-size: 12px;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.goose-resource-block__content code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  white-space: pre;
+}
+
+/* --- Thinking Indicator --- */
+
+.goose-thinking {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  color: var(--vscode-descriptionForeground, #999);
+  font-size: 12px;
+}
+
+.goose-thinking__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground, #999);
+  animation: goose-thinking-pulse 1.4s ease-in-out infinite;
+}
+
+.goose-thinking__dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.goose-thinking__dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes goose-thinking-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.goose-thinking__label {
+  margin-left: 4px;
+  font-style: italic;
+}
+
+/* --- Content Blocks Container --- */
+
+.goose-content-blocks {
+  margin-top: 8px;
+}
+
+/* --- Cancelled Label --- */
+
+.goose-cancelled-label {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 3px;
+  font-style: italic;
 }

@@ -161,9 +161,25 @@ export function useVSCodeMessageHandler() {
 
         if (isGooseChatStreamingUpdate(message)) {
           if (message.done) {
-            store.finalizeGooseMessage(message.messageId);
+            if (message.stopReason === "cancelled") {
+              store.cancelGooseMessage(message.messageId);
+            } else {
+              store.finalizeGooseMessage(message.messageId, message.stopReason);
+            }
           } else {
-            store.appendGooseStreamingChunk(message.messageId, message.content);
+            store.appendGooseStreamingChunk(
+              message.messageId,
+              message.content,
+              message.contentType,
+              message.contentType && message.contentType !== "text"
+                ? {
+                    uri: message.resourceUri,
+                    name: message.resourceName,
+                    mimeType: message.resourceMimeType,
+                    text: message.resourceContent,
+                  }
+                : undefined,
+            );
           }
           return;
         }

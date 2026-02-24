@@ -14,7 +14,11 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import winston from "winston";
-import { GooseAgentState, GooseChatMessage } from "@editor-extensions/shared";
+import {
+  GooseAgentState,
+  GooseChatMessage,
+  GooseContentBlockType,
+} from "@editor-extensions/shared";
 
 // ─── JSON-RPC 2.0 types ───────────────────────────────────────────────
 
@@ -113,10 +117,22 @@ export interface GooseClientConfig {
   }>;
 }
 
+export interface StreamingResourceData {
+  uri?: string;
+  name?: string;
+  mimeType?: string;
+  text?: string;
+}
+
 export interface GooseClientEvents {
   stateChange: (state: GooseAgentState) => void;
   message: (message: GooseChatMessage) => void;
-  streamingChunk: (messageId: string, content: string) => void;
+  streamingChunk: (
+    messageId: string,
+    content: string,
+    contentType: GooseContentBlockType,
+    resourceData?: StreamingResourceData,
+  ) => void;
   streamingComplete: (messageId: string, stopReason: AcpPromptResponse["stopReason"]) => void;
   error: (error: Error) => void;
 }
@@ -269,6 +285,13 @@ export class GooseClient extends EventEmitter {
     }
 
     this.sendNotification("session/cancel", { sessionId: this.sessionId });
+  }
+
+  /**
+   * Whether a prompt is currently in flight.
+   */
+  isPromptActive(): boolean {
+    return this.currentResponseId !== null;
   }
 
   /**
@@ -566,14 +589,41 @@ export class GooseClient extends EventEmitter {
 
     const { sessionUpdate, content } = params.update;
 
-    // Handle streaming chunks during session/prompt
-    if (
-      sessionUpdate === "agent_message_chunk" &&
-      this.currentResponseId &&
-      content?.type === "text" &&
-      content.text
-    ) {
-      this.emit("streamingChunk", this.currentResponseId, content.text);
+    if (sessionUpdate === "agent_message_chunk" && this.currentResponseId) {
+      switch (content?.type) {
+        case "text":
+          if (content.text) {
+            this.emit("streamingChunk", this.currentResponseId, content.text, "text");
+          }
+          break;
+        case "resource_link":
+          this.emit("streamingChunk", this.currentResponseId, "", "resource_link", {
+            uri: content.uri,
+            name: content.name,
+            mimeType: content.mimeType,
+          });
+          break;
+        case "resource":
+          this.emit("streamingChunk", this.currentResponseId, "", "resource", {
+            uri: content.resource?.uri,
+            text: content.resource?.text,
+            name: content.name,
+            mimeType: content.mimeType,
+          });
+          break;
+        default:
+          if (content) {
+            this.logger.info(
+              `GooseClient: unhandled content type in agent_message_chunk: ${content.type}`,
+            );
+          }
+          break;
+      }
+    } else if (sessionUpdate !== "agent_message_chunk") {
+      this.logger.info(`GooseClient: unhandled sessionUpdate type: ${sessionUpdate}`, {
+        hasContent: !!content,
+        contentType: content?.type,
+      });
     }
   }
 

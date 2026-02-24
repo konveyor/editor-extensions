@@ -14,6 +14,7 @@ import type {
   HubConfig,
   GooseAgentState,
   GooseChatMessage,
+  GooseContentBlockType,
 } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
@@ -119,8 +120,15 @@ interface ExtensionStore {
   setGooseMessages: (messages: GooseChatMessage[]) => void;
   setGooseState: (state: GooseAgentState) => void;
   setGooseError: (error: string | undefined) => void;
-  appendGooseStreamingChunk: (messageId: string, content: string) => void;
-  finalizeGooseMessage: (messageId: string) => void;
+  appendGooseStreamingChunk: (
+    messageId: string,
+    content: string,
+    contentType?: GooseContentBlockType,
+    resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
+  ) => void;
+  finalizeGooseMessage: (messageId: string, stopReason?: string) => void;
+  cancelGooseMessage: (messageId: string) => void;
+  setGooseThinking: (messageId: string, isThinking: boolean) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -397,29 +405,85 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.gooseError = error;
         }),
 
-      appendGooseStreamingChunk: (messageId, content) =>
+      appendGooseStreamingChunk: (messageId, content, contentType, resourceData) =>
         set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
-          if (msg) {
-            msg.content += content;
-            msg.isStreaming = true;
-          } else {
-            // Create a new assistant message for streaming
-            state.gooseMessages.push({
+          let msg = state.gooseMessages.find((m) => m.id === messageId);
+          if (!msg) {
+            msg = {
               id: messageId,
               role: "assistant",
-              content,
+              content: "",
               timestamp: new Date().toISOString(),
               isStreaming: true,
+              contentBlocks: [],
+            };
+            state.gooseMessages.push(msg);
+          }
+
+          msg.isStreaming = true;
+
+          const blockType = contentType ?? "text";
+
+          if (blockType === "text" && content) {
+            msg.content += content;
+          } else if (blockType === "resource_link" && resourceData?.uri) {
+            if (!msg.contentBlocks) {
+              msg.contentBlocks = [];
+            }
+            msg.contentBlocks.push({
+              type: "resource_link",
+              uri: resourceData.uri,
+              name: resourceData.name,
+              mimeType: resourceData.mimeType,
             });
+          } else if (blockType === "resource" && resourceData?.uri) {
+            if (!msg.contentBlocks) {
+              msg.contentBlocks = [];
+            }
+            msg.contentBlocks.push({
+              type: "resource",
+              uri: resourceData.uri,
+              name: resourceData.name,
+              mimeType: resourceData.mimeType,
+              text: resourceData.text,
+            });
+          } else if (blockType === "thinking" && content) {
+            msg.isThinking = true;
+            if (!msg.contentBlocks) {
+              msg.contentBlocks = [];
+            }
+            msg.contentBlocks.push({ type: "thinking", text: content });
           }
         }),
 
-      finalizeGooseMessage: (messageId) =>
+      finalizeGooseMessage: (messageId, stopReason) =>
         set((state) => {
           const msg = state.gooseMessages.find((m) => m.id === messageId);
           if (msg) {
             msg.isStreaming = false;
+            msg.isThinking = false;
+            if (stopReason) {
+              msg.stopReason = stopReason;
+            }
+          }
+        }),
+
+      cancelGooseMessage: (messageId) =>
+        set((state) => {
+          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.isStreaming = false;
+            msg.isCancelled = true;
+            msg.isThinking = false;
+            msg.stopReason = "cancelled";
+          }
+        }),
+
+      setGooseThinking: (messageId, isThinking) =>
+        set((state) => {
+          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.isThinking = isThinking;
           }
         }),
 

@@ -8,6 +8,7 @@ import {
   createConfigError,
   ExtensionData,
   GooseAgentState,
+  GooseContentBlockType,
 } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
@@ -819,17 +820,30 @@ class VsCodeExtension {
         });
       });
 
-      gooseClient.on("streamingChunk", (messageId: string, content: string) => {
-        for (const provider of this.state.webviewProviders.values()) {
-          provider.sendMessageToWebview({
-            type: MessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
-            messageId,
-            content,
-            done: false,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      });
+      gooseClient.on(
+        "streamingChunk",
+        (
+          messageId: string,
+          content: string,
+          contentType: GooseContentBlockType,
+          resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
+        ) => {
+          for (const provider of this.state.webviewProviders.values()) {
+            provider.sendMessageToWebview({
+              type: MessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
+              messageId,
+              content,
+              done: false,
+              timestamp: new Date().toISOString(),
+              contentType,
+              resourceUri: resourceData?.uri,
+              resourceName: resourceData?.name,
+              resourceMimeType: resourceData?.mimeType,
+              resourceContent: resourceData?.text,
+            });
+          }
+        },
+      );
 
       gooseClient.on("streamingComplete", (messageId: string, stopReason: string) => {
         for (const provider of this.state.webviewProviders.values()) {
@@ -838,6 +852,7 @@ class VsCodeExtension {
             messageId,
             content: "",
             done: true,
+            stopReason,
             timestamp: new Date().toISOString(),
           });
         }

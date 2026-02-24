@@ -841,6 +841,10 @@ const actions: {
     }
 
     try {
+      if (state.gooseClient.isPromptActive()) {
+        logger.info("GOOSE_SEND_MESSAGE: cancelling active prompt for cancel-and-send");
+        state.gooseClient.cancelGeneration();
+      }
       await state.gooseClient.sendMessage(content, messageId);
     } catch (err) {
       logger.error("GOOSE_SEND_MESSAGE failed:", err);
