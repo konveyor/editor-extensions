@@ -804,9 +804,9 @@ class VsCodeExtension {
           {
             name: "konveyor",
             type: "stdio",
-            cmd: "node",
+            command: "node",
             args: [mcpServerEntry],
-            envs: { KONVEYOR_BRIDGE_PORT: String(bridgePort) },
+            env: [{ name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) }],
           },
         ],
       });
@@ -964,7 +964,7 @@ class VsCodeExtension {
       ),
     );
 
-    // Conditionally register the chat view provider when the experimental chat flag is enabled
+    // Conditionally register the chat view provider when the experimental chat flag is enabled.
     const { getConfigExperimentalChatEnabled } = require("./utilities/configuration");
     if (getConfigExperimentalChatEnabled()) {
       const chatViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "chat");

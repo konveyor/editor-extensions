@@ -26,6 +26,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly PROFILES_VIEW_TYPE = `${EXTENSION_NAME}.profilesView`;
   public static readonly HUB_VIEW_TYPE = `${EXTENSION_NAME}.hubView`;
   public static readonly CHAT_VIEW_TYPE = `${EXTENSION_NAME}.chatView`;
+  public static readonly CHAT_SECONDARY_VIEW_TYPE = `${EXTENSION_NAME}.chatViewSecondary`;
 
   private static activePanels: Map<string, WebviewPanel> = new Map();
 

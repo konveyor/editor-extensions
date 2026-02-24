@@ -150,6 +150,13 @@ const commandsMap: (
   [command: string]: (...args: any) => any;
 } = (state, logger) => {
   return {
+    [`${EXTENSION_NAME}.openChat`]: async () => {
+      try {
+        await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
+      } catch {
+        logger.error("Chat view not available");
+      }
+    },
     [`${EXTENSION_NAME}.openProfilesPanel`]: async () => {
       const provider = state.webviewProviders.get("profiles");
       if (provider) {

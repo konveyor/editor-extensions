@@ -41,6 +41,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor-core.openChat",
+        "title": "Open Migration Chat",
+        "category": "Konveyor",
+        "icon": "resources/icon.png"
+      },
+      {
         "command": "konveyor-core.openProfilesPanel",
         "title": "Manage Analysis Profile",
         "category": "Konveyor",
@@ -213,12 +219,11 @@
           "icon": "resources/icon.png"
         }
       ],
-      "panel": [
+      "secondarySidebar": [
         {
           "id": "konveyor-chat",
           "title": "Konveyor Chat",
-          "icon": "resources/icon.png",
-          "when": "config.konveyor-core.experimentalChat.enabled"
+          "icon": "resources/icon.png"
         }
       ]
     },
@@ -233,8 +238,7 @@
         {
           "type": "webview",
           "id": "konveyor-core.chatView",
-          "name": "Migration Assistant",
-          "when": "config.konveyor-core.experimentalChat.enabled"
+          "name": "Migration Assistant"
         }
       ]
     },
@@ -256,6 +260,13 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "konveyor-core.openChat",
+          "group": "navigation",
+          "when": "config.konveyor-core.experimentalChat.enabled"
+        }
+      ],
       "view/title": [
         {
           "command": "konveyor-core.showAnalysisPanel",

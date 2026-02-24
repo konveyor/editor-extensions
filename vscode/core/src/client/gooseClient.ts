@@ -107,9 +107,9 @@ export interface GooseClientConfig {
   mcpServers?: Array<{
     name: string;
     type: "stdio";
-    cmd: string;
+    command: string;
     args: string[];
-    envs?: Record<string, string>;
+    env?: Array<{ name: string; value: string }>;
   }>;
 }
 
@@ -141,6 +141,10 @@ export class GooseClient extends EventEmitter {
 
   constructor(config: GooseClientConfig) {
     super();
+    // Normalize workspaceDir — it may arrive as a file:// URI from vscode
+    if (config.workspaceDir.startsWith("file://")) {
+      config = { ...config, workspaceDir: new URL(config.workspaceDir).pathname };
+    }
     this.config = config;
     this.logger = config.logger;
   }
@@ -447,9 +451,14 @@ export class GooseClient extends EventEmitter {
   // ─── Subprocess management ────────────────────────────────────────
 
   private spawnProcess(binaryPath: string): void {
-    this.logger.info(`GooseClient: spawning ${binaryPath} acp`);
+    // Resolve symlinks — Node.js spawn can fail with ENOENT on Homebrew
+    // symlinks in the VS Code extension host environment.
+    const resolvedPath = fs.realpathSync(binaryPath);
+    this.logger.info(
+      `GooseClient: spawning ${resolvedPath} acp (cwd: ${this.config.workspaceDir})`,
+    );
 
-    this.process = spawn(binaryPath, ["acp"], {
+    this.process = spawn(resolvedPath, ["acp"], {
       stdio: ["pipe", "pipe", "pipe"],
       cwd: this.config.workspaceDir,
       env: process.env,
