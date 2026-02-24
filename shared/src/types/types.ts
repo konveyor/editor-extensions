@@ -86,6 +86,7 @@ export interface RuleSet {
 
 export interface Scope {
   incidents: EnhancedIncident[];
+  gooseSessionId?: string;
 }
 
 export interface ScopeWithKonveyorContext {
@@ -169,8 +170,7 @@ export interface ExtensionData {
   isWebEnvironment: boolean;
   availableTargets: string[];
   availableSources: string[];
-  gooseState: GooseAgentState;
-  gooseError: string | undefined;
+  featureState: Record<string, unknown>;
 }
 
 export type ConfigErrorType =
@@ -319,24 +319,6 @@ export const createLLMError = {
   }),
 };
 
-// --- Goose agent types (experimental chat) ---
-
-export type GooseAgentState = "stopped" | "starting" | "running" | "error";
-
-export interface GooseChatMessage {
-  id: string;
-  role: "user" | "assistant" | "system" | "tool";
-  content: string;
-  timestamp: string;
-  toolCall?: {
-    name: string;
-    arguments?: Record<string, unknown>;
-    status: "pending" | "running" | "succeeded" | "failed";
-    result?: string;
-  };
-  isStreaming?: boolean;
-}
-
 export type ServerState =
   | "initial"
   | "configurationNeeded"
@@ -389,7 +371,14 @@ export interface AnalysisProfile {
   syncedAt?: string;
 }
 
-export type ToolMessageValue = { toolName: string; toolStatus: string };
+export type ToolMessageValue = {
+  toolName: string;
+  toolStatus: string;
+  toolResult?: string;
+  filePath?: string;
+  detail?: string;
+  isFileChangeRouted?: boolean;
+};
 
 export type ModifiedFileMessageValue = {
   path: string;

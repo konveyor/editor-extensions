@@ -1,0 +1,273 @@
+/* ─── Base ──────────────────────────────────────────────────────── */
+
+.cbr {
+  background: var(--vscode-sideBar-background, #1e1e1e);
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+/* ─── Collapsed ─────────────────────────────────────────────────── */
+
+.cbr--collapsed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.cbr--highlight {
+  border-top: 2px solid var(--vscode-focusBorder, #007acc);
+  animation: cbr-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cbr--highlight {
+    animation: none;
+    border-top-width: 3px;
+  }
+}
+
+@keyframes cbr-pulse {
+  0%,
+  100% {
+    border-top-color: var(--vscode-focusBorder, #007acc);
+  }
+  50% {
+    border-top-color: var(--vscode-textLink-foreground, #3794ff);
+  }
+}
+
+/* ─── Expanded ──────────────────────────────────────────────────── */
+
+.cbr--expanded {
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ─── Header ────────────────────────────────────────────────────── */
+
+.cbr__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+}
+
+.cbr__title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-foreground, #ccc);
+  flex: 1;
+}
+
+.cbr__summary {
+  font-size: 11px;
+  color: var(--vscode-foreground, #ccc);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Progress ──────────────────────────────────────────────────── */
+
+.cbr__progress {
+  height: 2px;
+  background: var(--vscode-panel-border, #333);
+}
+
+.cbr__progress-bar {
+  height: 100%;
+  background: var(--vscode-progressBar-background, #0e70c0);
+  transition: width 0.2s ease;
+}
+
+/* ─── File info ─────────────────────────────────────────────────── */
+
+.cbr__file-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+}
+
+.cbr__file-icon {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+}
+
+.cbr__file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.cbr__file-label {
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.cbr__file-label--new {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.12);
+}
+
+.cbr__file-label--deleted {
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.12);
+}
+
+.cbr__file-label--modified {
+  color: var(--vscode-textLink-foreground, #3794ff);
+  background: rgba(55, 148, 255, 0.12);
+}
+
+.cbr__file-label--unchanged {
+  color: var(--vscode-descriptionForeground, #999);
+}
+
+.cbr__file-label--error {
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.12);
+}
+
+/* ─── Actions ───────────────────────────────────────────────────── */
+
+.cbr__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 10px;
+}
+
+.cbr__status {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  font-style: italic;
+  flex: 1;
+  text-align: center;
+}
+
+/* ─── Expand / collapse toggle ──────────────────────────────────── */
+
+.cbr__expand-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  font-size: 10px;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.cbr__expand-btn:hover {
+  opacity: 1;
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
+}
+
+/* ─── Bulk action group ─────────────────────────────────────────── */
+
+.cbr__bulk-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────── */
+
+.cbr__btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.cbr__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cbr__btn--primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.cbr__btn--primary:not(:disabled):hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.cbr__btn--secondary {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, #fff);
+}
+
+.cbr__btn--secondary:not(:disabled):hover {
+  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+.cbr__btn--review {
+  background: var(--vscode-textLink-foreground, #3794ff);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cbr__btn--review:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.cbr__btn--danger {
+  background: transparent;
+  color: var(--vscode-errorForeground, #f48771);
+  border: 1px solid var(--vscode-errorForeground, #f48771);
+}
+
+.cbr__btn--danger:not(:disabled):hover {
+  background: rgba(244, 135, 113, 0.1);
+}
+
+.cbr__btn--nav {
+  background: transparent;
+  color: var(--vscode-foreground, #ccc);
+  border: 1px solid var(--vscode-panel-border, #555);
+  min-width: 24px;
+  padding: 2px 4px;
+}
+
+.cbr__btn--nav:not(:disabled):hover {
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
+}
+
+/* Hide PatternFly chatbot scroll-to-top button when batch review is visible */
+.cbr ~ .chat-messages .pf-chatbot__jump--top,
+.cbr ~ * .pf-chatbot__jump--top {
+  display: none !important;
+}

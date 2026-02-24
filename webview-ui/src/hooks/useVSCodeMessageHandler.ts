@@ -8,6 +8,8 @@ import {
   isGooseStateChange,
   isGooseChatStateChange,
   isGooseChatStreamingUpdate,
+  isGooseToolCall,
+  isGooseConfigUpdate,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -146,6 +148,12 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
+        // Handle focus violation (from tree view "Open Details" action)
+        if (isFocusViolation(message)) {
+          store.setFocusedViolationFilter(message.violationMessage);
+          return;
+        }
+
         // Handle Goose state change (experimental)
         if (isGooseStateChange(message)) {
           store.setGooseState(message.gooseState);
@@ -161,16 +169,43 @@ export function useVSCodeMessageHandler() {
 
         if (isGooseChatStreamingUpdate(message)) {
           if (message.done) {
-            store.finalizeGooseMessage(message.messageId);
+            if (message.stopReason === "cancelled") {
+              store.cancelGooseMessage(message.messageId);
+            } else {
+              store.finalizeGooseMessage(message.messageId, message.stopReason);
+            }
           } else {
-            store.appendGooseStreamingChunk(message.messageId, message.content);
+            store.appendGooseStreamingChunk(
+              message.messageId,
+              message.content,
+              message.contentType,
+              message.contentType && message.contentType !== "text"
+                ? {
+                    uri: message.resourceUri,
+                    name: message.resourceName,
+                    mimeType: message.resourceMimeType,
+                    text: message.resourceContent,
+                  }
+                : undefined,
+            );
           }
           return;
         }
 
-        // Handle focus violation (from tree view "Open Details" action)
-        if (isFocusViolation(message)) {
-          store.setFocusedViolationFilter(message.violationMessage);
+        // Handle Goose tool call activity
+        if (isGooseToolCall(message)) {
+          store.updateGooseToolCall(
+            message.messageId,
+            message.toolName,
+            message.status as "running" | "succeeded" | "failed",
+            message.result,
+          );
+          return;
+        }
+
+        // Handle Goose config update
+        if (isGooseConfigUpdate(message)) {
+          store.setGooseConfig(message.config);
           return;
         }
       } catch (error) {

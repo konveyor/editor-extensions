@@ -328,8 +328,15 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
-      await orchestrator.run();
+      const { getConfigExperimentalChatEnabled } = await import("./utilities/configuration");
+      if (getConfigExperimentalChatEnabled() && state.featureClients.has("gooseClient")) {
+        const { GooseOrchestrator } = await import("./features/goose/gooseOrchestrator");
+        const orchestrator = new GooseOrchestrator(state, logger, incidents);
+        await orchestrator.run();
+      } else {
+        const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
+        await orchestrator.run();
+      }
     },
     [`${EXTENSION_NAME}.getSuccessRate`]: async () => {
       logger.info("Getting success rate for incidents");
@@ -503,6 +510,15 @@ const commandsMap: (
     [`${EXTENSION_NAME}.showResolutionPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
+    },
+    [`${EXTENSION_NAME}.showChatPanel`]: async () => {
+      try {
+        await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
+      } catch {
+        logger.warn("Chat view not available, falling back to resolution panel");
+        const resolutionProvider = state.webviewProviders?.get("resolution");
+        resolutionProvider?.showWebviewPanel();
+      }
     },
     [`${EXTENSION_NAME}.showAnalysisPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("sidebar");
@@ -837,17 +853,21 @@ const commandsMap: (
           `[Commands] Set activeDecorators for messageToken: ${messageToken}, filePath: ${filePath}`,
         );
 
-        // Get original content
+        // Get original content — prefer the cached version from modifiedFiles
+        // since Goose writes files to disk before we process them, so disk
+        // content is already the modified version.
         const uri = Uri.file(filePath);
-        let originalContent = "";
+        const cachedFileState = state.modifiedFiles.get(uri.fsPath);
+        let originalContent = cachedFileState?.originalContent ?? "";
 
-        try {
-          const doc = await workspace.openTextDocument(uri);
-          originalContent = doc.getText();
-        } catch {
-          // File might not exist yet (new file), use empty content
-          logger.debug(`File not found, treating as new file: ${filePath}`);
-          originalContent = "";
+        if (!originalContent) {
+          try {
+            const doc = await workspace.openTextDocument(uri);
+            originalContent = doc.getText();
+          } catch {
+            logger.debug(`File not found, treating as new file: ${filePath}`);
+            originalContent = "";
+          }
         }
 
         // Check if diff is for a new file (no original content)

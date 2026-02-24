@@ -1,0 +1,446 @@
+import * as vscode from "vscode";
+import { v4 as uuidv4 } from "uuid";
+import {
+  EnhancedIncident,
+  Scope,
+  ChatMessageType,
+  GooseContentBlockType,
+  getProgrammingLanguageFromUri,
+  ToolMessageValue,
+} from "@editor-extensions/shared";
+import type { ExtensionState } from "../../extensionState";
+import type {
+  GooseClient,
+  ToolCallData,
+  StreamingResourceData,
+  PermissionRequestData,
+} from "../../client/gooseClient";
+import type { GooseFileTracker } from "./gooseFileTracker";
+import { routeFileChangeToBatchReview } from "./routeFileChange";
+import { buildMigrationPrompt } from "./goosePromptBuilder";
+import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./gooseInit";
+import { executeExtensionCommand } from "../../commands";
+import type { Logger } from "winston";
+
+/**
+ * Self-contained orchestrator for the Goose "Get Solution" lifecycle.
+ *
+ * Replaces the Goose-specific branches that previously lived inside
+ * SolutionWorkflowOrchestrator. Talks directly to GooseClient and
+ * routes streaming / file-change events into extension state without
+ * going through the KaiWorkflow adapter or processMessage pipeline.
+ *
+ * File changes reach batch review through a single path
+ * (routeFileChangeToBatchReview) regardless of whether Goose used
+ * the MCP bridge or its built-in tools.
+ */
+export class GooseOrchestrator {
+  private lastTextMessageId: string | null = null;
+
+  constructor(
+    private readonly state: ExtensionState,
+    private readonly logger: Logger,
+    private readonly incidents: EnhancedIncident[],
+  ) {}
+
+  async run(): Promise<void> {
+    const gooseClient = this.state.featureClients.get("gooseClient") as GooseClient | undefined;
+    if (!gooseClient || gooseClient.getState() !== "running") {
+      vscode.window.showErrorMessage(
+        "Goose agent is not running. Please ensure the Goose CLI is installed and the agent has started.",
+      );
+      return;
+    }
+
+    if (this.state.data.isFetchingSolution) {
+      vscode.window.showWarningMessage("Solution already being fetched");
+      return;
+    }
+
+    const profileName = this.incidents[0]?.activeProfileName;
+    if (!profileName) {
+      vscode.window.showErrorMessage("No profile name found in incidents");
+      return;
+    }
+
+    const fileTracker = this.state.featureClients.get("gooseFileTracker") as
+      | GooseFileTracker
+      | undefined;
+
+    this.logger.info("GooseOrchestrator: starting", {
+      incidentsCount: this.incidents.length,
+      profileName,
+    });
+
+    await executeExtensionCommand("showChatPanel");
+    this.initializeState();
+
+    suspendBroadcastHandlers();
+
+    const onChunk = (
+      _msgId: string,
+      content: string,
+      contentType: GooseContentBlockType,
+      resourceData?: StreamingResourceData,
+    ): void => {
+      this.handleStreamingChunk(content, contentType, resourceData);
+    };
+
+    const onToolCall = (_msgId: string, data: ToolCallData): void => {
+      this.handleToolCall(data);
+      if (fileTracker && data.arguments) {
+        const workspaceRoot = this.state.data.workspaceRoot;
+        fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot, data.callId);
+      }
+    };
+
+    const onToolCallUpdate = (_msgId: string, data: ToolCallData): void => {
+      this.handleToolCallUpdate(data);
+      if (fileTracker && data.status === "succeeded") {
+        fileTracker.resolvePendingFileChanges().then(async (changes) => {
+          for (const change of changes) {
+            await routeFileChangeToBatchReview(
+              this.state,
+              change.path,
+              change.content,
+              change.originalContent,
+            );
+            this.logger.info("GooseOrchestrator: routed file change on tool completion", {
+              path: change.path,
+            });
+          }
+          if (changes.length > 0 && data.callId) {
+            this.markToolAsFileChangeRouted(data.callId);
+          }
+        });
+      }
+    };
+
+    const onComplete = (_msgId: string, _stopReason: string): void => {
+      this.logger.info("GooseOrchestrator: streaming complete", { stopReason: _stopReason });
+    };
+
+    const onPermission = (data: PermissionRequestData): void => {
+      this.handlePermissionRequest(gooseClient, data);
+    };
+
+    gooseClient.on("streamingChunk", onChunk);
+    gooseClient.on("toolCall", onToolCall);
+    gooseClient.on("toolCallUpdate", onToolCallUpdate);
+    gooseClient.on("streamingComplete", onComplete);
+    gooseClient.on("permissionRequest", onPermission);
+
+    try {
+      const sessionId = await gooseClient.createSession();
+      this.logger.info("GooseOrchestrator: created new session for getSolution", { sessionId });
+
+      this.state.mutate((draft) => {
+        if (draft.solutionScope) {
+          draft.solutionScope.gooseSessionId = sessionId;
+        }
+      });
+
+      if (fileTracker) {
+        fileTracker.clear();
+        if (this.incidents.length > 0) {
+          await fileTracker.cacheIncidentFiles(this.incidents, this.state.data.workspaceRoot);
+        }
+      }
+
+      const programmingLanguage =
+        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
+      const prompt = await buildMigrationPrompt(
+        {
+          incidents: this.incidents,
+          migrationHint: profileName,
+          programmingLanguage,
+          enableAgentMode: true,
+        },
+        this.state.data.workspaceRoot,
+      );
+
+      const requestId = uuidv4();
+      await gooseClient.sendMessage(prompt, requestId);
+
+      if (fileTracker) {
+        const missedChanges = await fileTracker.scanForMissedChanges();
+        for (const change of missedChanges) {
+          await routeFileChangeToBatchReview(
+            this.state,
+            change.path,
+            change.content,
+            change.originalContent,
+          );
+        }
+        if (missedChanges.length > 0) {
+          this.logger.info(
+            `GooseOrchestrator: routed ${missedChanges.length} post-scan file(s) to batch review`,
+          );
+        }
+      }
+    } catch (err) {
+      this.handleError(err);
+    } finally {
+      gooseClient.removeListener("streamingChunk", onChunk);
+      gooseClient.removeListener("toolCall", onToolCall);
+      gooseClient.removeListener("toolCallUpdate", onToolCallUpdate);
+      gooseClient.removeListener("streamingComplete", onComplete);
+      gooseClient.removeListener("permissionRequest", onPermission);
+      resumeBroadcastHandlers();
+      this.cleanup();
+    }
+  }
+
+  private initializeState(): void {
+    const scope: Scope = { incidents: this.incidents };
+
+    this.state.modifiedFiles.clear();
+
+    this.state.mutate((draft) => {
+      draft.isFetchingSolution = true;
+      draft.solutionState = "started";
+      draft.solutionScope = scope;
+      draft.isProcessingQueuedMessages = false;
+      draft.isWaitingForUserInteraction = false;
+      draft.pendingBatchReview = [];
+    });
+
+    this.state.mutate((draft) => {
+      draft.chatMessages = [];
+    });
+
+    this.state.mutate((draft) => {
+      draft.activeDecorators = {};
+    });
+  }
+
+  private handleStreamingChunk(
+    content: string,
+    contentType: GooseContentBlockType,
+    resourceData?: StreamingResourceData,
+  ): void {
+    let text: string | undefined;
+
+    switch (contentType) {
+      case "text":
+        text = content;
+        break;
+      case "thinking":
+        text = content ? `> ${content}\n` : undefined;
+        break;
+      case "resource_link":
+        if (resourceData?.uri) {
+          text = `[Resource: ${resourceData.name || resourceData.uri}](${resourceData.uri})\n`;
+        }
+        break;
+      case "resource":
+        text = resourceData?.text;
+        break;
+      default:
+        this.logger.warn("GooseOrchestrator: unhandled content type", { contentType });
+        break;
+    }
+
+    if (!text) {
+      return;
+    }
+
+    if (!this.lastTextMessageId) {
+      this.lastTextMessageId = uuidv4();
+      this.state.mutate((draft) => {
+        draft.chatMessages.push({
+          kind: ChatMessageType.String,
+          messageToken: this.lastTextMessageId!,
+          timestamp: new Date().toISOString(),
+          value: { message: text! },
+        });
+      });
+    } else {
+      const tokenId = this.lastTextMessageId;
+      this.state.mutate((draft) => {
+        for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+          const msg = draft.chatMessages[i];
+          if (msg.messageToken === tokenId && msg.kind === ChatMessageType.String) {
+            msg.value.message += text;
+            msg.timestamp = new Date().toISOString();
+            break;
+          }
+        }
+      });
+    }
+  }
+
+  private extractToolContext(args?: Record<string, unknown>): {
+    filePath?: string;
+    detail?: string;
+  } {
+    if (!args) {
+      return {};
+    }
+
+    const rawPath = args.path ?? args.file_path ?? args.filename;
+    const filePath = typeof rawPath === "string" ? rawPath : undefined;
+
+    const rawCommand = args.command ?? args.cmd;
+    const command = typeof rawCommand === "string" ? rawCommand : undefined;
+
+    const rawQuery = args.query ?? args.search ?? args.pattern ?? args.regex;
+    const query = typeof rawQuery === "string" ? rawQuery : undefined;
+
+    const parts: string[] = [];
+    if (filePath) {
+      const basename = filePath.split("/").pop() || filePath;
+      parts.push(basename);
+    }
+    if (command) {
+      parts.push(command);
+    }
+    if (query) {
+      const truncated = query.length > 60 ? `${query.substring(0, 57)}...` : query;
+      parts.push(truncated);
+    }
+
+    return { filePath, detail: parts.length > 0 ? parts.join(" ") : undefined };
+  }
+
+  private handleToolCall(data: ToolCallData): void {
+    const callId = data.callId ?? uuidv4();
+    const toolName = data.name || "unnamed tool";
+    const { filePath, detail } = this.extractToolContext(data.arguments);
+
+    this.state.mutate((draft) => {
+      draft.chatMessages.push({
+        kind: ChatMessageType.Tool,
+        messageToken: callId,
+        timestamp: new Date().toISOString(),
+        value: {
+          toolName,
+          toolStatus: data.status,
+          toolResult: data.result,
+          filePath,
+          detail,
+        } as ToolMessageValue,
+      });
+    });
+
+    this.lastTextMessageId = null;
+  }
+
+  private markToolAsFileChangeRouted(callId: string): void {
+    this.state.mutate((draft) => {
+      for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+        const msg = draft.chatMessages[i];
+        if (msg.messageToken === callId && msg.kind === ChatMessageType.Tool) {
+          (msg.value as ToolMessageValue).isFileChangeRouted = true;
+          return;
+        }
+      }
+    });
+  }
+
+  private handleToolCallUpdate(data: ToolCallData): void {
+    const callId = data.callId;
+    if (!callId) {
+      return;
+    }
+
+    const toolName = data.name || "unnamed tool";
+
+    this.state.mutate((draft) => {
+      for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+        const msg = draft.chatMessages[i];
+        if (msg.messageToken === callId && msg.kind === ChatMessageType.Tool) {
+          msg.value = {
+            toolName,
+            toolStatus: data.status,
+            toolResult: data.result,
+          } as ToolMessageValue;
+          msg.timestamp = new Date().toISOString();
+          return;
+        }
+      }
+      draft.chatMessages.push({
+        kind: ChatMessageType.Tool,
+        messageToken: callId,
+        timestamp: new Date().toISOString(),
+        value: {
+          toolName,
+          toolStatus: data.status,
+          toolResult: data.result,
+        } as ToolMessageValue,
+      });
+    });
+  }
+
+  private handlePermissionRequest(gooseClient: GooseClient, data: PermissionRequestData): void {
+    const messageToken = `perm-${uuidv4()}`;
+    pendingPermissions.set(messageToken, {
+      requestId: data.requestId,
+      client: gooseClient,
+    });
+
+    // In smart_approve mode, tool arguments are in the permission request
+    // (not in the tool_call event). Cache the file before the tool writes.
+    const fileTracker = this.state.featureClients.get("gooseFileTracker") as
+      | GooseFileTracker
+      | undefined;
+    if (fileTracker && data.rawInput) {
+      const workspaceRoot = this.state.data.workspaceRoot;
+      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+    }
+
+    const kindLabels: Record<string, string> = {
+      allow_once: "Allow",
+      allow_always: "Always Allow",
+      reject_once: "Reject",
+      reject_always: "Always Reject",
+    };
+
+    this.lastTextMessageId = null;
+
+    this.state.mutate((draft) => {
+      draft.chatMessages.push({
+        kind: ChatMessageType.String,
+        messageToken,
+        timestamp: new Date().toISOString(),
+        value: {
+          message: `**Permission requested:** ${data.title}`,
+        },
+        quickResponses: data.options.map((opt) => ({
+          id: opt.optionId,
+          content: kindLabels[opt.kind] ?? opt.name,
+        })),
+      });
+    });
+  }
+
+  private handleError(err: unknown): void {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    this.logger.error("GooseOrchestrator: error during workflow", { errorMessage });
+
+    this.state.mutate((draft) => {
+      draft.chatMessages.push({
+        messageToken: `error-${Date.now()}`,
+        kind: ChatMessageType.String,
+        value: { message: `Error: ${errorMessage}` },
+        timestamp: new Date().toISOString(),
+      });
+    });
+  }
+
+  private cleanup(): void {
+    this.logger.info("GooseOrchestrator: cleanup — batch review will remain active");
+
+    this.state.mutate((draft) => {
+      draft.isFetchingSolution = false;
+      draft.solutionState = "received";
+      draft.isProcessingQueuedMessages = false;
+    });
+
+    this.state.mutate((draft) => {
+      draft.isAnalyzing = false;
+      draft.isAnalysisScheduled = false;
+    });
+  }
+}

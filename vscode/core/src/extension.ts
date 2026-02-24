@@ -3,12 +3,7 @@ import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
-import {
-  ConfigError,
-  createConfigError,
-  ExtensionData,
-  GooseAgentState,
-} from "@editor-extensions/shared";
+import { ConfigError, createConfigError, ExtensionData } from "@editor-extensions/shared";
 import { ViolationCodeActionProvider } from "./ViolationCodeActionProvider";
 import { AnalyzerClient } from "./client/analyzerClient";
 import {
@@ -70,6 +65,7 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
 import { ProviderRegistry, HealthCheckRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { initFeatures } from "./features/featureRegistry";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -136,8 +132,7 @@ class VsCodeExtension {
         providerKeyMissing: false,
         customRulesConfigured: false,
       },
-      gooseState: "stopped" as GooseAgentState,
-      gooseError: undefined,
+      featureState: {},
     };
 
     this.store = createExtensionStore(initialData);
@@ -265,6 +260,7 @@ class VsCodeExtension {
       modelProvider: undefined,
       verticalDiffManager: undefined,
       staticDiffAdapter: undefined,
+      featureClients: new Map(),
     };
   }
 
@@ -711,9 +707,8 @@ class VsCodeExtension {
         }),
       );
 
-      // --- Experimental Chat (Goose agent) ---
-      // Only initialize when the feature flag is enabled.
-      await this.initializeGooseChat();
+      // --- Experimental Features ---
+      await initFeatures(this.state, this.store, this.context);
 
       this.state.logger.info("Extension initialized");
 
@@ -743,136 +738,6 @@ class VsCodeExtension {
     );
 
     this.state.logger.info("Vertical diff system initialized");
-  }
-
-  /**
-   * Conditionally initialize the Goose chat agent when the experimental
-   * chat feature flag is enabled.
-   */
-  private async initializeGooseChat(): Promise<void> {
-    const { getConfigExperimentalChatEnabled, getConfigGooseBinaryPath } = await import(
-      "./utilities/configuration"
-    );
-
-    if (!getConfigExperimentalChatEnabled()) {
-      return;
-    }
-
-    this.state.logger.info("Experimental chat enabled — initializing Goose agent");
-
-    try {
-      const { GooseClient } = await import("./client/gooseClient");
-      const { McpBridgeServer } = await import("./api/mcpBridgeServer");
-      const { MessageTypes } = await import("@editor-extensions/shared");
-
-      // 1. Start the MCP bridge server
-      const mcpBridgeServer = new McpBridgeServer({
-        store: this.store,
-        logger: this.state.logger,
-        runAnalysis: async () => {
-          if (
-            this.state.analyzerClient &&
-            (await this.state.analyzerClient.canAnalyzeInteractive())
-          ) {
-            await this.state.analyzerClient.start();
-          }
-        },
-      });
-
-      const bridgePort = await mcpBridgeServer.start();
-      this.state.mcpBridgeServer = mcpBridgeServer;
-      this.listeners.push({ dispose: () => mcpBridgeServer.dispose() });
-
-      // 2. Resolve the MCP server entry point
-      // The mcp-server workspace builds to mcp-server/dist/index.js
-      const { join } = await import("path");
-      const mcpServerEntry = join(
-        this.context.extensionPath,
-        "..",
-        "..",
-        "mcp-server",
-        "dist",
-        "index.js",
-      );
-
-      // 3. Create the Goose client
-      const gooseClient = new GooseClient({
-        workspaceDir: this.state.data.workspaceRoot,
-        logger: this.state.logger,
-        gooseBinaryPath: getConfigGooseBinaryPath(),
-        mcpServers: [
-          {
-            name: "konveyor",
-            type: "stdio",
-            command: "node",
-            args: [mcpServerEntry],
-            env: [{ name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) }],
-          },
-        ],
-      });
-
-      // 4. Wire up events → Zustand store → sync bridges → webview
-      gooseClient.on("stateChange", (agentState: string) => {
-        this.state.logger.info(`Goose agent state: ${agentState}`);
-        this.state.mutate((draft) => {
-          draft.gooseState = agentState as GooseAgentState;
-        });
-      });
-
-      gooseClient.on("streamingChunk", (messageId: string, content: string) => {
-        for (const provider of this.state.webviewProviders.values()) {
-          provider.sendMessageToWebview({
-            type: MessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
-            messageId,
-            content,
-            done: false,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      });
-
-      gooseClient.on("streamingComplete", (messageId: string, stopReason: string) => {
-        for (const provider of this.state.webviewProviders.values()) {
-          provider.sendMessageToWebview({
-            type: MessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
-            messageId,
-            content: "",
-            done: true,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      });
-
-      gooseClient.on("error", (error: Error) => {
-        this.state.logger.error(`Goose error: ${error.message}`);
-        this.state.mutate((draft) => {
-          draft.gooseState = "error";
-          draft.gooseError = error.message;
-        });
-      });
-
-      this.state.gooseClient = gooseClient;
-      this.listeners.push({ dispose: () => gooseClient.dispose() });
-
-      // 5. Start the Goose agent (async — don't block activation)
-      gooseClient.start().catch((err) => {
-        this.state.logger.error(`Failed to start Goose agent: ${err}`);
-        vscode.window
-          .showWarningMessage(
-            `Goose agent failed to start: ${err instanceof Error ? err.message : String(err)}`,
-            "View Logs",
-          )
-          .then((action) => {
-            if (action === "View Logs") {
-              vscode.commands.executeCommand("workbench.action.output.toggleOutput");
-            }
-          });
-      });
-
-      this.state.logger.info("Goose chat initialization complete");
-    } catch (err) {
-      this.state.logger.error(`Failed to initialize Goose chat: ${err}`);
-    }
   }
 
   private setupDiffStatusBar(): void {
@@ -963,20 +828,6 @@ class VsCodeExtension {
         },
       ),
     );
-
-    // Conditionally register the chat view provider when the experimental chat flag is enabled.
-    const { getConfigExperimentalChatEnabled } = require("./utilities/configuration");
-    if (getConfigExperimentalChatEnabled()) {
-      const chatViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "chat");
-      this.state.webviewProviders.set("chat", chatViewProvider);
-      this.context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(
-          KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE,
-          chatViewProvider,
-          { webviewOptions: { retainContextWhenHidden: true } },
-        ),
-      );
-    }
   }
 
   private registerCoreHealthChecks(): void {
