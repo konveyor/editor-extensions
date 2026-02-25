@@ -19,6 +19,7 @@ import {
   SET_ACTIVE_PROFILE,
   START_SERVER,
   STOP_SERVER,
+  STOP_WORKFLOW,
   RESTART_SOLUTION_SERVER,
   ENABLE_GENAI,
   TOGGLE_AGENT_MODE,
@@ -34,6 +35,7 @@ import {
   SYNC_HUB_PROFILES,
   RETRY_PROFILE_SYNC,
   HubConfig,
+  ChatMessageType,
 } from "@editor-extensions/shared";
 
 import {
@@ -503,6 +505,64 @@ const actions: {
   },
   [OPEN_RESOLUTION_PANEL]() {
     executeExtensionCommand("showResolutionPanel");
+  },
+  [STOP_WORKFLOW]: async (_payload, state, logger) => {
+    logger.info("Stop workflow requested by user");
+
+    if (!state.workflowManager?.isInitialized) {
+      logger.warn("No active workflow to stop");
+      return;
+    }
+
+    try {
+      // Stop the workflow - this rejects all pending promises
+      const workflow = state.workflowManager.getWorkflow();
+      workflow.stop();
+
+      // Clean up queue manager
+      if (state.currentQueueManager) {
+        state.currentQueueManager.dispose();
+        state.currentQueueManager = undefined;
+      }
+
+      // Clear pending interactions
+      if (state.pendingInteractionsMap) {
+        state.pendingInteractionsMap.clear();
+        state.pendingInteractionsMap = undefined;
+      }
+      state.resolvePendingInteraction = undefined;
+
+      // Update state to reflect workflow stopped
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isFetchingSolution = false;
+        draft.solutionState = "none";
+        draft.isWaitingForUserInteraction = false;
+        draft.isProcessingQueuedMessages = false;
+      });
+
+      // Add a message to the chat indicating the workflow was stopped
+      state.mutateChatMessages((draft) => {
+        draft.chatMessages.push({
+          messageToken: `stopped-${Date.now()}`,
+          kind: ChatMessageType.String,
+          value: {
+            message:
+              "Workflow stopped by user. You can return to the analysis view to select a different issue to fix.",
+          },
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Dispose workflow manager
+      if (state.workflowManager.dispose) {
+        state.workflowManager.dispose();
+      }
+
+      logger.info("Workflow stopped successfully");
+    } catch (error) {
+      logger.error("Error stopping workflow:", error);
+      vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
+    }
   },
   CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
     try {

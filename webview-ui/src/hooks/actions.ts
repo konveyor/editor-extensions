@@ -68,6 +68,11 @@ export const openResolutionPanel = (): WebviewAction<WebviewActionType, unknown>
   payload: {},
 });
 
+export const stopWorkflow = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "STOP_WORKFLOW",
+  payload: {},
+});
+
 export const syncHubProfiles = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "SYNC_HUB_PROFILES",
   payload: {},

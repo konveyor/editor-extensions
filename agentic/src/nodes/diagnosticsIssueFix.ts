@@ -85,6 +85,18 @@ export class DiagnosticsIssueFix extends BaseNode {
     promise.resolve(response);
   }
 
+  /**
+   * Stops all pending diagnostics promises. Called when the workflow is stopped.
+   */
+  stop(): void {
+    this.logger.info("Stopping diagnostics node - rejecting all pending promises");
+    for (const [id, promise] of this.diagnosticsPromises.entries()) {
+      this.logger.debug(`Rejecting pending diagnostics promise: ${id}`);
+      promise.reject(new Error("Workflow stopped by user"));
+    }
+    this.diagnosticsPromises.clear();
+  }
+
   // node responsible for orchestrating planning work and calling nodes - we either get diagnostics issues
   // or additional information from previous analysis nodes, if none are present, we wait for diagnostics
   // issues to be submitted by the ide

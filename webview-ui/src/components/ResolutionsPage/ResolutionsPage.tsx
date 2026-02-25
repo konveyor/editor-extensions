@@ -1,7 +1,6 @@
 import "./resolutionsPage.css";
 import React, { useMemo, useCallback } from "react";
-import { Page, PageSection, PageSidebar, PageSidebarBody, Title } from "@patternfly/react-core";
-import { CheckCircleIcon } from "@patternfly/react-icons";
+import { Page, PageSidebar, PageSidebarBody } from "@patternfly/react-core";
 import {
   ChatMessage,
   ChatMessageType,
@@ -26,7 +25,6 @@ import {
   MessageBox,
 } from "@patternfly/chatbot";
 import { ChatCard } from "./ChatCard/ChatCard";
-import LoadingIndicator from "./LoadingIndicator";
 import { MessageWrapper } from "./MessageWrapper";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { BatchReviewExpandable } from "./BatchReview";
@@ -214,15 +212,6 @@ const ResolutionPage: React.FC = () => {
         </PageSidebar>
       }
     >
-      <PageSection>
-        <Title headingLevel="h1" size="2xl" style={{ display: "flex", alignItems: "center" }}>
-          Generative AI Results
-          {isProcessing && <LoadingIndicator />}
-          {!isProcessing && solutionState === "received" && (
-            <CheckCircleIcon style={{ marginLeft: "10px", color: "green" }} />
-          )}
-        </Title>
-      </PageSection>
       <Chatbot displayMode={ChatbotDisplayMode.embedded}>
         <ChatbotContent>
           <MessageBox ref={messageBoxRef} style={{ paddingBottom: "2rem" }}>
