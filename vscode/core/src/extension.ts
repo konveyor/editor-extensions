@@ -80,7 +80,7 @@ class VsCodeExtension {
     public readonly paths: ExtensionPaths,
     public readonly context: vscode.ExtensionContext,
     logger: winston.Logger,
-    private readonly providerRegistry: ProviderRegistry,
+    providerRegistry: ProviderRegistry,
     private readonly healthCheckRegistry: HealthCheckRegistry,
   ) {
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
@@ -708,7 +708,7 @@ class VsCodeExtension {
         },
       });
 
-      // Listen for extension changes to update Continue installation status
+      // Listen for extension changes to update Continue and language extension status
       this.listeners.push(
         vscode.extensions.onDidChange(() => {
           this.checkContinueInstalled();
@@ -1436,18 +1436,71 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
   logger.info("Logger created");
   logger.info(`Extension ${EXTENSION_ID} starting`, { buildInfo: BUILD_INFO });
 
+  // Always create registries — language extensions need a working API
+  // even when the core extension is in a degraded state
+  providerRegistry = new ProviderRegistry(logger, EXTENSION_NAME);
+  context.subscriptions.push(providerRegistry);
+
+  healthCheckRegistry = new HealthCheckRegistry(logger);
+  context.subscriptions.push(healthCheckRegistry);
+
   try {
-    const paths = await ensurePaths(context, logger);
+    const extensionPaths = await ensurePaths(context, logger);
+
+    if (!extensionPaths) {
+      // No workspace mode: activate gracefully in limited state
+      logger.warn("Activating in no-workspace mode — most features are unavailable");
+
+      vscode.window
+        .showWarningMessage(
+          "Konveyor requires a workspace folder to analyze. Open a folder to get started.",
+          "Open Folder",
+        )
+        .then((selection) => {
+          if (selection === "Open Folder") {
+            vscode.commands.executeCommand("vscode.openFolder");
+          }
+        });
+
+      // Register stub commands so VS Code doesn't error on contributed commands
+      registerNoWorkspaceCommands(context);
+
+      // Listen for workspace folder additions to prompt reload
+      context.subscriptions.push(
+        vscode.workspace.onDidChangeWorkspaceFolders(() => {
+          if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            vscode.window
+              .showInformationMessage(
+                "Workspace folder detected. Reload the window to activate Konveyor fully.",
+                "Reload Window",
+              )
+              .then((selection) => {
+                if (selection === "Reload Window") {
+                  vscode.commands.executeCommand("workbench.action.reloadWindow");
+                }
+              });
+          }
+        }),
+      );
+
+      // Return a working API so language extensions don't crash
+      const api = createCoreApi(providerRegistry, healthCheckRegistry, EXTENSION_VERSION);
+      logger.info("Core extension API created in no-workspace mode", {
+        version: EXTENSION_VERSION,
+      });
+      return api;
+    }
+
+    // Normal activation path (workspace exists)
     await copySampleProviderSettings();
 
-    // Create registries
-    providerRegistry = new ProviderRegistry(logger);
-    context.subscriptions.push(providerRegistry);
-
-    healthCheckRegistry = new HealthCheckRegistry(logger);
-    context.subscriptions.push(healthCheckRegistry);
-
-    extension = new VsCodeExtension(paths, context, logger, providerRegistry, healthCheckRegistry);
+    extension = new VsCodeExtension(
+      extensionPaths,
+      context,
+      logger,
+      providerRegistry,
+      healthCheckRegistry,
+    );
     await extension.initialize();
 
     // Create and return the API for language extensions
@@ -1466,6 +1519,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     logger.error("Failed to activate Konveyor extension", error);
     vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
+  }
+}
+
+/**
+ * Register stub command handlers for no-workspace mode.
+ * All contributed commands must be registered or VS Code will show errors.
+ */
+function registerNoWorkspaceCommands(context: vscode.ExtensionContext): void {
+  const noWorkspaceHandler = () => {
+    vscode.window
+      .showWarningMessage(
+        "This command requires a workspace folder to be open. Open a folder first.",
+        "Open Folder",
+      )
+      .then((selection) => {
+        if (selection === "Open Folder") {
+          vscode.commands.executeCommand("vscode.openFolder");
+        }
+      });
+  };
+
+  const ext = vscode.extensions.getExtension(EXTENSION_ID);
+  const commands: { command: string }[] = ext?.packageJSON?.contributes?.commands ?? [];
+  for (const { command } of commands) {
+    context.subscriptions.push(vscode.commands.registerCommand(command, noWorkspaceHandler));
   }
 }
 

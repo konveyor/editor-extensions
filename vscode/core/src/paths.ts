@@ -329,15 +329,17 @@ export async function ensureKaiAnalyzerBinary(
 export async function ensurePaths(
   context: vscode.ExtensionContext,
   logger: winston.Logger,
-): Promise<ExtensionPaths> {
+): Promise<ExtensionPaths | undefined> {
   _logger = logger.child({ component: "paths" });
   const globalScope = context.globalStorageUri;
-  const workspaceScope = context.storageUri!;
 
-  // Handle no workspace case gracefully
+  // Handle no workspace case gracefully — return undefined instead of throwing
   if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-    throw new Error("No workspace folder found");
+    logger.warn("No workspace folder found — extension will run in limited mode");
+    return undefined;
   }
+
+  const workspaceScope = context.storageUri!;
 
   if (vscode.workspace.workspaceFolders.length > 1) {
     const message =

@@ -14,7 +14,19 @@ export class ProviderRegistry {
   private providers: Map<string, ProviderRegistration> = new Map();
   private analysisCompleteEmitter = new vscode.EventEmitter<AnalysisResults>();
 
-  constructor(private logger: Logger) {}
+  constructor(
+    private logger: Logger,
+    private extensionName?: string,
+  ) {}
+
+  private updateContextKey(): void {
+    if (this.extensionName) {
+      const key = `${this.extensionName}.hasProviders`;
+      const value = this.providers.size > 0;
+      this.logger.info(`Setting context key: ${key} = ${value}`);
+      vscode.commands.executeCommand("setContext", key, value);
+    }
+  }
 
   /**
    * Register a language provider
@@ -29,10 +41,12 @@ export class ProviderRegistry {
     }
 
     this.providers.set(config.name, config);
+    this.updateContextKey();
 
     return new vscode.Disposable(() => {
       this.logger.info(`Unregistering provider: ${config.name}`);
       this.providers.delete(config.name);
+      this.updateContextKey();
     });
   }
 
@@ -69,8 +83,11 @@ export class ProviderRegistry {
    * Dispose the registry
    */
   dispose(): void {
-    this.analysisCompleteEmitter.dispose();
     this.providers.clear();
+    if (this.extensionName) {
+      vscode.commands.executeCommand("setContext", `${this.extensionName}.hasProviders`, false);
+    }
+    this.analysisCompleteEmitter.dispose();
   }
 }
 
