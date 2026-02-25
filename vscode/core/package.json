@@ -225,7 +225,18 @@
     "viewsWelcome": [
       {
         "view": "konveyor-core.issueView",
-        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs)."
+        "contents": "Konveyor requires a workspace folder to analyze your project. Open a folder containing your application code to get started.\n[Open Folder](command:vscode.openFolder)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "when": "workspaceFolderCount == 0"
+      },
+      {
+        "view": "konveyor-core.issueView",
+        "contents": "No analysis providers are registered. Install a Konveyor language extension to enable code analysis for your project.\nSupported languages: Java, Go, JavaScript, and C#.\n[Install Extension Pack](command:workbench.extensions.installExtension?%22konveyor.konveyor%22)\n[Browse Extensions](command:workbench.extensions.search?%22%40publisher%3Akonveyor%22)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "when": "workspaceFolderCount != 0 && !konveyor-core.hasProviders"
+      },
+      {
+        "view": "konveyor-core.issueView",
+        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "when": "workspaceFolderCount != 0 && konveyor-core.hasProviders"
       }
     ],
     "menus": {
