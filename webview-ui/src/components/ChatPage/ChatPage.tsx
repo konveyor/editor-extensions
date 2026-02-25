@@ -1,11 +1,17 @@
 import React, { useRef, useEffect, useCallback } from "react";
-import { Message, MessageBar, Chatbot, ChatbotContent, ChatbotDisplayMode } from "@patternfly/chatbot";
+import {
+  Message,
+  MessageBar,
+  Chatbot,
+  ChatbotContent,
+  ChatbotDisplayMode,
+} from "@patternfly/chatbot";
 import { useExtensionStore } from "../../store/store";
 import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ResourceLink } from "./ResourceLink";
 import { ResourceBlock } from "./ResourceBlock";
-import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ThinkingIndicator, ThinkingBlock } from "./ThinkingIndicator";
 import { ToolCallIndicator } from "./ToolCallIndicator";
 import { v4 as uuidv4 } from "uuid";
 import type { GooseChatMessage } from "@editor-extensions/shared";
@@ -164,50 +170,31 @@ const ChatPage: React.FC = () => {
           <div className="chat-messages">
             {gooseMessages.map((msg) => {
               if (msg.role === "user") {
-                return (
-                  <SentMessage
-                    key={msg.id}
-                    content={msg.content}
-                    timestamp={msg.timestamp}
-                  />
-                );
+                return <SentMessage key={msg.id} content={msg.content} timestamp={msg.timestamp} />;
               }
 
               if (msg.role === "assistant") {
-                const hasContentBlocks =
-                  msg.contentBlocks && msg.contentBlocks.length > 0;
-
-                const thinkingText = msg.contentBlocks
-                  ?.filter((b) => b.type === "thinking")
-                  .map((b) => b.text)
-                  .join("\n");
-
+                const hasContentBlocks = msg.contentBlocks && msg.contentBlocks.length > 0;
                 const hasToolCall = !!msg.toolCall;
                 const showExtra =
                   hasContentBlocks || msg.isCancelled || msg.isThinking || hasToolCall;
 
-                const extraContent = showExtra
-                  ? {
-                      afterMainContent: (
-                        <>
-                          {msg.isThinking && <ThinkingIndicator />}
-                          {hasToolCall && (
-                            <ToolCallIndicator
-                              name={msg.toolCall!.name}
-                              status={msg.toolCall!.status}
-                              result={msg.toolCall!.result}
-                            />
-                          )}
-                          <ContentBlocks msg={msg} />
-                          {msg.isCancelled && (
-                            <div className="goose-cancelled-label">
-                              Generation cancelled
-                            </div>
-                          )}
-                        </>
-                      ),
-                    }
-                  : undefined;
+                const extraContent = showExtra ? (
+                  <>
+                    {msg.isThinking && <ThinkingIndicator />}
+                    {hasToolCall && (
+                      <ToolCallIndicator
+                        name={msg.toolCall!.name}
+                        status={msg.toolCall!.status}
+                        result={msg.toolCall!.result}
+                      />
+                    )}
+                    <ContentBlocks msg={msg} />
+                    {msg.isCancelled && (
+                      <div className="goose-cancelled-label">Generation cancelled</div>
+                    )}
+                  </>
+                ) : undefined;
 
                 return (
                   <ReceivedMessage

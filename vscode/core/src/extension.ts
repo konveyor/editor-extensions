@@ -796,7 +796,26 @@ class VsCodeExtension {
         "index.js",
       );
 
-      // 3. Create the Goose client
+      // 3. Pass auth env vars from provider-settings.yaml so goose can use them.
+      //    Note: GOOSE_PROVIDER/GOOSE_MODEL env var overrides do not work in ACP
+      //    mode -- goose reads its own ~/.config/goose/config.yaml for model selection.
+      //    Auth credentials (API keys, AWS creds) do pass through and are useful.
+      let gooseModelEnv: Record<string, string> | undefined;
+
+      try {
+        const { paths } = await import("./paths");
+        const modelConfig = await parseModelConfig(paths().settingsYaml);
+        gooseModelEnv = (modelConfig.env ?? {}) as Record<string, string>;
+        this.state.logger.info(
+          `Goose: passing auth env vars from provider-settings.yaml (provider: ${modelConfig.config.provider})`,
+        );
+      } catch (err) {
+        this.state.logger.warn(
+          `Goose: could not read provider-settings.yaml for auth env vars: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      // 4. Create the Goose client
       const gooseClient = new GooseClient({
         workspaceDir: this.state.data.workspaceRoot,
         logger: this.state.logger,
@@ -810,6 +829,7 @@ class VsCodeExtension {
             env: [{ name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) }],
           },
         ],
+        modelEnv: gooseModelEnv,
       });
 
       // 4. Wire up events → Zustand store → sync bridges → webview

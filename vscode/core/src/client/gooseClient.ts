@@ -116,6 +116,7 @@ export interface GooseClientConfig {
     args: string[];
     env?: Array<{ name: string; value: string }>;
   }>;
+  modelEnv?: Record<string, string>;
 }
 
 export interface StreamingResourceData {
@@ -492,10 +493,14 @@ export class GooseClient extends EventEmitter {
       `GooseClient: spawning ${resolvedPath} acp (cwd: ${this.config.workspaceDir})`,
     );
 
+    const spawnEnv = this.config.modelEnv
+      ? { ...process.env, ...this.config.modelEnv }
+      : process.env;
+
     this.process = spawn(resolvedPath, ["acp"], {
       stdio: ["pipe", "pipe", "pipe"],
       cwd: this.config.workspaceDir,
-      env: process.env,
+      env: spawnEnv,
     });
 
     if (!this.process.stdin || !this.process.stdout) {
@@ -643,17 +648,18 @@ export class GooseClient extends EventEmitter {
     } else if (sessionUpdate === "tool_call" && this.currentResponseId) {
       const update = params.update as Record<string, unknown>;
       this.emit("toolCall", this.currentResponseId, {
-        name: (update.name as string) || (update.toolName as string) || "unknown",
-        callId: (update.id as string) || (update.callId as string),
-        arguments: update.arguments as Record<string, unknown> | undefined,
+        name: (update.title as string) || (update.name as string) || "Tool call",
+        callId: (update.toolCallId as string) || (update.id as string),
         status: "running",
       });
     } else if (sessionUpdate === "tool_call_update" && this.currentResponseId) {
       const update = params.update as Record<string, unknown>;
+      const acpStatus = update.status as string;
       this.emit("toolCallUpdate", this.currentResponseId, {
-        name: (update.name as string) || (update.toolName as string),
-        callId: (update.id as string) || (update.callId as string),
-        status: "succeeded",
+        name: (update.title as string) || (update.name as string) || "Tool call",
+        callId: (update.toolCallId as string) || (update.id as string),
+        status:
+          acpStatus === "completed" ? "succeeded" : acpStatus === "failed" ? "failed" : "running",
         result: content?.text,
       });
     } else if (sessionUpdate !== "agent_message_chunk") {
