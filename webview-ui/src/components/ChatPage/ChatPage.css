@@ -194,20 +194,45 @@
   white-space: pre;
 }
 
-/* --- Thinking Indicator --- */
+/* --- Thinking Indicator (active, during streaming) --- */
 
 .goose-thinking {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 0;
+  padding: 4px 0;
   color: var(--vscode-descriptionForeground, #999);
   font-size: 12px;
 }
 
+.goose-thinking__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground, #999);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.goose-thinking__toggle:not(:disabled):hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-thinking__toggle:disabled {
+  cursor: default;
+}
+
+.goose-thinking__dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
 .goose-thinking__dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--vscode-descriptionForeground, #999);
   animation: goose-thinking-pulse 1.4s ease-in-out infinite;
@@ -235,8 +260,77 @@
 }
 
 .goose-thinking__label {
-  margin-left: 4px;
+  margin-left: 2px;
   font-style: italic;
+}
+
+.goose-thinking__chevron {
+  margin-left: 2px;
+  font-size: 10px;
+}
+
+.goose-thinking__content {
+  margin: 4px 0 4px 8px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--vscode-textSeparator-foreground, #444);
+  color: var(--vscode-descriptionForeground, #999);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* --- Thinking Block (completed, in history) --- */
+
+.goose-thinking-block {
+  margin: 6px 0;
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goose-thinking-block__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  width: 100%;
+  border: none;
+  background: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-descriptionForeground, #999);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.goose-thinking-block__header:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-thinking-block__icon {
+  font-size: 12px;
+}
+
+.goose-thinking-block__title {
+  flex-grow: 1;
+  font-style: italic;
+}
+
+.goose-thinking-block__chevron {
+  font-size: 10px;
+}
+
+.goose-thinking-block__content {
+  padding: 8px 12px;
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  color: var(--vscode-descriptionForeground, #999);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 /* --- Content Blocks Container --- */

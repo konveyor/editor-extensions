@@ -69,8 +69,9 @@ interface AcpPromptResponse {
 }
 
 interface AcpContentBlock {
-  type: "text" | "resource_link" | "resource";
+  type: "text" | "resource_link" | "resource" | "thinking";
   text?: string;
+  thinking?: string;
   uri?: string;
   name?: string;
   mimeType?: string;
@@ -610,6 +611,16 @@ export class GooseClient extends EventEmitter {
             name: content.name,
             mimeType: content.mimeType,
           });
+          break;
+        case "thinking":
+          if (content.thinking || content.text) {
+            this.emit(
+              "streamingChunk",
+              this.currentResponseId,
+              content.thinking || content.text,
+              "thinking",
+            );
+          }
           break;
         default:
           if (content) {

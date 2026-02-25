@@ -5,7 +5,7 @@ import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ResourceLink } from "./ResourceLink";
 import { ResourceBlock } from "./ResourceBlock";
-import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ThinkingIndicator, ThinkingBlock } from "./ThinkingIndicator";
 import { v4 as uuidv4 } from "uuid";
 import type { GooseChatMessage } from "@editor-extensions/shared";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
@@ -25,7 +25,7 @@ const ContentBlocks: React.FC<{ msg: GooseChatMessage }> = ({ msg }) => {
           case "resource":
             return <ResourceBlock key={`r-${i}`} block={block} />;
           case "thinking":
-            return null;
+            return <ThinkingBlock key={`t-${i}`} text={block.text} />;
           default:
             return null;
         }
@@ -176,12 +176,19 @@ const ChatPage: React.FC = () => {
                 const hasContentBlocks =
                   msg.contentBlocks && msg.contentBlocks.length > 0;
 
+                const thinkingText = msg.contentBlocks
+                  ?.filter((b) => b.type === "thinking")
+                  .map((b) => b.text)
+                  .join("\n");
+
                 const extraContent =
                   hasContentBlocks || msg.isCancelled || msg.isThinking
                     ? {
                         afterMainContent: (
                           <>
-                            {msg.isThinking && <ThinkingIndicator />}
+                            {msg.isThinking && (
+                              <ThinkingIndicator thinkingText={thinkingText} />
+                            )}
                             <ContentBlocks msg={msg} />
                             {msg.isCancelled && (
                               <div className="goose-cancelled-label">

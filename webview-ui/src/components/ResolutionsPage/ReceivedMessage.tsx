@@ -25,7 +25,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
   ({
     content,
     extraContent,
-    isLoading: _isLoading,
+    isLoading = false,
     timestamp = new Date(),
     quickResponses,
     isProcessing = false,
@@ -78,6 +78,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
         role="bot"
         avatar={avatar}
         content={content}
+        isLoading={isLoading}
         quickResponses={quickResponses?.map((response) => ({
           ...response,
           onClick: () => {
