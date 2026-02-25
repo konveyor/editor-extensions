@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Fixed misleading http:// placeholder in Hub URL field that led users to use insecure URLs
+  for remote Hubs, causing connection failures. Now defaults to https:// and warns when
+  http:// is used with non-localhost URLs.
