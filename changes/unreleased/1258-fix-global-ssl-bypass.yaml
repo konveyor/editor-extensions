@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Do not bypass SSL globally in solution server client. 
+  Uses existing custom fetch function that we use for model provider connection.
+  Uses the existing mock server infrastructure with self-signed certificates to test SSL bypass behavior.

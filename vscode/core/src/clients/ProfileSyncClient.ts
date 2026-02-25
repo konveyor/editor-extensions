@@ -65,12 +65,19 @@ export class ProfileSyncClient {
   private baseUrl: string;
   private bearerToken: string | null;
   private logger: Logger;
+  private fetchFn: typeof fetch;
   public isConnected: boolean = false;
   private llmProxyConfig: LLMProxyConfig | null = null;
 
-  constructor(baseUrl: string, bearerToken: string | null, logger: Logger) {
+  constructor(
+    baseUrl: string,
+    bearerToken: string | null,
+    logger: Logger,
+    customFetch?: typeof fetch,
+  ) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     this.bearerToken = bearerToken;
+    this.fetchFn = customFetch ?? fetch;
     this.logger = logger.child({
       component: "ProfileSyncClient",
     });
@@ -83,7 +90,7 @@ export class ProfileSyncClient {
     try {
       // Actually fetch applications to validate auth works
       // Using GET instead of HEAD to validate response format and detect auth failures
-      const response = await fetch(`${this.baseUrl}/hub/applications`, {
+      const response = await this.fetchFn(`${this.baseUrl}/hub/applications`, {
         method: "GET",
         headers: this.getHeaders("application/x-yaml"),
       });
@@ -134,7 +141,7 @@ export class ProfileSyncClient {
     try {
       this.logger.debug("Fetching LLM proxy configuration", { configUrl });
 
-      const response = await fetch(configUrl, {
+      const response = await this.fetchFn(configUrl, {
         method: "GET",
         headers: this.getHeaders("application/json"),
       });
@@ -343,7 +350,7 @@ export class ProfileSyncClient {
 
     this.logger.debug("Fetching all applications from Hub", { url });
 
-    const response = await fetch(url, {
+    const response = await this.fetchFn(url, {
       headers: this.getHeaders("application/x-yaml"),
     });
 
@@ -587,7 +594,7 @@ export class ProfileSyncClient {
 
     this.logger.info("Listing profiles for application", { applicationId, url });
 
-    const response = await fetch(url, {
+    const response = await this.fetchFn(url, {
       headers: this.getHeaders("application/x-yaml"),
     });
 
@@ -642,7 +649,7 @@ export class ProfileSyncClient {
 
     this.logger.debug("Downloading profile bundle", { profileId, url });
 
-    const response = await fetch(url, {
+    const response = await this.fetchFn(url, {
       headers: this.getHeaders(),
     });
 
