@@ -81,6 +81,7 @@ export class KaiInteractiveWorkflow
   private readonly logger: Logger;
   private workspaceDir: string;
   private fsTools: FileSystemTools | undefined;
+  private stopRequested: boolean = false;
 
   constructor(logger: Logger) {
     super();
@@ -216,6 +217,9 @@ export class KaiInteractiveWorkflow
   }
 
   async run(input: KaiInteractiveWorkflowInput): Promise<KaiWorkflowResponse> {
+    // Reset stop flag at the start of each run
+    this.stopRequested = false;
+
     if (!this.analysisFixWorkflow || !(this.analysisFixWorkflow instanceof CompiledStateGraph)) {
       throw new Error(`Workflow must be inited before it can be run`);
     }
@@ -388,6 +392,36 @@ export class KaiInteractiveWorkflow
       promise.reject(Error(`Invalid response from user`));
     }
     promise.resolve(response);
+  }
+
+  /**
+   * Stops the workflow execution. This will:
+   * 1. Set the stopRequested flag
+   * 2. Reject all pending user interaction promises
+   * 3. The workflow will check this flag and exit at the next opportunity
+   */
+  stop(): void {
+    this.logger.info("Stop requested - stopping workflow execution");
+    this.stopRequested = true;
+
+    // Reject all pending user interaction promises to unblock the workflow
+    for (const [id, promise] of this.userInteractionPromises.entries()) {
+      this.logger.debug(`Rejecting pending user interaction promise: ${id}`);
+      promise.reject(new Error("Workflow stopped by user"));
+    }
+    this.userInteractionPromises.clear();
+
+    // Stop diagnostics nodes pending promises as well
+    if (this.diagnosticsNodes) {
+      this.diagnosticsNodes.stop();
+    }
+  }
+
+  /**
+   * Check if stop has been requested
+   */
+  isStopRequested(): boolean {
+    return this.stopRequested;
   }
 
   // edge responsible for invoking analysis issue fix node until all issues

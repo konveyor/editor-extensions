@@ -106,6 +106,7 @@ export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkfl
   init(options: KaiWorkflowInitOptions): Promise<void>;
   run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
   resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;
+  stop(): void;
 }
 
 export interface KaiModelProviderInvokeCallOptions extends BaseChatModelCallOptions {

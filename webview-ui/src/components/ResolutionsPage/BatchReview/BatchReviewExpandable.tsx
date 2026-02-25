@@ -1,7 +1,16 @@
 import React, { useState } from "react";
-import { Button, Label, Flex, FlexItem, Progress, ProgressSize } from "@patternfly/react-core";
-import { FileIcon, AngleUpIcon, AngleDownIcon } from "@patternfly/react-icons";
+import {
+  Button,
+  Label,
+  Flex,
+  FlexItem,
+  Progress,
+  ProgressSize,
+  Spinner,
+} from "@patternfly/react-core";
+import { FileIcon, AngleUpIcon, AngleDownIcon, StopIcon } from "@patternfly/react-icons";
 import { useExtensionStore } from "../../../store/store";
+import { stopWorkflow } from "../../../hooks/actions";
 import "./batchReviewExpandable.css";
 
 /**
@@ -12,6 +21,7 @@ export const BatchReviewExpandable: React.FC = () => {
   const pendingFiles = useExtensionStore((state) => state.pendingBatchReview || []);
   const activeDecorators = useExtensionStore((state) => state.activeDecorators);
   const isGlobalProcessing = useExtensionStore((state) => state.isBatchOperationInProgress);
+  const isFetchingSolution = useExtensionStore((state) => state.isFetchingSolution);
   const setBatchOperationInProgress = useExtensionStore(
     (state) => state.setBatchOperationInProgress,
   );
@@ -90,8 +100,46 @@ export const BatchReviewExpandable: React.FC = () => {
     }
   }, [pendingFiles, processingFiles]);
 
-  // Don't render if no pending files
+  // Handle stop workflow
+  const handleStopWorkflow = () => {
+    console.log("[BatchReviewExpandable] Stop workflow clicked");
+    window.vscode.postMessage(stopWorkflow());
+  };
+
+  // Show loading state when workflow is running but no files are ready yet
   if (pendingFiles.length === 0) {
+    if (isFetchingSolution) {
+      return (
+        <div className="batch-review-expandable collapsed batch-review-loading">
+          <Flex
+            alignItems={{ default: "alignItemsCenter" }}
+            justifyContent={{ default: "justifyContentCenter" }}
+            spaceItems={{ default: "spaceItemsMd" }}
+            className="batch-review-collapsed-content"
+          >
+            <FlexItem>
+              <Spinner size="md" aria-label="Generating fixes" />
+            </FlexItem>
+            <FlexItem>
+              <span className="batch-review-loading-text">
+                Analyzing code and generating fixes...
+              </span>
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant="secondary"
+                isDanger
+                size="sm"
+                icon={<StopIcon />}
+                onClick={handleStopWorkflow}
+              >
+                Stop
+              </Button>
+            </FlexItem>
+          </Flex>
+        </div>
+      );
+    }
     return null;
   }
 
@@ -364,6 +412,19 @@ export const BatchReviewExpandable: React.FC = () => {
               Reject All
             </Button>
           </FlexItem>
+          {/* Stop workflow button - shown when workflow is still running */}
+          {isFetchingSolution && (
+            <FlexItem>
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<StopIcon />}
+                onClick={handleStopWorkflow}
+              >
+                Stop
+              </Button>
+            </FlexItem>
+          )}
         </Flex>
       </div>
     );
@@ -422,6 +483,19 @@ export const BatchReviewExpandable: React.FC = () => {
                 </Button>
               </FlexItem>
             </>
+          )}
+          {/* Stop workflow button - shown when workflow is still running */}
+          {isFetchingSolution && (
+            <FlexItem>
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<StopIcon />}
+                onClick={handleStopWorkflow}
+              >
+                Stop
+              </Button>
+            </FlexItem>
           )}
         </Flex>
         <Progress
@@ -484,13 +558,7 @@ export const BatchReviewExpandable: React.FC = () => {
               </Button>
             </FlexItem>
             <FlexItem flex={{ default: "flex_1" }}>
-              <span
-                style={{
-                  color: "#6a6e73",
-                  textAlign: "center",
-                  display: "block",
-                }}
-              >
+              <span className="batch-review-info-text">
                 ✨ This is a new file
               </span>
             </FlexItem>
@@ -533,12 +601,7 @@ export const BatchReviewExpandable: React.FC = () => {
               </Button>
             </FlexItem>
             <FlexItem>
-              <span
-                style={{
-                  color: "#6a6e73",
-                  fontStyle: "italic",
-                }}
-              >
+              <span className="batch-review-info-text batch-review-info-text--italic">
                 ℹ️ No changes detected in this file
               </span>
             </FlexItem>
