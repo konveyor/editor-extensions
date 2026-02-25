@@ -123,6 +123,21 @@ describe("model health check test", () => {
         OPENAI_API_KEY: "test-key",
       },
     },
+    googleGenAI: {
+      config: {
+        provider: "ChatGoogleGenerativeAI",
+        args: {
+          model: "test-model",
+          baseUrl: "https://localhost:8443",
+          streaming: false,
+        },
+      },
+      env: {
+        ALLOW_INSECURE: "false",
+        CA_BUNDLE: pathlib.join(certsDir, "ca.crt"),
+        GOOGLE_API_KEY: "test-key",
+      },
+    },
   };
 
   // setting up the server
@@ -235,7 +250,8 @@ describe("model health check test", () => {
       openaiConfig.env.CA_BUNDLE = "";
       const modelCreator = ModelCreators[openaiConfig.config.provider](logger);
       const modelProvider = await modelCreator.create(openaiConfig.config.args, openaiConfig.env);
-      await withTimeout(modelProvider.invoke("Hello, world!"), 5000); // if the response is hanging for 5 seconds, connecton is not established
+      await withTimeout(modelProvider.invoke("Hello, world!"), 5000);
+      throw new Error("Expected connection to fail without CA_BUNDLE, but it succeeded");
     } catch (error) {
       expect(error).toBeDefined();
     }
@@ -253,6 +269,48 @@ describe("model health check test", () => {
     } catch (error) {
       console.error(error);
       throw new Error("Failed to connect to the server, this should not happen");
+    }
+  });
+
+  it("should connect to Google GenAI server when self-signed certs are used", async function (this: Mocha.Context) {
+    this.timeout(8000);
+    try {
+      const googleConfig = JSON.parse(JSON.stringify(configs.googleGenAI));
+      const modelCreator = ModelCreators[googleConfig.config.provider](logger);
+      const modelProvider = await modelCreator.create(googleConfig.config.args, googleConfig.env);
+      await modelProvider.invoke("Hello, world!");
+    } catch (error) {
+      console.error(error);
+      throw new Error("Failed to connect to Google GenAI server with self-signed certs");
+    }
+  });
+
+  it("should error when Google GenAI certs are not used with mock server that expects them", async function (this: Mocha.Context) {
+    this.timeout(7000);
+    try {
+      const googleConfig = JSON.parse(JSON.stringify(configs.googleGenAI));
+      googleConfig.env.CA_BUNDLE = "";
+      const modelCreator = ModelCreators[googleConfig.config.provider](logger);
+      const modelProvider = await modelCreator.create(googleConfig.config.args, googleConfig.env);
+      await withTimeout(modelProvider.invoke("Hello, world!"), 5000);
+      throw new Error("Expected connection to fail without CA_BUNDLE, but it succeeded");
+    } catch (error) {
+      expect(error).toBeDefined();
+    }
+  });
+
+  it("should NOT error when Google GenAI certs are not used but insecure is set", async function (this: Mocha.Context) {
+    this.timeout(7000);
+    try {
+      const googleConfig = JSON.parse(JSON.stringify(configs.googleGenAI));
+      googleConfig.env.CA_BUNDLE = "";
+      googleConfig.env.ALLOW_INSECURE = "true";
+      const modelCreator = ModelCreators[googleConfig.config.provider](logger);
+      const modelProvider = await modelCreator.create(googleConfig.config.args, googleConfig.env);
+      await modelProvider.invoke("Hello, world!");
+    } catch (error) {
+      console.error(error);
+      throw new Error("Failed to connect to Google GenAI server with insecure mode");
     }
   });
 
