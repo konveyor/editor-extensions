@@ -858,6 +858,31 @@ class VsCodeExtension {
         }
       });
 
+      const broadcastToolCall = (
+        messageId: string,
+        data: { name: string; callId?: string; status: string; result?: string },
+      ) => {
+        for (const provider of this.state.webviewProviders.values()) {
+          provider.sendMessageToWebview({
+            type: MessageTypes.GOOSE_TOOL_CALL,
+            messageId,
+            toolName: data.name,
+            callId: data.callId,
+            status: data.status,
+            result: data.result,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      };
+
+      gooseClient.on("toolCall", (messageId: string, data: any) => {
+        broadcastToolCall(messageId, data);
+      });
+
+      gooseClient.on("toolCallUpdate", (messageId: string, data: any) => {
+        broadcastToolCall(messageId, data);
+      });
+
       gooseClient.on("error", (error: Error) => {
         this.state.logger.error(`Goose error: ${error.message}`);
         this.state.mutate((draft) => {

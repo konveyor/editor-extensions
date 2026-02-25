@@ -125,6 +125,14 @@ export interface StreamingResourceData {
   text?: string;
 }
 
+export interface ToolCallData {
+  name: string;
+  callId?: string;
+  arguments?: Record<string, unknown>;
+  status: "running" | "succeeded" | "failed";
+  result?: string;
+}
+
 export interface GooseClientEvents {
   stateChange: (state: GooseAgentState) => void;
   message: (message: GooseChatMessage) => void;
@@ -135,6 +143,8 @@ export interface GooseClientEvents {
     resourceData?: StreamingResourceData,
   ) => void;
   streamingComplete: (messageId: string, stopReason: AcpPromptResponse["stopReason"]) => void;
+  toolCall: (messageId: string, data: ToolCallData) => void;
+  toolCallUpdate: (messageId: string, data: ToolCallData) => void;
   error: (error: Error) => void;
 }
 
@@ -630,10 +640,26 @@ export class GooseClient extends EventEmitter {
           }
           break;
       }
+    } else if (sessionUpdate === "tool_call" && this.currentResponseId) {
+      const update = params.update as Record<string, unknown>;
+      this.emit("toolCall", this.currentResponseId, {
+        name: (update.name as string) || (update.toolName as string) || "unknown",
+        callId: (update.id as string) || (update.callId as string),
+        arguments: update.arguments as Record<string, unknown> | undefined,
+        status: "running",
+      });
+    } else if (sessionUpdate === "tool_call_update" && this.currentResponseId) {
+      const update = params.update as Record<string, unknown>;
+      this.emit("toolCallUpdate", this.currentResponseId, {
+        name: (update.name as string) || (update.toolName as string),
+        callId: (update.id as string) || (update.callId as string),
+        status: "succeeded",
+        result: content?.text,
+      });
     } else if (sessionUpdate !== "agent_message_chunk") {
       this.logger.info(`GooseClient: unhandled sessionUpdate type: ${sessionUpdate}`, {
         hasContent: !!content,
-        contentType: content?.type,
+        update: JSON.stringify(params.update).substring(0, 500),
       });
     }
   }

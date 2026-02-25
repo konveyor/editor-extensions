@@ -27,6 +27,7 @@ export const MessageTypes = {
   GOOSE_STATE_CHANGE: "GOOSE_STATE_CHANGE",
   GOOSE_CHAT_STATE_CHANGE: "GOOSE_CHAT_STATE_CHANGE",
   GOOSE_CHAT_STREAMING_UPDATE: "GOOSE_CHAT_STREAMING_UPDATE",
+  GOOSE_TOOL_CALL: "GOOSE_TOOL_CALL",
 } as const;
 
 export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
@@ -139,6 +140,16 @@ export interface GooseChatStreamingUpdateMessage {
   resourceContent?: string;
 }
 
+export interface GooseToolCallMessage {
+  type: "GOOSE_TOOL_CALL";
+  messageId: string;
+  toolName: string;
+  callId?: string;
+  status: "running" | "succeeded" | "failed";
+  result?: string;
+  timestamp: string;
+}
+
 /**
  * Union type of all possible webview messages
  */
@@ -149,7 +160,8 @@ export type WebviewMessage =
   | ChatStreamingUpdateMessage
   | GooseStateChangeMessage
   | GooseChatStateChangeMessage
-  | GooseChatStreamingUpdateMessage;
+  | GooseChatStreamingUpdateMessage
+  | GooseToolCallMessage;
 
 /**
  * Type guards for message discrimination
@@ -185,4 +197,8 @@ export function isGooseChatStreamingUpdate(
   msg: WebviewMessage,
 ): msg is GooseChatStreamingUpdateMessage {
   return (msg as any).type === MessageTypes.GOOSE_CHAT_STREAMING_UPDATE;
+}
+
+export function isGooseToolCall(msg: WebviewMessage): msg is GooseToolCallMessage {
+  return (msg as any).type === MessageTypes.GOOSE_TOOL_CALL;
 }

@@ -8,6 +8,7 @@ import {
   isGooseStateChange,
   isGooseChatStateChange,
   isGooseChatStreamingUpdate,
+  isGooseToolCall,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -181,6 +182,17 @@ export function useVSCodeMessageHandler() {
                 : undefined,
             );
           }
+          return;
+        }
+
+        // Handle Goose tool call activity
+        if (isGooseToolCall(message)) {
+          store.updateGooseToolCall(
+            message.messageId,
+            message.toolName,
+            message.status as "running" | "succeeded" | "failed",
+            message.result,
+          );
           return;
         }
 

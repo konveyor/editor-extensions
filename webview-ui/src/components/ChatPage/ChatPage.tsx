@@ -5,7 +5,8 @@ import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ResourceLink } from "./ResourceLink";
 import { ResourceBlock } from "./ResourceBlock";
-import { ThinkingIndicator, ThinkingBlock } from "./ThinkingIndicator";
+import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ToolCallIndicator } from "./ToolCallIndicator";
 import { v4 as uuidv4 } from "uuid";
 import type { GooseChatMessage } from "@editor-extensions/shared";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
@@ -181,24 +182,32 @@ const ChatPage: React.FC = () => {
                   .map((b) => b.text)
                   .join("\n");
 
-                const extraContent =
-                  hasContentBlocks || msg.isCancelled || msg.isThinking
-                    ? {
-                        afterMainContent: (
-                          <>
-                            {msg.isThinking && (
-                              <ThinkingIndicator thinkingText={thinkingText} />
-                            )}
-                            <ContentBlocks msg={msg} />
-                            {msg.isCancelled && (
-                              <div className="goose-cancelled-label">
-                                Generation cancelled
-                              </div>
-                            )}
-                          </>
-                        ),
-                      }
-                    : undefined;
+                const hasToolCall = !!msg.toolCall;
+                const showExtra =
+                  hasContentBlocks || msg.isCancelled || msg.isThinking || hasToolCall;
+
+                const extraContent = showExtra
+                  ? {
+                      afterMainContent: (
+                        <>
+                          {msg.isThinking && <ThinkingIndicator />}
+                          {hasToolCall && (
+                            <ToolCallIndicator
+                              name={msg.toolCall!.name}
+                              status={msg.toolCall!.status}
+                              result={msg.toolCall!.result}
+                            />
+                          )}
+                          <ContentBlocks msg={msg} />
+                          {msg.isCancelled && (
+                            <div className="goose-cancelled-label">
+                              Generation cancelled
+                            </div>
+                          )}
+                        </>
+                      ),
+                    }
+                  : undefined;
 
                 return (
                   <ReceivedMessage

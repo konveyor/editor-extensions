@@ -129,6 +129,12 @@ interface ExtensionStore {
   finalizeGooseMessage: (messageId: string, stopReason?: string) => void;
   cancelGooseMessage: (messageId: string) => void;
   setGooseThinking: (messageId: string, isThinking: boolean) => void;
+  updateGooseToolCall: (
+    messageId: string,
+    toolName: string,
+    status: "running" | "succeeded" | "failed",
+    result?: string,
+  ) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -489,6 +495,27 @@ export const useExtensionStore = create<ExtensionStore>()(
           if (msg) {
             msg.isThinking = isThinking;
           }
+        }),
+
+      updateGooseToolCall: (messageId, toolName, status, result) =>
+        set((state) => {
+          let msg = state.gooseMessages.find((m) => m.id === messageId);
+          if (!msg) {
+            msg = {
+              id: messageId,
+              role: "assistant",
+              content: "",
+              timestamp: new Date().toISOString(),
+              isStreaming: true,
+              contentBlocks: [],
+            };
+            state.gooseMessages.push(msg);
+          }
+          msg.toolCall = {
+            name: toolName,
+            status,
+            result,
+          };
         }),
 
       clearAnalysisData: () =>
