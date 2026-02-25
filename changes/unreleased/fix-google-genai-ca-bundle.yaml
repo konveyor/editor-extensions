@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed CA_BUNDLE and ALLOW_INSECURE settings being ignored for the Google GenAI provider by configuring the global fetch dispatcher with custom TLS certificates.
