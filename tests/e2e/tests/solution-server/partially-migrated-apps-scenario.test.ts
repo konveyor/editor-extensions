@@ -357,122 +357,126 @@ class SolutionServerWorkflowHelper {
   }
 }
 
-test.describe.serial('Solution Server Workflow', { tag: ['@tier3', '@requires-minikube'] }, () => {
-  let helper: SolutionServerWorkflowHelper;
-  let mcpClient: MCPClient;
-  let vsCode: VSCode | undefined;
-  let testRepoData: any;
+test.describe.serial(
+  'Solution Server Workflow',
+  { tag: ['@tier3', '@requires-minikube', '@slow'] },
+  () => {
+    let helper: SolutionServerWorkflowHelper;
+    let mcpClient: MCPClient;
+    let vsCode: VSCode | undefined;
+    let testRepoData: any;
 
-  test.beforeAll(async ({ testRepoData: repoData }) => {
-    helper = new SolutionServerWorkflowHelper();
-    testRepoData = repoData;
+    test.beforeAll(async ({ testRepoData: repoData }) => {
+      helper = new SolutionServerWorkflowHelper();
+      testRepoData = repoData;
 
-    try {
-      mcpClient = await MCPClient.connect();
-      helper.logger.debug('Connected to MCP client');
-    } catch (error) {
-      throw new Error(`Failed to connect to MCP client: ${error}`);
-    }
-  });
+      try {
+        mcpClient = await MCPClient.connect();
+        helper.logger.debug('Connected to MCP client');
+      } catch (error) {
+        throw new Error(`Failed to connect to MCP client: ${error}`);
+      }
+    });
 
-  test('should setup and analyze inventory management', async () => {
-    test.setTimeout(400000);
+    test('should setup and analyze inventory management', async () => {
+      test.setTimeout(400000);
 
-    const inventoryRepoInfo = testRepoData['inventory_management'];
-    vsCode = await helper.setupRepository(inventoryRepoInfo, 'Inventory Management', 'rules');
+      const inventoryRepoInfo = testRepoData['inventory_management'];
+      vsCode = await helper.setupRepository(inventoryRepoInfo, 'Inventory Management', 'rules');
 
-    await helper.validateAnalysisResults(vsCode, 'Inventory Management');
-    helper.logger.success('Inventory Management setup and analysis completed');
-  });
+      await helper.validateAnalysisResults(vsCode, 'Inventory Management');
+      helper.logger.success('Inventory Management setup and analysis completed');
+    });
 
-  test('should apply audit logger fix successfully', async () => {
-    test.setTimeout(400000);
+    test('should apply audit logger fix successfully', async () => {
+      test.setTimeout(400000);
 
-    if (!vsCode) {
-      throw new Error('VSCode instance not initialized - previous test may have failed');
-    }
+      if (!vsCode) {
+        throw new Error('VSCode instance not initialized - previous test may have failed');
+      }
 
-    const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
-    expect(fixApplied).toBe(true);
+      const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
+      expect(fixApplied).toBe(true);
 
-    helper.logger.success(
-      'Complete fix workflow (audit logger + Java annotation) applied successfully'
-    );
-  });
+      helper.logger.success(
+        'Complete fix workflow (audit logger + Java annotation) applied successfully'
+      );
+    });
 
-  test('should switch to EHR and analyze violations', async () => {
-    test.setTimeout(300000);
+    test('should switch to EHR and analyze violations', async () => {
+      test.setTimeout(300000);
 
-    if (!vsCode) {
-      throw new Error('VSCode instance not initialized - previous tests may have failed');
-    }
+      if (!vsCode) {
+        throw new Error('VSCode instance not initialized - previous tests may have failed');
+      }
 
-    const ehrRepoInfo = testRepoData['ehr'];
-    await vsCode.closeVSCode();
-    vsCode = await helper.setupRepository(ehrRepoInfo, 'EHR Viewer', 'rules');
-
-    const ehrViolations = await helper.validateAnalysisResults(vsCode, 'EHR Viewer');
-    expect(ehrViolations).toBeGreaterThan(0);
-
-    helper.logger.success('EHR application setup and analysis completed');
-  });
-
-  test('should capture and validate solution server metrics', async () => {
-    test.setTimeout(60000);
-
-    const solutionServerMetrics = await helper.captureSolutionServerMetrics(mcpClient);
-
-    expect(solutionServerMetrics.successRate).toBeDefined();
-    expect(solutionServerMetrics.bestHint).toBeDefined();
-    expect(solutionServerMetrics.bestHint.hint_id).toBeDefined();
-    expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThanOrEqual(0);
-
-    expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThan(0);
-    expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
-    expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
-
-    const totalSolutions = solutionServerMetrics.successRate.counted_solutions;
-    expect(totalSolutions).toBeGreaterThan(0);
-    helper.logger.success('Solution server metrics validated successfully');
-  });
-
-  test('should apply audit logger fix in EHR and verify hint usage', async () => {
-    test.setTimeout(400000);
-
-    if (!vsCode) {
-      throw new Error('VSCode instance not initialized - previous tests may have failed');
-    }
-
-    const beforeSolution = await helper.captureSolutionServerMetrics(mcpClient);
-
-    const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
-    expect(fixApplied).toBe(true);
-
-    const afterSolution = await helper.captureSolutionServerMetrics(mcpClient);
-
-    expect(afterSolution.successRate.accepted_solutions).toBeGreaterThan(
-      beforeSolution.successRate.accepted_solutions
-    );
-    helper.logger.success(
-      'Solution server successfully applied hints in EHR app for complete fix workflow'
-    );
-
-    // Log final workflow completion
-    helper.logger.success('Complete solution server workflow validated');
-    helper.logger.debug(
-      `Final metrics - Total accepted: ${afterSolution.successRate.accepted_solutions}, ` +
-        `Latest hint ID: ${afterSolution.bestHint.hint_id}`
-    );
-  });
-
-  test.afterEach(async () => {
-    helper.logger.debug(`Test completed: ${test.info().title}`);
-  });
-
-  test.afterAll(async () => {
-    if (vsCode) {
+      const ehrRepoInfo = testRepoData['ehr'];
       await vsCode.closeVSCode();
-    }
-    helper.logger.debug('Solution server workflow test suite completed');
-  });
-});
+      vsCode = await helper.setupRepository(ehrRepoInfo, 'EHR Viewer', 'rules');
+
+      const ehrViolations = await helper.validateAnalysisResults(vsCode, 'EHR Viewer');
+      expect(ehrViolations).toBeGreaterThan(0);
+
+      helper.logger.success('EHR application setup and analysis completed');
+    });
+
+    test('should capture and validate solution server metrics', async () => {
+      test.setTimeout(60000);
+
+      const solutionServerMetrics = await helper.captureSolutionServerMetrics(mcpClient);
+
+      expect(solutionServerMetrics.successRate).toBeDefined();
+      expect(solutionServerMetrics.bestHint).toBeDefined();
+      expect(solutionServerMetrics.bestHint.hint_id).toBeDefined();
+      expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThanOrEqual(0);
+
+      expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThan(0);
+      expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
+      expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
+
+      const totalSolutions = solutionServerMetrics.successRate.counted_solutions;
+      expect(totalSolutions).toBeGreaterThan(0);
+      helper.logger.success('Solution server metrics validated successfully');
+    });
+
+    test('should apply audit logger fix in EHR and verify hint usage', async () => {
+      test.setTimeout(400000);
+
+      if (!vsCode) {
+        throw new Error('VSCode instance not initialized - previous tests may have failed');
+      }
+
+      const beforeSolution = await helper.captureSolutionServerMetrics(mcpClient);
+
+      const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
+      expect(fixApplied).toBe(true);
+
+      const afterSolution = await helper.captureSolutionServerMetrics(mcpClient);
+
+      expect(afterSolution.successRate.accepted_solutions).toBeGreaterThan(
+        beforeSolution.successRate.accepted_solutions
+      );
+      helper.logger.success(
+        'Solution server successfully applied hints in EHR app for complete fix workflow'
+      );
+
+      // Log final workflow completion
+      helper.logger.success('Complete solution server workflow validated');
+      helper.logger.debug(
+        `Final metrics - Total accepted: ${afterSolution.successRate.accepted_solutions}, ` +
+          `Latest hint ID: ${afterSolution.bestHint.hint_id}`
+      );
+    });
+
+    test.afterEach(async () => {
+      helper.logger.debug(`Test completed: ${test.info().title}`);
+    });
+
+    test.afterAll(async () => {
+      if (vsCode) {
+        await vsCode.closeVSCode();
+      }
+      helper.logger.debug('Solution server workflow test suite completed');
+    });
+  }
+);
