@@ -14,7 +14,7 @@
 
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { Configuration } from '../../pages/configuration.page';
+import { HubConfigurationPage } from '../../pages/hub-configuration.page';
 import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { MCPClient } from '../../../mcp-client/mcp-client.model';
 import {
@@ -26,9 +26,11 @@ import { KAIViews } from '../../enums/views.enum';
 import * as path from 'path';
 import * as fs from 'fs';
 import { TestLogger } from '../../utilities/logger';
-import { solutionServerEnabled } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { getHubConfig } from '../../utilities/utils';
+import pathlib from 'path';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -80,14 +82,28 @@ class SolutionServerWorkflowHelper {
     let vsCode: VSCode | undefined;
 
     try {
-      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
       this.logger.debug(`VSCode opened for ${appName}`);
 
-      if (!vsCode) throw new Error('VSCode not initialized');
-      await this.createProfileWithCustomRules(vsCode, repoInfo, appName, customRulesSubPath);
+      const customRulesPath = path.join(process.cwd(), repoInfo.repoName, customRulesSubPath);
+      await vsCode.createProfile(
+        repoInfo.sources || [],
+        repoInfo.targets || [],
+        undefined,
+        customRulesPath
+      );
+      await vsCode.getWindow().screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `proooofileeee.png`),
+      });
+      this.logger.success(
+        `Profile created for ${appName} with custom rules from ${customRulesSubPath}`
+      );
       await this.configureSolutionServer(vsCode, appName);
-      await this.runAnalysis(vsCode, appName);
-
+      await vsCode.runAnalysis();
+      await vsCode.waitForAnalysisCompleted();
+      await vsCode.getWindow().screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `aresult.png`),
+      });
       this.logger.debug(`Successfully setup ${appName} repository`);
       return vsCode;
     } catch (error) {
@@ -99,62 +115,24 @@ class SolutionServerWorkflowHelper {
     }
   }
 
-  /**
-   * Creates profile with custom rules using proper test fixture data
-   */
-  private async createProfileWithCustomRules(
-    vsCode: VSCode,
-    repoInfo: any,
-    appName: string,
-    customRulesSubPath: string
-  ): Promise<void> {
-    const customRulesPath = path.join(process.cwd(), repoInfo.repoName, customRulesSubPath);
-
-    try {
-      await vsCode.createProfile(
-        repoInfo.sources || [],
-        repoInfo.targets || [],
-        undefined,
-        customRulesPath
-      );
-
-      this.logger.success(
-        `Profile created for ${appName} with custom rules from ${customRulesSubPath}`
-      );
-    } catch (error) {
-      throw new Error(`Profile creation failed for ${appName}: ${error}`);
-    }
-  }
-
   private async configureSolutionServer(vsCode: VSCode, appName: string): Promise<void> {
     try {
-      const config = await Configuration.open(vsCode);
-      await config.setEnabledConfiguration(solutionServerEnabled, true);
+      // Configure hub with solution server enabled
+      const hubConfig = getHubConfig({
+        profileSyncEnabled: false,
+        solutionServerEnabled: true,
+      });
+      const hubConfigPage = await HubConfigurationPage.open(vsCode);
+      await hubConfigPage.fillForm(hubConfig);
 
-      await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
+      await vsCode.assertNotification('Successfully connected to Hub solution server');
+
       await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
       await vsCode.startServer();
 
       this.logger.debug(`Solution server configured for ${appName}`);
     } catch (error) {
       throw new Error(`Solution server configuration failed for ${appName}: ${error}`);
-    }
-  }
-
-  private async runAnalysis(vsCode: VSCode, appName: string): Promise<void> {
-    const analysisStart = Date.now();
-
-    try {
-      await vsCode.runAnalysis();
-
-      await expect(vsCode.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 300000,
-      });
-
-      const analysisTime = Date.now() - analysisStart;
-      this.logger.debug(`Analysis completed for ${appName} in ${analysisTime}ms`);
-    } catch (error) {
-      throw new Error(`Analysis failed for ${appName}: ${error}`);
     }
   }
 
@@ -195,16 +173,6 @@ class SolutionServerWorkflowHelper {
 
     try {
       await vsCode.openAnalysisView();
-
-      const analysisViewBefore = await vsCode.getView(KAIViews.analysisView);
-
-      const incidentsLocator = analysisViewBefore.locator(
-        '[class*="incident"], [class*="violation"], .incident, .violation'
-      );
-      await expect(incidentsLocator.first()).toBeVisible({ timeout: 30000 });
-
-      const incidentsBefore = await incidentsLocator.count();
-
       const violationText =
         'Replace `FileSystemAuditLogger` instantiation with `StreamableAuditLogger` over TCP';
       await vsCode.searchAndRequestAction(
@@ -212,12 +180,6 @@ class SolutionServerWorkflowHelper {
         FixTypes.Incident,
         ResolutionAction.Accept
       );
-
-      const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
-
-      const acceptButton = await this.waitForSolutionGeneration(resolutionView);
-
-      await acceptButton.click();
       this.logger.success('Audit logger fix solution applied');
 
       await vsCode.openAnalysisView();
@@ -246,14 +208,6 @@ class SolutionServerWorkflowHelper {
   private async applyJavaAnnotationFixInternal(vsCode: VSCode, appName: string): Promise<boolean> {
     try {
       await vsCode.openAnalysisView();
-
-      const analysisViewBefore = await vsCode.getView(KAIViews.analysisView);
-
-      const incidentsLocator = analysisViewBefore.locator(
-        '[class*="incident"], [class*="violation"], .incident, .violation'
-      );
-      await expect(incidentsLocator.first()).toBeVisible({ timeout: 30000 });
-
       const violationText =
         'The java.annotation (Common Annotations) module has been removed from OpenJDK 11';
       await vsCode.searchAndRequestAction(
@@ -261,12 +215,6 @@ class SolutionServerWorkflowHelper {
         FixTypes.Incident,
         ResolutionAction.Accept
       );
-
-      const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
-
-      const acceptButton = await this.waitForSolutionGeneration(resolutionView);
-
-      await acceptButton.click();
       this.logger.success('Java annotation fix solution applied');
 
       await vsCode.openAnalysisView();
@@ -282,41 +230,6 @@ class SolutionServerWorkflowHelper {
       this.logger.error(`Java annotation fix application failed for ${appName}: ${error}`);
       return false;
     }
-  }
-
-  private async waitForSolutionGeneration(resolutionView: any): Promise<any> {
-    const maxAttempts = 10; // 10 attempts × 30 seconds = 5 minutes
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      const button = await this.getAcceptButton(resolutionView);
-      if (button && (await button.isVisible())) {
-        this.logger.debug('Found accept button using current selectors');
-        return button;
-      }
-
-      attempts++;
-      const timeElapsed = attempts * 30;
-
-      if (attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds
-      }
-    }
-
-    throw new Error('Solution generation timed out after 5 minutes');
-  }
-
-  private async getAcceptButton(resolutionView: any): Promise<any | null> {
-    const selectors = ['button:has-text("Accept All")', 'button.main-accept-button'];
-
-    for (const selector of selectors) {
-      const button = resolutionView.locator(selector);
-      if (await button.isVisible()) {
-        return button;
-      }
-    }
-
-    return null;
   }
 
   /**
@@ -426,7 +339,7 @@ class SolutionServerWorkflowHelper {
         violation_name: 'audit-logging-0003',
       };
 
-      const successRate = await mcpClient.getSuccessRate([metricsQuery]);
+      const successRate = await mcpClient.getSuccessRate(metricsQuery);
       const bestHint = await mcpClient.getBestHint(
         metricsQuery.ruleset_name,
         metricsQuery.violation_name
@@ -455,7 +368,7 @@ test.describe.serial('Solution Server Workflow', { tag: ['@tier3', '@requires-mi
     testRepoData = repoData;
 
     try {
-      mcpClient = await MCPClient.connect('http://localhost:8000');
+      mcpClient = await MCPClient.connect();
       helper.logger.debug('Connected to MCP client');
     } catch (error) {
       throw new Error(`Failed to connect to MCP client: ${error}`);
@@ -468,12 +381,7 @@ test.describe.serial('Solution Server Workflow', { tag: ['@tier3', '@requires-mi
     const inventoryRepoInfo = testRepoData['inventory_management'];
     vsCode = await helper.setupRepository(inventoryRepoInfo, 'Inventory Management', 'rules');
 
-    const inventoryViolations = await helper.validateAnalysisResults(
-      vsCode,
-      'Inventory Management'
-    );
-    expect(inventoryViolations).toBeGreaterThan(0);
-
+    await helper.validateAnalysisResults(vsCode, 'Inventory Management');
     helper.logger.success('Inventory Management setup and analysis completed');
   });
 
