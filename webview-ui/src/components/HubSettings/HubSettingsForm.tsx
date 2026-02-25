@@ -25,8 +25,9 @@ export const HubSettingsForm: React.FC<{
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Validation state
-  const [urlValidation, setUrlValidation] = useState<"default" | "error">("default");
+  const [urlValidation, setUrlValidation] = useState<"default" | "error" | "warning">("default");
   const [urlErrorMsg, setUrlErrorMsg] = useState<string | null>(null);
+  const [urlWarningMsg, setUrlWarningMsg] = useState<string | null>(null);
   const [usernameValidation, setUsernameValidation] = useState<"default" | "error">("default");
   const [usernameErrorMsg, setUsernameErrorMsg] = useState<string | null>(null);
   const [passwordValidation, setPasswordValidation] = useState<"default" | "error">("default");
@@ -47,7 +48,24 @@ export const HubSettingsForm: React.FC<{
     }
   }, [formData, initialConfig]);
 
+  const isLocalhostUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url);
+      return (
+        parsed.hostname === "localhost" ||
+        parsed.hostname === "127.0.0.1" ||
+        parsed.hostname.startsWith("192.168.") ||
+        parsed.hostname.startsWith("10.")
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const validateUrl = (url: string, enabled: boolean): boolean => {
+    // Clear warnings first
+    setUrlWarningMsg(null);
+
     if (enabled && !url.trim()) {
       setUrlValidation("error");
       setUrlErrorMsg("Hub URL is required when hub is enabled.");
@@ -58,6 +76,16 @@ export const HubSettingsForm: React.FC<{
       setUrlValidation("error");
       setUrlErrorMsg("URL must start with http:// or https://");
       return false;
+    }
+
+    // Warn about http:// for non-localhost URLs
+    if (url.trim() && url.startsWith("http://") && !isLocalhostUrl(url)) {
+      setUrlValidation("warning");
+      setUrlErrorMsg(null);
+      setUrlWarningMsg(
+        "Using http:// with a remote Hub may fail. Most production Hubs require https://.",
+      );
+      return true; // Still valid, just a warning
     }
 
     setUrlValidation("default");
@@ -144,6 +172,7 @@ export const HubSettingsForm: React.FC<{
     setSaveSuccess(false);
     setUrlValidation("default");
     setUrlErrorMsg(null);
+    setUrlWarningMsg(null);
     setUsernameValidation("default");
     setUsernameErrorMsg(null);
     setPasswordValidation("default");
@@ -222,7 +251,7 @@ export const HubSettingsForm: React.FC<{
               validateUrl(value, formData.enabled);
             }}
             validated={urlValidation}
-            placeholder="http://localhost:8080"
+            placeholder="https://your-hub-url"
           />
           {urlErrorMsg ? (
             <FormHelperText>
@@ -232,11 +261,19 @@ export const HubSettingsForm: React.FC<{
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
+          ) : urlWarningMsg ? (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<ExclamationCircleIcon />} variant="warning">
+                  {urlWarningMsg}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           ) : (
             <FormHelperText>
               <HelperText>
                 <HelperTextItem icon={<InfoCircleIcon />}>
-                  The URL of your Konveyor Hub instance
+                  The URL of your Konveyor Hub instance (use https:// for production)
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
