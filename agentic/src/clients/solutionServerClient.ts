@@ -22,7 +22,9 @@ const SOLUTION_SERVER_MCP_PATH = "/hub/services/kai/api";
 export function createRedirectAwareFetch(
   originalUrl: URL,
   logger?: { debug: (msg: string) => void },
+  baseFetch?: typeof fetch,
 ): typeof fetch {
+  const fetchFn = baseFetch ?? fetch;
   const originalPath = originalUrl.pathname;
   const apiIndex = originalPath.indexOf("/api");
   const pathPrefix = apiIndex > 0 ? originalPath.substring(0, apiIndex) : "";
@@ -45,7 +47,7 @@ export function createRedirectAwareFetch(
         currentUrl = rewrittenUrl.toString();
       }
 
-      const response = await fetch(currentUrl, {
+      const response = await fetchFn(currentUrl, {
         ...init,
         redirect: "manual",
       });
@@ -118,23 +120,23 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private mcpClient: Client | null = null;
   private serverUrl: string;
   private bearerToken: string | null;
+  private customFetch?: typeof fetch;
   private currentClientId: string = "";
   private logger: Logger;
   private cachedCapabilities: SolutionServerCapabilities | null = null;
   public isConnected: boolean = false;
 
-  /**
-   * Create a new SolutionServerClient.
-   * @param hubUrl The base Hub URL (e.g., https://hub.example.com)
-   * @param bearerToken Optional bearer token for authentication
-   * @param logger Logger instance
-   */
-  constructor(hubUrl: string, bearerToken: string | null, logger: Logger) {
+  constructor(
+    hubUrl: string,
+    bearerToken: string | null,
+    logger: Logger,
+    customFetch?: typeof fetch,
+  ) {
     super();
-    // Build full MCP endpoint URL from base Hub URL
     const baseUrl = hubUrl.endsWith("/") ? hubUrl.slice(0, -1) : hubUrl;
     this.serverUrl = `${baseUrl}${SOLUTION_SERVER_MCP_PATH}`;
     this.bearerToken = bearerToken;
+    this.customFetch = customFetch;
     this.logger = logger.child({
       component: "SolutionServerClient",
     });
@@ -183,7 +185,11 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
 
   private async attemptConnectionWithSlashRetry(): Promise<boolean> {
     const serverUrlObj = new URL(this.serverUrl);
-    const redirectAwareFetch = createRedirectAwareFetch(serverUrlObj, this.logger);
+    const redirectAwareFetch = createRedirectAwareFetch(
+      serverUrlObj,
+      this.logger,
+      this.customFetch,
+    );
 
     const transportOptions: any = {
       fetch: redirectAwareFetch,
@@ -218,6 +224,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
       const alternativeRedirectAwareFetch = createRedirectAwareFetch(
         alternativeUrlObj,
         this.logger,
+        this.customFetch,
       );
       const alternativeTransportOptions = {
         ...transportOptions,

@@ -1,7 +1,7 @@
 import tls from "node:tls";
 import fs from "fs/promises";
 import { Agent as HttpsAgent, type AgentOptions } from "node:https";
-import { Agent as UndiciAgent, ProxyAgent } from "undici";
+import { Agent as UndiciAgent, ProxyAgent, fetch as undiciFetch } from "undici";
 import type { Dispatcher as UndiciTypesDispatcher } from "undici-types";
 import { NodeHttpHandler, NodeHttp2Handler } from "@smithy/node-http-handler";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -57,13 +57,13 @@ export function getFetchWithDispatcher(
   dispatcher: UndiciTypesDispatcher,
 ): (input: Request | URL | string, init?: RequestInit) => Promise<Response> {
   return (input: Request | URL | string, init?: RequestInit) => {
-    return fetch(
+    return undiciFetch(
       input as any,
       {
         ...(init || {}),
         dispatcher,
       } as any,
-    );
+    ) as unknown as Promise<Response>;
   };
 }
 
