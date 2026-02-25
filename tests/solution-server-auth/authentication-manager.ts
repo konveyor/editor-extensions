@@ -36,21 +36,19 @@ export class AuthenticationManager {
     private readonly realm: string,
     private readonly username: string,
     private readonly password: string,
-    private readonly isLocal: boolean
-  ) {}
+    private readonly insecure: boolean = false
+  ) {
+    if (this.insecure) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+  }
 
   /**
    * Performs initial authentication using password grant flow.
    *
-   * when using the local server it sets a mock token from environment variable.
-   * when using the remote server it exchanges username/password for access and refresh tokens.
+   * Exchanges username/password for access and refresh tokens.
    */
   private async authenticate(): Promise<void> {
-    if (this.isLocal) {
-      this.bearerToken = this.bearerToken || generateRandomString();
-      return;
-    }
-
     const tokenUrl = this.getTokenUrl();
     const params = new URLSearchParams();
     params.append('grant_type', 'password');
@@ -73,7 +71,7 @@ export class AuthenticationManager {
   }
 
   private startAutoRefresh(): void {
-    if (this.isLocal || !this.tokenExpiresAt || !this.refreshToken) {
+    if (!this.tokenExpiresAt || !this.refreshToken) {
       return;
     }
 
@@ -102,8 +100,6 @@ export class AuthenticationManager {
   }
 
   private async refreshTokenFlow(): Promise<void> {
-    if (this.isLocal) return;
-
     if (!this.refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -129,8 +125,12 @@ export class AuthenticationManager {
   }
 
   private async fetchToken(tokenUrl: string, params: URLSearchParams): Promise<TokenResponse> {
-    const controller = new AbortController();
     const timeoutMs = 10000;
+    if (this.insecure && tokenUrl.startsWith('https://')) {
+      return this.fetchTokenInsecure(tokenUrl, params, timeoutMs);
+    }
+
+    const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -159,6 +159,67 @@ export class AuthenticationManager {
       clearTimeout(timeout);
     }
   }
+
+  private async fetchTokenInsecure(
+    tokenUrl: string,
+    params: URLSearchParams,
+    timeoutMs: number
+  ): Promise<TokenResponse> {
+    const https = await import('https');
+    const { URL } = await import('url');
+
+    const parsedUrl = new URL(tokenUrl);
+    const postData = params.toString();
+
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 443,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+          Accept: 'application/json',
+        },
+        rejectUnauthorized: false, // Disable certificate verification
+        timeout: timeoutMs,
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              const jsonData = JSON.parse(data) as TokenResponse;
+              resolve(jsonData);
+            } catch (error) {
+              reject(new Error(`Failed to parse JSON response: ${error}`));
+            }
+          } else {
+            reject(new Error(`Token request failed: ${res.statusCode} ${data}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error(`Token request timed out after ${timeoutMs}ms`));
+      });
+
+      req.write(postData);
+      req.end();
+    });
+  }
   private hasValidToken(): boolean {
     return (
       this.bearerToken !== null && this.tokenExpiresAt !== null && Date.now() < this.tokenExpiresAt
@@ -172,7 +233,7 @@ export class AuthenticationManager {
     if (this.hasValidToken()) {
       return;
     }
-    if (!this.refreshToken || this.isLocal) {
+    if (!this.refreshToken) {
       this.tokenPromise = this.authenticate().finally(() => {
         this.tokenPromise = null;
       });

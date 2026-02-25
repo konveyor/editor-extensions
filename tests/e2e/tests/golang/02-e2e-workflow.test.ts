@@ -39,8 +39,6 @@ test.describe.serial(
       });
     });
 
-    // --- Setup Phase ---
-
     test('Create profile with Kubernetes migration rulesets', async () => {
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(
@@ -64,17 +62,12 @@ test.describe.serial(
 
     test('Run analysis', async () => {
       test.setTimeout(600000);
-      await vscodeApp.waitDefault();
       await vscodeApp.openAnalysisView();
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);
-
-      // Click Run Analysis button directly (Go analysis may complete quickly)
       const runAnalysisBtn = analysisView.getByRole('button', { name: 'Run Analysis' });
       await expect(runAnalysisBtn).toBeEnabled({ timeout: 60000 });
       console.log('Clicking Run Analysis button...');
       await runAnalysisBtn.click();
-
-      // Wait for analysis completion notification
       await vscodeApp.waitForAnalysisCompleted();
       console.log('Analysis completed');
     });
@@ -193,8 +186,6 @@ test.describe.serial(
       });
     });
 
-    // --- Kai Integration Phase ---
-
     test('Verify Get Solution button is available', async () => {
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
@@ -263,7 +254,10 @@ test.describe.serial(
 
       // Click Accept button
       const acceptButton = resolutionView.getByRole('button', { name: 'Accept' }).first();
-      await expect(acceptButton).toBeVisible({ timeout: 30000 });
+      await expect(
+        acceptButton,
+        'Accept button not found. This may occur if the model is unreachable or if LLemulator is enabled.'
+      ).toBeVisible({ timeout: 30000 });
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
