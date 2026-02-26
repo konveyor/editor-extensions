@@ -184,6 +184,20 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.stopServer`]: async () => {
       const analyzerClient = state.analyzerClient;
+      const { isAnalyzing, isAnalysisScheduled } = state.data;
+      const isScheduledAnalysisRunning =
+        state.batchedAnalysisTrigger?.isScheduledAnalysisRunning() ?? false;
+      if (isAnalyzing || isAnalysisScheduled || isScheduledAnalysisRunning) {
+        logger.warn("Stop server blocked because analysis is running or scheduled.", {
+          isAnalyzing,
+          isAnalysisScheduled,
+          isScheduledAnalysisRunning,
+        });
+        vscode.window.showWarningMessage(
+          "Cannot stop the server while analysis is running or scheduled.",
+        );
+        return;
+      }
       try {
         await analyzerClient.stop();
       } catch (e) {

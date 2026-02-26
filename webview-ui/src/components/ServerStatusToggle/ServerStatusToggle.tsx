@@ -8,6 +8,7 @@ interface ServerStatusToggleProps {
   isStarting: boolean;
   isInitializing: boolean;
   hasWarning: boolean;
+  isDisabled?: boolean;
   onToggle: () => void;
 }
 
@@ -16,6 +17,7 @@ export function ServerStatusToggle({
   isStarting,
   isInitializing,
   hasWarning,
+  isDisabled = false,
   onToggle,
 }: ServerStatusToggleProps) {
   return (
@@ -31,7 +33,7 @@ export function ServerStatusToggle({
             size="sm"
             icon={<OnIcon />}
             onClick={onToggle}
-            isDisabled={isStarting || isInitializing || hasWarning}
+            isDisabled={isDisabled || isStarting || isInitializing || hasWarning}
             className="server-action-button"
           >
             {isStarting || isInitializing ? "" : isRunning ? "Stop" : "Start"}
