@@ -28,12 +28,7 @@ jobs:
           BRANCHES=$(git branch -r --list 'origin/release-*' | sed 's|origin/||' | tr -d ' ')
 
           if [ -z "$BRANCHES" ]; then
-            echo "No release branches found"
-            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-            ## Scheduled Patch Releases
-
-            No \`release-*\` branches found. Nothing to dispatch.
-            EOF
+            echo "No release branches found. Nothing to dispatch." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
