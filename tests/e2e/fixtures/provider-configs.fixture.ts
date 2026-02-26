@@ -63,6 +63,26 @@ export const GOOGLE_GEMINI_PROVIDER: ProviderConfig = {
   ].join('\n'),
 };
 
+export const LLEMULATOR_PROVIDER: ProviderConfig = {
+  provider: LLMProviders.openAI,
+  model: 'gpt-4o',
+  config: [
+    '---',
+    'environment:',
+    '  ALLOW_INSECURE: "true"',
+    'models:',
+    '  OpenAI: &active',
+    '    environment:',
+    '      OPENAI_API_KEY: "dummy-key-for-llemulator"',
+    '    provider: "ChatOpenAI"',
+    '    args:',
+    '      model: "gpt-4o-mini"',
+    '      configuration:',
+    `        baseURL: "${process.env.TEST_LLEMULATOR_URL}"`,
+    'active: *active',
+  ].join('\n'),
+};
+
 export const PARASOL_PROVIDER: ProviderConfig = {
   provider: LLMProviders.openAI,
   model: 'granite-3-3-8b-instruct',
@@ -87,8 +107,25 @@ export const providerConfigs: ProviderConfig[] = [
   OPENAI_GPT4OMINI_PROVIDER,
 ];
 
+/**
+ * Returns the Llemulator provider if configured
+ * If not, returns the first configured provider
+ */
+export function getDefaultProviderConfig(): ProviderConfig {
+  if (process.env.TEST_LLEMULATOR_URL) {
+    console.log('Llemulator is configured, using it as default provider');
+    return LLEMULATOR_PROVIDER;
+  }
+
+  return getAvailableProviders()[0];
+}
+
 export function getAvailableProviders(): ProviderConfig[] {
   const providers: ProviderConfig[] = [];
+  if (process.env.TEST_LLEMULATOR_URL) {
+    return [LLEMULATOR_PROVIDER];
+  }
+
   if (process.env.OPENAI_API_KEY) {
     providers.push(OPENAI_GPT4OMINI_PROVIDER);
   }
@@ -97,5 +134,5 @@ export function getAvailableProviders(): ProviderConfig[] {
     providers.push(AWS_PROVIDER);
   }
 
-  return [AWS_PROVIDER];
+  return providers;
 }

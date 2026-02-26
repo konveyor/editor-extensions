@@ -1,6 +1,9 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { getAvailableProviders } from '../../fixtures/provider-configs.fixture';
+import {
+  getAvailableProviders,
+  LLEMULATOR_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import { generateRandomString, parseLogEntries } from '../../utilities/utils';
 import { FixTypes } from '../../enums/fix-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
@@ -10,6 +13,7 @@ import { LogLevel } from '../../enums/Log-level.enum';
 import { OutputChannels } from '../../enums/output.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
+import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`Run analysis and fix one issue - ${provider.model}`, { tag: ['@tier3'] }, () => {
@@ -18,6 +22,22 @@ getAvailableProviders().forEach((provider) => {
 
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(1200_000);
+
+      if (provider === LLEMULATOR_PROVIDER) {
+        await loadLlemulatorResponses({
+          reset: true,
+          responses: [
+            buildKaiResponse({
+              reasoning: 'Migrated javax imports to jakarta for Jakarta EE 9+ compatibility.',
+              language: 'java',
+              fileContent: 'package com.redhat.coolstore.model;',
+              additionalInfo: 'No additional changes needed.',
+            }),
+          ],
+        });
+        console.log('Llemulator responses loaded for fix-one-issue test');
+      }
+
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
       await vscodeApp.waitDefault();
@@ -33,9 +53,7 @@ getAvailableProviders().forEach((provider) => {
       await vscodeApp.outputPanel.clearOutputChannel();
       await vscodeApp.outputPanel.closeOutputView();
       await vscodeApp.runAnalysis();
-      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 600000,
-      });
+      await vscodeApp.waitForAnalysisCompleted();
       await vscodeApp.getWindow().screenshot({
         path: `${SCREENSHOTS_FOLDER}/analysis-finished-fix-one-issue.png`,
       });

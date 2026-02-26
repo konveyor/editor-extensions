@@ -90,6 +90,7 @@ Additionally, you can directly pass the env variables.
 | TEST_HUB_PASSWORD                                    | (Optional) Password for Hub authentication in tests                                                                                                                                                                                                    |
 | TEST_HUB_AUTH_ENABLED                                | (Optional, boolean) When set to `true`, enables authentication for Hub in tests                                                                                                                                                                        |
 | TEST_HUB_INSECURE                                    | (Optional, boolean) When set to `true`, skips SSL certificate verification for Hub connections in tests. Default is `true`                                                                                                                             |
+| TEST_LLEMULATOR_URL                                  | (Optional) URL of the llemulator server for deterministic LLM response testing. When set, tests use llemulator instead of a real LLM provider (e.g., `http://localhost:8080/v1`)                                                                       |
 
 ## Running Tests
 
