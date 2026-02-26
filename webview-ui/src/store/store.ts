@@ -15,6 +15,7 @@ import type {
   GooseAgentState,
   GooseChatMessage,
   GooseContentBlockType,
+  GooseConfig,
 } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
@@ -73,6 +74,7 @@ interface ExtensionStore {
   gooseMessages: GooseChatMessage[];
   gooseState: GooseAgentState;
   gooseError?: string;
+  gooseConfig: GooseConfig | null;
 
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
@@ -117,6 +119,7 @@ interface ExtensionStore {
   setIsWebEnvironment: (isWeb: boolean) => void;
 
   // Goose chat setters
+  setGooseConfig: (config: GooseConfig | null) => void;
   setGooseMessages: (messages: GooseChatMessage[]) => void;
   setGooseState: (state: GooseAgentState) => void;
   setGooseError: (error: string | undefined) => void;
@@ -193,6 +196,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       gooseMessages: [],
       gooseState: "stopped" as GooseAgentState,
       gooseError: undefined,
+      gooseConfig: null,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -396,6 +400,11 @@ export const useExtensionStore = create<ExtensionStore>()(
         }),
 
       // Goose chat setters
+      setGooseConfig: (config) =>
+        set((state) => {
+          state.gooseConfig = config;
+        }),
+
       setGooseMessages: (messages) =>
         set((state) => {
           state.gooseMessages = messages;

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   Message,
   MessageBar,
@@ -13,6 +13,7 @@ import { ResourceLink } from "./ResourceLink";
 import { ResourceBlock } from "./ResourceBlock";
 import { ThinkingIndicator, ThinkingBlock } from "./ThinkingIndicator";
 import { ToolCallIndicator } from "./ToolCallIndicator";
+import GooseSettings from "./GooseSettings";
 import { v4 as uuidv4 } from "uuid";
 import type { GooseChatMessage } from "@editor-extensions/shared";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
@@ -43,10 +44,12 @@ const ContentBlocks: React.FC<{ msg: GooseChatMessage }> = ({ msg }) => {
 
 const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const gooseMessages = useExtensionStore((s) => s.gooseMessages);
   const gooseState = useExtensionStore((s) => s.gooseState);
   const gooseError = useExtensionStore((s) => s.gooseError);
+  const gooseConfig = useExtensionStore((s) => s.gooseConfig);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -102,9 +105,20 @@ const ChatPage: React.FC = () => {
     });
   }, []);
 
+  const handleToggleView = useCallback(() => {
+    window.vscode.postMessage({
+      type: "GOOSE_TOGGLE_VIEW",
+      payload: {},
+    });
+  }, []);
+
   const isRunning = gooseState === "running";
   const isStarting = gooseState === "starting";
   const isError = gooseState === "error";
+
+  const configLabel = gooseConfig
+    ? `${gooseConfig.provider} / ${gooseConfig.model}`
+    : "Not configured";
 
   return (
     <Chatbot displayMode={ChatbotDisplayMode.embedded}>
@@ -124,6 +138,9 @@ const ChatPage: React.FC = () => {
                     ? "Error"
                     : "Stopped"}
             </span>
+            <span className="chat-config-label" title={configLabel}>
+              {configLabel}
+            </span>
             {!isRunning && !isStarting && (
               <button className="chat-action-btn" onClick={handleStartAgent}>
                 Start
@@ -134,7 +151,26 @@ const ChatPage: React.FC = () => {
                 Stop
               </button>
             )}
+            <button
+              className="chat-action-btn chat-action-btn--icon"
+              onClick={() => setShowSettings((prev) => !prev)}
+              aria-label="Settings"
+              title="Configure provider, model, and extensions"
+            >
+              ⚙
+            </button>
+            <button
+              className="chat-action-btn chat-action-btn--icon"
+              onClick={handleToggleView}
+              aria-label="Toggle view position"
+              title="Move between sidebar and panel"
+            >
+              ⇔
+            </button>
           </div>
+
+          {/* Settings panel */}
+          {showSettings && <GooseSettings onClose={() => setShowSettings(false)} />}
 
           {/* Error display */}
           {isError && gooseError && (

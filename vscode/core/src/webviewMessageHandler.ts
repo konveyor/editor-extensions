@@ -38,8 +38,12 @@ import {
   GOOSE_SEND_MESSAGE,
   GOOSE_START_AGENT,
   GOOSE_STOP_AGENT,
+  GOOSE_UPDATE_CONFIG,
+  GOOSE_OPEN_CONFIGURE,
+  GOOSE_TOGGLE_VIEW,
   HubConfig,
   ChatMessageType,
+  MessageTypes as MsgTypes,
 } from "@editor-extensions/shared";
 
 import {
@@ -289,7 +293,7 @@ const actions: {
     // Delegate to the command which attempts to reconnect profile sync
     await executeExtensionCommand("retryProfileSync");
   },
-  [WEBVIEW_READY](_payload, state, logger) {
+  [WEBVIEW_READY]: async (_payload, state, logger) => {
     logger.info("Webview is ready - sending full state to ensure configuration is loaded");
 
     // Send the full current state to the webview
@@ -310,6 +314,21 @@ const actions: {
         timestamp,
       });
     });
+
+    // Re-send goose config so the webview has it after recreation (e.g., view move)
+    try {
+      const { readGooseConfig } = await import("./gooseConfig");
+      const config = readGooseConfig();
+      state.webviewProviders.forEach((provider) => {
+        provider.sendMessageToWebview({
+          type: MsgTypes.GOOSE_CONFIG_UPDATE,
+          config,
+          timestamp,
+        });
+      });
+    } catch {
+      // Config read is best-effort — goose may not be configured yet
+    }
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
@@ -874,6 +893,72 @@ const actions: {
       await state.gooseClient.stop();
     } catch (err) {
       logger.error("GOOSE_STOP_AGENT failed:", err);
+    }
+  },
+
+  [GOOSE_UPDATE_CONFIG]: async (
+    payload: {
+      provider: string;
+      model: string;
+      extensions: Array<{ id: string; enabled: boolean }>;
+    },
+    state,
+    logger,
+  ) => {
+    try {
+      const { writeGooseConfig, readGooseConfig } = await import("./gooseConfig");
+      writeGooseConfig({
+        provider: payload.provider,
+        model: payload.model,
+        extensions: payload.extensions,
+      });
+      logger.info(`Goose config updated: provider=${payload.provider}, model=${payload.model}`);
+
+      // Restart goose agent with new config
+      if (state.gooseClient) {
+        await state.gooseClient.stop();
+        await state.gooseClient.start();
+      }
+
+      // Read back the updated config and broadcast to webview
+      const updatedConfig = readGooseConfig();
+      const timestamp = new Date().toISOString();
+      for (const provider of state.webviewProviders.values()) {
+        provider.sendMessageToWebview({
+          type: MsgTypes.GOOSE_CONFIG_UPDATE,
+          config: updatedConfig,
+          timestamp,
+        });
+      }
+    } catch (err) {
+      logger.error("GOOSE_UPDATE_CONFIG failed:", err);
+      vscode.window.showErrorMessage(
+        `Failed to update Goose configuration: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  },
+
+  [GOOSE_OPEN_CONFIGURE]: async (_payload, _state, logger) => {
+    try {
+      const terminal = vscode.window.createTerminal({
+        name: "Goose Configure",
+        shellPath: undefined,
+      });
+      terminal.show();
+      terminal.sendText("goose configure");
+    } catch (err) {
+      logger.error("GOOSE_OPEN_CONFIGURE failed:", err);
+      vscode.window.showErrorMessage("Failed to open terminal for goose configure.");
+    }
+  },
+
+  [GOOSE_TOGGLE_VIEW]: async (_payload, _state, logger) => {
+    try {
+      await vscode.commands.executeCommand("workbench.action.moveView", {
+        viewId: "konveyor-core.chatView",
+      });
+    } catch (err) {
+      logger.error("GOOSE_TOGGLE_VIEW failed:", err);
     }
   },
 };

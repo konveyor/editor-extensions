@@ -914,20 +914,41 @@ class VsCodeExtension {
       this.state.gooseClient = gooseClient;
       this.listeners.push({ dispose: () => gooseClient.dispose() });
 
-      // 5. Start the Goose agent (async — don't block activation)
-      gooseClient.start().catch((err) => {
-        this.state.logger.error(`Failed to start Goose agent: ${err}`);
-        vscode.window
-          .showWarningMessage(
-            `Goose agent failed to start: ${err instanceof Error ? err.message : String(err)}`,
-            "View Logs",
-          )
-          .then((action) => {
-            if (action === "View Logs") {
-              vscode.commands.executeCommand("workbench.action.output.toggleOutput");
+      // 5. Read goose config and broadcast to webview after agent starts
+      gooseClient
+        .start()
+        .then(async () => {
+          try {
+            const { readGooseConfig } = await import("./gooseConfig");
+            const config = readGooseConfig();
+            const timestamp = new Date().toISOString();
+            for (const provider of this.state.webviewProviders.values()) {
+              provider.sendMessageToWebview({
+                type: MessageTypes.GOOSE_CONFIG_UPDATE,
+                config,
+                timestamp,
+              });
             }
-          });
-      });
+            this.state.logger.info(
+              `Goose config sent to webview: provider=${config.provider}, model=${config.model}`,
+            );
+          } catch (configErr) {
+            this.state.logger.warn(`Could not read goose config: ${configErr}`);
+          }
+        })
+        .catch((err) => {
+          this.state.logger.error(`Failed to start Goose agent: ${err}`);
+          vscode.window
+            .showWarningMessage(
+              `Goose agent failed to start: ${err instanceof Error ? err.message : String(err)}`,
+              "View Logs",
+            )
+            .then((action) => {
+              if (action === "View Logs") {
+                vscode.commands.executeCommand("workbench.action.output.toggleOutput");
+              }
+            });
+        });
 
       this.state.logger.info("Goose chat initialization complete");
     } catch (err) {

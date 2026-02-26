@@ -12,6 +12,7 @@ import {
   GooseAgentState,
   GooseChatMessage,
   GooseContentBlockType,
+  GooseConfig,
 } from "./types";
 
 export const MessageTypes = {
@@ -28,6 +29,7 @@ export const MessageTypes = {
   GOOSE_CHAT_STATE_CHANGE: "GOOSE_CHAT_STATE_CHANGE",
   GOOSE_CHAT_STREAMING_UPDATE: "GOOSE_CHAT_STREAMING_UPDATE",
   GOOSE_TOOL_CALL: "GOOSE_TOOL_CALL",
+  GOOSE_CONFIG_UPDATE: "GOOSE_CONFIG_UPDATE",
 } as const;
 
 export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
@@ -150,6 +152,12 @@ export interface GooseToolCallMessage {
   timestamp: string;
 }
 
+export interface GooseConfigUpdateMessage {
+  type: "GOOSE_CONFIG_UPDATE";
+  config: GooseConfig;
+  timestamp: string;
+}
+
 /**
  * Union type of all possible webview messages
  */
@@ -161,7 +169,8 @@ export type WebviewMessage =
   | GooseStateChangeMessage
   | GooseChatStateChangeMessage
   | GooseChatStreamingUpdateMessage
-  | GooseToolCallMessage;
+  | GooseToolCallMessage
+  | GooseConfigUpdateMessage;
 
 /**
  * Type guards for message discrimination
@@ -201,4 +210,8 @@ export function isGooseChatStreamingUpdate(
 
 export function isGooseToolCall(msg: WebviewMessage): msg is GooseToolCallMessage {
   return (msg as any).type === MessageTypes.GOOSE_TOOL_CALL;
+}
+
+export function isGooseConfigUpdate(msg: WebviewMessage): msg is GooseConfigUpdateMessage {
+  return (msg as any).type === MessageTypes.GOOSE_CONFIG_UPDATE;
 }

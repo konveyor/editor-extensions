@@ -9,6 +9,7 @@ import {
   isGooseChatStateChange,
   isGooseChatStreamingUpdate,
   isGooseToolCall,
+  isGooseConfigUpdate,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -193,6 +194,12 @@ export function useVSCodeMessageHandler() {
             message.status as "running" | "succeeded" | "failed",
             message.result,
           );
+          return;
+        }
+
+        // Handle Goose config update
+        if (isGooseConfigUpdate(message)) {
+          store.setGooseConfig(message.config);
           return;
         }
 

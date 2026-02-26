@@ -402,3 +402,245 @@
   border-radius: 3px;
   font-style: italic;
 }
+
+/* --- Config Label in Status Bar --- */
+
+.chat-config-label {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-action-btn--icon {
+  padding: 2px 4px;
+  min-width: 22px;
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+}
+
+/* --- Goose Settings Panel --- */
+
+.goose-settings {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+  background: var(--vscode-sideBar-background, #1e1e1e);
+  padding: 12px 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.goose-settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.goose-settings__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__close {
+  background: none;
+  border: none;
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.goose-settings__close:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-settings__section {
+  margin-bottom: 10px;
+}
+
+.goose-settings__label {
+  display: block;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.goose-settings__select,
+.goose-settings__input {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-radius: 3px;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.goose-settings__select:focus,
+.goose-settings__input:focus {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.goose-settings__model-wrapper {
+  position: relative;
+}
+
+.goose-settings__suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  background: var(--vscode-input-background, #3c3c3c);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.goose-settings__suggestion {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--vscode-input-foreground, #ccc);
+  cursor: pointer;
+}
+
+.goose-settings__suggestion:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-settings__credential-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.goose-settings__section-divider {
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  margin: 8px 0 10px;
+}
+
+.goose-settings__extensions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.goose-settings__extension {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.goose-settings__extension-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.goose-settings__extension-name {
+  font-size: 12px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__extension-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Toggle switch */
+.goose-settings__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.goose-settings__toggle-track {
+  display: block;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--vscode-input-border, #555);
+  position: relative;
+  transition: background 0.15s;
+}
+
+.goose-settings__toggle--on .goose-settings__toggle-track {
+  background: var(--vscode-button-background, #0e639c);
+}
+
+.goose-settings__toggle-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--vscode-foreground, #ccc);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.15s;
+}
+
+.goose-settings__toggle--on .goose-settings__toggle-thumb {
+  transform: translateX(14px);
+}
+
+.goose-settings__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.goose-settings__btn {
+  flex: 1;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+}
+
+.goose-settings__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.goose-settings__btn--primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.goose-settings__btn--primary:not(:disabled):hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.goose-settings__btn--secondary {
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+}
+
+.goose-settings__btn--secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #454545);
+}

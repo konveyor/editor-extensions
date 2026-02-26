@@ -321,6 +321,21 @@ export const createLLMError = {
 
 // --- Goose agent types (experimental chat) ---
 
+export interface GooseExtensionConfig {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  type: "platform" | "builtin" | "stdio";
+  bundled: boolean;
+}
+
+export interface GooseConfig {
+  provider: string;
+  model: string;
+  extensions: GooseExtensionConfig[];
+}
+
 export type GooseAgentState = "stopped" | "starting" | "running" | "error";
 
 export type GooseContentBlockType = "text" | "resource_link" | "resource" | "thinking";
