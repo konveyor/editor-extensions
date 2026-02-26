@@ -2,6 +2,20 @@
 
 All notable changes to the "konveyor" extension pack will be documented in this file.
 
+
+## [0.4.1] - 2026-02-26
+
+### Enhancements
+
+- Graceful degraded state when no workspace is open or no language providers are registered, with guided welcome content in the sidebar to help users open a folder, install language extensions, or get started with analysis. ([#1263](https://github.com/konveyor/editor-extensions/pull/1263))
+
+### Bug Fixes
+
+- Fixed misleading http:// placeholder in Hub URL field that led users to use insecure URLs for remote Hubs, causing connection failures. Now defaults to https:// and warns when http:// is used with non-localhost URLs. ([#1247](https://github.com/konveyor/editor-extensions/pull/1247))
+- Do not bypass SSL globally in solution server client.  Uses existing custom fetch function that we use for model provider connection. Uses the existing mock server infrastructure with self-signed certificates to test SSL bypass behavior. ([#1258](https://github.com/konveyor/editor-extensions/pull/1258))
+- Fixed CA_BUNDLE and ALLOW_INSECURE settings being ignored for the Google GenAI provider by configuring the global fetch dispatcher with custom TLS certificates.
+
+
 ## [0.4.0] - 2026-02-19
 
 ### New Features
