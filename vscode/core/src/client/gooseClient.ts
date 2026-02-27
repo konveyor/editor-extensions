@@ -188,6 +188,17 @@ export class GooseClient extends EventEmitter {
   }
 
   /**
+   * Update the environment variables injected into the goose subprocess.
+   * Takes effect on the next start() call.
+   */
+  updateModelEnv(env: Record<string, string>): void {
+    (this.config as GooseClientConfig).modelEnv = {
+      ...this.config.modelEnv,
+      ...env,
+    };
+  }
+
+  /**
    * Start the Goose agent: discover binary, check version, spawn process,
    * initialize ACP, and create a session.
    */
@@ -372,14 +383,12 @@ export class GooseClient extends EventEmitter {
   private async discoverBinary(): Promise<string> {
     // 1. Check configured path
     if (this.config.gooseBinaryPath) {
-      try {
-        fs.accessSync(this.config.gooseBinaryPath, fs.constants.X_OK);
+      if (await this.isValidGooseCli(this.config.gooseBinaryPath)) {
         return this.config.gooseBinaryPath;
-      } catch {
-        this.logger.warn(
-          `GooseClient: configured path not accessible: ${this.config.gooseBinaryPath}`,
-        );
       }
+      this.logger.warn(
+        `GooseClient: configured path not valid CLI: ${this.config.gooseBinaryPath}`,
+      );
     }
 
     // 2. Check PATH
@@ -388,20 +397,16 @@ export class GooseClient extends EventEmitter {
 
     for (const dir of pathDirs) {
       const candidate = path.join(dir, binaryName);
-      try {
-        fs.accessSync(candidate, fs.constants.X_OK);
+      if (await this.isValidGooseCli(candidate)) {
         return candidate;
-      } catch {
-        // Not found in this directory
       }
     }
 
-    // 3. Platform-specific locations
+    // 3. Platform-specific locations (CLI install paths only — not the desktop app)
     const homeDir = os.homedir();
     const platformPaths =
       process.platform === "darwin"
         ? [
-            "/Applications/Goose.app/Contents/MacOS/goose",
             path.join(homeDir, ".local", "bin", "goose"),
             "/usr/local/bin/goose",
             "/opt/homebrew/bin/goose",
@@ -420,11 +425,8 @@ export class GooseClient extends EventEmitter {
             ];
 
     for (const candidate of platformPaths) {
-      try {
-        fs.accessSync(candidate, fs.constants.X_OK);
+      if (await this.isValidGooseCli(candidate)) {
         return candidate;
-      } catch {
-        // Not found
       }
     }
 
@@ -432,6 +434,36 @@ export class GooseClient extends EventEmitter {
       "Goose binary not found. Install Goose (https://block.github.io/goose/docs/quickstart) " +
         "or set the path in settings (konveyor-core.experimentalChat.gooseBinaryPath).",
     );
+  }
+
+  /**
+   * Verify a candidate path is the goose CLI (not the desktop app).
+   * Runs `goose --version` with a short timeout — the CLI responds immediately,
+   * while the desktop app hangs or launches a GUI window.
+   */
+  private isValidGooseCli(candidate: string): Promise<boolean> {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+    } catch {
+      return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+      const child = execFile(
+        candidate,
+        ["--version"],
+        { timeout: 3000 },
+        (error, stdout, stderr) => {
+          if (error) {
+            resolve(false);
+            return;
+          }
+          const output = (stdout || stderr || "").trim();
+          resolve(/\d+\.\d+\.\d+/.test(output));
+        },
+      );
+      child.on("error", () => resolve(false));
+    });
   }
 
   private async checkVersion(binaryPath: string): Promise<void> {

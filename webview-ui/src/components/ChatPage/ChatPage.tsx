@@ -116,9 +116,10 @@ const ChatPage: React.FC = () => {
   const isStarting = gooseState === "starting";
   const isError = gooseState === "error";
 
-  const configLabel = gooseConfig
-    ? `${gooseConfig.provider} / ${gooseConfig.model}`
-    : "Not configured";
+  const configLabel =
+    gooseConfig?.provider && gooseConfig?.model
+      ? `${gooseConfig.provider} / ${gooseConfig.model}`
+      : "Not configured";
 
   return (
     <Chatbot displayMode={ChatbotDisplayMode.embedded}>
@@ -176,9 +177,39 @@ const ChatPage: React.FC = () => {
           {isError && gooseError && (
             <div className="chat-error-banner">
               <div className="chat-error-banner__message">{gooseError}</div>
-              <div className="chat-error-banner__hint">
-                Click Start to retry. Your conversation history is preserved.
-              </div>
+              {gooseError.includes("binary not found") ? (
+                <div className="chat-error-banner__actions">
+                  <button
+                    className="chat-error-banner__btn"
+                    onClick={() => {
+                      window.vscode.postMessage({
+                        type: "GOOSE_INSTALL_CLI",
+                        payload: {},
+                      });
+                    }}
+                  >
+                    Install Goose CLI
+                  </button>
+                  <span className="chat-error-banner__hint">
+                    or{" "}
+                    <button
+                      className="chat-error-banner__link"
+                      onClick={() => {
+                        window.vscode.postMessage({
+                          type: "GOOSE_OPEN_SETTINGS",
+                          payload: {},
+                        });
+                      }}
+                    >
+                      set the path manually
+                    </button>
+                  </span>
+                </div>
+              ) : (
+                <div className="chat-error-banner__hint">
+                  Click Start to retry. Your conversation history is preserved.
+                </div>
+              )}
             </div>
           )}
 

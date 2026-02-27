@@ -88,6 +88,41 @@
   opacity: 0.8;
 }
 
+.chat-error-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.chat-error-banner__btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  cursor: pointer;
+}
+
+.chat-error-banner__btn:hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.chat-error-banner__link {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.chat-error-banner__link:hover {
+  color: var(--vscode-textLink-activeForeground, #3794ff);
+}
+
 .chat-welcome {
   padding: 16px;
 }
@@ -528,6 +563,37 @@
   color: var(--vscode-descriptionForeground, #999);
   margin-bottom: 10px;
   font-style: italic;
+}
+
+.goose-settings__credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goose-settings__credential-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.goose-settings__credential-label {
+  font-size: 11px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__stored-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  border-radius: 3px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ccc);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: normal;
+  vertical-align: middle;
 }
 
 .goose-settings__section-divider {

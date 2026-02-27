@@ -45,7 +45,7 @@ export function readGooseConfig(): GooseConfig {
     }
   }
 
-  return { provider, model, extensions };
+  return { provider, model, extensions, hasStoredCredentials: false };
 }
 
 export interface WriteGooseConfigChanges {

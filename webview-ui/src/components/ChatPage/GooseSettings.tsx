@@ -13,6 +13,7 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
   const [selectedProvider, setSelectedProvider] = useState(gooseConfig?.provider ?? "");
   const [modelInput, setModelInput] = useState(gooseConfig?.model ?? "");
   const [extensionStates, setExtensionStates] = useState<Record<string, boolean>>({});
+  const [credentialInputs, setCredentialInputs] = useState<Record<string, string>>({});
   const [showModelSuggestions, setShowModelSuggestions] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,11 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
     const newProvider = e.target.value;
     setSelectedProvider(newProvider);
     setModelInput("");
+    setCredentialInputs({});
+  };
+
+  const handleCredentialChange = (key: string, value: string) => {
+    setCredentialInputs((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleToggleExtension = (extId: string) => {
@@ -62,32 +68,28 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
         }))
       : [];
 
+    const hasCredentialValues = Object.values(credentialInputs).some((v) => v.length > 0);
+
     window.vscode.postMessage({
       type: "GOOSE_UPDATE_CONFIG",
       payload: {
         provider: selectedProvider,
         model: modelInput,
         extensions: extensionPayload,
+        ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
       },
     });
     onClose();
   };
 
-  const handleOpenConfigure = () => {
-    window.vscode.postMessage({
-      type: "GOOSE_OPEN_CONFIGURE",
-      payload: {},
-    });
-  };
-
-  const credentialHint = currentProviderOption?.requiredEnvVars.length
-    ? `Requires: ${currentProviderOption.requiredEnvVars.join(", ")}`
-    : "No API key required";
-
   const hasChanges =
     selectedProvider !== (gooseConfig?.provider ?? "") ||
     modelInput !== (gooseConfig?.model ?? "") ||
+    Object.values(credentialInputs).some((v) => v.length > 0) ||
     gooseConfig?.extensions.some((ext) => extensionStates[ext.id] !== ext.enabled);
+
+  const providerEnvVars = currentProviderOption?.envVars ?? [];
+  const hasStoredCreds = gooseConfig?.hasStoredCredentials ?? false;
 
   return (
     <div className="goose-settings">
@@ -154,8 +156,43 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Credential Hint */}
-      <div className="goose-settings__credential-hint">{credentialHint}</div>
+      {/* Credentials */}
+      {providerEnvVars.length > 0 && (
+        <div className="goose-settings__section">
+          <div className="goose-settings__section-divider" />
+          <label className="goose-settings__label">
+            Credentials
+            {hasStoredCreds && (
+              <span className="goose-settings__stored-badge">Stored</span>
+            )}
+          </label>
+          <div className="goose-settings__credentials">
+            {providerEnvVars.map((envVar) => (
+              <div key={envVar.key} className="goose-settings__credential-field">
+                <label
+                  className="goose-settings__credential-label"
+                  htmlFor={`cred-${envVar.key}`}
+                >
+                  {envVar.label}
+                </label>
+                <input
+                  id={`cred-${envVar.key}`}
+                  className="goose-settings__input"
+                  type={envVar.isSecret ? "password" : "text"}
+                  value={credentialInputs[envVar.key] ?? ""}
+                  onChange={(e) => handleCredentialChange(envVar.key, e.target.value)}
+                  placeholder={hasStoredCreds ? "Leave blank to keep current" : `Enter ${envVar.label.toLowerCase()}...`}
+                  autoComplete="off"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {providerEnvVars.length === 0 && currentProviderOption && (
+        <div className="goose-settings__credential-hint">No API key required</div>
+      )}
 
       {/* Extensions */}
       {gooseConfig && gooseConfig.extensions.length > 0 && (
@@ -197,9 +234,6 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
           title={!hasChanges ? "No changes to apply" : "Apply changes and restart Goose"}
         >
           {gooseState === "running" ? "Apply & Restart" : "Apply & Start"}
-        </button>
-        <button className="goose-settings__btn goose-settings__btn--secondary" onClick={handleOpenConfigure}>
-          Configure Credentials
         </button>
       </div>
     </div>
