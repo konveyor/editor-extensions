@@ -20,8 +20,7 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     store: ctx.store,
     logger: ctx.logger,
     runAnalysis: async () => {
-      const { AnalyzerClient } = await import("../../client/analyzerClient");
-      const analyzerClient = ctx.featureClients.get("_analyzerClient") as any;
+      const analyzerClient = ctx.extensionState.analyzerClient;
       if (analyzerClient && (await analyzerClient.canAnalyzeInteractive())) {
         await analyzerClient.start();
       }

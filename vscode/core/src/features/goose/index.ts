@@ -22,14 +22,7 @@ export const gooseFeatureModule: FeatureModule = {
       draft.featureState.gooseError = undefined;
     });
 
-    // Register the chat webview provider
-    const chatViewProvider = new KonveyorGUIWebviewViewProvider(
-      // The provider needs ExtensionState — reconstruct the minimal shape it needs
-      // from FeatureContext. Since KonveyorGUIWebviewViewProvider accesses state
-      // through the full ExtensionState, we pass the state object from featureClients.
-      ctx.featureClients.get("_extensionState") as any,
-      "chat",
-    );
+    const chatViewProvider = new KonveyorGUIWebviewViewProvider(ctx.extensionState, "chat");
     ctx.webviewProviders.set("chat", chatViewProvider);
     disposables.push(
       ctx.registerWebviewProvider(KonveyorGUIWebviewViewProvider.CHAT_VIEW_TYPE, chatViewProvider, {

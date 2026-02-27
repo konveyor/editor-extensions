@@ -65,8 +65,7 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
 import { ProviderRegistry, HealthCheckRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
-import { FeatureRegistry, type FeatureContext } from "./features/featureRegistry";
-import { gooseFeatureModule } from "./features/goose";
+import { initFeatures } from "./features/featureRegistry";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -709,35 +708,7 @@ class VsCodeExtension {
       );
 
       // --- Experimental Features ---
-      const featureRegistry = new FeatureRegistry(this.state.logger);
-      this.state.featureRegistry = featureRegistry;
-      this.context.subscriptions.push(featureRegistry);
-      featureRegistry.register(gooseFeatureModule);
-
-      // Expose analyzerClient so feature modules can trigger analysis
-      this.state.featureClients.set("_analyzerClient", this.state.analyzerClient);
-      // Expose full ExtensionState for webview providers that need it
-      this.state.featureClients.set("_extensionState", this.state);
-
-      const featureContext: FeatureContext = {
-        extensionContext: this.context,
-        store: this.store,
-        mutate: this.state.mutate,
-        logger: this.state.logger,
-        webviewProviders: this.state.webviewProviders,
-        featureClients: this.state.featureClients,
-        registerMessageHandlers: (handlers) => {
-          const { registerMessageHandlers } = require("./webviewMessageHandler");
-          return registerMessageHandlers(handlers);
-        },
-        registerWebviewProvider: (viewType, provider, options) => {
-          const disposable = vscode.window.registerWebviewViewProvider(viewType, provider, options);
-          this.context.subscriptions.push(disposable);
-          return disposable;
-        },
-      };
-
-      await featureRegistry.initAll(featureContext);
+      await initFeatures(this.state, this.store, this.context);
 
       this.state.logger.info("Extension initialized");
 

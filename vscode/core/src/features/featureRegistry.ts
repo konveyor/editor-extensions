@@ -3,6 +3,7 @@ import winston from "winston";
 import { ExtensionData } from "@editor-extensions/shared";
 import { type ExtensionStore } from "../store/extensionStore";
 import { KonveyorGUIWebviewViewProvider } from "../KonveyorGUIWebviewViewProvider";
+import type { ExtensionState } from "../extensionState";
 
 export interface FeatureModule {
   readonly id: string;
@@ -13,6 +14,7 @@ export interface FeatureModule {
 
 export interface FeatureContext {
   readonly extensionContext: vscode.ExtensionContext;
+  readonly extensionState: ExtensionState;
   readonly store: ExtensionStore;
   readonly mutate: (recipe: (draft: ExtensionData) => void) => void;
   readonly logger: winston.Logger;
@@ -84,4 +86,47 @@ export class FeatureRegistry implements vscode.Disposable {
     this.disposables.clear();
     this.modules.clear();
   }
+}
+
+/**
+ * Bootstrap all experimental features. This is the single entry point
+ * called from extension.ts — it owns module discovery, context creation,
+ * registration, and initialization so that extension.ts never imports
+ * individual feature modules.
+ */
+export async function initFeatures(
+  state: ExtensionState,
+  store: ExtensionStore,
+  context: vscode.ExtensionContext,
+): Promise<FeatureRegistry> {
+  const { registerMessageHandlers } = await import("../webviewMessageHandler");
+  const { featureModules } = await import("./index");
+
+  const registry = new FeatureRegistry(state.logger);
+  state.featureRegistry = registry;
+  context.subscriptions.push(registry);
+
+  for (const module of featureModules) {
+    registry.register(module);
+  }
+
+  const featureContext: FeatureContext = {
+    extensionContext: context,
+    extensionState: state,
+    store,
+    mutate: state.mutate,
+    logger: state.logger,
+    webviewProviders: state.webviewProviders,
+    featureClients: state.featureClients,
+    registerMessageHandlers: (handlers) => registerMessageHandlers(handlers),
+    registerWebviewProvider: (viewType, provider, options) => {
+      const disposable = vscode.window.registerWebviewViewProvider(viewType, provider, options);
+      context.subscriptions.push(disposable);
+      return disposable;
+    },
+  };
+
+  await registry.initAll(featureContext);
+
+  return registry;
 }
