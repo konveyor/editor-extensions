@@ -8,7 +8,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
-  const profileNameWithRules = `profileWithRules-${generateRandomString()}`;
+  const profileNameWithRules = `rulesProfile-${generateRandomString()}`;
   const createdProfiles: string[] = [];
   let profileView: FrameLocator;
 
