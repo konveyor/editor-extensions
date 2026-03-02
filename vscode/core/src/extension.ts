@@ -546,10 +546,13 @@ class VsCodeExtension {
 
       // Set up workflow disposal callback for when Hub clients reconnect
       // This handles both solution server changes and LLM proxy availability
-      this.state.hubConnectionManager.setWorkflowDisposalCallback(() => {
-        this.state.logger.info("Hub clients reconnected, updating workflow and model provider");
+      this.state.hubConnectionManager.setWorkflowDisposalCallback((tokenRefreshOnly) => {
+        this.state.logger.info("Hub clients reconnected, updating workflow and model provider", {
+          tokenRefreshOnly,
+        });
 
         // Update model provider if LLM proxy is available
+        // Bearer token is baked into ChatOpenAI instances, so we must recreate on any token change
         const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
         if (llmProxyConfig?.available) {
           this.createHubProxyModelProvider(llmProxyConfig)
@@ -572,17 +575,20 @@ class VsCodeExtension {
             });
         }
 
-        // Dispose workflow if needed (solution server or model provider changed)
-        const isWorkflowRunning = this.state.data.isFetchingSolution;
-        if (isWorkflowRunning) {
-          this.state.logger.warn(
-            "Hub clients changed but workflow is running - will dispose after completion",
-          );
-          this.state.workflowDisposalPending = true;
-        } else if (this.state.workflowManager.isInitialized) {
-          this.state.logger.info("Disposing workflow to use new Hub clients");
-          this.state.workflowManager.dispose();
-          this.state.workflowDisposalPending = false;
+        // Only dispose workflow on full reconnect (config change), not on token refresh.
+        // Token refresh preserves existing clients and their session state (e.g., clientId).
+        if (!tokenRefreshOnly) {
+          const isWorkflowRunning = this.state.data.isFetchingSolution;
+          if (isWorkflowRunning) {
+            this.state.logger.warn(
+              "Hub clients changed but workflow is running - will dispose after completion",
+            );
+            this.state.workflowDisposalPending = true;
+          } else if (this.state.workflowManager.isInitialized) {
+            this.state.logger.info("Disposing workflow to use new Hub clients");
+            this.state.workflowManager.dispose();
+            this.state.workflowDisposalPending = false;
+          }
         }
       });
 

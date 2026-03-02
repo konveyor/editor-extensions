@@ -22,7 +22,7 @@ export interface HubLoginResponse {
 }
 
 // Callback type for workflow disposal (called after successful connection)
-export type WorkflowDisposalCallback = () => void;
+export type WorkflowDisposalCallback = (tokenRefreshOnly?: boolean) => void;
 
 // Callback type for profile sync (to trigger automatic sync)
 export type ProfileSyncCallback = () => Promise<void>;
@@ -239,14 +239,7 @@ export class HubConnectionManager {
     // This catches cases where auth is disabled in config but Hub requires it
     try {
       this.logger.info("Verifying Hub connectivity and authentication");
-      const testClient = new ProfileSyncClient(
-        this.config.url,
-        this.bearerToken,
-        this.logger,
-        this.scopedFetch ?? undefined,
-      );
-      await testClient.connect();
-      await testClient.disconnect();
+      await this.verifyHubConnectivity();
       this.logger.info("Hub connectivity check passed");
     } catch (error) {
       this.logger.error("Hub connectivity check failed", error);
@@ -328,7 +321,7 @@ export class HubConnectionManager {
 
     // Notify workflow disposal callback after successful connection
     // This handles both workflow disposal and model provider updates
-    this.onWorkflowDisposal?.();
+    this.onWorkflowDisposal?.(false);
   }
 
   /**
@@ -546,14 +539,72 @@ export class HubConnectionManager {
         this.logger.info("Re-authentication successful");
       }
 
-      // Success - reconnect with new token
+      // Success - update existing clients with new token (preserves session state)
       this.refreshRetryCount = 0;
-      await this.connect();
+      await this.refreshClientTokens();
     } catch (error) {
       await this.handleTokenRefreshError(error);
     } finally {
       this.isRefreshingTokens = false;
     }
+  }
+
+  /**
+   * Update tokens on existing clients without destroying them.
+   * Preserves client state (e.g., currentClientId on SolutionServerClient)
+   * while refreshing the MCP transport and HTTP headers with the new token.
+   *
+   * Falls back to full connect() if connectivity check or MCP reconnect fails.
+   */
+  private async refreshClientTokens(): Promise<void> {
+    if (!this.bearerToken) {
+      this.logger.warn(
+        "No bearer token available for client refresh, falling back to full reconnect",
+      );
+      await this.connect();
+      return;
+    }
+
+    // Verify Hub connectivity and auth with the new token
+    try {
+      this.logger.info("Verifying Hub connectivity with refreshed token");
+      await this.verifyHubConnectivity();
+      this.logger.info("Hub connectivity check passed after token refresh");
+    } catch (error) {
+      this.logger.error(
+        "Hub connectivity check failed after token refresh, falling back to full reconnect",
+        error,
+      );
+      await this.connect();
+      return;
+    }
+
+    // Update solution server client (internally disconnects/reconnects MCP transport)
+    if (this.solutionServerClient) {
+      try {
+        await this.solutionServerClient.updateBearerToken(this.bearerToken);
+        this.logger.info("Solution server client token updated");
+      } catch (error) {
+        this.logger.error(
+          "Failed to update solution server token, falling back to full reconnect",
+          error,
+        );
+        await this.connect();
+        return;
+      }
+    }
+
+    // Update profile sync client (just a field update, uses dynamic headers per-request)
+    if (this.profileSyncClient) {
+      this.profileSyncClient.updateBearerToken(this.bearerToken);
+      this.logger.info("Profile sync client token updated");
+    }
+
+    // Restart refresh timer with new expiration
+    await this.startTokenRefreshTimer();
+
+    // Notify — token refresh only, don't dispose workflow
+    this.onWorkflowDisposal?.(true);
   }
 
   /**
@@ -654,6 +705,29 @@ export class HubConnectionManager {
       }
     }
     return true;
+  }
+
+  /**
+   * Verify Hub connectivity and authentication with the current bearer token.
+   * Makes a direct HTTP request to avoid side effects from ProfileSyncClient.connect()
+   * (e.g., LLM proxy discovery that isn't cleaned up on disconnect).
+   */
+  private async verifyHubConnectivity(): Promise<void> {
+    const fetchFn = this.scopedFetch ?? fetch;
+    const response = await fetchFn(`${this.config.url}/hub/applications`, {
+      method: "GET",
+      headers: {
+        Accept: "application/x-yaml",
+        ...(this.bearerToken ? { Authorization: `Bearer ${this.bearerToken}` } : {}),
+      },
+    });
+
+    // 404 is ok (no applications), but auth failures are not
+    if (!response.ok && response.status !== 404) {
+      throw new HubConnectionManagerError(
+        `Hub connectivity check failed: ${response.status} ${response.statusText}`,
+      );
+    }
   }
 
   /**
