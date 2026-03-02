@@ -16,6 +16,7 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     rollupOptions: {
+      external: ["vscode-jsonrpc/node"],
       plugins: [nodeResolve()], // this is a library so don't package libraries
     },
   },

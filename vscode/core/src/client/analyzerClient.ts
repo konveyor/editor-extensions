@@ -10,6 +10,7 @@ import {
   ServerState,
   SolutionState,
   Violation,
+  generateSafePipeName,
 } from "@editor-extensions/shared";
 import { paths, ignoresToExcludedPaths } from "../paths";
 import { normalizeFilePath } from "../utilities/pathUtils";
@@ -137,7 +138,7 @@ export class AnalyzerClient {
     this.fireServerStateChange("starting");
     const startTime = performance.now();
 
-    const pipeName = rpc.generateRandomPipeName();
+    const pipeName = generateSafePipeName();
     const [analyzerRpcServer, analyzerPid] = this.startAnalysisServer(pipeName);
     analyzerRpcServer.on("exit", (code, signal) => {
       this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);

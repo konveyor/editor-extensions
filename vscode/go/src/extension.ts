@@ -2,8 +2,7 @@ import * as vscode from "vscode";
 import { exec } from "node:child_process";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import * as rpc from "vscode-jsonrpc/node";
-import type { KonveyorCoreApi } from "@editor-extensions/shared";
+import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
 import { GoVscodeProxyServer } from "./goVscodeProxyServer";
 import { GoExternalProviderManager } from "./goExternalProviderManager";
 import { getDependencyProviderBinaryPath } from "./pathUtils";
@@ -98,8 +97,8 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Create socket paths for communication
-  const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for kai-analyzer-rpc
-  const lspProxySocketPath = rpc.generateRandomPipeName(); // JSON-RPC socket for vscode proxy
+  const providerSocketPath = generateSafePipeName(); // GRPC socket for kai-analyzer-rpc
+  const lspProxySocketPath = generateSafePipeName(); // JSON-RPC socket for vscode proxy
 
   logger.info("Socket paths generated", {
     providerSocket: providerSocketPath,

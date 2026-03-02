@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import * as rpc from "vscode-jsonrpc/node";
-import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
 import {
   CORE_EXTENSION_ID,
   EXTENSION_DISPLAY_NAME,
@@ -166,8 +165,8 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // Create socket paths for communication
-  const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for kai-analyzer-rpc
-  const lspProxySocketPath = rpc.generateRandomPipeName(); // JSON-RPC socket for JDTLS proxy
+  const providerSocketPath = generateSafePipeName(); // GRPC socket for kai-analyzer-rpc
+  const lspProxySocketPath = generateSafePipeName(); // JSON-RPC socket for JDTLS proxy
 
   logger.info("Socket paths generated", {
     providerSocket: providerSocketPath,

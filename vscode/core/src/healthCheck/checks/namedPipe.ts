@@ -6,6 +6,7 @@
 import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
+import { generateSafePipeName } from "@editor-extensions/shared";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { CheckResultBuilder, withErrorHandling, formatError, formatDetails } from "../helpers";
 
@@ -19,21 +20,22 @@ async function getXdgInfo(): Promise<string | undefined> {
     const exists = await fs.pathExists(xdgDir);
     return `XDG_RUNTIME_DIR: ${xdgDir} (${exists ? "exists" : "not found"})`;
   }
-  return "XDG_RUNTIME_DIR: Not set (will use /tmp)";
+  return "XDG_RUNTIME_DIR: Not set";
 }
 
-function getPathLengthWarning(tempDir: string): string | undefined {
+function getPathLengthInfo(): string | undefined {
   if (process.platform === "win32") {
     return undefined;
   }
 
   const maxPathLength = process.platform === "darwin" ? 103 : 107;
-  const examplePath = path.join(tempDir, "vscode-ipc-very-long-workspace-path-name-example.sock");
 
-  if (examplePath.length > maxPathLength) {
-    return `Warning: Temp directory path is long (${tempDir.length} chars). Socket paths are limited to ${maxPathLength} characters. Deep workspace paths may cause issues.`;
+  try {
+    const testPath = generateSafePipeName();
+    return `Socket path length: ${testPath.length}/${maxPathLength} chars (using /tmp)`;
+  } catch (err) {
+    return `Warning: Socket path generation failed: ${err instanceof Error ? err.message : String(err)}`;
   }
-  return undefined;
 }
 
 export const namedPipeCheck: HealthCheckModule = {
@@ -48,47 +50,47 @@ export const namedPipeCheck: HealthCheckModule = {
     const builder = new CheckResultBuilder("Named Pipe Communication");
 
     return withErrorHandling("Named Pipe Communication", logger, async () => {
-      const tempDir = os.tmpdir();
+      // Verify /tmp is accessible (used for socket paths on Unix)
+      const socketDir = process.platform === "win32" ? os.tmpdir() : "/tmp";
 
-      if (!(await fs.pathExists(tempDir))) {
+      if (!(await fs.pathExists(socketDir))) {
         return builder.fail(
-          `Temporary directory does not exist: ${tempDir}`,
+          `Socket directory does not exist: ${socketDir}`,
           undefined,
-          "The system temporary directory is required for socket creation. Check system configuration.",
+          "The socket directory is required for IPC communication. Check system configuration.",
         );
       }
 
       // Test write permissions
-      const testFile = path.join(tempDir, `konveyor-health-check-${Date.now()}.tmp`);
+      const testFile = path.join(socketDir, `konveyor-health-check-${Date.now()}.tmp`);
       try {
         await fs.writeFile(testFile, "test");
         await fs.remove(testFile);
       } catch (err) {
         return builder.fail(
-          `Cannot write to temporary directory: ${tempDir}`,
+          `Cannot write to socket directory: ${socketDir}`,
           formatError(err),
-          "Write access to the temporary directory is required for socket creation. This may be blocked by WDAC, AppLocker, or filesystem restrictions.",
+          "Write access to the socket directory is required for IPC communication. This may be blocked by WDAC, AppLocker, or filesystem restrictions.",
         );
       }
 
       // Gather platform-specific information
       const xdgInfo = await getXdgInfo();
-      const pathWarning = getPathLengthWarning(tempDir);
+      const pathInfo = getPathLengthInfo();
       const windowsInfo =
         process.platform === "win32"
           ? "Windows: Named pipes use \\\\.\\pipe\\ namespace. WDAC/AppLocker policies may restrict pipe creation."
           : undefined;
 
       const details = formatDetails(
-        `Temp Directory: ${tempDir}`,
+        `Socket Directory: ${socketDir}`,
+        `System Temp Directory: ${os.tmpdir()}`,
         xdgInfo,
-        pathWarning,
+        pathInfo,
         windowsInfo,
       );
 
-      return pathWarning
-        ? builder.warning("Temporary directory is accessible for socket/pipe creation", details)
-        : builder.pass("Temporary directory is accessible for socket/pipe creation", details);
+      return builder.pass("Socket directory is accessible for IPC communication", details);
     });
   },
 };

@@ -4,8 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import * as rpc from "vscode-jsonrpc/node";
-import type { KonveyorCoreApi } from "@editor-extensions/shared";
+import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
 import { CSharpExternalProviderManager } from "./csharpExternalProviderManager";
 import { CORE_EXTENSION_ID, EXTENSION_DISPLAY_NAME, EXTENSION_ID } from "./utilities/constants";
 
@@ -103,7 +102,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Create socket path for C# provider communication
-  const providerSocketPath = rpc.generateRandomPipeName(); // GRPC socket for c-sharp-analyzer-provider
+  const providerSocketPath = generateSafePipeName(); // GRPC socket for c-sharp-analyzer-provider
 
   logger.info("Socket path generated", {
     providerSocket: providerSocketPath,
