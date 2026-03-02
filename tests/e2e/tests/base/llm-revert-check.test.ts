@@ -1,7 +1,10 @@
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { MIN } from '../../utilities/consts';
-import { getAvailableProviders } from '../../fixtures/provider-configs.fixture';
+import {
+  getAvailableProviders,
+  LLEMULATOR_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import { generateRandomString } from '../../utilities/utils';
 
 import path from 'path';
@@ -9,6 +12,7 @@ import { getFileImports } from '../../utilities/file.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
 /**
  * Automates https://github.com/konveyor/kai/issues/798
  * Tests that fixes applied by the LLM do not unintentionally revert .
@@ -31,6 +35,45 @@ getAvailableProviders().forEach((provider) => {
 
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(15 * MIN);
+
+      if (provider === LLEMULATOR_PROVIDER) {
+        await loadLlemulatorResponses({
+          reset: true,
+          responses: [
+            {
+              pattern: '(?i).*Member\\.java.*',
+              response: buildKaiResponse({
+                reasoning: 'Replaced javax with jakarta imports for Member.java.',
+                language: 'java',
+                fileContent:
+                  'package org.jboss.as.quickstarts.kitchensink.model;\nimport jakarta.persistence.Entity;@SuppressWarnings("serial")\n@Entity\n@XmlRootElement\n@Table(uniqueConstraints = @UniqueConstraint(columnNames = "email"))\npublic class Member implements Serializable {\n\n    @Id\n    @GeneratedValue\n    private Long id;\n}',
+              }),
+              times: 1,
+            },
+            {
+              pattern: '(?i).*Member\\.java.*',
+              response: buildKaiResponse({
+                reasoning: 'Different fix for member java for the second issue',
+                language: 'java',
+                fileContent:
+                  'package org.jboss.as.quickstarts.kitchensink.model;\nimport jakarta.persistence.Entity;@SuppressWarnings("serial")\n@Entity\n@XmlRootElement\n@Table(uniqueConstraints = @UniqueConstraint(columnNames = "email"))\npublic class Member implements Serializable {\n\n    @Id\n    @GeneratedValue\n    private Long id;\n}// Another different fix',
+              }),
+              times: 1,
+            },
+            {
+              pattern: '.*\\.java',
+              response: buildKaiResponse({
+                reasoning: 'Replaced javax with jakarta imports.',
+                language: 'java',
+                fileContent:
+                  'package org.jboss.as.quickstarts.kitchensink.model;\nimport jakarta.persistence.Entity;',
+              }),
+              times: -1,
+            },
+          ],
+        });
+      }
+
       repoInfo = testRepoData['jboss-eap-quickstarts'];
       vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
@@ -47,9 +90,7 @@ getAvailableProviders().forEach((provider) => {
       test.setTimeout(30 * MIN);
       await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
-      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 15 * MIN,
-      });
+      await vscodeApp.waitForAnalysisCompleted();
     });
 
     test('Fix "The package javax has been replaced by jakarta"', async () => {
