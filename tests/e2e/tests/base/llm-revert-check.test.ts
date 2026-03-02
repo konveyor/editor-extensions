@@ -82,13 +82,13 @@ getAvailableProviders().forEach((provider) => {
     });
 
     test.beforeEach(async () => {
+      test.setTimeout(5 * MIN);
       const testName = test.info().title.replace(' ', '-');
       console.log(`Starting ${testName} at ${new Date()}`);
     });
 
     test('Analyze jboss-eap-quickstarts', async () => {
       test.setTimeout(30 * MIN);
-      await vscodeApp.waitDefault();
       await vscodeApp.runAnalysis();
       await vscodeApp.waitForAnalysisCompleted();
     });

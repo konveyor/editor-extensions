@@ -7,9 +7,9 @@ import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import { OutputPanel } from './output.page';
 import path from 'path';
+import pathlib from 'path';
 import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
-import pathlib from 'path';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -482,7 +482,7 @@ export abstract class VSCode {
       await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
     }
 
-    if (fixType) {
+    if (fixType !== undefined) {
       await analysisView.locator('button#get-solution-button').nth(fixType).click();
     }
 
@@ -501,6 +501,11 @@ export abstract class VSCode {
       if (resolutionAction !== ResolutionAction.Accept) {
         await actionLocator.waitFor({ state: 'visible', timeout: 30000 });
         await actionLocator.dispatchEvent('click');
+        if (resolutionAction === ResolutionAction.ReviewInEditor) {
+          // Small label that is displayed in top of the editor
+          // This expect is needed as a big diff may take a few secods to load
+          await expect(this.window.getByText('Accept All Changes')).toBeVisible();
+        }
         return [];
       }
 
@@ -661,7 +666,7 @@ export abstract class VSCode {
 
   public async executeTerminalCommand(
     command: string,
-    expectedOutput?: string,
+    expectedOutput?: string | RegExp,
     outputShouldBeVisible: boolean = true
   ): Promise<void> {
     if (!this.repoDir || !this.branch) {
@@ -675,6 +680,10 @@ export abstract class VSCode {
     await this.window.keyboard.type(command);
     await this.window.keyboard.press('Enter');
     if (expectedOutput) {
+      await this.waitDefault();
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `last-command.png`),
+      });
       if (outputShouldBeVisible) {
         await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
       } else {
@@ -769,8 +778,8 @@ export abstract class VSCode {
     if (fullText == null) {
       throw new Error('No active profile found');
     }
-    const profileName = fullText.replace('(active)', '').trim();
-    return profileName;
+
+    return fullText.replace('(active)', '').trim();
   }
 
   public async getAllIssues(): Promise<{ title: string; incidentsCount: number }[]> {
@@ -820,7 +829,7 @@ export abstract class VSCode {
     );
     await input.waitFor({ state: 'visible', timeout: 5000 });
     await input.fill(filename);
-    const fileLocator = await this.window.locator('a').filter({ hasText: filename }).first();
+    const fileLocator = this.window.locator('a').filter({ hasText: filename }).first();
     await expect(fileLocator).toBeVisible({ timeout: 10000 });
     await fileLocator.click();
     if (closeOtherEditors) {

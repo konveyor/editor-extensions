@@ -2,7 +2,11 @@ import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.page';
 import { SCREENSHOTS_FOLDER, TEST_OUTPUT_FOLDER } from '../utilities/consts';
 import { getRepoName, generateRandomString } from '../utilities/utils';
-import { DEFAULT_PROVIDER, getAvailableProviders } from '../fixtures/provider-configs.fixture';
+import {
+  getAvailableProviders,
+  getDefaultProviderConfig,
+  LLEMULATOR_PROVIDER,
+} from '../fixtures/provider-configs.fixture';
 import path from 'path';
 import { runEvaluation } from '../../kai-evaluator/core';
 import { prepareEvaluationData, saveOriginalAnalysisFile } from '../utilities/evaluation.utils';
@@ -10,8 +14,9 @@ import { isAWSConfigured } from '../../kai-evaluator/utils/s3.utils';
 import * as VSCodeFactory from '../utilities/vscode.factory';
 import { ResolutionAction } from '../enums/resolution-action.enum';
 import { FixTypes } from '../enums/fix-types.enum';
+import { buildKaiResponse, loadLlemulatorResponses } from '../utilities/llemulator.utils';
 
-const providers = process.env.CI ? getAvailableProviders() : [DEFAULT_PROVIDER];
+const providers = process.env.CI ? getAvailableProviders() : [getDefaultProviderConfig()];
 
 providers.forEach((config) => {
   test.describe(`Coolstore app tests | ${config.model}`, { tag: ['@tier3'] }, () => {
@@ -22,6 +27,24 @@ providers.forEach((config) => {
 
     test.beforeAll(async ({ testRepoData }, testInfo) => {
       test.setTimeout(3000000);
+
+      if (config === LLEMULATOR_PROVIDER) {
+        await loadLlemulatorResponses({
+          reset: true,
+          responses: [
+            {
+              pattern: '.*',
+              response: buildKaiResponse({
+                reasoning: 'LLEMULATOR RESPONSE',
+                language: 'java',
+                fileContent: 'LLEMULATOR RESPONSE',
+              }),
+              times: -1,
+            },
+          ],
+        });
+      }
+
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
       profileName = `${repoInfo.repoName}-${randomString}`;
@@ -49,9 +72,7 @@ providers.forEach((config) => {
       await vscodeApp.getWindow().screenshot({
         path: `${SCREENSHOTS_FOLDER}/analysis-running.png`,
       });
-      await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 300000,
-      });
+      await vscodeApp.waitForAnalysisCompleted();
       /*
        * There is a limit in the number of analysis and solution files that kai stores
        * This method ensures the original analysis is stored to be used later in the evaluation
@@ -65,7 +86,7 @@ providers.forEach((config) => {
     test('Fix all issues', async () => {
       test.setTimeout(3600000);
       await vscodeApp.openAnalysisView();
-      await vscodeApp.searchAndRequestAction(undefined, FixTypes.Issue, ResolutionAction.Accept);
+      await vscodeApp.searchAndRequestAction(undefined, FixTypes.All, ResolutionAction.Accept);
     });
 
     test.afterEach(async () => {
@@ -85,7 +106,7 @@ providers.forEach((config) => {
         allOk = false;
       }
       // Evaluation should be performed only if all tests under this suite passed
-      if (allOk && process.env.CI) {
+      if (allOk && process.env.CI && config !== LLEMULATOR_PROVIDER) {
         test.setTimeout(300_000);
         if (!isAWSConfigured()) {
           console.warn('Skipping evaluation: AWS credentials are not configured.');
