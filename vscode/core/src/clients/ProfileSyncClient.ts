@@ -211,6 +211,7 @@ export class ProfileSyncClient {
    */
   public async disconnect(): Promise<void> {
     this.isConnected = false;
+    this.llmProxyConfig = null;
     this.logger.info("Profile sync client disconnected");
   }
 

@@ -239,14 +239,7 @@ export class HubConnectionManager {
     // This catches cases where auth is disabled in config but Hub requires it
     try {
       this.logger.info("Verifying Hub connectivity and authentication");
-      const testClient = new ProfileSyncClient(
-        this.config.url,
-        this.bearerToken,
-        this.logger,
-        this.scopedFetch ?? undefined,
-      );
-      await testClient.connect();
-      await testClient.disconnect();
+      await this.verifyHubConnectivity();
       this.logger.info("Hub connectivity check passed");
     } catch (error) {
       this.logger.error("Hub connectivity check failed", error);
@@ -561,7 +554,7 @@ export class HubConnectionManager {
    * Preserves client state (e.g., currentClientId on SolutionServerClient)
    * while refreshing the MCP transport and HTTP headers with the new token.
    *
-   * Falls back to full connect() if the MCP reconnect fails.
+   * Falls back to full connect() if connectivity check or MCP reconnect fails.
    */
   private async refreshClientTokens(): Promise<void> {
     if (!this.bearerToken) {
@@ -572,17 +565,10 @@ export class HubConnectionManager {
       return;
     }
 
-    // Verify Hub connectivity and auth with the new token before updating clients
+    // Verify Hub connectivity and auth with the new token
     try {
       this.logger.info("Verifying Hub connectivity with refreshed token");
-      const testClient = new ProfileSyncClient(
-        this.config.url,
-        this.bearerToken,
-        this.logger,
-        this.scopedFetch ?? undefined,
-      );
-      await testClient.connect();
-      await testClient.disconnect();
+      await this.verifyHubConnectivity();
       this.logger.info("Hub connectivity check passed after token refresh");
     } catch (error) {
       this.logger.error(
@@ -719,6 +705,29 @@ export class HubConnectionManager {
       }
     }
     return true;
+  }
+
+  /**
+   * Verify Hub connectivity and authentication with the current bearer token.
+   * Makes a direct HTTP request to avoid side effects from ProfileSyncClient.connect()
+   * (e.g., LLM proxy discovery that isn't cleaned up on disconnect).
+   */
+  private async verifyHubConnectivity(): Promise<void> {
+    const fetchFn = this.scopedFetch ?? fetch;
+    const response = await fetchFn(`${this.config.url}/hub/applications`, {
+      method: "GET",
+      headers: {
+        Accept: "application/x-yaml",
+        ...(this.bearerToken ? { Authorization: `Bearer ${this.bearerToken}` } : {}),
+      },
+    });
+
+    // 404 is ok (no applications), but auth failures are not
+    if (!response.ok && response.status !== 404) {
+      throw new HubConnectionManagerError(
+        `Hub connectivity check failed: ${response.status} ${response.statusText}`,
+      );
+    }
   }
 
   /**
