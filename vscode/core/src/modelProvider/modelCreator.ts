@@ -17,6 +17,7 @@ import { ModelCreator, PROVIDER_ENV_CA_BUNDLE, PROVIDER_ENV_INSECURE, type Fetch
 import { getConfigHttpProtocol } from "../utilities/httpProtocol";
 
 const defaultDispatcher = getGlobalDispatcher();
+const originalFetch = globalThis.fetch;
 
 export const ModelCreators: Record<string, (logger: Logger) => ModelCreator> = {
   AzureChatOpenAI: (logger) => new AzureChatOpenAICreator(logger),
@@ -244,13 +245,15 @@ function getCaBundleAndInsecure(env: Record<string, string>): {
 }
 
 /**
- * Unified TLS setup for all model providers. Creates a single dispatcher that:
- * 1. Sets the global fetch dispatcher (for SDKs like Google GenAI that use
- *    global fetch internally and don't accept a custom fetch function)
- * 2. Returns a custom fetch function (for SDKs like OpenAI/Azure that accept one)
+ * Unified TLS setup for all model providers.
  *
- * Every provider calls this same function, so new providers automatically get
- * CA_BUNDLE, ALLOW_INSECURE, and HTTP protocol support.
+ * Webpack bundles our `undici` dependency into the extension, creating a
+ * separate instance from Node's built-in undici (`node:internal/deps/undici`).
+ * `setGlobalDispatcher()` only configures the bundled copy, but
+ * `globalThis.fetch` in Node 22+ is powered by Node's built-in copy —
+ * so SDKs like Google GenAI that call `globalThis.fetch` bypass our
+ * dispatcher entirely. We must also override `globalThis.fetch` with our
+ * bundled undici's fetch to ensure custom CA certs are used.
  */
 async function setupProviderTLS(
   env: Record<string, string>,
@@ -263,13 +266,16 @@ async function setupProviderTLS(
 
   if (!needsCustomDispatcher) {
     setGlobalDispatcher(defaultDispatcher);
+    globalThis.fetch = originalFetch;
     return undefined;
   }
 
   try {
     const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure, allowH2, logger);
+    const customFetch = getFetchWithDispatcher(dispatcher);
     setGlobalDispatcher(dispatcher as any);
-    return getFetchWithDispatcher(dispatcher);
+    globalThis.fetch = customFetch as typeof globalThis.fetch;
+    return customFetch;
   } catch (error) {
     logger.error(error);
     throw new Error(`Failed to setup TLS dispatcher: ${String(error)}`);
