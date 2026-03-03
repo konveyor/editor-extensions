@@ -145,8 +145,12 @@ export async function downloadGitHubReleaseAssets({
     metadata.collectedAt = new Date().toISOString();
     metadata.assets = [];
 
-    for (const { name } of assets) {
-      const releaseAsset = releaseAssets.find((a) => a.name === name);
+    for (const { name, fallbackName } of assets) {
+      let releaseAsset = releaseAssets.find((a) => a.name === name);
+      if (!releaseAsset && fallbackName) {
+        console.log(`Asset [${yellow(name)}] not found, trying fallback [${yellow(fallbackName)}]`);
+        releaseAsset = releaseAssets.find((a) => a.name === fallbackName);
+      }
       if (!releaseAsset) {
         throw new Error(
           `Asset [${yellow(name)}] was not found in GitHub release ${releaseData.html_url}`,
