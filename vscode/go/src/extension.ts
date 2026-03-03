@@ -6,7 +6,12 @@ import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/s
 import { GoVscodeProxyServer } from "./goVscodeProxyServer";
 import { GoExternalProviderManager } from "./goExternalProviderManager";
 import { getDependencyProviderBinaryPath } from "./pathUtils";
-import { CORE_EXTENSION_ID, EXTENSION_DISPLAY_NAME, EXTENSION_ID } from "./utilities/constants";
+import {
+  CORE_EXTENSION_ID,
+  EXTENSION_DISPLAY_NAME,
+  EXTENSION_ID,
+  EXTENSION_NAME,
+} from "./utilities/constants";
 
 export async function activate(context: vscode.ExtensionContext) {
   // Setup logger
@@ -97,8 +102,8 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Create socket paths for communication
-  const providerSocketPath = generateSafePipeName(); // GRPC socket for kai-analyzer-rpc
-  const lspProxySocketPath = generateSafePipeName(); // JSON-RPC socket for vscode proxy
+  const providerSocketPath = generateSafePipeName(EXTENSION_NAME); // GRPC socket for kai-analyzer-rpc
+  const lspProxySocketPath = generateSafePipeName(EXTENSION_NAME); // JSON-RPC socket for vscode proxy
 
   logger.info("Socket paths generated", {
     providerSocket: providerSocketPath,

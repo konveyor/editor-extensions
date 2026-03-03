@@ -6,6 +6,7 @@ import {
   CORE_EXTENSION_ID,
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
+  EXTENSION_NAME,
   EXTENSION_VERSION,
 } from "./utilities/constants";
 import { LspProxyServer } from "./lspProxyServer";
@@ -165,8 +166,8 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // Create socket paths for communication
-  const providerSocketPath = generateSafePipeName(); // GRPC socket for kai-analyzer-rpc
-  const lspProxySocketPath = generateSafePipeName(); // JSON-RPC socket for JDTLS proxy
+  const providerSocketPath = generateSafePipeName(EXTENSION_NAME); // GRPC socket for kai-analyzer-rpc
+  const lspProxySocketPath = generateSafePipeName(EXTENSION_NAME); // JSON-RPC socket for JDTLS proxy
 
   logger.info("Socket paths generated", {
     providerSocket: providerSocketPath,

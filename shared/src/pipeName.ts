@@ -28,19 +28,18 @@ function randomSuffix(): string {
  * This function uses `/tmp` directly (4 chars) with a shorter random suffix,
  * producing paths well under the limit.
  *
- * On Windows, named pipes (`\\.\pipe\…`) have no practical length limit, so
- * we delegate to `vscode-jsonrpc`'s implementation.
+ * On Windows, named pipes (`\\.\pipe\…`) have no practical length limit.
+ *
+ * @param prefix - Short identifier for the socket name (e.g. extension name).
+ *                 Keep short to stay under the 103-char macOS limit.
  */
-export function generateSafePipeName(): string {
+export function generateSafePipeName(prefix: string): string {
   if (process.platform === "win32") {
-    // Windows named pipes don't have the Unix socket path length issue.
-    // Lazy-import to avoid pulling in vscode-jsonrpc when not needed.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const rpc = require("vscode-jsonrpc/node");
-    return rpc.generateRandomPipeName();
+    // Windows named pipes use \\.\pipe\ namespace and have no practical length limit.
+    return `\\\\.\\pipe\\${prefix}-${randomSuffix()}`;
   }
 
-  const result = `/tmp/konveyor-${randomSuffix()}.sock`;
+  const result = `/tmp/${prefix}-${randomSuffix()}.sock`;
 
   const limit = SAFE_IPC_PATH_LENGTHS[process.platform];
   if (limit !== undefined && result.length > limit) {

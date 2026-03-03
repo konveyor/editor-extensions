@@ -6,7 +6,12 @@ import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
 import { CSharpExternalProviderManager } from "./csharpExternalProviderManager";
-import { CORE_EXTENSION_ID, EXTENSION_DISPLAY_NAME, EXTENSION_ID } from "./utilities/constants";
+import {
+  CORE_EXTENSION_ID,
+  EXTENSION_DISPLAY_NAME,
+  EXTENSION_ID,
+  EXTENSION_NAME,
+} from "./utilities/constants";
 
 /**
  * Find a dotnet global tool path.
@@ -102,7 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Create socket path for C# provider communication
-  const providerSocketPath = generateSafePipeName(); // GRPC socket for c-sharp-analyzer-provider
+  const providerSocketPath = generateSafePipeName(EXTENSION_NAME); // GRPC socket for c-sharp-analyzer-provider
 
   logger.info("Socket path generated", {
     providerSocket: providerSocketPath,

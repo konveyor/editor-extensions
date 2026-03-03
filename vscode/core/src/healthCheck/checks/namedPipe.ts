@@ -7,6 +7,7 @@ import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
 import { generateSafePipeName } from "@editor-extensions/shared";
+import { EXTENSION_NAME } from "../../utilities/constants";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { CheckResultBuilder, withErrorHandling, formatError, formatDetails } from "../helpers";
 
@@ -31,7 +32,7 @@ function getPathLengthInfo(): string | undefined {
   const maxPathLength = process.platform === "darwin" ? 103 : 107;
 
   try {
-    const testPath = generateSafePipeName();
+    const testPath = generateSafePipeName(EXTENSION_NAME);
     return `Socket path length: ${testPath.length}/${maxPathLength} chars (using /tmp)`;
   } catch (err) {
     return `Warning: Socket path generation failed: ${err instanceof Error ? err.message : String(err)}`;
