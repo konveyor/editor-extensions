@@ -15,7 +15,11 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
 import { HubConfigurationPage } from '../../pages/hub-configuration.page';
-import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import {
+  DEFAULT_PROVIDER,
+  getDefaultProviderConfig,
+  LLEMULATOR_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import { MCPClient } from '../../../mcp-client/mcp-client.model';
 import {
   SuccessRateResponse,
@@ -31,6 +35,7 @@ import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { getHubConfig } from '../../utilities/utils';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
+import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -127,7 +132,7 @@ class SolutionServerWorkflowHelper {
 
       await vsCode.assertNotification('Successfully connected to Hub solution server');
 
-      await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
+      await vsCode.configureGenerativeAI(getDefaultProviderConfig().config);
       await vsCode.startServer();
 
       this.logger.debug(`Solution server configured for ${appName}`);
@@ -367,6 +372,23 @@ test.describe.serial(
     let testRepoData: any;
 
     test.beforeAll(async ({ testRepoData: repoData }) => {
+      if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
+        await loadLlemulatorResponses({
+          reset: true,
+          responses: [
+            {
+              pattern: '.*',
+              response: buildKaiResponse({
+                reasoning: 'LLEMULATOR RESPONSE',
+                language: 'java',
+                fileContent: 'LLEMULATOR RESPONSE',
+              }),
+              times: -1,
+            },
+          ],
+        });
+      }
+
       helper = new SolutionServerWorkflowHelper();
       testRepoData = repoData;
 
