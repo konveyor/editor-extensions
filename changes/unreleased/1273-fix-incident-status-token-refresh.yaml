@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Fix incident status not updating after token refresh by preserving
+  solution server session state (clientId) across token refreshes.
+extensions:
+  - core
