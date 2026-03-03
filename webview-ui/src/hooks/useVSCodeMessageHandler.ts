@@ -148,6 +148,12 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
+        // Handle focus violation (from tree view "Open Details" action)
+        if (isFocusViolation(message)) {
+          store.setFocusedViolationFilter(message.violationMessage);
+          return;
+        }
+
         // Handle Goose state change (experimental)
         if (isGooseStateChange(message)) {
           store.setGooseState(message.gooseState);
@@ -200,12 +206,6 @@ export function useVSCodeMessageHandler() {
         // Handle Goose config update
         if (isGooseConfigUpdate(message)) {
           store.setGooseConfig(message.config);
-          return;
-        }
-
-        // Handle focus violation (from tree view "Open Details" action)
-        if (isFocusViolation(message)) {
-          store.setFocusedViolationFilter(message.violationMessage);
           return;
         }
       } catch (error) {

@@ -10,6 +10,7 @@ import {
   PendingBatchReviewFile,
   HubConfig,
 } from "./types";
+import type { GooseWebviewMessage } from "./gooseMessages";
 
 export const MessageTypes = {
   // Core state
@@ -103,13 +104,14 @@ export interface FocusViolationMessage {
 }
 
 /**
- * Union type of all possible core webview messages
+ * Union type of all possible webview messages (core + goose)
  */
 export type WebviewMessage =
   | StateChangeMessage
   | FocusViolationMessage
   | ChatStateChangeMessage
-  | ChatStreamingUpdateMessage;
+  | ChatStreamingUpdateMessage
+  | GooseWebviewMessage;
 
 /**
  * Type guards for message discrimination
