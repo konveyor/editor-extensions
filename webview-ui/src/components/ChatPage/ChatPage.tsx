@@ -1,115 +1,70 @@
-import React, { useRef, useEffect, useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  Message,
-  MessageBar,
   Chatbot,
   ChatbotContent,
   ChatbotDisplayMode,
+  ChatbotFooter,
+  ChatbotFootnote,
+  MessageBox,
 } from "@patternfly/chatbot";
+import {
+  ChatMessageType,
+  Incident,
+  type ToolMessageValue,
+  type ModifiedFileMessageValue,
+} from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
+import { openFile } from "../../hooks/actions";
+import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
-import { ResourceLink } from "./ResourceLink";
-import { ResourceBlock } from "./ResourceBlock";
-import { ThinkingIndicator, ThinkingBlock } from "./ThinkingIndicator";
-import { ToolCallIndicator } from "./ToolCallIndicator";
+import { ToolMessage } from "../ResolutionsPage/ToolMessage";
+import { ModifiedFileMessage } from "../ResolutionsPage/ModifiedFile";
+import { MessageWrapper } from "../ResolutionsPage/MessageWrapper";
+import { BatchReviewExpandable } from "../ResolutionsPage/BatchReview";
+import LoadingIndicator from "../ResolutionsPage/LoadingIndicator";
+import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
+import { ChatCard } from "../ResolutionsPage/ChatCard/ChatCard";
+import { useScrollManagement } from "../../hooks/useScrollManagement";
 import GooseSettings from "./GooseSettings";
-import { v4 as uuidv4 } from "uuid";
-import type { GooseChatMessage } from "@editor-extensions/shared";
-import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import "./ChatPage.css";
 
-const ContentBlocks: React.FC<{ msg: GooseChatMessage }> = ({ msg }) => {
-  if (!msg.contentBlocks || msg.contentBlocks.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="goose-content-blocks">
-      {msg.contentBlocks.map((block, i) => {
-        switch (block.type) {
-          case "resource_link":
-            return <ResourceLink key={`rl-${i}`} block={block} />;
-          case "resource":
-            return <ResourceBlock key={`r-${i}`} block={block} />;
-          case "thinking":
-            return <ThinkingBlock key={`t-${i}`} text={block.text} />;
-          default:
-            return null;
-        }
-      })}
-    </div>
-  );
-};
-
 const ChatPage: React.FC = () => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  const gooseMessages = useExtensionStore((s) => s.gooseMessages);
   const gooseState = useExtensionStore((s) => s.gooseState);
   const gooseError = useExtensionStore((s) => s.gooseError);
   const gooseConfig = useExtensionStore((s) => s.gooseConfig);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  const chatMessages = useExtensionStore((s) => s.chatMessages);
+  const solutionScope = useExtensionStore((s) => s.solutionScope);
+  const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
+  const isAnalyzing = useExtensionStore((s) => s.isAnalyzing);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [gooseMessages, scrollToBottom]);
+  const isProcessing = isFetchingSolution;
+  const hasWorkflowContent = Array.isArray(chatMessages) && chatMessages.length > 0;
+  const isTriggeredByUser =
+    Array.isArray(solutionScope?.incidents) && solutionScope!.incidents.length > 0;
 
-  const handleSend = useCallback(
-    (value: string) => {
-      const content = value.trim();
-      if (!content || gooseState !== "running") {
-        return;
-      }
+  const { messageBoxRef } = useScrollManagement(chatMessages, isProcessing);
 
-      const messageId = uuidv4();
-
-      const store = useExtensionStore.getState();
-      store.setGooseMessages([
-        ...store.gooseMessages,
-        {
-          id: uuidv4(),
-          role: "user",
-          content,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-
-      window.vscode.postMessage({
-        type: "GOOSE_SEND_MESSAGE",
-        payload: { content, messageId },
-      });
-    },
-    [gooseState],
-  );
+  const handleIncidentClick = (incident: Incident) =>
+    dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
 
   const handleStartAgent = useCallback(() => {
     const store = useExtensionStore.getState();
     if (store.gooseState === "error") {
       store.setGooseError(undefined);
     }
-    window.vscode.postMessage({
-      type: "GOOSE_START_AGENT",
-      payload: {},
-    });
+    window.vscode.postMessage({ type: "GOOSE_START_AGENT", payload: {} });
   }, []);
 
   const handleStopAgent = useCallback(() => {
-    window.vscode.postMessage({
-      type: "GOOSE_STOP_AGENT",
-      payload: {},
-    });
+    window.vscode.postMessage({ type: "GOOSE_STOP_AGENT", payload: {} });
   }, []);
 
   const handleToggleView = useCallback(() => {
-    window.vscode.postMessage({
-      type: "GOOSE_TOGGLE_VIEW",
-      payload: {},
-    });
+    window.vscode.postMessage({ type: "GOOSE_TOGGLE_VIEW", payload: {} });
   }, []);
 
   const isRunning = gooseState === "running";
@@ -120,6 +75,65 @@ const ChatPage: React.FC = () => {
     gooseConfig?.provider && gooseConfig?.model
       ? `${gooseConfig.provider} / ${gooseConfig.model}`
       : "Not configured";
+
+  const renderChatMessages = useCallback(() => {
+    if (!hasWorkflowContent) {
+      return null;
+    }
+
+    return chatMessages.map((msg) => {
+      if (!msg) {
+        return null;
+      }
+
+      if (msg.kind === ChatMessageType.Tool) {
+        const { toolName, toolStatus } = msg.value as ToolMessageValue;
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ToolMessage
+              toolName={toolName}
+              status={toolStatus as "succeeded" | "failed" | "running"}
+              timestamp={msg.timestamp}
+            />
+          </MessageWrapper>
+        );
+      }
+
+      if (msg.kind === ChatMessageType.ModifiedFile) {
+        const fileData = msg.value as ModifiedFileMessageValue;
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ModifiedFileMessage data={fileData} timestamp={msg.timestamp} />
+          </MessageWrapper>
+        );
+      }
+
+      if (msg.kind === ChatMessageType.String) {
+        const message = msg.value?.message as string;
+        const selectedResponse = msg.selectedResponse;
+        return (
+          <MessageWrapper key={msg.messageToken}>
+            <ReceivedMessage
+              timestamp={msg.timestamp}
+              content={message}
+              quickResponses={
+                Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                  ? msg.quickResponses.map((response) => ({
+                      ...response,
+                      messageToken: msg.messageToken,
+                      isDisabled: response.id === "run-analysis" && isAnalyzing,
+                      isSelected: selectedResponse === response.id,
+                    }))
+                  : undefined
+              }
+            />
+          </MessageWrapper>
+        );
+      }
+
+      return null;
+    });
+  }, [chatMessages, isAnalyzing, hasWorkflowContent]);
 
   return (
     <Chatbot displayMode={ChatbotDisplayMode.embedded}>
@@ -138,6 +152,7 @@ const ChatPage: React.FC = () => {
                   : isError
                     ? "Error"
                     : "Stopped"}
+              {isProcessing && <LoadingIndicator />}
             </span>
             <span className="chat-config-label" title={configLabel}>
               {configLabel}
@@ -182,10 +197,7 @@ const ChatPage: React.FC = () => {
                   <button
                     className="chat-error-banner__btn"
                     onClick={() => {
-                      window.vscode.postMessage({
-                        type: "GOOSE_INSTALL_CLI",
-                        payload: {},
-                      });
+                      window.vscode.postMessage({ type: "GOOSE_INSTALL_CLI", payload: {} });
                     }}
                   >
                     Install Goose CLI
@@ -195,10 +207,7 @@ const ChatPage: React.FC = () => {
                     <button
                       className="chat-error-banner__link"
                       onClick={() => {
-                        window.vscode.postMessage({
-                          type: "GOOSE_OPEN_SETTINGS",
-                          payload: {},
-                        });
+                        window.vscode.postMessage({ type: "GOOSE_OPEN_SETTINGS", payload: {} });
                       }}
                     >
                       set the path manually
@@ -206,91 +215,69 @@ const ChatPage: React.FC = () => {
                   </span>
                 </div>
               ) : (
-                <div className="chat-error-banner__hint">
-                  Click Start to retry. Your conversation history is preserved.
-                </div>
+                <div className="chat-error-banner__hint">Click Start to retry.</div>
               )}
             </div>
           )}
 
-          {/* Welcome message when no messages */}
-          {gooseMessages.length === 0 && isRunning && (
-            <div className="chat-welcome">
-              <Message
-                name="Migration Assistant"
-                role="bot"
-                avatar={avatar}
-                content={
-                  "Hello! I'm your Migration Assistant powered by Goose. " +
-                  "I can help you analyze your project for migration issues, " +
-                  "review violations, and build a migration plan.\n\n" +
-                  "Try asking me to:\n" +
-                  "- **Run analysis** on your project\n" +
-                  "- **Review analysis results** and summarize findings\n" +
-                  "- **Create a migration plan** based on the violations found\n"
-                }
-              />
-            </div>
-          )}
-
-          {/* Messages */}
-          <div className="chat-messages">
-            {gooseMessages.map((msg) => {
-              if (msg.role === "user") {
-                return <SentMessage key={msg.id} content={msg.content} timestamp={msg.timestamp} />;
-              }
-
-              if (msg.role === "assistant") {
-                const hasContentBlocks = msg.contentBlocks && msg.contentBlocks.length > 0;
-                const hasToolCall = !!msg.toolCall;
-                const showExtra =
-                  hasContentBlocks || msg.isCancelled || msg.isThinking || hasToolCall;
-
-                const extraContent = showExtra ? (
-                  <>
-                    {msg.isThinking && <ThinkingIndicator />}
-                    {hasToolCall && (
-                      <ToolCallIndicator
-                        name={msg.toolCall!.name}
-                        status={msg.toolCall!.status}
-                        result={msg.toolCall!.result}
-                      />
-                    )}
-                    <ContentBlocks msg={msg} />
-                    {msg.isCancelled && (
-                      <div className="goose-cancelled-label">Generation cancelled</div>
-                    )}
-                  </>
-                ) : undefined;
-
-                return (
-                  <ReceivedMessage
-                    key={msg.id}
-                    content={msg.content || (msg.isThinking ? " " : "")}
-                    timestamp={msg.timestamp}
-                    isLoading={msg.isStreaming}
-                    extraContent={extraContent}
+          {/* Workflow output (chatMessages from getSolution pipeline) */}
+          <MessageBox ref={messageBoxRef} className="chat-messages">
+            {isTriggeredByUser && solutionScope && (
+              <>
+                <MessageWrapper>
+                  <SentMessage
+                    timestamp={new Date().toISOString()}
+                    content="Here is the scope of what I would like you to fix:"
+                    extraContent={
+                      <ChatCard color="yellow">
+                        <IncidentTableGroup
+                          onIncidentSelect={handleIncidentClick}
+                          incidents={solutionScope.incidents || []}
+                          isReadOnly={true}
+                        />
+                      </ChatCard>
+                    }
                   />
-                );
-              }
+                </MessageWrapper>
+                <MessageWrapper>
+                  <SentMessage
+                    timestamp={new Date().toISOString()}
+                    content="Please provide resolution for this issue."
+                  />
+                </MessageWrapper>
+              </>
+            )}
 
-              return null;
-            })}
-            <div ref={messagesEndRef} />
-          </div>
+            {!hasWorkflowContent && !isProcessing && (
+              <div className="chat-agent-status">
+                {isRunning ? (
+                  <p className="chat-agent-status__hint">
+                    Use <strong>Get Solution</strong> from the analysis view to start a migration
+                    workflow. Goose will handle the code changes.
+                  </p>
+                ) : isStarting ? (
+                  <p className="chat-agent-status__hint">Starting Goose agent...</p>
+                ) : (
+                  <p className="chat-agent-status__hint">
+                    Start the Goose agent to enable AI-powered migration workflows.
+                  </p>
+                )}
+              </div>
+            )}
 
-          {/* Input — send button enabled during streaming to allow cancel-and-send */}
-          <div className="chat-input-area">
-            <MessageBar
-              onSendMessage={(message) => {
-                handleSend(String(message));
-              }}
-              hasAttachButton={false}
-              isSendButtonDisabled={!isRunning}
-            />
-          </div>
+            {renderChatMessages()}
+          </MessageBox>
         </div>
       </ChatbotContent>
+      {hasWorkflowContent && (
+        <ChatbotFooter>
+          <BatchReviewExpandable />
+          <ChatbotFootnote
+            className="footnote"
+            label="Always review AI generated content prior to use."
+          />
+        </ChatbotFooter>
+      )}
     </Chatbot>
   );
 };

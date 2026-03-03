@@ -418,7 +418,6 @@ const actions: {
   },
   [GET_SOLUTION](scope: Scope) {
     executeExtensionCommand("getSolution", scope.incidents);
-    executeExtensionCommand("showResolutionPanel");
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     executeExtensionCommand("askContinue", incident);

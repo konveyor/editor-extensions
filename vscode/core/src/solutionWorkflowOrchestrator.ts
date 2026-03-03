@@ -10,7 +10,7 @@ import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
 } from "@editor-extensions/agentic";
-import { getConfigAgentMode } from "./utilities/configuration";
+import { getConfigAgentMode, getConfigExperimentalChatEnabled } from "./utilities/configuration";
 import { executeExtensionCommand, executeDeferredWorkflowDisposal } from "./commands";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
@@ -45,20 +45,37 @@ export class SolutionWorkflowOrchestrator {
   /**
    * Validate preconditions before starting workflow
    */
+  private get useGoose(): boolean {
+    return getConfigExperimentalChatEnabled() && this.state.featureClients.has("gooseClient");
+  }
+
   private validatePreconditions(): { valid: boolean; error?: string } {
     if (this.state.data.isFetchingSolution) {
       return { valid: false, error: "Solution already being fetched" };
     }
 
-    if (this.state.data.configErrors.some((e) => e.type === "genai-disabled")) {
-      return { valid: false, error: "GenAI functionality is disabled." };
-    }
+    if (this.useGoose) {
+      const client = this.state.featureClients.get("gooseClient") as
+        | { getState(): string }
+        | undefined;
+      if (!client || client.getState() !== "running") {
+        return {
+          valid: false,
+          error:
+            "Goose agent is not running. Please ensure the Goose CLI is installed and the agent has started.",
+        };
+      }
+    } else {
+      if (this.state.data.configErrors.some((e) => e.type === "genai-disabled")) {
+        return { valid: false, error: "GenAI functionality is disabled." };
+      }
 
-    if (!this.state.modelProvider) {
-      return {
-        valid: false,
-        error: "Model provider is not configured. Please check your provider settings.",
-      };
+      if (!this.state.modelProvider) {
+        return {
+          valid: false,
+          error: "Model provider is not configured. Please check your provider settings.",
+        };
+      }
     }
 
     const profileName = this.incidents[0]?.activeProfileName;
@@ -70,18 +87,33 @@ export class SolutionWorkflowOrchestrator {
   }
 
   /**
-   * Initialize the workflow session
+   * Initialize the workflow session.
+   * When the Goose feature flag is active, a GooseModelProvider is used as the
+   * LLM backend while the full KaiInteractiveWorkflow graph stays unchanged.
    */
   private async initializeWorkflow(): Promise<void> {
     this.logger.info("Initializing workflow", {
       incidentsCount: this.incidents.length,
       agentMode: this.agentMode,
+      useGoose: this.useGoose,
       solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
     });
 
-    // Initialize workflow manager
+    let modelProvider = this.state.modelProvider;
+
+    if (this.useGoose) {
+      const { GooseModelProvider } = await import("./features/goose/gooseModelProvider");
+      const gooseClient = this.state.featureClients.get("gooseClient") as any;
+      modelProvider = new GooseModelProvider(gooseClient, this.state.logger);
+      this.logger.info("Using GooseModelProvider as LLM backend");
+    }
+
+    if (!modelProvider) {
+      throw new Error("No model provider available");
+    }
+
     await this.state.workflowManager.init({
-      modelProvider: this.state.modelProvider!,
+      modelProvider,
       workspaceDir: this.state.data.workspaceRoot,
       solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
     });
@@ -520,8 +552,11 @@ export class SolutionWorkflowOrchestrator {
       agentMode: this.agentMode,
     });
 
-    // Show resolution panel
-    await executeExtensionCommand("showResolutionPanel");
+    if (this.useGoose) {
+      await executeExtensionCommand("showChatPanel");
+    } else {
+      await executeExtensionCommand("showResolutionPanel");
+    }
 
     // Initialize state
     this.initializeState();

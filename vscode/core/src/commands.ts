@@ -463,6 +463,15 @@ const commandsMap: (
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
     },
+    [`${EXTENSION_NAME}.showChatPanel`]: async () => {
+      try {
+        await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
+      } catch {
+        logger.warn("Chat view not available, falling back to resolution panel");
+        const resolutionProvider = state.webviewProviders?.get("resolution");
+        resolutionProvider?.showWebviewPanel();
+      }
+    },
     [`${EXTENSION_NAME}.showAnalysisPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();
