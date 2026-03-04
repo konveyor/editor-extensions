@@ -173,41 +173,20 @@ class SolutionServerWorkflowHelper {
     }
   }
 
-  async applyAuditLoggerFix(vsCode: VSCode, appName: string): Promise<boolean> {
-    const solutionStart = Date.now();
+  async applyAuditLoggerFix(vsCode: VSCode, appName: string): Promise<void> {
+    await vsCode.openAnalysisView();
+    const violationText =
+      'Replace `FileSystemAuditLogger` instantiation with `StreamableAuditLogger` over TCP';
+    await vsCode.searchAndRequestAction(violationText, FixTypes.Incident, ResolutionAction.Accept);
+    this.logger.success('Audit logger fix solution applied');
 
-    try {
-      await vsCode.openAnalysisView();
-      const violationText =
-        'Replace `FileSystemAuditLogger` instantiation with `StreamableAuditLogger` over TCP';
-      await vsCode.searchAndRequestAction(
-        violationText,
-        FixTypes.Incident,
-        ResolutionAction.Accept
-      );
-      this.logger.success('Audit logger fix solution applied');
+    await vsCode.openAnalysisView();
+    const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
+    await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
 
-      await vsCode.openAnalysisView();
-      const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
+    await this.validateSolutionApplication(vsCode, appName);
 
-      await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
-
-      await this.validateSolutionApplication(vsCode, appName);
-
-      const javaAnnotationFixApplied = await this.applyJavaAnnotationFixInternal(vsCode, appName);
-
-      if (!javaAnnotationFixApplied) {
-        this.logger.warn('Java annotation fix failed, but audit logger fix was successful');
-      }
-
-      const solutionTime = Date.now() - solutionStart;
-      this.logger.success(`Complete fix workflow applied for ${appName} in ${solutionTime}ms`);
-
-      return true;
-    } catch (error) {
-      this.logger.error(`Fix application failed for ${appName}: ${error}`);
-      return false;
-    }
+    await this.applyJavaAnnotationFixInternal(vsCode, appName);
   }
 
   private async applyJavaAnnotationFixInternal(vsCode: VSCode, appName: string): Promise<boolean> {
@@ -417,8 +396,7 @@ test.describe.serial(
         throw new Error('VSCode instance not initialized - previous test may have failed');
       }
 
-      const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
-      expect(fixApplied).toBe(true);
+      await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
 
       helper.logger.success(
         'Complete fix workflow (audit logger + Java annotation) applied successfully'
@@ -470,8 +448,7 @@ test.describe.serial(
 
       const beforeSolution = await helper.captureSolutionServerMetrics(mcpClient);
 
-      const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
-      expect(fixApplied).toBe(true);
+      await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
 
       const afterSolution = await helper.captureSolutionServerMetrics(mcpClient);
 

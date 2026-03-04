@@ -518,7 +518,8 @@ export abstract class VSCode {
       const reviewHeaderLocator = resolutionView.locator(
         '.batch-review-expandable-header .batch-review-title'
       );
-      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
+      // 60 secs timeout as responses can take some time specially when updating large files or in slow network environments
+      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 60_000 });
       let headerText = await reviewHeaderLocator.textContent();
       const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
       const totalFiles = match ? parseInt(match[2], 10) : 1;
