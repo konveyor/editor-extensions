@@ -1,0 +1,11 @@
+kind: bugfix
+description: >
+  Fix Unix domain socket path length limit on macOS by using /tmp instead
+  of os.tmpdir() for IPC socket paths, preventing failures when the system
+  temp directory path is long.
+extensions:
+  - core
+  - java
+  - javascript
+  - go
+  - csharp
