@@ -4,6 +4,14 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.3] - 2026-03-04
+
+### Bug Fixes
+
+- Fix incident status not updating after token refresh by preserving solution server session state (clientId) across token refreshes. ([#1273](https://github.com/konveyor/editor-extensions/pull/1273))
+
+
 ## [0.4.1] - 2026-02-26
 
 ### Enhancements
