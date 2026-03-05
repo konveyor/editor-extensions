@@ -103,7 +103,10 @@ export class SolutionWorkflowOrchestrator {
     if (this.useGoose) {
       const { GooseWorkflow } = await import("./features/goose/gooseWorkflow");
       const gooseClient = this.state.featureClients.get("gooseClient") as any;
-      this.workflow = new GooseWorkflow(gooseClient, this.state.logger);
+      const fileTracker = this.state.featureClients.get("gooseFileTracker") as
+        | import("./features/goose/gooseFileTracker").GooseFileTracker
+        | undefined;
+      this.workflow = new GooseWorkflow(gooseClient, this.state.logger, fileTracker);
       await this.workflow.init({
         workspaceDir: this.state.data.workspaceRoot,
       } as any);
@@ -302,7 +305,22 @@ export class SolutionWorkflowOrchestrator {
       enableAgentMode: this.agentMode,
     };
 
-    await this.workflow.run(input);
+    const result = await this.workflow.run(input);
+
+    // Route any files the post-scan found (Goose built-in tools that
+    // bypassed the MCP bridge) through the same batch review pipeline.
+    if (this.useGoose && result.modified_files?.length > 0) {
+      const { routeFileChangeToBatchReview } = await import("./features/goose/gooseInit");
+      for (const file of result.modified_files) {
+        await routeFileChangeToBatchReview(
+          this.state,
+          file.path,
+          file.content,
+          file.originalContent,
+        );
+      }
+      this.logger.info(`Routed ${result.modified_files.length} post-scan file(s) to batch review`);
+    }
 
     this.logger.info("Workflow.run() completed", {
       agentMode: this.agentMode,

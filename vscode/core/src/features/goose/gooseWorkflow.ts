@@ -1,6 +1,4 @@
 import { EventEmitter } from "events";
-import * as fs from "fs/promises";
-import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
 import type winston from "winston";
 import type {
@@ -9,31 +7,34 @@ import type {
   KaiWorkflowResponse,
   KaiWorkflowMessage,
   KaiUserInteractionMessage,
-  KaiModifiedFile,
 } from "@editor-extensions/agentic";
 import { KaiWorkflowMessageType } from "@editor-extensions/agentic";
 import type { KaiInteractiveWorkflowInput } from "@editor-extensions/agentic";
 import type { GooseClient, ToolCallData } from "../../client/gooseClient";
 import type { GooseContentBlockType } from "@editor-extensions/shared";
+import type { GooseFileTracker } from "./gooseFileTracker";
 import { buildMigrationPrompt } from "./goosePromptBuilder";
 
 /**
  * Adapter that implements KaiWorkflow by delegating to a GooseClient.
  *
  * Translates goose streaming events into KaiWorkflowMessage emissions
- * so the existing SolutionWorkflowOrchestrator, processMessage pipeline,
- * and ResolutionsPage UI work unchanged.
+ * so the existing SolutionWorkflowOrchestrator and processMessage pipeline
+ * can display streaming text, tool calls, and errors in the chat UI.
+ *
+ * File change detection:
+ *  - MCP bridge apply_file_changes → gooseInit.ts onFileChanges (primary, fires during execution)
+ *  - Post-scan via GooseFileTracker (fallback for Goose built-in tools)
+ *    → emits ModifiedFile messages so the orchestrator queue processes them
  */
 export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
   private readonly events = new EventEmitter();
   private workspaceDir = "";
-  private modifiedFiles: KaiModifiedFile[] = [];
-  /** Caches original file content BEFORE Goose modifies it, keyed by absolute path. */
-  private readonly originalContentCache = new Map<string, string>();
 
   constructor(
     private readonly gooseClient: GooseClient,
     private readonly logger: winston.Logger,
+    private readonly fileTracker?: GooseFileTracker,
   ) {}
 
   // ─── KaiWorkflowEvents ──────────────────────────────────────────────
@@ -64,13 +65,15 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
   }
 
   async run(input: KaiInteractiveWorkflowInput): Promise<KaiWorkflowResponse> {
-    this.modifiedFiles = [];
-    this.originalContentCache.clear();
     const errors: Error[] = [];
 
-    // Pre-read all incident files BEFORE Goose modifies them so we have
-    // original content for diffs and can revert on reject.
-    await this.cacheIncidentFileContents(input);
+    // Pre-cache incident files so the post-scan can detect changes
+    if (this.fileTracker) {
+      this.fileTracker.clear();
+      if (input.incidents?.length) {
+        await this.fileTracker.cacheIncidentFiles(input.incidents, this.workspaceDir);
+      }
+    }
 
     const prompt = await buildMigrationPrompt(input, this.workspaceDir);
     const acpRequestId = uuidv4();
@@ -140,26 +143,8 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
       }
     };
 
-    // Cache tool arguments from toolCall so they're available in toolCallUpdate
-    const toolCallArgsCache = new Map<string, Record<string, unknown>>();
-
     const onToolCall = (_msgId: string, data: ToolCallData): void => {
-      this.logger.debug("GooseWorkflow: toolCall received", {
-        name: data.name,
-        callId: data.callId,
-        status: data.status,
-        hasArguments: !!data.arguments,
-      });
       const callId = data.callId ?? uuidv4();
-
-      if (data.arguments) {
-        toolCallArgsCache.set(callId, data.arguments);
-
-        // Pre-read the target file BEFORE the tool executes (tool_call fires
-        // before execution). This captures the original content for files
-        // Goose modifies that weren't in the incident scope.
-        this.tryCacheOriginalContent(data.name, data.arguments);
-      }
 
       this.emitWorkflowMessage({
         type: KaiWorkflowMessageType.ToolCall,
@@ -182,20 +167,6 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
     const onToolCallUpdate = (_msgId: string, data: ToolCallData): void => {
       const callId = data.callId ?? uuidv4();
 
-      // Merge cached arguments from the initial toolCall event
-      if (!data.arguments && toolCallArgsCache.has(callId)) {
-        data = { ...data, arguments: toolCallArgsCache.get(callId) };
-      }
-      toolCallArgsCache.delete(callId);
-
-      this.logger.debug("GooseWorkflow: toolCallUpdate received", {
-        name: data.name,
-        callId: data.callId,
-        status: data.status,
-        hasResult: !!data.result,
-        hasArguments: !!data.arguments,
-      });
-
       this.emitWorkflowMessage({
         type: KaiWorkflowMessageType.ToolCall,
         id: callId,
@@ -211,10 +182,6 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
           result: data.result,
         },
       });
-
-      if (data.status === "succeeded") {
-        this.tryExtractModifiedFile(data);
-      }
     };
 
     const onStreamingComplete = (_msgId: string, stopReason: string): void => {
@@ -226,8 +193,18 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
     this.gooseClient.on("toolCallUpdate", onToolCallUpdate);
     this.gooseClient.on("streamingComplete", onStreamingComplete);
 
+    let missedChanges: import("./gooseFileTracker").TrackedFileChange[] = [];
+
     try {
       const stopReason = await this.gooseClient.sendMessage(prompt, acpRequestId);
+
+      // Post-scan: find files changed by Goose's built-in tools that
+      // bypassed the MCP bridge. Returned to the orchestrator which
+      // routes them through routeFileChangeToBatchReview (same path
+      // as MCP bridge files — single path to batch review).
+      if (this.fileTracker) {
+        missedChanges = await this.fileTracker.scanForMissedChanges();
+      }
 
       this.emitWorkflowMessage({
         type: KaiWorkflowMessageType.LLMResponse,
@@ -249,7 +226,14 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
       this.gooseClient.removeListener("streamingComplete", onStreamingComplete);
     }
 
-    return { modified_files: this.modifiedFiles, errors };
+    return {
+      modified_files: missedChanges.map((c) => ({
+        path: c.path,
+        content: c.content,
+        originalContent: c.originalContent,
+      })),
+      errors,
+    };
   }
 
   async resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void> {
@@ -267,160 +251,5 @@ export class GooseWorkflow implements KaiWorkflow<KaiInteractiveWorkflowInput> {
 
     const replyId = uuidv4();
     await this.gooseClient.sendMessage(followUp, replyId);
-  }
-
-  // ─── Helpers ────────────────────────────────────────────────────────
-
-  /**
-   * Heuristic: if a tool that modifies files succeeded, extract the file path
-   * and content from its arguments/result and emit a ModifiedFile message.
-   *
-   * Handles Goose built-in tools like developer__text_editor (str_replace,
-   * create, insert commands) and developer__write_file, as well as any
-   * MCP tool whose name contains write/save/edit/create/replace/patch.
-   */
-  private tryExtractModifiedFile(data: ToolCallData): void {
-    const name = data.name?.toLowerCase() ?? "";
-    const isFileModifyingTool =
-      name.includes("write") ||
-      name.includes("save") ||
-      name.includes("edit") ||
-      name.includes("text_editor") ||
-      name.includes("create") ||
-      name.includes("replace") ||
-      name.includes("patch");
-
-    if (!isFileModifyingTool) {
-      return;
-    }
-
-    const args = data.arguments ?? {};
-
-    // text_editor "view" and "undo_edit" commands don't produce new content
-    const command = args.command as string | undefined;
-    if (command === "view" || command === "undo_edit") {
-      return;
-    }
-
-    const filePath = (args.path ?? args.file_path ?? args.filename) as string | undefined;
-    // Goose text_editor uses new_str; write_file uses content
-    const content = (args.content ?? args.new_str ?? args.text ?? data.result) as
-      | string
-      | undefined;
-
-    if (!filePath || !content) {
-      this.logger.debug("GooseWorkflow: tryExtractModifiedFile - missing path or content", {
-        toolName: data.name,
-        hasPath: !!filePath,
-        hasContent: !!content,
-        argKeys: Object.keys(args),
-      });
-      return;
-    }
-
-    const absPath = path.isAbsolute(filePath) ? filePath : path.join(this.workspaceDir, filePath);
-    const originalContent = this.originalContentCache.get(absPath);
-
-    const modifiedFile: KaiModifiedFile = {
-      path: filePath,
-      content,
-      originalContent,
-    };
-    this.modifiedFiles.push(modifiedFile);
-
-    this.emitWorkflowMessage({
-      type: KaiWorkflowMessageType.ModifiedFile,
-      id: uuidv4(),
-      data: modifiedFile,
-    });
-  }
-
-  /**
-   * Pre-read all unique files referenced by the incident list so we have
-   * the original content available for diffing and revert when Goose
-   * modifies them on disk.
-   */
-  private async cacheIncidentFileContents(input: KaiInteractiveWorkflowInput): Promise<void> {
-    const uniquePaths = new Set<string>();
-    for (const incident of input.incidents ?? []) {
-      const absPath = this.uriToAbsolute(incident.uri);
-      if (absPath) {
-        uniquePaths.add(absPath);
-      }
-    }
-
-    const results = await Promise.allSettled(
-      Array.from(uniquePaths).map(async (absPath) => {
-        const content = await fs.readFile(absPath, "utf-8");
-        this.originalContentCache.set(absPath, content);
-      }),
-    );
-
-    const cached = results.filter((r) => r.status === "fulfilled").length;
-    this.logger.info("GooseWorkflow: pre-cached original file contents", {
-      total: uniquePaths.size,
-      cached,
-      failed: uniquePaths.size - cached,
-    });
-  }
-
-  /**
-   * When a file-modifying tool starts, try to cache the target file's content
-   * if we haven't already. This covers files Goose modifies that weren't in
-   * the original incident list.
-   */
-  private tryCacheOriginalContent(toolName: string, args: Record<string, unknown>): void {
-    const name = toolName?.toLowerCase() ?? "";
-    const isFileModifying =
-      name.includes("write") ||
-      name.includes("save") ||
-      name.includes("edit") ||
-      name.includes("text_editor") ||
-      name.includes("create") ||
-      name.includes("replace") ||
-      name.includes("patch");
-
-    if (!isFileModifying) {
-      return;
-    }
-
-    const filePath = (args.path ?? args.file_path ?? args.filename) as string | undefined;
-    if (!filePath) {
-      return;
-    }
-
-    const absPath = path.isAbsolute(filePath) ? filePath : path.join(this.workspaceDir, filePath);
-    if (this.originalContentCache.has(absPath)) {
-      return;
-    }
-
-    // Fire-and-forget async read. The tool_call notification arrives before
-    // execution, so we usually win the race against the file write.
-    fs.readFile(absPath, "utf-8")
-      .then((content) => {
-        if (!this.originalContentCache.has(absPath)) {
-          this.originalContentCache.set(absPath, content);
-          this.logger.debug("GooseWorkflow: cached original for non-incident file", {
-            path: absPath,
-          });
-        }
-      })
-      .catch(() => {
-        // File may not exist yet (new file) — that's fine
-      });
-  }
-
-  private uriToAbsolute(uri: string): string | undefined {
-    try {
-      if (uri.startsWith("file://")) {
-        return new URL(uri).pathname;
-      }
-      if (path.isAbsolute(uri)) {
-        return uri;
-      }
-      return path.join(this.workspaceDir, uri);
-    } catch {
-      return undefined;
-    }
   }
 }

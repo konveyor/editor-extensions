@@ -1,13 +1,96 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import {
   GooseAgentState,
   GooseContentBlockType,
   GooseMessageTypes,
+  ChatMessageType,
+  cleanDiff,
 } from "@editor-extensions/shared";
 import { parseModelConfig } from "../../modelProvider";
 import type { FeatureContext } from "../featureRegistry";
+import type { ExtensionState } from "../../extensionState";
+import { GooseFileTracker } from "./gooseFileTracker";
 
 type GooseClientType = InstanceType<typeof import("../../client/gooseClient").GooseClient>;
+
+/**
+ * Route a file change through processModifiedFile → diff → chat message → batch review.
+ * Shared by both the MCP bridge onFileChanges callback and the post-scan fallback.
+ */
+export async function routeFileChangeToBatchReview(
+  state: ExtensionState,
+  absPath: string,
+  content: string,
+  originalContent?: string,
+): Promise<void> {
+  const { processModifiedFile } = await import("../../utilities/ModifiedFiles/processModifiedFile");
+  const { createTwoFilesPatch, createPatch } = await import("diff");
+  const { v4: uuidv4 } = await import("uuid");
+
+  const messageId = uuidv4();
+
+  await processModifiedFile(
+    state.modifiedFiles,
+    { path: absPath, content, originalContent },
+    state.modifiedFilesEventEmitter,
+  );
+
+  const fileState = state.modifiedFiles.get(vscode.Uri.file(absPath).fsPath);
+  if (!fileState) {
+    return;
+  }
+
+  const isNew = fileState.originalContent === undefined;
+  const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
+
+  let diff: string;
+  if (isNew) {
+    diff = createTwoFilesPatch("", absPath, "", fileState.modifiedContent);
+  } else if (isDeleted) {
+    diff = createTwoFilesPatch(absPath, "", fileState.originalContent as string, "");
+  } else {
+    try {
+      diff = createPatch(absPath, fileState.originalContent as string, fileState.modifiedContent);
+    } catch {
+      diff = `// Error creating diff for ${absPath}`;
+    }
+  }
+  diff = cleanDiff(diff);
+
+  state.mutate((draft) => {
+    draft.chatMessages.push({
+      kind: ChatMessageType.ModifiedFile,
+      messageToken: messageId,
+      timestamp: new Date().toISOString(),
+      value: {
+        path: absPath,
+        content: fileState.modifiedContent,
+        originalContent: fileState.originalContent,
+        isNew,
+        isDeleted,
+        diff,
+        messageToken: messageId,
+        readOnly: true,
+      },
+    });
+  });
+
+  state.mutate((draft) => {
+    if (!draft.pendingBatchReview) {
+      draft.pendingBatchReview = [];
+    }
+    draft.pendingBatchReview.push({
+      messageToken: messageId,
+      path: absPath,
+      diff,
+      content: fileState.modifiedContent,
+      originalContent: fileState.originalContent,
+      isNew,
+      isDeleted,
+    });
+  });
+}
 
 export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.Disposable> {
   const { getConfigGooseBinaryPath } = await import("../../utilities/configuration");
@@ -15,6 +98,9 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
   const { McpBridgeServer } = await import("../../api/mcpBridgeServer");
 
   const disposables: vscode.Disposable[] = [];
+
+  const fileTracker = new GooseFileTracker(ctx.logger);
+  ctx.featureClients.set("gooseFileTracker", fileTracker);
 
   const mcpBridgeServer = new McpBridgeServer({
     store: ctx.store,
@@ -24,6 +110,20 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
       if (analyzerClient && (await analyzerClient.canAnalyzeInteractive())) {
         await analyzerClient.start();
       }
+    },
+    onFileChanges: async (files) => {
+      const workspaceRoot = ctx.store.getState().workspaceRoot;
+
+      for (const file of files) {
+        const absPath = path.isAbsolute(file.path)
+          ? file.path
+          : path.join(workspaceRoot, file.path);
+
+        fileTracker.markAsRouted(absPath);
+        await routeFileChangeToBatchReview(ctx.extensionState, absPath, file.content);
+      }
+
+      ctx.logger.info(`Goose MCP bridge: routed ${files.length} file(s) to batch review`);
     },
   });
 
@@ -152,6 +252,13 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
 
   gooseClient.on("toolCall", (messageId: string, data: any) => {
     broadcastToolCall(messageId, data);
+
+    // Pre-cache file content before write tools execute so the post-scan
+    // can detect changes made by Goose's built-in tools (which bypass MCP).
+    if (data.arguments) {
+      const workspaceRoot = ctx.store.getState().workspaceRoot;
+      fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
+    }
   });
 
   gooseClient.on("toolCallUpdate", (messageId: string, data: any) => {

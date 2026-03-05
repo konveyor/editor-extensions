@@ -14,10 +14,16 @@ import * as http from "http";
 import winston from "winston";
 import { type ExtensionStore } from "../store/extensionStore";
 
+export interface FileChange {
+  path: string;
+  content: string;
+}
+
 export interface McpBridgeServerConfig {
   store: ExtensionStore;
   logger: winston.Logger;
   runAnalysis?: () => Promise<void>;
+  onFileChanges?: (files: FileChange[]) => Promise<void>;
 }
 
 export class McpBridgeServer {
@@ -174,16 +180,17 @@ export class McpBridgeServer {
         const body = await this.readBody(req);
         try {
           const changes = JSON.parse(body);
-          // For now, return the changes as acknowledged.
-          // Full implementation will apply via the vertical diff manager.
-          this.logger.info(
-            `McpBridgeServer: received file changes for ${changes.files?.length || 0} file(s)`,
-          );
+          const files: FileChange[] = changes.files ?? [];
+          this.logger.info(`McpBridgeServer: received file changes for ${files.length} file(s)`);
+
+          if (this.config.onFileChanges && files.length > 0) {
+            await this.config.onFileChanges(files);
+          }
+
           res.writeHead(200);
-          res.end(
-            JSON.stringify({ status: "changes_received", count: changes.files?.length || 0 }),
-          );
-        } catch {
+          res.end(JSON.stringify({ status: "changes_received", count: files.length }));
+        } catch (err) {
+          this.logger.error("McpBridgeServer: error processing file changes", err);
           res.writeHead(400);
           res.end(JSON.stringify({ error: "Invalid JSON body" }));
         }
