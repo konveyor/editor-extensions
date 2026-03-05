@@ -763,9 +763,10 @@ export class HubConnectionManager {
         summary: classified.summary,
         suggestion: classified.suggestion,
       });
-      throw new HubConnectionManagerError(`Hub connectivity check failed: ${classified.summary}`, {
-        cause: error,
-      });
+      throw new HubConnectionManagerError(
+        `Hub connectivity check failed: ${classified.summary}. ${classified.suggestion}`,
+        { cause: error },
+      );
     }
 
     // 404 is ok (no applications), but auth failures are not
@@ -789,7 +790,9 @@ export class HubConnectionManager {
         ...(wwwAuthenticate ? { wwwAuthenticate } : {}),
         ...(bodyPreview ? { bodyPreview } : {}),
       });
-      throw new HubConnectionManagerError(`Hub connectivity check failed: ${classified.summary}`);
+      throw new HubConnectionManagerError(
+        `Hub connectivity check failed: ${classified.summary}. ${classified.suggestion}`,
+      );
     }
   }
 
@@ -873,9 +876,10 @@ export class HubConnectionManager {
           responseBody: errorText.substring(0, 500),
           durationMs,
         });
-        throw new HubConnectionManagerError(`Request failed: ${classified.summary}`, {
-          cause: new Error(errorText.substring(0, 500)),
-        });
+        throw new HubConnectionManagerError(
+          `Request failed: ${classified.summary}. ${classified.suggestion}`,
+          { cause: new Error(errorText.substring(0, 500)) },
+        );
       }
 
       this.logger.debug("Hub API request succeeded", {
@@ -904,9 +908,10 @@ export class HubConnectionManager {
         suggestion: classified.suggestion,
         durationMs,
       });
-      throw new HubConnectionManagerError(`Request failed: ${classified.summary}`, {
-        cause: error,
-      });
+      throw new HubConnectionManagerError(
+        `Request failed: ${classified.summary}. ${classified.suggestion}`,
+        { cause: error },
+      );
     }
   }
 }
