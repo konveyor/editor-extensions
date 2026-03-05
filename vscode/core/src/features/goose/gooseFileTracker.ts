@@ -123,6 +123,15 @@ export class GooseFileTracker {
   }
 
   /**
+   * Get the pre-cached original content for a file. Used by the MCP bridge
+   * callback so that processModifiedFile gets the real original (not the
+   * already-modified content Goose wrote to disk).
+   */
+  getOriginalContent(absPath: string): string | undefined {
+    return this.originalContentCache.get(absPath);
+  }
+
+  /**
    * Post-completion scan: compare every cached original with current disk
    * state. Returns file changes for files that were modified but NOT
    * already routed through the MCP bridge.
