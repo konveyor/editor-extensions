@@ -29,8 +29,8 @@ Create a changelog fragment file documenting the current changes.
    - Changes in `vscode/konveyor/` → `konveyor`
    - If the change only affects `core`, omit the `extensions` field (it defaults to core)
    - If the change affects non-core extensions, or multiple extensions, include `extensions`
-5. **Name the file** `changes/unreleased/<pr-number>-<short-description>.yaml`
-   - If the PR number is not known, use a descriptive name like `add-dark-mode.yaml`
+5. **Name the file** `changes/unreleased/<short-description>.yaml`
+   - Use a descriptive kebab-case name like `fix-socket-path-limit.yaml` or `add-dark-mode.yaml`
 6. **Write the fragment** using this format:
 
 ```yaml
@@ -61,9 +61,9 @@ extensions:
 
 ## Examples
 
-For a core bug fix PR #1234:
+For a core bug fix:
 
-**File**: `changes/unreleased/1234-fix-sso-auth.yaml`
+**File**: `changes/unreleased/fix-sso-auth.yaml`
 
 ```yaml
 kind: bugfix
@@ -71,9 +71,9 @@ description: >
   Fixed authentication flow when using SSO providers with custom certificates.
 ```
 
-For a Java extension feature PR #1235:
+For a Java extension feature:
 
-**File**: `changes/unreleased/1235-add-java-provider.yaml`
+**File**: `changes/unreleased/add-java-provider.yaml`
 
 ```yaml
 kind: feature
@@ -85,7 +85,7 @@ extensions:
 
 For a change affecting multiple extensions:
 
-**File**: `changes/unreleased/1236-shared-api-update.yaml`
+**File**: `changes/unreleased/shared-api-update.yaml`
 
 ```yaml
 kind: enhancement
