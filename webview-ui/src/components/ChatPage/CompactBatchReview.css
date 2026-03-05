@@ -232,6 +232,16 @@
   background: var(--vscode-button-secondaryHoverBackground, #45494e);
 }
 
+.cbr__btn--review {
+  background: var(--vscode-textLink-foreground, #3794ff);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cbr__btn--review:not(:disabled):hover {
+  opacity: 0.9;
+}
+
 .cbr__btn--danger {
   background: transparent;
   color: var(--vscode-errorForeground, #f48771);
