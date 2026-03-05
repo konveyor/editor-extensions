@@ -30,6 +30,10 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'smoke',
+      testMatch: ['**/smoke/**/*.test.ts'],
+    },
+    {
       name: 'base',
       testMatch: ['**/base/**/*.test.ts'],
     },
@@ -44,7 +48,7 @@ export default defineConfig({
     {
       name: 'analysis-tests',
       testMatch: /.*analyze.+\.test\.ts/,
-      dependencies: ['base'],
+      dependencies: ['smoke'],
     },
     {
       name: 'agent-flow-tests',
