@@ -103,6 +103,7 @@ const AnalysisPage: React.FC = () => {
   const hasViolations = violations.length > 0;
   const hasAnalysisResults = !!analysisResults;
   const serverRunning = serverState === "running";
+  const isServerToggleDisabled = isAnalyzing || isAnalysisScheduled;
   const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
 
   const drawerRef = React.useRef<HTMLDivElement>(null);
@@ -112,6 +113,15 @@ const AnalysisPage: React.FC = () => {
       dispatch(getSuccessRate());
     }
   }, [enhancedIncidents.length, solutionServerEnabled, solutionServerConnected, dispatch]);
+
+  useEffect(() => {
+    if (isServerToggleDisabled) {
+      console.info("Server toggle disabled", {
+        isAnalyzing,
+        isAnalysisScheduled,
+      });
+    }
+  }, [isServerToggleDisabled, isAnalyzing, isAnalysisScheduled]);
 
   const handleIncidentSelect = (incident: Incident) => {
     setFocusedIncident(incident);
@@ -170,6 +180,7 @@ const AnalysisPage: React.FC = () => {
                             isInitializing={isInitializingServer}
                             onToggle={handleServerToggle}
                             hasWarning={hasProfileValidationErrors}
+                            isDisabled={isServerToggleDisabled}
                           />
                         </ToolbarItem>
                         {!isGenAIDisabled && (
