@@ -33,7 +33,21 @@ export async function getDispatcherWithCertBundle(
     process.env.HTTP_PROXY ||
     process.env.http_proxy;
 
+  if (logger) {
+    logger.debug("TLS dispatcher config", {
+      hasCustomCA: !!bundlePath,
+      caBundle: bundlePath || "none",
+      insecure,
+      allowH2,
+      hasProxy: !!proxyUrl,
+      proxyUrl: proxyUrl || "none",
+    });
+  }
+
   if (proxyUrl) {
+    if (logger) {
+      logger.info(`Using proxy for Hub/provider connections: ${proxyUrl}`);
+    }
     return new ProxyAgent({
       uri: proxyUrl,
       allowH2,

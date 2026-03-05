@@ -264,6 +264,22 @@ async function setupProviderTLS(
   const { caBundle, insecure } = getCaBundleAndInsecure(env);
   const needsCustomDispatcher = caBundle || insecure || !allowH2;
 
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
+
+  logger.info("Provider TLS config", {
+    caBundle: caBundle ? `set (${caBundle})` : "not set",
+    insecure,
+    httpProtocol,
+    needsCustomDispatcher,
+    hasProxy: !!proxyUrl,
+    proxyUrl: proxyUrl || "none",
+    envKeys: Object.keys(env),
+  });
+
   if (!needsCustomDispatcher) {
     setGlobalDispatcher(defaultDispatcher);
     globalThis.fetch = originalFetch;

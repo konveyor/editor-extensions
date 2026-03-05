@@ -7,6 +7,7 @@ import * as yaml from "js-yaml";
 import * as os from "os";
 import type { RepositoryInfo } from "../utilities/git";
 import { buildLabelSelectorFromLabels } from "@editor-extensions/shared";
+import { classifyNetworkError } from "../utilities/networkDiagnostics";
 
 export interface HubApplication {
   id: number;
@@ -119,14 +120,18 @@ export class ProfileSyncClient {
       await this.discoverLLMProxy();
     } catch (error) {
       this.isConnected = false;
-      this.logger.error("Failed to connect profile sync client", error);
-      // Re-throw the original error to preserve the specific error message
       if (error instanceof ProfileSyncClientError) {
+        this.logger.error("Failed to connect profile sync client", error);
         throw error;
       }
-      throw new ProfileSyncClientError(
-        `Failed to connect to Hub: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const classified = classifyNetworkError(error);
+      this.logger.error("Failed to connect profile sync client", {
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+        error,
+      });
+      throw new ProfileSyncClientError(`Failed to connect to Hub: ${classified.summary}`);
     }
   }
 
@@ -191,7 +196,13 @@ export class ProfileSyncClient {
       });
     } catch (error) {
       // Network or parsing error - treat as not available
-      this.logger.warn("LLM proxy configuration fetch threw error", error);
+      const classified = classifyNetworkError(error);
+      this.logger.warn("LLM proxy configuration fetch failed", {
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+        error,
+      });
       this.llmProxyConfig = {
         available: false,
         endpoint: `${this.baseUrl}/llm-proxy/v1`,
@@ -351,9 +362,21 @@ export class ProfileSyncClient {
 
     this.logger.debug("Fetching all applications from Hub", { url });
 
-    const response = await this.fetchFn(url, {
-      headers: this.getHeaders("application/x-yaml"),
-    });
+    let response: Response;
+    try {
+      response = await this.fetchFn(url, {
+        headers: this.getHeaders("application/x-yaml"),
+      });
+    } catch (error) {
+      const classified = classifyNetworkError(error);
+      this.logger.error("Failed to fetch Hub applications at network level", {
+        url,
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+      });
+      throw new ProfileSyncClientError(`Failed to fetch applications: ${classified.summary}`);
+    }
 
     const responseText = await response.text();
     const contentType = response.headers.get("content-type") || "";
@@ -595,9 +618,22 @@ export class ProfileSyncClient {
 
     this.logger.info("Listing profiles for application", { applicationId, url });
 
-    const response = await this.fetchFn(url, {
-      headers: this.getHeaders("application/x-yaml"),
-    });
+    let response: Response;
+    try {
+      response = await this.fetchFn(url, {
+        headers: this.getHeaders("application/x-yaml"),
+      });
+    } catch (error) {
+      const classified = classifyNetworkError(error);
+      this.logger.error("Failed to list profiles at network level", {
+        url,
+        applicationId,
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+      });
+      throw new ProfileSyncClientError(`Failed to list profiles: ${classified.summary}`);
+    }
 
     const responseText = await response.text();
 
@@ -650,9 +686,22 @@ export class ProfileSyncClient {
 
     this.logger.debug("Downloading profile bundle", { profileId, url });
 
-    const response = await this.fetchFn(url, {
-      headers: this.getHeaders(),
-    });
+    let response: Response;
+    try {
+      response = await this.fetchFn(url, {
+        headers: this.getHeaders(),
+      });
+    } catch (error) {
+      const classified = classifyNetworkError(error);
+      this.logger.error("Failed to download profile bundle at network level", {
+        url,
+        profileId,
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+      });
+      throw new ProfileSyncClientError(`Failed to download profile bundle: ${classified.summary}`);
+    }
 
     if (!response.ok) {
       throw new ProfileSyncClientError(
