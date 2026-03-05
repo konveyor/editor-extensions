@@ -7,7 +7,7 @@ import * as yaml from "js-yaml";
 import * as os from "os";
 import type { RepositoryInfo } from "../utilities/git";
 import { buildLabelSelectorFromLabels } from "@editor-extensions/shared";
-import { classifyNetworkError } from "../utilities/networkDiagnostics";
+import { classifyNetworkError, sanitizeUrl } from "../utilities/networkDiagnostics";
 
 export interface HubApplication {
   id: number;
@@ -131,7 +131,9 @@ export class ProfileSyncClient {
         suggestion: classified.suggestion,
         error,
       });
-      throw new ProfileSyncClientError(`Failed to connect to Hub: ${classified.summary}`);
+      throw new ProfileSyncClientError(
+        `Failed to connect to Hub: ${classified.summary}. ${classified.suggestion}`,
+      );
     }
   }
 
@@ -370,12 +372,14 @@ export class ProfileSyncClient {
     } catch (error) {
       const classified = classifyNetworkError(error);
       this.logger.error("Failed to fetch Hub applications at network level", {
-        url,
+        url: sanitizeUrl(url),
         category: classified.category,
         summary: classified.summary,
         suggestion: classified.suggestion,
       });
-      throw new ProfileSyncClientError(`Failed to fetch applications: ${classified.summary}`);
+      throw new ProfileSyncClientError(
+        `Failed to fetch applications: ${classified.summary}. ${classified.suggestion}`,
+      );
     }
 
     const responseText = await response.text();
@@ -626,13 +630,15 @@ export class ProfileSyncClient {
     } catch (error) {
       const classified = classifyNetworkError(error);
       this.logger.error("Failed to list profiles at network level", {
-        url,
+        url: sanitizeUrl(url),
         applicationId,
         category: classified.category,
         summary: classified.summary,
         suggestion: classified.suggestion,
       });
-      throw new ProfileSyncClientError(`Failed to list profiles: ${classified.summary}`);
+      throw new ProfileSyncClientError(
+        `Failed to list profiles: ${classified.summary}. ${classified.suggestion}`,
+      );
     }
 
     const responseText = await response.text();
@@ -694,13 +700,15 @@ export class ProfileSyncClient {
     } catch (error) {
       const classified = classifyNetworkError(error);
       this.logger.error("Failed to download profile bundle at network level", {
-        url,
+        url: sanitizeUrl(url),
         profileId,
         category: classified.category,
         summary: classified.summary,
         suggestion: classified.suggestion,
       });
-      throw new ProfileSyncClientError(`Failed to download profile bundle: ${classified.summary}`);
+      throw new ProfileSyncClientError(
+        `Failed to download profile bundle: ${classified.summary}. ${classified.suggestion}`,
+      );
     }
 
     if (!response.ok) {

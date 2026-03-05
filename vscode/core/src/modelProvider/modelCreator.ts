@@ -15,6 +15,7 @@ import {
 } from "../utilities/tls";
 import { ModelCreator, PROVIDER_ENV_CA_BUNDLE, PROVIDER_ENV_INSECURE, type FetchFn } from "./types";
 import { getConfigHttpProtocol } from "../utilities/httpProtocol";
+import { sanitizeUrl } from "../utilities/networkDiagnostics";
 
 const defaultDispatcher = getGlobalDispatcher();
 const originalFetch = globalThis.fetch;
@@ -276,7 +277,7 @@ async function setupProviderTLS(
     httpProtocol,
     needsCustomDispatcher,
     hasProxy: !!proxyUrl,
-    proxyUrl: proxyUrl || "none",
+    proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
     envKeys: Object.keys(env),
   });
 

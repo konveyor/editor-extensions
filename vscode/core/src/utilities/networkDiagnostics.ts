@@ -231,11 +231,16 @@ export function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
     parsed.search = "";
+    parsed.hash = "";
     parsed.username = "";
     parsed.password = "";
     return parsed.toString();
   } catch {
     // If URL parsing fails, do basic sanitization
-    return url.replace(/\?.*$/, "");
+    // Strip userinfo, query strings, and fragments
+    return url
+      .replace(/\/\/[^/@\s]+@/, "//")
+      .replace(/\?.*$/, "")
+      .replace(/#.*$/, "");
   }
 }

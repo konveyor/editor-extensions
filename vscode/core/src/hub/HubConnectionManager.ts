@@ -232,17 +232,21 @@ export class HubConnectionManager {
         await this.ensureAuthenticated();
         await this.startTokenRefreshTimer();
       } catch (error) {
-        const classified = classifyNetworkError(error);
-        this.logger.error("Authentication failed", {
-          category: classified.category,
-          summary: classified.summary,
-          suggestion: classified.suggestion,
-          error,
-        });
-
-        vscode.window.showErrorMessage(
-          `Failed to authenticate with Hub: ${classified.summary}. ${classified.suggestion}`,
-        );
+        if (error instanceof HubConnectionManagerError) {
+          this.logger.error("Authentication failed", { error });
+          vscode.window.showErrorMessage(`Failed to authenticate with Hub: ${error.message}`);
+        } else {
+          const classified = classifyNetworkError(error);
+          this.logger.error("Authentication failed", {
+            category: classified.category,
+            summary: classified.summary,
+            suggestion: classified.suggestion,
+            error,
+          });
+          vscode.window.showErrorMessage(
+            `Failed to authenticate with Hub: ${classified.summary}. ${classified.suggestion}`,
+          );
+        }
 
         return; // Can't proceed without auth
       }
@@ -255,17 +259,21 @@ export class HubConnectionManager {
       await this.verifyHubConnectivity();
       this.logger.info("Hub connectivity check passed");
     } catch (error) {
-      const classified = classifyNetworkError(error);
-      this.logger.error("Hub connectivity check failed", {
-        category: classified.category,
-        summary: classified.summary,
-        suggestion: classified.suggestion,
-        error,
-      });
-
-      vscode.window.showErrorMessage(
-        `Failed to connect to Hub: ${classified.summary}. ${classified.suggestion}`,
-      );
+      if (error instanceof HubConnectionManagerError) {
+        this.logger.error("Hub connectivity check failed", { error });
+        vscode.window.showErrorMessage(`Failed to connect to Hub: ${error.message}`);
+      } else {
+        const classified = classifyNetworkError(error);
+        this.logger.error("Hub connectivity check failed", {
+          category: classified.category,
+          summary: classified.summary,
+          suggestion: classified.suggestion,
+          error,
+        });
+        vscode.window.showErrorMessage(
+          `Failed to connect to Hub: ${classified.summary}. ${classified.suggestion}`,
+        );
+      }
 
       return; // Can't proceed if we can't connect to Hub
     }
