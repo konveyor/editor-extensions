@@ -6,6 +6,7 @@ import type { Dispatcher as UndiciTypesDispatcher } from "undici-types";
 import { NodeHttpHandler, NodeHttp2Handler } from "@smithy/node-http-handler";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import type { Logger } from "winston";
+import { sanitizeUrl } from "./networkDiagnostics";
 
 export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
@@ -33,7 +34,21 @@ export async function getDispatcherWithCertBundle(
     process.env.HTTP_PROXY ||
     process.env.http_proxy;
 
+  if (logger) {
+    logger.debug("TLS dispatcher config", {
+      hasCustomCA: !!bundlePath,
+      caBundle: bundlePath || "none",
+      insecure,
+      allowH2,
+      hasProxy: !!proxyUrl,
+      proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
+    });
+  }
+
   if (proxyUrl) {
+    if (logger) {
+      logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
+    }
     return new ProxyAgent({
       uri: proxyUrl,
       allowH2,

@@ -5,6 +5,11 @@ import { ProfileSyncClient, type LLMProxyConfig } from "../clients/ProfileSyncCl
 import * as vscode from "vscode";
 import { executeExtensionCommand } from "../commands";
 import { getDispatcherWithCertBundle, getFetchWithDispatcher } from "../utilities/tls";
+import {
+  classifyNetworkError,
+  classifyHttpStatus,
+  sanitizeUrl,
+} from "../utilities/networkDiagnostics";
 
 export interface TokenResponse {
   access_token: string;
@@ -33,8 +38,8 @@ const PROFILE_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const TOKEN_EXCHANGE_TIMEOUT_MS = 30000; // 30 second timeout for token exchange
 
 export class HubConnectionManagerError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
     this.name = "HubConnectionManagerError";
   }
 }
@@ -204,6 +209,10 @@ export class HubConnectionManager {
     }
 
     this.logger.info("Connecting to Hub...", {
+      url: sanitizeUrl(this.config.url),
+      authEnabled: this.config.auth.enabled,
+      insecure: this.config.auth.insecure,
+      hasCredentials: !!(this.username && this.password),
       solutionServerEnabled: this.config.features.solutionServer.enabled,
       profileSyncEnabled: this.config.features.profileSync.enabled,
     });
@@ -223,13 +232,21 @@ export class HubConnectionManager {
         await this.ensureAuthenticated();
         await this.startTokenRefreshTimer();
       } catch (error) {
-        this.logger.error("Authentication failed", error);
-
-        // Extract meaningful error message and show to user
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        vscode.window.showErrorMessage(
-          `Failed to authenticate with Hub: ${errorMessage}, check your username and password.`,
-        );
+        if (error instanceof HubConnectionManagerError) {
+          this.logger.error("Authentication failed", { error });
+          vscode.window.showErrorMessage(`Failed to authenticate with Hub: ${error.message}`);
+        } else {
+          const classified = classifyNetworkError(error);
+          this.logger.error("Authentication failed", {
+            category: classified.category,
+            summary: classified.summary,
+            suggestion: classified.suggestion,
+            error,
+          });
+          vscode.window.showErrorMessage(
+            `Failed to authenticate with Hub: ${classified.summary}. ${classified.suggestion}`,
+          );
+        }
 
         return; // Can't proceed without auth
       }
@@ -242,15 +259,21 @@ export class HubConnectionManager {
       await this.verifyHubConnectivity();
       this.logger.info("Hub connectivity check passed");
     } catch (error) {
-      this.logger.error("Hub connectivity check failed", error);
-
-      // Extract meaningful error message
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // Show specific error to user - this is a blocker for all features
-      vscode.window.showErrorMessage(
-        `Failed to connect to Hub: ${errorMessage}, check your URL and credentials.`,
-      );
+      if (error instanceof HubConnectionManagerError) {
+        this.logger.error("Hub connectivity check failed", { error });
+        vscode.window.showErrorMessage(`Failed to connect to Hub: ${error.message}`);
+      } else {
+        const classified = classifyNetworkError(error);
+        this.logger.error("Hub connectivity check failed", {
+          category: classified.category,
+          summary: classified.summary,
+          suggestion: classified.suggestion,
+          error,
+        });
+        vscode.window.showErrorMessage(
+          `Failed to connect to Hub: ${classified.summary}. ${classified.suggestion}`,
+        );
+      }
 
       return; // Can't proceed if we can't connect to Hub
     }
@@ -713,19 +736,62 @@ export class HubConnectionManager {
    * (e.g., LLM proxy discovery that isn't cleaned up on disconnect).
    */
   private async verifyHubConnectivity(): Promise<void> {
+    const url = `${this.config.url}/hub/applications`;
     const fetchFn = this.scopedFetch ?? fetch;
-    const response = await fetchFn(`${this.config.url}/hub/applications`, {
-      method: "GET",
-      headers: {
-        Accept: "application/x-yaml",
-        ...(this.bearerToken ? { Authorization: `Bearer ${this.bearerToken}` } : {}),
-      },
+
+    this.logger.debug("Verifying Hub connectivity", {
+      url: sanitizeUrl(url),
+      hasAuth: !!this.bearerToken,
+      insecure: this.config.auth.insecure,
     });
+
+    let response: Response;
+    try {
+      response = await fetchFn(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/x-yaml",
+          ...(this.bearerToken ? { Authorization: `Bearer ${this.bearerToken}` } : {}),
+        },
+      });
+    } catch (error) {
+      // Network-level error (DNS, TLS, connection refused, timeout, etc.)
+      const classified = classifyNetworkError(error);
+      this.logger.error("Hub connectivity check failed at network level", {
+        url: sanitizeUrl(url),
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+      });
+      throw new HubConnectionManagerError(
+        `Hub connectivity check failed: ${classified.summary}. ${classified.suggestion}`,
+        { cause: error },
+      );
+    }
 
     // 404 is ok (no applications), but auth failures are not
     if (!response.ok && response.status !== 404) {
+      const classified = classifyHttpStatus(response.status, response.statusText);
+      const contentType = response.headers.get("content-type") || "";
+      const wwwAuthenticate = response.headers.get("www-authenticate") || "";
+      let bodyPreview = "";
+      try {
+        bodyPreview = (await response.text()).substring(0, 500);
+      } catch {
+        // ignore body read errors
+      }
+      this.logger.error("Hub connectivity check failed", {
+        url: sanitizeUrl(url),
+        status: response.status,
+        statusText: response.statusText,
+        category: classified.category,
+        suggestion: classified.suggestion,
+        contentType,
+        ...(wwwAuthenticate ? { wwwAuthenticate } : {}),
+        ...(bodyPreview ? { bodyPreview } : {}),
+      });
       throw new HubConnectionManagerError(
-        `Hub connectivity check failed: ${response.status} ${response.statusText}`,
+        `Hub connectivity check failed: ${classified.summary}. ${classified.suggestion}`,
       );
     }
   }
@@ -772,6 +838,16 @@ export class HubConnectionManager {
   private async fetchWithTimeout<T>(url: string, options: RequestInit): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TOKEN_EXCHANGE_TIMEOUT_MS);
+    const method = options.method || "GET";
+    const hasAuth = !!(options.headers as Record<string, string>)?.["Authorization"];
+
+    this.logger.debug("Hub API request", {
+      method,
+      url: sanitizeUrl(url),
+      hasAuth,
+    });
+
+    const startTime = Date.now();
 
     try {
       const fetchFn = this.scopedFetch ?? fetch;
@@ -781,31 +857,60 @@ export class HubConnectionManager {
       });
 
       clearTimeout(timeoutId);
+      const durationMs = Date.now() - startTime;
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(`Request failed: ${response.status} ${response.statusText}`, errorText);
+        const classified = classifyHttpStatus(response.status, response.statusText);
+        const contentType = response.headers.get("content-type") || "";
+        const wwwAuthenticate = response.headers.get("www-authenticate") || "";
+        this.logger.error("Hub API request failed", {
+          method,
+          url: sanitizeUrl(url),
+          status: response.status,
+          statusText: response.statusText,
+          category: classified.category,
+          suggestion: classified.suggestion,
+          contentType,
+          ...(wwwAuthenticate ? { wwwAuthenticate } : {}),
+          responseBody: errorText.substring(0, 500),
+          durationMs,
+        });
         throw new HubConnectionManagerError(
-          `Request failed: ${response.status} ${response.statusText}`,
+          `Request failed: ${classified.summary}. ${classified.suggestion}`,
+          { cause: new Error(errorText.substring(0, 500)) },
         );
       }
+
+      this.logger.debug("Hub API request succeeded", {
+        method,
+        url: sanitizeUrl(url),
+        status: response.status,
+        durationMs,
+      });
 
       return (await response.json()) as T;
     } catch (error) {
       clearTimeout(timeoutId);
-
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new HubConnectionManagerError(
-          `Request timed out after ${TOKEN_EXCHANGE_TIMEOUT_MS / 1000} seconds`,
-        );
-      }
+      const durationMs = Date.now() - startTime;
 
       if (error instanceof HubConnectionManagerError) {
         throw error;
       }
 
+      // Network-level error (DNS, TLS, connection, timeout, etc.)
+      const classified = classifyNetworkError(error);
+      this.logger.error("Hub API request failed at network level", {
+        method,
+        url: sanitizeUrl(url),
+        category: classified.category,
+        summary: classified.summary,
+        suggestion: classified.suggestion,
+        durationMs,
+      });
       throw new HubConnectionManagerError(
-        `Request failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Request failed: ${classified.summary}. ${classified.suggestion}`,
+        { cause: error },
       );
     }
   }
