@@ -28,6 +28,12 @@ export async function routeFileChangeToBatchReview(
   const { createTwoFilesPatch, createPatch } = await import("diff");
   const { v4: uuidv4 } = await import("uuid");
 
+  // Skip if this file is already in pendingBatchReview (dedup)
+  const fsPath = vscode.Uri.file(absPath).fsPath;
+  if (state.data.pendingBatchReview?.some((f) => f.path === absPath || f.path === fsPath)) {
+    return;
+  }
+
   const messageId = uuidv4();
 
   await processModifiedFile(
@@ -120,7 +126,13 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
           : path.join(workspaceRoot, file.path);
 
         fileTracker.markAsRouted(absPath);
-        await routeFileChangeToBatchReview(ctx.extensionState, absPath, file.content);
+        const originalContent = fileTracker.getOriginalContent(absPath);
+        await routeFileChangeToBatchReview(
+          ctx.extensionState,
+          absPath,
+          file.content,
+          originalContent,
+        );
       }
 
       ctx.logger.info(`Goose MCP bridge: routed ${files.length} file(s) to batch review`);

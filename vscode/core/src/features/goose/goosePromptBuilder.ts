@@ -32,8 +32,12 @@ export async function buildMigrationPrompt(
     `## Instructions`,
     ``,
     `For each file listed above, fix ALL incidents by applying the migration.`,
-    `Use your file tools to read the current file contents, then write the updated file.`,
     `Preserve existing formatting and imports unless the migration requires changes.`,
+    ``,
+    `**Important**: After making changes to files, you MUST call the \`apply_file_changes\` tool`,
+    `from the konveyor MCP server to submit your modifications. Pass the full updated file`,
+    `content for each file you changed. This routes changes through the review system so the`,
+    `user can accept or reject them. Do NOT skip this step.`,
   ].join("\n");
 }
 
