@@ -6,6 +6,7 @@ import type { Dispatcher as UndiciTypesDispatcher } from "undici-types";
 import { NodeHttpHandler, NodeHttp2Handler } from "@smithy/node-http-handler";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import type { Logger } from "winston";
+import { sanitizeUrl } from "./networkDiagnostics";
 
 /**
  * Creates an undici dispatcher for fetch-based HTTP clients.
@@ -147,7 +148,7 @@ export async function getNodeHttpHandler(
 
   // Use proxy-aware agents if proxy is configured
   if (proxyUrl) {
-    logger.info(`Using proxy ${proxyUrl} for AWS Bedrock`);
+    logger.info(`Using proxy ${sanitizeUrl(proxyUrl)} for AWS Bedrock`);
 
     if (httpVersion === "2.0") {
       // NodeHttp2Handler does not support custom agents/proxy in the same way
