@@ -279,6 +279,18 @@ export const CompactBatchReview: React.FC = () => {
       </div>
 
       {/* Actions */}
+      {(() => {
+        console.log("[CBR] Review button conditions:", {
+          isViewingDiff,
+          isProcessing,
+          noChanges,
+          isNew: currentFile.isNew,
+          showReview: !isViewingDiff && !isProcessing && !noChanges && !currentFile.isNew,
+          fileLabel,
+          path: currentFile.path,
+        });
+        return null;
+      })()}
       <div className="cbr__actions">
         <button
           className="cbr__btn cbr__btn--nav"
@@ -301,8 +313,8 @@ export const CompactBatchReview: React.FC = () => {
         ) : null}
 
         {!isViewingDiff && !isProcessing && !noChanges && !currentFile.isNew && (
-          <button className="cbr__btn cbr__btn--secondary" onClick={handleReviewInEditor}>
-            Review
+          <button className="cbr__btn cbr__btn--review" onClick={handleReviewInEditor}>
+            📝 Review
           </button>
         )}
 
