@@ -243,7 +243,23 @@ export async function handleFileResponse(
         }
       });
     } else {
-      // For reject, notify the solution server that the change was discarded
+      // For reject, revert the file to its original content if we have it.
+      // This is critical for GooseWorkflow where files are already written to
+      // disk by the time we process them.
+      const uri = vscode.Uri.file(path);
+      const fileState = state.modifiedFiles.get(uri.fsPath);
+
+      if (fileState?.originalContent) {
+        try {
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(fileState.originalContent));
+          logger.info(`Reverted file to original content: ${path}`);
+        } catch (revertError) {
+          logger.error(`Failed to revert file ${path}:`, revertError);
+          vscode.window.showErrorMessage(`Failed to revert ${path}: ${revertError}`);
+        }
+      }
+
+      // Notify the solution server that the change was discarded
       try {
         await executeExtensionCommand("changeDiscarded", path);
       } catch (error) {

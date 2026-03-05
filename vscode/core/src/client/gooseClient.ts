@@ -641,6 +641,10 @@ export class GooseClient extends EventEmitter {
       switch (content?.type) {
         case "text":
           if (content.text) {
+            this.logger.debug("GooseClient: agent_message_chunk (text)", {
+              length: content.text.length,
+              responseId: this.currentResponseId,
+            });
             this.emit("streamingChunk", this.currentResponseId, content.text, "text");
           }
           break;
@@ -682,6 +686,7 @@ export class GooseClient extends EventEmitter {
       this.emit("toolCall", this.currentResponseId, {
         name: (update.title as string) || (update.name as string) || "Tool call",
         callId: (update.toolCallId as string) || (update.id as string),
+        arguments: (update.arguments ?? update.input) as Record<string, unknown> | undefined,
         status: "running",
       });
     } else if (sessionUpdate === "tool_call_update" && this.currentResponseId) {

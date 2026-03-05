@@ -14,9 +14,15 @@ import type {
   KaiModelProvider,
   KaiModelProviderInvokeCallOptions,
 } from "@editor-extensions/agentic";
-import type { GooseClient } from "../../client/gooseClient";
+import type { GooseClient, ToolCallData } from "../../client/gooseClient";
 import type { GooseContentBlockType } from "@editor-extensions/shared";
 import type { Logger } from "winston";
+
+const TOOL_STATUS_ICON: Record<string, string> = {
+  running: "⏳",
+  succeeded: "✓",
+  failed: "✗",
+};
 
 /**
  * KaiModelProvider adapter that routes LLM calls through the Goose agent.
@@ -85,17 +91,49 @@ export class GooseModelProvider implements KaiModelProvider {
 
     return new ReadableStream<AIMessageChunk>({
       start(controller) {
+        let hasTextStarted = false;
+        let chunkCount = 0;
+        let totalLength = 0;
+        const seenToolCalls = new Set<string>();
+
         const onChunk = (
           _msgId: string,
           content: string,
           contentType: GooseContentBlockType,
         ): void => {
           if (contentType === "text" && content) {
+            chunkCount++;
+            totalLength += content.length;
+            logger.debug("GooseModelProvider.stream: chunk received", {
+              chunkNumber: chunkCount,
+              chunkLength: content.length,
+              totalLength,
+            });
+            hasTextStarted = true;
             controller.enqueue(new AIMessageChunk({ content }));
+          } else if (contentType === "thinking" && content && !hasTextStarted) {
+            controller.enqueue(new AIMessageChunk({ content: `> ${content}\n` }));
           }
         };
 
+        const onToolCall = (_msgId: string, data: ToolCallData): void => {
+          if (hasTextStarted) {
+            return;
+          }
+          const key = data.callId ?? data.name;
+          if (seenToolCalls.has(key)) {
+            return;
+          }
+          seenToolCalls.add(key);
+          const icon = TOOL_STATUS_ICON[data.status] ?? "⏳";
+          controller.enqueue(new AIMessageChunk({ content: `${icon} ${data.name}\n` }));
+        };
+
         const onComplete = (_msgId: string): void => {
+          logger.info("GooseModelProvider.stream: complete", {
+            totalChunks: chunkCount,
+            totalLength,
+          });
           cleanup();
           controller.close();
         };
@@ -107,11 +145,13 @@ export class GooseModelProvider implements KaiModelProvider {
 
         const cleanup = (): void => {
           gooseClient.removeListener("streamingChunk", onChunk);
+          gooseClient.removeListener("toolCall", onToolCall);
           gooseClient.removeListener("streamingComplete", onComplete);
           gooseClient.removeListener("error", onError);
         };
 
         gooseClient.on("streamingChunk", onChunk);
+        gooseClient.on("toolCall", onToolCall);
         gooseClient.on("streamingComplete", onComplete);
         gooseClient.on("error", onError);
 

@@ -1,0 +1,57 @@
+.compact-batch-review {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--vscode-sideBar-background, #1e1e1e);
+  border-top: 1px solid var(--vscode-panel-border, #333);
+}
+
+.compact-batch-review__label {
+  font-size: 11px;
+  color: var(--vscode-foreground, #ccc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.compact-batch-review__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.compact-batch-review__btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.compact-batch-review__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.compact-batch-review__btn--primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.compact-batch-review__btn--primary:not(:disabled):hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.compact-batch-review__btn--danger {
+  background: transparent;
+  color: var(--vscode-errorForeground, #f48771);
+  border: 1px solid var(--vscode-errorForeground, #f48771);
+}
+
+.compact-batch-review__btn--danger:not(:disabled):hover {
+  background: rgba(244, 135, 113, 0.1);
+}

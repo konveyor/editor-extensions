@@ -1,3 +1,10 @@
+.chat-page-container {
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+  container-name: chatPage;
+}
+
 .chat-page {
   display: flex;
   flex-direction: column;
@@ -6,19 +13,71 @@
   overflow: hidden;
 }
 
+/* "Panel too narrow" overlay */
+
+.chat-too-narrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.chat-too-narrow__icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.chat-too-narrow__title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.chat-too-narrow__hint {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, #999);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 260px;
+}
+
+.chat-too-narrow__move-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--vscode-button-border, #555);
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.chat-too-narrow__move-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #454545);
+}
+
 .chat-status-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--vscode-panel-border, #333);
   background: var(--vscode-sideBar-background, #1e1e1e);
   flex-shrink: 0;
 }
 
 .chat-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -51,15 +110,15 @@
 }
 
 .chat-status-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--vscode-foreground, #ccc);
   flex-grow: 1;
 }
 
 .chat-action-btn {
-  font-size: 11px;
-  padding: 2px 8px;
-  border: 1px solid var(--vscode-button-border, #555);
+  font-size: 10px;
+  padding: 2px 6px;
+  border: none;
   border-radius: 3px;
   background: var(--vscode-button-secondaryBackground, #3a3a3a);
   color: var(--vscode-button-secondaryForeground, #ccc);
@@ -71,10 +130,10 @@
 }
 
 .chat-error-banner {
-  padding: 8px 16px;
+  padding: 6px 10px;
   background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
   color: var(--vscode-errorForeground, #f48771);
-  font-size: 12px;
+  font-size: 11px;
   border-bottom: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
   flex-shrink: 0;
 }
@@ -132,7 +191,7 @@
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 8px 0 8px 8px;
 }
 
 .chat-agent-status {
@@ -169,12 +228,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   margin: 2px 4px 2px 0;
   border-radius: 4px;
   background: var(--vscode-badge-background, #4d4d4d);
   color: var(--vscode-textLink-foreground, #3794ff);
-  font-size: 12px;
+  font-size: 11px;
   text-decoration: none;
   cursor: pointer;
 }
@@ -198,9 +257,8 @@
 /* --- Resource Block --- */
 
 .goose-resource-block {
-  margin: 8px 0;
-  border: 1px solid var(--vscode-panel-border, #333);
-  border-radius: 4px;
+  margin: 4px 0;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -208,13 +266,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   width: 100%;
   border: none;
   background: var(--vscode-editor-background, #1e1e1e);
   color: var(--vscode-foreground, #ccc);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   text-align: left;
 }
 
@@ -239,12 +297,11 @@
 
 .goose-resource-block__content {
   margin: 0;
-  padding: 10px;
+  padding: 8px;
   background: var(--vscode-editor-background, #1e1e1e);
-  border-top: 1px solid var(--vscode-panel-border, #333);
-  font-size: 12px;
+  font-size: 11px;
   overflow-x: auto;
-  max-height: 300px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -256,22 +313,22 @@
 /* --- Thinking Indicator (active, during streaming) --- */
 
 .goose-thinking {
-  padding: 4px 0;
+  padding: 2px 0;
   color: var(--vscode-descriptionForeground, #999);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .goose-thinking__toggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 3px 6px;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   background: transparent;
   color: var(--vscode-descriptionForeground, #999);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-family: inherit;
 }
 
@@ -329,23 +386,22 @@
 }
 
 .goose-thinking__content {
-  margin: 4px 0 4px 8px;
-  padding: 8px 12px;
+  margin: 2px 0 2px 8px;
+  padding: 6px 10px;
   border-left: 2px solid var(--vscode-textSeparator-foreground, #444);
   color: var(--vscode-descriptionForeground, #999);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
   white-space: pre-wrap;
-  max-height: 200px;
+  max-height: 150px;
   overflow-y: auto;
 }
 
 /* --- Thinking Block (completed, in history) --- */
 
 .goose-thinking-block {
-  margin: 6px 0;
-  border: 1px solid var(--vscode-panel-border, #333);
-  border-radius: 4px;
+  margin: 4px 0;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -353,13 +409,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
+  padding: 4px 8px;
   width: 100%;
   border: none;
   background: var(--vscode-editor-background, #1e1e1e);
   color: var(--vscode-descriptionForeground, #999);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   text-align: left;
   font-family: inherit;
 }
@@ -382,13 +438,12 @@
 }
 
 .goose-thinking-block__content {
-  padding: 8px 12px;
-  border-top: 1px solid var(--vscode-panel-border, #333);
+  padding: 6px 10px;
   color: var(--vscode-descriptionForeground, #999);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
   white-space: pre-wrap;
-  max-height: 300px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -403,30 +458,30 @@
 .goose-tool-call {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  margin: 4px 0;
-  border-radius: 4px;
+  gap: 5px;
+  padding: 3px 8px;
+  margin: 2px 0;
+  border-radius: 3px;
   background: var(--vscode-editor-background, #1e1e1e);
-  border: 1px solid var(--vscode-panel-border, #333);
-  font-size: 12px;
+  border: none;
+  font-size: 11px;
   color: var(--vscode-descriptionForeground, #999);
 }
 
 .goose-tool-call--running {
-  border-left: 3px solid var(--vscode-progressBar-background, #0e70c0);
+  border-left: 2px solid var(--vscode-progressBar-background, #0e70c0);
 }
 
 .goose-tool-call--succeeded {
-  border-left: 3px solid #4caf50;
+  border-left: 2px solid #4caf50;
 }
 
 .goose-tool-call--failed {
-  border-left: 3px solid #f44336;
+  border-left: 2px solid #f44336;
 }
 
 .goose-tool-call__icon {
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 
@@ -733,4 +788,80 @@
 
 .goose-settings__btn--secondary:hover {
   background: var(--vscode-button-secondaryHoverBackground, #454545);
+}
+
+/* --- Hide avatar icons in the chat page --- */
+
+.chat-page .pf-chatbot__message-avatar {
+  display: none !important;
+}
+
+/* Remove indent that was reserved for the avatar */
+.chat-page .pf-chatbot__message {
+  gap: 0 !important;
+}
+
+.chat-page .pf-chatbot__message-contents {
+  padding-inline-start: 0 !important;
+}
+
+/* Compact the meta row (name + timestamp) */
+.chat-page .pf-chatbot__message-meta {
+  gap: 4px;
+}
+
+.chat-page .pf-chatbot__message-meta .pf-chatbot__message-name {
+  font-size: 11px;
+}
+
+.chat-page .pf-chatbot__message-meta time {
+  font-size: 10px;
+}
+
+/* --- Cap code blocks inside chat messages --- */
+
+.chat-page .pf-chatbot__message pre {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+
+.chat-page .pf-chatbot__message code {
+  font-size: 11px;
+}
+
+.chat-page .pf-chatbot__message p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chat-page .pf-chatbot__message h1,
+.chat-page .pf-chatbot__message h2,
+.chat-page .pf-chatbot__message h3,
+.chat-page .pf-chatbot__message h4 {
+  font-size: 13px;
+  margin: 8px 0 4px;
+}
+
+.chat-page .pf-chatbot__message ul,
+.chat-page .pf-chatbot__message ol {
+  font-size: 12px;
+  padding-left: 20px;
+}
+
+/* --- Narrow sidebar compaction via container query --- */
+
+@container chatPage (max-width: 450px) {
+  .chat-config-label {
+    display: none;
+  }
+
+  .chat-status-bar {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .chat-status-text {
+    font-size: 10px;
+  }
 }

@@ -19,18 +19,22 @@ import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ToolMessage } from "../ResolutionsPage/ToolMessage";
-import { ModifiedFileMessage } from "../ResolutionsPage/ModifiedFile";
 import { MessageWrapper } from "../ResolutionsPage/MessageWrapper";
-import { BatchReviewExpandable } from "../ResolutionsPage/BatchReview";
+import { CompactBatchReview } from "./CompactBatchReview";
+import { CompactModifiedFile } from "./CompactModifiedFile";
 import LoadingIndicator from "../ResolutionsPage/LoadingIndicator";
 import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
 import { ChatCard } from "../ResolutionsPage/ChatCard/ChatCard";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
+import { useContainerWidth } from "../../hooks/useContainerWidth";
 import GooseSettings from "./GooseSettings";
 import "./ChatPage.css";
 
+const MIN_USABLE_WIDTH = 350;
+
 const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
+  const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
   const gooseState = useExtensionStore((s) => s.gooseState);
   const gooseError = useExtensionStore((s) => s.gooseError);
@@ -103,7 +107,7 @@ const ChatPage: React.FC = () => {
         const fileData = msg.value as ModifiedFileMessageValue;
         return (
           <MessageWrapper key={msg.messageToken}>
-            <ModifiedFileMessage data={fileData} timestamp={msg.timestamp} />
+            <CompactModifiedFile data={fileData} timestamp={msg.timestamp} />
           </MessageWrapper>
         );
       }
@@ -136,149 +140,164 @@ const ChatPage: React.FC = () => {
   }, [chatMessages, isAnalyzing, hasWorkflowContent]);
 
   return (
-    <Chatbot displayMode={ChatbotDisplayMode.embedded}>
-      <ChatbotContent>
-        <div className="chat-page">
-          {/* Status bar */}
-          <div className="chat-status-bar">
-            <span
-              className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
-            />
-            <span className="chat-status-text">
-              {isRunning
-                ? "Migration Assistant"
-                : isStarting
-                  ? "Starting..."
-                  : isError
-                    ? "Error"
-                    : "Stopped"}
-              {isProcessing && <LoadingIndicator />}
-            </span>
-            <span className="chat-config-label" title={configLabel}>
-              {configLabel}
-            </span>
-            {!isRunning && !isStarting && (
-              <button className="chat-action-btn" onClick={handleStartAgent}>
-                Start
-              </button>
-            )}
-            {isRunning && (
-              <button className="chat-action-btn" onClick={handleStopAgent}>
-                Stop
-              </button>
-            )}
-            <button
-              className="chat-action-btn chat-action-btn--icon"
-              onClick={() => setShowSettings((prev) => !prev)}
-              aria-label="Settings"
-              title="Configure provider, model, and extensions"
-            >
-              ⚙
-            </button>
-            <button
-              className="chat-action-btn chat-action-btn--icon"
-              onClick={handleToggleView}
-              aria-label="Toggle view position"
-              title="Move between sidebar and panel"
-            >
-              ⇔
-            </button>
-          </div>
-
-          {/* Settings panel */}
-          {showSettings && <GooseSettings onClose={() => setShowSettings(false)} />}
-
-          {/* Error display */}
-          {isError && gooseError && (
-            <div className="chat-error-banner">
-              <div className="chat-error-banner__message">{gooseError}</div>
-              {gooseError.includes("binary not found") ? (
-                <div className="chat-error-banner__actions">
-                  <button
-                    className="chat-error-banner__btn"
-                    onClick={() => {
-                      window.vscode.postMessage({ type: "GOOSE_INSTALL_CLI", payload: {} });
-                    }}
-                  >
-                    Install Goose CLI
-                  </button>
-                  <span className="chat-error-banner__hint">
-                    or{" "}
-                    <button
-                      className="chat-error-banner__link"
-                      onClick={() => {
-                        window.vscode.postMessage({ type: "GOOSE_OPEN_SETTINGS", payload: {} });
-                      }}
-                    >
-                      set the path manually
-                    </button>
-                  </span>
-                </div>
-              ) : (
-                <div className="chat-error-banner__hint">Click Start to retry.</div>
-              )}
-            </div>
-          )}
-
-          {/* Workflow output (chatMessages from getSolution pipeline) */}
-          <MessageBox ref={messageBoxRef} className="chat-messages">
-            {isTriggeredByUser && solutionScope && (
-              <>
-                <MessageWrapper>
-                  <SentMessage
-                    timestamp={new Date().toISOString()}
-                    content="Here is the scope of what I would like you to fix:"
-                    extraContent={
-                      <ChatCard color="yellow">
-                        <IncidentTableGroup
-                          onIncidentSelect={handleIncidentClick}
-                          incidents={solutionScope.incidents || []}
-                          isReadOnly={true}
-                        />
-                      </ChatCard>
-                    }
-                  />
-                </MessageWrapper>
-                <MessageWrapper>
-                  <SentMessage
-                    timestamp={new Date().toISOString()}
-                    content="Please provide resolution for this issue."
-                  />
-                </MessageWrapper>
-              </>
-            )}
-
-            {!hasWorkflowContent && !isProcessing && (
-              <div className="chat-agent-status">
-                {isRunning ? (
-                  <p className="chat-agent-status__hint">
-                    Use <strong>Get Solution</strong> from the analysis view to start a migration
-                    workflow. Goose will handle the code changes.
-                  </p>
-                ) : isStarting ? (
-                  <p className="chat-agent-status__hint">Starting Goose agent...</p>
-                ) : (
-                  <p className="chat-agent-status__hint">
-                    Start the Goose agent to enable AI-powered migration workflows.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {renderChatMessages()}
-          </MessageBox>
+    <div ref={containerRef} className="chat-page-container">
+      {isTooNarrow ? (
+        <div className="chat-too-narrow">
+          <div className="chat-too-narrow__icon">⇔</div>
+          <p className="chat-too-narrow__title">Panel too narrow</p>
+          <p className="chat-too-narrow__hint">
+            Drag the sidebar edge to widen this panel, or use the{" "}
+            <button className="chat-too-narrow__move-btn" onClick={handleToggleView}>
+              ⇔ Move to editor
+            </button>{" "}
+            button to open in a larger area.
+          </p>
         </div>
-      </ChatbotContent>
-      {hasWorkflowContent && (
-        <ChatbotFooter>
-          <BatchReviewExpandable />
-          <ChatbotFootnote
-            className="footnote"
-            label="Always review AI generated content prior to use."
-          />
-        </ChatbotFooter>
+      ) : (
+        <Chatbot displayMode={ChatbotDisplayMode.embedded}>
+          <ChatbotContent>
+            <div className="chat-page">
+              <div className="chat-status-bar">
+                <span
+                  className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
+                />
+                <span className="chat-status-text">
+                  {isRunning
+                    ? "Migration Assistant"
+                    : isStarting
+                      ? "Starting..."
+                      : isError
+                        ? "Error"
+                        : "Stopped"}
+                  {isProcessing && <LoadingIndicator />}
+                </span>
+                <span className="chat-config-label" title={configLabel}>
+                  {configLabel}
+                </span>
+                {!isRunning && !isStarting && (
+                  <button className="chat-action-btn" onClick={handleStartAgent}>
+                    Start
+                  </button>
+                )}
+                {isRunning && (
+                  <button className="chat-action-btn" onClick={handleStopAgent}>
+                    Stop
+                  </button>
+                )}
+                <button
+                  className="chat-action-btn chat-action-btn--icon"
+                  onClick={() => setShowSettings((prev) => !prev)}
+                  aria-label="Settings"
+                  title="Configure provider, model, and extensions"
+                >
+                  ⚙
+                </button>
+                <button
+                  className="chat-action-btn chat-action-btn--icon"
+                  onClick={handleToggleView}
+                  aria-label="Toggle view position"
+                  title="Move between sidebar and panel"
+                >
+                  ⇔
+                </button>
+              </div>
+
+              {showSettings && <GooseSettings onClose={() => setShowSettings(false)} />}
+
+              {isError && gooseError && (
+                <div className="chat-error-banner">
+                  <div className="chat-error-banner__message">{gooseError}</div>
+                  {gooseError.includes("binary not found") ? (
+                    <div className="chat-error-banner__actions">
+                      <button
+                        className="chat-error-banner__btn"
+                        onClick={() => {
+                          window.vscode.postMessage({ type: "GOOSE_INSTALL_CLI", payload: {} });
+                        }}
+                      >
+                        Install Goose CLI
+                      </button>
+                      <span className="chat-error-banner__hint">
+                        or{" "}
+                        <button
+                          className="chat-error-banner__link"
+                          onClick={() => {
+                            window.vscode.postMessage({
+                              type: "GOOSE_OPEN_SETTINGS",
+                              payload: {},
+                            });
+                          }}
+                        >
+                          set the path manually
+                        </button>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="chat-error-banner__hint">Click Start to retry.</div>
+                  )}
+                </div>
+              )}
+
+              <MessageBox ref={messageBoxRef} className="chat-messages">
+                {isTriggeredByUser && solutionScope && (
+                  <>
+                    <MessageWrapper>
+                      <SentMessage
+                        timestamp={new Date().toISOString()}
+                        content="Here is the scope of what I would like you to fix:"
+                        extraContent={
+                          <ChatCard color="yellow">
+                            <IncidentTableGroup
+                              onIncidentSelect={handleIncidentClick}
+                              incidents={solutionScope.incidents || []}
+                              isReadOnly={true}
+                            />
+                          </ChatCard>
+                        }
+                      />
+                    </MessageWrapper>
+                    <MessageWrapper>
+                      <SentMessage
+                        timestamp={new Date().toISOString()}
+                        content="Please provide resolution for this issue."
+                      />
+                    </MessageWrapper>
+                  </>
+                )}
+
+                {!hasWorkflowContent && !isProcessing && (
+                  <div className="chat-agent-status">
+                    {isRunning ? (
+                      <p className="chat-agent-status__hint">
+                        Use <strong>Get Solution</strong> from the analysis view to start a
+                        migration workflow. Goose will handle the code changes.
+                      </p>
+                    ) : isStarting ? (
+                      <p className="chat-agent-status__hint">Starting Goose agent...</p>
+                    ) : (
+                      <p className="chat-agent-status__hint">
+                        Start the Goose agent to enable AI-powered migration workflows.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {renderChatMessages()}
+              </MessageBox>
+            </div>
+          </ChatbotContent>
+          {hasWorkflowContent && (
+            <ChatbotFooter>
+              <CompactBatchReview />
+              <ChatbotFootnote
+                className="footnote"
+                label="Always review AI generated content prior to use."
+              />
+            </ChatbotFooter>
+          )}
+        </Chatbot>
       )}
-    </Chatbot>
+    </div>
   );
 };
 
