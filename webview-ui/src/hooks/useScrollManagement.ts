@@ -144,22 +144,19 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     [getMessageBoxElement],
   );
 
-  // Enhanced auto-scroll for new messages with layout change detection
+  // Auto-scroll for new messages — respects user scroll position
   useEffect(() => {
     if (Array.isArray(chatMessages) && chatMessages?.length > 0) {
-      const now = Date.now();
-      const noRecentUserScroll = now - lastUserScrollTime.current > 1000;
-
-      // Check for content height changes (indicates layout changes from components)
       const messageBox = getMessageBoxElement();
       if (messageBox) {
         const currentHeight = messageBox.scrollHeight;
         const heightChanged = Math.abs(currentHeight - lastContentHeight.current) > 10;
         lastContentHeight.current = currentHeight;
 
-        // Auto-scroll if conditions are met OR if content height changed significantly
-        if (!userHasScrolledUp.current && (isNearBottom() || noRecentUserScroll || heightChanged)) {
-          // Add longer delay for complex components to finish rendering
+        // Scroll when user hasn't intentionally scrolled up AND either:
+        // - we're already near the bottom, or
+        // - content height just grew (new message arrived)
+        if (!userHasScrolledUp.current && (isNearBottom() || heightChanged)) {
           const delay = heightChanged ? 200 : 100;
           setTimeout(() => scrollToBottom(false), delay);
         }
@@ -185,16 +182,13 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
         if (isNearBottom()) {
           userHasScrolledUp.current = false;
         } else {
-          // Only set "scrolled up" flag if user has scrolled significantly away from bottom
           const now = Date.now();
           if (now - lastScrollTime.current > 50) {
             const messageBox = getMessageBoxElement();
             if (messageBox) {
               const { scrollTop, scrollHeight, clientHeight } = messageBox;
               const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-              // Only consider it "scrolled up" if they're more than 100px from bottom
-              // AND it's been enough time since our last programmatic scroll
-              if (distanceFromBottom > 100 && now - lastScrollTime.current > 200) {
+              if (distanceFromBottom > 60 && now - lastScrollTime.current > 150) {
                 userHasScrolledUp.current = true;
                 lastUserScrollTime.current = now;
               }
@@ -220,22 +214,25 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     }
   }, [getMessageBoxElement, isNearBottom]);
 
-  // Enhanced periodic scrolling for fetching state
+  // Periodic scrolling during fetching — only when the user hasn't scrolled away
   useEffect(() => {
     if (isFetchingSolution) {
       const interval = setInterval(() => {
-        const now = Date.now();
-        const noRecentUserScroll = now - lastUserScrollTime.current > 2000;
-
-        // Be more aggressive about scrolling during content fetching
-        if (!userHasScrolledUp.current && (isNearBottom() || noRecentUserScroll)) {
-          scrollToBottom(false);
+        if (!userHasScrolledUp.current) {
+          const messageBox = getMessageBoxElement();
+          const heightGrew = messageBox && messageBox.scrollHeight > lastContentHeight.current + 10;
+          if (isNearBottom() || heightGrew) {
+            if (messageBox) {
+              lastContentHeight.current = messageBox.scrollHeight;
+            }
+            scrollToBottom(false);
+          }
         }
-      }, 1000); // More frequent updates during fetching
+      }, 1000);
 
       return () => clearInterval(interval);
     }
-  }, [isFetchingSolution, scrollToBottom, isNearBottom]);
+  }, [isFetchingSolution, scrollToBottom, isNearBottom, getMessageBoxElement]);
 
   // Cleanup timeout on component unmount to prevent memory leaks
   useEffect(() => {

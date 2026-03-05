@@ -88,8 +88,9 @@ export class SolutionWorkflowOrchestrator {
 
   /**
    * Initialize the workflow session.
-   * When the Goose feature flag is active, a GooseModelProvider is used as the
-   * LLM backend while the full KaiInteractiveWorkflow graph stays unchanged.
+   * When Goose is active, use GooseWorkflow directly so that Goose operates as
+   * the agent (with its own tools and native streaming) rather than being wrapped
+   * as a LangChain model provider inside the KaiInteractiveWorkflow graph.
    */
   private async initializeWorkflow(): Promise<void> {
     this.logger.info("Initializing workflow", {
@@ -99,26 +100,29 @@ export class SolutionWorkflowOrchestrator {
       solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
     });
 
-    let modelProvider = this.state.modelProvider;
-
     if (this.useGoose) {
-      const { GooseModelProvider } = await import("./features/goose/gooseModelProvider");
+      const { GooseWorkflow } = await import("./features/goose/gooseWorkflow");
       const gooseClient = this.state.featureClients.get("gooseClient") as any;
-      modelProvider = new GooseModelProvider(gooseClient, this.state.logger);
-      this.logger.info("Using GooseModelProvider as LLM backend");
+      this.workflow = new GooseWorkflow(gooseClient, this.state.logger);
+      await this.workflow.init({
+        workspaceDir: this.state.data.workspaceRoot,
+      } as any);
+      this.logger.info("Using GooseWorkflow (direct Goose agent)");
+    } else {
+      const modelProvider = this.state.modelProvider;
+      if (!modelProvider) {
+        throw new Error("No model provider available");
+      }
+
+      await this.state.workflowManager.init({
+        modelProvider,
+        workspaceDir: this.state.data.workspaceRoot,
+        solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
+      });
+
+      this.workflow = this.state.workflowManager.getWorkflow();
     }
 
-    if (!modelProvider) {
-      throw new Error("No model provider available");
-    }
-
-    await this.state.workflowManager.init({
-      modelProvider,
-      workspaceDir: this.state.data.workspaceRoot,
-      solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
-    });
-
-    this.workflow = this.state.workflowManager.getWorkflow();
     this.logger.debug("Workflow initialized");
   }
 
@@ -312,31 +316,44 @@ export class SolutionWorkflowOrchestrator {
   }
 
   /**
-   * Wait for message processing to complete based on agent mode
+   * Wait for the message queue to drain before allowing cleanup.
+   *
+   * After workflow.run() resolves all streaming chunks have been enqueued,
+   * but the queue's background processor (100ms interval) may not have
+   * finished processing them yet. Rather than guessing with a fixed timeout,
+   * poll until the queue is empty and not actively processing.
    */
   private async waitForProcessing(): Promise<void> {
-    if (this.agentMode) {
-      // In agent mode, workflow.run() has completed but messages might still be in queue
-      // Give a brief delay to ensure all messages are processed
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    const MAX_WAIT_MS = 30_000;
+    const POLL_INTERVAL_MS = 50;
 
-      this.logger.info("After delay in agent mode", {
-        pendingInteractionsCount: this.pendingInteractions.size,
-        queueLength: this.queueManager!.getQueueLength(),
-        isWaitingForUserInteraction: this.state.data.isWaitingForUserInteraction,
-      });
-    } else {
-      // In non-agent mode, give a delay to ensure messages are queued
-      // The queue manager will process them and wait for user interactions
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    // Brief initial delay to let any final messages enter the queue
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-      this.logger.info("After delay in non-agent mode", {
-        pendingInteractionsCount: this.pendingInteractions.size,
-        queueLength: this.queueManager!.getQueueLength(),
-        isWaitingForUserInteraction: this.state.data.isWaitingForUserInteraction,
-        chatMessagesCount: this.state.data.chatMessages.length,
-      });
+    const startTime = Date.now();
+
+    while (
+      this.queueManager!.getQueueLength() > 0 ||
+      this.queueManager!.isProcessingQueueActive()
+    ) {
+      if (Date.now() - startTime > MAX_WAIT_MS) {
+        this.logger.warn("waitForProcessing timed out waiting for queue to drain", {
+          queueLength: this.queueManager!.getQueueLength(),
+          isProcessing: this.queueManager!.isProcessingQueueActive(),
+          elapsedMs: Date.now() - startTime,
+        });
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
+
+    this.logger.info("waitForProcessing complete", {
+      agentMode: this.agentMode,
+      pendingInteractionsCount: this.pendingInteractions.size,
+      queueLength: this.queueManager!.getQueueLength(),
+      isWaitingForUserInteraction: this.state.data.isWaitingForUserInteraction,
+      elapsedMs: Date.now() - startTime,
+    });
   }
 
   /**

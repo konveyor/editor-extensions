@@ -1,8 +1,7 @@
 .tool-message-container {
   background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
-  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
-  border-radius: 4px;
-  min-height: 2.5rem; /* Ensure consistent height */
+  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.15));
+  border-radius: 3px;
 }
 
 .tool-message-container.has-details {
@@ -12,16 +11,16 @@
 .tool-message {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: var(--pf-global--Color--300, #8a8d90); /* lighter gray */
-  font-size: 1rem; /* match chat text */
+  gap: 5px;
+  color: var(--vscode-descriptionForeground, #8a8d90);
+  font-size: 11px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .tool-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
 }
 
@@ -43,64 +42,61 @@
 
 .tool-status {
   text-transform: capitalize;
-  font-size: 0.95em;
-  opacity: 0.7;
-  margin-left: 0.25em;
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 2px;
 }
 
 .tool-message-container.minimal-tool-message {
-  padding: 0.5rem;
+  padding: 3px 6px;
   background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
-  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
-  border-radius: 4px;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.15));
+  border-radius: 3px;
   display: flex;
   align-items: center;
-  min-height: 2.5rem; /* Ensure consistent height */
 }
 
 .tool-message-text {
   color: var(--vscode-editor-foreground);
-  font-size: 1rem;
+  font-size: 11px;
   font-weight: 400;
-  line-height: 1.5;
-  padding: 0.5rem;
+  line-height: 1.4;
+  padding: 3px 6px;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.75rem; /* Add more spacing between icon and text */
-  height: 100%;
-  min-height: 2.5rem;
+  gap: 5px;
 }
 
 .tool-message-summary {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 5px;
   color: var(--vscode-editor-foreground);
-  font-size: 1rem;
+  font-size: 11px;
   font-weight: 400;
   width: 100%;
-  min-height: 2.5rem;
 }
 
 .tool-details {
-  padding: 0.75rem;
-  border-top: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
+  padding: 6px 8px;
+  border-top: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.15));
   background: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
 }
 
 .tool-error-details {
-  font-size: 0.9rem;
+  font-size: 11px;
 }
 
 .tool-error-details pre {
   background: var(--vscode-editor-inactiveSelectionBackground, rgba(127, 127, 127, 0.1));
-  padding: 0.5rem;
+  padding: 4px 6px;
   border-radius: 3px;
   overflow: auto;
   font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 0.85rem;
+  font-size: 11px;
+  max-height: 120px;
 }
 
 /* Override PatternFly expandable section styles to match our theme */
@@ -109,7 +105,7 @@
 }
 
 .tool-expandable button {
-  padding: 0.5rem !important;
+  padding: 3px 6px !important;
   width: 100%;
   text-align: left;
   background: transparent !important;

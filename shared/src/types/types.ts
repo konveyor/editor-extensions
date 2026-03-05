@@ -368,7 +368,7 @@ export interface AnalysisProfile {
   syncedAt?: string;
 }
 
-export type ToolMessageValue = { toolName: string; toolStatus: string };
+export type ToolMessageValue = { toolName: string; toolStatus: string; toolResult?: string };
 
 export type ModifiedFileMessageValue = {
   path: string;
