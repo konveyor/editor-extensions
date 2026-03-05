@@ -683,15 +683,45 @@ export class GooseClient extends EventEmitter {
       }
     } else if (sessionUpdate === "tool_call" && this.currentResponseId) {
       const update = params.update as Record<string, unknown>;
+
+      // Extract tool arguments — ACP may send them as `input` (object or JSON string)
+      let toolArgs: Record<string, unknown> | undefined;
+      const rawInput = update.arguments ?? update.input;
+      if (rawInput && typeof rawInput === "object") {
+        toolArgs = rawInput as Record<string, unknown>;
+      } else if (typeof rawInput === "string") {
+        try {
+          toolArgs = JSON.parse(rawInput);
+        } catch {
+          // Not valid JSON, ignore
+        }
+      }
+
+      this.logger.info("GooseClient: tool_call raw update", {
+        keys: Object.keys(update),
+        hasInput: "input" in update,
+        hasArguments: "arguments" in update,
+        inputType: typeof rawInput,
+        toolArgs: toolArgs ? Object.keys(toolArgs) : undefined,
+      });
+
       this.emit("toolCall", this.currentResponseId, {
         name: (update.title as string) || (update.name as string) || "Tool call",
         callId: (update.toolCallId as string) || (update.id as string),
-        arguments: (update.arguments ?? update.input) as Record<string, unknown> | undefined,
+        arguments: toolArgs,
         status: "running",
       });
     } else if (sessionUpdate === "tool_call_update" && this.currentResponseId) {
       const update = params.update as Record<string, unknown>;
       const acpStatus = update.status as string;
+
+      this.logger.info("GooseClient: tool_call_update", {
+        name: (update.title as string) || (update.name as string),
+        status: acpStatus,
+        hasResult: !!content?.text,
+        resultPreview: content?.text?.substring(0, 200),
+      });
+
       this.emit("toolCallUpdate", this.currentResponseId, {
         name: (update.title as string) || (update.name as string) || "Tool call",
         callId: (update.toolCallId as string) || (update.id as string),
