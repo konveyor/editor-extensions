@@ -238,6 +238,7 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
+              <CompactBatchReview />
               <MessageBox ref={messageBoxRef} className="chat-messages">
                 {isTriggeredByUser && solutionScope && (
                   <>
@@ -288,7 +289,6 @@ const ChatPage: React.FC = () => {
           </ChatbotContent>
           {hasWorkflowContent && (
             <ChatbotFooter>
-              <CompactBatchReview />
               <ChatbotFootnote
                 className="footnote"
                 label="Always review AI generated content prior to use."

@@ -253,3 +253,9 @@
 .cbr__btn--nav:not(:disabled):hover {
   background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
 }
+
+/* Hide PatternFly chatbot scroll-to-top button when batch review is visible */
+.cbr ~ .chat-messages .pf-chatbot__jump--top,
+.cbr ~ * .pf-chatbot__jump--top {
+  display: none !important;
+}

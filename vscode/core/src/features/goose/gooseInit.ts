@@ -42,13 +42,36 @@ export async function routeFileChangeToBatchReview(
 ): Promise<void> {
   absPath = normalizeFilePath(absPath, state.data.workspaceRoot);
 
+  const logger = state.logger.child({ component: "routeFileChangeToBatchReview" });
+
+  logger.info("Routing file change to batch review", {
+    absPath,
+    contentLength: content.length,
+    hasOriginalContent: originalContent !== undefined,
+    originalContentLength: originalContent?.length,
+    contentEqualsOriginal: originalContent !== undefined && content === originalContent,
+  });
+
   const { processModifiedFile } = await import("../../utilities/ModifiedFiles/processModifiedFile");
   const { createTwoFilesPatch, createPatch } = await import("diff");
   const { v4: uuidv4 } = await import("uuid");
 
-  // Skip if this file is already in pendingBatchReview (dedup)
+  // Don't add an entry if we don't have the original content — the diff
+  // would be empty ("no changes detected") because processModifiedFile
+  // falls back to reading from disk, which Goose already modified.
+  // The post-scan will handle these files correctly with cached originals.
+  if (originalContent === undefined) {
+    logger.info(
+      "Skipping batch review entry — no originalContent available, post-scan will handle",
+      { absPath },
+    );
+    return;
+  }
+
+  // Dedup: skip if already in pendingBatchReview
   const fsPath = vscode.Uri.file(absPath).fsPath;
   if (state.data.pendingBatchReview?.some((f) => f.path === absPath || f.path === fsPath)) {
+    logger.info("Skipping duplicate file already in pendingBatchReview", { absPath });
     return;
   }
 
@@ -62,11 +85,21 @@ export async function routeFileChangeToBatchReview(
 
   const fileState = state.modifiedFiles.get(vscode.Uri.file(absPath).fsPath);
   if (!fileState) {
+    logger.warn("processModifiedFile did not create state for file", { absPath, fsPath });
     return;
   }
 
   const isNew = fileState.originalContent === undefined;
   const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
+
+  logger.info("File state after processModifiedFile", {
+    absPath,
+    isNew,
+    isDeleted,
+    modifiedContentLength: fileState.modifiedContent.length,
+    originalContentLength: fileState.originalContent?.length,
+    contentsMatch: fileState.originalContent === fileState.modifiedContent,
+  });
 
   let diff: string;
   if (isNew) {
@@ -80,7 +113,16 @@ export async function routeFileChangeToBatchReview(
       diff = `// Error creating diff for ${absPath}`;
     }
   }
+
+  const rawDiffLength = diff.length;
   diff = cleanDiff(diff);
+
+  logger.info("Diff result", {
+    absPath,
+    rawDiffLength,
+    cleanedDiffLength: diff.length,
+    diffEmpty: diff.trim() === "",
+  });
 
   state.mutate((draft) => {
     draft.chatMessages.push({
@@ -142,7 +184,7 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
         const absPath = normalizeFilePath(file.path, workspaceRoot);
 
         fileTracker.markAsRouted(absPath);
-        const originalContent = fileTracker.getOriginalContent(absPath);
+        const originalContent = await fileTracker.getOriginalContent(absPath, workspaceRoot);
         await routeFileChangeToBatchReview(
           ctx.extensionState,
           absPath,

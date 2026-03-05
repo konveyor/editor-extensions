@@ -12,6 +12,7 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
+import { execFile } from "child_process";
 import type winston from "winston";
 
 export interface TrackedFileChange {
@@ -123,12 +124,67 @@ export class GooseFileTracker {
   }
 
   /**
-   * Get the pre-cached original content for a file. Used by the MCP bridge
-   * callback so that processModifiedFile gets the real original (not the
-   * already-modified content Goose wrote to disk).
+   * Get the pre-cached original content for a file. Falls back to git
+   * if the file wasn't pre-cached (e.g., Goose modified a file outside
+   * the incident scope like pom.xml). This ensures we always have the
+   * real original content for diffing, not the already-modified disk content.
    */
-  getOriginalContent(absPath: string): string | undefined {
-    return this.originalContentCache.get(absPath);
+  async getOriginalContent(absPath: string, workspaceRoot?: string): Promise<string | undefined> {
+    const cached = this.originalContentCache.get(absPath);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    // Normalize workspaceRoot — it may arrive as a file:// URI
+    let normalizedRoot = workspaceRoot;
+    if (normalizedRoot?.startsWith("file://")) {
+      normalizedRoot = new URL(normalizedRoot).pathname;
+    } else if (normalizedRoot?.startsWith("file:")) {
+      normalizedRoot = normalizedRoot.slice("file:".length);
+    }
+
+    // Fall back to git for files not in the cache
+    if (normalizedRoot) {
+      const gitContent = await this.readFromGit(absPath, normalizedRoot);
+      if (gitContent !== undefined) {
+        this.originalContentCache.set(absPath, gitContent);
+        this.logger.info("Recovered original content from git", { path: absPath });
+        return gitContent;
+      }
+      this.logger.warn("Git fallback failed for file", {
+        path: absPath,
+        workspaceRoot: normalizedRoot,
+        relativePath: path.relative(normalizedRoot, absPath),
+      });
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Read file content from git HEAD. Returns undefined if the file
+   * isn't tracked or git isn't available.
+   */
+  private readFromGit(absPath: string, workspaceRoot: string): Promise<string | undefined> {
+    const relativePath = path.relative(workspaceRoot, absPath);
+    if (relativePath.startsWith("..")) {
+      return Promise.resolve(undefined);
+    }
+
+    return new Promise((resolve) => {
+      execFile(
+        "git",
+        ["show", `HEAD:${relativePath}`],
+        { cwd: workspaceRoot, maxBuffer: 10 * 1024 * 1024, timeout: 5000 },
+        (error, stdout) => {
+          if (error) {
+            resolve(undefined);
+          } else {
+            resolve(stdout);
+          }
+        },
+      );
+    });
   }
 
   /**
