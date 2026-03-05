@@ -15,6 +15,7 @@ import {
 } from "../utilities/tls";
 import { ModelCreator, PROVIDER_ENV_CA_BUNDLE, PROVIDER_ENV_INSECURE, type FetchFn } from "./types";
 import { getConfigHttpProtocol } from "../utilities/httpProtocol";
+import { sanitizeUrl } from "../utilities/networkDiagnostics";
 
 const defaultDispatcher = getGlobalDispatcher();
 
@@ -260,6 +261,22 @@ async function setupProviderTLS(
   const allowH2 = httpProtocol === "http2";
   const { caBundle, insecure } = getCaBundleAndInsecure(env);
   const needsCustomDispatcher = caBundle || insecure || !allowH2;
+
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
+
+  logger.info("Provider TLS config", {
+    caBundle: caBundle ? `set (${caBundle})` : "not set",
+    insecure,
+    httpProtocol,
+    needsCustomDispatcher,
+    hasProxy: !!proxyUrl,
+    proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
+    envKeys: Object.keys(env),
+  });
 
   if (!needsCustomDispatcher) {
     setGlobalDispatcher(defaultDispatcher);
