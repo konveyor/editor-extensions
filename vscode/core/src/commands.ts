@@ -785,17 +785,21 @@ const commandsMap: (
           `[Commands] Set activeDecorators for messageToken: ${messageToken}, filePath: ${filePath}`,
         );
 
-        // Get original content
+        // Get original content — prefer the cached version from modifiedFiles
+        // since Goose writes files to disk before we process them, so disk
+        // content is already the modified version.
         const uri = Uri.file(filePath);
-        let originalContent = "";
+        const cachedFileState = state.modifiedFiles.get(uri.fsPath);
+        let originalContent = cachedFileState?.originalContent ?? "";
 
-        try {
-          const doc = await workspace.openTextDocument(uri);
-          originalContent = doc.getText();
-        } catch {
-          // File might not exist yet (new file), use empty content
-          logger.debug(`File not found, treating as new file: ${filePath}`);
-          originalContent = "";
+        if (!originalContent) {
+          try {
+            const doc = await workspace.openTextDocument(uri);
+            originalContent = doc.getText();
+          } catch {
+            logger.debug(`File not found, treating as new file: ${filePath}`);
+            originalContent = "";
+          }
         }
 
         // Check if diff is for a new file (no original content)

@@ -18,12 +18,30 @@ type GooseClientType = InstanceType<typeof import("../../client/gooseClient").Go
  * Route a file change through processModifiedFile → diff → chat message → batch review.
  * Shared by both the MCP bridge onFileChanges callback and the post-scan fallback.
  */
+/**
+ * Normalize a path that may arrive as a file: URI, file:// URI, or absolute path.
+ */
+function normalizeFilePath(filePath: string, workspaceRoot?: string): string {
+  let normalized = filePath;
+  if (normalized.startsWith("file://")) {
+    normalized = new URL(normalized).pathname;
+  } else if (normalized.startsWith("file:")) {
+    normalized = normalized.slice("file:".length);
+  }
+  if (workspaceRoot && !path.isAbsolute(normalized)) {
+    normalized = path.join(workspaceRoot, normalized);
+  }
+  return normalized;
+}
+
 export async function routeFileChangeToBatchReview(
   state: ExtensionState,
   absPath: string,
   content: string,
   originalContent?: string,
 ): Promise<void> {
+  absPath = normalizeFilePath(absPath, state.data.workspaceRoot);
+
   const { processModifiedFile } = await import("../../utilities/ModifiedFiles/processModifiedFile");
   const { createTwoFilesPatch, createPatch } = await import("diff");
   const { v4: uuidv4 } = await import("uuid");
@@ -121,9 +139,7 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
       const workspaceRoot = ctx.store.getState().workspaceRoot;
 
       for (const file of files) {
-        const absPath = path.isAbsolute(file.path)
-          ? file.path
-          : path.join(workspaceRoot, file.path);
+        const absPath = normalizeFilePath(file.path, workspaceRoot);
 
         fileTracker.markAsRouted(absPath);
         const originalContent = fileTracker.getOriginalContent(absPath);

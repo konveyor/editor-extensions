@@ -103,6 +103,13 @@ export async function handleFileResponse(
   state: ExtensionState,
   skipAnalysis: boolean = false,
 ): Promise<void> {
+  // Normalize file: URI prefixes that Goose may include in paths
+  if (path.startsWith("file://")) {
+    path = new URL(path).pathname;
+  } else if (path.startsWith("file:")) {
+    path = path.slice("file:".length);
+  }
+
   const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });
   try {
     logger.info(`handleFileResponse called`, {
