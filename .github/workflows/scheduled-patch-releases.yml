@@ -25,7 +25,8 @@ jobs:
 
       - name: Dispatch patch releases for release branches
         run: |
-          BRANCHES=$(git branch -r --list 'origin/release-*' | sed 's|origin/||' | tr -d ' ')
+          BRANCHES=$(git branch -r --list 'origin/release-*' | sed 's|origin/||' | tr -d ' ' \
+            | grep -v -E '^release-0\.[12]$')
 
           if [ -z "$BRANCHES" ]; then
             echo "No release branches found. Nothing to dispatch." >> "$GITHUB_STEP_SUMMARY"
