@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Chatbot,
   ChatbotContent,
@@ -8,6 +8,7 @@ import {
   MessageBox,
 } from "@patternfly/chatbot";
 import {
+  ChatMessage,
   ChatMessageType,
   Incident,
   type ToolMessageValue,
@@ -16,21 +17,23 @@ import {
 import { useExtensionStore } from "../../store/store";
 import { openFile } from "../../hooks/actions";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
-import { SentMessage } from "../ResolutionsPage/SentMessage";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ToolMessage } from "../ResolutionsPage/ToolMessage";
 import { MessageWrapper } from "../ResolutionsPage/MessageWrapper";
 import { CompactBatchReview } from "./CompactBatchReview";
 import { CompactModifiedFile } from "./CompactModifiedFile";
 import LoadingIndicator from "../ResolutionsPage/LoadingIndicator";
-import { IncidentTableGroup } from "../IncidentTable/IncidentTableGroup";
-import { ChatCard } from "../ResolutionsPage/ChatCard/ChatCard";
+import CompactMigrationScope from "./CompactMigrationScope";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { useContainerWidth } from "../../hooks/useContainerWidth";
 import GooseSettings from "./GooseSettings";
 import "./ChatPage.css";
 
-const MIN_USABLE_WIDTH = 350;
+const MIN_USABLE_WIDTH = 200;
+
+type RenderItem =
+  | { type: "tool-group"; tools: ChatMessage[]; key: string }
+  | { type: "message"; message: ChatMessage };
 
 const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
@@ -80,28 +83,92 @@ const ChatPage: React.FC = () => {
       ? `${gooseConfig.provider} / ${gooseConfig.model}`
       : "Not configured";
 
-  const renderChatMessages = useCallback(() => {
+  const renderItems = useMemo((): RenderItem[] => {
     if (!hasWorkflowContent) {
-      return null;
+      return [];
     }
 
-    return chatMessages.map((msg) => {
-      if (!msg) {
-        return null;
-      }
+    const items: RenderItem[] = [];
+    let toolBuffer: ChatMessage[] = [];
 
+    const flushTools = () => {
+      if (toolBuffer.length > 0) {
+        items.push({
+          type: "tool-group",
+          tools: toolBuffer,
+          key: toolBuffer[0].messageToken,
+        });
+        toolBuffer = [];
+      }
+    };
+
+    for (const msg of chatMessages) {
+      if (!msg) {
+        continue;
+      }
       if (msg.kind === ChatMessageType.Tool) {
-        const { toolName, toolStatus } = msg.value as ToolMessageValue;
+        toolBuffer.push(msg);
+      } else {
+        flushTools();
+        items.push({ type: "message", message: msg });
+      }
+    }
+    flushTools();
+
+    return items;
+  }, [chatMessages, hasWorkflowContent]);
+
+  const renderChatMessages = useCallback(() => {
+    return renderItems.map((item) => {
+      if (item.type === "tool-group") {
+        const { tools, key } = item;
+        const hasRunning = tools.some(
+          (t) => (t.value as ToolMessageValue).toolStatus === "running",
+        );
+        const hasFailed = tools.some((t) => (t.value as ToolMessageValue).toolStatus === "failed");
+
+        if (hasRunning) {
+          const runningCount = tools.filter(
+            (t) => (t.value as ToolMessageValue).toolStatus === "running",
+          ).length;
+          return (
+            <MessageWrapper key={key}>
+              <ToolMessage
+                toolName={
+                  runningCount === 1
+                    ? "Running tool call..."
+                    : `Running ${runningCount} tool calls...`
+                }
+                status="running"
+              />
+            </MessageWrapper>
+          );
+        }
+
+        if (hasFailed) {
+          return (
+            <MessageWrapper key={key}>
+              <ToolMessage
+                toolName={
+                  tools.length === 1
+                    ? "Tool call failed"
+                    : `${tools.length} tool calls (some failed)`
+                }
+                status="failed"
+              />
+            </MessageWrapper>
+          );
+        }
+
+        const count = tools.length;
         return (
-          <MessageWrapper key={msg.messageToken}>
-            <ToolMessage
-              toolName={toolName}
-              status={toolStatus as "succeeded" | "failed" | "running"}
-              timestamp={msg.timestamp}
-            />
-          </MessageWrapper>
+          <div key={key} className="tool-calls-summary">
+            {count === 1 ? "1 tool call" : `${count} tool calls`}
+          </div>
         );
       }
+
+      const msg = item.message;
 
       if (msg.kind === ChatMessageType.ModifiedFile) {
         const fileData = msg.value as ModifiedFileMessageValue;
@@ -137,7 +204,7 @@ const ChatPage: React.FC = () => {
 
       return null;
     });
-  }, [chatMessages, isAnalyzing, hasWorkflowContent]);
+  }, [renderItems, isAnalyzing]);
 
   return (
     <div ref={containerRef} className="chat-page-container">
@@ -241,29 +308,15 @@ const ChatPage: React.FC = () => {
               <CompactBatchReview />
               <MessageBox ref={messageBoxRef} className="chat-messages">
                 {isTriggeredByUser && solutionScope && (
-                  <>
-                    <MessageWrapper>
-                      <SentMessage
-                        timestamp={new Date().toISOString()}
-                        content="Here is the scope of what I would like you to fix:"
-                        extraContent={
-                          <ChatCard color="yellow">
-                            <IncidentTableGroup
-                              onIncidentSelect={handleIncidentClick}
-                              incidents={solutionScope.incidents || []}
-                              isReadOnly={true}
-                            />
-                          </ChatCard>
-                        }
+                  <div className="chat-initial-scope">
+                    <div className="chat-initial-scope__header">Migration Scope</div>
+                    <div className="chat-initial-scope__body">
+                      <CompactMigrationScope
+                        incidents={solutionScope.incidents || []}
+                        onIncidentSelect={handleIncidentClick}
                       />
-                    </MessageWrapper>
-                    <MessageWrapper>
-                      <SentMessage
-                        timestamp={new Date().toISOString()}
-                        content="Please provide resolution for this issue."
-                      />
-                    </MessageWrapper>
-                  </>
+                    </div>
+                  </div>
                 )}
 
                 {!hasWorkflowContent && !isProcessing && (

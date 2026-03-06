@@ -453,55 +453,14 @@
   margin-top: 8px;
 }
 
-/* --- Tool Call Indicator --- */
+/* --- Tool Calls Summary (collapsed) --- */
 
-.goose-tool-call {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  margin: 2px 0;
-  border-radius: 3px;
-  background: var(--vscode-editor-background, #1e1e1e);
-  border: none;
+.tool-calls-summary {
   font-size: 11px;
-  color: var(--vscode-descriptionForeground, #999);
-}
-
-.goose-tool-call--running {
-  border-left: 2px solid var(--vscode-progressBar-background, #0e70c0);
-}
-
-.goose-tool-call--succeeded {
-  border-left: 2px solid #4caf50;
-}
-
-.goose-tool-call--failed {
-  border-left: 2px solid #f44336;
-}
-
-.goose-tool-call__icon {
-  font-size: 11px;
-  flex-shrink: 0;
-}
-
-.goose-tool-call__name {
-  flex-grow: 1;
-}
-
-.goose-tool-call__spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--vscode-panel-border, #333);
-  border-top-color: var(--vscode-progressBar-background, #0e70c0);
-  border-radius: 50%;
-  animation: goose-tool-spin 0.8s linear infinite;
-}
-
-@keyframes goose-tool-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  color: var(--vscode-descriptionForeground, #8a8d90);
+  opacity: 0.6;
+  padding: 1px 0;
+  user-select: none;
 }
 
 /* --- Cancelled Label --- */
@@ -818,7 +777,23 @@
   font-size: 10px;
 }
 
-/* --- Cap code blocks inside chat messages --- */
+/* --- Compact message text sizing --- */
+
+.chat-page .pf-chatbot__message-text {
+  --pf-chatbot-message-text-font-size: 12px !important;
+  --pf-chatbot-message-text-inline-code-font-size: 11px !important;
+  font-size: 12px !important;
+}
+
+.chat-page .pf-chatbot__message-text .pf-v6-c-content {
+  --pf-v6-c-content--FontSize: 12px !important;
+  --pf-v6-c-content--h1--FontSize: 13px !important;
+  --pf-v6-c-content--h2--FontSize: 13px !important;
+  --pf-v6-c-content--h3--FontSize: 13px !important;
+  --pf-v6-c-content--h4--FontSize: 12px !important;
+  --pf-v6-c-content--h5--FontSize: 12px !important;
+  --pf-v6-c-content--h6--FontSize: 12px !important;
+}
 
 .chat-page .pf-chatbot__message pre {
   max-height: 200px;
@@ -839,7 +814,7 @@
 .chat-page .pf-chatbot__message h2,
 .chat-page .pf-chatbot__message h3,
 .chat-page .pf-chatbot__message h4 {
-  font-size: 13px;
+  font-size: 13px !important;
   margin: 8px 0 4px;
 }
 
@@ -864,4 +839,237 @@
   .chat-status-text {
     font-size: 10px;
   }
+}
+
+@container chatPage (max-width: 350px) {
+  .chat-action-btn:not(.chat-action-btn--icon) {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+
+  .chat-messages {
+    padding: 4px 0 4px 4px;
+  }
+
+  .chat-page .pf-chatbot__message-text {
+    --pf-chatbot-message-text-font-size: 11px !important;
+    font-size: 11px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text .pf-v6-c-content {
+    --pf-v6-c-content--FontSize: 11px !important;
+    --pf-v6-c-content--h1--FontSize: 12px !important;
+    --pf-v6-c-content--h2--FontSize: 12px !important;
+    --pf-v6-c-content--h3--FontSize: 12px !important;
+    --pf-v6-c-content--h4--FontSize: 11px !important;
+  }
+
+  .chat-page .pf-chatbot__message p {
+    font-size: 11px;
+  }
+
+  .chat-page .pf-chatbot__message pre {
+    font-size: 10px;
+  }
+
+  .chat-page .pf-chatbot__message h1,
+  .chat-page .pf-chatbot__message h2,
+  .chat-page .pf-chatbot__message h3,
+  .chat-page .pf-chatbot__message h4 {
+    font-size: 12px !important;
+  }
+
+  .chat-page .pf-chatbot__message ul,
+  .chat-page .pf-chatbot__message ol {
+    font-size: 11px;
+    padding-left: 16px;
+  }
+
+  .chat-agent-status {
+    padding: 12px 8px;
+  }
+
+  .chat-agent-status__hint {
+    font-size: 11px;
+  }
+
+  .goose-settings {
+    padding: 8px 10px;
+  }
+}
+
+@container chatPage (max-width: 280px) {
+  .chat-status-bar {
+    padding: 3px 6px;
+    gap: 3px;
+  }
+
+  .chat-status-text {
+    font-size: 9px;
+  }
+
+  .chat-action-btn {
+    font-size: 9px;
+    padding: 1px 3px;
+  }
+
+  .chat-action-btn--icon {
+    min-width: 18px;
+    font-size: 11px;
+  }
+
+  .chat-messages {
+    padding: 2px 0 2px 2px;
+  }
+
+  .chat-page .pf-chatbot__message p {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .chat-error-banner {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  .chat-initial-scope__header {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  .chat-initial-scope__body {
+    padding: 4px;
+  }
+}
+
+/* --- Compact initial scope card for sidebar --- */
+
+.chat-initial-scope {
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chat-initial-scope__header {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-sideBarSectionHeader-background, transparent);
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chat-initial-scope__body {
+  padding: 6px;
+  overflow-x: hidden;
+}
+
+/* --- Compact migration scope (inside chat-initial-scope__body) --- */
+
+.compact-scope__toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.compact-scope__toggle:hover {
+  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+  border-radius: 3px;
+}
+
+.compact-scope__chevron {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.compact-scope__chevron--open {
+  transform: rotate(90deg);
+}
+
+.compact-scope__summary {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compact-scope__detail {
+  padding: 4px 0 2px 0;
+}
+
+.compact-scope__msg-group {
+  padding: 3px 0;
+}
+
+.compact-scope__msg-group + .compact-scope__msg-group {
+  border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  margin-top: 3px;
+  padding-top: 6px;
+}
+
+.compact-scope__msg {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--vscode-descriptionForeground);
+  padding: 0 4px;
+  cursor: default;
+}
+
+.compact-scope__file-group {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 1px 4px;
+}
+
+.compact-scope__filename {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.compact-scope__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.compact-scope__link {
+  border: none;
+  background: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.compact-scope__link:hover {
+  text-decoration: underline;
+  color: var(--vscode-textLink-activeForeground, #3794ff);
 }
