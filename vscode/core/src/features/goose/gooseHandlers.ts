@@ -140,11 +140,20 @@ export const gooseMessageHandlers: Record<
     }
   },
 
-  [GOOSE_TOGGLE_VIEW]: async (_payload, _state, logger) => {
+  [GOOSE_TOGGLE_VIEW]: async (_payload, state, logger) => {
     try {
-      await vscode.commands.executeCommand("workbench.action.moveView", {
-        viewId: "konveyor-core.chatView",
-      });
+      const chatProvider = state.webviewProviders?.get("chat");
+      if (!chatProvider) {
+        logger.warn("Chat provider not found for GOOSE_TOGGLE_VIEW");
+        return;
+      }
+
+      if (chatProvider.hasPanel) {
+        chatProvider.closePanel();
+      } else {
+        chatProvider.showWebviewPanel();
+        await vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
+      }
     } catch (err) {
       logger.error("GOOSE_TOGGLE_VIEW failed:", err);
     }
@@ -189,17 +198,27 @@ export const gooseMessageHandlers: Record<
     );
   },
 
-  GOOSE_WEBVIEW_READY: async (_payload, state, logger) => {
+  GOOSE_WEBVIEW_READY: async (_payload, state, _logger) => {
     try {
       const { readGooseConfig } = await import("../../gooseConfig");
       const { hasGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
       const config = readGooseConfig();
       config.hasStoredCredentials = await hasGooseCredentials(state.extensionContext);
       const timestamp = new Date().toISOString();
+
+      const gooseState = (state.store.getState().featureState?.gooseState as string) ?? "stopped";
+      const gooseError = state.store.getState().featureState?.gooseError as string | undefined;
+
       state.webviewProviders.forEach((provider) => {
         provider.sendMessageToWebview({
           type: GooseMessageTypes.GOOSE_CONFIG_UPDATE,
           config,
+          timestamp,
+        });
+        provider.sendMessageToWebview({
+          type: GooseMessageTypes.GOOSE_STATE_CHANGE,
+          gooseState,
+          gooseError,
           timestamp,
         });
       });
