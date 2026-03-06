@@ -251,7 +251,7 @@ export async function handleFileResponse(
       });
     } else {
       // For reject, revert the file to its original content if we have it.
-      // This is critical for GooseWorkflow where files are already written to
+      // This is critical for the Goose flow where files are already written to
       // disk by the time we process them.
       const uri = vscode.Uri.file(path);
       const fileState = state.modifiedFiles.get(uri.fsPath);

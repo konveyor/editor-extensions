@@ -10,7 +10,7 @@ import {
   type KaiWorkflowMessage,
   type KaiInteractiveWorkflowInput,
 } from "@editor-extensions/agentic";
-import { getConfigAgentMode, getConfigExperimentalChatEnabled } from "./utilities/configuration";
+import { getConfigAgentMode } from "./utilities/configuration";
 import { executeExtensionCommand, executeDeferredWorkflowDisposal } from "./commands";
 import { processMessage } from "./utilities/ModifiedFiles/processMessage";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
@@ -42,40 +42,20 @@ export class SolutionWorkflowOrchestrator {
     this.agentMode = getConfigAgentMode();
   }
 
-  /**
-   * Validate preconditions before starting workflow
-   */
-  private get useGoose(): boolean {
-    return getConfigExperimentalChatEnabled() && this.state.featureClients.has("gooseClient");
-  }
-
   private validatePreconditions(): { valid: boolean; error?: string } {
     if (this.state.data.isFetchingSolution) {
       return { valid: false, error: "Solution already being fetched" };
     }
 
-    if (this.useGoose) {
-      const client = this.state.featureClients.get("gooseClient") as
-        | { getState(): string }
-        | undefined;
-      if (!client || client.getState() !== "running") {
-        return {
-          valid: false,
-          error:
-            "Goose agent is not running. Please ensure the Goose CLI is installed and the agent has started.",
-        };
-      }
-    } else {
-      if (this.state.data.configErrors.some((e) => e.type === "genai-disabled")) {
-        return { valid: false, error: "GenAI functionality is disabled." };
-      }
+    if (this.state.data.configErrors.some((e) => e.type === "genai-disabled")) {
+      return { valid: false, error: "GenAI functionality is disabled." };
+    }
 
-      if (!this.state.modelProvider) {
-        return {
-          valid: false,
-          error: "Model provider is not configured. Please check your provider settings.",
-        };
-      }
+    if (!this.state.modelProvider) {
+      return {
+        valid: false,
+        error: "Model provider is not configured. Please check your provider settings.",
+      };
     }
 
     const profileName = this.incidents[0]?.activeProfileName;
@@ -86,45 +66,25 @@ export class SolutionWorkflowOrchestrator {
     return { valid: true };
   }
 
-  /**
-   * Initialize the workflow session.
-   * When Goose is active, use GooseWorkflow directly so that Goose operates as
-   * the agent (with its own tools and native streaming) rather than being wrapped
-   * as a LangChain model provider inside the KaiInteractiveWorkflow graph.
-   */
   private async initializeWorkflow(): Promise<void> {
     this.logger.info("Initializing workflow", {
       incidentsCount: this.incidents.length,
       agentMode: this.agentMode,
-      useGoose: this.useGoose,
       solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
     });
 
-    if (this.useGoose) {
-      const { GooseWorkflow } = await import("./features/goose/gooseWorkflow");
-      const gooseClient = this.state.featureClients.get("gooseClient") as any;
-      const fileTracker = this.state.featureClients.get("gooseFileTracker") as
-        | import("./features/goose/gooseFileTracker").GooseFileTracker
-        | undefined;
-      this.workflow = new GooseWorkflow(gooseClient, this.state.logger, fileTracker);
-      await this.workflow.init({
-        workspaceDir: this.state.data.workspaceRoot,
-      } as any);
-      this.logger.info("Using GooseWorkflow (direct Goose agent)");
-    } else {
-      const modelProvider = this.state.modelProvider;
-      if (!modelProvider) {
-        throw new Error("No model provider available");
-      }
-
-      await this.state.workflowManager.init({
-        modelProvider,
-        workspaceDir: this.state.data.workspaceRoot,
-        solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
-      });
-
-      this.workflow = this.state.workflowManager.getWorkflow();
+    const modelProvider = this.state.modelProvider;
+    if (!modelProvider) {
+      throw new Error("No model provider available");
     }
+
+    await this.state.workflowManager.init({
+      modelProvider,
+      workspaceDir: this.state.data.workspaceRoot,
+      solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
+    });
+
+    this.workflow = this.state.workflowManager.getWorkflow();
 
     this.logger.debug("Workflow initialized");
   }
@@ -305,22 +265,7 @@ export class SolutionWorkflowOrchestrator {
       enableAgentMode: this.agentMode,
     };
 
-    const result = await this.workflow.run(input);
-
-    // Route any files the post-scan found (Goose built-in tools that
-    // bypassed the MCP bridge) through the same batch review pipeline.
-    if (this.useGoose && result.modified_files?.length > 0) {
-      const { routeFileChangeToBatchReview } = await import("./features/goose/gooseInit");
-      for (const file of result.modified_files) {
-        await routeFileChangeToBatchReview(
-          this.state,
-          file.path,
-          file.content,
-          file.originalContent,
-        );
-      }
-      this.logger.info(`Routed ${result.modified_files.length} post-scan file(s) to batch review`);
-    }
+    await this.workflow.run(input);
 
     this.logger.info("Workflow.run() completed", {
       agentMode: this.agentMode,
@@ -587,11 +532,7 @@ export class SolutionWorkflowOrchestrator {
       agentMode: this.agentMode,
     });
 
-    if (this.useGoose) {
-      await executeExtensionCommand("showChatPanel");
-    } else {
-      await executeExtensionCommand("showResolutionPanel");
-    }
+    await executeExtensionCommand("showResolutionPanel");
 
     // Initialize state
     this.initializeState();

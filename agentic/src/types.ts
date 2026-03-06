@@ -29,7 +29,7 @@ export enum KaiWorkflowMessageType {
 export interface KaiModifiedFile {
   path: string;
   content: string;
-  /** Pre-modification content for diffing and revert (used by GooseWorkflow where files are written to disk before we process them). */
+  /** Pre-modification content for diffing and revert (used by the Goose flow where files are written to disk before we process them). */
   originalContent?: string;
   userInteraction?: KaiUserInteraction;
 }

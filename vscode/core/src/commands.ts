@@ -287,8 +287,15 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
-      await orchestrator.run();
+      const { getConfigExperimentalChatEnabled } = await import("./utilities/configuration");
+      if (getConfigExperimentalChatEnabled() && state.featureClients.has("gooseClient")) {
+        const { GooseOrchestrator } = await import("./features/goose/gooseOrchestrator");
+        const orchestrator = new GooseOrchestrator(state, logger, incidents);
+        await orchestrator.run();
+      } else {
+        const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
+        await orchestrator.run();
+      }
     },
     [`${EXTENSION_NAME}.getSuccessRate`]: async () => {
       logger.info("Getting success rate for incidents");

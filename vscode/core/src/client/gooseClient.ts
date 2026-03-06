@@ -134,6 +134,22 @@ export interface ToolCallData {
   result?: string;
 }
 
+export interface PermissionOption {
+  optionId: string;
+  name: string;
+  kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
+}
+
+export interface PermissionRequestData {
+  requestId: number;
+  toolCallId: string;
+  title: string;
+  kind: string;
+  status: string;
+  rawInput?: Record<string, unknown>;
+  options: PermissionOption[];
+}
+
 export interface GooseClientEvents {
   stateChange: (state: GooseAgentState) => void;
   message: (message: GooseChatMessage) => void;
@@ -146,6 +162,7 @@ export interface GooseClientEvents {
   streamingComplete: (messageId: string, stopReason: AcpPromptResponse["stopReason"]) => void;
   toolCall: (messageId: string, data: ToolCallData) => void;
   toolCallUpdate: (messageId: string, data: ToolCallData) => void;
+  permissionRequest: (data: PermissionRequestData) => void;
   error: (error: Error) => void;
 }
 
@@ -308,6 +325,25 @@ export class GooseClient extends EventEmitter {
     }
 
     this.sendNotification("session/cancel", { sessionId: this.sessionId });
+  }
+
+  /**
+   * Send a JSON-RPC response to an incoming request from Goose
+   * (e.g. session/request_permission).
+   */
+  respondToRequest(requestId: number, result: unknown): void {
+    if (this.disposed || !this.process?.stdin) {
+      return;
+    }
+
+    const response: JsonRpcResponse = {
+      jsonrpc: "2.0",
+      id: requestId,
+      result: result as any,
+    };
+
+    const line = JSON.stringify(response) + "\n";
+    this.process.stdin.write(line);
   }
 
   /**
@@ -601,7 +637,40 @@ export class GooseClient extends EventEmitter {
       return;
     }
 
-    // Response (has id)
+    // Incoming request from Goose (has both id AND method).
+    // e.g. session/request_permission in smart_approve mode.
+    if ("id" in message && "method" in message && (message as any).method) {
+      const incoming = message as any;
+      this.logger.info(`GooseClient: INCOMING REQUEST from agent`, {
+        id: incoming.id,
+        method: incoming.method,
+        params: JSON.stringify(incoming.params ?? {}).substring(0, 2000),
+      });
+
+      if (incoming.method === "session/request_permission") {
+        const params = incoming.params ?? {};
+        const toolCall = params.toolCall ?? {};
+        const data: PermissionRequestData = {
+          requestId: incoming.id,
+          toolCallId: toolCall.toolCallId ?? "",
+          title: toolCall.title ?? "Tool call",
+          kind: toolCall.kind ?? "other",
+          status: toolCall.status ?? "pending",
+          rawInput: toolCall.rawInput,
+          options: (params.options ?? []).map((o: any) => ({
+            optionId: o.optionId,
+            name: o.name,
+            kind: o.kind,
+          })),
+        };
+        this.emit("permissionRequest", data);
+      } else {
+        this.logger.warn(`GooseClient: unhandled incoming request method: ${incoming.method}`);
+      }
+      return;
+    }
+
+    // Response to our outgoing request (has id, no method)
     if ("id" in message && message.id !== undefined) {
       const response = message as JsonRpcResponse;
       const pending = this.pendingRequests.get(response.id);

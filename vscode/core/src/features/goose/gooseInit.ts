@@ -1,161 +1,66 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import {
   GooseAgentState,
   GooseContentBlockType,
   GooseMessageTypes,
   ChatMessageType,
-  cleanDiff,
 } from "@editor-extensions/shared";
+import { v4 as uuidv4 } from "uuid";
 import { parseModelConfig } from "../../modelProvider";
 import type { FeatureContext } from "../featureRegistry";
-import type { ExtensionState } from "../../extensionState";
 import { GooseFileTracker } from "./gooseFileTracker";
+import { normalizeFilePath, routeFileChangeToBatchReview } from "./routeFileChange";
+import type { PermissionRequestData } from "../../client/gooseClient";
 
 type GooseClientType = InstanceType<typeof import("../../client/gooseClient").GooseClient>;
 
 /**
- * Route a file change through processModifiedFile → diff → chat message → batch review.
- * Shared by both the MCP bridge onFileChanges callback and the post-scan fallback.
+ * Maps chat messageToken -> pending JSON-RPC request id so we can
+ * respond to Goose when the user clicks a permission quick-response.
  */
+export const pendingPermissions = new Map<
+  string,
+  { requestId: number; client: InstanceType<typeof import("../../client/gooseClient").GooseClient> }
+>();
+
 /**
- * Normalize a path that may arrive as a file: URI, file:// URI, or absolute path.
+ * Stores references to the default broadcast handlers so the
+ * GooseOrchestrator can temporarily detach them (it writes directly
+ * to chatMessages state and doesn't need the webview broadcast).
  */
-function normalizeFilePath(filePath: string, workspaceRoot?: string): string {
-  let normalized = filePath;
-  if (normalized.startsWith("file://")) {
-    normalized = new URL(normalized).pathname;
-  } else if (normalized.startsWith("file:")) {
-    normalized = normalized.slice("file:".length);
+let broadcastBinding: {
+  client: GooseClientType;
+  handlers: {
+    streamingChunk: (...args: any[]) => void;
+    streamingComplete: (...args: any[]) => void;
+    toolCallBroadcast: (...args: any[]) => void;
+    toolCallUpdateBroadcast: (...args: any[]) => void;
+  };
+  suspended: boolean;
+} | null = null;
+
+export function suspendBroadcastHandlers(): void {
+  if (!broadcastBinding || broadcastBinding.suspended) {
+    return;
   }
-  if (workspaceRoot && !path.isAbsolute(normalized)) {
-    normalized = path.join(workspaceRoot, normalized);
-  }
-  return normalized;
+  broadcastBinding.suspended = true;
+  const { client, handlers } = broadcastBinding;
+  client.removeListener("streamingChunk", handlers.streamingChunk);
+  client.removeListener("streamingComplete", handlers.streamingComplete);
+  client.removeListener("toolCall", handlers.toolCallBroadcast);
+  client.removeListener("toolCallUpdate", handlers.toolCallUpdateBroadcast);
 }
 
-export async function routeFileChangeToBatchReview(
-  state: ExtensionState,
-  absPath: string,
-  content: string,
-  originalContent?: string,
-): Promise<void> {
-  absPath = normalizeFilePath(absPath, state.data.workspaceRoot);
-
-  const logger = state.logger.child({ component: "routeFileChangeToBatchReview" });
-
-  logger.info("Routing file change to batch review", {
-    absPath,
-    contentLength: content.length,
-    hasOriginalContent: originalContent !== undefined,
-    originalContentLength: originalContent?.length,
-    contentEqualsOriginal: originalContent !== undefined && content === originalContent,
-  });
-
-  const { processModifiedFile } = await import("../../utilities/ModifiedFiles/processModifiedFile");
-  const { createTwoFilesPatch, createPatch } = await import("diff");
-  const { v4: uuidv4 } = await import("uuid");
-
-  // Don't add an entry if we don't have the original content — the diff
-  // would be empty ("no changes detected") because processModifiedFile
-  // falls back to reading from disk, which Goose already modified.
-  // The post-scan will handle these files correctly with cached originals.
-  if (originalContent === undefined) {
-    logger.info(
-      "Skipping batch review entry — no originalContent available, post-scan will handle",
-      { absPath },
-    );
+export function resumeBroadcastHandlers(): void {
+  if (!broadcastBinding || !broadcastBinding.suspended) {
     return;
   }
-
-  // Dedup: skip if already in pendingBatchReview
-  const fsPath = vscode.Uri.file(absPath).fsPath;
-  if (state.data.pendingBatchReview?.some((f) => f.path === absPath || f.path === fsPath)) {
-    logger.info("Skipping duplicate file already in pendingBatchReview", { absPath });
-    return;
-  }
-
-  const messageId = uuidv4();
-
-  await processModifiedFile(
-    state.modifiedFiles,
-    { path: absPath, content, originalContent },
-    state.modifiedFilesEventEmitter,
-  );
-
-  const fileState = state.modifiedFiles.get(vscode.Uri.file(absPath).fsPath);
-  if (!fileState) {
-    logger.warn("processModifiedFile did not create state for file", { absPath, fsPath });
-    return;
-  }
-
-  const isNew = fileState.originalContent === undefined;
-  const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
-
-  logger.info("File state after processModifiedFile", {
-    absPath,
-    isNew,
-    isDeleted,
-    modifiedContentLength: fileState.modifiedContent.length,
-    originalContentLength: fileState.originalContent?.length,
-    contentsMatch: fileState.originalContent === fileState.modifiedContent,
-  });
-
-  let diff: string;
-  if (isNew) {
-    diff = createTwoFilesPatch("", absPath, "", fileState.modifiedContent);
-  } else if (isDeleted) {
-    diff = createTwoFilesPatch(absPath, "", fileState.originalContent as string, "");
-  } else {
-    try {
-      diff = createPatch(absPath, fileState.originalContent as string, fileState.modifiedContent);
-    } catch {
-      diff = `// Error creating diff for ${absPath}`;
-    }
-  }
-
-  const rawDiffLength = diff.length;
-  diff = cleanDiff(diff);
-
-  logger.info("Diff result", {
-    absPath,
-    rawDiffLength,
-    cleanedDiffLength: diff.length,
-    diffEmpty: diff.trim() === "",
-  });
-
-  state.mutate((draft) => {
-    draft.chatMessages.push({
-      kind: ChatMessageType.ModifiedFile,
-      messageToken: messageId,
-      timestamp: new Date().toISOString(),
-      value: {
-        path: absPath,
-        content: fileState.modifiedContent,
-        originalContent: fileState.originalContent,
-        isNew,
-        isDeleted,
-        diff,
-        messageToken: messageId,
-        readOnly: true,
-      },
-    });
-  });
-
-  state.mutate((draft) => {
-    if (!draft.pendingBatchReview) {
-      draft.pendingBatchReview = [];
-    }
-    draft.pendingBatchReview.push({
-      messageToken: messageId,
-      path: absPath,
-      diff,
-      content: fileState.modifiedContent,
-      originalContent: fileState.originalContent,
-      isNew,
-      isDeleted,
-    });
-  });
+  broadcastBinding.suspended = false;
+  const { client, handlers } = broadcastBinding;
+  client.on("streamingChunk", handlers.streamingChunk);
+  client.on("streamingComplete", handlers.streamingComplete);
+  client.on("toolCall", handlers.toolCallBroadcast);
+  client.on("toolCallUpdate", handlers.toolCallUpdateBroadcast);
 }
 
 export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.Disposable> {
@@ -265,32 +170,34 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     });
   });
 
-  gooseClient.on(
-    "streamingChunk",
-    (
-      messageId: string,
-      content: string,
-      contentType: GooseContentBlockType,
-      resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
-    ) => {
-      for (const provider of ctx.webviewProviders.values()) {
-        provider.sendMessageToWebview({
-          type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
-          messageId,
-          content,
-          done: false,
-          timestamp: new Date().toISOString(),
-          contentType,
-          resourceUri: resourceData?.uri,
-          resourceName: resourceData?.name,
-          resourceMimeType: resourceData?.mimeType,
-          resourceContent: resourceData?.text,
-        });
-      }
-    },
-  );
+  // --- Broadcast handlers (free-chat mode) ---
+  // These forward streaming events to the webview. They are temporarily
+  // detached by GooseOrchestrator (via suspendBroadcastHandlers) when it
+  // takes over and writes directly to chatMessages state.
 
-  gooseClient.on("streamingComplete", (messageId: string, stopReason: string) => {
+  const onStreamingChunk = (
+    messageId: string,
+    content: string,
+    contentType: GooseContentBlockType,
+    resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
+  ) => {
+    for (const provider of ctx.webviewProviders.values()) {
+      provider.sendMessageToWebview({
+        type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
+        messageId,
+        content,
+        done: false,
+        timestamp: new Date().toISOString(),
+        contentType,
+        resourceUri: resourceData?.uri,
+        resourceName: resourceData?.name,
+        resourceMimeType: resourceData?.mimeType,
+        resourceContent: resourceData?.text,
+      });
+    }
+  };
+
+  const onStreamingComplete = (messageId: string, stopReason: string) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
         type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
@@ -301,9 +208,9 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
         timestamp: new Date().toISOString(),
       });
     }
-  });
+  };
 
-  const broadcastToolCall = (
+  const sendToolCallToWebview = (
     messageId: string,
     data: { name: string; callId?: string; status: string; result?: string },
   ) => {
@@ -320,19 +227,38 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     }
   };
 
-  gooseClient.on("toolCall", (messageId: string, data: any) => {
-    broadcastToolCall(messageId, data);
+  const onToolCallBroadcast = (messageId: string, data: any) => {
+    sendToolCallToWebview(messageId, data);
+  };
 
-    // Pre-cache file content before write tools execute so the post-scan
-    // can detect changes made by Goose's built-in tools (which bypass MCP).
+  const onToolCallUpdateBroadcast = (messageId: string, data: any) => {
+    sendToolCallToWebview(messageId, data);
+  };
+
+  gooseClient.on("streamingChunk", onStreamingChunk);
+  gooseClient.on("streamingComplete", onStreamingComplete);
+  gooseClient.on("toolCall", onToolCallBroadcast);
+  gooseClient.on("toolCallUpdate", onToolCallUpdateBroadcast);
+
+  broadcastBinding = {
+    client: gooseClient,
+    handlers: {
+      streamingChunk: onStreamingChunk,
+      streamingComplete: onStreamingComplete,
+      toolCallBroadcast: onToolCallBroadcast,
+      toolCallUpdateBroadcast: onToolCallUpdateBroadcast,
+    },
+    suspended: false,
+  };
+
+  // Pre-cache file content before write tools execute so the post-scan
+  // can detect changes made by Goose's built-in tools (which bypass MCP).
+  // This listener is never suspended — caching must always happen.
+  gooseClient.on("toolCall", (_messageId: string, data: any) => {
     if (data.arguments) {
       const workspaceRoot = ctx.store.getState().workspaceRoot;
       fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
     }
-  });
-
-  gooseClient.on("toolCallUpdate", (messageId: string, data: any) => {
-    broadcastToolCall(messageId, data);
   });
 
   gooseClient.on("error", (error: Error) => {
@@ -343,6 +269,42 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
       }
       draft.featureState.gooseState = "error";
       draft.featureState.gooseError = error.message;
+    });
+  });
+
+  // Permission requests from Goose (smart_approve mode).
+  // Surfaces options as quick-response buttons in the chat so the user
+  // can approve/reject tool calls before they execute.
+  gooseClient.on("permissionRequest", (data: PermissionRequestData) => {
+    if (broadcastBinding?.suspended) {
+      return;
+    }
+    const messageToken = `perm-${uuidv4()}`;
+    pendingPermissions.set(messageToken, {
+      requestId: data.requestId,
+      client: gooseClient,
+    });
+
+    const kindLabels: Record<string, string> = {
+      allow_once: "Allow",
+      allow_always: "Always Allow",
+      reject_once: "Reject",
+      reject_always: "Always Reject",
+    };
+
+    ctx.mutate((draft) => {
+      draft.chatMessages.push({
+        kind: ChatMessageType.String,
+        messageToken,
+        timestamp: new Date().toISOString(),
+        value: {
+          message: `**Permission requested:** ${data.title}`,
+        },
+        quickResponses: data.options.map((opt) => ({
+          id: opt.optionId,
+          content: kindLabels[opt.kind] ?? opt.name,
+        })),
+      });
     });
   });
 

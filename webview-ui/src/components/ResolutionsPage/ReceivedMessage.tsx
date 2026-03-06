@@ -59,16 +59,19 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
     };
 
     const handleQuickResponse = (responseId: string, messageToken: string) => {
-      // Update state to reflect selected response
-      // Note: Consider using React.memo or other optimization techniques if flickering persists
       setSelectedResponse(responseId);
-      window.vscode.postMessage({
-        type: "QUICK_RESPONSE",
-        payload: {
-          responseId,
-          messageToken,
-        },
-      });
+
+      if (messageToken.startsWith("perm-")) {
+        window.vscode.postMessage({
+          type: "GOOSE_PERMISSION_RESPONSE",
+          payload: { messageToken, optionId: responseId },
+        });
+      } else {
+        window.vscode.postMessage({
+          type: "QUICK_RESPONSE",
+          payload: { responseId, messageToken },
+        });
+      }
     };
 
     return (
