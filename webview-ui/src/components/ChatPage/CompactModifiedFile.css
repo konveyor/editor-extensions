@@ -22,6 +22,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: rtl;
+  text-align: left;
   font-family: var(--vscode-editor-font-family, monospace);
   color: var(--vscode-foreground, #ccc);
 }
