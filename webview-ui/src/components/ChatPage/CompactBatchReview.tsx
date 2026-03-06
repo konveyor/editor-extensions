@@ -6,6 +6,7 @@ export const CompactBatchReview: React.FC = () => {
   const pendingFiles = useExtensionStore((state) => state.pendingBatchReview || []);
   const activeDecorators = useExtensionStore((state) => state.activeDecorators);
   const isBatchOperationInProgress = useExtensionStore((state) => state.isBatchOperationInProgress);
+  const workspaceRoot = useExtensionStore((state) => state.workspaceRoot);
   const setBatchOperationInProgress = useExtensionStore(
     (state) => state.setBatchOperationInProgress,
   );
@@ -75,7 +76,18 @@ export const CompactBatchReview: React.FC = () => {
     return null;
   }
 
-  const currentFileName = currentFile.path.split("/").pop() || currentFile.path;
+  let root = (workspaceRoot || "").replace(/\\/g, "/");
+  if (root.startsWith("file:///")) {
+    root = root.slice("file://".length);
+  } else if (root.startsWith("file:")) {
+    root = root.slice("file:".length);
+  }
+  root = root.replace(/\/$/, "");
+  const normalizedPath = currentFile.path.replace(/\\/g, "/");
+  const currentFileName =
+    root && normalizedPath.startsWith(root)
+      ? normalizedPath.slice(root.length + 1) || normalizedPath.split("/").pop() || currentFile.path
+      : normalizedPath.split("/").pop() || currentFile.path;
   const noChanges = !currentFile.diff || currentFile.diff.trim() === "";
   const isProcessing = processingFiles.has(currentFile.messageToken) || isBatchOperationInProgress;
   const hasActiveDecorators = Boolean(

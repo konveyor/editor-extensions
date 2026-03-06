@@ -1,6 +1,7 @@
 import React from "react";
 import { ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { useModifiedFileData } from "../ResolutionsPage/ModifiedFile";
+import { useExtensionStore } from "../../store/store";
 import "./CompactModifiedFile.css";
 
 interface CompactModifiedFileProps {
@@ -14,7 +15,8 @@ interface CompactModifiedFileProps {
  * the full inline diff.
  */
 export const CompactModifiedFile: React.FC<CompactModifiedFileProps> = React.memo(({ data }) => {
-  const { isNew, isDeleted, diff, fileName } = useModifiedFileData(data);
+  const workspaceRoot = useExtensionStore((s) => s.workspaceRoot);
+  const { isNew, isDeleted, diff, fileName } = useModifiedFileData(data, workspaceRoot);
   const noChanges = !diff || diff.trim() === "";
 
   const label = isNew ? "created" : isDeleted ? "deleted" : noChanges ? "unchanged" : "modified";

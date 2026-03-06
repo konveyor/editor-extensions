@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { parseModelConfig } from "../../modelProvider";
 import type { FeatureContext } from "../featureRegistry";
 import { GooseFileTracker } from "./gooseFileTracker";
-import { normalizeFilePath, routeFileChangeToBatchReview } from "./routeFileChange";
+import { routeFileChangeToBatchReview } from "./routeFileChange";
 import type { PermissionRequestData } from "../../client/gooseClient";
 
 type GooseClientType = InstanceType<typeof import("../../client/gooseClient").GooseClient>;
@@ -81,24 +81,6 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
       if (analyzerClient && (await analyzerClient.canAnalyzeInteractive())) {
         await analyzerClient.start();
       }
-    },
-    onFileChanges: async (files) => {
-      const workspaceRoot = ctx.store.getState().workspaceRoot;
-
-      for (const file of files) {
-        const absPath = normalizeFilePath(file.path, workspaceRoot);
-
-        fileTracker.markAsRouted(absPath);
-        const originalContent = await fileTracker.getOriginalContent(absPath, workspaceRoot);
-        await routeFileChangeToBatchReview(
-          ctx.extensionState,
-          absPath,
-          file.content,
-          originalContent,
-        );
-      }
-
-      ctx.logger.info(`Goose MCP bridge: routed ${files.length} file(s) to batch review`);
     },
   });
 
