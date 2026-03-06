@@ -1,13 +1,14 @@
 /**
  * GooseFileTracker: Tracks file state before/during Goose execution
- * to detect modifications that bypass the MCP bridge (i.e., when Goose
- * uses its built-in Developer tools like text_editor instead of calling
- * apply_file_changes through our MCP server).
+ * to detect modifications made by the Developer extension's text_editor.
  *
- * Primary channel: MCP bridge apply_file_changes → onFileChanges callback
- * Fallback: post-completion scan via this tracker
+ * Original file content is cached from two sources:
+ * - cacheIncidentFiles: pre-caches all files referenced by analysis incidents
+ * - cacheFileBeforeWrite: caches files targeted by permission requests
  *
- * Both channels feed into the same pipeline (processModifiedFile → batch review).
+ * On every successful tool completion, resolvePendingFileChanges scans all
+ * cached files for changes and routes them to batch review immediately.
+ * A post-completion scan (scanForMissedChanges) catches anything missed.
  */
 
 import * as fs from "fs/promises";
@@ -26,6 +27,7 @@ export class GooseFileTracker {
   private readonly routedFiles = new Set<string>();
   private readonly pendingToolFiles = new Map<string, string>();
   private readonly logger: winston.Logger;
+  private scanning = false;
 
   constructor(logger: winston.Logger) {
     this.logger = logger.child({ component: "GooseFileTracker" });
@@ -64,10 +66,8 @@ export class GooseFileTracker {
   }
 
   /**
-   * Cache a single file's content before a write tool executes.
-   * Called from the toolCall event listener when we see file-modifying tools.
-   * Fire-and-forget — the tool_call event fires before execution, so we
-   * usually win the race against the actual write.
+   * Cache a file's original content before a write tool executes.
+   * Called from the permissionRequest handler with tool arguments.
    */
   cacheFileBeforeWrite(
     toolName: string,
@@ -123,41 +123,46 @@ export class GooseFileTracker {
   }
 
   /**
-   * Check all files cached from permission requests for changes.
-   * Returns changes for files that were modified and haven't been routed yet.
+   * Scan all cached files for changes that haven't been routed yet.
+   * Works regardless of whether permission requests or tool arguments
+   * were available -- checks every file in the original content cache.
    */
   async resolvePendingFileChanges(): Promise<TrackedFileChange[]> {
-    const changes: TrackedFileChange[] = [];
-
-    for (const absPath of this.pendingToolFiles.values()) {
-      if (this.routedFiles.has(absPath)) {
-        continue;
-      }
-
-      const originalContent = this.originalContentCache.get(absPath);
-
-      let currentContent: string;
-      try {
-        currentContent = await fs.readFile(absPath, "utf-8");
-      } catch {
-        continue;
-      }
-
-      if (originalContent !== undefined && currentContent === originalContent) {
-        continue;
-      }
-
-      this.routedFiles.add(absPath);
-      changes.push({ path: absPath, content: currentContent, originalContent });
+    if (this.scanning) {
+      return [];
     }
+    this.scanning = true;
 
-    return changes;
+    try {
+      const changes: TrackedFileChange[] = [];
+
+      for (const [absPath, originalContent] of this.originalContentCache) {
+        if (this.routedFiles.has(absPath)) {
+          continue;
+        }
+
+        let currentContent: string;
+        try {
+          currentContent = await fs.readFile(absPath, "utf-8");
+        } catch {
+          continue;
+        }
+
+        if (currentContent === originalContent) {
+          continue;
+        }
+
+        this.routedFiles.add(absPath);
+        changes.push({ path: absPath, content: currentContent, originalContent });
+      }
+
+      return changes;
+    } finally {
+      this.scanning = false;
+    }
   }
 
-  /**
-   * Mark a file as already routed through the MCP bridge onFileChanges
-   * pipeline. The post-scan will skip these files to avoid duplicates.
-   */
+  /** Mark a file as already routed to batch review. */
   markAsRouted(absPath: string): void {
     if (absPath.startsWith("file://")) {
       absPath = new URL(absPath).pathname;
@@ -240,8 +245,7 @@ export class GooseFileTracker {
 
   /**
    * Post-completion scan: compare every cached original with current disk
-   * state. Returns file changes for files that were modified but NOT
-   * already routed through the MCP bridge.
+   * state. Returns file changes not already routed to batch review.
    */
   async scanForMissedChanges(): Promise<TrackedFileChange[]> {
     const missedChanges: TrackedFileChange[] = [];
@@ -270,12 +274,10 @@ export class GooseFileTracker {
     }
 
     if (missedChanges.length > 0) {
-      this.logger.info(
-        `Post-scan found ${missedChanges.length} file(s) modified outside MCP bridge`,
-      );
+      this.logger.info(`Post-scan found ${missedChanges.length} additional file change(s)`);
     } else {
       this.logger.info(
-        `Post-scan: no missed changes (${this.originalContentCache.size} cached, ${this.routedFiles.size} routed via MCP)`,
+        `Post-scan: no missed changes (${this.originalContentCache.size} cached, ${this.routedFiles.size} already routed)`,
       );
     }
 
@@ -287,6 +289,7 @@ export class GooseFileTracker {
     this.originalContentCache.clear();
     this.routedFiles.clear();
     this.pendingToolFiles.clear();
+    this.scanning = false;
   }
 
   private uriToAbsolute(uri: string, workspaceRoot: string): string | undefined {
