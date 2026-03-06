@@ -110,6 +110,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: rtl;
+  text-align: left;
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 11px;
   color: var(--vscode-foreground, #ccc);
