@@ -7,8 +7,10 @@ import {
   GOOSE_TOGGLE_VIEW,
   GOOSE_INSTALL_CLI,
   GOOSE_OPEN_SETTINGS,
+  GOOSE_PERMISSION_RESPONSE,
   GooseMessageTypes,
 } from "@editor-extensions/shared";
+import { pendingPermissions } from "./gooseInit";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 
@@ -204,5 +206,37 @@ export const gooseMessageHandlers: Record<
     } catch {
       // Best-effort — goose may not be configured yet
     }
+  },
+
+  [GOOSE_PERMISSION_RESPONSE]: async (
+    { messageToken, optionId }: { messageToken: string; optionId: string },
+    state,
+    logger,
+  ) => {
+    const pending = pendingPermissions.get(messageToken);
+    if (!pending) {
+      logger.warn("GOOSE_PERMISSION_RESPONSE: no pending request for token", { messageToken });
+      return;
+    }
+
+    pendingPermissions.delete(messageToken);
+
+    logger.info("GOOSE_PERMISSION_RESPONSE: responding to agent", {
+      requestId: pending.requestId,
+      optionId,
+    });
+
+    pending.client.respondToRequest(pending.requestId, {
+      outcome: { outcome: "selected", optionId },
+    });
+
+    state.mutate((draft) => {
+      for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+        if (draft.chatMessages[i].messageToken === messageToken) {
+          draft.chatMessages[i].selectedResponse = optionId;
+          break;
+        }
+      }
+    });
   },
 };

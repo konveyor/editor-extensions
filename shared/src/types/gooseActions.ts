@@ -6,6 +6,7 @@ export const GOOSE_UPDATE_CONFIG = "GOOSE_UPDATE_CONFIG";
 export const GOOSE_TOGGLE_VIEW = "GOOSE_TOGGLE_VIEW";
 export const GOOSE_INSTALL_CLI = "GOOSE_INSTALL_CLI";
 export const GOOSE_OPEN_SETTINGS = "GOOSE_OPEN_SETTINGS";
+export const GOOSE_PERMISSION_RESPONSE = "GOOSE_PERMISSION_RESPONSE";
 
 export type GooseActionType =
   | typeof GOOSE_SEND_MESSAGE
@@ -14,4 +15,5 @@ export type GooseActionType =
   | typeof GOOSE_UPDATE_CONFIG
   | typeof GOOSE_TOGGLE_VIEW
   | typeof GOOSE_INSTALL_CLI
-  | typeof GOOSE_OPEN_SETTINGS;
+  | typeof GOOSE_OPEN_SETTINGS
+  | typeof GOOSE_PERMISSION_RESPONSE;

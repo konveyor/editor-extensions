@@ -35,7 +35,7 @@ export async function processModifiedFile(
       }
     }
 
-    // Use pre-read original content if provided (GooseWorkflow provides this
+    // Use pre-read original content if provided (the Goose flow provides this
     // because Goose writes files to disk before we process the message, so
     // reading from disk would give us the already-modified content).
     const rawOriginal = isNew
