@@ -19,8 +19,7 @@ import { BatchedAnalysisTrigger } from "./analysis/batchedAnalysisTrigger";
 import { MessageQueueManager } from "./utilities/ModifiedFiles/queueManager";
 import { HubConnectionManager } from "./hub";
 import { type ExtensionStore } from "./store/extensionStore";
-import { GooseClient } from "./client/gooseClient";
-import { McpBridgeServer } from "./api/mcpBridgeServer";
+import { FeatureRegistry } from "./features/featureRegistry";
 
 export interface ExtensionState {
   store: ExtensionStore;
@@ -60,6 +59,6 @@ export interface ExtensionState {
   batchedAnalysisTrigger?: BatchedAnalysisTrigger;
   currentQueueManager?: MessageQueueManager;
   pendingInteractionsMap?: Map<string, (response: any) => void>;
-  gooseClient?: GooseClient;
-  mcpBridgeServer?: McpBridgeServer;
+  featureClients: Map<string, unknown>;
+  featureRegistry?: FeatureRegistry;
 }

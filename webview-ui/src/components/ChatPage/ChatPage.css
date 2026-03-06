@@ -1,23 +1,83 @@
+.chat-page-container {
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+  container-name: chatPage;
+}
+
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
+}
+
+/* "Panel too narrow" overlay */
+
+.chat-too-narrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.chat-too-narrow__icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.chat-too-narrow__title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.chat-too-narrow__hint {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, #999);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 260px;
+}
+
+.chat-too-narrow__move-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--vscode-button-border, #555);
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.chat-too-narrow__move-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #454545);
 }
 
 .chat-status-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--vscode-panel-border, #333);
   background: var(--vscode-sideBar-background, #1e1e1e);
   flex-shrink: 0;
 }
 
 .chat-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -50,15 +110,15 @@
 }
 
 .chat-status-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--vscode-foreground, #ccc);
   flex-grow: 1;
 }
 
 .chat-action-btn {
-  font-size: 11px;
-  padding: 2px 8px;
-  border: 1px solid var(--vscode-button-border, #555);
+  font-size: 10px;
+  padding: 2px 6px;
+  border: none;
   border-radius: 3px;
   background: var(--vscode-button-secondaryBackground, #3a3a3a);
   color: var(--vscode-button-secondaryForeground, #ccc);
@@ -70,12 +130,57 @@
 }
 
 .chat-error-banner {
-  padding: 8px 16px;
+  padding: 6px 10px;
   background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
   color: var(--vscode-errorForeground, #f48771);
-  font-size: 12px;
+  font-size: 11px;
   border-bottom: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
   flex-shrink: 0;
+}
+
+.chat-error-banner__message {
+  font-weight: 500;
+}
+
+.chat-error-banner__hint {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.chat-error-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.chat-error-banner__btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  cursor: pointer;
+}
+
+.chat-error-banner__btn:hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.chat-error-banner__link {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.chat-error-banner__link:hover {
+  color: var(--vscode-textLink-activeForeground, #3794ff);
 }
 
 .chat-welcome {
@@ -83,13 +188,920 @@
 }
 
 .chat-messages {
-  flex-grow: 1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 8px 0 8px 8px;
 }
 
-.chat-input-area {
-  flex-shrink: 0;
-  border-top: 1px solid var(--vscode-panel-border, #333);
+.chat-agent-status {
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.chat-agent-status__ready {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--vscode-foreground, #ccc);
+  margin-bottom: 12px;
+}
+
+.chat-agent-status__icon {
+  color: #4caf50;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.chat-agent-status__hint {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, #999);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* --- Resource Link --- */
+
+.goose-resource-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin: 2px 4px 2px 0;
+  border-radius: 4px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 11px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.goose-resource-link:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-resource-link--file {
+  cursor: pointer;
+}
+
+.goose-resource-link__icon {
+  font-size: 12px;
+}
+
+.goose-resource-link__name {
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+/* --- Resource Block --- */
+
+.goose-resource-block {
+  margin: 4px 0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goose-resource-block__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  width: 100%;
+  border: none;
+  background: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+}
+
+.goose-resource-block__header:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-resource-block__toggle {
+  font-size: 10px;
+  width: 12px;
+}
+
+.goose-resource-block__name {
+  font-family: var(--vscode-editor-font-family, monospace);
+  flex-grow: 1;
+}
+
+.goose-resource-block__mime {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.goose-resource-block__content {
+  margin: 0;
   padding: 8px;
+  background: var(--vscode-editor-background, #1e1e1e);
+  font-size: 11px;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.goose-resource-block__content code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  white-space: pre;
+}
+
+/* --- Thinking Indicator (active, during streaming) --- */
+
+.goose-thinking {
+  padding: 2px 0;
+  color: var(--vscode-descriptionForeground, #999);
+  font-size: 11px;
+}
+
+.goose-thinking__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground, #999);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.goose-thinking__toggle:not(:disabled):hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-thinking__toggle:disabled {
+  cursor: default;
+}
+
+.goose-thinking__dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.goose-thinking__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground, #999);
+  animation: goose-thinking-pulse 1.4s ease-in-out infinite;
+}
+
+.goose-thinking__dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.goose-thinking__dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes goose-thinking-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.goose-thinking__label {
+  margin-left: 2px;
+  font-style: italic;
+}
+
+.goose-thinking__chevron {
+  margin-left: 2px;
+  font-size: 10px;
+}
+
+.goose-thinking__content {
+  margin: 2px 0 2px 8px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--vscode-textSeparator-foreground, #444);
+  color: var(--vscode-descriptionForeground, #999);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* --- Thinking Block (completed, in history) --- */
+
+.goose-thinking-block {
+  margin: 4px 0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goose-thinking-block__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  width: 100%;
+  border: none;
+  background: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-descriptionForeground, #999);
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.goose-thinking-block__header:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-thinking-block__icon {
+  font-size: 12px;
+}
+
+.goose-thinking-block__title {
+  flex-grow: 1;
+  font-style: italic;
+}
+
+.goose-thinking-block__chevron {
+  font-size: 10px;
+}
+
+.goose-thinking-block__content {
+  padding: 6px 10px;
+  color: var(--vscode-descriptionForeground, #999);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* --- Content Blocks Container --- */
+
+.goose-content-blocks {
+  margin-top: 8px;
+}
+
+/* --- Tool Calls Summary (collapsed) --- */
+
+.tool-calls-summary {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #8a8d90);
+  opacity: 0.6;
+  padding: 1px 0;
+  user-select: none;
+}
+
+/* --- Cancelled Label --- */
+
+.goose-cancelled-label {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 3px;
+  font-style: italic;
+}
+
+/* --- Config Label in Status Bar --- */
+
+.chat-config-label {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-action-btn--icon {
+  padding: 2px 4px;
+  min-width: 22px;
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+}
+
+/* --- Goose Settings Panel --- */
+
+.goose-settings {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+  background: var(--vscode-sideBar-background, #1e1e1e);
+  padding: 12px 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.goose-settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.goose-settings__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__close {
+  background: none;
+  border: none;
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.goose-settings__close:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-settings__section {
+  margin-bottom: 10px;
+}
+
+.goose-settings__label {
+  display: block;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.goose-settings__select,
+.goose-settings__input {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-radius: 3px;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.goose-settings__select:focus,
+.goose-settings__input:focus {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.goose-settings__model-wrapper {
+  position: relative;
+}
+
+.goose-settings__suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  background: var(--vscode-input-background, #3c3c3c);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.goose-settings__suggestion {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--vscode-input-foreground, #ccc);
+  cursor: pointer;
+}
+
+.goose-settings__suggestion:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.goose-settings__credential-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.goose-settings__credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goose-settings__credential-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.goose-settings__credential-label {
+  font-size: 11px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__stored-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  border-radius: 3px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ccc);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: normal;
+  vertical-align: middle;
+}
+
+.goose-settings__section-divider {
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  margin: 8px 0 10px;
+}
+
+.goose-settings__extensions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.goose-settings__extension {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.goose-settings__extension-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.goose-settings__extension-name {
+  font-size: 12px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__extension-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Toggle switch */
+.goose-settings__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.goose-settings__toggle-track {
+  display: block;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--vscode-input-border, #555);
+  position: relative;
+  transition: background 0.15s;
+}
+
+.goose-settings__toggle--on .goose-settings__toggle-track {
+  background: var(--vscode-button-background, #0e639c);
+}
+
+.goose-settings__toggle-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--vscode-foreground, #ccc);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.15s;
+}
+
+.goose-settings__toggle--on .goose-settings__toggle-thumb {
+  transform: translateX(14px);
+}
+
+.goose-settings__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.goose-settings__btn {
+  flex: 1;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+}
+
+.goose-settings__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.goose-settings__btn--primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.goose-settings__btn--primary:not(:disabled):hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.goose-settings__btn--secondary {
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+}
+
+.goose-settings__btn--secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #454545);
+}
+
+/* --- Hide avatar icons in the chat page --- */
+
+.chat-page .pf-chatbot__message-avatar {
+  display: none !important;
+}
+
+/* Remove indent that was reserved for the avatar */
+.chat-page .pf-chatbot__message {
+  gap: 0 !important;
+}
+
+.chat-page .pf-chatbot__message-contents {
+  padding-inline-start: 0 !important;
+}
+
+/* Compact the meta row (name + timestamp) */
+.chat-page .pf-chatbot__message-meta {
+  gap: 4px;
+}
+
+.chat-page .pf-chatbot__message-meta .pf-chatbot__message-name {
+  font-size: 11px;
+}
+
+.chat-page .pf-chatbot__message-meta time {
+  font-size: 10px;
+}
+
+/* --- Compact message text sizing ---
+ * PatternFly chatbot sets font sizes via CSS custom properties at multiple
+ * specificity levels. Override the variables AND set explicit font-size on
+ * every element type PF targets to guarantee consistent 12px body / 13px
+ * heading sizing in the sidebar context.
+ */
+
+.chat-page .pf-chatbot__message-text,
+.chat-page .pf-chatbot__message-text.pf-m-markdown {
+  --pf-chatbot-message-text-font-size: 12px !important;
+  --pf-chatbot-message-text-inline-code-font-size: 11px !important;
+  font-size: 12px !important;
+  line-height: 1.5;
+}
+
+.chat-page .pf-chatbot__message-text p,
+.chat-page .pf-chatbot__message-text a,
+.chat-page .pf-chatbot__message-text span,
+.chat-page .pf-chatbot__message-text li,
+.chat-page .pf-chatbot__message-text ul,
+.chat-page .pf-chatbot__message-text ol,
+.chat-page .pf-chatbot__message-text blockquote,
+.chat-page .pf-chatbot__message-text .pf-v6-c-content,
+.chat-page .pf-chatbot__message-text .pf-v6-c-content--small,
+.chat-page .pf-chatbot__message-text .pf-v6-c-content--blockquote,
+.chat-page .pf-chatbot__message-text .pf-v6-c-list,
+.chat-page .pf-chatbot__message-ordered-list,
+.chat-page .pf-chatbot__message-unordered-list,
+.chat-page .pf-chatbot__message-ordered-list li,
+.chat-page .pf-chatbot__message-unordered-list li {
+  font-size: 12px !important;
+  --pf-v6-c-content--FontSize: 12px !important;
+}
+
+.chat-page .pf-chatbot__message-text h1,
+.chat-page .pf-chatbot__message-text h2,
+.chat-page .pf-chatbot__message-text h3 {
+  font-size: 13px !important;
+  font-weight: 600;
+  margin: 8px 0 4px;
+  --pf-v6-c-content--h1--FontSize: 13px !important;
+  --pf-v6-c-content--h2--FontSize: 13px !important;
+  --pf-v6-c-content--h3--FontSize: 13px !important;
+}
+
+.chat-page .pf-chatbot__message-text h4,
+.chat-page .pf-chatbot__message-text h5,
+.chat-page .pf-chatbot__message-text h6 {
+  font-size: 12px !important;
+  font-weight: 600;
+  margin: 6px 0 2px;
+  --pf-v6-c-content--h4--FontSize: 12px !important;
+  --pf-v6-c-content--h5--FontSize: 12px !important;
+  --pf-v6-c-content--h6--FontSize: 12px !important;
+}
+
+.chat-page .pf-chatbot__message-text code,
+.chat-page .pf-chatbot__message-inline-code {
+  font-size: 11px !important;
+}
+
+.chat-page .pf-chatbot__message-text pre {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 11px !important;
+}
+
+.chat-page .pf-chatbot__message-text ul,
+.chat-page .pf-chatbot__message-text ol {
+  padding-left: 20px;
+}
+
+/* --- Narrow sidebar compaction via container query --- */
+
+@container chatPage (max-width: 450px) {
+  .chat-config-label {
+    display: none;
+  }
+
+  .chat-status-bar {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .chat-status-text {
+    font-size: 10px;
+  }
+}
+
+@container chatPage (max-width: 350px) {
+  .chat-action-btn:not(.chat-action-btn--icon) {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+
+  .chat-messages {
+    padding: 4px 0 4px 4px;
+  }
+
+  .chat-page .pf-chatbot__message-text,
+  .chat-page .pf-chatbot__message-text.pf-m-markdown {
+    --pf-chatbot-message-text-font-size: 11px !important;
+    --pf-chatbot-message-text-inline-code-font-size: 10px !important;
+    font-size: 11px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text p,
+  .chat-page .pf-chatbot__message-text li,
+  .chat-page .pf-chatbot__message-text ul,
+  .chat-page .pf-chatbot__message-text ol,
+  .chat-page .pf-chatbot__message-text .pf-v6-c-content,
+  .chat-page .pf-chatbot__message-ordered-list,
+  .chat-page .pf-chatbot__message-unordered-list,
+  .chat-page .pf-chatbot__message-ordered-list li,
+  .chat-page .pf-chatbot__message-unordered-list li {
+    font-size: 11px !important;
+    --pf-v6-c-content--FontSize: 11px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text h1,
+  .chat-page .pf-chatbot__message-text h2,
+  .chat-page .pf-chatbot__message-text h3,
+  .chat-page .pf-chatbot__message-text h4 {
+    font-size: 12px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text pre {
+    font-size: 10px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text code,
+  .chat-page .pf-chatbot__message-inline-code {
+    font-size: 10px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text ul,
+  .chat-page .pf-chatbot__message-text ol {
+    padding-left: 16px;
+  }
+
+  .chat-agent-status {
+    padding: 12px 8px;
+  }
+
+  .chat-agent-status__hint {
+    font-size: 11px;
+  }
+
+  .goose-settings {
+    padding: 8px 10px;
+  }
+}
+
+@container chatPage (max-width: 280px) {
+  .chat-status-bar {
+    padding: 3px 6px;
+    gap: 3px;
+  }
+
+  .chat-status-text {
+    font-size: 9px;
+  }
+
+  .chat-action-btn {
+    font-size: 9px;
+    padding: 1px 3px;
+  }
+
+  .chat-action-btn--icon {
+    min-width: 18px;
+    font-size: 11px;
+  }
+
+  .chat-messages {
+    padding: 2px 0 2px 2px;
+  }
+
+  .chat-page .pf-chatbot__message p {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .chat-error-banner {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  .chat-initial-scope__header {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  .chat-initial-scope__body {
+    padding: 4px;
+  }
+}
+
+/* --- Compact initial scope card for sidebar --- */
+
+.chat-initial-scope {
+  margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chat-initial-scope__header {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-sideBarSectionHeader-background, transparent);
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chat-initial-scope__body {
+  padding: 6px;
+  overflow-x: hidden;
+}
+
+/* --- Compact migration scope (inside chat-initial-scope__body) --- */
+
+.compact-scope__toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.compact-scope__toggle:hover {
+  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+  border-radius: 3px;
+}
+
+.compact-scope__chevron {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.compact-scope__chevron--open {
+  transform: rotate(90deg);
+}
+
+.compact-scope__summary {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compact-scope__detail {
+  padding: 4px 0 2px 0;
+}
+
+.compact-scope__msg-group {
+  padding: 3px 0;
+}
+
+.compact-scope__msg-group + .compact-scope__msg-group {
+  border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  margin-top: 3px;
+  padding-top: 6px;
+}
+
+.compact-scope__msg {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--vscode-descriptionForeground);
+  padding: 0 4px;
+  cursor: default;
+}
+
+.compact-scope__file-group {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 1px 4px;
+}
+
+.compact-scope__filename {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.compact-scope__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.compact-scope__link {
+  border: none;
+  background: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.compact-scope__link:hover {
+  text-decoration: underline;
+  color: var(--vscode-textLink-activeForeground, #3794ff);
 }

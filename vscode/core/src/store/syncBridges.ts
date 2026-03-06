@@ -1,4 +1,4 @@
-import { MessageTypes } from "@editor-extensions/shared";
+import { MessageTypes, GooseMessageTypes } from "@editor-extensions/shared";
 import { KonveyorGUIWebviewViewProvider } from "../KonveyorGUIWebviewViewProvider";
 import { type ExtensionStore } from "./extensionStore";
 import * as vscode from "vscode";
@@ -213,7 +213,10 @@ export function setupSyncBridges(
   // Keeps all goose messaging outside of the core STATE_CHANGE channel.
   unsubscribers.push(
     store.subscribe(
-      (s) => ({ gooseState: s.gooseState, gooseError: s.gooseError }),
+      (s) => ({
+        gooseState: s.featureState?.gooseState,
+        gooseError: s.featureState?.gooseError,
+      }),
       (current, previous) => {
         if (
           current.gooseState === previous.gooseState &&
@@ -223,7 +226,7 @@ export function setupSyncBridges(
         }
 
         broadcast(getProviders, {
-          type: MessageTypes.GOOSE_STATE_CHANGE,
+          type: GooseMessageTypes.GOOSE_STATE_CHANGE,
           gooseState: current.gooseState,
           gooseError: current.gooseError,
           timestamp: new Date().toISOString(),

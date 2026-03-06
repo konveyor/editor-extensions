@@ -168,50 +168,6 @@ server.tool(
   },
 );
 
-// ─── Tool: apply_file_changes ─────────────────────────────────────────
-
-server.tool(
-  "apply_file_changes",
-  "Apply code modifications to workspace files as part of migration",
-  {
-    files: z
-      .array(
-        z.object({
-          path: z.string().describe("File path relative to workspace root"),
-          content: z.string().describe("New file content"),
-        }),
-      )
-      .describe("Array of file modifications to apply"),
-  },
-  async ({ files }) => {
-    try {
-      const result = await bridgeRequest("/api/apply-file-changes", {
-        method: "POST",
-        body: { files },
-      });
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Applied changes to ${files.length} file(s). ${JSON.stringify(result)}`,
-          },
-        ],
-      };
-    } catch (err) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Failed to apply file changes: ${err instanceof Error ? err.message : String(err)}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  },
-);
-
 // ─── Start server ─────────────────────────────────────────────────────
 
 async function main() {

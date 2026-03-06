@@ -14,7 +14,11 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import winston from "winston";
-import { GooseAgentState, GooseChatMessage } from "@editor-extensions/shared";
+import {
+  GooseAgentState,
+  GooseChatMessage,
+  GooseContentBlockType,
+} from "@editor-extensions/shared";
 
 // ─── JSON-RPC 2.0 types ───────────────────────────────────────────────
 
@@ -65,8 +69,9 @@ interface AcpPromptResponse {
 }
 
 interface AcpContentBlock {
-  type: "text" | "resource_link" | "resource";
+  type: "text" | "resource_link" | "resource" | "thinking";
   text?: string;
+  thinking?: string;
   uri?: string;
   name?: string;
   mimeType?: string;
@@ -111,13 +116,53 @@ export interface GooseClientConfig {
     args: string[];
     env?: Array<{ name: string; value: string }>;
   }>;
+  modelEnv?: Record<string, string>;
+}
+
+export interface StreamingResourceData {
+  uri?: string;
+  name?: string;
+  mimeType?: string;
+  text?: string;
+}
+
+export interface ToolCallData {
+  name: string;
+  callId?: string;
+  arguments?: Record<string, unknown>;
+  status: "running" | "succeeded" | "failed";
+  result?: string;
+}
+
+export interface PermissionOption {
+  optionId: string;
+  name: string;
+  kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
+}
+
+export interface PermissionRequestData {
+  requestId: number;
+  toolCallId: string;
+  title: string;
+  kind: string;
+  status: string;
+  rawInput?: Record<string, unknown>;
+  options: PermissionOption[];
 }
 
 export interface GooseClientEvents {
   stateChange: (state: GooseAgentState) => void;
   message: (message: GooseChatMessage) => void;
-  streamingChunk: (messageId: string, content: string) => void;
+  streamingChunk: (
+    messageId: string,
+    content: string,
+    contentType: GooseContentBlockType,
+    resourceData?: StreamingResourceData,
+  ) => void;
   streamingComplete: (messageId: string, stopReason: AcpPromptResponse["stopReason"]) => void;
+  toolCall: (messageId: string, data: ToolCallData) => void;
+  toolCallUpdate: (messageId: string, data: ToolCallData) => void;
+  permissionRequest: (data: PermissionRequestData) => void;
   error: (error: Error) => void;
 }
 
@@ -157,6 +202,17 @@ export class GooseClient extends EventEmitter {
 
   getSessionId(): string | null {
     return this.sessionId;
+  }
+
+  /**
+   * Update the environment variables injected into the goose subprocess.
+   * Takes effect on the next start() call.
+   */
+  updateModelEnv(env: Record<string, string>): void {
+    (this.config as GooseClientConfig).modelEnv = {
+      ...this.config.modelEnv,
+      ...env,
+    };
   }
 
   /**
@@ -261,6 +317,26 @@ export class GooseClient extends EventEmitter {
   }
 
   /**
+   * Create a new ACP session, replacing the active one.
+   * The previous session remains stored on the Goose side but is
+   * no longer targeted by subsequent sendMessage calls.
+   */
+  async createSession(): Promise<string> {
+    if (this.state !== "running") {
+      throw new Error("GooseClient: not running");
+    }
+
+    const response = await this.sendRequest<AcpSessionNewResponse>("session/new", {
+      cwd: this.config.workspaceDir,
+      mcpServers: this.config.mcpServers ?? [],
+    });
+
+    this.sessionId = response.sessionId;
+    this.logger.info(`GooseClient: new session created ${this.sessionId}`);
+    return this.sessionId;
+  }
+
+  /**
    * Cancel the current generation.
    */
   cancelGeneration(): void {
@@ -269,6 +345,32 @@ export class GooseClient extends EventEmitter {
     }
 
     this.sendNotification("session/cancel", { sessionId: this.sessionId });
+  }
+
+  /**
+   * Send a JSON-RPC response to an incoming request from Goose
+   * (e.g. session/request_permission).
+   */
+  respondToRequest(requestId: number, result: unknown): void {
+    if (this.disposed || !this.process?.stdin) {
+      return;
+    }
+
+    const response: JsonRpcResponse = {
+      jsonrpc: "2.0",
+      id: requestId,
+      result: result as any,
+    };
+
+    const line = JSON.stringify(response) + "\n";
+    this.process.stdin.write(line);
+  }
+
+  /**
+   * Whether a prompt is currently in flight.
+   */
+  isPromptActive(): boolean {
+    return this.currentResponseId !== null;
   }
 
   /**
@@ -337,14 +439,12 @@ export class GooseClient extends EventEmitter {
   private async discoverBinary(): Promise<string> {
     // 1. Check configured path
     if (this.config.gooseBinaryPath) {
-      try {
-        fs.accessSync(this.config.gooseBinaryPath, fs.constants.X_OK);
+      if (await this.isValidGooseCli(this.config.gooseBinaryPath)) {
         return this.config.gooseBinaryPath;
-      } catch {
-        this.logger.warn(
-          `GooseClient: configured path not accessible: ${this.config.gooseBinaryPath}`,
-        );
       }
+      this.logger.warn(
+        `GooseClient: configured path not valid CLI: ${this.config.gooseBinaryPath}`,
+      );
     }
 
     // 2. Check PATH
@@ -353,20 +453,16 @@ export class GooseClient extends EventEmitter {
 
     for (const dir of pathDirs) {
       const candidate = path.join(dir, binaryName);
-      try {
-        fs.accessSync(candidate, fs.constants.X_OK);
+      if (await this.isValidGooseCli(candidate)) {
         return candidate;
-      } catch {
-        // Not found in this directory
       }
     }
 
-    // 3. Platform-specific locations
+    // 3. Platform-specific locations (CLI install paths only — not the desktop app)
     const homeDir = os.homedir();
     const platformPaths =
       process.platform === "darwin"
         ? [
-            "/Applications/Goose.app/Contents/MacOS/goose",
             path.join(homeDir, ".local", "bin", "goose"),
             "/usr/local/bin/goose",
             "/opt/homebrew/bin/goose",
@@ -385,11 +481,8 @@ export class GooseClient extends EventEmitter {
             ];
 
     for (const candidate of platformPaths) {
-      try {
-        fs.accessSync(candidate, fs.constants.X_OK);
+      if (await this.isValidGooseCli(candidate)) {
         return candidate;
-      } catch {
-        // Not found
       }
     }
 
@@ -397,6 +490,36 @@ export class GooseClient extends EventEmitter {
       "Goose binary not found. Install Goose (https://block.github.io/goose/docs/quickstart) " +
         "or set the path in settings (konveyor-core.experimentalChat.gooseBinaryPath).",
     );
+  }
+
+  /**
+   * Verify a candidate path is the goose CLI (not the desktop app).
+   * Runs `goose --version` with a short timeout — the CLI responds immediately,
+   * while the desktop app hangs or launches a GUI window.
+   */
+  private isValidGooseCli(candidate: string): Promise<boolean> {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+    } catch {
+      return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+      const child = execFile(
+        candidate,
+        ["--version"],
+        { timeout: 3000 },
+        (error, stdout, stderr) => {
+          if (error) {
+            resolve(false);
+            return;
+          }
+          const output = (stdout || stderr || "").trim();
+          resolve(/\d+\.\d+\.\d+/.test(output));
+        },
+      );
+      child.on("error", () => resolve(false));
+    });
   }
 
   private async checkVersion(binaryPath: string): Promise<void> {
@@ -458,10 +581,14 @@ export class GooseClient extends EventEmitter {
       `GooseClient: spawning ${resolvedPath} acp (cwd: ${this.config.workspaceDir})`,
     );
 
+    const spawnEnv = this.config.modelEnv
+      ? { ...process.env, ...this.config.modelEnv }
+      : process.env;
+
     this.process = spawn(resolvedPath, ["acp"], {
       stdio: ["pipe", "pipe", "pipe"],
       cwd: this.config.workspaceDir,
-      env: process.env,
+      env: spawnEnv,
     });
 
     if (!this.process.stdin || !this.process.stdout) {
@@ -530,7 +657,40 @@ export class GooseClient extends EventEmitter {
       return;
     }
 
-    // Response (has id)
+    // Incoming request from Goose (has both id AND method).
+    // e.g. session/request_permission in smart_approve mode.
+    if ("id" in message && "method" in message && (message as any).method) {
+      const incoming = message as any;
+      this.logger.info(`GooseClient: INCOMING REQUEST from agent`, {
+        id: incoming.id,
+        method: incoming.method,
+        params: JSON.stringify(incoming.params ?? {}).substring(0, 2000),
+      });
+
+      if (incoming.method === "session/request_permission") {
+        const params = incoming.params ?? {};
+        const toolCall = params.toolCall ?? {};
+        const data: PermissionRequestData = {
+          requestId: incoming.id,
+          toolCallId: toolCall.toolCallId ?? "",
+          title: toolCall.title ?? "Tool call",
+          kind: toolCall.kind ?? "other",
+          status: toolCall.status ?? "pending",
+          rawInput: toolCall.rawInput,
+          options: (params.options ?? []).map((o: any) => ({
+            optionId: o.optionId,
+            name: o.name,
+            kind: o.kind,
+          })),
+        };
+        this.emit("permissionRequest", data);
+      } else {
+        this.logger.warn(`GooseClient: unhandled incoming request method: ${incoming.method}`);
+      }
+      return;
+    }
+
+    // Response to our outgoing request (has id, no method)
     if ("id" in message && message.id !== undefined) {
       const response = message as JsonRpcResponse;
       const pending = this.pendingRequests.get(response.id);
@@ -566,14 +726,103 @@ export class GooseClient extends EventEmitter {
 
     const { sessionUpdate, content } = params.update;
 
-    // Handle streaming chunks during session/prompt
-    if (
-      sessionUpdate === "agent_message_chunk" &&
-      this.currentResponseId &&
-      content?.type === "text" &&
-      content.text
-    ) {
-      this.emit("streamingChunk", this.currentResponseId, content.text);
+    if (sessionUpdate === "agent_message_chunk" && this.currentResponseId) {
+      switch (content?.type) {
+        case "text":
+          if (content.text) {
+            this.logger.debug("GooseClient: agent_message_chunk (text)", {
+              length: content.text.length,
+              responseId: this.currentResponseId,
+            });
+            this.emit("streamingChunk", this.currentResponseId, content.text, "text");
+          }
+          break;
+        case "resource_link":
+          this.emit("streamingChunk", this.currentResponseId, "", "resource_link", {
+            uri: content.uri,
+            name: content.name,
+            mimeType: content.mimeType,
+          });
+          break;
+        case "resource":
+          this.emit("streamingChunk", this.currentResponseId, "", "resource", {
+            uri: content.resource?.uri,
+            text: content.resource?.text,
+            name: content.name,
+            mimeType: content.mimeType,
+          });
+          break;
+        case "thinking":
+          if (content.thinking || content.text) {
+            this.emit(
+              "streamingChunk",
+              this.currentResponseId,
+              content.thinking || content.text,
+              "thinking",
+            );
+          }
+          break;
+        default:
+          if (content) {
+            this.logger.info(
+              `GooseClient: unhandled content type in agent_message_chunk: ${content.type}`,
+            );
+          }
+          break;
+      }
+    } else if (sessionUpdate === "tool_call" && this.currentResponseId) {
+      const update = params.update as Record<string, unknown>;
+
+      // Extract tool arguments — ACP may send them as `input` (object or JSON string)
+      let toolArgs: Record<string, unknown> | undefined;
+      const rawInput = update.arguments ?? update.input;
+      if (rawInput && typeof rawInput === "object") {
+        toolArgs = rawInput as Record<string, unknown>;
+      } else if (typeof rawInput === "string") {
+        try {
+          toolArgs = JSON.parse(rawInput);
+        } catch {
+          // Not valid JSON, ignore
+        }
+      }
+
+      this.logger.info("GooseClient: tool_call raw update", {
+        keys: Object.keys(update),
+        hasInput: "input" in update,
+        hasArguments: "arguments" in update,
+        inputType: typeof rawInput,
+        toolArgs: toolArgs ? Object.keys(toolArgs) : undefined,
+      });
+
+      this.emit("toolCall", this.currentResponseId, {
+        name: (update.title as string) || (update.name as string) || "Tool call",
+        callId: (update.toolCallId as string) || (update.id as string),
+        arguments: toolArgs,
+        status: "running",
+      });
+    } else if (sessionUpdate === "tool_call_update" && this.currentResponseId) {
+      const update = params.update as Record<string, unknown>;
+      const acpStatus = update.status as string;
+
+      this.logger.info("GooseClient: tool_call_update", {
+        name: (update.title as string) || (update.name as string),
+        status: acpStatus,
+        hasResult: !!content?.text,
+        resultPreview: content?.text?.substring(0, 200),
+      });
+
+      this.emit("toolCallUpdate", this.currentResponseId, {
+        name: (update.title as string) || (update.name as string) || "Tool call",
+        callId: (update.toolCallId as string) || (update.id as string),
+        status:
+          acpStatus === "completed" ? "succeeded" : acpStatus === "failed" ? "failed" : "running",
+        result: content?.text,
+      });
+    } else if (sessionUpdate !== "agent_message_chunk") {
+      this.logger.info(`GooseClient: unhandled sessionUpdate type: ${sessionUpdate}`, {
+        hasContent: !!content,
+        update: JSON.stringify(params.update).substring(0, 500),
+      });
     }
   }
 

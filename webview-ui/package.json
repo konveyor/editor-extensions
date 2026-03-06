@@ -18,7 +18,7 @@
     "*.{css,json,md,yaml,yml}": "prettier --write"
   },
   "dependencies": {
-    "@patternfly/chatbot": "^6.3.0",
+    "@patternfly/chatbot": "^6.5.0",
     "@patternfly/patternfly": "^6.3.0",
     "@patternfly/react-code-editor": "^6.0.0",
     "@patternfly/react-component-groups": "^6.2.1",

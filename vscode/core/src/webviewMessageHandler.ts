@@ -34,9 +34,6 @@ import {
   UPDATE_HUB_CONFIG,
   SYNC_HUB_PROFILES,
   RETRY_PROFILE_SYNC,
-  GOOSE_SEND_MESSAGE,
-  GOOSE_START_AGENT,
-  GOOSE_STOP_AGENT,
   HubConfig,
 } from "@editor-extensions/shared";
 
@@ -286,7 +283,7 @@ const actions: {
     // Delegate to the command which attempts to reconnect profile sync
     await executeExtensionCommand("retryProfileSync");
   },
-  [WEBVIEW_READY](_payload, state, logger) {
+  [WEBVIEW_READY]: async (_payload, state, logger) => {
     logger.info("Webview is ready - sending full state to ensure configuration is loaded");
 
     // Send the full current state to the webview
@@ -307,6 +304,13 @@ const actions: {
         timestamp,
       });
     });
+
+    // Notify feature modules that the webview is ready
+    for (const [key, handler] of Object.entries(actions)) {
+      if (key.endsWith("_WEBVIEW_READY") && handler) {
+        await handler(_payload, state, logger);
+      }
+    }
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
@@ -414,7 +418,6 @@ const actions: {
   },
   [GET_SOLUTION](scope: Scope) {
     executeExtensionCommand("getSolution", scope.incidents);
-    executeExtensionCommand("showResolutionPanel");
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     executeExtensionCommand("askContinue", incident);
@@ -766,51 +769,6 @@ const actions: {
       });
     }
   },
-
-  // --- Goose chat actions (experimental) ---
-
-  [GOOSE_SEND_MESSAGE]: async (
-    { content, messageId }: { content: string; messageId: string },
-    state,
-    logger,
-  ) => {
-    if (!state.gooseClient) {
-      logger.warn("GOOSE_SEND_MESSAGE: Goose client not available");
-      return;
-    }
-
-    try {
-      await state.gooseClient.sendMessage(content, messageId);
-    } catch (err) {
-      logger.error("GOOSE_SEND_MESSAGE failed:", err);
-    }
-  },
-
-  [GOOSE_START_AGENT]: async (_payload, state, logger) => {
-    if (!state.gooseClient) {
-      logger.warn("GOOSE_START_AGENT: Goose client not available");
-      return;
-    }
-
-    try {
-      await state.gooseClient.start();
-    } catch (err) {
-      logger.error("GOOSE_START_AGENT failed:", err);
-    }
-  },
-
-  [GOOSE_STOP_AGENT]: async (_payload, state, logger) => {
-    if (!state.gooseClient) {
-      logger.warn("GOOSE_STOP_AGENT: Goose client not available");
-      return;
-    }
-
-    try {
-      await state.gooseClient.stop();
-    } catch (err) {
-      logger.error("GOOSE_STOP_AGENT failed:", err);
-    }
-  },
 };
 
 // Helper function to check if batch review is complete
@@ -827,6 +785,25 @@ const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger)
     });
   }
 };
+
+export function registerMessageHandlers(
+  handlers: Record<
+    string,
+    (payload: any, state: ExtensionState, logger: winston.Logger) => void | Promise<void>
+  >,
+): { dispose: () => void } {
+  const keys = Object.keys(handlers);
+  for (const key of keys) {
+    actions[key] = handlers[key];
+  }
+  return {
+    dispose() {
+      for (const key of keys) {
+        delete actions[key];
+      }
+    },
+  };
+}
 
 export const messageHandler = async (
   message: WebviewAction<WebviewActionType, unknown>,
