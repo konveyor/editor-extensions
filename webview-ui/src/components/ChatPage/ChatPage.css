@@ -777,50 +777,75 @@
   font-size: 10px;
 }
 
-/* --- Compact message text sizing --- */
+/* --- Compact message text sizing ---
+ * PatternFly chatbot sets font sizes via CSS custom properties at multiple
+ * specificity levels. Override the variables AND set explicit font-size on
+ * every element type PF targets to guarantee consistent 12px body / 13px
+ * heading sizing in the sidebar context.
+ */
 
-.chat-page .pf-chatbot__message-text {
+.chat-page .pf-chatbot__message-text,
+.chat-page .pf-chatbot__message-text.pf-m-markdown {
   --pf-chatbot-message-text-font-size: 12px !important;
   --pf-chatbot-message-text-inline-code-font-size: 11px !important;
   font-size: 12px !important;
+  line-height: 1.5;
 }
 
-.chat-page .pf-chatbot__message-text .pf-v6-c-content {
+.chat-page .pf-chatbot__message-text p,
+.chat-page .pf-chatbot__message-text a,
+.chat-page .pf-chatbot__message-text span,
+.chat-page .pf-chatbot__message-text li,
+.chat-page .pf-chatbot__message-text ul,
+.chat-page .pf-chatbot__message-text ol,
+.chat-page .pf-chatbot__message-text blockquote,
+.chat-page .pf-chatbot__message-text .pf-v6-c-content,
+.chat-page .pf-chatbot__message-text .pf-v6-c-content--small,
+.chat-page .pf-chatbot__message-text .pf-v6-c-content--blockquote,
+.chat-page .pf-chatbot__message-text .pf-v6-c-list,
+.chat-page .pf-chatbot__message-ordered-list,
+.chat-page .pf-chatbot__message-unordered-list,
+.chat-page .pf-chatbot__message-ordered-list li,
+.chat-page .pf-chatbot__message-unordered-list li {
+  font-size: 12px !important;
   --pf-v6-c-content--FontSize: 12px !important;
+}
+
+.chat-page .pf-chatbot__message-text h1,
+.chat-page .pf-chatbot__message-text h2,
+.chat-page .pf-chatbot__message-text h3 {
+  font-size: 13px !important;
+  font-weight: 600;
+  margin: 8px 0 4px;
   --pf-v6-c-content--h1--FontSize: 13px !important;
   --pf-v6-c-content--h2--FontSize: 13px !important;
   --pf-v6-c-content--h3--FontSize: 13px !important;
+}
+
+.chat-page .pf-chatbot__message-text h4,
+.chat-page .pf-chatbot__message-text h5,
+.chat-page .pf-chatbot__message-text h6 {
+  font-size: 12px !important;
+  font-weight: 600;
+  margin: 6px 0 2px;
   --pf-v6-c-content--h4--FontSize: 12px !important;
   --pf-v6-c-content--h5--FontSize: 12px !important;
   --pf-v6-c-content--h6--FontSize: 12px !important;
 }
 
-.chat-page .pf-chatbot__message pre {
+.chat-page .pf-chatbot__message-text code,
+.chat-page .pf-chatbot__message-inline-code {
+  font-size: 11px !important;
+}
+
+.chat-page .pf-chatbot__message-text pre {
   max-height: 200px;
   overflow-y: auto;
-  font-size: 11px;
+  font-size: 11px !important;
 }
 
-.chat-page .pf-chatbot__message code {
-  font-size: 11px;
-}
-
-.chat-page .pf-chatbot__message p {
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.chat-page .pf-chatbot__message h1,
-.chat-page .pf-chatbot__message h2,
-.chat-page .pf-chatbot__message h3,
-.chat-page .pf-chatbot__message h4 {
-  font-size: 13px !important;
-  margin: 8px 0 4px;
-}
-
-.chat-page .pf-chatbot__message ul,
-.chat-page .pf-chatbot__message ol {
-  font-size: 12px;
+.chat-page .pf-chatbot__message-text ul,
+.chat-page .pf-chatbot__message-text ol {
   padding-left: 20px;
 }
 
@@ -851,37 +876,44 @@
     padding: 4px 0 4px 4px;
   }
 
-  .chat-page .pf-chatbot__message-text {
+  .chat-page .pf-chatbot__message-text,
+  .chat-page .pf-chatbot__message-text.pf-m-markdown {
     --pf-chatbot-message-text-font-size: 11px !important;
+    --pf-chatbot-message-text-inline-code-font-size: 10px !important;
     font-size: 11px !important;
   }
 
-  .chat-page .pf-chatbot__message-text .pf-v6-c-content {
+  .chat-page .pf-chatbot__message-text p,
+  .chat-page .pf-chatbot__message-text li,
+  .chat-page .pf-chatbot__message-text ul,
+  .chat-page .pf-chatbot__message-text ol,
+  .chat-page .pf-chatbot__message-text .pf-v6-c-content,
+  .chat-page .pf-chatbot__message-ordered-list,
+  .chat-page .pf-chatbot__message-unordered-list,
+  .chat-page .pf-chatbot__message-ordered-list li,
+  .chat-page .pf-chatbot__message-unordered-list li {
+    font-size: 11px !important;
     --pf-v6-c-content--FontSize: 11px !important;
-    --pf-v6-c-content--h1--FontSize: 12px !important;
-    --pf-v6-c-content--h2--FontSize: 12px !important;
-    --pf-v6-c-content--h3--FontSize: 12px !important;
-    --pf-v6-c-content--h4--FontSize: 11px !important;
   }
 
-  .chat-page .pf-chatbot__message p {
-    font-size: 11px;
-  }
-
-  .chat-page .pf-chatbot__message pre {
-    font-size: 10px;
-  }
-
-  .chat-page .pf-chatbot__message h1,
-  .chat-page .pf-chatbot__message h2,
-  .chat-page .pf-chatbot__message h3,
-  .chat-page .pf-chatbot__message h4 {
+  .chat-page .pf-chatbot__message-text h1,
+  .chat-page .pf-chatbot__message-text h2,
+  .chat-page .pf-chatbot__message-text h3,
+  .chat-page .pf-chatbot__message-text h4 {
     font-size: 12px !important;
   }
 
-  .chat-page .pf-chatbot__message ul,
-  .chat-page .pf-chatbot__message ol {
-    font-size: 11px;
+  .chat-page .pf-chatbot__message-text pre {
+    font-size: 10px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text code,
+  .chat-page .pf-chatbot__message-inline-code {
+    font-size: 10px !important;
+  }
+
+  .chat-page .pf-chatbot__message-text ul,
+  .chat-page .pf-chatbot__message-text ol {
     padding-left: 16px;
   }
 
