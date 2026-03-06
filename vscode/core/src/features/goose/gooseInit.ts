@@ -257,8 +257,29 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
   gooseClient.on("toolCall", (_messageId: string, data: any) => {
     if (data.arguments) {
       const workspaceRoot = ctx.store.getState().workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
+      fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot, data.callId);
     }
+  });
+
+  // When any tool completes successfully, check pending permission files
+  // for changes and route them to batch review immediately.
+  gooseClient.on("toolCallUpdate", (_messageId: string, data: any) => {
+    if (data.status !== "succeeded") {
+      return;
+    }
+    fileTracker.resolvePendingFileChanges().then(async (changes) => {
+      for (const change of changes) {
+        await routeFileChangeToBatchReview(
+          ctx.extensionState,
+          change.path,
+          change.content,
+          change.originalContent,
+        );
+        ctx.logger.info("Routed file change to batch review on tool completion", {
+          path: change.path,
+        });
+      }
+    });
   });
 
   gooseClient.on("error", (error: Error) => {
@@ -284,6 +305,13 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
       requestId: data.requestId,
       client: gooseClient,
     });
+
+    // In smart_approve mode, tool arguments are in the permission request
+    // (not in the tool_call event). Cache the file before the tool writes.
+    if (data.rawInput) {
+      const workspaceRoot = ctx.store.getState().workspaceRoot;
+      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+    }
 
     const kindLabels: Record<string, string> = {
       allow_once: "Allow",

@@ -24,6 +24,7 @@ export interface TrackedFileChange {
 export class GooseFileTracker {
   private readonly originalContentCache = new Map<string, string>();
   private readonly routedFiles = new Set<string>();
+  private readonly pendingToolFiles = new Map<string, string>();
   private readonly logger: winston.Logger;
 
   constructor(logger: winston.Logger) {
@@ -72,6 +73,7 @@ export class GooseFileTracker {
     toolName: string,
     args: Record<string, unknown>,
     workspaceRoot: string,
+    callId?: string,
   ): void {
     const name = toolName?.toLowerCase() ?? "";
     const isFileModifying =
@@ -99,6 +101,11 @@ export class GooseFileTracker {
     }
 
     const absPath = path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath);
+
+    if (callId) {
+      this.pendingToolFiles.set(callId, absPath);
+    }
+
     if (this.originalContentCache.has(absPath)) {
       return;
     }
@@ -116,10 +123,47 @@ export class GooseFileTracker {
   }
 
   /**
+   * Check all files cached from permission requests for changes.
+   * Returns changes for files that were modified and haven't been routed yet.
+   */
+  async resolvePendingFileChanges(): Promise<TrackedFileChange[]> {
+    const changes: TrackedFileChange[] = [];
+
+    for (const absPath of this.pendingToolFiles.values()) {
+      if (this.routedFiles.has(absPath)) {
+        continue;
+      }
+
+      const originalContent = this.originalContentCache.get(absPath);
+
+      let currentContent: string;
+      try {
+        currentContent = await fs.readFile(absPath, "utf-8");
+      } catch {
+        continue;
+      }
+
+      if (originalContent !== undefined && currentContent === originalContent) {
+        continue;
+      }
+
+      this.routedFiles.add(absPath);
+      changes.push({ path: absPath, content: currentContent, originalContent });
+    }
+
+    return changes;
+  }
+
+  /**
    * Mark a file as already routed through the MCP bridge onFileChanges
    * pipeline. The post-scan will skip these files to avoid duplicates.
    */
   markAsRouted(absPath: string): void {
+    if (absPath.startsWith("file://")) {
+      absPath = new URL(absPath).pathname;
+    } else if (absPath.startsWith("file:")) {
+      absPath = absPath.slice("file:".length);
+    }
     this.routedFiles.add(absPath);
   }
 
@@ -130,6 +174,13 @@ export class GooseFileTracker {
    * real original content for diffing, not the already-modified disk content.
    */
   async getOriginalContent(absPath: string, workspaceRoot?: string): Promise<string | undefined> {
+    // Normalize absPath — it may arrive as a file: or file:// URI
+    if (absPath.startsWith("file://")) {
+      absPath = new URL(absPath).pathname;
+    } else if (absPath.startsWith("file:")) {
+      absPath = absPath.slice("file:".length);
+    }
+
     const cached = this.originalContentCache.get(absPath);
     if (cached !== undefined) {
       return cached;
@@ -235,6 +286,7 @@ export class GooseFileTracker {
   clear(): void {
     this.originalContentCache.clear();
     this.routedFiles.clear();
+    this.pendingToolFiles.clear();
   }
 
   private uriToAbsolute(uri: string, workspaceRoot: string): string | undefined {

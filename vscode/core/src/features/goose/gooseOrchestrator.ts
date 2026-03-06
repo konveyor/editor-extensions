@@ -90,12 +90,27 @@ export class GooseOrchestrator {
       this.handleToolCall(data);
       if (fileTracker && data.arguments) {
         const workspaceRoot = this.state.data.workspaceRoot;
-        fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
+        fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot, data.callId);
       }
     };
 
     const onToolCallUpdate = (_msgId: string, data: ToolCallData): void => {
       this.handleToolCallUpdate(data);
+      if (fileTracker && data.status === "succeeded") {
+        fileTracker.resolvePendingFileChanges().then(async (changes) => {
+          for (const change of changes) {
+            await routeFileChangeToBatchReview(
+              this.state,
+              change.path,
+              change.content,
+              change.originalContent,
+            );
+            this.logger.info("GooseOrchestrator: routed file change on tool completion", {
+              path: change.path,
+            });
+          }
+        });
+      }
     };
 
     const onComplete = (_msgId: string, _stopReason: string): void => {
@@ -304,6 +319,16 @@ export class GooseOrchestrator {
       requestId: data.requestId,
       client: gooseClient,
     });
+
+    // In smart_approve mode, tool arguments are in the permission request
+    // (not in the tool_call event). Cache the file before the tool writes.
+    const fileTracker = this.state.featureClients.get("gooseFileTracker") as
+      | GooseFileTracker
+      | undefined;
+    if (fileTracker && data.rawInput) {
+      const workspaceRoot = this.state.data.workspaceRoot;
+      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+    }
 
     const kindLabels: Record<string, string> = {
       allow_once: "Allow",
