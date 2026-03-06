@@ -4,6 +4,19 @@ All notable changes to the "konveyor" extension pack will be documented in this 
 
 
 
+
+## [0.4.5] - 2026-03-06
+
+### Enhancements
+
+- Added network error classification and diagnostic logging for Hub API calls to help triage connection issues in restricted environments. ([#1300](https://github.com/konveyor/editor-extensions/pull/1300))
+
+### Bug Fixes
+
+- Fixed CA_BUNDLE and ALLOW_INSECURE not reaching Google GenAI provider due to webpack-bundled undici being separate from Node's built-in fetch.
+- Fix Unix domain socket path length limit on macOS by using /tmp instead of os.tmpdir() for IPC socket paths, preventing failures when the system temp directory path is long.
+
+
 ## [0.4.3] - 2026-03-04
 
 ### Bug Fixes
