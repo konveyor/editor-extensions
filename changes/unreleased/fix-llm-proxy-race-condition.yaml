@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed Hub LLM proxy race condition, stream errors from leaked cacheKey option, TLS propagation to proxy models, and no-auth Hub support.

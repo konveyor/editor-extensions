@@ -554,10 +554,19 @@ class VsCodeExtension {
         // Update model provider if LLM proxy is available
         // Bearer token is baked into ChatOpenAI instances, so we must recreate on any token change
         const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
+        const callbackBearerToken = this.state.hubConnectionManager.getBearerToken();
+        this.state.logger.info("Hub callback: checking LLM proxy and token state", {
+          llmProxyAvailable: llmProxyConfig?.available ?? false,
+          hasBearerToken: !!callbackBearerToken,
+          bearerTokenLength: callbackBearerToken?.length ?? 0,
+          bearerTokenType: typeof callbackBearerToken,
+          authEnabled: this.state.hubConnectionManager.isAuthEnabled(),
+        });
         if (llmProxyConfig?.available) {
           this.createHubProxyModelProvider(llmProxyConfig)
             .then((provider) => {
               this.state.modelProvider = provider;
+              this.state.modelProviderSource = "hub-proxy";
               this.state.logger.info("Model provider updated with Hub LLM proxy");
 
               // Clear GenAI/provider-related config errors
@@ -1126,6 +1135,7 @@ class VsCodeExtension {
     // Check if GenAI is disabled via settings
     if (!getConfigGenAIEnabled()) {
       this.state.modelProvider = undefined;
+      this.state.modelProviderSource = undefined;
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1150,6 +1160,7 @@ class VsCodeExtension {
 
       try {
         this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyConfig);
+        this.state.modelProviderSource = "hub-proxy";
 
         // Clear GenAI/provider-related config errors now that we're using the Hub proxy
         this.state.mutateConfigErrors((draft) => {
@@ -1185,6 +1196,7 @@ class VsCodeExtension {
       } catch (err) {
         this.state.logger.error("Error setting up Hub LLM proxy provider:", err);
         this.state.modelProvider = undefined;
+        this.state.modelProviderSource = undefined;
 
         const configError = createConfigError.providerConnnectionFailed();
         configError.error =
@@ -1201,6 +1213,7 @@ class VsCodeExtension {
     } catch (err) {
       this.state.logger.error("Error getting model config:", err);
       this.state.modelProvider = undefined;
+      this.state.modelProviderSource = undefined;
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1216,19 +1229,71 @@ class VsCodeExtension {
       return configError;
     }
 
+    // Re-check: Hub proxy may have become available while we were reading settings.yaml.
+    // Without this guard, the local-config model would overwrite the hub proxy model
+    // that was set by the Hub connection callback during the await above.
+    const llmProxyRecheck = this.state.hubConnectionManager.getLLMProxyConfig();
+    if (llmProxyRecheck?.available) {
+      this.state.logger.info(
+        "Hub LLM proxy became available during config parsing, using Hub proxy instead of local config",
+        { endpoint: llmProxyRecheck.endpoint },
+      );
+
+      try {
+        this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyRecheck);
+        this.state.modelProviderSource = "hub-proxy";
+
+        this.state.mutateConfigErrors((draft) => {
+          draft.configErrors = draft.configErrors.filter(
+            (e) =>
+              e.type !== "provider-not-configured" &&
+              e.type !== "provider-connection-failed" &&
+              e.type !== "genai-disabled",
+          );
+        });
+
+        return undefined;
+      } catch (err) {
+        this.state.logger.error("Error setting up Hub LLM proxy provider (re-check):", err);
+        this.state.modelProvider = undefined;
+        this.state.modelProviderSource = undefined;
+
+        const configError = createConfigError.providerConnnectionFailed();
+        configError.error =
+          err instanceof Error
+            ? `Hub LLM Proxy: ${err.message.length > 150 ? err.message.slice(0, 150) + "..." : err.message}`
+            : String(err);
+        return configError;
+      }
+    }
+
     try {
       this.state.logger.info("About to run getModelProviderFromConfig", {
         hadPreviousProvider,
         demoMode: getConfigKaiDemoMode(),
         cacheDir: getCacheDir(this.data.workspaceRoot),
       });
-      this.state.modelProvider = await getModelProviderFromConfig(
+      const localProvider = await getModelProviderFromConfig(
         modelConfig,
         this.state.logger,
         getConfigKaiDemoMode() ? getCacheDir(this.data.workspaceRoot) : undefined,
         getTraceEnabled() ? getTraceDir(this.data.workspaceRoot) : undefined,
       );
 
+      // Re-check: Hub proxy may have been set by the callback during the health check above.
+      // If so, preserve it — the hub proxy takes priority over local config.
+      if (this.state.modelProviderSource === "hub-proxy") {
+        this.state.logger.info(
+          "Hub LLM proxy was set during local config health check, preserving hub proxy model provider",
+        );
+        return undefined;
+      }
+
+      this.state.modelProvider = localProvider;
+      this.state.modelProviderSource = "local-config";
+      this.state.logger.info("Model provider set from local config", {
+        provider: modelConfig.config.provider,
+      });
       // Dispose workflow if we're changing an existing provider and not currently fetching
       if (
         hadPreviousProvider &&
@@ -1251,8 +1316,18 @@ class VsCodeExtension {
 
       return undefined;
     } catch (err) {
+      // Re-check: Hub proxy may have been set by the callback during the health check above.
+      // If so, preserve it — don't overwrite a working hub proxy with undefined.
+      if (this.state.modelProviderSource === "hub-proxy") {
+        this.state.logger.info(
+          "Local config health check failed but Hub LLM proxy is already configured, preserving hub proxy",
+        );
+        return undefined;
+      }
+
       this.state.logger.error("Error running model health check:", err);
       this.state.modelProvider = undefined;
+      this.state.modelProviderSource = undefined;
       this.state.logger.error("Health check failed, setting modelProvider to undefined", {
         error: err,
         demoMode: getConfigKaiDemoMode(),
@@ -1287,36 +1362,68 @@ class VsCodeExtension {
     model?: string;
   }): Promise<KaiModelProvider> {
     const bearerToken = this.state.hubConnectionManager.getBearerToken();
-    if (!bearerToken) {
-      throw new Error("No bearer token available for Hub LLM proxy authentication");
+    const hasValidToken = !!bearerToken && bearerToken.length > 0;
+
+    // Use Hub's scoped fetch for TLS configuration (e.g., insecure/self-signed certs)
+    const scopedFetch = this.state.hubConnectionManager.getScopedFetch();
+
+    // When no valid token, Hub auth is effectively disabled server-side.
+    // Strip the Authorization header so the LLM proxy receives unauthenticated requests.
+    let effectiveFetch: typeof fetch | undefined;
+    if (!hasValidToken) {
+      if (this.state.hubConnectionManager.isAuthEnabled()) {
+        this.state.logger.warn(
+          "Auth is enabled in config but Hub returned no valid token. " +
+            "Hub likely has auth disabled server-side. " +
+            "Treating as no-auth and stripping Authorization header from LLM proxy requests.",
+          {
+            bearerTokenLength: bearerToken?.length ?? 0,
+          },
+        );
+      }
+      const baseFetch = scopedFetch || globalThis.fetch;
+      effectiveFetch = async (input: string | URL | Request, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        headers.delete("Authorization");
+        return baseFetch(input, { ...init, headers });
+      };
+    } else {
+      effectiveFetch = scopedFetch;
     }
+
+    // ChatOpenAI requires a non-empty apiKey even if we strip the header
+    const apiKey = hasValidToken ? bearerToken : "sk-placeholder-no-auth";
 
     this.state.logger.info("Creating Hub LLM proxy model provider", {
       endpoint: llmProxyConfig.endpoint,
       model: llmProxyConfig.model,
-      hasToken: !!bearerToken,
+      hasValidToken,
+      bearerTokenLength: bearerToken?.length ?? 0,
+      authMode: hasValidToken ? "bearer-token" : "no-auth",
+      hasScopedFetch: !!scopedFetch,
     });
 
     // Create OpenAI-compatible chat models pointing to Hub proxy
     // Use model from Hub configuration, fallback to gpt-4o if not specified
     const modelName = llmProxyConfig.model || "gpt-4o";
 
+    const openAIConfig = {
+      baseURL: llmProxyConfig.endpoint,
+      ...(effectiveFetch ? { fetch: effectiveFetch } : {}),
+    };
+
     const streamingModel = new ChatOpenAI({
-      openAIApiKey: bearerToken, // Use JWT as API key
-      configuration: {
-        baseURL: llmProxyConfig.endpoint, // Point to Hub's proxy endpoint
-      },
-      modelName,
+      apiKey: apiKey,
+      configuration: openAIConfig,
+      model: modelName,
       temperature: 0,
       streaming: true,
     });
 
     const nonStreamingModel = new ChatOpenAI({
-      openAIApiKey: bearerToken,
-      configuration: {
-        baseURL: llmProxyConfig.endpoint,
-      },
-      modelName,
+      apiKey: apiKey,
+      configuration: openAIConfig,
+      model: modelName,
       temperature: 0,
       streaming: false,
     });

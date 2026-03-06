@@ -58,6 +58,7 @@ export interface ExtensionState {
   currentTaskManagerIterations: number;
   logger: winston.Logger;
   modelProvider: KaiModelProvider | undefined;
+  modelProviderSource?: "hub-proxy" | "local-config";
   verticalDiffManager?: VerticalDiffManager;
   staticDiffAdapter?: StaticDiffAdapter;
   batchedAnalysisTrigger?: BatchedAnalysisTrigger;
