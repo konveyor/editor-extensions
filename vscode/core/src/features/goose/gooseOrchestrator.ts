@@ -109,6 +109,9 @@ export class GooseOrchestrator {
               path: change.path,
             });
           }
+          if (changes.length > 0 && data.callId) {
+            this.markToolAsFileChangeRouted(data.callId);
+          }
         });
       }
     };
@@ -128,6 +131,15 @@ export class GooseOrchestrator {
     gooseClient.on("permissionRequest", onPermission);
 
     try {
+      const sessionId = await gooseClient.createSession();
+      this.logger.info("GooseOrchestrator: created new session for getSolution", { sessionId });
+
+      this.state.mutate((draft) => {
+        if (draft.solutionScope) {
+          draft.solutionScope.gooseSessionId = sessionId;
+        }
+      });
+
       if (fileTracker) {
         fileTracker.clear();
         if (this.incidents.length > 0) {
@@ -259,9 +271,43 @@ export class GooseOrchestrator {
     }
   }
 
+  private extractToolContext(args?: Record<string, unknown>): {
+    filePath?: string;
+    detail?: string;
+  } {
+    if (!args) {
+      return {};
+    }
+
+    const rawPath = args.path ?? args.file_path ?? args.filename;
+    const filePath = typeof rawPath === "string" ? rawPath : undefined;
+
+    const rawCommand = args.command ?? args.cmd;
+    const command = typeof rawCommand === "string" ? rawCommand : undefined;
+
+    const rawQuery = args.query ?? args.search ?? args.pattern ?? args.regex;
+    const query = typeof rawQuery === "string" ? rawQuery : undefined;
+
+    const parts: string[] = [];
+    if (filePath) {
+      const basename = filePath.split("/").pop() || filePath;
+      parts.push(basename);
+    }
+    if (command) {
+      parts.push(command);
+    }
+    if (query) {
+      const truncated = query.length > 60 ? `${query.substring(0, 57)}...` : query;
+      parts.push(truncated);
+    }
+
+    return { filePath, detail: parts.length > 0 ? parts.join(" ") : undefined };
+  }
+
   private handleToolCall(data: ToolCallData): void {
     const callId = data.callId ?? uuidv4();
     const toolName = data.name || "unnamed tool";
+    const { filePath, detail } = this.extractToolContext(data.arguments);
 
     this.state.mutate((draft) => {
       draft.chatMessages.push({
@@ -272,11 +318,25 @@ export class GooseOrchestrator {
           toolName,
           toolStatus: data.status,
           toolResult: data.result,
+          filePath,
+          detail,
         } as ToolMessageValue,
       });
     });
 
     this.lastTextMessageId = null;
+  }
+
+  private markToolAsFileChangeRouted(callId: string): void {
+    this.state.mutate((draft) => {
+      for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+        const msg = draft.chatMessages[i];
+        if (msg.messageToken === callId && msg.kind === ChatMessageType.Tool) {
+          (msg.value as ToolMessageValue).isFileChangeRouted = true;
+          return;
+        }
+      }
+    });
   }
 
   private handleToolCallUpdate(data: ToolCallData): void {

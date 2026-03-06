@@ -317,6 +317,26 @@ export class GooseClient extends EventEmitter {
   }
 
   /**
+   * Create a new ACP session, replacing the active one.
+   * The previous session remains stored on the Goose side but is
+   * no longer targeted by subsequent sendMessage calls.
+   */
+  async createSession(): Promise<string> {
+    if (this.state !== "running") {
+      throw new Error("GooseClient: not running");
+    }
+
+    const response = await this.sendRequest<AcpSessionNewResponse>("session/new", {
+      cwd: this.config.workspaceDir,
+      mcpServers: this.config.mcpServers ?? [],
+    });
+
+    this.sessionId = response.sessionId;
+    this.logger.info(`GooseClient: new session created ${this.sessionId}`);
+    return this.sessionId;
+  }
+
+  /**
    * Cancel the current generation.
    */
   cancelGeneration(): void {

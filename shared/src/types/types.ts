@@ -86,6 +86,7 @@ export interface RuleSet {
 
 export interface Scope {
   incidents: EnhancedIncident[];
+  gooseSessionId?: string;
 }
 
 export interface ScopeWithKonveyorContext {
@@ -368,7 +369,14 @@ export interface AnalysisProfile {
   syncedAt?: string;
 }
 
-export type ToolMessageValue = { toolName: string; toolStatus: string; toolResult?: string };
+export type ToolMessageValue = {
+  toolName: string;
+  toolStatus: string;
+  toolResult?: string;
+  filePath?: string;
+  detail?: string;
+  isFileChangeRouted?: boolean;
+};
 
 export type ModifiedFileMessageValue = {
   path: string;
