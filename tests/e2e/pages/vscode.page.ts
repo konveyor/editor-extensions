@@ -345,7 +345,7 @@ export abstract class VSCode {
 
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
 
-    await manageProfileView.getByRole('button', { name: '+ New Profile' }).click();
+    await manageProfileView.getByRole('button', { name: 'New Profile' }).click();
 
     const randomName = generateRandomString();
     const nameToUse = profileName ? profileName : randomName;
@@ -426,7 +426,7 @@ export abstract class VSCode {
       }
       await targetProfile.click({ timeout: 60000 });
 
-      const deleteButton = manageProfileView.getByRole('button', { name: 'Delete Profile' });
+      const deleteButton = manageProfileView.getByRole('button', { name: 'Delete' });
       await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
       await expect(deleteButton).toBeEnabled();
       await this.window.screenshot({

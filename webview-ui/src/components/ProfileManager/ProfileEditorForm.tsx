@@ -11,21 +11,14 @@ import {
   FormHelperText,
   HelperText,
   HelperTextItem,
-  FormAlert,
-  Alert,
-  Label,
   LabelGroup,
+  Label,
   Tooltip,
   StackItem,
   Stack,
-  Title,
-  Icon,
 } from "@patternfly/react-core";
 import {
   ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  StarIcon,
   InfoCircleIcon,
 } from "@patternfly/react-icons";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
@@ -85,7 +78,7 @@ export const ProfileEditorForm: React.FC<{
   const [rulesValidation, setRulesValidation] = useState<"default" | "error">("default");
   const [rulesErrorMsg, setRulesErrorMsg] = useState<string | null>(null);
 
-  const { callback: debouncedChange, isPending: isSaving } = useDebouncedCallback(onChange, 300);
+  const { callback: debouncedChange } = useDebouncedCallback(onChange, 300);
 
   useEffect(() => {
     // Handle profile prop changes
@@ -251,93 +244,24 @@ export const ProfileEditorForm: React.FC<{
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+  const hasValidationErrors =
+    nameValidation === "error" || targetsValidation === "error" || rulesValidation === "error";
+
   return (
-    <Form isWidthLimited>
-      {/* Operation in Progress Warning */}
-      {isDisabled && (
-        <Alert
-          variant="warning"
-          title="Profile editing is temporarily disabled"
-          isInline
-          style={{ marginBottom: "1rem" }}
-        >
-          Profile modifications are blocked while analysis or solution generation is in progress.
-          Please wait for the current operation to complete.
-        </Alert>
-      )}
-
-      {/* Active Profile Header */}
-      {isActive && !isDisabled && (
-        <Alert
-          variant="info"
-          title={
-            <Flex alignItems={{ default: "alignItemsCenter" }}>
-              <FlexItem>
-                <Icon>
-                  <StarIcon color="var(--pf-v5-global--info-color--100)" />
-                </Icon>
-              </FlexItem>
-              <FlexItem>Active Profile</FlexItem>
-            </Flex>
-          }
-          isInline
-          style={{ marginBottom: "1rem" }}
-        >
-          This is your active analysis profile. It will be used for all new analyses. Changes are
-          saved automatically, no action needed.
-        </Alert>
-      )}
-
-      {/* Auto-save Status */}
-      <Flex
-        justifyContent={{ default: "justifyContentSpaceBetween" }}
-        alignItems={{ default: "alignItemsCenter" }}
-        style={{ marginBottom: "1rem" }}
-      >
-        <FlexItem>
-          <Title headingLevel="h3" size="lg">
-            Profile Settings
-          </Title>
-        </FlexItem>
-        <FlexItem>
-          <Flex alignItems={{ default: "alignItemsCenter" }}>
-            <FlexItem>
-              <Icon>
-                {nameValidation === "error" ||
-                targetsValidation === "error" ||
-                rulesValidation === "error" ? (
-                  <ExclamationTriangleIcon color="var(--pf-v5-global--warning-color--100)" />
-                ) : (
-                  <CheckCircleIcon color="var(--pf-v5-global--success-color--100)" />
-                )}
-              </Icon>
-            </FlexItem>
-            <FlexItem>
-              <span style={{ fontSize: "0.875rem", color: "var(--pf-v5-global--Color--200)" }}>
-                {nameValidation === "error" ||
-                targetsValidation === "error" ||
-                rulesValidation === "error"
-                  ? "Fix errors to save"
-                  : isSaving
-                    ? "Saving..."
-                    : "Changes saved automatically"}
-              </span>
-            </FlexItem>
-          </Flex>
-        </FlexItem>
-      </Flex>
-
-      {(nameValidation === "error" ||
-        targetsValidation === "error" ||
-        rulesValidation === "error") && (
-        <FormAlert>
-          <Alert
-            variant="danger"
-            title="Fix validation errors before continuing."
-            isInline
-            aria-live="polite"
-          />
-        </FormAlert>
+    <Form>
+      {/* Status indicators */}
+      {(isDisabled || hasValidationErrors) && (
+        <HelperText style={{ marginBottom: "0.75rem" }}>
+          {isDisabled ? (
+            <HelperTextItem variant="warning" icon={<ExclamationCircleIcon />}>
+              Editing disabled during analysis
+            </HelperTextItem>
+          ) : (
+            <HelperTextItem variant="error" icon={<ExclamationCircleIcon />}>
+              Fix validation errors below
+            </HelperTextItem>
+          )}
+        </HelperText>
       )}
 
       <FormGroup label="Profile Name" fieldId="profile-name" isRequired>
@@ -537,7 +461,7 @@ export const ProfileEditorForm: React.FC<{
               {localProfile.customRules?.map((path, index) => (
                 <Label
                   key={index}
-                  color="blue"
+                  variant="outline"
                   icon={
                     <Tooltip content={path}>
                       <span>📄</span>
@@ -556,33 +480,28 @@ export const ProfileEditorForm: React.FC<{
         </Stack>
       </FormGroup>
 
-      <Flex spaceItems={{ default: "spaceItemsMd" }}>
-        <FlexItem>
-          {isActive ? (
-            <Tooltip content="This profile is already active and will be used for analyses">
-              <Button variant="secondary" isDisabled={true} icon={<StarIcon />}>
-                Active Profile
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip content="Set this profile as active to use it for new analyses">
-              <Button
-                variant="secondary"
-                onClick={() => onMakeActive(profile.id)}
-                isDisabled={isDisabled}
-              >
-                Make Active
-              </Button>
-            </Tooltip>
-          )}
-        </FlexItem>
+      <Flex spaceItems={{ default: "spaceItemsSm" }} style={{ marginTop: "0.5rem" }}>
+        {!isActive && (
+          <FlexItem>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onMakeActive(profile.id)}
+              isDisabled={isDisabled}
+            >
+              Make Active
+            </Button>
+          </FlexItem>
+        )}
         <FlexItem>
           <Button
-            variant="danger"
+            variant="link"
+            size="sm"
+            isDanger
             onClick={() => setIsDeleteDialogOpen(true)}
             isDisabled={profile.readOnly || isDisabled}
           >
-            Delete Profile
+            Delete
           </Button>
         </FlexItem>
       </Flex>
