@@ -57,7 +57,7 @@ export function isLlemulatorConfigured(): boolean {
 
 /**
  * Get the llemulator base URL from environment
- * @returns The base URL without /v1 suffix, or undefined if not configured
+ * @returns The base URL without /v1 suffix, or null if not configured
  */
 export function getLlemulatorBaseUrl(): string | null {
   const url = process.env.TEST_LLEMULATOR_URL;
@@ -69,8 +69,8 @@ export function getLlemulatorBaseUrl(): string | null {
 }
 
 /**
- * Default healthcheck rule that matches kai's model provider healthcheck.
- * The healthcheck sends "What is 2 gamma 2?" to verify the model works.
+ * Default health check rule that matches kai's model provider healthcheck.
+ * The health check sends "What is 2 gamma 2?" to verify the model works.
  * This rule is unlimited (times: -1) so it never gets consumed.
  *
  * See vscode/core/src/modelProvider/modelProvider.ts

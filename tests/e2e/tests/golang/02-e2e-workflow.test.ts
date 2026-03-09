@@ -256,7 +256,7 @@ test.describe.serial(
       const acceptButton = resolutionView.getByRole('button', { name: 'Accept' }).first();
       await expect(
         acceptButton,
-        'Accept button not found. This may occur if the model is unreachable or if LLemulator is enabled.'
+        'Accept button not found. This may occur if the model is unreachable.'
       ).toBeVisible({ timeout: 30000 });
       await acceptButton.click();
       console.log('Autoscaling fix accepted');

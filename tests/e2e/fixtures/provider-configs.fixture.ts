@@ -117,7 +117,14 @@ export function getDefaultProviderConfig(): ProviderConfig {
     return LLEMULATOR_PROVIDER;
   }
 
-  return getAvailableProviders()[0];
+  const availableProviders = getAvailableProviders();
+
+  if (!availableProviders.length) {
+    console.log('No providers found, applying GPT without valid token');
+    return OPENAI_GPT4OMINI_PROVIDER;
+  }
+
+  return availableProviders[0];
 }
 
 export function getAvailableProviders(): ProviderConfig[] {

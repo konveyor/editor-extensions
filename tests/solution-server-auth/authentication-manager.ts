@@ -25,6 +25,7 @@ const TOKEN_EXPIRY_RATIO = 0.7;
  * - Local development mode bypass
  */
 export class AuthenticationManager {
+  private readonly previousTlsRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   private bearerToken: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiresAt: number | null = null;
@@ -250,7 +251,15 @@ export class AuthenticationManager {
 
   public dispose(): void {
     this.stopAutoRefresh();
-    this.tokenPromise = null
+    if (this.insecure) {
+      if (this.previousTlsRejectUnauthorized === undefined) {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      } else {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = this.previousTlsRejectUnauthorized;
+      }
+    }
+    this.tokenPromise = null;
+    this.tokenPromise = null;
     this.bearerToken = null;
     this.refreshToken = null;
     this.tokenExpiresAt = null;

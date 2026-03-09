@@ -504,7 +504,9 @@ export abstract class VSCode {
         if (resolutionAction === ResolutionAction.ReviewInEditor) {
           // Small label that is displayed in top of the editor
           // This expect is needed as a big diff may take a few secods to load
-          await expect(this.window.getByText('Accept All Changes')).toBeVisible();
+          await expect(this.window.getByText('Accept All Changes')).toBeVisible({
+            timeout: 30_000,
+          });
         }
         return [];
       }

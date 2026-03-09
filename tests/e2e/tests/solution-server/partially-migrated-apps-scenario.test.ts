@@ -189,31 +189,18 @@ class SolutionServerWorkflowHelper {
     await this.applyJavaAnnotationFixInternal(vsCode, appName);
   }
 
-  private async applyJavaAnnotationFixInternal(vsCode: VSCode, appName: string): Promise<boolean> {
-    try {
-      await vsCode.openAnalysisView();
-      const violationText =
-        'The java.annotation (Common Annotations) module has been removed from OpenJDK 11';
-      await vsCode.searchAndRequestAction(
-        violationText,
-        FixTypes.Incident,
-        ResolutionAction.Accept
-      );
-      this.logger.success('Java annotation fix solution applied');
+  private async applyJavaAnnotationFixInternal(vsCode: VSCode, appName: string): Promise<void> {
+    await vsCode.openAnalysisView();
+    const violationText =
+      'The java.annotation (Common Annotations) module has been removed from OpenJDK 11';
+    await vsCode.searchAndRequestAction(violationText, FixTypes.Incident, ResolutionAction.Accept);
+    this.logger.success('Java annotation fix solution applied');
 
-      await vsCode.openAnalysisView();
-      const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
+    await vsCode.openAnalysisView();
+    const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
+    await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
 
-      await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
-
-      await this.validateSolutionApplication(vsCode, appName);
-
-      this.logger.success(`Java annotation fix applied for ${appName}`);
-      return true;
-    } catch (error) {
-      this.logger.error(`Java annotation fix application failed for ${appName}: ${error}`);
-      return false;
-    }
+    await this.validateSolutionApplication(vsCode, appName);
   }
 
   /**
@@ -450,11 +437,24 @@ test.describe.serial(
 
       await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
 
+      await expect
+        .poll(
+          async () => {
+            const successRate = await mcpClient.getSuccessRate({
+              ruleset_name: 'audit-logging-migration',
+              violation_name: 'audit-logging-0003',
+            });
+            return successRate.accepted_solutions;
+          },
+          {
+            message: 'make sure solution server metrics eventually gets updated',
+            timeout: 10000,
+          }
+        )
+        .toBeGreaterThan(beforeSolution.successRate.accepted_solutions);
+
       const afterSolution = await helper.captureSolutionServerMetrics(mcpClient);
 
-      expect(afterSolution.successRate.accepted_solutions).toBeGreaterThan(
-        beforeSolution.successRate.accepted_solutions
-      );
       helper.logger.success(
         'Solution server successfully applied hints in EHR app for complete fix workflow'
       );
