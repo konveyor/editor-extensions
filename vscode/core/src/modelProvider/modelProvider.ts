@@ -109,6 +109,9 @@ export class BaseModelProvider implements KaiModelProvider {
       }
     }
 
+    // Strip cacheKey before passing to the underlying model - it's not a valid LangChain option
+    const modelOptions = options ? stripCacheKey(options) : undefined;
+
     let result: AIMessageChunk;
     if (
       this.capabilities.supportsTools &&
@@ -118,9 +121,9 @@ export class BaseModelProvider implements KaiModelProvider {
     ) {
       result = await this.nonStreamingModel
         .bindTools(this.tools, this.toolKwargs)
-        .invoke(input, options);
+        .invoke(input, modelOptions);
     } else {
-      result = await this.nonStreamingModel.invoke(input, options);
+      result = await this.nonStreamingModel.invoke(input, modelOptions);
     }
     if (options && options.cacheKey) {
       this.cache.set(input, result, {
@@ -153,6 +156,9 @@ export class BaseModelProvider implements KaiModelProvider {
       }
     }
 
+    // Strip cacheKey before passing to the underlying model - it's not a valid LangChain option
+    const modelOptions = options ? stripCacheKey(options) : undefined;
+
     // Get the actual stream from the underlying model
     let actualStream: IterableReadableStream<any>;
     if (
@@ -163,9 +169,9 @@ export class BaseModelProvider implements KaiModelProvider {
     ) {
       actualStream = await this.streamingModel
         .bindTools(this.tools, this.toolKwargs)
-        .stream(input, options);
+        .stream(input, modelOptions);
     } else {
-      actualStream = await this.streamingModel.stream(input, options);
+      actualStream = await this.streamingModel.stream(input, modelOptions);
     }
 
     // If no caching is needed, return the stream as-is
@@ -474,6 +480,14 @@ export class BedrockModelProvider extends BaseModelProvider {
       },
     }) as IterableReadableStream<any>;
   }
+}
+
+function stripCacheKey(
+  options: Partial<KaiModelProviderInvokeCallOptions>,
+): Partial<KaiModelProviderInvokeCallOptions> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { cacheKey, ...rest } = options;
+  return rest;
 }
 
 function hitMaxTokens(chunk: AIMessageChunk | undefined): boolean {
