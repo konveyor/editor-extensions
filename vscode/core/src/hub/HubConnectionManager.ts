@@ -166,6 +166,22 @@ export class HubConnectionManager {
   }
 
   /**
+   * Get the connection-scoped fetch function for Hub TLS configuration.
+   * Returns the custom fetch if insecure mode is enabled, otherwise undefined.
+   * Used to propagate Hub TLS settings to LLM proxy model providers.
+   */
+  public getScopedFetch(): typeof fetch | undefined {
+    return this.scopedFetch ?? undefined;
+  }
+
+  /**
+   * Check if authentication is enabled in the Hub configuration
+   */
+  public isAuthEnabled(): boolean {
+    return this.config.auth.enabled ?? false;
+  }
+
+  /**
    * Check if solution server is connected
    */
   public isSolutionServerConnected(): boolean {
@@ -453,7 +469,12 @@ export class HubConnectionManager {
       }),
     });
 
-    this.logger.info("Token exchange successful via Hub login");
+    this.logger.info("Token exchange successful via Hub login", {
+      hasToken: !!loginResponse.token,
+      tokenType: typeof loginResponse.token,
+      tokenLength: loginResponse.token?.length ?? 0,
+      responseKeys: Object.keys(loginResponse),
+    });
     this.bearerToken = loginResponse.token;
     this.refreshToken = loginResponse.refresh ?? null; // Store refresh token if provided
 
