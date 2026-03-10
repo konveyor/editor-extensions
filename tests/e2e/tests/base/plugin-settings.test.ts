@@ -33,6 +33,64 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3', '@slow'] },
         reset: true,
         responses: [
           {
+            pattern: '.*CatalogService.*',
+            response: buildKaiResponse({
+              reasoning: 'LLEMULATOR RESPONSE',
+              language: 'java',
+              // Verifies #1309
+              fileContent:
+                'package com.redhat.coolstore.service;\n' +
+                '\n' +
+                'import java.util.List;\n' +
+                'import java.util.logging.Logger;\n' +
+                '\n' +
+                'import javax.inject.Inject;\n' +
+                '\n' +
+                'import jakarta.persistence.criteria.CriteriaBuilder;\n' +
+                'import jakarta.persistence.criteria.CriteriaQuery;\n' +
+                'import jakarta.persistence.criteria.Root;\n' +
+                '\n' +
+                'import jakarta.ejb.Stateless;\n' +
+                'import jakarta.persistence.EntityManager;\n' +
+                '\n' +
+                'import com.redhat.coolstore.model.*;\n' +
+                '\n' +
+                '@Stateless\n' +
+                'public class CatalogService {\n' +
+                '\n' +
+                '    @Inject\n' +
+                '    Logger log;\n' +
+                '\n' +
+                '    @Inject\n' +
+                '    private EntityManager em;\n' +
+                '\n' +
+                '    public CatalogService() {\n' +
+                '    }\n' +
+                '\n' +
+                '    public List<CatalogItemEntity> getCatalogItems() {\n' +
+                '        CriteriaBuilder cb = em.getCriteriaBuilder();\n' +
+                '        CriteriaQuery<CatalogItemEntity> criteria = cb.createQuery(CatalogItemEntity.class);\n' +
+                '        Root<CatalogItemEntity> member = criteria.from(CatalogItemEntity.class);\n' +
+                '        criteria.select(member);\n' +
+                '        return em.createQuery(criteria).getResultList();\n' +
+                '    }\n' +
+                '\n' +
+                '    public CatalogItemEntity getCatalogItemById(String itemId) {\n' +
+                '        return em.find(CatalogItemEntity.class, itemId);\n' +
+                '    }\n' +
+                '\n' +
+                '    public void updateInventoryItems(String itemId, int deducts) {\n' +
+                '        InventoryEntity inventoryEntity = getCatalogItemById(itemId).getInventory();\n' +
+                '        int currentQuantity = inventoryEntity.getQuantity();\n' +
+                '        inventoryEntity.setQuantity(currentQuantity-deducts);\n' +
+                '        em.merge(inventoryEntity);\n' +
+                '    }\n' +
+                '\n' +
+                '}\n',
+            }),
+            times: -1,
+          },
+          {
             pattern: '.*',
             response: buildKaiResponse({
               reasoning: 'LLEMULATOR RESPONSE',

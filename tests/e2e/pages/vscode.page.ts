@@ -503,8 +503,9 @@ export abstract class VSCode {
         await actionLocator.dispatchEvent('click');
         if (resolutionAction === ResolutionAction.ReviewInEditor) {
           // Small label that is displayed in top of the editor
-          // This expect is needed as a big diff may take a few secods to load
-          await expect(this.window.getByText('Accept All Changes')).toBeVisible({
+          // This expect is needed as a big diff may take a few seconds to load
+          // Checks enabled rather than visible because a large diff may hide the button
+          await expect(this.window.getByText('Accept All Changes')).toBeEnabled({
             timeout: 30_000,
           });
         }
