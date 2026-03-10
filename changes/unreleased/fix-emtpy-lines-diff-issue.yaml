@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed an issue caused by empty new lines in diffs when reviewing a proposed solution
