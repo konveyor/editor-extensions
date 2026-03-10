@@ -23,10 +23,19 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
   const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
   let diff: string;
 
+  // ignoreNewlineAtEof works at runtime but diff@8.x types omit it from CreatePatchOptions
+  const patchOptions = { ignoreNewlineAtEof: true } as Parameters<typeof createPatch>[5];
+
   if (isNew) {
-    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent, undefined, undefined, {
-      ignoreNewlineAtEof: true,
-    });
+    diff = createTwoFilesPatch(
+      "",
+      filePath,
+      "",
+      fileState.modifiedContent,
+      undefined,
+      undefined,
+      patchOptions,
+    );
   } else if (isDeleted) {
     diff = createTwoFilesPatch(
       filePath,
@@ -35,9 +44,7 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
       "",
       undefined,
       undefined,
-      {
-        ignoreNewlineAtEof: true,
-      },
+      patchOptions,
     );
   } else {
     try {
@@ -47,9 +54,7 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
         fileState.modifiedContent,
         undefined,
         undefined,
-        {
-          ignoreNewlineAtEof: true,
-        },
+        patchOptions,
       );
     } catch {
       diff = `// Error creating diff for ${filePath}`;
