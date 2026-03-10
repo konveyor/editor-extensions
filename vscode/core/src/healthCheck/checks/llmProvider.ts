@@ -68,6 +68,14 @@ export const llmProviderCheck: HealthCheckModule = {
         }
       }
 
+      const hubProxy = state.hubConnectionManager?.getLLMProxyConfig?.();
+      logger.info("LLM provider health check context", {
+        modelProviderSource: state.modelProviderSource ?? "unknown",
+        hubProxyAvailable: hubProxy?.available ?? false,
+        hubProxyEndpoint: hubProxy?.endpoint,
+        hasBearerToken: !!state.hubConnectionManager?.getBearerToken?.(),
+      });
+
       logger.info("Testing LLM provider connectivity with simple message...");
 
       try {
