@@ -24,7 +24,9 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
   let diff: string;
 
   if (isNew) {
-    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent, undefined, undefined);
+    diff = createTwoFilesPatch("", filePath, "", fileState.modifiedContent, undefined, undefined, {
+      ignoreNewlineAtEof: true,
+    });
   } else if (isDeleted) {
     diff = createTwoFilesPatch(
       filePath,
@@ -33,6 +35,9 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
       "",
       undefined,
       undefined,
+      {
+        ignoreNewlineAtEof: true,
+      },
     );
   } else {
     try {
@@ -42,6 +47,9 @@ const createFileDiff = (fileState: ModifiedFileState, filePath: string): string 
         fileState.modifiedContent,
         undefined,
         undefined,
+        {
+          ignoreNewlineAtEof: true,
+        },
       );
     } catch {
       diff = `// Error creating diff for ${filePath}`;
