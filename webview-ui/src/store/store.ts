@@ -56,6 +56,8 @@ interface ExtensionStore {
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
   isWebEnvironment: boolean;
+  availableTargets: string[];
+  availableSources: string[];
 
   // Batch review state
   pendingBatchReview: PendingBatchReviewFile[];
@@ -149,6 +151,8 @@ export const useExtensionStore = create<ExtensionStore>()(
       isSyncingProfiles: false,
       llmProxyAvailable: false,
       isWebEnvironment: false,
+      availableTargets: [],
+      availableSources: [],
 
       // Batch review state
       pendingBatchReview: [],

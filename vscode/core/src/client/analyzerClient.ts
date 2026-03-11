@@ -64,6 +64,10 @@ export class AnalyzerClient {
     // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
   }
 
+  get rulesetsPath(): string {
+    return this.assetPaths.rulesets;
+  }
+
   private fireServerStateChange(state: ServerState) {
     this.mutateServerState((draft) => {
       this.logger.info(`serverState change from [${draft.serverState}] to [${state}]`);

@@ -138,6 +138,8 @@ export interface SettingsUpdateMessage {
   profileSyncEnabled: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  availableTargets: string[];
+  availableSources: string[];
   timestamp: string;
 }
 
