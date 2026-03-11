@@ -278,3 +278,21 @@ jobs:
           **Pre-release:** ${{ inputs.prerelease }}
           **Ref:** \`${{ inputs.ref }}\`
           EOF
+
+  report_published:
+    name: Notify Published
+    needs: [github-release]
+    if: ${{ !inputs.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send published notification to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "test": "Extension Published",
+              "branch": "${{ inputs.ref }}",
+              "note": "Published ${{ inputs.tag }}: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}
