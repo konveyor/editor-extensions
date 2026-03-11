@@ -498,11 +498,15 @@ class VsCodeExtension {
       });
 
       // Discover available target/source labels from bundled rulesets
-      const discoveredLabels = await discoverLabels(this.state.analyzerClient.rulesetsPath);
-      this.state.mutateSettings((draft) => {
-        draft.availableTargets = discoveredLabels.targets;
-        draft.availableSources = discoveredLabels.sources;
-      });
+      try {
+        const discoveredLabels = await discoverLabels(this.state.analyzerClient.rulesetsPath);
+        this.state.mutateSettings((draft) => {
+          draft.availableTargets = discoveredLabels.targets;
+          draft.availableSources = discoveredLabels.sources;
+        });
+      } catch (err) {
+        this.state.logger.warn(`Failed to discover labels from rulesets: ${err}`);
+      }
 
       const allProfiles = await getAllProfiles(this.context);
       const storedActiveId = this.context.workspaceState.get<string>("activeProfileId");
