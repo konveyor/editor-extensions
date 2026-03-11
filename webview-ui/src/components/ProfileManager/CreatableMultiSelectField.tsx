@@ -45,6 +45,16 @@ export const CreatableMultiSelectField: React.FC<CreatableMultiSelectFieldProps>
   const CREATE = "create";
 
   useEffect(() => {
+    setOptions((prev) => {
+      const existing = new Set(prev.map((o) => o.value));
+      const newOpts = initialOptions
+        .filter((opt) => !existing.has(opt))
+        .map((opt) => ({ value: opt, children: opt }));
+      return newOpts.length > 0 ? [...prev, ...newOpts] : prev;
+    });
+  }, [initialOptions]);
+
+  useEffect(() => {
     const normalizedInput = inputValue.toLowerCase();
 
     const filteredOptions = options
