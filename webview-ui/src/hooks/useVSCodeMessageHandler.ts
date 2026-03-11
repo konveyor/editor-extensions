@@ -216,6 +216,8 @@ export function useVSCodeMessageHandler() {
             profileSyncEnabled: message.profileSyncEnabled,
             isSyncingProfiles: message.isSyncingProfiles,
             llmProxyAvailable: message.llmProxyAvailable,
+            availableTargets: message.availableTargets ?? [],
+            availableSources: message.availableSources ?? [],
           });
           return;
         }
@@ -271,6 +273,12 @@ export function useVSCodeMessageHandler() {
             isSyncingProfiles: message.isSyncingProfiles ?? false,
             llmProxyAvailable: message.llmProxyAvailable ?? false,
             isWebEnvironment: message.isWebEnvironment ?? false,
+            availableTargets: Array.isArray(message.availableTargets)
+              ? message.availableTargets
+              : [],
+            availableSources: Array.isArray(message.availableSources)
+              ? message.availableSources
+              : [],
           });
         }
       } catch (error) {

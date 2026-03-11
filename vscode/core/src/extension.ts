@@ -48,6 +48,7 @@ import {
   isHubForced,
 } from "./utilities/hubConfigStorage";
 import { getAllProfiles } from "./utilities/profiles/profileService";
+import { discoverLabels } from "./utilities/labels/discoverLabels";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
 // Removed InlineSuggestionCodeActionProvider import since we're using merge editor now
@@ -124,6 +125,8 @@ class VsCodeExtension {
         isSyncingProfiles: false,
         llmProxyAvailable: false, // Will be updated after hub initialization
         isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
+        availableTargets: [], // Will be populated from bundled rulesets
+        availableSources: [], // Will be populated from bundled rulesets
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -353,6 +356,8 @@ class VsCodeExtension {
           profileSyncEnabled: data.profileSyncEnabled,
           isSyncingProfiles: data.isSyncingProfiles,
           llmProxyAvailable: data.llmProxyAvailable,
+          availableTargets: data.availableTargets,
+          availableSources: data.availableSources,
           timestamp: new Date().toISOString(),
         });
       });
@@ -490,6 +495,13 @@ class VsCodeExtension {
         draft.profileSyncConnected = false;
         draft.isSyncingProfiles = false;
         draft.llmProxyAvailable = false;
+      });
+
+      // Discover available target/source labels from bundled rulesets
+      const discoveredLabels = await discoverLabels(this.state.analyzerClient.rulesetsPath);
+      this.state.mutateSettings((draft) => {
+        draft.availableTargets = discoveredLabels.targets;
+        draft.availableSources = discoveredLabels.sources;
       });
 
       const allProfiles = await getAllProfiles(this.context);

@@ -167,6 +167,8 @@ export interface ExtensionData {
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
   isWebEnvironment: boolean;
+  availableTargets: string[];
+  availableSources: string[];
 }
 
 export type ConfigErrorType =
