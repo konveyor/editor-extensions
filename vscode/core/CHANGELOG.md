@@ -6,6 +6,15 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.7] - 2026-03-11
+
+### Bug Fixes
+
+- Fixed an issue caused by empty new lines in diffs when reviewing a proposed solution.
+- Fixed Hub LLM proxy race condition, stream errors from leaked cacheKey option, TLS propagation to proxy models, and no-auth Hub support.
+
+
 ## [0.4.5] - 2026-03-06
 
 ### Enhancements
