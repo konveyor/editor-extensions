@@ -79,3 +79,21 @@ jobs:
       prerelease: true
       ref: main
     secrets: inherit
+
+  report_failure:
+    name: Report Failure
+    needs: [compute-version, release]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "test": "Scheduled Prerelease",
+              "branch": "main",
+              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}

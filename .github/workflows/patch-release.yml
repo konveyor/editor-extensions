@@ -144,3 +144,21 @@ jobs:
           | Changelog | assembled on \`${{ inputs.branch }}\` |
           | Tag | \`${{ needs.compute-version.outputs.tag }}\` |
           EOF
+
+  report_failure:
+    name: Report Failure
+    needs: [compute-version, release, housekeeping]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "test": "Patch Release",
+              "branch": "${{ inputs.branch }}",
+              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}
