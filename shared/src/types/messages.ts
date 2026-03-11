@@ -88,6 +88,10 @@ export interface StateChangeData {
   hubForced?: boolean;
   profileSyncEnabled?: boolean;
   isSyncingProfiles?: boolean;
+
+  // Labels
+  availableTargets?: string[];
+  availableSources?: string[];
 }
 
 export interface StateChangeMessage {

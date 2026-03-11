@@ -59,6 +59,9 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "hubForced",
   "profileSyncEnabled",
   "isSyncingProfiles",
+  // Labels
+  "availableTargets",
+  "availableSources",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */
