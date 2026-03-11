@@ -19,9 +19,7 @@ export const ResourceBlock: React.FC<ResourceBlockProps> = ({ block }) => {
       >
         <span className="goose-resource-block__toggle">{isExpanded ? "▼" : "▶"}</span>
         <span className="goose-resource-block__name">{displayName}</span>
-        {block.mimeType && (
-          <span className="goose-resource-block__mime">{block.mimeType}</span>
-        )}
+        {block.mimeType && <span className="goose-resource-block__mime">{block.mimeType}</span>}
       </button>
       {isExpanded && (
         <pre className="goose-resource-block__content">

@@ -549,7 +549,7 @@ const actions: {
       state.resolvePendingInteraction = undefined;
 
       // Update state to reflect workflow stopped
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isFetchingSolution = false;
         draft.solutionState = "none";
         draft.isWaitingForUserInteraction = false;
@@ -557,7 +557,7 @@ const actions: {
       });
 
       // Add a message to the chat indicating the workflow was stopped
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         draft.chatMessages.push({
           messageToken: `stopped-${Date.now()}`,
           kind: ChatMessageType.String,

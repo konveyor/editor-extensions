@@ -104,8 +104,9 @@ export interface PendingUserInteraction {
   reject(reason: any): void;
 }
 
-export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkflowInput>
-  extends KaiWorkflowEvents {
+export interface KaiWorkflow<
+  TWorkflowInput extends KaiWorkflowInput = KaiWorkflowInput,
+> extends KaiWorkflowEvents {
   init(options: KaiWorkflowInitOptions): Promise<void>;
   run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
   resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;

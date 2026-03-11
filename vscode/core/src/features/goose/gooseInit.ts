@@ -6,30 +6,24 @@ import {
   ChatMessageType,
 } from "@editor-extensions/shared";
 import { v4 as uuidv4 } from "uuid";
-import { parseModelConfig } from "../../modelProvider";
 import type { FeatureContext } from "../featureRegistry";
 import { GooseFileTracker } from "./gooseFileTracker";
 import { routeFileChangeToBatchReview } from "./routeFileChange";
-import type { PermissionRequestData } from "../../client/gooseClient";
-
-type GooseClientType = InstanceType<typeof import("../../client/gooseClient").GooseClient>;
+import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
 
 /**
  * Maps chat messageToken -> pending JSON-RPC request id so we can
- * respond to Goose when the user clicks a permission quick-response.
+ * respond to the agent when the user clicks a permission quick-response.
  */
-export const pendingPermissions = new Map<
-  string,
-  { requestId: number; client: InstanceType<typeof import("../../client/gooseClient").GooseClient> }
->();
+export const pendingPermissions = new Map<string, { requestId: number; client: AgentClient }>();
 
 /**
  * Stores references to the default broadcast handlers so the
- * GooseOrchestrator can temporarily detach them (it writes directly
+ * AgentOrchestrator can temporarily detach them (it writes directly
  * to chatMessages state and doesn't need the webview broadcast).
  */
 let broadcastBinding: {
-  client: GooseClientType;
+  client: AgentClient;
   handlers: {
     streamingChunk: (...args: any[]) => void;
     streamingComplete: (...args: any[]) => void;
@@ -63,9 +57,16 @@ export function resumeBroadcastHandlers(): void {
   client.on("toolCallUpdate", handlers.toolCallUpdateBroadcast);
 }
 
-export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.Disposable> {
-  const { getConfigGooseBinaryPath } = await import("../../utilities/configuration");
-  const { GooseClient } = await import("../../client/gooseClient");
+/**
+ * Initialize the agent and wire up all event listeners.
+ *
+ * Accepts an AgentClient (GooseClient or OpencodeAgentClient) created
+ * by the feature module based on the configured backend.
+ */
+export async function initializeAgent(
+  ctx: FeatureContext,
+  agentClient: AgentClient,
+): Promise<vscode.Disposable> {
   const { McpBridgeServer } = await import("../../api/mcpBridgeServer");
 
   const disposables: vscode.Disposable[] = [];
@@ -88,6 +89,7 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
   ctx.featureClients.set("mcpBridgeServer", mcpBridgeServer);
   disposables.push({ dispose: () => mcpBridgeServer.dispose() });
 
+  // Configure MCP servers on the agent client before starting
   const { join } = await import("path");
   const mcpServerEntry = join(
     ctx.extensionContext.extensionPath,
@@ -97,53 +99,21 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     "dist",
     "index.js",
   );
+  agentClient.setMcpServers([
+    {
+      name: "konveyor",
+      type: "stdio",
+      command: "node",
+      args: [mcpServerEntry],
+      env: [{ name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) }],
+    },
+  ]);
 
-  let gooseModelEnv: Record<string, string> = {};
+  ctx.featureClients.set("agentClient", agentClient);
+  disposables.push({ dispose: () => agentClient.dispose() });
 
-  try {
-    const { paths } = await import("../../paths");
-    const modelConfig = await parseModelConfig(paths().settingsYaml);
-    gooseModelEnv = (modelConfig.env ?? {}) as Record<string, string>;
-    ctx.logger.info(
-      `Goose: passing auth env vars from provider-settings.yaml (provider: ${modelConfig.config.provider})`,
-    );
-  } catch (err) {
-    ctx.logger.warn(
-      `Goose: could not read provider-settings.yaml for auth env vars: ${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
-
-  try {
-    const { loadGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
-    const storedCreds = await loadGooseCredentials(ctx.extensionContext);
-    if (storedCreds) {
-      gooseModelEnv = { ...gooseModelEnv, ...storedCreds };
-      ctx.logger.info(
-        `Goose: merged ${Object.keys(storedCreds).length} credential(s) from SecretStorage`,
-      );
-    }
-  } catch (err) {
-    ctx.logger.warn(`Goose: could not load credentials from SecretStorage: ${err}`);
-  }
-
-  const gooseClient = new GooseClient({
-    workspaceDir: ctx.store.getState().workspaceRoot,
-    logger: ctx.logger,
-    gooseBinaryPath: getConfigGooseBinaryPath(),
-    mcpServers: [
-      {
-        name: "konveyor",
-        type: "stdio",
-        command: "node",
-        args: [mcpServerEntry],
-        env: [{ name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) }],
-      },
-    ],
-    modelEnv: gooseModelEnv,
-  });
-
-  gooseClient.on("stateChange", (agentState: string) => {
-    ctx.logger.info(`Goose agent state: ${agentState}`);
+  agentClient.on("stateChange", (agentState: string) => {
+    ctx.logger.info(`Agent state: ${agentState}`);
     ctx.mutate((draft) => {
       if (!draft.featureState) {
         draft.featureState = {};
@@ -154,7 +124,7 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
 
   // --- Broadcast handlers (free-chat mode) ---
   // These forward streaming events to the webview. They are temporarily
-  // detached by GooseOrchestrator (via suspendBroadcastHandlers) when it
+  // detached by AgentOrchestrator (via suspendBroadcastHandlers) when it
   // takes over and writes directly to chatMessages state.
 
   const onStreamingChunk = (
@@ -217,13 +187,13 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     sendToolCallToWebview(messageId, data);
   };
 
-  gooseClient.on("streamingChunk", onStreamingChunk);
-  gooseClient.on("streamingComplete", onStreamingComplete);
-  gooseClient.on("toolCall", onToolCallBroadcast);
-  gooseClient.on("toolCallUpdate", onToolCallUpdateBroadcast);
+  agentClient.on("streamingChunk", onStreamingChunk);
+  agentClient.on("streamingComplete", onStreamingComplete);
+  agentClient.on("toolCall", onToolCallBroadcast);
+  agentClient.on("toolCallUpdate", onToolCallUpdateBroadcast);
 
   broadcastBinding = {
-    client: gooseClient,
+    client: agentClient,
     handlers: {
       streamingChunk: onStreamingChunk,
       streamingComplete: onStreamingComplete,
@@ -234,9 +204,9 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
   };
 
   // Pre-cache file content before write tools execute so the post-scan
-  // can detect changes made by Goose's built-in tools (which bypass MCP).
+  // can detect changes made by the agent's built-in tools (which bypass MCP).
   // This listener is never suspended — caching must always happen.
-  gooseClient.on("toolCall", (_messageId: string, data: any) => {
+  agentClient.on("toolCall", (_messageId: string, data: any) => {
     if (data.arguments) {
       const workspaceRoot = ctx.store.getState().workspaceRoot;
       fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot, data.callId);
@@ -245,7 +215,7 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
 
   // When any tool completes successfully, check pending permission files
   // for changes and route them to batch review immediately.
-  gooseClient.on("toolCallUpdate", (_messageId: string, data: any) => {
+  agentClient.on("toolCallUpdate", (_messageId: string, data: any) => {
     if (data.status !== "succeeded") {
       return;
     }
@@ -264,8 +234,8 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     });
   });
 
-  gooseClient.on("error", (error: Error) => {
-    ctx.logger.error(`Goose error: ${error.message}`);
+  agentClient.on("error", (error: Error) => {
+    ctx.logger.error(`Agent error: ${error.message}`);
     ctx.mutate((draft) => {
       if (!draft.featureState) {
         draft.featureState = {};
@@ -275,17 +245,17 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     });
   });
 
-  // Permission requests from Goose (smart_approve mode).
+  // Permission requests (smart_approve mode).
   // Surfaces options as quick-response buttons in the chat so the user
   // can approve/reject tool calls before they execute.
-  gooseClient.on("permissionRequest", (data: PermissionRequestData) => {
+  agentClient.on("permissionRequest", (data: PermissionRequestData) => {
     if (broadcastBinding?.suspended) {
       return;
     }
     const messageToken = `perm-${uuidv4()}`;
     pendingPermissions.set(messageToken, {
       requestId: data.requestId,
-      client: gooseClient,
+      client: agentClient,
     });
 
     // In smart_approve mode, tool arguments are in the permission request
@@ -318,18 +288,15 @@ export async function initializeGooseAgent(ctx: FeatureContext): Promise<vscode.
     });
   });
 
-  ctx.featureClients.set("gooseClient", gooseClient);
-  disposables.push({ dispose: () => gooseClient.dispose() });
+  startAgent(agentClient, ctx);
 
-  startGooseAgent(gooseClient, ctx);
-
-  ctx.logger.info("Goose chat initialization complete");
+  ctx.logger.info("Agent initialization complete");
 
   return vscode.Disposable.from(...disposables);
 }
 
-export function startGooseAgent(gooseClient: GooseClientType, ctx: FeatureContext): void {
-  gooseClient
+export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void {
+  agentClient
     .start()
     .then(async () => {
       try {
@@ -346,21 +313,21 @@ export function startGooseAgent(gooseClient: GooseClientType, ctx: FeatureContex
           });
         }
         ctx.logger.info(
-          `Goose config sent to webview: provider=${config.provider}, model=${config.model}`,
+          `Agent config sent to webview: provider=${config.provider}, model=${config.model}`,
         );
       } catch (configErr) {
-        ctx.logger.warn(`Could not read goose config: ${configErr}`);
+        ctx.logger.warn(`Could not read agent config: ${configErr}`);
       }
     })
     .catch(async (err) => {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      ctx.logger.error(`Failed to start Goose agent: ${errorMsg}`);
+      ctx.logger.error(`Failed to start agent: ${errorMsg}`);
 
-      if (errorMsg.includes("Goose binary not found")) {
-        await promptGooseInstall(gooseClient, ctx);
+      if (errorMsg.includes("binary not found") || errorMsg.includes("not found")) {
+        await promptAgentInstall(agentClient, ctx);
       } else {
         vscode.window
-          .showWarningMessage(`Goose agent failed to start: ${errorMsg}`, "View Logs")
+          .showWarningMessage(`Agent failed to start: ${errorMsg}`, "View Logs")
           .then((action) => {
             if (action === "View Logs") {
               vscode.commands.executeCommand("workbench.action.output.toggleOutput");
@@ -370,41 +337,48 @@ export function startGooseAgent(gooseClient: GooseClientType, ctx: FeatureContex
     });
 }
 
-async function promptGooseInstall(
-  gooseClient: GooseClientType,
-  ctx: FeatureContext,
-): Promise<void> {
+async function promptAgentInstall(agentClient: AgentClient, ctx: FeatureContext): Promise<void> {
+  const { getConfigAgentBackend } = await import("../../utilities/configuration");
+  const backend = getConfigAgentBackend();
+
   const action = await vscode.window.showWarningMessage(
-    "Goose CLI is not installed. Install it to use the Migration Assistant chat.",
-    "Install Goose CLI",
+    `${backend === "goose" ? "Goose" : "OpenCode"} CLI is not installed. Install it to use the Migration Assistant chat.`,
+    `Install ${backend === "goose" ? "Goose" : "OpenCode"} CLI`,
     "Set Path Manually",
   );
 
-  if (action === "Install Goose CLI") {
+  if (action?.startsWith("Install")) {
     const terminal = vscode.window.createTerminal({
-      name: "Install Goose CLI",
+      name: `Install ${backend === "goose" ? "Goose" : "OpenCode"} CLI`,
     });
     terminal.show();
 
-    const installCmd =
-      process.platform === "win32"
-        ? 'powershell -Command "irm https://github.com/block/goose/releases/download/stable/download_cli.ps1 | iex"'
-        : "CONFIGURE=false curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash";
+    let installCmd: string;
+    if (backend === "opencode") {
+      installCmd =
+        process.platform === "win32" ? "npm install -g opencode-ai" : "npm install -g opencode-ai";
+    } else {
+      installCmd =
+        process.platform === "win32"
+          ? 'powershell -Command "irm https://github.com/block/goose/releases/download/stable/download_cli.ps1 | iex"'
+          : "CONFIGURE=false curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash";
+    }
 
     terminal.sendText(installCmd);
 
     const disposable = vscode.window.onDidCloseTerminal(async (closedTerminal) => {
       if (closedTerminal === terminal) {
         disposable.dispose();
-        ctx.logger.info("Goose install terminal closed, retrying agent start");
-        startGooseAgent(gooseClient, ctx);
+        ctx.logger.info("Install terminal closed, retrying agent start");
+        startAgent(agentClient, ctx);
       }
     });
     ctx.extensionContext.subscriptions.push(disposable);
   } else if (action === "Set Path Manually") {
-    await vscode.commands.executeCommand(
-      "workbench.action.openSettings",
-      "konveyor-core.experimentalChat.gooseBinaryPath",
-    );
+    const settingsKey =
+      backend === "opencode"
+        ? "konveyor-core.experimentalChat.opencodeBinaryPath"
+        : "konveyor-core.experimentalChat.gooseBinaryPath";
+    await vscode.commands.executeCommand("workbench.action.openSettings", settingsKey);
   }
 }

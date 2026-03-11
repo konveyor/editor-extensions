@@ -162,9 +162,9 @@ export const BatchReviewExpandable: React.FC = () => {
   // Check if decorators are ACTIVE for this file (not just opened, but has unresolved decorators)
   const hasActiveDecorators = Boolean(
     activeDecorators &&
-      typeof activeDecorators === "object" &&
-      currentFile.messageToken in activeDecorators &&
-      activeDecorators[currentFile.messageToken] === currentFile.path,
+    typeof activeDecorators === "object" &&
+    currentFile.messageToken in activeDecorators &&
+    activeDecorators[currentFile.messageToken] === currentFile.path,
   );
 
   // Track if we've opened the file (for UI state), but decorators might be resolved
@@ -415,12 +415,7 @@ export const BatchReviewExpandable: React.FC = () => {
           {/* Stop workflow button - shown when workflow is still running */}
           {isFetchingSolution && (
             <FlexItem>
-              <Button
-                variant="danger"
-                size="sm"
-                icon={<StopIcon />}
-                onClick={handleStopWorkflow}
-              >
+              <Button variant="danger" size="sm" icon={<StopIcon />} onClick={handleStopWorkflow}>
                 Stop
               </Button>
             </FlexItem>
@@ -487,12 +482,7 @@ export const BatchReviewExpandable: React.FC = () => {
           {/* Stop workflow button - shown when workflow is still running */}
           {isFetchingSolution && (
             <FlexItem>
-              <Button
-                variant="danger"
-                size="sm"
-                icon={<StopIcon />}
-                onClick={handleStopWorkflow}
-              >
+              <Button variant="danger" size="sm" icon={<StopIcon />} onClick={handleStopWorkflow}>
                 Stop
               </Button>
             </FlexItem>
@@ -558,9 +548,7 @@ export const BatchReviewExpandable: React.FC = () => {
               </Button>
             </FlexItem>
             <FlexItem flex={{ default: "flex_1" }}>
-              <span className="batch-review-info-text">
-                ✨ This is a new file
-              </span>
+              <span className="batch-review-info-text">✨ This is a new file</span>
             </FlexItem>
             <FlexItem>
               <Button variant="danger" onClick={handleReject} size="sm" isDisabled={isProcessing}>

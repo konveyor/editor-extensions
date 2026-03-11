@@ -329,9 +329,9 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
       const { getConfigExperimentalChatEnabled } = await import("./utilities/configuration");
-      if (getConfigExperimentalChatEnabled() && state.featureClients.has("gooseClient")) {
-        const { GooseOrchestrator } = await import("./features/goose/gooseOrchestrator");
-        const orchestrator = new GooseOrchestrator(state, logger, incidents);
+      if (getConfigExperimentalChatEnabled() && state.featureClients.has("agentClient")) {
+        const { AgentOrchestrator } = await import("./features/goose/agentOrchestrator");
+        const orchestrator = new AgentOrchestrator(state, logger, incidents);
         await orchestrator.run();
       } else {
         const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);

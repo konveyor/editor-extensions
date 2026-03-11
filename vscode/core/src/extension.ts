@@ -125,13 +125,6 @@ class VsCodeExtension {
       isWebEnvironment,
       availableTargets: [],
       availableSources: [],
-      analysisConfig: {
-        labelSelector: "",
-        labelSelectorValid: false,
-        providerConfigured: false,
-        providerKeyMissing: false,
-        customRulesConfigured: false,
-      },
       featureState: {},
     };
 
@@ -286,7 +279,7 @@ class VsCodeExtension {
       // Discover available target/source labels from bundled rulesets (non-blocking)
       discoverLabels(this.state.analyzerClient.rulesetsPath).then(
         (discoveredLabels) => {
-          this.state.mutateSettings((draft) => {
+          this.state.mutate((draft) => {
             draft.availableTargets = discoveredLabels.targets;
             draft.availableSources = discoveredLabels.sources;
           });
@@ -1058,7 +1051,7 @@ class VsCodeExtension {
         this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyRecheck);
         this.state.modelProviderSource = "hub-proxy";
 
-        this.state.mutateConfigErrors((draft) => {
+        this.state.mutate((draft) => {
           draft.configErrors = draft.configErrors.filter(
             (e) =>
               e.type !== "provider-not-configured" &&

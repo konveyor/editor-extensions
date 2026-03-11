@@ -28,12 +28,7 @@ export const ResourceLink: React.FC<ResourceLinkProps> = ({ block }) => {
   }
 
   return (
-    <a
-      className="goose-resource-link"
-      href={block.uri}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
+    <a className="goose-resource-link" href={block.uri} target="_blank" rel="noopener noreferrer">
       <span className="goose-resource-link__icon">🔗</span>
       <span className="goose-resource-link__name">{displayName}</span>
     </a>

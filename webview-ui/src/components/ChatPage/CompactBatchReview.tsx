@@ -92,9 +92,9 @@ export const CompactBatchReview: React.FC = () => {
   const isProcessing = processingFiles.has(currentFile.messageToken) || isBatchOperationInProgress;
   const hasActiveDecorators = Boolean(
     activeDecorators &&
-      typeof activeDecorators === "object" &&
-      currentFile.messageToken in activeDecorators &&
-      activeDecorators[currentFile.messageToken] === currentFile.path,
+    typeof activeDecorators === "object" &&
+    currentFile.messageToken in activeDecorators &&
+    activeDecorators[currentFile.messageToken] === currentFile.path,
   );
   const isViewingDiff = viewingInEditor === currentFile.messageToken || hasActiveDecorators;
   const busy = isProcessing || isBatchOperationInProgress;

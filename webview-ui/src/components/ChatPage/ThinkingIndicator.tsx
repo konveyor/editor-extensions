@@ -29,11 +29,7 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({ thinkingTe
           </span>
         )}
       </button>
-      {expanded && hasContent && (
-        <div className="goose-thinking__content">
-          {thinkingText}
-        </div>
-      )}
+      {expanded && hasContent && <div className="goose-thinking__content">{thinkingText}</div>}
     </div>
   );
 };
@@ -57,17 +53,15 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text }) => {
         aria-expanded={expanded}
         type="button"
       >
-        <span className="goose-thinking-block__icon" aria-hidden="true">💭</span>
+        <span className="goose-thinking-block__icon" aria-hidden="true">
+          💭
+        </span>
         <span className="goose-thinking-block__title">Thought process</span>
         <span className="goose-thinking-block__chevron" aria-hidden="true">
           {expanded ? "▾" : "▸"}
         </span>
       </button>
-      {expanded && (
-        <div className="goose-thinking-block__content">
-          {text}
-        </div>
-      )}
+      {expanded && <div className="goose-thinking-block__content">{text}</div>}
     </div>
   );
 };
