@@ -2,7 +2,6 @@ import expect from "expect";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { execSync } from "child_process";
 import { discoverLabels } from "../discoverLabels";
 
 describe("discoverLabels", () => {
@@ -120,44 +119,57 @@ describe("discoverLabels against real rulesets", () => {
     }
   });
 
-  it("should discover the same labels as grep", async function (this: Mocha.Context) {
+  it("should discover the same labels as a naive line-by-line scan", async function (this: Mocha.Context) {
     if (!rulesetsExist) {
       this.skip();
     }
 
-    // Use grep --include to match only *.yaml files, same as discoverLabels
-    const grepTargets = execSync(
-      `grep -roh --include='*.yaml' 'konveyor.io/target=[^ "'"'"']*' "${rulesetsDir}" | sed 's/konveyor.io\\/target=//' | sort -u`,
-      { encoding: "utf-8" },
-    )
-      .trim()
-      .split("\n")
-      .filter(Boolean);
+    // Independent reference implementation: line-by-line scan using a
+    // deliberately different regex than discoverLabels to cross-validate.
+    const TARGET_RE = /konveyor\.io\/target=(\S+)/;
+    const SOURCE_RE = /konveyor\.io\/source=(\S+)/;
+    const refTargets = new Set<string>();
+    const refSources = new Set<string>();
 
-    const grepSources = execSync(
-      `grep -roh --include='*.yaml' 'konveyor.io/source=[^ "'"'"']*' "${rulesetsDir}" | sed 's/konveyor.io\\/source=//' | sort -u`,
-      { encoding: "utf-8" },
-    )
-      .trim()
-      .split("\n")
-      .filter(Boolean);
+    const dirEntries = await fs.readdir(rulesetsDir, { recursive: true });
+    const yamlFiles = dirEntries
+      .filter((e) => e.endsWith(".yaml"))
+      .map((e) => path.join(rulesetsDir, e));
+
+    for (const file of yamlFiles) {
+      let content: string;
+      try {
+        content = await fs.readFile(file, "utf-8");
+      } catch {
+        continue; // skip directories or unreadable entries
+      }
+      const lines = content.split("\n");
+      for (const line of lines) {
+        const tm = line.match(TARGET_RE);
+        if (tm) {
+          refTargets.add(tm[1]);
+        }
+        const sm = line.match(SOURCE_RE);
+        if (sm) {
+          refSources.add(sm[1]);
+        }
+      }
+    }
 
     const result = await discoverLabels(rulesetsDir);
 
     const discoveredTargetSet = new Set(result.targets);
     const discoveredSourceSet = new Set(result.sources);
-    const grepTargetSet = new Set(grepTargets);
-    const grepSourceSet = new Set(grepSources);
 
     // Same number of unique labels
-    expect(discoveredTargetSet.size).toBe(grepTargetSet.size);
-    expect(discoveredSourceSet.size).toBe(grepSourceSet.size);
+    expect(discoveredTargetSet.size).toBe(refTargets.size);
+    expect(discoveredSourceSet.size).toBe(refSources.size);
 
-    // Every grep-discovered label is present in our result
-    for (const t of grepTargets) {
+    // Every reference label is present in our result
+    for (const t of refTargets) {
       expect(discoveredTargetSet.has(t)).toBe(true);
     }
-    for (const s of grepSources) {
+    for (const s of refSources) {
       expect(discoveredSourceSet.has(s)).toBe(true);
     }
 
