@@ -13,11 +13,10 @@ import {
 import { pendingPermissions } from "./gooseInit";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
+import type { AgentClient } from "../../client/agentClient";
 
-type GooseClientType = InstanceType<typeof import("../../client/gooseClient").GooseClient>;
-
-function getGooseClient(state: ExtensionState): GooseClientType | undefined {
-  return state.featureClients.get("gooseClient") as GooseClientType | undefined;
+function getAgentClient(state: ExtensionState): AgentClient | undefined {
+  return state.featureClients.get("agentClient") as AgentClient | undefined;
 }
 
 export const gooseMessageHandlers: Record<
@@ -29,46 +28,46 @@ export const gooseMessageHandlers: Record<
     state,
     logger,
   ) => {
-    const gooseClient = getGooseClient(state);
-    if (!gooseClient) {
-      logger.warn("GOOSE_SEND_MESSAGE: Goose client not available");
+    const agentClient = getAgentClient(state);
+    if (!agentClient) {
+      logger.warn("GOOSE_SEND_MESSAGE: Agent client not available");
       return;
     }
 
     try {
-      if (gooseClient.isPromptActive()) {
+      if (agentClient.isPromptActive()) {
         logger.info("GOOSE_SEND_MESSAGE: cancelling active prompt for cancel-and-send");
-        gooseClient.cancelGeneration();
+        agentClient.cancelGeneration();
       }
-      await gooseClient.sendMessage(content, messageId);
+      await agentClient.sendMessage(content, messageId);
     } catch (err) {
       logger.error("GOOSE_SEND_MESSAGE failed:", err);
     }
   },
 
   [GOOSE_START_AGENT]: async (_payload, state, logger) => {
-    const gooseClient = getGooseClient(state);
-    if (!gooseClient) {
-      logger.warn("GOOSE_START_AGENT: Goose client not available");
+    const agentClient = getAgentClient(state);
+    if (!agentClient) {
+      logger.warn("GOOSE_START_AGENT: Agent client not available");
       return;
     }
 
     try {
-      await gooseClient.start();
+      await agentClient.start();
     } catch (err) {
       logger.error("GOOSE_START_AGENT failed:", err);
     }
   },
 
   [GOOSE_STOP_AGENT]: async (_payload, state, logger) => {
-    const gooseClient = getGooseClient(state);
-    if (!gooseClient) {
-      logger.warn("GOOSE_STOP_AGENT: Goose client not available");
+    const agentClient = getAgentClient(state);
+    if (!agentClient) {
+      logger.warn("GOOSE_STOP_AGENT: Agent client not available");
       return;
     }
 
     try {
-      await gooseClient.stop();
+      await agentClient.stop();
     } catch (err) {
       logger.error("GOOSE_STOP_AGENT failed:", err);
     }
@@ -86,16 +85,15 @@ export const gooseMessageHandlers: Record<
   ) => {
     try {
       const { writeGooseConfig, readGooseConfig } = await import("../../gooseConfig");
-      const { saveGooseCredentials, hasGooseCredentials } = await import(
-        "../../utilities/gooseCredentialStorage"
-      );
+      const { saveGooseCredentials, hasGooseCredentials } =
+        await import("../../utilities/gooseCredentialStorage");
 
       writeGooseConfig({
         provider: payload.provider,
         model: payload.model,
         extensions: payload.extensions,
       });
-      logger.info(`Goose config updated: provider=${payload.provider}, model=${payload.model}`);
+      logger.info(`Agent config updated: provider=${payload.provider}, model=${payload.model}`);
 
       if (payload.credentials && Object.keys(payload.credentials).length > 0) {
         const { loadGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
@@ -108,18 +106,18 @@ export const gooseMessageHandlers: Record<
           }
         }
         await saveGooseCredentials(state.extensionContext, cleaned);
-        logger.info(`Goose credentials saved (${Object.keys(cleaned).length} keys)`);
+        logger.info(`Agent credentials saved (${Object.keys(cleaned).length} keys)`);
 
-        const gooseClient = getGooseClient(state);
-        if (gooseClient) {
-          gooseClient.updateModelEnv(cleaned);
+        const agentClient = getAgentClient(state);
+        if (agentClient) {
+          agentClient.updateModelEnv(cleaned);
         }
       }
 
-      const gooseClient = getGooseClient(state);
-      if (gooseClient) {
-        await gooseClient.stop();
-        await gooseClient.start();
+      const agentClient = getAgentClient(state);
+      if (agentClient) {
+        await agentClient.stop();
+        await agentClient.start();
       }
 
       const updatedConfig = readGooseConfig();
@@ -135,7 +133,7 @@ export const gooseMessageHandlers: Record<
     } catch (err) {
       logger.error("GOOSE_UPDATE_CONFIG failed:", err);
       vscode.window.showErrorMessage(
-        `Failed to update Goose configuration: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to update configuration: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   },
@@ -161,26 +159,34 @@ export const gooseMessageHandlers: Record<
 
   [GOOSE_INSTALL_CLI]: async (_payload, state, logger) => {
     try {
-      const terminal = vscode.window.createTerminal({ name: "Install Goose CLI" });
+      const terminal = vscode.window.createTerminal({ name: "Install Agent CLI" });
       terminal.show();
 
-      const installCmd =
-        process.platform === "win32"
-          ? 'powershell -Command "irm https://github.com/block/goose/releases/download/stable/download_cli.ps1 | iex"'
-          : "CONFIGURE=false curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash";
+      const { getConfigAgentBackend } = await import("../../utilities/configuration");
+      const backend = getConfigAgentBackend();
+
+      let installCmd: string;
+      if (backend === "opencode") {
+        installCmd = "npm install -g opencode-ai";
+      } else {
+        installCmd =
+          process.platform === "win32"
+            ? 'powershell -Command "irm https://github.com/block/goose/releases/download/stable/download_cli.ps1 | iex"'
+            : "CONFIGURE=false curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash";
+      }
 
       terminal.sendText(installCmd);
 
       const disposable = vscode.window.onDidCloseTerminal(async (closedTerminal) => {
         if (closedTerminal === terminal) {
           disposable.dispose();
-          logger.info("Goose install terminal closed, retrying agent start");
-          const gooseClient = getGooseClient(state);
-          if (gooseClient) {
+          logger.info("Install terminal closed, retrying agent start");
+          const agentClient = getAgentClient(state);
+          if (agentClient) {
             try {
-              await gooseClient.start();
+              await agentClient.start();
             } catch (err) {
-              logger.error("Failed to start goose after install:", err);
+              logger.error("Failed to start agent after install:", err);
             }
           }
         }
@@ -192,10 +198,13 @@ export const gooseMessageHandlers: Record<
   },
 
   [GOOSE_OPEN_SETTINGS]: async () => {
-    await vscode.commands.executeCommand(
-      "workbench.action.openSettings",
-      "konveyor-core.experimentalChat.gooseBinaryPath",
-    );
+    const { getConfigAgentBackend } = await import("../../utilities/configuration");
+    const backend = getConfigAgentBackend();
+    const settingsKey =
+      backend === "opencode"
+        ? "konveyor-core.experimentalChat.opencodeBinaryPath"
+        : "konveyor-core.experimentalChat.gooseBinaryPath";
+    await vscode.commands.executeCommand("workbench.action.openSettings", settingsKey);
   },
 
   GOOSE_WEBVIEW_READY: async (_payload, state, _logger) => {
@@ -223,7 +232,7 @@ export const gooseMessageHandlers: Record<
         });
       });
     } catch {
-      // Best-effort — goose may not be configured yet
+      // Best-effort — agent may not be configured yet
     }
   },
 

@@ -14,11 +14,8 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import winston from "winston";
-import {
-  GooseAgentState,
-  GooseChatMessage,
-  GooseContentBlockType,
-} from "@editor-extensions/shared";
+import { GooseAgentState } from "@editor-extensions/shared";
+import type { AgentClient, McpServerConfig, PermissionRequestData } from "./agentClient";
 
 // ─── JSON-RPC 2.0 types ───────────────────────────────────────────────
 
@@ -105,68 +102,23 @@ const MINIMUM_VERSION = "1.16.0";
 
 // ─── GooseClient ──────────────────────────────────────────────────────
 
+// Re-export shared agent types so existing consumers don't need to change imports
+export type {
+  StreamingResourceData,
+  ToolCallData,
+  PermissionOption,
+  PermissionRequestData,
+} from "./agentClient";
+
 export interface GooseClientConfig {
   workspaceDir: string;
   logger: winston.Logger;
   gooseBinaryPath?: string | null;
-  mcpServers?: Array<{
-    name: string;
-    type: "stdio";
-    command: string;
-    args: string[];
-    env?: Array<{ name: string; value: string }>;
-  }>;
+  mcpServers?: McpServerConfig[];
   modelEnv?: Record<string, string>;
 }
 
-export interface StreamingResourceData {
-  uri?: string;
-  name?: string;
-  mimeType?: string;
-  text?: string;
-}
-
-export interface ToolCallData {
-  name: string;
-  callId?: string;
-  arguments?: Record<string, unknown>;
-  status: "running" | "succeeded" | "failed";
-  result?: string;
-}
-
-export interface PermissionOption {
-  optionId: string;
-  name: string;
-  kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
-}
-
-export interface PermissionRequestData {
-  requestId: number;
-  toolCallId: string;
-  title: string;
-  kind: string;
-  status: string;
-  rawInput?: Record<string, unknown>;
-  options: PermissionOption[];
-}
-
-export interface GooseClientEvents {
-  stateChange: (state: GooseAgentState) => void;
-  message: (message: GooseChatMessage) => void;
-  streamingChunk: (
-    messageId: string,
-    content: string,
-    contentType: GooseContentBlockType,
-    resourceData?: StreamingResourceData,
-  ) => void;
-  streamingComplete: (messageId: string, stopReason: AcpPromptResponse["stopReason"]) => void;
-  toolCall: (messageId: string, data: ToolCallData) => void;
-  toolCallUpdate: (messageId: string, data: ToolCallData) => void;
-  permissionRequest: (data: PermissionRequestData) => void;
-  error: (error: Error) => void;
-}
-
-export class GooseClient extends EventEmitter {
+export class GooseClient extends EventEmitter implements AgentClient {
   private process: ChildProcess | null = null;
   private state: GooseAgentState = "stopped";
   private sessionId: string | null = null;
@@ -213,6 +165,13 @@ export class GooseClient extends EventEmitter {
       ...this.config.modelEnv,
       ...env,
     };
+  }
+
+  /**
+   * Set MCP server configurations. Must be called before start().
+   */
+  setMcpServers(servers: McpServerConfig[]): void {
+    (this.config as GooseClientConfig).mcpServers = servers;
   }
 
   /**

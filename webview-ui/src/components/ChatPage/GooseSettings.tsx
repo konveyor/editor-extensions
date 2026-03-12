@@ -162,17 +162,12 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
           <div className="goose-settings__section-divider" />
           <label className="goose-settings__label">
             Credentials
-            {hasStoredCreds && (
-              <span className="goose-settings__stored-badge">Stored</span>
-            )}
+            {hasStoredCreds && <span className="goose-settings__stored-badge">Stored</span>}
           </label>
           <div className="goose-settings__credentials">
             {providerEnvVars.map((envVar) => (
               <div key={envVar.key} className="goose-settings__credential-field">
-                <label
-                  className="goose-settings__credential-label"
-                  htmlFor={`cred-${envVar.key}`}
-                >
+                <label className="goose-settings__credential-label" htmlFor={`cred-${envVar.key}`}>
                   {envVar.label}
                 </label>
                 <input
@@ -181,7 +176,11 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
                   type={envVar.isSecret ? "password" : "text"}
                   value={credentialInputs[envVar.key] ?? ""}
                   onChange={(e) => handleCredentialChange(envVar.key, e.target.value)}
-                  placeholder={hasStoredCreds ? "Leave blank to keep current" : `Enter ${envVar.label.toLowerCase()}...`}
+                  placeholder={
+                    hasStoredCreds
+                      ? "Leave blank to keep current"
+                      : `Enter ${envVar.label.toLowerCase()}...`
+                  }
                   autoComplete="off"
                 />
               </div>

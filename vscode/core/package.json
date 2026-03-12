@@ -444,6 +444,17 @@
           "scope": "window",
           "order": 30
         },
+        "konveyor-core.experimentalChat.agentBackend": {
+          "type": "string",
+          "enum": [
+            "goose",
+            "opencode"
+          ],
+          "default": "goose",
+          "description": "(Experimental) Which AI agent backend to use for the Migration Assistant chat.",
+          "scope": "window",
+          "order": 31
+        },
         "konveyor-core.experimentalChat.gooseBinaryPath": {
           "type": [
             "string",
@@ -452,7 +463,17 @@
           "default": null,
           "description": "(Experimental) Path to the goose binary. If not set, the extension will search PATH and platform-specific locations.",
           "scope": "window",
-          "order": 31
+          "order": 32
+        },
+        "konveyor-core.experimentalChat.opencodeBinaryPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "(Experimental) Path to the opencode binary. If not set, the extension will search PATH.",
+          "scope": "window",
+          "order": 33
         },
         "konveyor-core.debug.webview": {
           "type": "boolean",
@@ -508,6 +529,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "@opencode-ai/sdk": "^1.2.24",
     "@types/mustache": "^4.2.5",
     "adm-zip": "^0.5.16",
     "diff": "^8.0.3",

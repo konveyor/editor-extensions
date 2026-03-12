@@ -33,27 +33,25 @@ const CompactMigrationScope: React.FC<CompactMigrationScopeProps> = ({
       uniqueFiles.add(inc.uri);
     }
 
-    const groups: MessageGroup[] = Array.from(byMessage.entries()).map(
-      ([message, incs]) => {
-        const byFile = new Map<string, EnhancedIncident[]>();
-        for (const inc of incs) {
-          const fileName = getIncidentFile(inc);
-          const existing = byFile.get(fileName);
-          if (existing) {
-            existing.push(inc);
-          } else {
-            byFile.set(fileName, [inc]);
-          }
+    const groups: MessageGroup[] = Array.from(byMessage.entries()).map(([message, incs]) => {
+      const byFile = new Map<string, EnhancedIncident[]>();
+      for (const inc of incs) {
+        const fileName = getIncidentFile(inc);
+        const existing = byFile.get(fileName);
+        if (existing) {
+          existing.push(inc);
+        } else {
+          byFile.set(fileName, [inc]);
         }
-        return {
-          message,
-          fileGroups: Array.from(byFile.entries()).map(([fileName, fileIncs]) => ({
-            fileName,
-            incidents: fileIncs,
-          })),
-        };
-      },
-    );
+      }
+      return {
+        message,
+        fileGroups: Array.from(byFile.entries()).map(([fileName, fileIncs]) => ({
+          fileName,
+          incidents: fileIncs,
+        })),
+      };
+    });
 
     return { messageGroups: groups, fileCount: uniqueFiles.size, incidentCount: incidents.length };
   }, [incidents]);
@@ -71,8 +69,8 @@ const CompactMigrationScope: React.FC<CompactMigrationScopeProps> = ({
           &#9656;
         </span>
         <span className="compact-scope__summary">
-          {incidentCount} incident{incidentCount !== 1 ? "s" : ""} across{" "}
-          {fileCount} file{fileCount !== 1 ? "s" : ""}
+          {incidentCount} incident{incidentCount !== 1 ? "s" : ""} across {fileCount} file
+          {fileCount !== 1 ? "s" : ""}
         </span>
       </button>
 

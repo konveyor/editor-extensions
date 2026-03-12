@@ -79,7 +79,9 @@ const ViolationIncidentsList = ({
         .filter(
           (incident) =>
             incident.message.toLowerCase().includes(focusedViolationFilter.toLowerCase()) ||
-            incident.violation_description?.toLowerCase().includes(focusedViolationFilter.toLowerCase()),
+            incident.violation_description
+              ?.toLowerCase()
+              .includes(focusedViolationFilter.toLowerCase()),
         )
         .map((incident) => incident.violationId);
 
