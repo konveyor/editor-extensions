@@ -196,6 +196,7 @@ export function writeOrUpdateSettingsJson(settingsPath: string, settings: Record
       }
     }
     const mergedSettings = { ...existingSettings, ...settings };
+    console.log(`Updating JSON Settings: ${JSON.stringify(mergedSettings, null, 2)}`);
     fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error writing VSCode settings:', error);
