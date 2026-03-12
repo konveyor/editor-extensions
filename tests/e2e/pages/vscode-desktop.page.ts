@@ -14,6 +14,7 @@ import { extensionId, redhatJavaExtensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 
 /**
  * Prepare workspace for offline/cached mode BEFORE VS Code launches.
@@ -39,8 +40,8 @@ export function prepareOfflineWorkspace(repoDir: string): void {
 
   // Set demoMode and cacheDir in settings BEFORE VS Code launches
   writeOrUpdateSettingsJson(path.join(repoDir, '.vscode', 'settings.json'), {
-    'konveyor-core.genai.demoMode': true,
-    'konveyor-core.genai.cacheDir': '.vscode/cache',
+    [kaiDemoMode]: true,
+    [kaiCacheDir]: '.vscode/cache',
   });
   console.log('Set demoMode and cacheDir in workspace settings');
 }
