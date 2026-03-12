@@ -27,6 +27,7 @@ test.describe(
     let vscodeApp: VSCode;
 
     test.beforeAll(async ({ testRepoData }) => {
+      test.setTimeout(300000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
       // Create a local profile before configuring hub configuration

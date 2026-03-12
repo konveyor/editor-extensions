@@ -1,6 +1,7 @@
 import { VSCode } from './vscode.page';
 import { extensionId } from '../utilities/utils';
 import { VSCodeWeb } from './vscode-web.page';
+import { expect } from '@playwright/test';
 
 export class Configuration {
   public constructor(private readonly vsCode: VSCode) {}

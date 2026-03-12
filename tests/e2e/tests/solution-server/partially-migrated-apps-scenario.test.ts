@@ -14,8 +14,12 @@
 
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { Configuration } from '../../pages/configuration.page';
-import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import { HubConfigurationPage } from '../../pages/hub-configuration.page';
+import {
+  DEFAULT_PROVIDER,
+  getDefaultProviderConfig,
+  LLEMULATOR_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import { MCPClient } from '../../../mcp-client/mcp-client.model';
 import {
   SuccessRateResponse,
@@ -26,9 +30,12 @@ import { KAIViews } from '../../enums/views.enum';
 import * as path from 'path';
 import * as fs from 'fs';
 import { TestLogger } from '../../utilities/logger';
-import { solutionServerEnabled } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { getHubConfig } from '../../utilities/utils';
+import pathlib from 'path';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
+import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -80,14 +87,28 @@ class SolutionServerWorkflowHelper {
     let vsCode: VSCode | undefined;
 
     try {
-      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
       this.logger.debug(`VSCode opened for ${appName}`);
 
-      if (!vsCode) throw new Error('VSCode not initialized');
-      await this.createProfileWithCustomRules(vsCode, repoInfo, appName, customRulesSubPath);
+      const customRulesPath = path.join(process.cwd(), repoInfo.repoName, customRulesSubPath);
+      await vsCode.createProfile(
+        repoInfo.sources || [],
+        repoInfo.targets || [],
+        undefined,
+        customRulesPath
+      );
+      await vsCode.getWindow().screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `proooofileeee.png`),
+      });
+      this.logger.success(
+        `Profile created for ${appName} with custom rules from ${customRulesSubPath}`
+      );
       await this.configureSolutionServer(vsCode, appName);
-      await this.runAnalysis(vsCode, appName);
-
+      await vsCode.runAnalysis();
+      await vsCode.waitForAnalysisCompleted();
+      await vsCode.getWindow().screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `aresult.png`),
+      });
       this.logger.debug(`Successfully setup ${appName} repository`);
       return vsCode;
     } catch (error) {
@@ -99,62 +120,24 @@ class SolutionServerWorkflowHelper {
     }
   }
 
-  /**
-   * Creates profile with custom rules using proper test fixture data
-   */
-  private async createProfileWithCustomRules(
-    vsCode: VSCode,
-    repoInfo: any,
-    appName: string,
-    customRulesSubPath: string
-  ): Promise<void> {
-    const customRulesPath = path.join(process.cwd(), repoInfo.repoName, customRulesSubPath);
-
-    try {
-      await vsCode.createProfile(
-        repoInfo.sources || [],
-        repoInfo.targets || [],
-        undefined,
-        customRulesPath
-      );
-
-      this.logger.success(
-        `Profile created for ${appName} with custom rules from ${customRulesSubPath}`
-      );
-    } catch (error) {
-      throw new Error(`Profile creation failed for ${appName}: ${error}`);
-    }
-  }
-
   private async configureSolutionServer(vsCode: VSCode, appName: string): Promise<void> {
     try {
-      const config = await Configuration.open(vsCode);
-      await config.setEnabledConfiguration(solutionServerEnabled, true);
+      // Configure hub with solution server enabled
+      const hubConfig = getHubConfig({
+        profileSyncEnabled: false,
+        solutionServerEnabled: true,
+      });
+      const hubConfigPage = await HubConfigurationPage.open(vsCode);
+      await hubConfigPage.fillForm(hubConfig);
 
-      await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
-      await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
+      await vsCode.assertNotification('Successfully connected to Hub solution server');
+
+      await vsCode.configureGenerativeAI(getDefaultProviderConfig().config);
       await vsCode.startServer();
 
       this.logger.debug(`Solution server configured for ${appName}`);
     } catch (error) {
       throw new Error(`Solution server configuration failed for ${appName}: ${error}`);
-    }
-  }
-
-  private async runAnalysis(vsCode: VSCode, appName: string): Promise<void> {
-    const analysisStart = Date.now();
-
-    try {
-      await vsCode.runAnalysis();
-
-      await expect(vsCode.getWindow().getByText('Analysis completed').first()).toBeVisible({
-        timeout: 300000,
-      });
-
-      const analysisTime = Date.now() - analysisStart;
-      this.logger.debug(`Analysis completed for ${appName} in ${analysisTime}ms`);
-    } catch (error) {
-      throw new Error(`Analysis failed for ${appName}: ${error}`);
     }
   }
 
@@ -190,133 +173,34 @@ class SolutionServerWorkflowHelper {
     }
   }
 
-  async applyAuditLoggerFix(vsCode: VSCode, appName: string): Promise<boolean> {
-    const solutionStart = Date.now();
+  async applyAuditLoggerFix(vsCode: VSCode, appName: string): Promise<void> {
+    await vsCode.openAnalysisView();
+    const violationText =
+      'Replace `FileSystemAuditLogger` instantiation with `StreamableAuditLogger` over TCP';
+    await vsCode.searchAndRequestAction(violationText, FixTypes.Incident, ResolutionAction.Accept);
+    this.logger.success('Audit logger fix solution applied');
 
-    try {
-      await vsCode.openAnalysisView();
+    await vsCode.openAnalysisView();
+    const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
+    await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
 
-      const analysisViewBefore = await vsCode.getView(KAIViews.analysisView);
+    await this.validateSolutionApplication(vsCode, appName);
 
-      const incidentsLocator = analysisViewBefore.locator(
-        '[class*="incident"], [class*="violation"], .incident, .violation'
-      );
-      await expect(incidentsLocator.first()).toBeVisible({ timeout: 30000 });
-
-      const incidentsBefore = await incidentsLocator.count();
-
-      const violationText =
-        'Replace `FileSystemAuditLogger` instantiation with `StreamableAuditLogger` over TCP';
-      await vsCode.searchAndRequestAction(
-        violationText,
-        FixTypes.Incident,
-        ResolutionAction.Accept
-      );
-
-      const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
-
-      const acceptButton = await this.waitForSolutionGeneration(resolutionView);
-
-      await acceptButton.click();
-      this.logger.success('Audit logger fix solution applied');
-
-      await vsCode.openAnalysisView();
-      const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
-
-      await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
-
-      await this.validateSolutionApplication(vsCode, appName);
-
-      const javaAnnotationFixApplied = await this.applyJavaAnnotationFixInternal(vsCode, appName);
-
-      if (!javaAnnotationFixApplied) {
-        this.logger.warn('Java annotation fix failed, but audit logger fix was successful');
-      }
-
-      const solutionTime = Date.now() - solutionStart;
-      this.logger.success(`Complete fix workflow applied for ${appName} in ${solutionTime}ms`);
-
-      return true;
-    } catch (error) {
-      this.logger.error(`Fix application failed for ${appName}: ${error}`);
-      return false;
-    }
+    await this.applyJavaAnnotationFixInternal(vsCode, appName);
   }
 
-  private async applyJavaAnnotationFixInternal(vsCode: VSCode, appName: string): Promise<boolean> {
-    try {
-      await vsCode.openAnalysisView();
+  private async applyJavaAnnotationFixInternal(vsCode: VSCode, appName: string): Promise<void> {
+    await vsCode.openAnalysisView();
+    const violationText =
+      'The java.annotation (Common Annotations) module has been removed from OpenJDK 11';
+    await vsCode.searchAndRequestAction(violationText, FixTypes.Incident, ResolutionAction.Accept);
+    this.logger.success('Java annotation fix solution applied');
 
-      const analysisViewBefore = await vsCode.getView(KAIViews.analysisView);
+    await vsCode.openAnalysisView();
+    const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
+    await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
 
-      const incidentsLocator = analysisViewBefore.locator(
-        '[class*="incident"], [class*="violation"], .incident, .violation'
-      );
-      await expect(incidentsLocator.first()).toBeVisible({ timeout: 30000 });
-
-      const violationText =
-        'The java.annotation (Common Annotations) module has been removed from OpenJDK 11';
-      await vsCode.searchAndRequestAction(
-        violationText,
-        FixTypes.Incident,
-        ResolutionAction.Accept
-      );
-
-      const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
-
-      const acceptButton = await this.waitForSolutionGeneration(resolutionView);
-
-      await acceptButton.click();
-      this.logger.success('Java annotation fix solution applied');
-
-      await vsCode.openAnalysisView();
-      const analysisViewAfter = await vsCode.getView(KAIViews.analysisView);
-
-      await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
-
-      await this.validateSolutionApplication(vsCode, appName);
-
-      this.logger.success(`Java annotation fix applied for ${appName}`);
-      return true;
-    } catch (error) {
-      this.logger.error(`Java annotation fix application failed for ${appName}: ${error}`);
-      return false;
-    }
-  }
-
-  private async waitForSolutionGeneration(resolutionView: any): Promise<any> {
-    const maxAttempts = 10; // 10 attempts × 30 seconds = 5 minutes
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      const button = await this.getAcceptButton(resolutionView);
-      if (button && (await button.isVisible())) {
-        this.logger.debug('Found accept button using current selectors');
-        return button;
-      }
-
-      attempts++;
-      const timeElapsed = attempts * 30;
-
-      if (attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds
-      }
-    }
-
-    throw new Error('Solution generation timed out after 5 minutes');
-  }
-
-  private async getAcceptButton(resolutionView: any): Promise<any | null> {
-    const selectors = ['button:has-text("Accept All")', 'button.main-accept-button'];
-
-    for (const selector of selectors) {
-      const button = resolutionView.locator(selector);
-      if (await button.isVisible()) {
-        return button;
-      }
-    }
-
-    return null;
+    await this.validateSolutionApplication(vsCode, appName);
   }
 
   /**
@@ -426,7 +310,7 @@ class SolutionServerWorkflowHelper {
         violation_name: 'audit-logging-0003',
       };
 
-      const successRate = await mcpClient.getSuccessRate([metricsQuery]);
+      const successRate = await mcpClient.getSuccessRate(metricsQuery);
       const bestHint = await mcpClient.getBestHint(
         metricsQuery.ruleset_name,
         metricsQuery.violation_name
@@ -444,127 +328,154 @@ class SolutionServerWorkflowHelper {
   }
 }
 
-test.describe.serial('Solution Server Workflow', { tag: ['@tier3', '@requires-minikube'] }, () => {
-  let helper: SolutionServerWorkflowHelper;
-  let mcpClient: MCPClient;
-  let vsCode: VSCode | undefined;
-  let testRepoData: any;
+test.describe.serial(
+  'Solution Server Workflow',
+  { tag: ['@tier3', '@requires-minikube', '@slow'] },
+  () => {
+    let helper: SolutionServerWorkflowHelper;
+    let mcpClient: MCPClient;
+    let vsCode: VSCode | undefined;
+    let testRepoData: any;
 
-  test.beforeAll(async ({ testRepoData: repoData }) => {
-    helper = new SolutionServerWorkflowHelper();
-    testRepoData = repoData;
+    test.beforeAll(async ({ testRepoData: repoData }) => {
+      if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
+        await loadLlemulatorResponses({
+          reset: true,
+          responses: [
+            {
+              pattern: '.*',
+              response: buildKaiResponse({
+                reasoning: 'LLEMULATOR RESPONSE',
+                language: 'java',
+                fileContent: 'LLEMULATOR RESPONSE',
+              }),
+              times: -1,
+            },
+          ],
+        });
+      }
 
-    try {
-      mcpClient = await MCPClient.connect('http://localhost:8000');
-      helper.logger.debug('Connected to MCP client');
-    } catch (error) {
-      throw new Error(`Failed to connect to MCP client: ${error}`);
-    }
-  });
+      helper = new SolutionServerWorkflowHelper();
+      testRepoData = repoData;
 
-  test('should setup and analyze inventory management', async () => {
-    test.setTimeout(400000);
+      try {
+        mcpClient = await MCPClient.connect();
+        helper.logger.debug('Connected to MCP client');
+      } catch (error) {
+        throw new Error(`Failed to connect to MCP client: ${error}`);
+      }
+    });
 
-    const inventoryRepoInfo = testRepoData['inventory_management'];
-    vsCode = await helper.setupRepository(inventoryRepoInfo, 'Inventory Management', 'rules');
+    test('should setup and analyze inventory management', async () => {
+      test.setTimeout(400000);
 
-    const inventoryViolations = await helper.validateAnalysisResults(
-      vsCode,
-      'Inventory Management'
-    );
-    expect(inventoryViolations).toBeGreaterThan(0);
+      const inventoryRepoInfo = testRepoData['inventory_management'];
+      vsCode = await helper.setupRepository(inventoryRepoInfo, 'Inventory Management', 'rules');
 
-    helper.logger.success('Inventory Management setup and analysis completed');
-  });
+      await helper.validateAnalysisResults(vsCode, 'Inventory Management');
+      helper.logger.success('Inventory Management setup and analysis completed');
+    });
 
-  test('should apply audit logger fix successfully', async () => {
-    test.setTimeout(400000);
+    test('should apply audit logger fix successfully', async () => {
+      test.setTimeout(400000);
 
-    if (!vsCode) {
-      throw new Error('VSCode instance not initialized - previous test may have failed');
-    }
+      if (!vsCode) {
+        throw new Error('VSCode instance not initialized - previous test may have failed');
+      }
 
-    const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
-    expect(fixApplied).toBe(true);
+      await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
 
-    helper.logger.success(
-      'Complete fix workflow (audit logger + Java annotation) applied successfully'
-    );
-  });
+      helper.logger.success(
+        'Complete fix workflow (audit logger + Java annotation) applied successfully'
+      );
+    });
 
-  test('should switch to EHR and analyze violations', async () => {
-    test.setTimeout(300000);
+    test('should switch to EHR and analyze violations', async () => {
+      test.setTimeout(300000);
 
-    if (!vsCode) {
-      throw new Error('VSCode instance not initialized - previous tests may have failed');
-    }
+      if (!vsCode) {
+        throw new Error('VSCode instance not initialized - previous tests may have failed');
+      }
 
-    const ehrRepoInfo = testRepoData['ehr'];
-    await vsCode.closeVSCode();
-    vsCode = await helper.setupRepository(ehrRepoInfo, 'EHR Viewer', 'rules');
-
-    const ehrViolations = await helper.validateAnalysisResults(vsCode, 'EHR Viewer');
-    expect(ehrViolations).toBeGreaterThan(0);
-
-    helper.logger.success('EHR application setup and analysis completed');
-  });
-
-  test('should capture and validate solution server metrics', async () => {
-    test.setTimeout(60000);
-
-    const solutionServerMetrics = await helper.captureSolutionServerMetrics(mcpClient);
-
-    expect(solutionServerMetrics.successRate).toBeDefined();
-    expect(solutionServerMetrics.bestHint).toBeDefined();
-    expect(solutionServerMetrics.bestHint.hint_id).toBeDefined();
-    expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThanOrEqual(0);
-
-    expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThan(0);
-    expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
-    expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
-
-    const totalSolutions = solutionServerMetrics.successRate.counted_solutions;
-    expect(totalSolutions).toBeGreaterThan(0);
-    helper.logger.success('Solution server metrics validated successfully');
-  });
-
-  test('should apply audit logger fix in EHR and verify hint usage', async () => {
-    test.setTimeout(400000);
-
-    if (!vsCode) {
-      throw new Error('VSCode instance not initialized - previous tests may have failed');
-    }
-
-    const beforeSolution = await helper.captureSolutionServerMetrics(mcpClient);
-
-    const fixApplied = await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
-    expect(fixApplied).toBe(true);
-
-    const afterSolution = await helper.captureSolutionServerMetrics(mcpClient);
-
-    expect(afterSolution.successRate.accepted_solutions).toBeGreaterThan(
-      beforeSolution.successRate.accepted_solutions
-    );
-    helper.logger.success(
-      'Solution server successfully applied hints in EHR app for complete fix workflow'
-    );
-
-    // Log final workflow completion
-    helper.logger.success('Complete solution server workflow validated');
-    helper.logger.debug(
-      `Final metrics - Total accepted: ${afterSolution.successRate.accepted_solutions}, ` +
-        `Latest hint ID: ${afterSolution.bestHint.hint_id}`
-    );
-  });
-
-  test.afterEach(async () => {
-    helper.logger.debug(`Test completed: ${test.info().title}`);
-  });
-
-  test.afterAll(async () => {
-    if (vsCode) {
+      const ehrRepoInfo = testRepoData['ehr'];
       await vsCode.closeVSCode();
-    }
-    helper.logger.debug('Solution server workflow test suite completed');
-  });
-});
+      vsCode = await helper.setupRepository(ehrRepoInfo, 'EHR Viewer', 'rules');
+
+      const ehrViolations = await helper.validateAnalysisResults(vsCode, 'EHR Viewer');
+      expect(ehrViolations).toBeGreaterThan(0);
+
+      helper.logger.success('EHR application setup and analysis completed');
+    });
+
+    test('should capture and validate solution server metrics', async () => {
+      test.setTimeout(60000);
+
+      const solutionServerMetrics = await helper.captureSolutionServerMetrics(mcpClient);
+
+      expect(solutionServerMetrics.successRate).toBeDefined();
+      expect(solutionServerMetrics.bestHint).toBeDefined();
+      expect(solutionServerMetrics.bestHint.hint_id).toBeDefined();
+      expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThanOrEqual(0);
+
+      expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThan(0);
+      expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
+      expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
+
+      const totalSolutions = solutionServerMetrics.successRate.counted_solutions;
+      expect(totalSolutions).toBeGreaterThan(0);
+      helper.logger.success('Solution server metrics validated successfully');
+    });
+
+    test('should apply audit logger fix in EHR and verify hint usage', async () => {
+      test.setTimeout(400000);
+
+      if (!vsCode) {
+        throw new Error('VSCode instance not initialized - previous tests may have failed');
+      }
+
+      const beforeSolution = await helper.captureSolutionServerMetrics(mcpClient);
+
+      await helper.applyAuditLoggerFix(vsCode, 'EHR Viewer');
+
+      await expect
+        .poll(
+          async () => {
+            const successRate = await mcpClient.getSuccessRate({
+              ruleset_name: 'audit-logging-migration',
+              violation_name: 'audit-logging-0003',
+            });
+            return successRate.accepted_solutions;
+          },
+          {
+            message: 'make sure solution server metrics eventually gets updated',
+            timeout: 10000,
+          }
+        )
+        .toBeGreaterThan(beforeSolution.successRate.accepted_solutions);
+
+      const afterSolution = await helper.captureSolutionServerMetrics(mcpClient);
+
+      helper.logger.success(
+        'Solution server successfully applied hints in EHR app for complete fix workflow'
+      );
+
+      // Log final workflow completion
+      helper.logger.success('Complete solution server workflow validated');
+      helper.logger.debug(
+        `Final metrics - Total accepted: ${afterSolution.successRate.accepted_solutions}, ` +
+          `Latest hint ID: ${afterSolution.bestHint.hint_id}`
+      );
+    });
+
+    test.afterEach(async () => {
+      helper.logger.debug(`Test completed: ${test.info().title}`);
+    });
+
+    test.afterAll(async () => {
+      if (vsCode) {
+        await vsCode.closeVSCode();
+      }
+      helper.logger.debug('Solution server workflow test suite completed');
+    });
+  }
+);
