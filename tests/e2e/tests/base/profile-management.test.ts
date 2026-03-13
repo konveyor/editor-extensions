@@ -8,7 +8,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
-  const profileNameWithRules = `profileWithRules-${generateRandomString()}`;
+  const profileNameWithRules = `rulesProfile-${generateRandomString()}`;
   const createdProfiles: string[] = [];
   let profileView: FrameLocator;
 
@@ -98,8 +98,7 @@ test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
     }
   });
 
-  // TODO: Remove skip once bug #565 is fixed.
-  test.skip('Delete profile using action Button', async ({ testRepoData }) => {
+  test('Delete profile using action Button', async ({ testRepoData }) => {
     test.setTimeout(300000);
     let toDelete = await getOrCreateProfile(testRepoData);
     await vscodeApp.deleteProfile(toDelete);
@@ -187,7 +186,7 @@ test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
 
   async function getOrCreateProfile(testRepoData: any, withCustomRules = false): Promise<string> {
     const repoInfo = testRepoData['inventory_management'];
-    const profileNamePrefix = withCustomRules ? 'customRulesProfile' : 'profile';
+    const profileNamePrefix = withCustomRules ? 'rulesProf' : 'profile';
     const existingProfile = createdProfiles.find((name) => name.includes(profileNamePrefix));
 
     if (existingProfile) {
