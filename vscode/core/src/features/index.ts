@@ -1,5 +1,5 @@
 import type { FeatureModule } from "./featureRegistry";
-import { gooseFeatureModule } from "./goose";
+import { agentFeatureModule } from "./agent";
 
 /**
  * All experimental feature modules. To add a new feature:
@@ -9,4 +9,4 @@ import { gooseFeatureModule } from "./goose";
  *
  * That's it — no changes to extension.ts needed.
  */
-export const featureModules: FeatureModule[] = [gooseFeatureModule];
+export const featureModules: FeatureModule[] = [agentFeatureModule];

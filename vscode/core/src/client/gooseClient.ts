@@ -14,7 +14,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import winston from "winston";
-import { GooseAgentState } from "@editor-extensions/shared";
+import { AgentState } from "@editor-extensions/shared";
 import type { AgentClient, McpServerConfig, PermissionRequestData } from "./agentClient";
 
 // ─── JSON-RPC 2.0 types ───────────────────────────────────────────────
@@ -120,7 +120,7 @@ export interface GooseClientConfig {
 
 export class GooseClient extends EventEmitter implements AgentClient {
   private process: ChildProcess | null = null;
-  private state: GooseAgentState = "stopped";
+  private state: AgentState = "stopped";
   private sessionId: string | null = null;
   private binaryPath: string | null = null;
 
@@ -148,7 +148,7 @@ export class GooseClient extends EventEmitter implements AgentClient {
 
   // ─── Public API ───────────────────────────────────────────────────
 
-  getState(): GooseAgentState {
+  getState(): AgentState {
     return this.state;
   }
 
@@ -633,6 +633,7 @@ export class GooseClient extends EventEmitter implements AgentClient {
           requestId: incoming.id,
           toolCallId: toolCall.toolCallId ?? "",
           title: toolCall.title ?? "Tool call",
+          toolName: toolCall.toolName ?? toolCall.name ?? undefined,
           kind: toolCall.kind ?? "other",
           status: toolCall.status ?? "pending",
           rawInput: toolCall.rawInput,
@@ -863,7 +864,7 @@ export class GooseClient extends EventEmitter implements AgentClient {
 
   // ─── State management ─────────────────────────────────────────────
 
-  private setState(newState: GooseAgentState): void {
+  private setState(newState: AgentState): void {
     if (this.state !== newState) {
       this.state = newState;
       this.emit("stateChange", newState);

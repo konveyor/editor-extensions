@@ -140,22 +140,6 @@ export const handleModifiedFileMessage = async (
           },
         });
       });
-
-      // Part 2: Accumulate for batch review at the end
-      state.mutate((draft) => {
-        if (!draft.pendingBatchReview) {
-          draft.pendingBatchReview = [];
-        }
-        draft.pendingBatchReview.push({
-          messageToken: msg.id,
-          path: filePath,
-          diff: diff,
-          content: fileState.modifiedContent,
-          originalContent: fileState.originalContent,
-          isNew: isNew,
-          isDeleted: isDeleted,
-        });
-      });
     }
   } catch (err) {
     // Log error but don't need complex cleanup since we're not blocking the queue

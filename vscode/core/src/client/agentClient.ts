@@ -7,7 +7,7 @@
  */
 
 import { EventEmitter } from "events";
-import type { GooseContentBlockType } from "@editor-extensions/shared";
+import type { AgentContentBlockType } from "@editor-extensions/shared";
 
 // ─── Shared types ────────────────────────────────────────────────────
 
@@ -37,7 +37,10 @@ export interface PermissionOption {
 export interface PermissionRequestData {
   requestId: number;
   toolCallId: string;
+  /** Human-readable description of the permission request */
   title: string;
+  /** The actual tool name (e.g. "text_editor", "bash") for classifier matching */
+  toolName?: string;
   kind: string;
   status: string;
   rawInput?: Record<string, unknown>;
@@ -61,7 +64,7 @@ export interface AgentClientEvents {
   streamingChunk: (
     messageId: string,
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: StreamingResourceData,
   ) => void;
   streamingComplete: (messageId: string, stopReason: string) => void;

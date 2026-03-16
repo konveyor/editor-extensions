@@ -1,0 +1,19 @@
+// Agent chat actions
+export const AGENT_SEND_MESSAGE = "AGENT_SEND_MESSAGE";
+export const AGENT_START = "AGENT_START";
+export const AGENT_STOP = "AGENT_STOP";
+export const AGENT_UPDATE_CONFIG = "AGENT_UPDATE_CONFIG";
+export const AGENT_TOGGLE_VIEW = "AGENT_TOGGLE_VIEW";
+export const AGENT_INSTALL_CLI = "AGENT_INSTALL_CLI";
+export const AGENT_OPEN_SETTINGS = "AGENT_OPEN_SETTINGS";
+export const AGENT_PERMISSION_RESPONSE = "AGENT_PERMISSION_RESPONSE";
+
+export type AgentActionType =
+  | typeof AGENT_SEND_MESSAGE
+  | typeof AGENT_START
+  | typeof AGENT_STOP
+  | typeof AGENT_UPDATE_CONFIG
+  | typeof AGENT_TOGGLE_VIEW
+  | typeof AGENT_INSTALL_CLI
+  | typeof AGENT_OPEN_SETTINGS
+  | typeof AGENT_PERMISSION_RESPONSE;

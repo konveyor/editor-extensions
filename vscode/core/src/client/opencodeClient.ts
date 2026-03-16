@@ -9,6 +9,7 @@
 
 import { EventEmitter } from "events";
 import type winston from "winston";
+import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import type {
   AgentClient,
   AgentState,
@@ -16,6 +17,7 @@ import type {
   ToolCallData,
   PermissionRequestData,
 } from "./agentClient";
+import { policyToOpencodePermissions } from "../features/agent/toolPermissionHandler";
 
 // ─── Config ──────────────────────────────────────────────────────────
 
@@ -25,6 +27,7 @@ export interface OpencodeClientConfig {
   opencodeBinaryPath?: string | null;
   mcpServers?: McpServerConfig[];
   modelEnv?: Record<string, string>;
+  toolPermissions?: ToolPermissionPolicy;
 }
 
 // ─── OpencodeAgentClient ─────────────────────────────────────────────
@@ -76,9 +79,33 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
   }
 
   respondToRequest(requestId: number, result: unknown): void {
-    // OpenCode permission responses go through the SDK's API
-    // The permission handler resolves these via client.session.command or similar
-    this.logger.info("OpencodeAgentClient: respondToRequest", { requestId, result });
+    if (!this.client || !this.sessionId) {
+      this.logger.warn("OpencodeAgentClient: cannot respond — no active session");
+      return;
+    }
+
+    // Map the extension's outcome format to OpenCode's permission response
+    const outcome = (result as any)?.outcome;
+    let response: "once" | "always" | "reject" = "reject";
+    if (outcome?.outcome === "selected") {
+      // Determine response from the optionId kind
+      const optionId = outcome.optionId as string;
+      if (optionId.includes("allow_once") || optionId.includes("allow")) {
+        response = "once";
+      } else if (optionId.includes("always")) {
+        response = "always";
+      }
+    }
+
+    const permissionId = String(requestId);
+    this.client
+      .postSessionIdPermissionsPermissionId?.({
+        path: { id: this.sessionId, permissionID: permissionId },
+        body: { response },
+      })
+      .catch((err: Error) => {
+        this.logger.warn(`OpencodeAgentClient: permission response failed: ${err.message}`);
+      });
   }
 
   async start(): Promise<void> {
@@ -135,6 +162,11 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         config.provider = providerConfig;
       }
 
+      // Translate the generic tool permission policy to OpenCode's permission block
+      if (this.config.toolPermissions) {
+        config.permission = policyToOpencodePermissions(this.config.toolPermissions);
+      }
+
       const opencode = await createOpencode({
         config: Object.keys(config).length > 0 ? config : undefined,
         timeout: 30_000,
@@ -143,7 +175,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       this.client = opencode.client;
       this.server = opencode.server;
 
-      this.logger.info(`OpencodeAgentClient: server running at ${this.server.url}`);
+      this.logger.info(`OpencodeAgentClient: server running at ${this.server?.url}`);
 
       // Create initial session
       const session = await this.client.session.create({
@@ -317,11 +349,13 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         break;
       }
 
-      case "permission.asked": {
+      case "permission.asked":
+      case "permission.updated": {
         const data: PermissionRequestData = {
           requestId: properties.id ?? 0,
-          toolCallId: properties.toolCallId ?? "",
+          toolCallId: properties.toolCallId ?? properties.callID ?? "",
           title: properties.title ?? properties.message ?? "Permission requested",
+          toolName: properties.type ?? undefined,
           kind: properties.kind ?? "other",
           status: "pending",
           rawInput: properties.input,

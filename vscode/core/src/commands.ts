@@ -36,7 +36,6 @@ import { handleConfigureCustomRules } from "./utilities/profiles/profileActions"
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
-import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
 import { runHealthCheck, formatHealthCheckReport } from "./healthCheck";
 import { getHealthCheckRegistry } from "./extension";
 import type { CheckStatus } from "./healthCheck/types";
@@ -328,15 +327,13 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      const { getConfigExperimentalChatEnabled } = await import("./utilities/configuration");
-      if (getConfigExperimentalChatEnabled() && state.featureClients.has("agentClient")) {
-        const { AgentOrchestrator } = await import("./features/goose/agentOrchestrator");
-        const orchestrator = new AgentOrchestrator(state, logger, incidents);
-        await orchestrator.run();
-      } else {
-        const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
-        await orchestrator.run();
+      if (!state.featureClients.has("agentClient")) {
+        logger.warn("getSolution: Agent client not available");
+        return;
       }
+      const { AgentOrchestrator } = await import("./features/agent/agentOrchestrator");
+      const orchestrator = new AgentOrchestrator(state, logger, incidents);
+      await orchestrator.run();
     },
     [`${EXTENSION_NAME}.getSuccessRate`]: async () => {
       logger.info("Getting success rate for incidents");

@@ -1,3 +1,5 @@
+import type { ToolPermissionPolicy } from "./toolPermissions";
+
 export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub" | "chat";
 
 export interface Incident {
@@ -86,7 +88,7 @@ export interface RuleSet {
 
 export interface Scope {
   incidents: EnhancedIncident[];
-  gooseSessionId?: string;
+  agentSessionId?: string;
 }
 
 export interface ScopeWithKonveyorContext {
@@ -155,14 +157,12 @@ export interface ExtensionData {
   activeProfileId: string | null;
   isInTreeMode: boolean;
   solutionServerEnabled: boolean;
-  isAgentMode: boolean;
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
   hubConfig: HubConfig | undefined;
   hubForced?: boolean;
   isProcessingQueuedMessages?: boolean;
-  pendingBatchReview?: PendingBatchReviewFile[];
   profileSyncEnabled: boolean;
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
@@ -171,6 +171,7 @@ export interface ExtensionData {
   availableTargets: string[];
   availableSources: string[];
   featureState: Record<string, unknown>;
+  toolPermissions: ToolPermissionPolicy;
 }
 
 export type ConfigErrorType =

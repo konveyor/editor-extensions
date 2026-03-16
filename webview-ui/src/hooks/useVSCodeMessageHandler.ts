@@ -5,11 +5,11 @@ import {
   isFocusViolation,
   isChatStateChange,
   isChatStreamingUpdate,
-  isGooseStateChange,
-  isGooseChatStateChange,
-  isGooseChatStreamingUpdate,
-  isGooseToolCall,
-  isGooseConfigUpdate,
+  isAgentStateChange,
+  isAgentChatStateChange,
+  isAgentChatStreamingUpdate,
+  isAgentToolCall,
+  isAgentConfigUpdate,
   ConfigErrorType,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
@@ -123,28 +123,7 @@ export function useVSCodeMessageHandler() {
         // Handle consolidated state change (replaces individual analysis, solution,
         // server, profiles, config errors, decorators, and settings handlers)
         if (isStateChange(message)) {
-          const { data } = message;
-
-          // Check batch review reset before applying updates
-          if ("pendingBatchReview" in data || "isProcessingQueuedMessages" in data) {
-            const pendingCount = data.pendingBatchReview?.length || 0;
-            const previousPendingCount = store.pendingBatchReview?.length || 0;
-            const wasProcessing = store.isProcessingQueuedMessages;
-            const isNowProcessing = data.isProcessingQueuedMessages;
-
-            store.batchUpdate(data);
-
-            const shouldResetBatchOperation =
-              store.isBatchOperationInProgress &&
-              ((previousPendingCount > 0 && pendingCount === 0) ||
-                (wasProcessing && !isNowProcessing));
-
-            if (shouldResetBatchOperation) {
-              store.setBatchOperationInProgress(false);
-            }
-          } else {
-            store.batchUpdate(data);
-          }
+          store.batchUpdate(message.data);
           return;
         }
 
@@ -154,28 +133,28 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
-        // Handle Goose state change (experimental)
-        if (isGooseStateChange(message)) {
-          store.setGooseState(message.gooseState);
-          store.setGooseError(message.gooseError);
+        // Handle agent state change (experimental)
+        if (isAgentStateChange(message)) {
+          store.setAgentState(message.agentState);
+          store.setAgentError(message.agentError);
           return;
         }
 
-        // Handle Goose chat updates (experimental)
-        if (isGooseChatStateChange(message)) {
-          store.setGooseMessages(message.messages);
+        // Handle agent chat updates (experimental)
+        if (isAgentChatStateChange(message)) {
+          store.setAgentMessages(message.messages);
           return;
         }
 
-        if (isGooseChatStreamingUpdate(message)) {
+        if (isAgentChatStreamingUpdate(message)) {
           if (message.done) {
             if (message.stopReason === "cancelled") {
-              store.cancelGooseMessage(message.messageId);
+              store.cancelAgentMessage(message.messageId);
             } else {
-              store.finalizeGooseMessage(message.messageId, message.stopReason);
+              store.finalizeAgentMessage(message.messageId, message.stopReason);
             }
           } else {
-            store.appendGooseStreamingChunk(
+            store.appendAgentStreamingChunk(
               message.messageId,
               message.content,
               message.contentType,
@@ -192,9 +171,9 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
-        // Handle Goose tool call activity
-        if (isGooseToolCall(message)) {
-          store.updateGooseToolCall(
+        // Handle agent tool call activity
+        if (isAgentToolCall(message)) {
+          store.updateAgentToolCall(
             message.messageId,
             message.toolName,
             message.status as "running" | "succeeded" | "failed",
@@ -203,9 +182,12 @@ export function useVSCodeMessageHandler() {
           return;
         }
 
-        // Handle Goose config update
-        if (isGooseConfigUpdate(message)) {
-          store.setGooseConfig(message.config);
+        // Handle agent config update
+        if (isAgentConfigUpdate(message)) {
+          store.setAgentConfig(message.config);
+          if (message.config.toolPermissions) {
+            store.setToolPermissions(message.config.toolPermissions);
+          }
           return;
         }
       } catch (error) {

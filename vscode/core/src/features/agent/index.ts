@@ -2,9 +2,10 @@ import * as vscode from "vscode";
 import type { FeatureModule, FeatureContext } from "../featureRegistry";
 import { KonveyorGUIWebviewViewProvider } from "../../KonveyorGUIWebviewViewProvider";
 import type { AgentClient } from "../../client/agentClient";
+import { policyToGooseMode } from "./toolPermissionHandler";
 
-export const gooseFeatureModule: FeatureModule = {
-  id: "goose",
+export const agentFeatureModule: FeatureModule = {
+  id: "agent",
   name: "Migration Assistant Chat",
 
   isEnabled(): boolean {
@@ -19,8 +20,8 @@ export const gooseFeatureModule: FeatureModule = {
       if (!draft.featureState) {
         draft.featureState = {};
       }
-      draft.featureState.gooseState = "stopped";
-      draft.featureState.gooseError = undefined;
+      draft.featureState.agentState = "stopped";
+      draft.featureState.agentError = undefined;
     });
 
     const chatViewProvider = new KonveyorGUIWebviewViewProvider(ctx.extensionState, "chat");
@@ -32,13 +33,13 @@ export const gooseFeatureModule: FeatureModule = {
     );
 
     // Register message handlers
-    const { gooseMessageHandlers } = await import("./gooseHandlers");
-    disposables.push(ctx.registerMessageHandlers(gooseMessageHandlers));
+    const { agentMessageHandlers } = await import("./handlers");
+    disposables.push(ctx.registerMessageHandlers(agentMessageHandlers));
 
     // Create the agent client based on the configured backend
     try {
       const agentClient = await createAgentClient(ctx);
-      const { initializeAgent } = await import("./gooseInit");
+      const { initializeAgent } = await import("./init");
       const agentDisposable = await initializeAgent(ctx, agentClient);
       disposables.push(agentDisposable);
     } catch (err) {
@@ -102,8 +103,10 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
     ctx.logger.warn(`Agent: could not load credentials from SecretStorage: ${err}`);
   }
 
-  // MCP server config will be set up after bridge port is available
-  // The initializeAgent function handles MCP bridge setup internally
+  // Translate the generic tool permission policy to backend-specific config
+  const toolPermissions = ctx.store.getState().toolPermissions;
+  const gooseMode = policyToGooseMode(toolPermissions);
+  modelEnv = { ...modelEnv, GOOSE_MODE: gooseMode };
 
   if (backend === "opencode") {
     ctx.logger.info("Agent: using OpenCode backend");
@@ -113,6 +116,7 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
       logger: ctx.logger,
       opencodeBinaryPath: getConfigOpencodeBinaryPath(),
       modelEnv,
+      toolPermissions,
     });
   }
 

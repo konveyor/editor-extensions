@@ -1,5 +1,5 @@
 /**
- * GooseFileTracker: Tracks file state before/during Goose execution
+ * AgentFileTracker: Tracks file state before/during Goose execution
  * to detect modifications made by the Developer extension's text_editor.
  *
  * Original file content is cached from two sources:
@@ -22,7 +22,7 @@ export interface TrackedFileChange {
   originalContent?: string;
 }
 
-export class GooseFileTracker {
+export class AgentFileTracker {
   private readonly originalContentCache = new Map<string, string>();
   private readonly routedFiles = new Set<string>();
   private readonly pendingToolFiles = new Map<string, string>();
@@ -30,7 +30,7 @@ export class GooseFileTracker {
   private scanning = false;
 
   constructor(logger: winston.Logger) {
-    this.logger = logger.child({ component: "GooseFileTracker" });
+    this.logger = logger.child({ component: "AgentFileTracker" });
   }
 
   /**

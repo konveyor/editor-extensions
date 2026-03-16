@@ -4,37 +4,36 @@ import {
   EnhancedIncident,
   Scope,
   ChatMessageType,
-  GooseContentBlockType,
+  AgentContentBlockType,
   getProgrammingLanguageFromUri,
   ToolMessageValue,
 } from "@editor-extensions/shared";
 import type { ExtensionState } from "../../extensionState";
 import type {
-  GooseClient,
+  AgentClient,
   ToolCallData,
   StreamingResourceData,
   PermissionRequestData,
-} from "../../client/gooseClient";
-import type { GooseFileTracker } from "./gooseFileTracker";
-import { routeFileChangeToBatchReview } from "./routeFileChange";
-import { buildMigrationPrompt } from "./goosePromptBuilder";
-import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./gooseInit";
+} from "../../client/agentClient";
+import type { AgentFileTracker } from "./fileTracker";
 import { executeExtensionCommand } from "../../commands";
+import { buildMigrationPrompt } from "./promptBuilder";
+import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./init";
+import { handlePermissionWithPolicy } from "./toolPermissionHandler";
 import type { Logger } from "winston";
 
 /**
- * Self-contained orchestrator for the Goose "Get Solution" lifecycle.
+ * Self-contained orchestrator for the agent-driven "Get Solution" lifecycle.
  *
- * Replaces the Goose-specific branches that previously lived inside
- * SolutionWorkflowOrchestrator. Talks directly to GooseClient and
- * routes streaming / file-change events into extension state without
+ * Works with any AgentClient implementation (GooseClient, OpencodeAgentClient).
+ * Routes streaming / file-change events into extension state without
  * going through the KaiWorkflow adapter or processMessage pipeline.
  *
  * File changes reach batch review through a single path
- * (routeFileChangeToBatchReview) regardless of whether Goose used
- * the MCP bridge or its built-in tools.
+ * (routeFileChangeToBatchReview) regardless of which agent backend
+ * is active or whether it used MCP or built-in tools.
  */
-export class GooseOrchestrator {
+export class AgentOrchestrator {
   private lastTextMessageId: string | null = null;
 
   constructor(
@@ -44,14 +43,56 @@ export class GooseOrchestrator {
   ) {}
 
   async run(): Promise<void> {
-    const gooseClient = this.state.featureClients.get("gooseClient") as GooseClient | undefined;
-    if (!gooseClient || gooseClient.getState() !== "running") {
-      vscode.window.showErrorMessage(
-        "Goose agent is not running. Please ensure the Goose CLI is installed and the agent has started.",
-      );
+    const agentMode = this.state.data.featureState?.agentMode !== false;
+    const client = agentMode ? this.getAgentClient() : await this.createDirectLLMClient();
+
+    if (!client) {
       return;
     }
 
+    await this.runWithClient(client, agentMode, !agentMode /* disposeClient */);
+  }
+
+  private getAgentClient(): AgentClient | undefined {
+    const agentClient = this.state.featureClients.get("agentClient") as AgentClient | undefined;
+    if (!agentClient || agentClient.getState() !== "running") {
+      vscode.window.showErrorMessage(
+        "Agent is not running. Please ensure the agent backend is installed and has started.",
+      );
+      return undefined;
+    }
+    return agentClient;
+  }
+
+  private async createDirectLLMClient(): Promise<AgentClient | undefined> {
+    try {
+      const { parseModelConfig, getModelProviderFromConfig } = await import("../../modelProvider");
+      const { paths } = await import("../../paths");
+
+      const parsedConfig = await parseModelConfig(paths().settingsYaml);
+      const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
+
+      const { DirectLLMClient } = await import("../../client/directLLMClient");
+      return new DirectLLMClient({
+        modelProvider,
+        workspaceRoot: this.state.data.workspaceRoot,
+        logger: this.logger,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error("AgentOrchestrator: failed to create direct LLM client", { error: msg });
+      vscode.window.showErrorMessage(
+        `Failed to initialize LLM: ${msg}. Check your provider-settings.yaml configuration.`,
+      );
+      return undefined;
+    }
+  }
+
+  private async runWithClient(
+    agentClient: AgentClient,
+    agentMode: boolean,
+    disposeClient: boolean,
+  ): Promise<void> {
     if (this.state.data.isFetchingSolution) {
       vscode.window.showWarningMessage("Solution already being fetched");
       return;
@@ -63,11 +104,11 @@ export class GooseOrchestrator {
       return;
     }
 
-    const fileTracker = this.state.featureClients.get("gooseFileTracker") as
-      | GooseFileTracker
+    const fileTracker = this.state.featureClients.get("agentFileTracker") as
+      | AgentFileTracker
       | undefined;
 
-    this.logger.info("GooseOrchestrator: starting", {
+    this.logger.info("AgentOrchestrator: starting", {
       incidentsCount: this.incidents.length,
       profileName,
     });
@@ -80,7 +121,7 @@ export class GooseOrchestrator {
     const onChunk = (
       _msgId: string,
       content: string,
-      contentType: GooseContentBlockType,
+      contentType: AgentContentBlockType,
       resourceData?: StreamingResourceData,
     ): void => {
       this.handleStreamingChunk(content, contentType, resourceData);
@@ -99,13 +140,8 @@ export class GooseOrchestrator {
       if (fileTracker && data.status === "succeeded") {
         fileTracker.resolvePendingFileChanges().then(async (changes) => {
           for (const change of changes) {
-            await routeFileChangeToBatchReview(
-              this.state,
-              change.path,
-              change.content,
-              change.originalContent,
-            );
-            this.logger.info("GooseOrchestrator: routed file change on tool completion", {
+            await executeExtensionCommand("changeApplied", change.path, change.content);
+            this.logger.info("AgentOrchestrator: file change applied", {
               path: change.path,
             });
           }
@@ -117,26 +153,26 @@ export class GooseOrchestrator {
     };
 
     const onComplete = (_msgId: string, _stopReason: string): void => {
-      this.logger.info("GooseOrchestrator: streaming complete", { stopReason: _stopReason });
+      this.logger.info("AgentOrchestrator: streaming complete", { stopReason: _stopReason });
     };
 
     const onPermission = (data: PermissionRequestData): void => {
-      this.handlePermissionRequest(gooseClient, data);
+      this.handlePermissionRequest(agentClient, data);
     };
 
-    gooseClient.on("streamingChunk", onChunk);
-    gooseClient.on("toolCall", onToolCall);
-    gooseClient.on("toolCallUpdate", onToolCallUpdate);
-    gooseClient.on("streamingComplete", onComplete);
-    gooseClient.on("permissionRequest", onPermission);
+    agentClient.on("streamingChunk", onChunk);
+    agentClient.on("toolCall", onToolCall);
+    agentClient.on("toolCallUpdate", onToolCallUpdate);
+    agentClient.on("streamingComplete", onComplete);
+    agentClient.on("permissionRequest", onPermission);
 
     try {
-      const sessionId = await gooseClient.createSession();
-      this.logger.info("GooseOrchestrator: created new session for getSolution", { sessionId });
+      const sessionId = await agentClient.createSession();
+      this.logger.info("AgentOrchestrator: created new session for getSolution", { sessionId });
 
       this.state.mutate((draft) => {
         if (draft.solutionScope) {
-          draft.solutionScope.gooseSessionId = sessionId;
+          draft.solutionScope.agentSessionId = sessionId;
         }
       });
 
@@ -155,40 +191,38 @@ export class GooseOrchestrator {
           incidents: this.incidents,
           migrationHint: profileName,
           programmingLanguage,
-          enableAgentMode: true,
+          enableAgentMode: agentMode,
         },
         this.state.data.workspaceRoot,
       );
 
       const requestId = uuidv4();
-      await gooseClient.sendMessage(prompt, requestId);
+      await agentClient.sendMessage(prompt, requestId);
 
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
         for (const change of missedChanges) {
-          await routeFileChangeToBatchReview(
-            this.state,
-            change.path,
-            change.content,
-            change.originalContent,
-          );
+          await executeExtensionCommand("changeApplied", change.path, change.content);
         }
         if (missedChanges.length > 0) {
           this.logger.info(
-            `GooseOrchestrator: routed ${missedChanges.length} post-scan file(s) to batch review`,
+            `AgentOrchestrator: notified solution server of ${missedChanges.length} post-scan file(s)`,
           );
         }
       }
     } catch (err) {
       this.handleError(err);
     } finally {
-      gooseClient.removeListener("streamingChunk", onChunk);
-      gooseClient.removeListener("toolCall", onToolCall);
-      gooseClient.removeListener("toolCallUpdate", onToolCallUpdate);
-      gooseClient.removeListener("streamingComplete", onComplete);
-      gooseClient.removeListener("permissionRequest", onPermission);
+      agentClient.removeListener("streamingChunk", onChunk);
+      agentClient.removeListener("toolCall", onToolCall);
+      agentClient.removeListener("toolCallUpdate", onToolCallUpdate);
+      agentClient.removeListener("streamingComplete", onComplete);
+      agentClient.removeListener("permissionRequest", onPermission);
       resumeBroadcastHandlers();
       this.cleanup();
+      if (disposeClient) {
+        agentClient.dispose();
+      }
     }
   }
 
@@ -203,7 +237,6 @@ export class GooseOrchestrator {
       draft.solutionScope = scope;
       draft.isProcessingQueuedMessages = false;
       draft.isWaitingForUserInteraction = false;
-      draft.pendingBatchReview = [];
     });
 
     this.state.mutate((draft) => {
@@ -217,7 +250,7 @@ export class GooseOrchestrator {
 
   private handleStreamingChunk(
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: StreamingResourceData,
   ): void {
     let text: string | undefined;
@@ -238,7 +271,7 @@ export class GooseOrchestrator {
         text = resourceData?.text;
         break;
       default:
-        this.logger.warn("GooseOrchestrator: unhandled content type", { contentType });
+        this.logger.warn("AgentOrchestrator: unhandled content type", { contentType });
         break;
     }
 
@@ -351,10 +384,13 @@ export class GooseOrchestrator {
       for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
         const msg = draft.chatMessages[i];
         if (msg.messageToken === callId && msg.kind === ChatMessageType.Tool) {
+          const prev = msg.value as ToolMessageValue;
           msg.value = {
-            toolName,
+            toolName: prev.toolName || toolName,
             toolStatus: data.status,
             toolResult: data.result,
+            filePath: prev.filePath,
+            detail: prev.detail,
           } as ToolMessageValue;
           msg.timestamp = new Date().toISOString();
           return;
@@ -373,51 +409,56 @@ export class GooseOrchestrator {
     });
   }
 
-  private handlePermissionRequest(gooseClient: GooseClient, data: PermissionRequestData): void {
-    const messageToken = `perm-${uuidv4()}`;
-    pendingPermissions.set(messageToken, {
-      requestId: data.requestId,
-      client: gooseClient,
-    });
-
-    // In smart_approve mode, tool arguments are in the permission request
-    // (not in the tool_call event). Cache the file before the tool writes.
-    const fileTracker = this.state.featureClients.get("gooseFileTracker") as
-      | GooseFileTracker
-      | undefined;
-    if (fileTracker && data.rawInput) {
-      const workspaceRoot = this.state.data.workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+  private async handlePermissionRequest(
+    agentClient: AgentClient,
+    data: PermissionRequestData,
+  ): Promise<void> {
+    // Enrich the existing tool message with file context from the permission
+    // request's rawInput (the initial tool_call may arrive without arguments
+    // in approval mode).
+    if (data.toolCallId && data.rawInput) {
+      const { filePath, detail } = this.extractToolContext(
+        data.rawInput as Record<string, unknown>,
+      );
+      if (filePath || detail) {
+        this.state.mutate((draft) => {
+          for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+            const msg = draft.chatMessages[i];
+            if (msg.messageToken === data.toolCallId && msg.kind === ChatMessageType.Tool) {
+              const prev = msg.value as ToolMessageValue;
+              if (!prev.filePath) {
+                prev.filePath = filePath;
+              }
+              if (!prev.detail) {
+                prev.detail = detail;
+              }
+              break;
+            }
+          }
+        });
+      }
     }
-
-    const kindLabels: Record<string, string> = {
-      allow_once: "Allow",
-      allow_always: "Always Allow",
-      reject_once: "Reject",
-      reject_always: "Always Reject",
-    };
 
     this.lastTextMessageId = null;
 
-    this.state.mutate((draft) => {
-      draft.chatMessages.push({
-        kind: ChatMessageType.String,
-        messageToken,
-        timestamp: new Date().toISOString(),
-        value: {
-          message: `**Permission requested:** ${data.title}`,
-        },
-        quickResponses: data.options.map((opt) => ({
-          id: opt.optionId,
-          content: kindLabels[opt.kind] ?? opt.name,
-        })),
-      });
+    const fileTracker = this.state.featureClients.get("agentFileTracker") as
+      | AgentFileTracker
+      | undefined;
+
+    await handlePermissionWithPolicy({
+      agentClient,
+      data,
+      policy: this.state.data.toolPermissions,
+      workspaceRoot: this.state.data.workspaceRoot,
+      fileTracker,
+      mutate: (recipe) => this.state.mutate(recipe),
+      pendingPermissions,
     });
   }
 
   private handleError(err: unknown): void {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    this.logger.error("GooseOrchestrator: error during workflow", { errorMessage });
+    this.logger.error("AgentOrchestrator: error during workflow", { errorMessage });
 
     this.state.mutate((draft) => {
       draft.chatMessages.push({
@@ -430,7 +471,7 @@ export class GooseOrchestrator {
   }
 
   private cleanup(): void {
-    this.logger.info("GooseOrchestrator: cleanup — batch review will remain active");
+    this.logger.info("AgentOrchestrator: cleanup — batch review will remain active");
 
     this.state.mutate((draft) => {
       draft.isFetchingSolution = false;

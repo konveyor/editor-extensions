@@ -2,7 +2,6 @@ import "./receivedMessage.css";
 import React, { useState, useEffect } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
 import { getBrandName } from "../../utils/branding";
@@ -63,7 +62,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
 
       if (messageToken.startsWith("perm-")) {
         window.vscode.postMessage({
-          type: "GOOSE_PERMISSION_RESPONSE",
+          type: "AGENT_PERMISSION_RESPONSE",
           payload: { messageToken, optionId: responseId },
         });
       } else {
@@ -97,7 +96,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
               }
             : undefined
         }
-        additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
+        additionalRehypePlugins={[rehypeRaw]}
       />
     );
   },

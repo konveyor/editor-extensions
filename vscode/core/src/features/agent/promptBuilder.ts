@@ -20,6 +20,19 @@ export async function buildMigrationPrompt(
     ),
   );
 
+  const instructions = input.enableAgentMode
+    ? [
+        `For each file listed above, fix ALL incidents by applying the migration.`,
+        `Preserve existing formatting and imports unless the migration requires changes.`,
+        `Use your built-in file editing tools to make changes directly.`,
+      ]
+    : [
+        `For each file listed above, fix ALL incidents by applying the migration.`,
+        `Preserve existing formatting and imports unless the migration requires changes.`,
+        `Use the write_file tool to output the COMPLETE updated file content for each file you change.`,
+        `Do not skip unchanged files. Only call write_file for files that need modifications.`,
+      ];
+
   return [
     `You are a migration assistant. Apply the following migration to the codebase.`,
     ``,
@@ -31,9 +44,7 @@ export async function buildMigrationPrompt(
     ...fileBlocks,
     `## Instructions`,
     ``,
-    `For each file listed above, fix ALL incidents by applying the migration.`,
-    `Preserve existing formatting and imports unless the migration requires changes.`,
-    `Use your built-in file editing tools to make changes directly.`,
+    ...instructions,
   ].join("\n");
 }
 

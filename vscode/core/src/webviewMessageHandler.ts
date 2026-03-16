@@ -22,7 +22,6 @@ import {
   STOP_WORKFLOW,
   RESTART_SOLUTION_SERVER,
   ENABLE_GENAI,
-  TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   WEBVIEW_READY,
   WebviewAction,
@@ -46,10 +45,8 @@ import {
   setActiveProfileId,
 } from "./utilities/profiles/profileService";
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
-import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
-import { runPartialAnalysis } from "./analysis/runAnalysis";
 import winston from "winston";
-import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
+import { updateConfigErrors } from "./utilities/configuration";
 import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
 
 export function setupWebviewMessageListener(
@@ -434,45 +431,11 @@ const actions: {
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
 
-      // Clear the processing state for this file on error
-      // This prevents the UI from getting stuck in "Processing changes..."
-      state.mutate((draft) => {
-        // Clear from pendingBatchReview if there's an error
-        if (draft.pendingBatchReview) {
-          const fileIndex = draft.pendingBatchReview.findIndex(
-            (file) => file.messageToken === messageToken,
-          );
-          if (fileIndex !== -1) {
-            // Mark as error rather than removing, so user can retry
-            draft.pendingBatchReview[fileIndex].hasError = true;
-            logger.info(`Marked file as error in pendingBatchReview: ${path}`);
-          }
-        }
-      });
-
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
     }
   },
   QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
     handleQuickResponse(messageToken, responseId, state);
-  },
-  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state, logger) => {
-    await handleFileResponse(messageToken, responseId, path, content, state);
-
-    // Remove from pendingBatchReview after processing individual file
-    state.mutate((draft) => {
-      if (draft.pendingBatchReview) {
-        draft.pendingBatchReview = draft.pendingBatchReview.filter(
-          (file) => file.messageToken !== messageToken,
-        );
-        logger.info(`Removed file from pendingBatchReview: ${path}`, {
-          remaining: draft.pendingBatchReview.length,
-        });
-      }
-    });
-
-    // Check if batch review is complete
-    checkBatchReviewComplete(state, logger);
   },
 
   [RUN_ANALYSIS]() {
@@ -515,9 +478,6 @@ const actions: {
   },
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");
-  },
-  [TOGGLE_AGENT_MODE]() {
-    toggleAgentMode();
   },
   [OPEN_RESOLUTION_PANEL]() {
     executeExtensionCommand("showResolutionPanel");
@@ -580,271 +540,6 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
     }
   },
-  CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
-    try {
-      logger.info("CONTINUE_WITH_FILE_STATE called", { path, messageToken });
-
-      const uri = vscode.Uri.file(path);
-
-      const currentContent = await vscode.workspace.fs.readFile(uri);
-      const currentText = currentContent.toString();
-
-      const modifiedFileState = state.modifiedFiles.get(path);
-      const originalContent = modifiedFileState?.originalContent || "";
-
-      const normalize = (text: string) => text.replace(/\r\n/g, "\n").replace(/\n$/, "");
-      const hasChanges = normalize(currentText) !== normalize(originalContent);
-
-      const responseId = hasChanges ? "apply" : "reject";
-      const finalContent = hasChanges ? currentText : content;
-
-      logger.debug(
-        `Continue decision: ${responseId.toUpperCase()} - ${hasChanges ? "file has changes" : "file unchanged"}`,
-      );
-      console.log("Continue decision: ", { responseId, hasChanges });
-
-      await handleFileResponse(messageToken, responseId, path, finalContent, state, true); // Skip analysis - it runs on save
-
-      state.mutate((draft) => {
-        if (draft.pendingBatchReview) {
-          draft.pendingBatchReview = draft.pendingBatchReview.filter(
-            (file) => file.messageToken !== messageToken,
-          );
-        }
-      });
-
-      logger.info(`File state continued with response: ${responseId}`, {
-        path,
-        messageToken,
-      });
-
-      checkBatchReviewComplete(state, logger);
-    } catch (error) {
-      logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
-      await handleFileResponse(messageToken, "reject", path, content, state, true); // Skip analysis - it runs on save
-
-      state.mutate((draft) => {
-        if (draft.pendingBatchReview) {
-          draft.pendingBatchReview = draft.pendingBatchReview.filter(
-            (file) => file.messageToken !== messageToken,
-          );
-        }
-      });
-
-      checkBatchReviewComplete(state, logger);
-    }
-  },
-
-  BATCH_APPLY_ALL: async ({ files }, state, logger) => {
-    const failures: Array<{ path: string; error: string }> = [];
-    const appliedFileUris: vscode.Uri[] = [];
-
-    try {
-      logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
-      console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
-
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = true;
-      });
-
-      for (const file of files) {
-        try {
-          logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
-          await handleFileResponse(
-            file.messageToken,
-            "apply",
-            file.path,
-            file.content,
-            state,
-            true,
-          );
-
-          appliedFileUris.push(vscode.Uri.file(file.path));
-
-          state.mutate((draft) => {
-            if (draft.pendingBatchReview) {
-              draft.pendingBatchReview = draft.pendingBatchReview.filter(
-                (f) => f.messageToken !== file.messageToken,
-              );
-              logger.info(
-                `BATCH_APPLY_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
-              );
-            }
-          });
-        } catch (fileError) {
-          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
-          logger.error(`BATCH_APPLY_ALL: Failed to apply file ${file.path}:`, fileError);
-          failures.push({ path: file.path, error: errorMessage });
-
-          state.mutate((draft) => {
-            if (draft.pendingBatchReview) {
-              const fileIndex = draft.pendingBatchReview.findIndex(
-                (f) => f.messageToken === file.messageToken,
-              );
-              if (fileIndex !== -1) {
-                draft.pendingBatchReview[fileIndex].hasError = true;
-              }
-            }
-          });
-        }
-      }
-
-      if (appliedFileUris.length > 0) {
-        try {
-          logger.info(
-            `BATCH_APPLY_ALL: Running combined analysis for ${appliedFileUris.length} files`,
-          );
-          await runPartialAnalysis(state, appliedFileUris);
-          logger.info(`BATCH_APPLY_ALL: Combined analysis completed`);
-        } catch (analysisError) {
-          logger.warn(`BATCH_APPLY_ALL: Failed to run combined analysis:`, analysisError);
-        }
-      }
-
-      const successCount = files.length - failures.length;
-      logger.info(
-        `BATCH_APPLY_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
-      );
-
-      if (failures.length > 0) {
-        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
-        logger.error(`BATCH_APPLY_ALL: Failures:\n${failureDetails}`);
-
-        if (failures.length === 1) {
-          vscode.window.showErrorMessage(
-            `Failed to apply 1 file: ${failures[0].path}. See output for details.`,
-          );
-        } else {
-          vscode.window.showErrorMessage(
-            `Failed to apply ${failures.length} out of ${files.length} files. See output for details.`,
-          );
-        }
-      } else {
-        logger.info(`BATCH_APPLY_ALL: Successfully applied all ${files.length} files`);
-        console.log(`[BATCH_APPLY_ALL] Successfully completed`);
-      }
-
-      // Check if workflow cleanup should happen
-      checkBatchReviewComplete(state, logger);
-    } catch (unexpectedError) {
-      logger.error("Unexpected error in BATCH_APPLY_ALL:", unexpectedError);
-      console.error("[BATCH_APPLY_ALL] Unexpected error:", unexpectedError);
-
-      vscode.window.showErrorMessage(
-        "An unexpected error occurred while applying files. Check the output for details.",
-      );
-    } finally {
-      // Always reset processing flag
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
-    }
-  },
-
-  BATCH_REJECT_ALL: async ({ files }, state, logger) => {
-    const failures: Array<{ path: string; error: string }> = [];
-
-    try {
-      logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
-      console.log(`[BATCH_REJECT_ALL] Processing ${files.length} files`);
-
-      // Set processing flag at the start
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = true;
-      });
-
-      // Process files one by one with individual error handling
-      for (const file of files) {
-        try {
-          logger.info(`BATCH_REJECT_ALL: Rejecting file ${file.path}`);
-          await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
-
-          // Remove this file from pendingBatchReview only on success
-          state.mutate((draft) => {
-            if (draft.pendingBatchReview) {
-              draft.pendingBatchReview = draft.pendingBatchReview.filter(
-                (f) => f.messageToken !== file.messageToken,
-              );
-              logger.info(
-                `BATCH_REJECT_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
-              );
-            }
-          });
-        } catch (fileError) {
-          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
-          logger.error(`BATCH_REJECT_ALL: Failed to reject file ${file.path}:`, fileError);
-          failures.push({ path: file.path, error: errorMessage });
-
-          // Mark the file as having an error in pendingBatchReview
-          state.mutate((draft) => {
-            if (draft.pendingBatchReview) {
-              const fileIndex = draft.pendingBatchReview.findIndex(
-                (f) => f.messageToken === file.messageToken,
-              );
-              if (fileIndex !== -1) {
-                draft.pendingBatchReview[fileIndex].hasError = true;
-              }
-            }
-          });
-        }
-      }
-
-      // Report results
-      const successCount = files.length - failures.length;
-      logger.info(
-        `BATCH_REJECT_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
-      );
-
-      // Notify user if there were failures
-      if (failures.length > 0) {
-        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
-        logger.error(`BATCH_REJECT_ALL: Failures:\n${failureDetails}`);
-
-        if (failures.length === 1) {
-          vscode.window.showErrorMessage(
-            `Failed to reject 1 file: ${failures[0].path}. See output for details.`,
-          );
-        } else {
-          vscode.window.showErrorMessage(
-            `Failed to reject ${failures.length} out of ${files.length} files. See output for details.`,
-          );
-        }
-      } else {
-        logger.info(`BATCH_REJECT_ALL: Successfully rejected all ${files.length} files`);
-        console.log(`[BATCH_REJECT_ALL] Successfully completed`);
-      }
-
-      // Check if workflow cleanup should happen
-      checkBatchReviewComplete(state, logger);
-    } catch (unexpectedError) {
-      logger.error("Unexpected error in BATCH_REJECT_ALL:", unexpectedError);
-      console.error("[BATCH_REJECT_ALL] Unexpected error:", unexpectedError);
-
-      vscode.window.showErrorMessage(
-        "An unexpected error occurred while rejecting files. Check the output for details.",
-      );
-    } finally {
-      // Always reset processing flag
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
-    }
-  },
-};
-
-// Helper function to check if batch review is complete
-const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger) => {
-  const hasPendingBatchReview =
-    state.data.pendingBatchReview && state.data.pendingBatchReview.length > 0;
-
-  if (!hasPendingBatchReview) {
-    logger.info("Batch review complete");
-
-    // Clear any remaining state
-    state.mutate((draft) => {
-      draft.pendingBatchReview = [];
-    });
-  }
 };
 
 export function registerMessageHandlers(
