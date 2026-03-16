@@ -126,6 +126,7 @@ class VsCodeExtension {
       availableTargets: [],
       availableSources: [],
       featureState: {},
+      editApprovalMode: "auto",
     };
 
     this.store = createExtensionStore(initialData);

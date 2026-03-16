@@ -11,6 +11,7 @@ import {
   ChatMessage,
   ChatMessageType,
   Incident,
+  SET_EDIT_APPROVAL_MODE,
   type ToolMessageValue,
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
@@ -47,6 +48,18 @@ const ChatPage: React.FC = () => {
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
   const isAnalyzing = useExtensionStore((s) => s.isAnalyzing);
+  const editApprovalMode = useExtensionStore((s) => s.editApprovalMode);
+
+  const handleApprovalModeChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const mode = e.target.value as "ask" | "smart" | "auto";
+      window.vscode.postMessage({
+        type: SET_EDIT_APPROVAL_MODE,
+        payload: { mode },
+      });
+    },
+    [],
+  );
 
   const isProcessing = isFetchingSolution;
   const hasWorkflowContent = Array.isArray(chatMessages) && chatMessages.length > 0;
@@ -160,10 +173,19 @@ const ChatPage: React.FC = () => {
           );
         }
 
-        const count = tools.length;
         return (
           <div key={key} className="tool-calls-summary">
-            {count === 1 ? "1 tool call" : `${count} tool calls`}
+            {tools.map((t) => {
+              const val = t.value as ToolMessageValue;
+              return (
+                <ToolMessage
+                  key={t.messageToken}
+                  toolName={val.toolName}
+                  status="succeeded"
+                  detail={val.detail}
+                />
+              );
+            })}
           </div>
         );
       }
@@ -251,6 +273,16 @@ const ChatPage: React.FC = () => {
                     Stop
                   </button>
                 )}
+                <select
+                  className="chat-approval-select"
+                  value={editApprovalMode}
+                  onChange={handleApprovalModeChange}
+                  title="Edit approval mode"
+                >
+                  <option value="auto">Auto</option>
+                  <option value="smart">Smart Approve</option>
+                  <option value="ask">Ask</option>
+                </select>
                 <button
                   className="chat-action-btn chat-action-btn--icon"
                   onClick={() => setShowSettings((prev) => !prev)}

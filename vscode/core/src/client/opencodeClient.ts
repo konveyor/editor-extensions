@@ -143,7 +143,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       this.client = opencode.client;
       this.server = opencode.server;
 
-      this.logger.info(`OpencodeAgentClient: server running at ${this.server.url}`);
+      this.logger.info(`OpencodeAgentClient: server running at ${this.server?.url}`);
 
       // Create initial session
       const session = await this.client.session.create({

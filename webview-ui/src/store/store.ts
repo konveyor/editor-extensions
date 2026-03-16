@@ -70,6 +70,9 @@ interface ExtensionStore {
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
 
+  // Edit approval mode
+  editApprovalMode: "ask" | "smart" | "auto";
+
   // Goose chat state (experimental)
   gooseMessages: GooseChatMessage[];
   gooseState: GooseAgentState;
@@ -117,6 +120,7 @@ interface ExtensionStore {
   setLlmProxyAvailable: (available: boolean) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
+  setEditApprovalMode: (mode: "ask" | "smart" | "auto") => void;
 
   // Goose chat setters
   setGooseConfig: (config: GooseConfig | null) => void;
@@ -184,6 +188,9 @@ export const useExtensionStore = create<ExtensionStore>()(
       isWebEnvironment: false,
       availableTargets: [],
       availableSources: [],
+
+      // Edit approval mode
+      editApprovalMode: "auto" as const,
 
       // Batch review state
       pendingBatchReview: [],
@@ -397,6 +404,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsWebEnvironment: (isWeb) =>
         set((state) => {
           state.isWebEnvironment = isWeb;
+        }),
+
+      setEditApprovalMode: (mode) =>
+        set((state) => {
+          state.editApprovalMode = mode;
         }),
 
       // Goose chat setters

@@ -495,6 +495,26 @@
   text-align: center;
 }
 
+.chat-approval-select {
+  font-size: 10px;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.chat-approval-select:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #454545);
+}
+
+.chat-approval-select:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: -1px;
+}
+
 /* --- Goose Settings Panel --- */
 
 .goose-settings {

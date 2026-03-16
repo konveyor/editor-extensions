@@ -19,6 +19,12 @@ import type { GooseFileTracker } from "./gooseFileTracker";
 import { routeFileChangeToBatchReview } from "./routeFileChange";
 import { buildMigrationPrompt } from "./goosePromptBuilder";
 import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./gooseInit";
+import {
+  shouldAutoApprove,
+  findAllowOnceOptionId,
+  formatPermissionPreview,
+  filterPermissionOptions,
+} from "./editApprovalHandler";
 import { executeExtensionCommand } from "../../commands";
 import type { Logger } from "winston";
 
@@ -351,10 +357,13 @@ export class GooseOrchestrator {
       for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
         const msg = draft.chatMessages[i];
         if (msg.messageToken === callId && msg.kind === ChatMessageType.Tool) {
+          const prev = msg.value as ToolMessageValue;
           msg.value = {
-            toolName,
+            toolName: prev.toolName || toolName,
             toolStatus: data.status,
             toolResult: data.result,
+            filePath: prev.filePath,
+            detail: prev.detail,
           } as ToolMessageValue;
           msg.timestamp = new Date().toISOString();
           return;
@@ -374,14 +383,7 @@ export class GooseOrchestrator {
   }
 
   private handlePermissionRequest(gooseClient: GooseClient, data: PermissionRequestData): void {
-    const messageToken = `perm-${uuidv4()}`;
-    pendingPermissions.set(messageToken, {
-      requestId: data.requestId,
-      client: gooseClient,
-    });
-
-    // In smart_approve mode, tool arguments are in the permission request
-    // (not in the tool_call event). Cache the file before the tool writes.
+    // Cache file before any approval decision so we have original content for revert
     const fileTracker = this.state.featureClients.get("gooseFileTracker") as
       | GooseFileTracker
       | undefined;
@@ -390,12 +392,76 @@ export class GooseOrchestrator {
       fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
     }
 
+    // Enrich the existing tool message with file context from the permission
+    // request's rawInput (the initial tool_call may arrive without arguments
+    // in approval mode).
+    if (data.toolCallId && data.rawInput) {
+      const { filePath, detail } = this.extractToolContext(
+        data.rawInput as Record<string, unknown>,
+      );
+      if (filePath || detail) {
+        this.state.mutate((draft) => {
+          for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+            const msg = draft.chatMessages[i];
+            if (msg.messageToken === data.toolCallId && msg.kind === ChatMessageType.Tool) {
+              const prev = msg.value as ToolMessageValue;
+              if (!prev.filePath) {
+                prev.filePath = filePath;
+              }
+              if (!prev.detail) {
+                prev.detail = detail;
+              }
+              break;
+            }
+          }
+        });
+      }
+    }
+
+    const mode = this.state.data.editApprovalMode;
+
+    // Auto-approve if mode dictates
+    if (shouldAutoApprove(mode, data)) {
+      const optionId = findAllowOnceOptionId(data.options);
+      if (optionId) {
+        gooseClient.respondToRequest(data.requestId, {
+          outcome: { outcome: "selected", optionId },
+        });
+        this.logger.info("GooseOrchestrator: auto-approved permission", {
+          title: data.title,
+          mode,
+        });
+
+        this.state.mutate((draft) => {
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `auto-${uuidv4()}`,
+            timestamp: new Date().toISOString(),
+            value: { message: `*Auto-approved: ${data.title}*` },
+          });
+        });
+        return;
+      }
+    }
+
+    // Show permission request to user with enhanced preview
+    const messageToken = `perm-${uuidv4()}`;
+    pendingPermissions.set(messageToken, {
+      requestId: data.requestId,
+      client: gooseClient,
+    });
+
     const kindLabels: Record<string, string> = {
       allow_once: "Allow",
-      allow_always: "Always Allow",
       reject_once: "Reject",
-      reject_always: "Always Reject",
     };
+
+    const preview = formatPermissionPreview(data, this.state.data.workspaceRoot);
+    const message = preview
+      ? `**Permission requested:** ${data.title}\n\n${preview}`
+      : `**Permission requested:** ${data.title}`;
+
+    const filteredOptions = filterPermissionOptions(data.options);
 
     this.lastTextMessageId = null;
 
@@ -404,10 +470,8 @@ export class GooseOrchestrator {
         kind: ChatMessageType.String,
         messageToken,
         timestamp: new Date().toISOString(),
-        value: {
-          message: `**Permission requested:** ${data.title}`,
-        },
-        quickResponses: data.options.map((opt) => ({
+        value: { message },
+        quickResponses: filteredOptions.map((opt) => ({
           id: opt.optionId,
           content: kindLabels[opt.kind] ?? opt.name,
         })),

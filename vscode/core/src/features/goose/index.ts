@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import type { FeatureModule, FeatureContext } from "../featureRegistry";
 import { KonveyorGUIWebviewViewProvider } from "../../KonveyorGUIWebviewViewProvider";
 import type { AgentClient } from "../../client/agentClient";
+import { editApprovalModeToGooseMode } from "./editApprovalHandler";
 
 export const gooseFeatureModule: FeatureModule = {
   id: "goose",
@@ -102,8 +103,11 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
     ctx.logger.warn(`Agent: could not load credentials from SecretStorage: ${err}`);
   }
 
-  // MCP server config will be set up after bridge port is available
-  // The initializeAgent function handles MCP bridge setup internally
+  // Set GOOSE_MODE based on editApprovalMode so the agent sends permission
+  // requests when appropriate (approve = ask for all, smart_approve = ask for writes)
+  const currentApprovalMode = ctx.store.getState().editApprovalMode;
+  const gooseMode = editApprovalModeToGooseMode(currentApprovalMode);
+  modelEnv = { ...modelEnv, GOOSE_MODE: gooseMode };
 
   if (backend === "opencode") {
     ctx.logger.info("Agent: using OpenCode backend");

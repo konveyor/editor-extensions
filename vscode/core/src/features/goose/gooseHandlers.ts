@@ -8,9 +8,11 @@ import {
   GOOSE_INSTALL_CLI,
   GOOSE_OPEN_SETTINGS,
   GOOSE_PERMISSION_RESPONSE,
+  SET_EDIT_APPROVAL_MODE,
   GooseMessageTypes,
 } from "@editor-extensions/shared";
 import { pendingPermissions } from "./gooseInit";
+import { editApprovalModeToGooseMode } from "./editApprovalHandler";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import type { AgentClient } from "../../client/agentClient";
@@ -266,5 +268,36 @@ export const gooseMessageHandlers: Record<
         }
       }
     });
+  },
+
+  [SET_EDIT_APPROVAL_MODE]: async ({ mode }: { mode: "ask" | "smart" | "auto" }, state, logger) => {
+    const previousMode = state.store.getState().editApprovalMode;
+    if (previousMode === mode) {
+      return;
+    }
+
+    state.mutate((draft) => {
+      draft.editApprovalMode = mode;
+    });
+
+    logger.info(`Edit approval mode changed: ${previousMode} -> ${mode}`);
+
+    // Update the GOOSE_MODE env var and restart the agent so it takes effect
+    const agentClient = getAgentClient(state);
+    if (agentClient) {
+      const gooseMode = editApprovalModeToGooseMode(mode);
+      agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
+
+      // Only restart if the agent is currently running and not mid-workflow
+      if (agentClient.getState() === "running" && !state.data.isFetchingSolution) {
+        logger.info("Restarting agent to apply new GOOSE_MODE", { gooseMode });
+        try {
+          await agentClient.stop();
+          await agentClient.start();
+        } catch (err) {
+          logger.error("Failed to restart agent after mode change:", err);
+        }
+      }
+    }
   },
 };

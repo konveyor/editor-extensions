@@ -10,6 +10,12 @@ import type { FeatureContext } from "../featureRegistry";
 import { GooseFileTracker } from "./gooseFileTracker";
 import { routeFileChangeToBatchReview } from "./routeFileChange";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
+import {
+  shouldAutoApprove,
+  findAllowOnceOptionId,
+  formatPermissionPreview,
+  filterPermissionOptions,
+} from "./editApprovalHandler";
 
 /**
  * Maps chat messageToken -> pending JSON-RPC request id so we can
@@ -245,42 +251,68 @@ export async function initializeAgent(
     });
   });
 
-  // Permission requests (smart_approve mode).
-  // Surfaces options as quick-response buttons in the chat so the user
-  // can approve/reject tool calls before they execute.
+  // Permission requests from the agent.
+  // Respects editApprovalMode: auto-approve in "auto" mode, show to user otherwise.
   agentClient.on("permissionRequest", (data: PermissionRequestData) => {
     if (broadcastBinding?.suspended) {
       return;
     }
+
+    // Cache file before any approval decision
+    if (data.rawInput) {
+      const workspaceRoot = ctx.store.getState().workspaceRoot;
+      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+    }
+
+    const mode = ctx.store.getState().editApprovalMode;
+
+    // Auto-approve if mode dictates
+    if (shouldAutoApprove(mode, data)) {
+      const optionId = findAllowOnceOptionId(data.options);
+      if (optionId) {
+        agentClient.respondToRequest(data.requestId, {
+          outcome: { outcome: "selected", optionId },
+        });
+        ctx.logger.info("Auto-approved permission request", { title: data.title, mode });
+
+        ctx.mutate((draft) => {
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `auto-${uuidv4()}`,
+            timestamp: new Date().toISOString(),
+            value: { message: `*Auto-approved: ${data.title}*` },
+          });
+        });
+        return;
+      }
+    }
+
+    // Show permission request to user with enhanced preview
     const messageToken = `perm-${uuidv4()}`;
     pendingPermissions.set(messageToken, {
       requestId: data.requestId,
       client: agentClient,
     });
 
-    // In smart_approve mode, tool arguments are in the permission request
-    // (not in the tool_call event). Cache the file before the tool writes.
-    if (data.rawInput) {
-      const workspaceRoot = ctx.store.getState().workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
-    }
-
     const kindLabels: Record<string, string> = {
       allow_once: "Allow",
-      allow_always: "Always Allow",
       reject_once: "Reject",
-      reject_always: "Always Reject",
     };
+
+    const preview = formatPermissionPreview(data, ctx.store.getState().workspaceRoot);
+    const message = preview
+      ? `**Permission requested:** ${data.title}\n\n${preview}`
+      : `**Permission requested:** ${data.title}`;
+
+    const filteredOptions = filterPermissionOptions(data.options);
 
     ctx.mutate((draft) => {
       draft.chatMessages.push({
         kind: ChatMessageType.String,
         messageToken,
         timestamp: new Date().toISOString(),
-        value: {
-          message: `**Permission requested:** ${data.title}`,
-        },
-        quickResponses: data.options.map((opt) => ({
+        value: { message },
+        quickResponses: filteredOptions.map((opt) => ({
           id: opt.optionId,
           content: kindLabels[opt.kind] ?? opt.name,
         })),

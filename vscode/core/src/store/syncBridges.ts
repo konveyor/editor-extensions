@@ -62,6 +62,8 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   // Labels
   "availableTargets",
   "availableSources",
+  // Edit approval
+  "editApprovalMode",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */

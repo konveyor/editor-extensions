@@ -171,6 +171,7 @@ export interface ExtensionData {
   availableTargets: string[];
   availableSources: string[];
   featureState: Record<string, unknown>;
+  editApprovalMode: "ask" | "smart" | "auto";
 }
 
 export type ConfigErrorType =
