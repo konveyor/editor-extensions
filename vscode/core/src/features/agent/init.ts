@@ -1,21 +1,19 @@
 import * as vscode from "vscode";
 import {
-  GooseAgentState,
-  GooseContentBlockType,
-  GooseMessageTypes,
+  AgentState,
+  AgentContentBlockType,
+  AgentMessageTypes,
   ChatMessageType,
 } from "@editor-extensions/shared";
 import { v4 as uuidv4 } from "uuid";
 import type { FeatureContext } from "../featureRegistry";
-import { GooseFileTracker } from "./gooseFileTracker";
-import { routeFileChangeToBatchReview } from "./routeFileChange";
+import { AgentFileTracker } from "./fileTracker";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
+import { executeExtensionCommand } from "../../commands";
+import { handlePermissionWithPolicy, type PendingPermission } from "./toolPermissionHandler";
 
-/**
- * Maps chat messageToken -> pending JSON-RPC request id so we can
- * respond to the agent when the user clicks a permission quick-response.
- */
-export const pendingPermissions = new Map<string, { requestId: number; client: AgentClient }>();
+export { type PendingPermission } from "./toolPermissionHandler";
+export const pendingPermissions = new Map<string, PendingPermission>();
 
 /**
  * Stores references to the default broadcast handlers so the
@@ -71,8 +69,8 @@ export async function initializeAgent(
 
   const disposables: vscode.Disposable[] = [];
 
-  const fileTracker = new GooseFileTracker(ctx.logger);
-  ctx.featureClients.set("gooseFileTracker", fileTracker);
+  const fileTracker = new AgentFileTracker(ctx.logger);
+  ctx.featureClients.set("agentFileTracker", fileTracker);
 
   const mcpBridgeServer = new McpBridgeServer({
     store: ctx.store,
@@ -118,7 +116,7 @@ export async function initializeAgent(
       if (!draft.featureState) {
         draft.featureState = {};
       }
-      draft.featureState.gooseState = agentState as GooseAgentState;
+      draft.featureState.agentState = agentState as AgentState;
     });
   });
 
@@ -130,12 +128,12 @@ export async function initializeAgent(
   const onStreamingChunk = (
     messageId: string,
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
   ) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
-        type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
+        type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
         messageId,
         content,
         done: false,
@@ -152,7 +150,7 @@ export async function initializeAgent(
   const onStreamingComplete = (messageId: string, stopReason: string) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
-        type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
+        type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
         messageId,
         content: "",
         done: true,
@@ -168,7 +166,7 @@ export async function initializeAgent(
   ) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
-        type: GooseMessageTypes.GOOSE_TOOL_CALL,
+        type: AgentMessageTypes.AGENT_TOOL_CALL,
         messageId,
         toolName: data.name,
         callId: data.callId,
@@ -213,23 +211,34 @@ export async function initializeAgent(
     }
   });
 
-  // When any tool completes successfully, check pending permission files
-  // for changes and route them to batch review immediately.
+  // When any tool completes successfully, check for file changes
+  // and show them in the chat as condensed change blocks.
   agentClient.on("toolCallUpdate", (_messageId: string, data: any) => {
     if (data.status !== "succeeded") {
       return;
     }
     fileTracker.resolvePendingFileChanges().then(async (changes) => {
       for (const change of changes) {
-        await routeFileChangeToBatchReview(
-          ctx.extensionState,
-          change.path,
-          change.content,
-          change.originalContent,
-        );
-        ctx.logger.info("Routed file change to batch review on tool completion", {
-          path: change.path,
+        // Show condensed change in chat for auto-mode changes
+        const relativePath = change.path.startsWith(ctx.store.getState().workspaceRoot)
+          ? change.path.slice(ctx.store.getState().workspaceRoot.length).replace(/^\//, "")
+          : change.path;
+
+        ctx.mutate((draft) => {
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: `change-${uuidv4()}`,
+            timestamp: new Date().toISOString(),
+            value: { message: `**Applied:** \`${relativePath}\`` },
+          });
         });
+
+        // Notify solution server
+        Promise.resolve(
+          executeExtensionCommand("changeApplied", change.path, change.content),
+        ).catch(() => {});
+
+        ctx.logger.info("File change applied", { path: change.path });
       }
     });
   });
@@ -240,51 +249,27 @@ export async function initializeAgent(
       if (!draft.featureState) {
         draft.featureState = {};
       }
-      draft.featureState.gooseState = "error";
-      draft.featureState.gooseError = error.message;
+      draft.featureState.agentState = "error";
+      draft.featureState.agentError = error.message;
     });
   });
 
-  // Permission requests (smart_approve mode).
-  // Surfaces options as quick-response buttons in the chat so the user
-  // can approve/reject tool calls before they execute.
-  agentClient.on("permissionRequest", (data: PermissionRequestData) => {
+  // Permission requests from the agent.
+  // Uses the generic tool permission policy to decide auto-approve/deny/ask.
+  // All paths go through the same rendering: label + preview, with different status.
+  agentClient.on("permissionRequest", async (data: PermissionRequestData) => {
     if (broadcastBinding?.suspended) {
       return;
     }
-    const messageToken = `perm-${uuidv4()}`;
-    pendingPermissions.set(messageToken, {
-      requestId: data.requestId,
-      client: agentClient,
-    });
 
-    // In smart_approve mode, tool arguments are in the permission request
-    // (not in the tool_call event). Cache the file before the tool writes.
-    if (data.rawInput) {
-      const workspaceRoot = ctx.store.getState().workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
-    }
-
-    const kindLabels: Record<string, string> = {
-      allow_once: "Allow",
-      allow_always: "Always Allow",
-      reject_once: "Reject",
-      reject_always: "Always Reject",
-    };
-
-    ctx.mutate((draft) => {
-      draft.chatMessages.push({
-        kind: ChatMessageType.String,
-        messageToken,
-        timestamp: new Date().toISOString(),
-        value: {
-          message: `**Permission requested:** ${data.title}`,
-        },
-        quickResponses: data.options.map((opt) => ({
-          id: opt.optionId,
-          content: kindLabels[opt.kind] ?? opt.name,
-        })),
-      });
+    handlePermissionWithPolicy({
+      agentClient,
+      data,
+      policy: ctx.store.getState().toolPermissions,
+      workspaceRoot: ctx.store.getState().workspaceRoot,
+      fileTracker,
+      mutate: ctx.mutate,
+      pendingPermissions,
     });
   });
 
@@ -304,10 +289,12 @@ export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void 
         const { hasGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
         const config = readGooseConfig();
         config.hasStoredCredentials = await hasGooseCredentials(ctx.extensionContext);
+        config.toolPermissions = ctx.store.getState().toolPermissions;
+        config.agentMode = (ctx.store.getState().featureState?.agentMode as boolean) ?? true;
         const timestamp = new Date().toISOString();
         for (const provider of ctx.webviewProviders.values()) {
           provider.sendMessageToWebview({
-            type: GooseMessageTypes.GOOSE_CONFIG_UPDATE,
+            type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
             config,
             timestamp,
           });

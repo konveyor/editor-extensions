@@ -29,7 +29,6 @@ import { ExtensionPaths, ensurePaths, paths, ensureKaiAnalyzerBinary } from "./p
 import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
-  getConfigAgentMode,
   getCacheDir,
   getTraceDir,
   getTraceEnabled,
@@ -37,6 +36,8 @@ import {
   getConfigLogLevel,
   getConfigGenAIEnabled,
   getConfigAutoAcceptOnSave,
+  getConfigToolPermissions,
+  getConfigAgentMode,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -111,7 +112,6 @@ class VsCodeExtension {
       activeProfileId: "",
       profiles: [],
       isInTreeMode: false,
-      isAgentMode: getConfigAgentMode(),
       activeDecorators: {},
       solutionServerConnected: false,
       isWaitingForUserInteraction: false,
@@ -125,7 +125,8 @@ class VsCodeExtension {
       isWebEnvironment,
       availableTargets: [],
       availableSources: [],
-      featureState: {},
+      featureState: { agentMode: getConfigAgentMode() },
+      toolPermissions: getConfigToolPermissions(),
     };
 
     this.store = createExtensionStore(initialData);
@@ -650,13 +651,6 @@ class VsCodeExtension {
               });
           }
 
-          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
-            const agentMode = getConfigAgentMode();
-            this.state.mutate((draft) => {
-              draft.isAgentMode = agentMode;
-            });
-          }
-
           if (event.affectsConfiguration(`${EXTENSION_NAME}.logLevel`)) {
             this.state.logger.info("Log level configuration modified!");
             const newLogLevel = getConfigLogLevel();
@@ -665,6 +659,27 @@ class VsCodeExtension {
               transport.level = newLogLevel;
             }
             this.state.logger.info(`Log level changed to ${newLogLevel}`);
+          }
+
+          // Sync agent settings → store when changed from VS Code Settings UI
+          if (
+            event.affectsConfiguration(`${EXTENSION_NAME}.genai.autonomyLevel`) ||
+            event.affectsConfiguration(`${EXTENSION_NAME}.genai.permissionOverrides`)
+          ) {
+            this.state.mutate((draft) => {
+              draft.toolPermissions = getConfigToolPermissions();
+            });
+            this.state.logger.info("Tool permissions updated from settings");
+          }
+
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
+            this.state.mutate((draft) => {
+              if (!draft.featureState) {
+                draft.featureState = {};
+              }
+              draft.featureState.agentMode = getConfigAgentMode();
+            });
+            this.state.logger.info(`Agent mode updated from settings: ${getConfigAgentMode()}`);
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.analyzerPath`)) {

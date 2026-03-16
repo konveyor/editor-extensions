@@ -1,8 +1,8 @@
 import React from "react";
-import type { GooseContentBlock } from "@editor-extensions/shared";
+import type { AgentContentBlock } from "@editor-extensions/shared";
 
 interface ResourceLinkProps {
-  block: Extract<GooseContentBlock, { type: "resource_link" }>;
+  block: Extract<AgentContentBlock, { type: "resource_link" }>;
 }
 
 export const ResourceLink: React.FC<ResourceLinkProps> = ({ block }) => {
@@ -20,17 +20,17 @@ export const ResourceLink: React.FC<ResourceLinkProps> = ({ block }) => {
 
   if (isFileUri) {
     return (
-      <span className="goose-resource-link goose-resource-link--file" onClick={handleClick}>
-        <span className="goose-resource-link__icon">📄</span>
-        <span className="goose-resource-link__name">{displayName}</span>
+      <span className="agent-resource-link agent-resource-link--file" onClick={handleClick}>
+        <span className="agent-resource-link__icon">📄</span>
+        <span className="agent-resource-link__name">{displayName}</span>
       </span>
     );
   }
 
   return (
-    <a className="goose-resource-link" href={block.uri} target="_blank" rel="noopener noreferrer">
-      <span className="goose-resource-link__icon">🔗</span>
-      <span className="goose-resource-link__name">{displayName}</span>
+    <a className="agent-resource-link" href={block.uri} target="_blank" rel="noopener noreferrer">
+      <span className="agent-resource-link__icon">🔗</span>
+      <span className="agent-resource-link__name">{displayName}</span>
     </a>
   );
 };

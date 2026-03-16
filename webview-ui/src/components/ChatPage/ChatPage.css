@@ -224,7 +224,7 @@
 
 /* --- Resource Link --- */
 
-.goose-resource-link {
+.agent-resource-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -238,31 +238,31 @@
   cursor: pointer;
 }
 
-.goose-resource-link:hover {
+.agent-resource-link:hover {
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
-.goose-resource-link--file {
+.agent-resource-link--file {
   cursor: pointer;
 }
 
-.goose-resource-link__icon {
+.agent-resource-link__icon {
   font-size: 12px;
 }
 
-.goose-resource-link__name {
+.agent-resource-link__name {
   font-family: var(--vscode-editor-font-family, monospace);
 }
 
 /* --- Resource Block --- */
 
-.goose-resource-block {
+.agent-resource-block {
   margin: 4px 0;
   border-radius: 3px;
   overflow: hidden;
 }
 
-.goose-resource-block__header {
+.agent-resource-block__header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -276,26 +276,26 @@
   text-align: left;
 }
 
-.goose-resource-block__header:hover {
+.agent-resource-block__header:hover {
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
-.goose-resource-block__toggle {
+.agent-resource-block__toggle {
   font-size: 10px;
   width: 12px;
 }
 
-.goose-resource-block__name {
+.agent-resource-block__name {
   font-family: var(--vscode-editor-font-family, monospace);
   flex-grow: 1;
 }
 
-.goose-resource-block__mime {
+.agent-resource-block__mime {
   font-size: 10px;
   opacity: 0.6;
 }
 
-.goose-resource-block__content {
+.agent-resource-block__content {
   margin: 0;
   padding: 8px;
   background: var(--vscode-editor-background, #1e1e1e);
@@ -305,20 +305,20 @@
   overflow-y: auto;
 }
 
-.goose-resource-block__content code {
+.agent-resource-block__content code {
   font-family: var(--vscode-editor-font-family, monospace);
   white-space: pre;
 }
 
 /* --- Thinking Indicator (active, during streaming) --- */
 
-.goose-thinking {
+.agent-thinking {
   padding: 2px 0;
   color: var(--vscode-descriptionForeground, #999);
   font-size: 11px;
 }
 
-.goose-thinking__toggle {
+.agent-thinking__toggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -332,37 +332,37 @@
   font-family: inherit;
 }
 
-.goose-thinking__toggle:not(:disabled):hover {
+.agent-thinking__toggle:not(:disabled):hover {
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
-.goose-thinking__toggle:disabled {
+.agent-thinking__toggle:disabled {
   cursor: default;
 }
 
-.goose-thinking__dots {
+.agent-thinking__dots {
   display: inline-flex;
   gap: 3px;
   align-items: center;
 }
 
-.goose-thinking__dot {
+.agent-thinking__dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--vscode-descriptionForeground, #999);
-  animation: goose-thinking-pulse 1.4s ease-in-out infinite;
+  animation: agent-thinking-pulse 1.4s ease-in-out infinite;
 }
 
-.goose-thinking__dot:nth-child(2) {
+.agent-thinking__dot:nth-child(2) {
   animation-delay: 0.2s;
 }
 
-.goose-thinking__dot:nth-child(3) {
+.agent-thinking__dot:nth-child(3) {
   animation-delay: 0.4s;
 }
 
-@keyframes goose-thinking-pulse {
+@keyframes agent-thinking-pulse {
   0%,
   80%,
   100% {
@@ -375,17 +375,17 @@
   }
 }
 
-.goose-thinking__label {
+.agent-thinking__label {
   margin-left: 2px;
   font-style: italic;
 }
 
-.goose-thinking__chevron {
+.agent-thinking__chevron {
   margin-left: 2px;
   font-size: 10px;
 }
 
-.goose-thinking__content {
+.agent-thinking__content {
   margin: 2px 0 2px 8px;
   padding: 6px 10px;
   border-left: 2px solid var(--vscode-textSeparator-foreground, #444);
@@ -399,13 +399,13 @@
 
 /* --- Thinking Block (completed, in history) --- */
 
-.goose-thinking-block {
+.agent-thinking-block {
   margin: 4px 0;
   border-radius: 3px;
   overflow: hidden;
 }
 
-.goose-thinking-block__header {
+.agent-thinking-block__header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -420,24 +420,24 @@
   font-family: inherit;
 }
 
-.goose-thinking-block__header:hover {
+.agent-thinking-block__header:hover {
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
-.goose-thinking-block__icon {
+.agent-thinking-block__icon {
   font-size: 12px;
 }
 
-.goose-thinking-block__title {
+.agent-thinking-block__title {
   flex-grow: 1;
   font-style: italic;
 }
 
-.goose-thinking-block__chevron {
+.agent-thinking-block__chevron {
   font-size: 10px;
 }
 
-.goose-thinking-block__content {
+.agent-thinking-block__content {
   padding: 6px 10px;
   color: var(--vscode-descriptionForeground, #999);
   font-size: 11px;
@@ -449,7 +449,7 @@
 
 /* --- Content Blocks Container --- */
 
-.goose-content-blocks {
+.agent-content-blocks {
   margin-top: 8px;
 }
 
@@ -465,7 +465,7 @@
 
 /* --- Cancelled Label --- */
 
-.goose-cancelled-label {
+.agent-cancelled-label {
   display: inline-block;
   margin-top: 6px;
   padding: 2px 8px;
@@ -495,9 +495,29 @@
   text-align: center;
 }
 
+.chat-approval-select {
+  font-size: 10px;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.chat-approval-select:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #454545);
+}
+
+.chat-approval-select:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: -1px;
+}
+
 /* --- Goose Settings Panel --- */
 
-.goose-settings {
+.agent-settings {
   flex-shrink: 0;
   border-bottom: 1px solid var(--vscode-panel-border, #333);
   background: var(--vscode-sideBar-background, #1e1e1e);
@@ -506,20 +526,20 @@
   overflow-y: auto;
 }
 
-.goose-settings__header {
+.agent-settings__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
 }
 
-.goose-settings__title {
+.agent-settings__title {
   font-size: 13px;
   font-weight: 600;
   color: var(--vscode-foreground, #ccc);
 }
 
-.goose-settings__close {
+.agent-settings__close {
   background: none;
   border: none;
   color: var(--vscode-foreground, #ccc);
@@ -529,15 +549,15 @@
   border-radius: 3px;
 }
 
-.goose-settings__close:hover {
+.agent-settings__close:hover {
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
-.goose-settings__section {
+.agent-settings__section {
   margin-bottom: 10px;
 }
 
-.goose-settings__label {
+.agent-settings__label {
   display: block;
   font-size: 11px;
   color: var(--vscode-descriptionForeground, #999);
@@ -546,8 +566,8 @@
   letter-spacing: 0.5px;
 }
 
-.goose-settings__select,
-.goose-settings__input {
+.agent-settings__select,
+.agent-settings__input {
   width: 100%;
   padding: 5px 8px;
   font-size: 12px;
@@ -559,16 +579,16 @@
   box-sizing: border-box;
 }
 
-.goose-settings__select:focus,
-.goose-settings__input:focus {
+.agent-settings__select:focus,
+.agent-settings__input:focus {
   border-color: var(--vscode-focusBorder, #007acc);
 }
 
-.goose-settings__model-wrapper {
+.agent-settings__model-wrapper {
   position: relative;
 }
 
-.goose-settings__suggestions {
+.agent-settings__suggestions {
   position: absolute;
   top: 100%;
   left: 0;
@@ -585,42 +605,42 @@
   overflow-y: auto;
 }
 
-.goose-settings__suggestion {
+.agent-settings__suggestion {
   padding: 4px 8px;
   font-size: 12px;
   color: var(--vscode-input-foreground, #ccc);
   cursor: pointer;
 }
 
-.goose-settings__suggestion:hover {
+.agent-settings__suggestion:hover {
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
-.goose-settings__credential-hint {
+.agent-settings__credential-hint {
   font-size: 11px;
   color: var(--vscode-descriptionForeground, #999);
   margin-bottom: 10px;
   font-style: italic;
 }
 
-.goose-settings__credentials {
+.agent-settings__credentials {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.goose-settings__credential-field {
+.agent-settings__credential-field {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.goose-settings__credential-label {
+.agent-settings__credential-label {
   font-size: 11px;
   color: var(--vscode-foreground, #ccc);
 }
 
-.goose-settings__stored-badge {
+.agent-settings__stored-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 5px;
@@ -634,18 +654,18 @@
   vertical-align: middle;
 }
 
-.goose-settings__section-divider {
+.agent-settings__section-divider {
   border-top: 1px solid var(--vscode-panel-border, #333);
   margin: 8px 0 10px;
 }
 
-.goose-settings__extensions {
+.agent-settings__extensions {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.goose-settings__extension {
+.agent-settings__extension {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -653,18 +673,18 @@
   padding: 4px 0;
 }
 
-.goose-settings__extension-info {
+.agent-settings__extension-info {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.goose-settings__extension-name {
+.agent-settings__extension-name {
   font-size: 12px;
   color: var(--vscode-foreground, #ccc);
 }
 
-.goose-settings__extension-desc {
+.agent-settings__extension-desc {
   font-size: 11px;
   color: var(--vscode-descriptionForeground, #999);
   overflow: hidden;
@@ -673,7 +693,7 @@
 }
 
 /* Toggle switch */
-.goose-settings__toggle {
+.agent-settings__toggle {
   background: none;
   border: none;
   padding: 0;
@@ -681,7 +701,7 @@
   flex-shrink: 0;
 }
 
-.goose-settings__toggle-track {
+.agent-settings__toggle-track {
   display: block;
   width: 32px;
   height: 18px;
@@ -691,11 +711,11 @@
   transition: background 0.15s;
 }
 
-.goose-settings__toggle--on .goose-settings__toggle-track {
+.agent-settings__toggle--on .agent-settings__toggle-track {
   background: var(--vscode-button-background, #0e639c);
 }
 
-.goose-settings__toggle-thumb {
+.agent-settings__toggle-thumb {
   display: block;
   width: 14px;
   height: 14px;
@@ -707,17 +727,17 @@
   transition: transform 0.15s;
 }
 
-.goose-settings__toggle--on .goose-settings__toggle-thumb {
+.agent-settings__toggle--on .agent-settings__toggle-thumb {
   transform: translateX(14px);
 }
 
-.goose-settings__actions {
+.agent-settings__actions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
 }
 
-.goose-settings__btn {
+.agent-settings__btn {
   flex: 1;
   padding: 5px 10px;
   font-size: 12px;
@@ -726,27 +746,93 @@
   cursor: pointer;
 }
 
-.goose-settings__btn:disabled {
+.agent-settings__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.goose-settings__btn--primary {
+.agent-settings__btn--primary {
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #fff);
 }
 
-.goose-settings__btn--primary:not(:disabled):hover {
+.agent-settings__btn--primary:not(:disabled):hover {
   background: var(--vscode-button-hoverBackground, #1177bb);
 }
 
-.goose-settings__btn--secondary {
+.agent-settings__btn--secondary {
   background: var(--vscode-button-secondaryBackground, #3a3a3a);
   color: var(--vscode-button-secondaryForeground, #ccc);
 }
 
-.goose-settings__btn--secondary:hover {
+.agent-settings__btn--secondary:hover {
   background: var(--vscode-button-secondaryHoverBackground, #454545);
+}
+
+/* --- Tool permission settings --- */
+
+.agent-settings__permission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.agent-settings__permission-label {
+  font-size: 12px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.agent-settings__permission-select {
+  width: 110px;
+  padding: 3px 6px;
+  font-size: 12px;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 3px;
+}
+
+.agent-settings__permission-select:focus {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.agent-settings__permission-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-settings__permission-overrides {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-panel-border, #333);
+}
+
+.agent-settings__permission-overrides-header {
+  display: block;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-bottom: 4px;
+}
+
+.agent-settings__agent-mode-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-top: 2px;
+}
+
+.agent-settings__link-btn {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.agent-settings__link-btn:hover {
+  text-decoration: underline;
 }
 
 /* --- Hide avatar icons in the chat page --- */
@@ -925,7 +1011,7 @@
     font-size: 11px;
   }
 
-  .goose-settings {
+  .agent-settings {
     padding: 8px 10px;
   }
 }

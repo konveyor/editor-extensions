@@ -1,17 +1,17 @@
-export interface GooseEnvVar {
+export interface ProviderEnvVar {
   key: string;
   label: string;
   isSecret?: boolean;
 }
 
-export interface GooseProviderOption {
+export interface ProviderOption {
   id: string;
   name: string;
-  envVars: GooseEnvVar[];
+  envVars: ProviderEnvVar[];
   commonModels: string[];
 }
 
-export const GOOSE_PROVIDERS: GooseProviderOption[] = [
+export const PROVIDERS: ProviderOption[] = [
   {
     id: "openai",
     name: "OpenAI",

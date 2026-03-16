@@ -37,7 +37,6 @@ const App: React.FC = () => {
         solutionScope: windowData.solutionScope,
         solutionServerEnabled: windowData.solutionServerEnabled ?? false,
         solutionServerConnected: windowData.solutionServerConnected ?? false,
-        isAgentMode: windowData.isAgentMode ?? false,
         isInTreeMode: windowData.isInTreeMode ?? false,
         workspaceRoot: windowData.workspaceRoot ?? "/",
         activeProfileId: windowData.activeProfileId ?? null,
@@ -47,9 +46,6 @@ const App: React.FC = () => {
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         chatMessages: Array.isArray(windowData.chatMessages) ? windowData.chatMessages : [],
-        pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
-          ? windowData.pendingBatchReview
-          : [],
         hubConfig: windowData.hubConfig,
         profileSyncEnabled: windowData.profileSyncEnabled ?? false,
         profileSyncConnected: windowData.profileSyncConnected ?? false,

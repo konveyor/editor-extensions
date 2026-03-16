@@ -7,10 +7,9 @@ import {
   ServerState,
   SolutionState,
   Scope,
-  PendingBatchReviewFile,
   HubConfig,
 } from "./types";
-import type { GooseWebviewMessage } from "./gooseMessages";
+import type { AgentWebviewMessage } from "./agentMessages";
 
 export const MessageTypes = {
   // Core state
@@ -59,7 +58,6 @@ export interface StateChangeData {
   solutionScope?: Scope;
   isWaitingForUserInteraction?: boolean;
   isProcessingQueuedMessages?: boolean;
-  pendingBatchReview?: PendingBatchReviewFile[];
 
   // Server
   serverState?: ServerState;
@@ -82,7 +80,6 @@ export interface StateChangeData {
 
   // Settings
   solutionServerEnabled?: boolean;
-  isAgentMode?: boolean;
   isContinueInstalled?: boolean;
   hubConfig?: HubConfig;
   hubForced?: boolean;
@@ -108,14 +105,14 @@ export interface FocusViolationMessage {
 }
 
 /**
- * Union type of all possible webview messages (core + goose)
+ * Union type of all possible webview messages (core + agent)
  */
 export type WebviewMessage =
   | StateChangeMessage
   | FocusViolationMessage
   | ChatStateChangeMessage
   | ChatStreamingUpdateMessage
-  | GooseWebviewMessage;
+  | AgentWebviewMessage;
 
 /**
  * Type guards for message discrimination

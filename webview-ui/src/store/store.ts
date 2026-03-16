@@ -10,13 +10,14 @@ import type {
   ServerState,
   SolutionState,
   Scope,
-  PendingBatchReviewFile,
   HubConfig,
-  GooseAgentState,
-  GooseChatMessage,
-  GooseContentBlockType,
-  GooseConfig,
+  AgentState,
+  AgentChatMessage,
+  AgentContentBlockType,
+  AgentConfig,
+  ToolPermissionPolicy,
 } from "@editor-extensions/shared";
+import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
 
@@ -51,7 +52,6 @@ interface ExtensionStore {
   solutionScope?: Scope;
   solutionServerEnabled: boolean;
   solutionServerConnected: boolean;
-  isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
   hubForced?: boolean;
@@ -64,17 +64,18 @@ interface ExtensionStore {
   availableSources: string[];
 
   // Batch review state
-  pendingBatchReview: PendingBatchReviewFile[];
-  isBatchOperationInProgress: boolean;
 
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
 
-  // Goose chat state (experimental)
-  gooseMessages: GooseChatMessage[];
-  gooseState: GooseAgentState;
-  gooseError?: string;
-  gooseConfig: GooseConfig | null;
+  // Tool permission policy
+  toolPermissions: ToolPermissionPolicy;
+
+  // Agent chat state (experimental)
+  agentMessages: AgentChatMessage[];
+  agentState: AgentState;
+  agentError?: string;
+  agentConfig: AgentConfig | null;
 
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
@@ -95,7 +96,6 @@ interface ExtensionStore {
   setIsInitializingServer: (isInitializing: boolean) => void;
   setIsWaitingForUserInteraction: (isWaiting: boolean) => void;
   setIsProcessingQueuedMessages: (isProcessing: boolean) => void;
-  setBatchOperationInProgress: (isInProgress: boolean) => void;
   setActiveDecorators: (decorators: Record<string, string>) => void;
   deleteActiveDecorator: (streamId: string) => void;
 
@@ -106,7 +106,6 @@ interface ExtensionStore {
   setSolutionScope: (scope: Scope | undefined) => void;
   setSolutionServerConnected: (connected: boolean) => void;
   setSolutionServerEnabled: (enabled: boolean) => void;
-  setIsAgentMode: (isAgentMode: boolean) => void;
   setIsContinueInstalled: (isInstalled: boolean) => void;
   setHubConfig: (config: HubConfig | undefined) => void;
   setHubForced: (forced: boolean | undefined) => void;
@@ -117,22 +116,23 @@ interface ExtensionStore {
   setLlmProxyAvailable: (available: boolean) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
+  setToolPermissions: (policy: ToolPermissionPolicy) => void;
 
-  // Goose chat setters
-  setGooseConfig: (config: GooseConfig | null) => void;
-  setGooseMessages: (messages: GooseChatMessage[]) => void;
-  setGooseState: (state: GooseAgentState) => void;
-  setGooseError: (error: string | undefined) => void;
-  appendGooseStreamingChunk: (
+  // Agent chat setters
+  setAgentConfig: (config: AgentConfig | null) => void;
+  setAgentMessages: (messages: AgentChatMessage[]) => void;
+  setAgentState: (state: AgentState) => void;
+  setAgentError: (error: string | undefined) => void;
+  appendAgentStreamingChunk: (
     messageId: string,
     content: string,
-    contentType?: GooseContentBlockType,
+    contentType?: AgentContentBlockType,
     resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
   ) => void;
-  finalizeGooseMessage: (messageId: string, stopReason?: string) => void;
-  cancelGooseMessage: (messageId: string) => void;
-  setGooseThinking: (messageId: string, isThinking: boolean) => void;
-  updateGooseToolCall: (
+  finalizeAgentMessage: (messageId: string, stopReason?: string) => void;
+  cancelAgentMessage: (messageId: string) => void;
+  setAgentThinking: (messageId: string, isThinking: boolean) => void;
+  updateAgentToolCall: (
     messageId: string,
     toolName: string,
     status: "running" | "succeeded" | "failed",
@@ -173,7 +173,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       solutionScope: undefined,
       solutionServerEnabled: false,
       solutionServerConnected: false,
-      isAgentMode: false,
       isContinueInstalled: false,
       hubConfig: undefined,
       hubForced: undefined,
@@ -185,18 +184,19 @@ export const useExtensionStore = create<ExtensionStore>()(
       availableTargets: [],
       availableSources: [],
 
+      // Tool permission policy
+      toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
+
       // Batch review state
-      pendingBatchReview: [],
-      isBatchOperationInProgress: false,
 
       // Focus/filter state
       focusedViolationFilter: null,
 
-      // Goose chat state
-      gooseMessages: [],
-      gooseState: "stopped" as GooseAgentState,
-      gooseError: undefined,
-      gooseConfig: null,
+      // Agent chat state
+      agentMessages: [],
+      agentState: "stopped" as AgentState,
+      agentError: undefined,
+      agentConfig: null,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -292,11 +292,6 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.isProcessingQueuedMessages = isProcessing;
         }),
 
-      setBatchOperationInProgress: (isInProgress) =>
-        set((state) => {
-          state.isBatchOperationInProgress = isInProgress;
-        }),
-
       setActiveDecorators: (decorators) =>
         set((state) => {
           state.activeDecorators = decorators;
@@ -342,11 +337,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       setSolutionServerEnabled: (enabled) =>
         set((state) => {
           state.solutionServerEnabled = enabled;
-        }),
-
-      setIsAgentMode: (isAgentMode) =>
-        set((state) => {
-          state.isAgentMode = isAgentMode;
         }),
 
       setIsContinueInstalled: (isInstalled) =>
@@ -399,30 +389,35 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.isWebEnvironment = isWeb;
         }),
 
-      // Goose chat setters
-      setGooseConfig: (config) =>
+      setToolPermissions: (policy) =>
         set((state) => {
-          state.gooseConfig = config;
+          state.toolPermissions = policy;
         }),
 
-      setGooseMessages: (messages) =>
+      // Agent chat setters
+      setAgentConfig: (config) =>
         set((state) => {
-          state.gooseMessages = messages;
+          state.agentConfig = config;
         }),
 
-      setGooseState: (gooseState) =>
+      setAgentMessages: (messages) =>
         set((state) => {
-          state.gooseState = gooseState;
+          state.agentMessages = messages;
         }),
 
-      setGooseError: (error) =>
+      setAgentState: (agentState) =>
         set((state) => {
-          state.gooseError = error;
+          state.agentState = agentState;
         }),
 
-      appendGooseStreamingChunk: (messageId, content, contentType, resourceData) =>
+      setAgentError: (error) =>
         set((state) => {
-          let msg = state.gooseMessages.find((m) => m.id === messageId);
+          state.agentError = error;
+        }),
+
+      appendAgentStreamingChunk: (messageId, content, contentType, resourceData) =>
+        set((state) => {
+          let msg = state.agentMessages.find((m) => m.id === messageId);
           if (!msg) {
             msg = {
               id: messageId,
@@ -433,7 +428,7 @@ export const useExtensionStore = create<ExtensionStore>()(
               isThinking: true,
               contentBlocks: [],
             };
-            state.gooseMessages.push(msg);
+            state.agentMessages.push(msg);
           }
 
           msg.isStreaming = true;
@@ -475,9 +470,9 @@ export const useExtensionStore = create<ExtensionStore>()(
           }
         }),
 
-      finalizeGooseMessage: (messageId, stopReason) =>
+      finalizeAgentMessage: (messageId, stopReason) =>
         set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          const msg = state.agentMessages.find((m) => m.id === messageId);
           if (msg) {
             msg.isStreaming = false;
             msg.isThinking = false;
@@ -487,9 +482,9 @@ export const useExtensionStore = create<ExtensionStore>()(
           }
         }),
 
-      cancelGooseMessage: (messageId) =>
+      cancelAgentMessage: (messageId) =>
         set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          const msg = state.agentMessages.find((m) => m.id === messageId);
           if (msg) {
             msg.isStreaming = false;
             msg.isCancelled = true;
@@ -498,17 +493,17 @@ export const useExtensionStore = create<ExtensionStore>()(
           }
         }),
 
-      setGooseThinking: (messageId, isThinking) =>
+      setAgentThinking: (messageId, isThinking) =>
         set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
+          const msg = state.agentMessages.find((m) => m.id === messageId);
           if (msg) {
             msg.isThinking = isThinking;
           }
         }),
 
-      updateGooseToolCall: (messageId, toolName, status, result) =>
+      updateAgentToolCall: (messageId, toolName, status, result) =>
         set((state) => {
-          let msg = state.gooseMessages.find((m) => m.id === messageId);
+          let msg = state.agentMessages.find((m) => m.id === messageId);
           if (!msg) {
             msg = {
               id: messageId,
@@ -518,7 +513,7 @@ export const useExtensionStore = create<ExtensionStore>()(
               isStreaming: true,
               contentBlocks: [],
             };
-            state.gooseMessages.push(msg);
+            state.agentMessages.push(msg);
           }
           msg.toolCall = {
             name: toolName,

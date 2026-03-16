@@ -22,13 +22,14 @@ export const DELETE_PROFILE = "DELETE_PROFILE";
 export const UPDATE_PROFILE = "UPDATE_PROFILE";
 export const QUICK_RESPONSE = "QUICK_RESPONSE";
 export const OPEN_FILE_IN_EDITOR = "OPEN_FILE_IN_EDITOR";
-export const TOGGLE_AGENT_MODE = "TOGGLE_AGENT_MODE";
 export const OPEN_RESOLUTION_PANEL = "OPEN_RESOLUTION_PANEL";
 export const OPEN_HUB_SETTINGS = "OPEN_HUB_SETTINGS";
 export const UPDATE_HUB_CONFIG = "UPDATE_HUB_CONFIG";
 export const SYNC_HUB_PROFILES = "SYNC_HUB_PROFILES";
 export const RETRY_PROFILE_SYNC = "RETRY_PROFILE_SYNC";
 export const STOP_WORKFLOW = "STOP_WORKFLOW";
+export const SET_TOOL_PERMISSIONS = "SET_TOOL_PERMISSIONS";
+export const OPEN_NATIVE_CONFIG = "OPEN_NATIVE_CONFIG";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -56,13 +57,14 @@ export type WebviewActionType =
   | typeof OPEN_PROFILE_MANAGER
   | typeof QUICK_RESPONSE
   | typeof OPEN_FILE_IN_EDITOR
-  | typeof TOGGLE_AGENT_MODE
   | typeof OPEN_RESOLUTION_PANEL
   | typeof OPEN_HUB_SETTINGS
   | typeof UPDATE_HUB_CONFIG
   | typeof SYNC_HUB_PROFILES
   | typeof RETRY_PROFILE_SYNC
-  | typeof STOP_WORKFLOW;
+  | typeof STOP_WORKFLOW
+  | typeof SET_TOOL_PERMISSIONS
+  | typeof OPEN_NATIVE_CONFIG;
 
 export interface WebviewAction<S, T> {
   type: S;

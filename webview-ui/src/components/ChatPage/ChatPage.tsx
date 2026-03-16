@@ -20,13 +20,12 @@ import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ToolMessage } from "../ResolutionsPage/ToolMessage";
 import { MessageWrapper } from "../ResolutionsPage/MessageWrapper";
-import { CompactBatchReview } from "./CompactBatchReview";
 import { CompactModifiedFile } from "./CompactModifiedFile";
 import LoadingIndicator from "../ResolutionsPage/LoadingIndicator";
 import CompactMigrationScope from "./CompactMigrationScope";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { useContainerWidth } from "../../hooks/useContainerWidth";
-import GooseSettings from "./GooseSettings";
+import AgentSettings from "./AgentSettings";
 import "./ChatPage.css";
 
 const MIN_USABLE_WIDTH = 200;
@@ -39,15 +38,14 @@ const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
-  const gooseState = useExtensionStore((s) => s.gooseState);
-  const gooseError = useExtensionStore((s) => s.gooseError);
-  const gooseConfig = useExtensionStore((s) => s.gooseConfig);
+  const agentState = useExtensionStore((s) => s.agentState);
+  const agentError = useExtensionStore((s) => s.agentError);
+  const agentConfig = useExtensionStore((s) => s.agentConfig);
 
   const chatMessages = useExtensionStore((s) => s.chatMessages);
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
   const isAnalyzing = useExtensionStore((s) => s.isAnalyzing);
-
   const isProcessing = isFetchingSolution;
   const hasWorkflowContent = Array.isArray(chatMessages) && chatMessages.length > 0;
   const isTriggeredByUser =
@@ -60,27 +58,27 @@ const ChatPage: React.FC = () => {
 
   const handleStartAgent = useCallback(() => {
     const store = useExtensionStore.getState();
-    if (store.gooseState === "error") {
-      store.setGooseError(undefined);
+    if (store.agentState === "error") {
+      store.setAgentError(undefined);
     }
-    window.vscode.postMessage({ type: "GOOSE_START_AGENT", payload: {} });
+    window.vscode.postMessage({ type: "AGENT_START", payload: {} });
   }, []);
 
   const handleStopAgent = useCallback(() => {
-    window.vscode.postMessage({ type: "GOOSE_STOP_AGENT", payload: {} });
+    window.vscode.postMessage({ type: "AGENT_STOP", payload: {} });
   }, []);
 
   const handleToggleView = useCallback(() => {
-    window.vscode.postMessage({ type: "GOOSE_TOGGLE_VIEW", payload: {} });
+    window.vscode.postMessage({ type: "AGENT_TOGGLE_VIEW", payload: {} });
   }, []);
 
-  const isRunning = gooseState === "running";
-  const isStarting = gooseState === "starting";
-  const isError = gooseState === "error";
+  const isRunning = agentState === "running";
+  const isStarting = agentState === "starting";
+  const isError = agentState === "error";
 
   const configLabel =
-    gooseConfig?.provider && gooseConfig?.model
-      ? `${gooseConfig.provider} / ${gooseConfig.model}`
+    agentConfig?.provider && agentConfig?.model
+      ? `${agentConfig.provider} / ${agentConfig.model}`
       : "Not configured";
 
   const renderItems = useMemo((): RenderItem[] => {
@@ -160,10 +158,19 @@ const ChatPage: React.FC = () => {
           );
         }
 
-        const count = tools.length;
         return (
           <div key={key} className="tool-calls-summary">
-            {count === 1 ? "1 tool call" : `${count} tool calls`}
+            {tools.map((t) => {
+              const val = t.value as ToolMessageValue;
+              return (
+                <ToolMessage
+                  key={t.messageToken}
+                  toolName={val.toolName}
+                  status="succeeded"
+                  detail={val.detail}
+                />
+              );
+            })}
           </div>
         );
       }
@@ -269,17 +276,17 @@ const ChatPage: React.FC = () => {
                 </button>
               </div>
 
-              {showSettings && <GooseSettings onClose={() => setShowSettings(false)} />}
+              {showSettings && <AgentSettings onClose={() => setShowSettings(false)} />}
 
-              {isError && gooseError && (
+              {isError && agentError && (
                 <div className="chat-error-banner">
-                  <div className="chat-error-banner__message">{gooseError}</div>
-                  {gooseError.includes("binary not found") ? (
+                  <div className="chat-error-banner__message">{agentError}</div>
+                  {agentError.includes("binary not found") ? (
                     <div className="chat-error-banner__actions">
                       <button
                         className="chat-error-banner__btn"
                         onClick={() => {
-                          window.vscode.postMessage({ type: "GOOSE_INSTALL_CLI", payload: {} });
+                          window.vscode.postMessage({ type: "AGENT_INSTALL_CLI", payload: {} });
                         }}
                       >
                         Install Goose CLI
@@ -290,7 +297,7 @@ const ChatPage: React.FC = () => {
                           className="chat-error-banner__link"
                           onClick={() => {
                             window.vscode.postMessage({
-                              type: "GOOSE_OPEN_SETTINGS",
+                              type: "AGENT_OPEN_SETTINGS",
                               payload: {},
                             });
                           }}
@@ -305,7 +312,6 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
-              <CompactBatchReview />
               <MessageBox ref={messageBoxRef} className="chat-messages">
                 {isTriggeredByUser && solutionScope && (
                   <div className="chat-initial-scope">

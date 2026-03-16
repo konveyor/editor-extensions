@@ -2,9 +2,10 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { parse, stringify } from "yaml";
-import type { GooseConfig, GooseExtensionConfig } from "@editor-extensions/shared";
+import type { AgentConfig, AgentCapability } from "@editor-extensions/shared";
+import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
 
-function getGooseConfigPath(): string {
+export function getGooseConfigPath(): string {
   if (process.platform === "win32") {
     const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
     return path.join(appData, "Block", "goose", "config", "config.yaml");
@@ -12,7 +13,7 @@ function getGooseConfigPath(): string {
   return path.join(os.homedir(), ".config", "goose", "config.yaml");
 }
 
-export function readGooseConfig(): GooseConfig {
+export function readGooseConfig(): AgentConfig {
   const configPath = getGooseConfigPath();
 
   let raw: Record<string, any> = {};
@@ -26,7 +27,7 @@ export function readGooseConfig(): GooseConfig {
   const provider = typeof raw.GOOSE_PROVIDER === "string" ? raw.GOOSE_PROVIDER : "";
   const model = typeof raw.GOOSE_MODEL === "string" ? raw.GOOSE_MODEL : "";
 
-  const extensions: GooseExtensionConfig[] = [];
+  const capabilities: AgentCapability[] = [];
   const extMap = raw.extensions;
   if (extMap && typeof extMap === "object") {
     for (const [id, extRaw] of Object.entries(extMap)) {
@@ -34,18 +35,25 @@ export function readGooseConfig(): GooseConfig {
       if (!ext || typeof ext !== "object") {
         continue;
       }
-      extensions.push({
+      capabilities.push({
         id,
         name: typeof ext.display_name === "string" ? ext.display_name : id,
         description: typeof ext.description === "string" ? ext.description : "",
         enabled: ext.enabled !== false,
-        type: (ext.type as GooseExtensionConfig["type"]) ?? "builtin",
-        bundled: ext.bundled !== false,
+        kind: typeof ext.type === "string" ? ext.type : "builtin",
       });
     }
   }
 
-  return { provider, model, extensions, hasStoredCredentials: false };
+  return {
+    backend: "goose",
+    agentMode: true,
+    provider,
+    model,
+    capabilities,
+    hasStoredCredentials: false,
+    toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
+  };
 }
 
 export interface WriteGooseConfigChanges {

@@ -1,4 +1,4 @@
-import { MessageTypes, GooseMessageTypes } from "@editor-extensions/shared";
+import { MessageTypes, AgentMessageTypes } from "@editor-extensions/shared";
 import { KonveyorGUIWebviewViewProvider } from "../KonveyorGUIWebviewViewProvider";
 import { type ExtensionStore } from "./extensionStore";
 import * as vscode from "vscode";
@@ -19,7 +19,7 @@ function broadcast(
 /**
  * Fields tracked by the consolidated state change bridge.
  * Excludes chatMessages (handled by a dedicated streaming bridge)
- * and goose state (handled by a dedicated goose bridge).
+ * and agent state (handled by a dedicated agent state bridge).
  */
 const STATE_CHANGE_KEYS: readonly string[] = [
   // Analysis
@@ -35,7 +35,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "solutionScope",
   "isWaitingForUserInteraction",
   "isProcessingQueuedMessages",
-  "pendingBatchReview",
   // Server
   "serverState",
   "isStartingServer",
@@ -53,7 +52,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "activeDecorators",
   // Settings
   "solutionServerEnabled",
-  "isAgentMode",
   "isContinueInstalled",
   "hubConfig",
   "hubForced",
@@ -62,6 +60,8 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   // Labels
   "availableTargets",
   "availableSources",
+  // Tool permissions
+  "toolPermissions",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */
@@ -86,11 +86,11 @@ export interface SyncBridgeOptions {
  * Sets up subscription-based sync bridges between the Zustand store and webview providers.
  *
  * Three bridges:
- * 1. Consolidated state bridge — watches all non-chat, non-goose fields and sends a single
+ * 1. Consolidated state bridge — watches all non-chat, non-agent fields and sends a single
  *    STATE_CHANGE message containing only the fields that actually changed.
  * 2. Chat messages bridge — detects streaming vs structural changes and sends deltas.
- * 3. Goose state bridge — watches gooseState/gooseError and sends GOOSE_STATE_CHANGE.
- *    All goose messaging (state, chat, streaming) is self-contained outside of STATE_CHANGE.
+ * 3. Agent state bridge — watches agentState/agentError and sends AGENT_STATE_CHANGE.
+ *    All agent messaging (state, chat, streaming) is self-contained outside of STATE_CHANGE.
  *
  * Returns a disposable that unsubscribes all bridges.
  */
@@ -134,11 +134,6 @@ export function setupSyncBridges(
 
         if (!hasChanges) {
           return;
-        }
-
-        // Normalize: ensure pendingBatchReview is always an array when present
-        if ("pendingBatchReview" in data && !data.pendingBatchReview) {
-          data.pendingBatchReview = [];
         }
 
         // Normalize: ensure activeDecorators is always an object when present
@@ -211,32 +206,32 @@ export function setupSyncBridges(
     ),
   );
 
-  // --- Goose state bridge ---
-  // Watches gooseState and gooseError, sends a self-contained GOOSE_STATE_CHANGE message.
-  // Keeps all goose messaging outside of the core STATE_CHANGE channel.
+  // --- Agent state bridge ---
+  // Watches agentState and agentError, sends a self-contained AGENT_STATE_CHANGE message.
+  // Keeps all agent messaging outside of the core STATE_CHANGE channel.
   unsubscribers.push(
     store.subscribe(
       (s) => ({
-        gooseState: s.featureState?.gooseState,
-        gooseError: s.featureState?.gooseError,
+        agentState: s.featureState?.agentState,
+        agentError: s.featureState?.agentError,
       }),
       (current, previous) => {
         if (
-          current.gooseState === previous.gooseState &&
-          current.gooseError === previous.gooseError
+          current.agentState === previous.agentState &&
+          current.agentError === previous.agentError
         ) {
           return;
         }
 
         broadcast(getProviders, {
-          type: GooseMessageTypes.GOOSE_STATE_CHANGE,
-          gooseState: current.gooseState,
-          gooseError: current.gooseError,
+          type: AgentMessageTypes.AGENT_STATE_CHANGE,
+          agentState: current.agentState,
+          agentError: current.agentError,
           timestamp: new Date().toISOString(),
         });
       },
       {
-        equalityFn: (a, b) => a.gooseState === b.gooseState && a.gooseError === b.gooseError,
+        equalityFn: (a, b) => a.agentState === b.agentState && a.agentError === b.agentError,
       },
     ),
   );
