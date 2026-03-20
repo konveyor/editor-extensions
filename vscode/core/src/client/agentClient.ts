@@ -38,6 +38,7 @@ export interface PermissionRequestData {
   requestId: number;
   toolCallId: string;
   title: string;
+  toolName?: string;
   kind: string;
   status: string;
   rawInput?: Record<string, unknown>;

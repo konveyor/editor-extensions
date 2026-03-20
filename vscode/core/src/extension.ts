@@ -30,6 +30,8 @@ import { copySampleProviderSettings } from "./utilities/fileUtils";
 import {
   getExcludedDiagnosticSources,
   getConfigAgentMode,
+  getConfigBatchReviewMode,
+  getConfigToolPermissions,
   getCacheDir,
   getTraceDir,
   getTraceEnabled,
@@ -112,6 +114,7 @@ class VsCodeExtension {
       profiles: [],
       isInTreeMode: false,
       isAgentMode: getConfigAgentMode(),
+      isBatchReviewMode: getConfigBatchReviewMode(),
       activeDecorators: {},
       solutionServerConnected: false,
       isWaitingForUserInteraction: false,
@@ -126,7 +129,8 @@ class VsCodeExtension {
       availableTargets: [],
       availableSources: [],
       featureState: {},
-      editApprovalMode: "auto",
+      editApprovalMode: getConfigToolPermissions().autonomyLevel,
+      toolPermissions: getConfigToolPermissions(),
     };
 
     this.store = createExtensionStore(initialData);
@@ -655,6 +659,13 @@ class VsCodeExtension {
             const agentMode = getConfigAgentMode();
             this.state.mutate((draft) => {
               draft.isAgentMode = agentMode;
+            });
+          }
+
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.batchReviewMode`)) {
+            const batchReviewMode = getConfigBatchReviewMode();
+            this.state.mutate((draft) => {
+              draft.isBatchReviewMode = batchReviewMode;
             });
           }
 

@@ -108,6 +108,8 @@ export async function routeFileChangeToBatchReview(
     diffEmpty: diff.trim() === "",
   });
 
+  const isBatchReviewMode = state.data.isBatchReviewMode;
+
   state.mutate((draft) => {
     draft.chatMessages.push({
       kind: ChatMessageType.ModifiedFile,
@@ -121,23 +123,25 @@ export async function routeFileChangeToBatchReview(
         isDeleted,
         diff,
         messageToken: messageId,
-        readOnly: true,
+        readOnly: isBatchReviewMode,
       },
     });
   });
 
-  state.mutate((draft) => {
-    if (!draft.pendingBatchReview) {
-      draft.pendingBatchReview = [];
-    }
-    draft.pendingBatchReview.push({
-      messageToken: messageId,
-      path: absPath,
-      diff,
-      content: fileState.modifiedContent,
-      originalContent: fileState.originalContent,
-      isNew,
-      isDeleted,
+  if (isBatchReviewMode) {
+    state.mutate((draft) => {
+      if (!draft.pendingBatchReview) {
+        draft.pendingBatchReview = [];
+      }
+      draft.pendingBatchReview.push({
+        messageToken: messageId,
+        path: absPath,
+        diff,
+        content: fileState.modifiedContent,
+        originalContent: fileState.originalContent,
+        isNew,
+        isDeleted,
+      });
     });
-  });
+  }
 }

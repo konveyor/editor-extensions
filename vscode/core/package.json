@@ -374,10 +374,41 @@
         },
         "konveyor-core.genai.agentMode": {
           "type": "boolean",
-          "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
+          "default": true,
+          "description": "When enabled, an AI agent (Goose/OpenCode) explores the codebase and fixes issues autonomously using tools. When disabled, the configured LLM produces targeted fixes directly without an agent backend.",
           "scope": "window",
           "order": 21
+        },
+        "konveyor-core.genai.batchReviewMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, file changes are collected and presented for review as a batch instead of being applied individually. Works in both agent and non-agent modes.",
+          "scope": "window",
+          "order": 22
+        },
+        "konveyor-core.genai.autonomyLevel": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "smart",
+            "ask"
+          ],
+          "enumDescriptions": [
+            "Auto-approve all tool actions without prompting",
+            "Auto-approve reads, ask before file edits and commands",
+            "Ask before every tool action"
+          ],
+          "default": "smart",
+          "description": "How much autonomy the agent has when using tools. 'smart' is recommended — it auto-approves reads but asks before writing files or running commands.",
+          "scope": "window",
+          "order": 22
+        },
+        "konveyor-core.genai.permissionOverrides": {
+          "type": "object",
+          "default": {},
+          "description": "Per-category permission overrides. Keys: fileEditing, commandExecution, webAccess, mcpTools. Values: auto, ask, deny. Empty means inherit from autonomy level.",
+          "scope": "window",
+          "order": 23
         },
         "konveyor-core.genai.excludedDiagnosticSources": {
           "type": "array",

@@ -120,8 +120,8 @@ export const handleModifiedFileMessage = async (
       const isNew = fileState.originalContent === undefined;
       const isDeleted = !isNew && fileState.modifiedContent.trim() === "";
       const diff = createFileDiff(fileState, filePath);
+      const isBatchReviewMode = state.data.isBatchReviewMode;
 
-      // Part 1: Add read-only diff to chat for context
       state.mutate((draft) => {
         draft.chatMessages.push({
           kind: ChatMessageType.ModifiedFile,
@@ -136,26 +136,27 @@ export const handleModifiedFileMessage = async (
             diff: diff,
             messageToken: msg.id,
             userInteraction: msg.data.userInteraction,
-            readOnly: true, // Always read-only - actions happen in BatchReviewModal
+            readOnly: isBatchReviewMode,
           },
         });
       });
 
-      // Part 2: Accumulate for batch review at the end
-      state.mutate((draft) => {
-        if (!draft.pendingBatchReview) {
-          draft.pendingBatchReview = [];
-        }
-        draft.pendingBatchReview.push({
-          messageToken: msg.id,
-          path: filePath,
-          diff: diff,
-          content: fileState.modifiedContent,
-          originalContent: fileState.originalContent,
-          isNew: isNew,
-          isDeleted: isDeleted,
+      if (isBatchReviewMode) {
+        state.mutate((draft) => {
+          if (!draft.pendingBatchReview) {
+            draft.pendingBatchReview = [];
+          }
+          draft.pendingBatchReview.push({
+            messageToken: msg.id,
+            path: filePath,
+            diff: diff,
+            content: fileState.modifiedContent,
+            originalContent: fileState.originalContent,
+            isNew: isNew,
+            isDeleted: isDeleted,
+          });
         });
-      });
+      }
     }
   } catch (err) {
     // Log error but don't need complex cleanup since we're not blocking the queue

@@ -30,6 +30,8 @@ export const SYNC_HUB_PROFILES = "SYNC_HUB_PROFILES";
 export const RETRY_PROFILE_SYNC = "RETRY_PROFILE_SYNC";
 export const STOP_WORKFLOW = "STOP_WORKFLOW";
 export const SET_EDIT_APPROVAL_MODE = "SET_EDIT_APPROVAL_MODE";
+export const SET_TOOL_PERMISSIONS = "SET_TOOL_PERMISSIONS";
+export const OPEN_NATIVE_CONFIG = "OPEN_NATIVE_CONFIG";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -64,7 +66,9 @@ export type WebviewActionType =
   | typeof SYNC_HUB_PROFILES
   | typeof RETRY_PROFILE_SYNC
   | typeof STOP_WORKFLOW
-  | typeof SET_EDIT_APPROVAL_MODE;
+  | typeof SET_EDIT_APPROVAL_MODE
+  | typeof SET_TOOL_PERMISSIONS
+  | typeof OPEN_NATIVE_CONFIG;
 
 export interface WebviewAction<S, T> {
   type: S;

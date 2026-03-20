@@ -38,6 +38,7 @@ const App: React.FC = () => {
         solutionServerEnabled: windowData.solutionServerEnabled ?? false,
         solutionServerConnected: windowData.solutionServerConnected ?? false,
         isAgentMode: windowData.isAgentMode ?? false,
+        isBatchReviewMode: windowData.isBatchReviewMode ?? false,
         isInTreeMode: windowData.isInTreeMode ?? false,
         workspaceRoot: windowData.workspaceRoot ?? "/",
         activeProfileId: windowData.activeProfileId ?? null,

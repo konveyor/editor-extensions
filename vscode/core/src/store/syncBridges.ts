@@ -54,6 +54,7 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   // Settings
   "solutionServerEnabled",
   "isAgentMode",
+  "isBatchReviewMode",
   "isContinueInstalled",
   "hubConfig",
   "hubForced",
@@ -64,6 +65,7 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "availableSources",
   // Edit approval
   "editApprovalMode",
+  "toolPermissions",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */

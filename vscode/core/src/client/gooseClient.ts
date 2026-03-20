@@ -544,6 +544,8 @@ export class GooseClient extends EventEmitter implements AgentClient {
       ? { ...process.env, ...this.config.modelEnv }
       : process.env;
 
+    this.logger.info(`GooseClient: spawning with GOOSE_MODE=${spawnEnv.GOOSE_MODE ?? "(not set)"}`);
+
     this.process = spawn(resolvedPath, ["acp"], {
       stdio: ["pipe", "pipe", "pipe"],
       cwd: this.config.workspaceDir,

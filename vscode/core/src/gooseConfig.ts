@@ -4,7 +4,7 @@ import * as os from "os";
 import { parse, stringify } from "yaml";
 import type { GooseConfig, GooseExtensionConfig } from "@editor-extensions/shared";
 
-function getGooseConfigPath(): string {
+export function getGooseConfigPath(): string {
   if (process.platform === "win32") {
     const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
     return path.join(appData, "Block", "goose", "config", "config.yaml");
@@ -51,6 +51,7 @@ export function readGooseConfig(): GooseConfig {
 export interface WriteGooseConfigChanges {
   provider?: string;
   model?: string;
+  gooseMode?: string;
   extensions?: Array<{ id: string; enabled: boolean }>;
 }
 
@@ -70,6 +71,9 @@ export function writeGooseConfig(changes: WriteGooseConfigChanges): void {
   }
   if (changes.model !== undefined) {
     raw.GOOSE_MODEL = changes.model;
+  }
+  if (changes.gooseMode !== undefined) {
+    raw.GOOSE_MODE = changes.gooseMode;
   }
 
   if (changes.extensions) {

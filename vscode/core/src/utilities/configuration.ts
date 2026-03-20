@@ -2,7 +2,13 @@ import * as vscode from "vscode";
 import * as pathlib from "path";
 import { fileURLToPath } from "url";
 import { EXTENSION_NAME } from "./constants";
-import { AnalysisProfile, createConfigError, ExtensionData } from "@editor-extensions/shared";
+import {
+  AnalysisProfile,
+  createConfigError,
+  ExtensionData,
+  type ToolPermissionPolicy,
+  type ToolPermissionLevel,
+} from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(EXTENSION_NAME)?.get<T>(key);
@@ -59,20 +65,8 @@ export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analy
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigLabelSelector = (): string =>
   getConfigValue<string>("analysis.labelSelector") || "discovery";
-export const getConfigAnalyzeOnSave = (): boolean => {
-  const agentMode = getConfigAgentMode();
-  const analyzeOnSave = getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
-
-  // When agent mode is enabled, analyzeOnSave must be enabled
-  if (agentMode && !analyzeOnSave) {
-    console.warn(
-      "Agent mode is enabled but analyzeOnSave is disabled. Forcing analyzeOnSave to true for agent mode compatibility.",
-    );
-    return true;
-  }
-
-  return analyzeOnSave;
-};
+export const getConfigAnalyzeOnSave = (): boolean =>
+  getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
 export const getCacheDir = (workspaceRoot: string | undefined): string | undefined =>
   getWorkspaceRelativePath(getConfigValue<string>("genai.cacheDir"), workspaceRoot);
 export const getTraceDir = (workspaceRoot: string | undefined): string | undefined =>
@@ -83,8 +77,9 @@ export const getConfigKaiDemoMode = (): boolean =>
   getConfigValue<boolean>("genai.demoMode") ?? false;
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
-export const getConfigAgentMode = (): boolean =>
-  getConfigValue<boolean>("genai.agentMode") ?? false;
+export const getConfigAgentMode = (): boolean => getConfigValue<boolean>("genai.agentMode") ?? true;
+export const getConfigBatchReviewMode = (): boolean =>
+  getConfigValue<boolean>("genai.batchReviewMode") ?? false;
 export const getConfigAutoAcceptOnSave = (): boolean =>
   getConfigValue<boolean>("diff.autoAcceptOnSave") ?? false;
 export const getExcludedDiagnosticSources = (): string[] =>
@@ -103,6 +98,48 @@ export const getConfigGooseBinaryPath = (): string | null =>
 
 export const getConfigOpencodeBinaryPath = (): string | null =>
   getConfigValue<string>("experimentalChat.opencodeBinaryPath") ?? null;
+
+// ─── Agent settings (persisted) ──────────────────────────────────────
+
+export function getConfigAutonomyLevel(): "auto" | "smart" | "ask" {
+  const value = getConfigValue<string>("genai.autonomyLevel");
+  if (value === "auto" || value === "smart" || value === "ask") {
+    return value;
+  }
+  return "smart";
+}
+
+export function getConfigPermissionOverrides(): Partial<Record<string, ToolPermissionLevel>> {
+  const raw = getConfigValue<Record<string, ToolPermissionLevel>>("genai.permissionOverrides");
+  return raw ? { ...raw } : {};
+}
+
+export function getConfigToolPermissions(): ToolPermissionPolicy {
+  const autonomyLevel = getConfigAutonomyLevel();
+  const overrides = getConfigPermissionOverrides();
+  const hasOverrides = Object.keys(overrides).length > 0;
+  return {
+    autonomyLevel,
+    overrides: hasOverrides ? overrides : undefined,
+    source: "local",
+  };
+}
+
+export async function updateConfigToolPermissions(policy: ToolPermissionPolicy): Promise<void> {
+  await updateConfigValue("genai.autonomyLevel", policy.autonomyLevel);
+  await updateConfigValue(
+    "genai.permissionOverrides",
+    policy.overrides && Object.keys(policy.overrides).length > 0 ? policy.overrides : undefined,
+  );
+}
+
+export async function updateConfigAgentMode(value: boolean): Promise<void> {
+  await updateConfigValue("genai.agentMode", value);
+}
+
+export async function updateConfigBatchReviewMode(value: boolean): Promise<void> {
+  await updateConfigValue("genai.batchReviewMode", value);
+}
 
 /**
  * Get all configuration values for keys defined in the package.json file. Used in debugging.

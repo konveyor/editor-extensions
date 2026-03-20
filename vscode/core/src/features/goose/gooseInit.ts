@@ -3,25 +3,19 @@ import {
   GooseAgentState,
   GooseContentBlockType,
   GooseMessageTypes,
-  ChatMessageType,
 } from "@editor-extensions/shared";
-import { v4 as uuidv4 } from "uuid";
 import type { FeatureContext } from "../featureRegistry";
 import { GooseFileTracker } from "./gooseFileTracker";
 import { routeFileChangeToBatchReview } from "./routeFileChange";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
-import {
-  shouldAutoApprove,
-  findAllowOnceOptionId,
-  formatPermissionPreview,
-  filterPermissionOptions,
-} from "./editApprovalHandler";
+import { handlePermissionWithPolicy, type PendingPermission } from "./toolPermissionHandler";
 
 /**
- * Maps chat messageToken -> pending JSON-RPC request id so we can
+ * Maps chat messageToken -> pending permission request so we can
  * respond to the agent when the user clicks a permission quick-response.
+ * Includes filePath/fileContent so the response handler can write to disk.
  */
-export const pendingPermissions = new Map<string, { requestId: number; client: AgentClient }>();
+export const pendingPermissions = new Map<string, PendingPermission>();
 
 /**
  * Stores references to the default broadcast handlers so the
@@ -252,71 +246,20 @@ export async function initializeAgent(
   });
 
   // Permission requests from the agent.
-  // Respects editApprovalMode: auto-approve in "auto" mode, show to user otherwise.
-  agentClient.on("permissionRequest", (data: PermissionRequestData) => {
+  // Uses the generic tool permission policy to decide auto-approve/deny/ask.
+  agentClient.on("permissionRequest", async (data: PermissionRequestData) => {
     if (broadcastBinding?.suspended) {
       return;
     }
 
-    // Cache file before any approval decision
-    if (data.rawInput) {
-      const workspaceRoot = ctx.store.getState().workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
-    }
-
-    const mode = ctx.store.getState().editApprovalMode;
-
-    // Auto-approve if mode dictates
-    if (shouldAutoApprove(mode, data)) {
-      const optionId = findAllowOnceOptionId(data.options);
-      if (optionId) {
-        agentClient.respondToRequest(data.requestId, {
-          outcome: { outcome: "selected", optionId },
-        });
-        ctx.logger.info("Auto-approved permission request", { title: data.title, mode });
-
-        ctx.mutate((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: `auto-${uuidv4()}`,
-            timestamp: new Date().toISOString(),
-            value: { message: `*Auto-approved: ${data.title}*` },
-          });
-        });
-        return;
-      }
-    }
-
-    // Show permission request to user with enhanced preview
-    const messageToken = `perm-${uuidv4()}`;
-    pendingPermissions.set(messageToken, {
-      requestId: data.requestId,
-      client: agentClient,
-    });
-
-    const kindLabels: Record<string, string> = {
-      allow_once: "Allow",
-      reject_once: "Reject",
-    };
-
-    const preview = formatPermissionPreview(data, ctx.store.getState().workspaceRoot);
-    const message = preview
-      ? `**Permission requested:** ${data.title}\n\n${preview}`
-      : `**Permission requested:** ${data.title}`;
-
-    const filteredOptions = filterPermissionOptions(data.options);
-
-    ctx.mutate((draft) => {
-      draft.chatMessages.push({
-        kind: ChatMessageType.String,
-        messageToken,
-        timestamp: new Date().toISOString(),
-        value: { message },
-        quickResponses: filteredOptions.map((opt) => ({
-          id: opt.optionId,
-          content: kindLabels[opt.kind] ?? opt.name,
-        })),
-      });
+    handlePermissionWithPolicy({
+      agentClient,
+      data,
+      policy: ctx.store.getState().toolPermissions,
+      workspaceRoot: ctx.store.getState().workspaceRoot,
+      fileTracker,
+      mutate: ctx.mutate,
+      pendingPermissions,
     });
   });
 

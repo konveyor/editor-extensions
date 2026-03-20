@@ -9,13 +9,17 @@ import {
   GOOSE_OPEN_SETTINGS,
   GOOSE_PERMISSION_RESPONSE,
   SET_EDIT_APPROVAL_MODE,
+  SET_TOOL_PERMISSIONS,
+  OPEN_NATIVE_CONFIG,
   GooseMessageTypes,
 } from "@editor-extensions/shared";
+import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import { pendingPermissions } from "./gooseInit";
-import { editApprovalModeToGooseMode } from "./editApprovalHandler";
+import { policyToGooseMode } from "./toolPermissionHandler";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import type { AgentClient } from "../../client/agentClient";
+import { executeExtensionCommand } from "../../commands";
 
 function getAgentClient(state: ExtensionState): AgentClient | undefined {
   return state.featureClients.get("agentClient") as AgentClient | undefined;
@@ -118,6 +122,11 @@ export const gooseMessageHandlers: Record<
 
       const agentClient = getAgentClient(state);
       if (agentClient) {
+        // Ensure GOOSE_MODE reflects the current tool permissions before restart
+        const currentPolicy = state.store.getState().toolPermissions;
+        const gooseMode = policyToGooseMode(currentPolicy);
+        agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
+
         await agentClient.stop();
         await agentClient.start();
       }
@@ -260,6 +269,8 @@ export const gooseMessageHandlers: Record<
       outcome: { outcome: "selected", optionId },
     });
 
+    const accepted = optionId.includes("allow");
+
     state.mutate((draft) => {
       for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
         if (draft.chatMessages[i].messageToken === messageToken) {
@@ -268,6 +279,34 @@ export const gooseMessageHandlers: Record<
         }
       }
     });
+
+    if (pending.filePath) {
+      try {
+        if (accepted && pending.fileContent) {
+          const { join, isAbsolute } = await import("path");
+          const wsRoot = state.data.workspaceRoot;
+          const normalizedRoot = wsRoot.startsWith("file://") ? new URL(wsRoot).pathname : wsRoot;
+          const absPath = isAbsolute(pending.filePath)
+            ? pending.filePath
+            : join(normalizedRoot, pending.filePath);
+          const uri = vscode.Uri.file(absPath);
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(pending.fileContent, "utf-8"));
+          logger.info("GOOSE_PERMISSION_RESPONSE: file written to disk", { path: absPath });
+
+          await executeExtensionCommand("changeApplied", pending.filePath, pending.fileContent);
+        } else if (accepted) {
+          await executeExtensionCommand(
+            "changeApplied",
+            pending.filePath,
+            pending.fileContent ?? "",
+          );
+        } else {
+          await executeExtensionCommand("changeDiscarded", pending.filePath);
+        }
+      } catch (err) {
+        logger.warn("Failed to handle permission outcome for file", { err });
+      }
+    }
   },
 
   [SET_EDIT_APPROVAL_MODE]: async ({ mode }: { mode: "ask" | "smart" | "auto" }, state, logger) => {
@@ -276,19 +315,35 @@ export const gooseMessageHandlers: Record<
       return;
     }
 
+    // Sync both editApprovalMode and toolPermissions
+    const policy = { ...state.store.getState().toolPermissions, autonomyLevel: mode };
     state.mutate((draft) => {
       draft.editApprovalMode = mode;
+      draft.toolPermissions = policy;
     });
 
     logger.info(`Edit approval mode changed: ${previousMode} -> ${mode}`);
 
-    // Update the GOOSE_MODE env var and restart the agent so it takes effect
+    // Persist to VS Code settings so the value survives reload
+    try {
+      const { updateConfigToolPermissions } = await import("../../utilities/configuration");
+      await updateConfigToolPermissions(policy);
+    } catch (err) {
+      logger.warn("Failed to persist edit approval mode to settings:", err);
+    }
+
+    const gooseMode = policyToGooseMode(policy);
+    try {
+      const { writeGooseConfig } = await import("../../gooseConfig");
+      writeGooseConfig({ gooseMode });
+    } catch (err) {
+      logger.warn("Failed to write GOOSE_MODE to goose config:", err);
+    }
+
     const agentClient = getAgentClient(state);
     if (agentClient) {
-      const gooseMode = editApprovalModeToGooseMode(mode);
       agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
 
-      // Only restart if the agent is currently running and not mid-workflow
       if (agentClient.getState() === "running" && !state.data.isFetchingSolution) {
         logger.info("Restarting agent to apply new GOOSE_MODE", { gooseMode });
         try {
@@ -298,6 +353,63 @@ export const gooseMessageHandlers: Record<
           logger.error("Failed to restart agent after mode change:", err);
         }
       }
+    }
+  },
+
+  [SET_TOOL_PERMISSIONS]: async ({ policy }: { policy: ToolPermissionPolicy }, state, logger) => {
+    state.mutate((draft) => {
+      draft.toolPermissions = policy;
+    });
+
+    logger.info("Tool permissions updated", { autonomyLevel: policy.autonomyLevel });
+
+    // Persist to VS Code settings
+    try {
+      const { updateConfigToolPermissions } = await import("../../utilities/configuration");
+      await updateConfigToolPermissions(policy);
+    } catch (err) {
+      logger.warn("Failed to persist tool permissions to settings:", err);
+    }
+
+    // Write GOOSE_MODE to goose config file AND env var
+    const gooseMode = policyToGooseMode(policy);
+    try {
+      const { writeGooseConfig } = await import("../../gooseConfig");
+      writeGooseConfig({ gooseMode });
+      logger.info("Wrote GOOSE_MODE to goose config file", { gooseMode });
+    } catch (err) {
+      logger.warn("Failed to write GOOSE_MODE to goose config:", err);
+    }
+
+    const agentClient = getAgentClient(state);
+    if (agentClient) {
+      agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
+
+      // Also sync the editApprovalMode so both stay consistent
+      state.mutate((draft) => {
+        draft.editApprovalMode = policy.autonomyLevel;
+      });
+
+      if (agentClient.getState() === "running" && !state.data.isFetchingSolution) {
+        logger.info("Restarting agent to apply new tool permissions", { gooseMode });
+        try {
+          await agentClient.stop();
+          await agentClient.start();
+        } catch (err) {
+          logger.error("Failed to restart agent after permission change:", err);
+        }
+      }
+    }
+  },
+
+  [OPEN_NATIVE_CONFIG]: async (_payload, _state, logger) => {
+    try {
+      const { getGooseConfigPath } = await import("../../gooseConfig");
+      const configPath = getGooseConfigPath();
+      const uri = vscode.Uri.file(configPath);
+      await vscode.commands.executeCommand("vscode.open", uri);
+    } catch (err) {
+      logger.error("OPEN_NATIVE_CONFIG failed:", err);
     }
   },
 };

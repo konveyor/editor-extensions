@@ -5,3 +5,4 @@ export * from "./messages";
 export * from "./goose";
 export * from "./gooseActions";
 export * from "./gooseMessages";
+export * from "./toolPermissions";

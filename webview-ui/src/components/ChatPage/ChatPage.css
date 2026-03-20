@@ -769,6 +769,72 @@
   background: var(--vscode-button-secondaryHoverBackground, #454545);
 }
 
+/* --- Tool permission settings --- */
+
+.goose-settings__permission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.goose-settings__permission-label {
+  font-size: 12px;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.goose-settings__permission-select {
+  width: 110px;
+  padding: 3px 6px;
+  font-size: 12px;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 3px;
+}
+
+.goose-settings__permission-select:focus {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.goose-settings__permission-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.goose-settings__permission-overrides {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-panel-border, #333);
+}
+
+.goose-settings__permission-overrides-header {
+  display: block;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-bottom: 4px;
+}
+
+.goose-settings__agent-mode-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #999);
+  margin-top: 2px;
+}
+
+.goose-settings__link-btn {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.goose-settings__link-btn:hover {
+  text-decoration: underline;
+}
+
 /* --- Hide avatar icons in the chat page --- */
 
 .chat-page .pf-chatbot__message-avatar {

@@ -16,7 +16,9 @@ import type {
   GooseChatMessage,
   GooseContentBlockType,
   GooseConfig,
+  ToolPermissionPolicy,
 } from "@editor-extensions/shared";
+import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
 
@@ -52,6 +54,7 @@ interface ExtensionStore {
   solutionServerEnabled: boolean;
   solutionServerConnected: boolean;
   isAgentMode: boolean;
+  isBatchReviewMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
   hubForced?: boolean;
@@ -72,6 +75,9 @@ interface ExtensionStore {
 
   // Edit approval mode
   editApprovalMode: "ask" | "smart" | "auto";
+
+  // Tool permission policy
+  toolPermissions: ToolPermissionPolicy;
 
   // Goose chat state (experimental)
   gooseMessages: GooseChatMessage[];
@@ -110,6 +116,7 @@ interface ExtensionStore {
   setSolutionServerConnected: (connected: boolean) => void;
   setSolutionServerEnabled: (enabled: boolean) => void;
   setIsAgentMode: (isAgentMode: boolean) => void;
+  setIsBatchReviewMode: (isBatchReviewMode: boolean) => void;
   setIsContinueInstalled: (isInstalled: boolean) => void;
   setHubConfig: (config: HubConfig | undefined) => void;
   setHubForced: (forced: boolean | undefined) => void;
@@ -121,6 +128,7 @@ interface ExtensionStore {
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
   setEditApprovalMode: (mode: "ask" | "smart" | "auto") => void;
+  setToolPermissions: (policy: ToolPermissionPolicy) => void;
 
   // Goose chat setters
   setGooseConfig: (config: GooseConfig | null) => void;
@@ -178,6 +186,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       solutionServerEnabled: false,
       solutionServerConnected: false,
       isAgentMode: false,
+      isBatchReviewMode: false,
       isContinueInstalled: false,
       hubConfig: undefined,
       hubForced: undefined,
@@ -191,6 +200,9 @@ export const useExtensionStore = create<ExtensionStore>()(
 
       // Edit approval mode
       editApprovalMode: "auto" as const,
+
+      // Tool permission policy
+      toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
 
       // Batch review state
       pendingBatchReview: [],
@@ -356,6 +368,11 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.isAgentMode = isAgentMode;
         }),
 
+      setIsBatchReviewMode: (isBatchReviewMode) =>
+        set((state) => {
+          state.isBatchReviewMode = isBatchReviewMode;
+        }),
+
       setIsContinueInstalled: (isInstalled) =>
         set((state) => {
           state.isContinueInstalled = isInstalled;
@@ -409,6 +426,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setEditApprovalMode: (mode) =>
         set((state) => {
           state.editApprovalMode = mode;
+        }),
+
+      setToolPermissions: (policy) =>
+        set((state) => {
+          state.toolPermissions = policy;
         }),
 
       // Goose chat setters

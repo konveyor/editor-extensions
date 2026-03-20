@@ -10,6 +10,7 @@ import {
   PendingBatchReviewFile,
   HubConfig,
 } from "./types";
+import type { ToolPermissionPolicy } from "./toolPermissions";
 import type { GooseWebviewMessage } from "./gooseMessages";
 
 export const MessageTypes = {
@@ -92,6 +93,9 @@ export interface StateChangeData {
   // Labels
   availableTargets?: string[];
   availableSources?: string[];
+
+  // Tool permissions
+  toolPermissions?: ToolPermissionPolicy;
 }
 
 export interface StateChangeMessage {

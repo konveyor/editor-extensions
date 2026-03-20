@@ -1,3 +1,5 @@
+import type { ToolPermissionPolicy } from "./toolPermissions";
+
 export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub" | "chat";
 
 export interface Incident {
@@ -156,6 +158,7 @@ export interface ExtensionData {
   isInTreeMode: boolean;
   solutionServerEnabled: boolean;
   isAgentMode: boolean;
+  isBatchReviewMode: boolean;
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
@@ -172,6 +175,7 @@ export interface ExtensionData {
   availableSources: string[];
   featureState: Record<string, unknown>;
   editApprovalMode: "ask" | "smart" | "auto";
+  toolPermissions: ToolPermissionPolicy;
 }
 
 export type ConfigErrorType =
