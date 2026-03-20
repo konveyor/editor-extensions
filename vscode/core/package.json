@@ -77,6 +77,12 @@
         "icon": "$(beaker)"
       },
       {
+        "command": "konveyor-core.popoutResolutionPanel",
+        "title": "Open in Editor Panel",
+        "category": "Konveyor",
+        "icon": "$(link-external)"
+      },
+      {
         "command": "konveyor-core.expandAllIssues",
         "title": "Expand All",
         "category": "Konveyor",
@@ -288,6 +294,11 @@
           "command": "konveyor-core.expandAllIssues",
           "group": "navigation@3",
           "when": "view == konveyor-core.issueView"
+        },
+        {
+          "command": "konveyor-core.popoutResolutionPanel",
+          "group": "navigation@1",
+          "when": "view == konveyor-core.resolutionView"
         }
       ],
       "view/item/context": [

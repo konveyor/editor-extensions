@@ -513,6 +513,10 @@ const commandsMap: (
     [`${EXTENSION_NAME}.cleanRuleSets`]: () => cleanRuleSets(state),
     [`${EXTENSION_NAME}.loadStaticResults`]: loadStaticResults,
     [`${EXTENSION_NAME}.loadResultsFromDataFolder`]: loadResultsFromDataFolder,
+    [`${EXTENSION_NAME}.popoutResolutionPanel`]: () => {
+      const resolutionProvider = state.webviewProviders?.get("resolution");
+      resolutionProvider?.showWebviewPanel();
+    },
     [`${EXTENSION_NAME}.showResolutionPanel`]: async () => {
       try {
         await vscode.commands.executeCommand(`${EXTENSION_NAME}.resolutionView.focus`);
