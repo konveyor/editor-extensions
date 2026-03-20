@@ -39,8 +39,7 @@ import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 import { buildLabelSelector } from "@editor-extensions/shared";
 import { getBrandName } from "../../utils/branding";
-
-const MAX_PROFILE_NAME_LENGTH = 24;
+import { MAX_PROFILE_NAME_LENGTH } from "./constants";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);

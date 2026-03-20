@@ -19,8 +19,7 @@ import {
   SelectOption,
   Checkbox,
 } from "@patternfly/react-core";
-
-const MAX_PROFILE_NAME_LENGTH = 24;
+import { MAX_PROFILE_NAME_LENGTH } from "../ProfileManager/constants";
 
 interface NewProfileModalProps {
   isOpen: boolean;
