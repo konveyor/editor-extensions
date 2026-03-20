@@ -186,7 +186,9 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
       this._panelCommandListener = undefined;
 
       if (this._view) {
-        commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
+        commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`).then(undefined, () => {
+          // Secondary sidebar not available — no-op, the sidebar view is still intact
+        });
       }
     });
   }

@@ -154,7 +154,13 @@ const commandsMap: (
       try {
         await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
       } catch {
-        logger.error("Chat view not available");
+        const chatProvider = state.webviewProviders?.get("chat");
+        if (chatProvider) {
+          logger.warn("Chat view not available in secondary sidebar, falling back to editor panel");
+          chatProvider.showWebviewPanel();
+        } else {
+          logger.error("Chat view not available");
+        }
       }
     },
     [`${EXTENSION_NAME}.openProfilesPanel`]: async () => {
@@ -507,17 +513,30 @@ const commandsMap: (
     [`${EXTENSION_NAME}.cleanRuleSets`]: () => cleanRuleSets(state),
     [`${EXTENSION_NAME}.loadStaticResults`]: loadStaticResults,
     [`${EXTENSION_NAME}.loadResultsFromDataFolder`]: loadResultsFromDataFolder,
-    [`${EXTENSION_NAME}.showResolutionPanel`]: () => {
-      const resolutionProvider = state.webviewProviders?.get("resolution");
-      resolutionProvider?.showWebviewPanel();
+    [`${EXTENSION_NAME}.showResolutionPanel`]: async () => {
+      try {
+        await vscode.commands.executeCommand(`${EXTENSION_NAME}.resolutionView.focus`);
+      } catch {
+        logger.warn(
+          "Resolution view not available in secondary sidebar, falling back to editor panel",
+        );
+        const resolutionProvider = state.webviewProviders?.get("resolution");
+        resolutionProvider?.showWebviewPanel();
+      }
     },
     [`${EXTENSION_NAME}.showChatPanel`]: async () => {
       try {
         await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
       } catch {
-        logger.warn("Chat view not available, falling back to resolution panel");
-        const resolutionProvider = state.webviewProviders?.get("resolution");
-        resolutionProvider?.showWebviewPanel();
+        const chatProvider = state.webviewProviders?.get("chat");
+        if (chatProvider) {
+          logger.warn("Chat view not available in secondary sidebar, falling back to editor panel");
+          chatProvider.showWebviewPanel();
+        } else {
+          logger.warn("Chat provider not available, falling back to resolution panel");
+          const resolutionProvider = state.webviewProviders?.get("resolution");
+          resolutionProvider?.showWebviewPanel();
+        }
       }
     },
     [`${EXTENSION_NAME}.showAnalysisPanel`]: () => {

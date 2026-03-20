@@ -221,8 +221,8 @@
       ],
       "secondarySidebar": [
         {
-          "id": "konveyor-chat",
-          "title": "Konveyor Chat",
+          "id": "konveyor-secondary",
+          "title": "Konveyor",
           "icon": "resources/icon.png"
         }
       ]
@@ -234,11 +234,17 @@
           "name": "Konveyor"
         }
       ],
-      "konveyor-chat": [
+      "konveyor-secondary": [
+        {
+          "type": "webview",
+          "id": "konveyor-core.resolutionView",
+          "name": "Resolution Details"
+        },
         {
           "type": "webview",
           "id": "konveyor-core.chatView",
-          "name": "Migration Assistant"
+          "name": "Migration Assistant",
+          "when": "config.konveyor-core.experimentalChat.enabled"
         }
       ]
     },
