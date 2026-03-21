@@ -12,10 +12,8 @@ import type {
   Scope,
   PendingBatchReviewFile,
   HubConfig,
-  GooseAgentState,
-  GooseChatMessage,
-  GooseContentBlockType,
-  GooseConfig,
+  AgentState,
+  AgentConfig,
   ToolPermissionPolicy,
 } from "@editor-extensions/shared";
 import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
@@ -79,11 +77,11 @@ interface ExtensionStore {
   // Tool permission policy
   toolPermissions: ToolPermissionPolicy;
 
-  // Goose chat state (experimental)
-  gooseMessages: GooseChatMessage[];
-  gooseState: GooseAgentState;
-  gooseError?: string;
-  gooseConfig: GooseConfig | null;
+  // Agent state (pluggable backend)
+  agentBackendType: "kai" | "goose" | "opencode";
+  agentState: AgentState;
+  agentError?: string;
+  agentConfig: AgentConfig | null;
 
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
@@ -130,26 +128,10 @@ interface ExtensionStore {
   setEditApprovalMode: (mode: "ask" | "smart" | "auto") => void;
   setToolPermissions: (policy: ToolPermissionPolicy) => void;
 
-  // Goose chat setters
-  setGooseConfig: (config: GooseConfig | null) => void;
-  setGooseMessages: (messages: GooseChatMessage[]) => void;
-  setGooseState: (state: GooseAgentState) => void;
-  setGooseError: (error: string | undefined) => void;
-  appendGooseStreamingChunk: (
-    messageId: string,
-    content: string,
-    contentType?: GooseContentBlockType,
-    resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
-  ) => void;
-  finalizeGooseMessage: (messageId: string, stopReason?: string) => void;
-  cancelGooseMessage: (messageId: string) => void;
-  setGooseThinking: (messageId: string, isThinking: boolean) => void;
-  updateGooseToolCall: (
-    messageId: string,
-    toolName: string,
-    status: "running" | "succeeded" | "failed",
-    result?: string,
-  ) => void;
+  // Agent setters
+  setAgentConfig: (config: AgentConfig | null) => void;
+  setAgentState: (state: AgentState) => void;
+  setAgentError: (error: string | undefined) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -211,11 +193,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       // Focus/filter state
       focusedViolationFilter: null,
 
-      // Goose chat state
-      gooseMessages: [],
-      gooseState: "stopped" as GooseAgentState,
-      gooseError: undefined,
-      gooseConfig: null,
+      // Agent state
+      agentBackendType: "goose" as const,
+      agentState: "stopped" as AgentState,
+      agentError: undefined,
+      agentConfig: null,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -433,132 +415,20 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.toolPermissions = policy;
         }),
 
-      // Goose chat setters
-      setGooseConfig: (config) =>
+      // Agent setters
+      setAgentConfig: (config) =>
         set((state) => {
-          state.gooseConfig = config;
+          state.agentConfig = config;
         }),
 
-      setGooseMessages: (messages) =>
+      setAgentState: (agentState) =>
         set((state) => {
-          state.gooseMessages = messages;
+          state.agentState = agentState;
         }),
 
-      setGooseState: (gooseState) =>
+      setAgentError: (error) =>
         set((state) => {
-          state.gooseState = gooseState;
-        }),
-
-      setGooseError: (error) =>
-        set((state) => {
-          state.gooseError = error;
-        }),
-
-      appendGooseStreamingChunk: (messageId, content, contentType, resourceData) =>
-        set((state) => {
-          let msg = state.gooseMessages.find((m) => m.id === messageId);
-          if (!msg) {
-            msg = {
-              id: messageId,
-              role: "assistant",
-              content: "",
-              timestamp: new Date().toISOString(),
-              isStreaming: true,
-              isThinking: true,
-              contentBlocks: [],
-            };
-            state.gooseMessages.push(msg);
-          }
-
-          msg.isStreaming = true;
-
-          const blockType = contentType ?? "text";
-
-          if (blockType === "text" && content) {
-            if (msg.isThinking) {
-              msg.isThinking = false;
-            }
-            msg.content += content;
-          } else if (blockType === "resource_link" && resourceData?.uri) {
-            if (!msg.contentBlocks) {
-              msg.contentBlocks = [];
-            }
-            msg.contentBlocks.push({
-              type: "resource_link",
-              uri: resourceData.uri,
-              name: resourceData.name,
-              mimeType: resourceData.mimeType,
-            });
-          } else if (blockType === "resource" && resourceData?.uri) {
-            if (!msg.contentBlocks) {
-              msg.contentBlocks = [];
-            }
-            msg.contentBlocks.push({
-              type: "resource",
-              uri: resourceData.uri,
-              name: resourceData.name,
-              mimeType: resourceData.mimeType,
-              text: resourceData.text,
-            });
-          } else if (blockType === "thinking" && content) {
-            msg.isThinking = true;
-            if (!msg.contentBlocks) {
-              msg.contentBlocks = [];
-            }
-            msg.contentBlocks.push({ type: "thinking", text: content });
-          }
-        }),
-
-      finalizeGooseMessage: (messageId, stopReason) =>
-        set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
-          if (msg) {
-            msg.isStreaming = false;
-            msg.isThinking = false;
-            if (stopReason) {
-              msg.stopReason = stopReason;
-            }
-          }
-        }),
-
-      cancelGooseMessage: (messageId) =>
-        set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
-          if (msg) {
-            msg.isStreaming = false;
-            msg.isCancelled = true;
-            msg.isThinking = false;
-            msg.stopReason = "cancelled";
-          }
-        }),
-
-      setGooseThinking: (messageId, isThinking) =>
-        set((state) => {
-          const msg = state.gooseMessages.find((m) => m.id === messageId);
-          if (msg) {
-            msg.isThinking = isThinking;
-          }
-        }),
-
-      updateGooseToolCall: (messageId, toolName, status, result) =>
-        set((state) => {
-          let msg = state.gooseMessages.find((m) => m.id === messageId);
-          if (!msg) {
-            msg = {
-              id: messageId,
-              role: "assistant",
-              content: "",
-              timestamp: new Date().toISOString(),
-              isStreaming: true,
-              contentBlocks: [],
-            };
-            state.gooseMessages.push(msg);
-          }
-          msg.toolCall = {
-            name: toolName,
-            status,
-            result,
-          };
+          state.agentError = error;
         }),
 
       clearAnalysisData: () =>

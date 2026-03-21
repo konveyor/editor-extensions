@@ -176,6 +176,7 @@ export interface ExtensionData {
   featureState: Record<string, unknown>;
   editApprovalMode: "ask" | "smart" | "auto";
   toolPermissions: ToolPermissionPolicy;
+  agentBackendType?: "kai" | "goose" | "opencode";
 }
 
 export type ConfigErrorType =

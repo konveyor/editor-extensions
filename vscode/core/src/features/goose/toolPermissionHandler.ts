@@ -313,6 +313,7 @@ export interface PermissionHandlerContext {
   fileTracker: GooseFileTracker | undefined;
   mutate: (recipe: (draft: ExtensionData) => void) => void;
   pendingPermissions: Map<string, PendingPermission>;
+  isBatchReviewMode?: boolean;
 }
 
 /**
@@ -337,6 +338,22 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
   // Cache file before any approval decision
   if (fileTracker && data.rawInput) {
     fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+  }
+
+  // In batch review mode, auto-approve file editing operations.
+  // The agent writes freely; the user reviews all changes as a batch afterward.
+  // The file tracker already cached original content above for revert-on-reject.
+  if (ctx.isBatchReviewMode) {
+    const category = classifyTool(data.toolName ?? data.title, data.rawInput);
+    if (category === "fileEditing") {
+      const optionId = findAllowOnceOptionId(data.options);
+      if (optionId) {
+        agentClient.respondToRequest(data.requestId, {
+          outcome: { outcome: "selected", optionId },
+        });
+        return;
+      }
+    }
   }
 
   const label = buildPermissionLabel(data, workspaceRoot);

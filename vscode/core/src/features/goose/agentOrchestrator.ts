@@ -4,7 +4,7 @@ import {
   EnhancedIncident,
   Scope,
   ChatMessageType,
-  GooseContentBlockType,
+  AgentContentBlockType,
   getProgrammingLanguageFromUri,
   ToolMessageValue,
 } from "@editor-extensions/shared";
@@ -80,7 +80,7 @@ export class AgentOrchestrator {
     const onChunk = (
       _msgId: string,
       content: string,
-      contentType: GooseContentBlockType,
+      contentType: AgentContentBlockType,
       resourceData?: StreamingResourceData,
     ): void => {
       this.handleStreamingChunk(content, contentType, resourceData);
@@ -217,7 +217,7 @@ export class AgentOrchestrator {
 
   private handleStreamingChunk(
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: StreamingResourceData,
   ): void {
     let text: string | undefined;
@@ -417,6 +417,7 @@ export class AgentOrchestrator {
       fileTracker,
       mutate: this.state.mutate.bind(this.state),
       pendingPermissions,
+      isBatchReviewMode: this.state.data.isBatchReviewMode,
     });
   }
 

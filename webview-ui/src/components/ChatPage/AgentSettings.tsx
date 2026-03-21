@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import type { ToolPermissionPolicy, ToolPermissionLevel } from "@editor-extensions/shared";
 import { SET_TOOL_PERMISSIONS, OPEN_NATIVE_CONFIG } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
-import { GOOSE_PROVIDERS, type GooseProviderOption } from "./gooseProviders";
+import { AGENT_PROVIDERS, type AgentProviderOption } from "./agentProviders";
 
 type OverrideValue = ToolPermissionLevel | "inherit";
 
@@ -15,17 +15,17 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_KEYS = ["fileEditing", "commandExecution", "webAccess", "mcpTools"] as const;
 
-interface GooseSettingsProps {
+interface AgentSettingsProps {
   onClose: () => void;
 }
 
-const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
-  const gooseConfig = useExtensionStore((s) => s.gooseConfig);
-  const gooseState = useExtensionStore((s) => s.gooseState);
+const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
+  const agentConfig = useExtensionStore((s) => s.agentConfig);
+  const agentState = useExtensionStore((s) => s.agentState);
   const toolPermissions = useExtensionStore((s) => s.toolPermissions);
 
-  const [selectedProvider, setSelectedProvider] = useState(gooseConfig?.provider ?? "");
-  const [modelInput, setModelInput] = useState(gooseConfig?.model ?? "");
+  const [selectedProvider, setSelectedProvider] = useState(agentConfig?.provider ?? "");
+  const [modelInput, setModelInput] = useState(agentConfig?.model ?? "");
   const [extensionStates, setExtensionStates] = useState<Record<string, boolean>>({});
   const [credentialInputs, setCredentialInputs] = useState<Record<string, string>>({});
   const [showModelSuggestions, setShowModelSuggestions] = useState(false);
@@ -36,16 +36,16 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, OverrideValue>>({});
 
   useEffect(() => {
-    if (gooseConfig) {
-      setSelectedProvider(gooseConfig.provider);
-      setModelInput(gooseConfig.model);
+    if (agentConfig) {
+      setSelectedProvider(agentConfig.provider);
+      setModelInput(agentConfig.model);
       const states: Record<string, boolean> = {};
-      for (const ext of gooseConfig.extensions) {
+      for (const ext of agentConfig.extensions) {
         states[ext.id] = ext.enabled;
       }
       setExtensionStates(states);
     }
-  }, [gooseConfig]);
+  }, [agentConfig]);
 
   useEffect(() => {
     setAutonomyLevel(toolPermissions.autonomyLevel);
@@ -56,8 +56,8 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
     setCategoryOverrides(overrides);
   }, [toolPermissions]);
 
-  const currentProviderOption: GooseProviderOption | undefined = useMemo(
-    () => GOOSE_PROVIDERS.find((p) => p.id === selectedProvider),
+  const currentProviderOption: AgentProviderOption | undefined = useMemo(
+    () => AGENT_PROVIDERS.find((p) => p.id === selectedProvider),
     [selectedProvider],
   );
 
@@ -114,8 +114,8 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
   };
 
   const handleApplyAndRestart = () => {
-    const extensionPayload = gooseConfig
-      ? gooseConfig.extensions.map((ext) => ({
+    const extensionPayload = agentConfig
+      ? agentConfig.extensions.map((ext) => ({
           id: ext.id,
           enabled: extensionStates[ext.id] ?? ext.enabled,
         }))
@@ -131,7 +131,7 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
     }
 
     window.vscode.postMessage({
-      type: "GOOSE_UPDATE_CONFIG",
+      type: "AGENT_UPDATE_CONFIG",
       payload: {
         provider: selectedProvider,
         model: modelInput,
@@ -143,37 +143,37 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
   };
 
   const hasChanges =
-    selectedProvider !== (gooseConfig?.provider ?? "") ||
-    modelInput !== (gooseConfig?.model ?? "") ||
+    selectedProvider !== (agentConfig?.provider ?? "") ||
+    modelInput !== (agentConfig?.model ?? "") ||
     Object.values(credentialInputs).some((v) => v.length > 0) ||
-    gooseConfig?.extensions.some((ext) => extensionStates[ext.id] !== ext.enabled) ||
+    agentConfig?.extensions.some((ext) => extensionStates[ext.id] !== ext.enabled) ||
     permissionsChanged();
 
   const providerEnvVars = currentProviderOption?.envVars ?? [];
-  const hasStoredCreds = gooseConfig?.hasStoredCredentials ?? false;
+  const hasStoredCreds = agentConfig?.hasStoredCredentials ?? false;
 
   return (
-    <div className="goose-settings">
-      <div className="goose-settings__header">
-        <span className="goose-settings__title">Configuration</span>
-        <button className="goose-settings__close" onClick={onClose} aria-label="Close settings">
+    <div className="agent-settings">
+      <div className="agent-settings__header">
+        <span className="agent-settings__title">Configuration</span>
+        <button className="agent-settings__close" onClick={onClose} aria-label="Close settings">
           ✕
         </button>
       </div>
 
       {/* Provider Selection */}
-      <div className="goose-settings__section">
-        <label className="goose-settings__label" htmlFor="goose-provider">
+      <div className="agent-settings__section">
+        <label className="agent-settings__label" htmlFor="agent-provider">
           Provider
         </label>
         <select
-          id="goose-provider"
-          className="goose-settings__select"
+          id="agent-provider"
+          className="agent-settings__select"
           value={selectedProvider}
           onChange={handleProviderChange}
         >
           <option value="">Select a provider...</option>
-          {GOOSE_PROVIDERS.map((p) => (
+          {AGENT_PROVIDERS.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
@@ -182,14 +182,14 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
       </div>
 
       {/* Model Input */}
-      <div className="goose-settings__section">
-        <label className="goose-settings__label" htmlFor="goose-model">
+      <div className="agent-settings__section">
+        <label className="agent-settings__label" htmlFor="agent-model">
           Model
         </label>
-        <div className="goose-settings__model-wrapper">
+        <div className="agent-settings__model-wrapper">
           <input
-            id="goose-model"
-            className="goose-settings__input"
+            id="agent-model"
+            className="agent-settings__input"
             type="text"
             value={modelInput}
             onChange={(e) => setModelInput(e.target.value)}
@@ -199,11 +199,11 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
             autoComplete="off"
           />
           {showModelSuggestions && filteredModels.length > 0 && (
-            <ul className="goose-settings__suggestions">
+            <ul className="agent-settings__suggestions">
               {filteredModels.map((m) => (
                 <li
                   key={m}
-                  className="goose-settings__suggestion"
+                  className="agent-settings__suggestion"
                   onMouseDown={() => {
                     setModelInput(m);
                     setShowModelSuggestions(false);
@@ -219,21 +219,21 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
 
       {/* Credentials */}
       {providerEnvVars.length > 0 && (
-        <div className="goose-settings__section">
-          <div className="goose-settings__section-divider" />
-          <label className="goose-settings__label">
+        <div className="agent-settings__section">
+          <div className="agent-settings__section-divider" />
+          <label className="agent-settings__label">
             Credentials
-            {hasStoredCreds && <span className="goose-settings__stored-badge">Stored</span>}
+            {hasStoredCreds && <span className="agent-settings__stored-badge">Stored</span>}
           </label>
-          <div className="goose-settings__credentials">
+          <div className="agent-settings__credentials">
             {providerEnvVars.map((envVar) => (
-              <div key={envVar.key} className="goose-settings__credential-field">
-                <label className="goose-settings__credential-label" htmlFor={`cred-${envVar.key}`}>
+              <div key={envVar.key} className="agent-settings__credential-field">
+                <label className="agent-settings__credential-label" htmlFor={`cred-${envVar.key}`}>
                   {envVar.label}
                 </label>
                 <input
                   id={`cred-${envVar.key}`}
-                  className="goose-settings__input"
+                  className="agent-settings__input"
                   type={envVar.isSecret ? "password" : "text"}
                   value={credentialInputs[envVar.key] ?? ""}
                   onChange={(e) => handleCredentialChange(envVar.key, e.target.value)}
@@ -251,32 +251,32 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
       )}
 
       {providerEnvVars.length === 0 && currentProviderOption && (
-        <div className="goose-settings__credential-hint">No API key required</div>
+        <div className="agent-settings__credential-hint">No API key required</div>
       )}
 
       {/* Extensions */}
-      {gooseConfig && gooseConfig.extensions.length > 0 && (
-        <div className="goose-settings__section">
-          <div className="goose-settings__section-divider" />
-          <label className="goose-settings__label">Extensions</label>
-          <div className="goose-settings__extensions">
-            {gooseConfig.extensions.map((ext) => (
-              <div key={ext.id} className="goose-settings__extension">
-                <div className="goose-settings__extension-info">
-                  <span className="goose-settings__extension-name">{ext.name}</span>
+      {agentConfig && agentConfig.extensions.length > 0 && (
+        <div className="agent-settings__section">
+          <div className="agent-settings__section-divider" />
+          <label className="agent-settings__label">Extensions</label>
+          <div className="agent-settings__extensions">
+            {agentConfig.extensions.map((ext) => (
+              <div key={ext.id} className="agent-settings__extension">
+                <div className="agent-settings__extension-info">
+                  <span className="agent-settings__extension-name">{ext.name}</span>
                   {ext.description && (
-                    <span className="goose-settings__extension-desc">{ext.description}</span>
+                    <span className="agent-settings__extension-desc">{ext.description}</span>
                   )}
                 </div>
                 <button
-                  className={`goose-settings__toggle ${extensionStates[ext.id] ? "goose-settings__toggle--on" : ""}`}
+                  className={`agent-settings__toggle ${extensionStates[ext.id] ? "agent-settings__toggle--on" : ""}`}
                   onClick={() => handleToggleExtension(ext.id)}
                   role="switch"
                   aria-checked={extensionStates[ext.id] ?? false}
                   aria-label={`Toggle ${ext.name}`}
                 >
-                  <span className="goose-settings__toggle-track">
-                    <span className="goose-settings__toggle-thumb" />
+                  <span className="agent-settings__toggle-track">
+                    <span className="agent-settings__toggle-thumb" />
                   </span>
                 </button>
               </div>
@@ -286,19 +286,19 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
       )}
 
       {/* Tool Permissions */}
-      <div className="goose-settings__section">
-        <div className="goose-settings__section-divider" />
-        <label className="goose-settings__label">
+      <div className="agent-settings__section">
+        <div className="agent-settings__section-divider" />
+        <label className="agent-settings__label">
           Tool Permissions
           {toolPermissions.source === "hub" && (
-            <span className="goose-settings__stored-badge">Set by organization</span>
+            <span className="agent-settings__stored-badge">Set by organization</span>
           )}
         </label>
 
-        <div className="goose-settings__permission-row">
-          <span className="goose-settings__permission-label">Autonomy Level</span>
+        <div className="agent-settings__permission-row">
+          <span className="agent-settings__permission-label">Autonomy Level</span>
           <select
-            className="goose-settings__permission-select"
+            className="agent-settings__permission-select"
             value={autonomyLevel}
             onChange={(e) => setAutonomyLevel(e.target.value as "auto" | "smart" | "ask")}
             disabled={toolPermissions.source === "hub"}
@@ -309,13 +309,13 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
           </select>
         </div>
 
-        <div className="goose-settings__permission-overrides">
-          <span className="goose-settings__permission-overrides-header">Category Overrides</span>
+        <div className="agent-settings__permission-overrides">
+          <span className="agent-settings__permission-overrides-header">Category Overrides</span>
           {CATEGORY_KEYS.map((key) => (
-            <div key={key} className="goose-settings__permission-row">
-              <span className="goose-settings__permission-label">{CATEGORY_LABELS[key]}</span>
+            <div key={key} className="agent-settings__permission-row">
+              <span className="agent-settings__permission-label">{CATEGORY_LABELS[key]}</span>
               <select
-                className="goose-settings__permission-select"
+                className="agent-settings__permission-select"
                 value={categoryOverrides[key] ?? "inherit"}
                 onChange={(e) =>
                   setCategoryOverrides((prev) => ({
@@ -336,10 +336,10 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
       </div>
 
       {/* Advanced */}
-      <div className="goose-settings__section">
-        <div className="goose-settings__section-divider" />
+      <div className="agent-settings__section">
+        <div className="agent-settings__section-divider" />
         <button
-          className="goose-settings__link-btn"
+          className="agent-settings__link-btn"
           onClick={() =>
             window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })
           }
@@ -349,18 +349,18 @@ const GooseSettings: React.FC<GooseSettingsProps> = ({ onClose }) => {
       </div>
 
       {/* Actions */}
-      <div className="goose-settings__actions">
+      <div className="agent-settings__actions">
         <button
-          className="goose-settings__btn goose-settings__btn--primary"
+          className="agent-settings__btn agent-settings__btn--primary"
           onClick={handleApplyAndRestart}
           disabled={!selectedProvider || !modelInput}
           title={!hasChanges ? "No changes to apply" : "Apply changes and restart agent"}
         >
-          {gooseState === "running" ? "Apply & Restart" : "Apply & Start"}
+          {agentState === "running" ? "Apply & Restart" : "Apply & Start"}
         </button>
       </div>
     </div>
   );
 };
 
-export default GooseSettings;
+export default AgentSettings;

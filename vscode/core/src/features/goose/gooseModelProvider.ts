@@ -15,7 +15,7 @@ import type {
   KaiModelProviderInvokeCallOptions,
 } from "@editor-extensions/agentic";
 import type { GooseClient, ToolCallData } from "../../client/gooseClient";
-import type { GooseContentBlockType } from "@editor-extensions/shared";
+import type { AgentContentBlockType } from "@editor-extensions/shared";
 import type { Logger } from "winston";
 
 const TOOL_STATUS_ICON: Record<string, string> = {
@@ -63,7 +63,7 @@ export class GooseModelProvider implements KaiModelProvider {
 
     const chunks: string[] = [];
 
-    const onChunk = (_msgId: string, content: string, contentType: GooseContentBlockType): void => {
+    const onChunk = (_msgId: string, content: string, contentType: AgentContentBlockType): void => {
       if (contentType === "text" && content) {
         chunks.push(content);
       }
@@ -99,7 +99,7 @@ export class GooseModelProvider implements KaiModelProvider {
         const onChunk = (
           _msgId: string,
           content: string,
-          contentType: GooseContentBlockType,
+          contentType: AgentContentBlockType,
         ): void => {
           if (contentType === "text" && content) {
             chunkCount++;

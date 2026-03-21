@@ -7,7 +7,7 @@
  */
 
 import { EventEmitter } from "events";
-import type { GooseContentBlockType } from "@editor-extensions/shared";
+import type { AgentContentBlockType } from "@editor-extensions/shared";
 
 // ─── Shared types ────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ export interface AgentClientEvents {
   streamingChunk: (
     messageId: string,
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: StreamingResourceData,
   ) => void;
   streamingComplete: (messageId: string, stopReason: string) => void;

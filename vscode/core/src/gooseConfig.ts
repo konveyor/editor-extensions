@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { parse, stringify } from "yaml";
-import type { GooseConfig, GooseExtensionConfig } from "@editor-extensions/shared";
+import type { AgentConfig, AgentExtensionConfig } from "@editor-extensions/shared";
 
 export function getGooseConfigPath(): string {
   if (process.platform === "win32") {
@@ -12,7 +12,7 @@ export function getGooseConfigPath(): string {
   return path.join(os.homedir(), ".config", "goose", "config.yaml");
 }
 
-export function readGooseConfig(): GooseConfig {
+export function readGooseConfig(): AgentConfig {
   const configPath = getGooseConfigPath();
 
   let raw: Record<string, any> = {};
@@ -26,7 +26,7 @@ export function readGooseConfig(): GooseConfig {
   const provider = typeof raw.GOOSE_PROVIDER === "string" ? raw.GOOSE_PROVIDER : "";
   const model = typeof raw.GOOSE_MODEL === "string" ? raw.GOOSE_MODEL : "";
 
-  const extensions: GooseExtensionConfig[] = [];
+  const extensions: AgentExtensionConfig[] = [];
   const extMap = raw.extensions;
   if (extMap && typeof extMap === "object") {
     for (const [id, extRaw] of Object.entries(extMap)) {
@@ -39,7 +39,7 @@ export function readGooseConfig(): GooseConfig {
         name: typeof ext.display_name === "string" ? ext.display_name : id,
         description: typeof ext.description === "string" ? ext.description : "",
         enabled: ext.enabled !== false,
-        type: (ext.type as GooseExtensionConfig["type"]) ?? "builtin",
+        type: (ext.type as AgentExtensionConfig["type"]) ?? "builtin",
         bundled: ext.bundled !== false,
       });
     }

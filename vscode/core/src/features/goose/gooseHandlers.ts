@@ -1,17 +1,17 @@
 import * as vscode from "vscode";
 import {
-  GOOSE_SEND_MESSAGE,
-  GOOSE_START_AGENT,
-  GOOSE_STOP_AGENT,
-  GOOSE_UPDATE_CONFIG,
-  GOOSE_TOGGLE_VIEW,
-  GOOSE_INSTALL_CLI,
-  GOOSE_OPEN_SETTINGS,
-  GOOSE_PERMISSION_RESPONSE,
+  AGENT_SEND_MESSAGE,
+  AGENT_START,
+  AGENT_STOP,
+  AGENT_UPDATE_CONFIG,
+  AGENT_TOGGLE_VIEW,
+  AGENT_INSTALL_CLI,
+  AGENT_OPEN_SETTINGS,
+  AGENT_PERMISSION_RESPONSE,
   SET_EDIT_APPROVAL_MODE,
   SET_TOOL_PERMISSIONS,
   OPEN_NATIVE_CONFIG,
-  GooseMessageTypes,
+  AgentMessageTypes,
 } from "@editor-extensions/shared";
 import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import { pendingPermissions } from "./gooseInit";
@@ -29,57 +29,57 @@ export const gooseMessageHandlers: Record<
   string,
   (payload: any, state: ExtensionState, logger: winston.Logger) => void | Promise<void>
 > = {
-  [GOOSE_SEND_MESSAGE]: async (
+  [AGENT_SEND_MESSAGE]: async (
     { content, messageId }: { content: string; messageId: string },
     state,
     logger,
   ) => {
     const agentClient = getAgentClient(state);
     if (!agentClient) {
-      logger.warn("GOOSE_SEND_MESSAGE: Agent client not available");
+      logger.warn("AGENT_SEND_MESSAGE: Agent client not available");
       return;
     }
 
     try {
       if (agentClient.isPromptActive()) {
-        logger.info("GOOSE_SEND_MESSAGE: cancelling active prompt for cancel-and-send");
+        logger.info("AGENT_SEND_MESSAGE: cancelling active prompt for cancel-and-send");
         agentClient.cancelGeneration();
       }
       await agentClient.sendMessage(content, messageId);
     } catch (err) {
-      logger.error("GOOSE_SEND_MESSAGE failed:", err);
+      logger.error("AGENT_SEND_MESSAGE failed:", err);
     }
   },
 
-  [GOOSE_START_AGENT]: async (_payload, state, logger) => {
+  [AGENT_START]: async (_payload, state, logger) => {
     const agentClient = getAgentClient(state);
     if (!agentClient) {
-      logger.warn("GOOSE_START_AGENT: Agent client not available");
+      logger.warn("AGENT_START: Agent client not available");
       return;
     }
 
     try {
       await agentClient.start();
     } catch (err) {
-      logger.error("GOOSE_START_AGENT failed:", err);
+      logger.error("AGENT_START failed:", err);
     }
   },
 
-  [GOOSE_STOP_AGENT]: async (_payload, state, logger) => {
+  [AGENT_STOP]: async (_payload, state, logger) => {
     const agentClient = getAgentClient(state);
     if (!agentClient) {
-      logger.warn("GOOSE_STOP_AGENT: Agent client not available");
+      logger.warn("AGENT_STOP: Agent client not available");
       return;
     }
 
     try {
       await agentClient.stop();
     } catch (err) {
-      logger.error("GOOSE_STOP_AGENT failed:", err);
+      logger.error("AGENT_STOP failed:", err);
     }
   },
 
-  [GOOSE_UPDATE_CONFIG]: async (
+  [AGENT_UPDATE_CONFIG]: async (
     payload: {
       provider: string;
       model: string;
@@ -136,24 +136,24 @@ export const gooseMessageHandlers: Record<
       const timestamp = new Date().toISOString();
       for (const provider of state.webviewProviders.values()) {
         provider.sendMessageToWebview({
-          type: GooseMessageTypes.GOOSE_CONFIG_UPDATE,
+          type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
           config: updatedConfig,
           timestamp,
         });
       }
     } catch (err) {
-      logger.error("GOOSE_UPDATE_CONFIG failed:", err);
+      logger.error("AGENT_UPDATE_CONFIG failed:", err);
       vscode.window.showErrorMessage(
         `Failed to update configuration: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   },
 
-  [GOOSE_TOGGLE_VIEW]: async (_payload, state, logger) => {
+  [AGENT_TOGGLE_VIEW]: async (_payload, state, logger) => {
     try {
       const chatProvider = state.webviewProviders?.get("chat");
       if (!chatProvider) {
-        logger.warn("Chat provider not found for GOOSE_TOGGLE_VIEW");
+        logger.warn("Chat provider not found for AGENT_TOGGLE_VIEW");
         return;
       }
 
@@ -164,11 +164,11 @@ export const gooseMessageHandlers: Record<
         await vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
       }
     } catch (err) {
-      logger.error("GOOSE_TOGGLE_VIEW failed:", err);
+      logger.error("AGENT_TOGGLE_VIEW failed:", err);
     }
   },
 
-  [GOOSE_INSTALL_CLI]: async (_payload, state, logger) => {
+  [AGENT_INSTALL_CLI]: async (_payload, state, logger) => {
     try {
       const terminal = vscode.window.createTerminal({ name: "Install Agent CLI" });
       terminal.show();
@@ -203,12 +203,12 @@ export const gooseMessageHandlers: Record<
         }
       });
     } catch (err) {
-      logger.error("GOOSE_INSTALL_CLI failed:", err);
+      logger.error("AGENT_INSTALL_CLI failed:", err);
       vscode.window.showErrorMessage("Failed to open install terminal.");
     }
   },
 
-  [GOOSE_OPEN_SETTINGS]: async () => {
+  [AGENT_OPEN_SETTINGS]: async () => {
     const { getConfigAgentBackend } = await import("../../utilities/configuration");
     const backend = getConfigAgentBackend();
     const settingsKey =
@@ -218,7 +218,7 @@ export const gooseMessageHandlers: Record<
     await vscode.commands.executeCommand("workbench.action.openSettings", settingsKey);
   },
 
-  GOOSE_WEBVIEW_READY: async (_payload, state, _logger) => {
+  AGENT_WEBVIEW_READY: async (_payload, state, _logger) => {
     try {
       const { readGooseConfig } = await import("../../gooseConfig");
       const { hasGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
@@ -226,19 +226,19 @@ export const gooseMessageHandlers: Record<
       config.hasStoredCredentials = await hasGooseCredentials(state.extensionContext);
       const timestamp = new Date().toISOString();
 
-      const gooseState = (state.store.getState().featureState?.gooseState as string) ?? "stopped";
-      const gooseError = state.store.getState().featureState?.gooseError as string | undefined;
+      const agentState = (state.store.getState().featureState?.gooseState as string) ?? "stopped";
+      const agentError = state.store.getState().featureState?.gooseError as string | undefined;
 
       state.webviewProviders.forEach((provider) => {
         provider.sendMessageToWebview({
-          type: GooseMessageTypes.GOOSE_CONFIG_UPDATE,
+          type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
           config,
           timestamp,
         });
         provider.sendMessageToWebview({
-          type: GooseMessageTypes.GOOSE_STATE_CHANGE,
-          gooseState,
-          gooseError,
+          type: AgentMessageTypes.AGENT_STATE_CHANGE,
+          agentState,
+          agentError,
           timestamp,
         });
       });
@@ -247,20 +247,20 @@ export const gooseMessageHandlers: Record<
     }
   },
 
-  [GOOSE_PERMISSION_RESPONSE]: async (
+  [AGENT_PERMISSION_RESPONSE]: async (
     { messageToken, optionId }: { messageToken: string; optionId: string },
     state,
     logger,
   ) => {
     const pending = pendingPermissions.get(messageToken);
     if (!pending) {
-      logger.warn("GOOSE_PERMISSION_RESPONSE: no pending request for token", { messageToken });
+      logger.warn("AGENT_PERMISSION_RESPONSE: no pending request for token", { messageToken });
       return;
     }
 
     pendingPermissions.delete(messageToken);
 
-    logger.info("GOOSE_PERMISSION_RESPONSE: responding to agent", {
+    logger.info("AGENT_PERMISSION_RESPONSE: responding to agent", {
       requestId: pending.requestId,
       optionId,
     });
@@ -291,7 +291,7 @@ export const gooseMessageHandlers: Record<
             : join(normalizedRoot, pending.filePath);
           const uri = vscode.Uri.file(absPath);
           await vscode.workspace.fs.writeFile(uri, Buffer.from(pending.fileContent, "utf-8"));
-          logger.info("GOOSE_PERMISSION_RESPONSE: file written to disk", { path: absPath });
+          logger.info("AGENT_PERMISSION_RESPONSE: file written to disk", { path: absPath });
 
           await executeExtensionCommand("changeApplied", pending.filePath, pending.fileContent);
         } else if (accepted) {

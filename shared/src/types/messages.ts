@@ -11,7 +11,7 @@ import {
   HubConfig,
 } from "./types";
 import type { ToolPermissionPolicy } from "./toolPermissions";
-import type { GooseWebviewMessage } from "./gooseMessages";
+import type { AgentWebviewMessage } from "./agentMessages";
 
 export const MessageTypes = {
   // Core state
@@ -96,6 +96,9 @@ export interface StateChangeData {
 
   // Tool permissions
   toolPermissions?: ToolPermissionPolicy;
+
+  // Agent backend type
+  agentBackendType?: "kai" | "goose" | "opencode";
 }
 
 export interface StateChangeMessage {
@@ -112,14 +115,14 @@ export interface FocusViolationMessage {
 }
 
 /**
- * Union type of all possible webview messages (core + goose)
+ * Union type of all possible webview messages (core + agent)
  */
 export type WebviewMessage =
   | StateChangeMessage
   | FocusViolationMessage
   | ChatStateChangeMessage
   | ChatStreamingUpdateMessage
-  | GooseWebviewMessage;
+  | AgentWebviewMessage;
 
 /**
  * Type guards for message discrimination

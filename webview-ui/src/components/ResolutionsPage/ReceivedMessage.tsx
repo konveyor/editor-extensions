@@ -63,7 +63,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
 
       if (messageToken.startsWith("perm-")) {
         window.vscode.postMessage({
-          type: "GOOSE_PERMISSION_RESPONSE",
+          type: "AGENT_PERMISSION_RESPONSE",
           payload: { messageToken, optionId: responseId },
         });
       } else {

@@ -334,12 +334,19 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      const { getConfigExperimentalChatEnabled } = await import("./utilities/configuration");
-      if (getConfigExperimentalChatEnabled() && state.featureClients.has("agentClient")) {
+      const { getConfigExperimentalChatEnabled, getConfigAgentBackend } =
+        await import("./utilities/configuration");
+      const chatEnabled = getConfigExperimentalChatEnabled();
+      const backend = getConfigAgentBackend();
+
+      if (chatEnabled && backend !== "kai" && state.featureClients.has("agentClient")) {
         const { AgentOrchestrator } = await import("./features/goose/agentOrchestrator");
         const orchestrator = new AgentOrchestrator(state, logger, incidents);
         await orchestrator.run();
       } else {
+        if (chatEnabled) {
+          executeExtensionCommand("showChatPanel");
+        }
         const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
         await orchestrator.run();
       }

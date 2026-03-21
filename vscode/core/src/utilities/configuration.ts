@@ -88,9 +88,12 @@ export const getExcludedDiagnosticSources = (): string[] =>
 export const getConfigExperimentalChatEnabled = (): boolean =>
   getConfigValue<boolean>("experimentalChat.enabled") ?? false;
 
-export const getConfigAgentBackend = (): "goose" | "opencode" => {
+export const getConfigAgentBackend = (): "kai" | "goose" | "opencode" => {
   const value = getConfigValue<string>("experimentalChat.agentBackend");
-  return value === "opencode" ? "opencode" : "goose";
+  if (value === "kai" || value === "opencode") {
+    return value;
+  }
+  return "goose";
 };
 
 export const getConfigGooseBinaryPath = (): string | null =>

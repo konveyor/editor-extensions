@@ -4,17 +4,17 @@ import {
   EnhancedIncident,
   Scope,
   ChatMessageType,
-  GooseContentBlockType,
+  AgentContentBlockType,
   getProgrammingLanguageFromUri,
   ToolMessageValue,
 } from "@editor-extensions/shared";
 import type { ExtensionState } from "../../extensionState";
 import type {
-  GooseClient,
+  AgentClient,
   ToolCallData,
   StreamingResourceData,
   PermissionRequestData,
-} from "../../client/gooseClient";
+} from "../../client/agentClient";
 import type { GooseFileTracker } from "./gooseFileTracker";
 import { routeFileChangeToBatchReview } from "./routeFileChange";
 import { buildMigrationPrompt } from "./goosePromptBuilder";
@@ -45,10 +45,10 @@ export class GooseOrchestrator {
   ) {}
 
   async run(): Promise<void> {
-    const gooseClient = this.state.featureClients.get("gooseClient") as GooseClient | undefined;
-    if (!gooseClient || gooseClient.getState() !== "running") {
+    const agentClient = this.state.featureClients.get("agentClient") as AgentClient | undefined;
+    if (!agentClient || agentClient.getState() !== "running") {
       vscode.window.showErrorMessage(
-        "Goose agent is not running. Please ensure the Goose CLI is installed and the agent has started.",
+        "Agent is not running. Please ensure the agent backend is installed and has started.",
       );
       return;
     }
@@ -81,7 +81,7 @@ export class GooseOrchestrator {
     const onChunk = (
       _msgId: string,
       content: string,
-      contentType: GooseContentBlockType,
+      contentType: AgentContentBlockType,
       resourceData?: StreamingResourceData,
     ): void => {
       this.handleStreamingChunk(content, contentType, resourceData);
@@ -122,17 +122,17 @@ export class GooseOrchestrator {
     };
 
     const onPermission = (data: PermissionRequestData): void => {
-      this.handlePermissionRequest(gooseClient, data);
+      this.handlePermissionRequest(agentClient, data);
     };
 
-    gooseClient.on("streamingChunk", onChunk);
-    gooseClient.on("toolCall", onToolCall);
-    gooseClient.on("toolCallUpdate", onToolCallUpdate);
-    gooseClient.on("streamingComplete", onComplete);
-    gooseClient.on("permissionRequest", onPermission);
+    agentClient.on("streamingChunk", onChunk);
+    agentClient.on("toolCall", onToolCall);
+    agentClient.on("toolCallUpdate", onToolCallUpdate);
+    agentClient.on("streamingComplete", onComplete);
+    agentClient.on("permissionRequest", onPermission);
 
     try {
-      const sessionId = await gooseClient.createSession();
+      const sessionId = await agentClient.createSession();
       this.logger.info("GooseOrchestrator: created new session for getSolution", { sessionId });
 
       this.state.mutate((draft) => {
@@ -162,7 +162,7 @@ export class GooseOrchestrator {
       );
 
       const requestId = uuidv4();
-      await gooseClient.sendMessage(prompt, requestId);
+      await agentClient.sendMessage(prompt, requestId);
 
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
@@ -183,11 +183,11 @@ export class GooseOrchestrator {
     } catch (err) {
       this.handleError(err);
     } finally {
-      gooseClient.removeListener("streamingChunk", onChunk);
-      gooseClient.removeListener("toolCall", onToolCall);
-      gooseClient.removeListener("toolCallUpdate", onToolCallUpdate);
-      gooseClient.removeListener("streamingComplete", onComplete);
-      gooseClient.removeListener("permissionRequest", onPermission);
+      agentClient.removeListener("streamingChunk", onChunk);
+      agentClient.removeListener("toolCall", onToolCall);
+      agentClient.removeListener("toolCallUpdate", onToolCallUpdate);
+      agentClient.removeListener("streamingComplete", onComplete);
+      agentClient.removeListener("permissionRequest", onPermission);
       resumeBroadcastHandlers();
       this.cleanup();
     }
@@ -218,7 +218,7 @@ export class GooseOrchestrator {
 
   private handleStreamingChunk(
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: StreamingResourceData,
   ): void {
     let text: string | undefined;
@@ -377,7 +377,7 @@ export class GooseOrchestrator {
     });
   }
 
-  private handlePermissionRequest(gooseClient: GooseClient, data: PermissionRequestData): void {
+  private handlePermissionRequest(agentClient: AgentClient, data: PermissionRequestData): void {
     const fileTracker = this.state.featureClients.get("gooseFileTracker") as
       | GooseFileTracker
       | undefined;
@@ -411,13 +411,14 @@ export class GooseOrchestrator {
     this.lastTextMessageId = null;
 
     handlePermissionWithPolicy({
-      agentClient: gooseClient,
+      agentClient,
       data,
       policy: this.state.data.toolPermissions,
       workspaceRoot: this.state.data.workspaceRoot,
       fileTracker,
       mutate: this.state.mutate.bind(this.state),
       pendingPermissions,
+      isBatchReviewMode: this.state.data.isBatchReviewMode,
     });
   }
 

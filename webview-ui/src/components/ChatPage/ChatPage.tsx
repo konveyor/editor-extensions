@@ -27,7 +27,7 @@ import LoadingIndicator from "../ResolutionsPage/LoadingIndicator";
 import CompactMigrationScope from "./CompactMigrationScope";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { useContainerWidth } from "../../hooks/useContainerWidth";
-import GooseSettings from "./GooseSettings";
+import AgentSettings from "./AgentSettings";
 import "./ChatPage.css";
 
 const MIN_USABLE_WIDTH = 200;
@@ -40,15 +40,18 @@ const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
-  const gooseState = useExtensionStore((s) => s.gooseState);
-  const gooseError = useExtensionStore((s) => s.gooseError);
-  const gooseConfig = useExtensionStore((s) => s.gooseConfig);
+  const agentBackendType = useExtensionStore((s) => s.agentBackendType);
+  const agentState = useExtensionStore((s) => s.agentState);
+  const agentError = useExtensionStore((s) => s.agentError);
+  const agentConfig = useExtensionStore((s) => s.agentConfig);
 
   const chatMessages = useExtensionStore((s) => s.chatMessages);
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
   const isAnalyzing = useExtensionStore((s) => s.isAnalyzing);
   const editApprovalMode = useExtensionStore((s) => s.editApprovalMode);
+
+  const isExternalAgent = agentBackendType !== "kai";
 
   const handleApprovalModeChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -73,27 +76,27 @@ const ChatPage: React.FC = () => {
 
   const handleStartAgent = useCallback(() => {
     const store = useExtensionStore.getState();
-    if (store.gooseState === "error") {
-      store.setGooseError(undefined);
+    if (store.agentState === "error") {
+      store.setAgentError(undefined);
     }
-    window.vscode.postMessage({ type: "GOOSE_START_AGENT", payload: {} });
+    window.vscode.postMessage({ type: "AGENT_START", payload: {} });
   }, []);
 
   const handleStopAgent = useCallback(() => {
-    window.vscode.postMessage({ type: "GOOSE_STOP_AGENT", payload: {} });
+    window.vscode.postMessage({ type: "AGENT_STOP", payload: {} });
   }, []);
 
   const handleToggleView = useCallback(() => {
-    window.vscode.postMessage({ type: "GOOSE_TOGGLE_VIEW", payload: {} });
+    window.vscode.postMessage({ type: "AGENT_TOGGLE_VIEW", payload: {} });
   }, []);
 
-  const isRunning = gooseState === "running";
-  const isStarting = gooseState === "starting";
-  const isError = gooseState === "error";
+  const isRunning = agentState === "running";
+  const isStarting = agentState === "starting";
+  const isError = agentState === "error";
 
   const configLabel =
-    gooseConfig?.provider && gooseConfig?.model
-      ? `${gooseConfig.provider} / ${gooseConfig.model}`
+    agentConfig?.provider && agentConfig?.model
+      ? `${agentConfig.provider} / ${agentConfig.model}`
       : "Not configured";
 
   const renderItems = useMemo((): RenderItem[] => {
@@ -251,46 +254,54 @@ const ChatPage: React.FC = () => {
                   className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
                 />
                 <span className="chat-status-text">
-                  {isRunning
-                    ? "Migration Assistant"
-                    : isStarting
-                      ? "Starting..."
-                      : isError
-                        ? "Error"
-                        : "Stopped"}
+                  {isExternalAgent
+                    ? isRunning
+                      ? "Migration Assistant"
+                      : isStarting
+                        ? "Starting..."
+                        : isError
+                          ? "Error"
+                          : "Stopped"
+                    : "Migration Assistant"}
                   {isProcessing && <LoadingIndicator />}
                 </span>
-                <span className="chat-config-label" title={configLabel}>
-                  {configLabel}
-                </span>
-                {!isRunning && !isStarting && (
+                {isExternalAgent && (
+                  <span className="chat-config-label" title={configLabel}>
+                    {configLabel}
+                  </span>
+                )}
+                {isExternalAgent && !isRunning && !isStarting && (
                   <button className="chat-action-btn" onClick={handleStartAgent}>
                     Start
                   </button>
                 )}
-                {isRunning && (
+                {isExternalAgent && isRunning && (
                   <button className="chat-action-btn" onClick={handleStopAgent}>
                     Stop
                   </button>
                 )}
-                <select
-                  className="chat-approval-select"
-                  value={editApprovalMode}
-                  onChange={handleApprovalModeChange}
-                  title="Edit approval mode"
-                >
-                  <option value="auto">Auto</option>
-                  <option value="smart">Smart Approve</option>
-                  <option value="ask">Ask</option>
-                </select>
-                <button
-                  className="chat-action-btn chat-action-btn--icon"
-                  onClick={() => setShowSettings((prev) => !prev)}
-                  aria-label="Settings"
-                  title="Configure provider, model, and extensions"
-                >
-                  ⚙
-                </button>
+                {isExternalAgent && (
+                  <select
+                    className="chat-approval-select"
+                    value={editApprovalMode}
+                    onChange={handleApprovalModeChange}
+                    title="Edit approval mode"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="smart">Smart Approve</option>
+                    <option value="ask">Ask</option>
+                  </select>
+                )}
+                {isExternalAgent && (
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={() => setShowSettings((prev) => !prev)}
+                    aria-label="Settings"
+                    title="Configure provider, model, and extensions"
+                  >
+                    ⚙
+                  </button>
+                )}
                 <button
                   className="chat-action-btn chat-action-btn--icon"
                   onClick={handleToggleView}
@@ -301,20 +312,22 @@ const ChatPage: React.FC = () => {
                 </button>
               </div>
 
-              {showSettings && <GooseSettings onClose={() => setShowSettings(false)} />}
+              {isExternalAgent && showSettings && (
+                <AgentSettings onClose={() => setShowSettings(false)} />
+              )}
 
-              {isError && gooseError && (
+              {isExternalAgent && isError && agentError && (
                 <div className="chat-error-banner">
-                  <div className="chat-error-banner__message">{gooseError}</div>
-                  {gooseError.includes("binary not found") ? (
+                  <div className="chat-error-banner__message">{agentError}</div>
+                  {agentError.includes("binary not found") ? (
                     <div className="chat-error-banner__actions">
                       <button
                         className="chat-error-banner__btn"
                         onClick={() => {
-                          window.vscode.postMessage({ type: "GOOSE_INSTALL_CLI", payload: {} });
+                          window.vscode.postMessage({ type: "AGENT_INSTALL_CLI", payload: {} });
                         }}
                       >
-                        Install Goose CLI
+                        Install CLI
                       </button>
                       <span className="chat-error-banner__hint">
                         or{" "}
@@ -322,7 +335,7 @@ const ChatPage: React.FC = () => {
                           className="chat-error-banner__link"
                           onClick={() => {
                             window.vscode.postMessage({
-                              type: "GOOSE_OPEN_SETTINGS",
+                              type: "AGENT_OPEN_SETTINGS",
                               payload: {},
                             });
                           }}
@@ -353,16 +366,21 @@ const ChatPage: React.FC = () => {
 
                 {!hasWorkflowContent && !isProcessing && (
                   <div className="chat-agent-status">
-                    {isRunning ? (
+                    {!isExternalAgent ? (
                       <p className="chat-agent-status__hint">
                         Use <strong>Get Solution</strong> from the analysis view to start a
-                        migration workflow. Goose will handle the code changes.
+                        migration workflow.
+                      </p>
+                    ) : isRunning ? (
+                      <p className="chat-agent-status__hint">
+                        Use <strong>Get Solution</strong> from the analysis view to start a
+                        migration workflow. The agent will handle the code changes.
                       </p>
                     ) : isStarting ? (
-                      <p className="chat-agent-status__hint">Starting Goose agent...</p>
+                      <p className="chat-agent-status__hint">Starting agent...</p>
                     ) : (
                       <p className="chat-agent-status__hint">
-                        Start the Goose agent to enable AI-powered migration workflows.
+                        Start the migration assistant to enable AI-powered workflows.
                       </p>
                     )}
                   </div>

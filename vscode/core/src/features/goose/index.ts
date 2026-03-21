@@ -14,14 +14,17 @@ export const gooseFeatureModule: FeatureModule = {
   },
 
   async initialize(ctx: FeatureContext): Promise<vscode.Disposable> {
+    const { getConfigAgentBackend } = await import("../../utilities/configuration");
     const disposables: vscode.Disposable[] = [];
+    const backend = getConfigAgentBackend();
 
     ctx.mutate((draft) => {
       if (!draft.featureState) {
         draft.featureState = {};
       }
-      draft.featureState.gooseState = "stopped";
+      draft.featureState.gooseState = backend === "kai" ? "running" : "stopped";
       draft.featureState.gooseError = undefined;
+      draft.agentBackendType = backend;
     });
 
     const chatViewProvider = new KonveyorGUIWebviewViewProvider(ctx.extensionState, "chat");
@@ -36,17 +39,21 @@ export const gooseFeatureModule: FeatureModule = {
     const { gooseMessageHandlers } = await import("./gooseHandlers");
     disposables.push(ctx.registerMessageHandlers(gooseMessageHandlers));
 
-    // Create the agent client based on the configured backend
-    try {
-      const agentClient = await createAgentClient(ctx);
-      const { initializeAgent } = await import("./gooseInit");
-      const agentDisposable = await initializeAgent(ctx, agentClient);
-      disposables.push(agentDisposable);
-    } catch (err) {
-      ctx.logger.error(`Failed to initialize agent: ${err}`);
+    // Only initialize the external agent client for goose/opencode backends.
+    // The "kai" backend uses SolutionWorkflowOrchestrator and doesn't need
+    // an external agent process.
+    if (backend !== "kai") {
+      try {
+        const agentClient = await createAgentClient(ctx);
+        const { initializeAgent } = await import("./gooseInit");
+        const agentDisposable = await initializeAgent(ctx, agentClient);
+        disposables.push(agentDisposable);
+      } catch (err) {
+        ctx.logger.error(`Failed to initialize agent: ${err}`);
+      }
     }
 
-    ctx.logger.info("Agent feature module initialized");
+    ctx.logger.info(`Agent feature module initialized (backend: ${backend})`);
 
     return vscode.Disposable.from(...disposables);
   },

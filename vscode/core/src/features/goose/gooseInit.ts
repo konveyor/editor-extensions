@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import {
-  GooseAgentState,
-  GooseContentBlockType,
-  GooseMessageTypes,
+  AgentState as SharedAgentState,
+  AgentContentBlockType,
+  AgentMessageTypes,
 } from "@editor-extensions/shared";
 import type { FeatureContext } from "../featureRegistry";
 import { GooseFileTracker } from "./gooseFileTracker";
@@ -118,7 +118,7 @@ export async function initializeAgent(
       if (!draft.featureState) {
         draft.featureState = {};
       }
-      draft.featureState.gooseState = agentState as GooseAgentState;
+      draft.featureState.gooseState = agentState as SharedAgentState;
     });
   });
 
@@ -130,12 +130,12 @@ export async function initializeAgent(
   const onStreamingChunk = (
     messageId: string,
     content: string,
-    contentType: GooseContentBlockType,
+    contentType: AgentContentBlockType,
     resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
   ) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
-        type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
+        type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
         messageId,
         content,
         done: false,
@@ -152,7 +152,7 @@ export async function initializeAgent(
   const onStreamingComplete = (messageId: string, stopReason: string) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
-        type: GooseMessageTypes.GOOSE_CHAT_STREAMING_UPDATE,
+        type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
         messageId,
         content: "",
         done: true,
@@ -168,7 +168,7 @@ export async function initializeAgent(
   ) => {
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
-        type: GooseMessageTypes.GOOSE_TOOL_CALL,
+        type: AgentMessageTypes.AGENT_TOOL_CALL,
         messageId,
         toolName: data.name,
         callId: data.callId,
@@ -260,6 +260,7 @@ export async function initializeAgent(
       fileTracker,
       mutate: ctx.mutate,
       pendingPermissions,
+      isBatchReviewMode: ctx.store.getState().isBatchReviewMode,
     });
   });
 
@@ -282,7 +283,7 @@ export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void 
         const timestamp = new Date().toISOString();
         for (const provider of ctx.webviewProviders.values()) {
           provider.sendMessageToWebview({
-            type: GooseMessageTypes.GOOSE_CONFIG_UPDATE,
+            type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
             config,
             timestamp,
           });

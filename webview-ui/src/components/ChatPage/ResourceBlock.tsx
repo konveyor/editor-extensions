@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import type { GooseContentBlock } from "@editor-extensions/shared";
+import type { AgentContentBlock } from "@editor-extensions/shared";
 
 interface ResourceBlockProps {
-  block: Extract<GooseContentBlock, { type: "resource" }>;
+  block: Extract<AgentContentBlock, { type: "resource" }>;
 }
 
 export const ResourceBlock: React.FC<ResourceBlockProps> = ({ block }) => {
@@ -11,18 +11,18 @@ export const ResourceBlock: React.FC<ResourceBlockProps> = ({ block }) => {
   const content = block.text || "(binary content)";
 
   return (
-    <div className="goose-resource-block">
+    <div className="agent-resource-block">
       <button
-        className="goose-resource-block__header"
+        className="agent-resource-block__header"
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
       >
-        <span className="goose-resource-block__toggle">{isExpanded ? "▼" : "▶"}</span>
-        <span className="goose-resource-block__name">{displayName}</span>
-        {block.mimeType && <span className="goose-resource-block__mime">{block.mimeType}</span>}
+        <span className="agent-resource-block__toggle">{isExpanded ? "▼" : "▶"}</span>
+        <span className="agent-resource-block__name">{displayName}</span>
+        {block.mimeType && <span className="agent-resource-block__mime">{block.mimeType}</span>}
       </button>
       {isExpanded && (
-        <pre className="goose-resource-block__content">
+        <pre className="agent-resource-block__content">
           <code>{content}</code>
         </pre>
       )}

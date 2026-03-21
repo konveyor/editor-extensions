@@ -488,18 +488,19 @@
         "konveyor-core.experimentalChat.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "(Experimental) Enable AI chat sidebar powered by Goose agent. Requires reload.",
+          "description": "Enable AI chat sidebar for migration workflows. Requires reload.",
           "scope": "window",
           "order": 30
         },
         "konveyor-core.experimentalChat.agentBackend": {
           "type": "string",
           "enum": [
+            "kai",
             "goose",
             "opencode"
           ],
           "default": "goose",
-          "description": "(Experimental) Which AI agent backend to use for the Migration Assistant chat.",
+          "description": "Which AI agent backend to use for the Migration Assistant chat. 'kai' uses the built-in LangGraph workflow, 'goose' and 'opencode' use external agent CLIs.",
           "scope": "window",
           "order": 31
         },
