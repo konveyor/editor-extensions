@@ -132,17 +132,33 @@ export class AgentOrchestrator {
       return;
     }
 
-    const fileTracker = this.state.featureClients.get("agentFileTracker") as
-      | AgentFileTracker
-      | undefined;
-
     this.logger.info("AgentOrchestrator: starting", {
       incidentsCount: this.incidents.length,
       profileName,
+      agentMode,
     });
 
     await executeExtensionCommand("showChatPanel");
     this.initializeState();
+
+    if (agentMode) {
+      await this.runAgentPath(agentClient, profileName, disposeClient);
+    } else {
+      await this.runWorkflowPath(agentClient, disposeClient);
+    }
+  }
+
+  /**
+   * Agent path: Goose/OpenCode agent with AgentClient event handlers.
+   */
+  private async runAgentPath(
+    agentClient: AgentClient,
+    profileName: string,
+    disposeClient: boolean,
+  ): Promise<void> {
+    const fileTracker = this.state.featureClients.get("agentFileTracker") as
+      | AgentFileTracker
+      | undefined;
 
     suspendBroadcastHandlers();
 
@@ -212,26 +228,21 @@ export class AgentOrchestrator {
         }
       }
 
+      const programmingLanguage =
+        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
+      const prompt = await buildMigrationPrompt(
+        {
+          incidents: this.incidents,
+          migrationHint: profileName,
+          programmingLanguage,
+          enableAgentMode: true,
+        },
+        this.state.data.workspaceRoot,
+      );
+
       const requestId = uuidv4();
-
-      if (agentMode) {
-        const programmingLanguage =
-          this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
-
-        const prompt = await buildMigrationPrompt(
-          {
-            incidents: this.incidents,
-            migrationHint: profileName,
-            programmingLanguage,
-            enableAgentMode: agentMode,
-          },
-          this.state.data.workspaceRoot,
-        );
-
-        await agentClient.sendMessage(prompt, requestId);
-      } else {
-        await agentClient.sendMessage("", requestId);
-      }
+      await agentClient.sendMessage(prompt, requestId);
 
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
@@ -252,6 +263,75 @@ export class AgentOrchestrator {
       agentClient.removeListener("streamingComplete", onComplete);
       agentClient.removeListener("permissionRequest", onPermission);
       resumeBroadcastHandlers();
+      this.cleanup();
+      if (disposeClient) {
+        agentClient.dispose();
+      }
+    }
+  }
+
+  /**
+   * Workflow path: KaiInteractiveWorkflow with processMessage queue.
+   * Restores per-file accept/reject via the MessageQueueManager pipeline.
+   */
+  private async runWorkflowPath(agentClient: AgentClient, disposeClient: boolean): Promise<void> {
+    const { DirectLLMClient } = await import("../../client/directLLMClient");
+    if (!(agentClient instanceof DirectLLMClient)) {
+      this.logger.error("AgentOrchestrator: workflow path requires DirectLLMClient");
+      return;
+    }
+
+    const workflow = agentClient.getWorkflow();
+    const { processMessage } = await import("../../utilities/ModifiedFiles/processMessage");
+    const { MessageQueueManager } = await import("../../utilities/ModifiedFiles/queueManager");
+
+    const pendingInteractions = new Map<string, (response: any) => void>();
+    const modifiedFilesPromises: Array<Promise<void>> = [];
+    const processedTokens = new Set<string>();
+
+    const queueManager = new MessageQueueManager(
+      this.state,
+      workflow,
+      modifiedFilesPromises,
+      processedTokens,
+      pendingInteractions,
+    );
+
+    this.state.currentQueueManager = queueManager;
+    this.state.pendingInteractionsMap = pendingInteractions;
+    this.state.resolvePendingInteraction = (messageId: string, response: any): boolean => {
+      const resolver = pendingInteractions.get(messageId);
+      if (!resolver) {
+        this.logger.error("AgentOrchestrator: resolver not found", { messageId });
+        return false;
+      }
+      pendingInteractions.delete(messageId);
+      resolver(response);
+      return true;
+    };
+
+    workflow.on("workflowMessage", async (msg) => {
+      await processMessage(msg, this.state, queueManager);
+    });
+
+    try {
+      this.logger.info("AgentOrchestrator: starting workflow via queue path");
+      await agentClient.sendMessage("", uuidv4());
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+
+      this.logger.info("AgentOrchestrator: workflow.run() returned", {
+        queueLength: queueManager.getQueueLength(),
+        pendingInteractions: pendingInteractions.size,
+      });
+    } catch (err) {
+      this.handleError(err);
+    } finally {
+      queueManager.dispose();
+      this.state.currentQueueManager = undefined;
+      this.state.pendingInteractionsMap = undefined;
+      this.state.resolvePendingInteraction = undefined;
+      workflow.removeAllListeners();
       this.cleanup();
       if (disposeClient) {
         agentClient.dispose();

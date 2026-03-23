@@ -1,11 +1,14 @@
 /**
  * DirectLLMClient: Agent backend that delegates to KaiInteractiveWorkflow.
  *
- * Used when agentMode is disabled (focused fix mode). Instead of calling
- * the LLM directly, it runs the existing KaiInteractiveWorkflow from the
- * agentic package and translates KaiWorkflowMessage events into AgentClient
- * events. This reuses BaseNode's battle-tested tool parsing logic, which
- * handles models without native tool support transparently.
+ * Used when agentMode is disabled (focused fix mode). Wraps the existing
+ * KaiInteractiveWorkflow from the agentic package behind the AgentClient
+ * interface. The orchestrator wires workflow events through the
+ * processMessage → MessageQueueManager pipeline for per-file accept/reject.
+ *
+ * The DirectLLMClient itself does not translate workflow events — it only
+ * exposes the workflow and runs it. All message handling (LLM chunks,
+ * modified files, user interactions) is done by the queue infrastructure.
  */
 
 import { EventEmitter } from "events";
@@ -14,20 +17,8 @@ import type winston from "winston";
 import type {
   KaiInteractiveWorkflow,
   KaiInteractiveWorkflowInput,
-  KaiWorkflowMessage,
-  KaiModifiedFile,
-  KaiToolCall,
-  KaiUserInteraction,
 } from "@editor-extensions/agentic";
-import { KaiWorkflowMessageType } from "@editor-extensions/agentic";
-import type { AIMessageChunk, AIMessage } from "@langchain/core/messages";
-import type {
-  AgentClient,
-  AgentState,
-  McpServerConfig,
-  ToolCallData,
-  PermissionRequestData,
-} from "./agentClient";
+import type { AgentClient, AgentState, McpServerConfig } from "./agentClient";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -44,13 +35,16 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
   private readonly workflowInput: KaiInteractiveWorkflowInput;
   private readonly logger: winston.Logger;
   private promptActive = false;
-  private requestCounter = 0;
 
   constructor(config: DirectLLMClientConfig) {
     super();
     this.workflow = config.workflow;
     this.workflowInput = config.workflowInput;
     this.logger = config.logger;
+  }
+
+  getWorkflow(): KaiInteractiveWorkflow {
+    return this.workflow;
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────
@@ -108,23 +102,15 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
 
   respondToRequest(_requestId: number, _result: unknown): void {}
 
-  // ─── Core: run workflow and translate events ───────────────────────
+  // ─── Core: run the workflow ────────────────────────────────────────
 
-  async sendMessage(_content: string, responseMessageId: string): Promise<string> {
+  async sendMessage(_content: string, _responseMessageId: string): Promise<string> {
     this.promptActive = true;
-
-    const messageId = responseMessageId;
 
     this.logger.info("DirectLLMClient: running KaiInteractiveWorkflow", {
       incidentCount: this.workflowInput.incidents?.length ?? 0,
       migrationHint: this.workflowInput.migrationHint,
     });
-
-    const onMessage = (msg: KaiWorkflowMessage) => {
-      this.translateWorkflowMessage(msg, messageId);
-    };
-
-    this.workflow.on("workflowMessage", onMessage);
 
     try {
       const result = await this.workflow.run(this.workflowInput);
@@ -134,154 +120,13 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
         errors: result.errors?.length ?? 0,
       });
 
-      this.emit("streamingComplete", messageId, "end_turn");
       return "end_turn";
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.logger.error("DirectLLMClient: workflow error", { error: errorMessage });
-      this.emit("error", err instanceof Error ? err : new Error(errorMessage));
       throw err;
     } finally {
-      this.workflow.removeAllListeners();
       this.promptActive = false;
-    }
-  }
-
-  // ─── Event translation ─────────────────────────────────────────────
-
-  private translateWorkflowMessage(msg: KaiWorkflowMessage, messageId: string): void {
-    switch (msg.type) {
-      case KaiWorkflowMessageType.LLMResponseChunk: {
-        const chunk = msg.data as AIMessageChunk;
-        const text = this.extractText(chunk);
-        if (text) {
-          this.emit("streamingChunk", messageId, text, "text");
-        }
-        break;
-      }
-
-      case KaiWorkflowMessageType.LLMResponse: {
-        const response = msg.data as AIMessage;
-        const text = this.extractText(response);
-        if (text) {
-          this.emit("streamingChunk", messageId, text, "text");
-        }
-        break;
-      }
-
-      case KaiWorkflowMessageType.ModifiedFile: {
-        const file = msg.data as KaiModifiedFile;
-        this.emitFileChange(messageId, file);
-        break;
-      }
-
-      case KaiWorkflowMessageType.ToolCall: {
-        const toolCall = msg.data as KaiToolCall;
-        this.emitToolCall(messageId, toolCall);
-        break;
-      }
-
-      case KaiWorkflowMessageType.UserInteraction: {
-        const interaction = msg.data as KaiUserInteraction;
-        this.autoResolveInteraction(msg.id, interaction);
-        break;
-      }
-
-      case KaiWorkflowMessageType.Error: {
-        const errorText = msg.data as string;
-        this.logger.error("DirectLLMClient: workflow reported error", { error: errorText });
-        break;
-      }
-    }
-  }
-
-  private extractText(message: AIMessageChunk | AIMessage): string {
-    if (typeof message.content === "string") {
-      return message.content;
-    }
-    if (Array.isArray(message.content)) {
-      return (message.content as Array<{ type: string; text?: string }>)
-        .filter((b) => b.type === "text" && b.text)
-        .map((b) => b.text!)
-        .join("");
-    }
-    return "";
-  }
-
-  // ─── File change → AgentClient events ──────────────────────────────
-
-  private emitFileChange(messageId: string, file: KaiModifiedFile): void {
-    const callId = `workflow-${uuidv4()}`;
-    const requestId = ++this.requestCounter;
-
-    this.emit("toolCall", messageId, {
-      name: "write_file",
-      callId,
-      arguments: { path: file.path, content: file.content },
-      status: "running",
-    } as ToolCallData);
-
-    const permissionData: PermissionRequestData = {
-      requestId,
-      toolCallId: callId,
-      title: "Workflow: File Change",
-      toolName: "text_editor",
-      kind: "fileEditing",
-      status: "pending",
-      rawInput: {
-        command: "write",
-        path: file.path,
-        file_text: file.content,
-      },
-      options: [
-        { optionId: `allow-${callId}`, name: "Allow", kind: "allow_once" },
-        { optionId: `reject-${callId}`, name: "Reject", kind: "reject_once" },
-      ],
-    };
-
-    this.emit("permissionRequest", permissionData);
-
-    this.emit("toolCallUpdate", messageId, {
-      name: "write_file",
-      callId,
-      status: "succeeded",
-      result: `Updated ${file.path}`,
-    } as ToolCallData);
-  }
-
-  // ─── Tool call → AgentClient events ────────────────────────────────
-
-  private emitToolCall(messageId: string, toolCall: KaiToolCall): void {
-    const status =
-      toolCall.status === "generating" || toolCall.status === "running"
-        ? "running"
-        : toolCall.status;
-
-    this.emit("toolCall", messageId, {
-      name: toolCall.name ?? "tool",
-      callId: toolCall.id,
-      status,
-      result: toolCall.result,
-    } as ToolCallData);
-  }
-
-  // ─── Auto-resolve user interactions in focused-fix mode ────────────
-
-  private autoResolveInteraction(msgId: string, interaction: KaiUserInteraction): void {
-    if (interaction.type === "yesNo") {
-      this.logger.info("DirectLLMClient: auto-accepting yes/no interaction");
-      this.workflow.resolveUserInteraction({
-        type: KaiWorkflowMessageType.UserInteraction,
-        id: msgId,
-        data: {
-          ...interaction,
-          response: { yesNo: true },
-        },
-      });
-    } else {
-      this.logger.warn("DirectLLMClient: unhandled user interaction type", {
-        type: interaction.type,
-      });
     }
   }
 }
