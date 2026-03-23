@@ -26,6 +26,7 @@ import CompactMigrationScope from "./CompactMigrationScope";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { useContainerWidth } from "../../hooks/useContainerWidth";
 import AgentSettings from "./AgentSettings";
+import { CompactBatchReview } from "./CompactBatchReview";
 import "./ChatPage.css";
 
 const MIN_USABLE_WIDTH = 200;
@@ -312,6 +313,7 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
+              <CompactBatchReview />
               <MessageBox ref={messageBoxRef} className="chat-messages">
                 {isTriggeredByUser && solutionScope && (
                   <div className="chat-initial-scope">

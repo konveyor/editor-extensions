@@ -1,15 +1,9 @@
 import * as vscode from "vscode";
-import {
-  AgentState,
-  AgentContentBlockType,
-  AgentMessageTypes,
-  ChatMessageType,
-} from "@editor-extensions/shared";
-import { v4 as uuidv4 } from "uuid";
+import { AgentState, AgentContentBlockType, AgentMessageTypes } from "@editor-extensions/shared";
 import type { FeatureContext } from "../featureRegistry";
 import { AgentFileTracker } from "./fileTracker";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
-import { executeExtensionCommand } from "../../commands";
+import { routeFileChange } from "./fileChangeRouter";
 import { handlePermissionWithPolicy, type PendingPermission } from "./toolPermissionHandler";
 
 export { type PendingPermission } from "./toolPermissionHandler";
@@ -219,26 +213,13 @@ export async function initializeAgent(
     }
     fileTracker.resolvePendingFileChanges().then(async (changes) => {
       for (const change of changes) {
-        // Show condensed change in chat for auto-mode changes
-        const relativePath = change.path.startsWith(ctx.store.getState().workspaceRoot)
-          ? change.path.slice(ctx.store.getState().workspaceRoot.length).replace(/^\//, "")
-          : change.path;
-
-        ctx.mutate((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: `change-${uuidv4()}`,
-            timestamp: new Date().toISOString(),
-            value: { message: `**Applied:** \`${relativePath}\`` },
-          });
-        });
-
-        // Notify solution server
-        Promise.resolve(
-          executeExtensionCommand("changeApplied", change.path, change.content),
-        ).catch(() => {});
-
-        ctx.logger.info("File change applied", { path: change.path });
+        await routeFileChange(
+          ctx.extensionState,
+          change.path,
+          change.content,
+          change.originalContent,
+        );
+        ctx.logger.info("File change routed", { path: change.path });
       }
     });
   });
@@ -270,6 +251,7 @@ export async function initializeAgent(
       fileTracker,
       mutate: ctx.mutate,
       pendingPermissions,
+      extensionState: ctx.extensionState,
     });
   });
 

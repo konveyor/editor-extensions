@@ -14,6 +14,7 @@ import type {
 import type { AgentFileTracker } from "./fileTracker";
 import { classifyTool } from "./toolClassifier";
 import { executeExtensionCommand } from "../../commands";
+import { routeFileChange } from "./fileChangeRouter";
 
 // ─── Policy resolution ──────────────────────────────────────────────
 
@@ -313,6 +314,7 @@ export interface PermissionHandlerContext {
   fileTracker: AgentFileTracker | undefined;
   mutate: (recipe: (draft: ExtensionData) => void) => void;
   pendingPermissions: Map<string, PendingPermission>;
+  extensionState?: import("../../extensionState").ExtensionState;
 }
 
 /**
@@ -365,6 +367,31 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
 
   const preview = formatPermissionPreview(data, workspaceRoot, originalContent);
 
+  // --- Batch review mode: auto-approve file edits, route to review queue ---
+  const isBatchReviewMode = ctx.extensionState?.data.isBatchReviewMode === true;
+  const category = classifyTool(
+    data.toolName ?? data.title,
+    data.rawInput as Record<string, unknown> | undefined,
+  );
+  if (isBatchReviewMode && category === "fileEditing" && rawFilePath) {
+    const optionId = findAllowOnceOptionId(data.options);
+    if (optionId) {
+      agentClient.respondToRequest(data.requestId, {
+        outcome: { outcome: "selected", optionId },
+      });
+
+      if (ctx.extensionState) {
+        routeFileChange(
+          ctx.extensionState,
+          rawFilePath,
+          rawFileContent ?? "",
+          originalContent ?? "",
+        ).catch(() => {});
+      }
+      return;
+    }
+  }
+
   // --- Auto-approve ---
   if (shouldAutoApproveWithPolicy(policy, data)) {
     const optionId = findAllowOnceOptionId(data.options);
@@ -384,7 +411,14 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
         } as ChatMessage);
       });
 
-      if (rawFilePath) {
+      if (rawFilePath && ctx.extensionState) {
+        routeFileChange(
+          ctx.extensionState,
+          rawFilePath,
+          rawFileContent ?? "",
+          originalContent ?? "",
+        ).catch(() => {});
+      } else if (rawFilePath) {
         Promise.resolve(
           executeExtensionCommand("changeApplied", rawFilePath, rawFileContent ?? ""),
         ).catch(() => {});

@@ -38,6 +38,7 @@ import {
   getConfigAutoAcceptOnSave,
   getConfigToolPermissions,
   getConfigAgentMode,
+  getConfigBatchReviewMode,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -127,6 +128,8 @@ class VsCodeExtension {
       availableSources: [],
       featureState: { agentMode: getConfigAgentMode() },
       toolPermissions: getConfigToolPermissions(),
+      isBatchReviewMode: getConfigBatchReviewMode(),
+      pendingBatchReview: [],
     };
 
     this.store = createExtensionStore(initialData);
@@ -670,6 +673,13 @@ class VsCodeExtension {
               draft.toolPermissions = getConfigToolPermissions();
             });
             this.state.logger.info("Tool permissions updated from settings");
+          }
+
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.batchReviewMode`)) {
+            this.state.mutate((draft) => {
+              draft.isBatchReviewMode = getConfigBatchReviewMode();
+            });
+            this.state.logger.info(`Batch review mode changed to ${getConfigBatchReviewMode()}`);
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {

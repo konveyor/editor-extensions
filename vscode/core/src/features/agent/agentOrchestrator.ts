@@ -17,6 +17,7 @@ import type {
 } from "../../client/agentClient";
 import type { AgentFileTracker } from "./fileTracker";
 import { executeExtensionCommand } from "../../commands";
+import { routeFileChange } from "./fileChangeRouter";
 import { buildMigrationPrompt } from "./promptBuilder";
 import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./init";
 import { handlePermissionWithPolicy } from "./toolPermissionHandler";
@@ -44,20 +45,30 @@ export class AgentOrchestrator {
 
   async run(): Promise<void> {
     const agentMode = this.state.data.featureState?.agentMode !== false;
-    const client = agentMode ? this.getAgentClient() : await this.createDirectLLMClient();
+    let client: AgentClient | undefined;
+    let disposeClient = false;
+
+    if (agentMode) {
+      client = this.getAgentClient();
+    }
+
+    if (!client) {
+      client = await this.createDirectLLMClient();
+      disposeClient = true;
+    }
 
     if (!client) {
       return;
     }
 
-    await this.runWithClient(client, agentMode, !agentMode /* disposeClient */);
+    await this.runWithClient(client, agentMode && !disposeClient, disposeClient);
   }
 
   private getAgentClient(): AgentClient | undefined {
     const agentClient = this.state.featureClients.get("agentClient") as AgentClient | undefined;
     if (!agentClient || agentClient.getState() !== "running") {
-      vscode.window.showErrorMessage(
-        "Agent is not running. Please ensure the agent backend is installed and has started.",
+      this.logger.info(
+        "AgentOrchestrator: agent client not available, will fall back to direct LLM",
       );
       return undefined;
     }
@@ -140,8 +151,8 @@ export class AgentOrchestrator {
       if (fileTracker && data.status === "succeeded") {
         fileTracker.resolvePendingFileChanges().then(async (changes) => {
           for (const change of changes) {
-            await executeExtensionCommand("changeApplied", change.path, change.content);
-            this.logger.info("AgentOrchestrator: file change applied", {
+            await routeFileChange(this.state, change.path, change.content, change.originalContent);
+            this.logger.info("AgentOrchestrator: file change routed", {
               path: change.path,
             });
           }
@@ -202,12 +213,10 @@ export class AgentOrchestrator {
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
         for (const change of missedChanges) {
-          await executeExtensionCommand("changeApplied", change.path, change.content);
+          await routeFileChange(this.state, change.path, change.content, change.originalContent);
         }
         if (missedChanges.length > 0) {
-          this.logger.info(
-            `AgentOrchestrator: notified solution server of ${missedChanges.length} post-scan file(s)`,
-          );
+          this.logger.info(`AgentOrchestrator: routed ${missedChanges.length} post-scan file(s)`);
         }
       }
     } catch (err) {
@@ -237,6 +246,7 @@ export class AgentOrchestrator {
       draft.solutionScope = scope;
       draft.isProcessingQueuedMessages = false;
       draft.isWaitingForUserInteraction = false;
+      draft.pendingBatchReview = [];
     });
 
     this.state.mutate((draft) => {
@@ -453,6 +463,7 @@ export class AgentOrchestrator {
       fileTracker,
       mutate: (recipe) => this.state.mutate(recipe),
       pendingPermissions,
+      extensionState: this.state,
     });
   }
 

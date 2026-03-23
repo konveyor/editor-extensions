@@ -35,6 +35,8 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "solutionScope",
   "isWaitingForUserInteraction",
   "isProcessingQueuedMessages",
+  "isBatchReviewMode",
+  "pendingBatchReview",
   // Server
   "serverState",
   "isStartingServer",
@@ -134,6 +136,11 @@ export function setupSyncBridges(
 
         if (!hasChanges) {
           return;
+        }
+
+        // Normalize: ensure pendingBatchReview is always an array when present
+        if ("pendingBatchReview" in data && !data.pendingBatchReview) {
+          data.pendingBatchReview = [];
         }
 
         // Normalize: ensure activeDecorators is always an object when present

@@ -7,6 +7,7 @@ import {
   ServerState,
   SolutionState,
   Scope,
+  PendingBatchReviewFile,
   HubConfig,
 } from "./types";
 import type { AgentWebviewMessage } from "./agentMessages";
@@ -58,6 +59,8 @@ export interface StateChangeData {
   solutionScope?: Scope;
   isWaitingForUserInteraction?: boolean;
   isProcessingQueuedMessages?: boolean;
+  isBatchReviewMode?: boolean;
+  pendingBatchReview?: PendingBatchReviewFile[];
 
   // Server
   serverState?: ServerState;

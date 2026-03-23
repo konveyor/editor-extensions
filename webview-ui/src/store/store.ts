@@ -10,6 +10,7 @@ import type {
   ServerState,
   SolutionState,
   Scope,
+  PendingBatchReviewFile,
   HubConfig,
   AgentState,
   AgentChatMessage,
@@ -64,6 +65,9 @@ interface ExtensionStore {
   availableSources: string[];
 
   // Batch review state
+  isBatchReviewMode: boolean;
+  pendingBatchReview: PendingBatchReviewFile[];
+  isBatchOperationInProgress: boolean;
 
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
@@ -96,6 +100,7 @@ interface ExtensionStore {
   setIsInitializingServer: (isInitializing: boolean) => void;
   setIsWaitingForUserInteraction: (isWaiting: boolean) => void;
   setIsProcessingQueuedMessages: (isProcessing: boolean) => void;
+  setBatchOperationInProgress: (isInProgress: boolean) => void;
   setActiveDecorators: (decorators: Record<string, string>) => void;
   deleteActiveDecorator: (streamId: string) => void;
 
@@ -188,6 +193,9 @@ export const useExtensionStore = create<ExtensionStore>()(
       toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
 
       // Batch review state
+      isBatchReviewMode: false,
+      pendingBatchReview: [],
+      isBatchOperationInProgress: false,
 
       // Focus/filter state
       focusedViolationFilter: null,
@@ -290,6 +298,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsProcessingQueuedMessages: (isProcessing) =>
         set((state) => {
           state.isProcessingQueuedMessages = isProcessing;
+        }),
+
+      setBatchOperationInProgress: (isInProgress) =>
+        set((state) => {
+          state.isBatchOperationInProgress = isInProgress;
         }),
 
       setActiveDecorators: (decorators) =>
