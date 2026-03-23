@@ -21,7 +21,13 @@ import type {
 } from "@editor-extensions/agentic";
 import { KaiWorkflowMessageType } from "@editor-extensions/agentic";
 import type { AIMessageChunk, AIMessage } from "@langchain/core/messages";
-import type { AgentClient, AgentState, McpServerConfig, ToolCallData } from "./agentClient";
+import type {
+  AgentClient,
+  AgentState,
+  McpServerConfig,
+  ToolCallData,
+  PermissionRequestData,
+} from "./agentClient";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -38,6 +44,7 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
   private readonly workflowInput: KaiInteractiveWorkflowInput;
   private readonly logger: winston.Logger;
   private promptActive = false;
+  private requestCounter = 0;
 
   constructor(config: DirectLLMClientConfig) {
     super();
@@ -205,21 +212,41 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
 
   private emitFileChange(messageId: string, file: KaiModifiedFile): void {
     const callId = `workflow-${uuidv4()}`;
+    const requestId = ++this.requestCounter;
 
-    const toolCallData: ToolCallData = {
+    this.emit("toolCall", messageId, {
       name: "write_file",
       callId,
       arguments: { path: file.path, content: file.content },
       status: "running",
+    } as ToolCallData);
+
+    const permissionData: PermissionRequestData = {
+      requestId,
+      toolCallId: callId,
+      title: "Workflow: File Change",
+      toolName: "text_editor",
+      kind: "fileEditing",
+      status: "pending",
+      rawInput: {
+        command: "write",
+        path: file.path,
+        file_text: file.content,
+      },
+      options: [
+        { optionId: `allow-${callId}`, name: "Allow", kind: "allow_once" },
+        { optionId: `reject-${callId}`, name: "Reject", kind: "reject_once" },
+      ],
     };
 
-    this.emit("toolCall", messageId, toolCallData);
+    this.emit("permissionRequest", permissionData);
 
     this.emit("toolCallUpdate", messageId, {
-      ...toolCallData,
+      name: "write_file",
+      callId,
       status: "succeeded",
       result: `Updated ${file.path}`,
-    });
+    } as ToolCallData);
   }
 
   // ─── Tool call → AgentClient events ────────────────────────────────
