@@ -178,6 +178,7 @@ export function useVSCodeMessageHandler() {
             message.toolName,
             message.status as "running" | "succeeded" | "failed",
             message.result,
+            message.arguments,
           );
           return;
         }
@@ -228,7 +229,6 @@ export function useVSCodeMessageHandler() {
 
     return () => {
       window.removeEventListener("message", handleMessage);
-      // Clean up throttle timer on unmount
       if (throttleTimerRef.current) {
         clearTimeout(throttleTimerRef.current);
       }

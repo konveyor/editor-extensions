@@ -44,6 +44,7 @@ export interface AgentToolCallMessage {
   callId?: string;
   status: "running" | "succeeded" | "failed";
   result?: string;
+  arguments?: Record<string, unknown>;
   timestamp: string;
 }
 

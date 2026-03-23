@@ -123,8 +123,42 @@ export class McpBridgeServer {
         try {
           if (this.config.runAnalysis) {
             await this.config.runAnalysis();
+            const data = this.config.store.getState();
+            const incidents = data.enhancedIncidents ?? [];
+            const ruleSetCount = data.ruleSets?.length ?? 0;
+
+            const byViolation = new Map<string, { count: number; files: Set<string> }>();
+            for (const inc of incidents) {
+              const key = inc.violation_name || inc.message || "unknown";
+              let entry = byViolation.get(key);
+              if (!entry) {
+                entry = { count: 0, files: new Set() };
+                byViolation.set(key, entry);
+              }
+              entry.count++;
+              if (inc.uri) {
+                const fname = inc.uri.split("/").pop() || inc.uri;
+                entry.files.add(fname);
+              }
+            }
+
+            const violationSummary = Array.from(byViolation.entries()).map(
+              ([name, { count, files }]) => ({
+                violation: name,
+                incidents: count,
+                affectedFiles: Array.from(files).slice(0, 10),
+              }),
+            );
+
             res.writeHead(200);
-            res.end(JSON.stringify({ status: "analysis_triggered" }));
+            res.end(
+              JSON.stringify({
+                status: "analysis_complete",
+                totalIncidents: incidents.length,
+                totalRuleSets: ruleSetCount,
+                violations: violationSummary,
+              }),
+            );
           } else {
             res.writeHead(503);
             res.end(JSON.stringify({ error: "Analysis not available" }));
@@ -141,12 +175,38 @@ export class McpBridgeServer {
 
       case "/api/analysis-results": {
         const state = this.config.store.getState();
+        const incidents = state.enhancedIncidents ?? [];
+
+        const byFile = new Map<
+          string,
+          Array<{ violation: string; line?: number; message: string }>
+        >();
+        for (const inc of incidents) {
+          const filePath = inc.uri || "unknown";
+          let list = byFile.get(filePath);
+          if (!list) {
+            list = [];
+            byFile.set(filePath, list);
+          }
+          list.push({
+            violation: inc.violation_name || "unknown",
+            line: inc.lineNumber,
+            message: inc.message || "",
+          });
+        }
+
+        const fileResults = Array.from(byFile.entries()).map(([file, items]) => ({
+          file,
+          incidents: items,
+        }));
+
         res.writeHead(200);
         res.end(
           JSON.stringify({
-            ruleSets: state.ruleSets,
-            enhancedIncidents: state.enhancedIncidents,
             isAnalyzing: state.isAnalyzing,
+            totalRuleSets: state.ruleSets?.length ?? 0,
+            totalIncidents: incidents.length,
+            fileResults,
           }),
         );
         break;

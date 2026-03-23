@@ -8,7 +8,9 @@ import {
   AGENT_INSTALL_CLI,
   AGENT_OPEN_SETTINGS,
   AGENT_PERMISSION_RESPONSE,
+  AGENT_CANCEL_GENERATION,
   SET_TOOL_PERMISSIONS,
+  SET_EXPERIMENTAL_CHAT,
   OPEN_NATIVE_CONFIG,
   AgentMessageTypes,
 } from "@editor-extensions/shared";
@@ -19,6 +21,7 @@ import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import type { AgentClient } from "../../client/agentClient";
 import { executeExtensionCommand } from "../../commands";
+import { getConfigAgentBackend } from "../../utilities/configuration";
 
 function getAgentClient(state: ExtensionState): AgentClient | undefined {
   return state.featureClients.get("agentClient") as AgentClient | undefined;
@@ -33,6 +36,11 @@ export const agentMessageHandlers: Record<
     state,
     logger,
   ) => {
+    if (state.data.isFetchingSolution) {
+      logger.warn("AGENT_SEND_MESSAGE: blocked — getSolution workflow is active");
+      return;
+    }
+
     const agentClient = getAgentClient(state);
     if (!agentClient) {
       logger.warn("AGENT_SEND_MESSAGE: Agent client not available");
@@ -47,6 +55,28 @@ export const agentMessageHandlers: Record<
       await agentClient.sendMessage(content, messageId);
     } catch (err) {
       logger.error("AGENT_SEND_MESSAGE failed:", err);
+    }
+  },
+
+  [AGENT_CANCEL_GENERATION]: async (_payload, state, logger) => {
+    if (state.data.isFetchingSolution) {
+      logger.warn("AGENT_CANCEL_GENERATION: blocked — getSolution workflow is active");
+      return;
+    }
+
+    const agentClient = getAgentClient(state);
+    if (!agentClient) {
+      logger.warn("AGENT_CANCEL_GENERATION: Agent client not available");
+      return;
+    }
+
+    try {
+      if (agentClient.isPromptActive()) {
+        logger.info("AGENT_CANCEL_GENERATION: cancelling active generation");
+        agentClient.cancelGeneration();
+      }
+    } catch (err) {
+      logger.error("AGENT_CANCEL_GENERATION failed:", err);
     }
   },
 
@@ -65,6 +95,11 @@ export const agentMessageHandlers: Record<
   },
 
   [AGENT_STOP]: async (_payload, state, logger) => {
+    if (state.data.isFetchingSolution) {
+      logger.warn("AGENT_STOP: blocked — getSolution workflow is active");
+      return;
+    }
+
     const agentClient = getAgentClient(state);
     if (!agentClient) {
       logger.warn("AGENT_STOP: Agent client not available");
@@ -90,11 +125,11 @@ export const agentMessageHandlers: Record<
     logger,
   ) => {
     try {
-      const { writeGooseConfig, readGooseConfig } = await import("../../gooseConfig");
-      const { saveGooseCredentials, hasGooseCredentials } =
-        await import("../../utilities/gooseCredentialStorage");
+      const { writeAgentConfig, readAgentConfig } = await import("../../agentConfigReader");
+      const { saveAgentCredentials, hasAgentCredentials } =
+        await import("../../utilities/agentCredentialStorage");
 
-      writeGooseConfig({
+      writeAgentConfig({
         provider: payload.provider,
         model: payload.model,
         extensions: payload.extensions,
@@ -102,8 +137,8 @@ export const agentMessageHandlers: Record<
       logger.info(`Agent config updated: provider=${payload.provider}, model=${payload.model}`);
 
       if (payload.credentials && Object.keys(payload.credentials).length > 0) {
-        const { loadGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
-        const existing = (await loadGooseCredentials(state.extensionContext)) ?? {};
+        const { loadAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+        const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
         const merged = { ...existing, ...payload.credentials };
         const cleaned: Record<string, string> = {};
         for (const [k, v] of Object.entries(merged)) {
@@ -111,12 +146,31 @@ export const agentMessageHandlers: Record<
             cleaned[k] = v;
           }
         }
-        await saveGooseCredentials(state.extensionContext, cleaned);
+        await saveAgentCredentials(state.extensionContext, cleaned);
         logger.info(`Agent credentials saved (${Object.keys(cleaned).length} keys)`);
 
         const agentClient = getAgentClient(state);
         if (agentClient) {
           agentClient.updateModelEnv(cleaned);
+        }
+
+        // Also write provider-settings.yaml so the DirectLLMClient fallback
+        // works when the agent hasn't started yet (e.g., before a reload)
+        try {
+          const { generateProviderSettingsYaml } =
+            await import("../../modelProvider/providerConfigGenerator");
+          const { paths } = await import("../../paths");
+          const vscode = await import("vscode");
+          const yamlContent = generateProviderSettingsYaml(
+            payload.provider,
+            payload.model,
+            payload.credentials,
+          );
+          const encoder = new TextEncoder();
+          await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+          logger.info("Also updated provider-settings.yaml for DirectLLMClient fallback");
+        } catch (err) {
+          logger.warn("Failed to update provider-settings.yaml from agent config:", err);
         }
       }
 
@@ -126,8 +180,8 @@ export const agentMessageHandlers: Record<
         await agentClient.start();
       }
 
-      const updatedConfig = readGooseConfig();
-      updatedConfig.hasStoredCredentials = await hasGooseCredentials(state.extensionContext);
+      const updatedConfig = readAgentConfig();
+      updatedConfig.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
       updatedConfig.toolPermissions = state.store.getState().toolPermissions;
       if (payload.agentMode !== undefined) {
         updatedConfig.agentMode = payload.agentMode;
@@ -185,7 +239,6 @@ export const agentMessageHandlers: Record<
       const terminal = vscode.window.createTerminal({ name: "Install Agent CLI" });
       terminal.show();
 
-      const { getConfigAgentBackend } = await import("../../utilities/configuration");
       const backend = getConfigAgentBackend();
 
       let installCmd: string;
@@ -221,7 +274,6 @@ export const agentMessageHandlers: Record<
   },
 
   [AGENT_OPEN_SETTINGS]: async () => {
-    const { getConfigAgentBackend } = await import("../../utilities/configuration");
     const backend = getConfigAgentBackend();
     const settingsKey =
       backend === "opencode"
@@ -232,10 +284,10 @@ export const agentMessageHandlers: Record<
 
   AGENT_WEBVIEW_READY: async (_payload, state, _logger) => {
     try {
-      const { readGooseConfig } = await import("../../gooseConfig");
-      const { hasGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
-      const config = readGooseConfig();
-      config.hasStoredCredentials = await hasGooseCredentials(state.extensionContext);
+      const { readAgentConfig } = await import("../../agentConfigReader");
+      const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+      const config = readAgentConfig();
+      config.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
       config.toolPermissions = state.store.getState().toolPermissions;
       config.agentMode = (state.store.getState().featureState?.agentMode as boolean) ?? true;
       const timestamp = new Date().toISOString();
@@ -327,23 +379,43 @@ export const agentMessageHandlers: Record<
     }
   },
 
+  [SET_EXPERIMENTAL_CHAT]: async ({ enabled }: { enabled: boolean }, state, logger) => {
+    logger.info(`SET_EXPERIMENTAL_CHAT: ${enabled}`);
+
+    try {
+      const { updateConfigExperimentalChatEnabled } = await import("../../utilities/configuration");
+      await updateConfigExperimentalChatEnabled(enabled);
+
+      state.mutate((draft) => {
+        draft.experimentalChatEnabled = enabled;
+      });
+
+      if (enabled && !getAgentClient(state)) {
+        vscode.window
+          .showInformationMessage(
+            "Experimental Chat enabled. Reload the window to start the agent backend.",
+            "Reload Window",
+          )
+          .then((selection) => {
+            if (selection === "Reload Window") {
+              vscode.commands.executeCommand("workbench.action.reloadWindow");
+            }
+          });
+      }
+    } catch (err) {
+      logger.error("SET_EXPERIMENTAL_CHAT failed:", err);
+    }
+  },
+
   [SET_TOOL_PERMISSIONS]: async ({ policy }: { policy: ToolPermissionPolicy }, state, logger) => {
     await applyToolPermissions(policy, state, logger);
   },
 
   [OPEN_NATIVE_CONFIG]: async (_payload, state, logger) => {
     try {
-      const { getConfigAgentBackend } = await import("../../utilities/configuration");
+      const { getAgentConfigPath } = await import("../../agentConfigReader");
       const backend = getConfigAgentBackend();
-
-      let configPath: string;
-      if (backend === "opencode") {
-        const { join } = await import("path");
-        configPath = join(state.store.getState().workspaceRoot, "opencode.json");
-      } else {
-        const { getGooseConfigPath } = await import("../../gooseConfig");
-        configPath = getGooseConfigPath();
-      }
+      const configPath = getAgentConfigPath(backend, state.store.getState().workspaceRoot);
 
       const uri = vscode.Uri.file(configPath);
       await vscode.commands.executeCommand("vscode.open", uri);
@@ -387,12 +459,18 @@ async function applyToolPermissions(
   // Translate to backend-specific config and restart the agent
   const agentClient = getAgentClient(state);
   if (agentClient) {
-    const gooseMode = policyToGooseMode(policy);
-    agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
+    const backend = getConfigAgentBackend();
+    if (backend === "goose") {
+      const gooseMode = policyToGooseMode(policy);
+      agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
+    }
 
     // Only restart if the agent is currently running and not mid-workflow
     if (agentClient.getState() === "running" && !state.data.isFetchingSolution) {
-      logger.info("Restarting agent to apply new tool permissions", { gooseMode });
+      logger.info("Restarting agent to apply new tool permissions", {
+        backend,
+        autonomyLevel: policy.autonomyLevel,
+      });
       try {
         await agentClient.stop();
         await agentClient.start();

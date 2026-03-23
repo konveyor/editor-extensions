@@ -8,6 +8,8 @@
  */
 
 import { EventEmitter } from "events";
+import { randomBytes } from "crypto";
+import { createServer } from "net";
 import type winston from "winston";
 import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import type {
@@ -28,6 +30,8 @@ export interface OpencodeClientConfig {
   mcpServers?: McpServerConfig[];
   modelEnv?: Record<string, string>;
   toolPermissions?: ToolPermissionPolicy;
+  /** OpenCode model identifier, e.g. "anthropic/claude-sonnet-4" or "google/gemini-2.0-flash" */
+  opencodeModel?: string;
 }
 
 // ─── OpencodeAgentClient ─────────────────────────────────────────────
@@ -39,6 +43,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
   private client: any | null = null;
   private eventAbortController: AbortController | null = null;
   private promptActive = false;
+  private activeResponseMessageId: string | null = null;
   private disposed = false;
 
   private readonly config: OpencodeClientConfig;
@@ -117,8 +122,6 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     this.setState("starting");
 
     try {
-      const { createOpencode } = await import("@opencode-ai/sdk");
-
       // Build MCP config from the shared McpServerConfig format
       const mcpConfig: Record<string, any> = {};
       for (const server of this.config.mcpServers ?? []) {
@@ -129,14 +132,13 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         mcpConfig[server.name] = {
           type: "local",
           command: [server.command, ...server.args],
-          env: Object.keys(envMap).length > 0 ? envMap : undefined,
+          environment: Object.keys(envMap).length > 0 ? envMap : undefined,
         };
       }
 
       // Build provider config from model env vars
       const providerConfig: Record<string, any> = {};
       if (this.config.modelEnv) {
-        // Pass common API keys to provider options
         if (this.config.modelEnv.ANTHROPIC_API_KEY) {
           providerConfig.anthropic = {
             options: { apiKey: this.config.modelEnv.ANTHROPIC_API_KEY },
@@ -147,7 +149,18 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
             options: { apiKey: this.config.modelEnv.OPENAI_API_KEY },
           };
         }
+        if (this.config.modelEnv.GOOGLE_API_KEY) {
+          providerConfig.google = {
+            options: { apiKey: this.config.modelEnv.GOOGLE_API_KEY },
+          };
+        }
       }
+
+      // Generate a random password so the local server rejects unauthorized callers.
+      // The SDK's createOpencodeServer spreads process.env into the child, so
+      // setting it here makes it available to the server as OPENCODE_SERVER_PASSWORD.
+      const serverPassword = randomBytes(32).toString("hex");
+      process.env.OPENCODE_SERVER_PASSWORD = serverPassword;
 
       // Inject model env into the process environment for the server
       if (this.config.modelEnv) {
@@ -155,6 +168,9 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       }
 
       const config: Record<string, any> = {};
+      if (this.config.opencodeModel) {
+        config.model = this.config.opencodeModel;
+      }
       if (Object.keys(mcpConfig).length > 0) {
         config.mcp = mcpConfig;
       }
@@ -167,13 +183,66 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         config.permission = policyToOpencodePermissions(this.config.toolPermissions);
       }
 
-      const opencode = await createOpencode({
+      // Ensure the port is free before spawning.  A previous leaked server
+      // process may still be holding it.
+      const OPENCODE_PORT = 4096;
+      const portFree = await isPortFree(OPENCODE_PORT);
+      if (!portFree) {
+        this.logger.warn(
+          `OpencodeAgentClient: port ${OPENCODE_PORT} is in use — killing stale process`,
+        );
+        await killProcessOnPort(OPENCODE_PORT);
+      }
+
+      // Log the config (redact API keys) so we can diagnose server-side errors.
+      const redactedConfig = JSON.parse(JSON.stringify(config));
+      if (redactedConfig.provider) {
+        for (const p of Object.values(redactedConfig.provider) as any[]) {
+          if (p?.options?.apiKey) {
+            p.options.apiKey = `${p.options.apiKey.slice(0, 4)}…`;
+          }
+        }
+      }
+      this.logger.info(
+        `OpencodeAgentClient: OPENCODE_CONFIG_CONTENT = ${JSON.stringify(redactedConfig)}`,
+      );
+
+      const { createOpencodeServer } = await import("@opencode-ai/sdk");
+      const { createOpencodeClient } = await import("@opencode-ai/sdk");
+
+      const server = await createOpencodeServer({
         config: Object.keys(config).length > 0 ? config : undefined,
         timeout: 30_000,
       });
 
-      this.client = opencode.client;
-      this.server = opencode.server;
+      // VS Code's Node.js fetch doesn't accept a Request object as the
+      // first argument (throws "Failed to parse URL from [object Request]").
+      // Provide a wrapper that extracts the URL string from the Request
+      // and injects HTTP Basic auth (OpenCode uses Basic, not Bearer).
+      const basicAuth = Buffer.from(`opencode:${serverPassword}`).toString("base64");
+      const nodeSafeFetch = (request: Request) => {
+        const headers = new Headers(request.headers);
+        if (!headers.has("Authorization")) {
+          headers.set("Authorization", `Basic ${basicAuth}`);
+        }
+        return fetch(request.url, {
+          method: request.method,
+          headers,
+          body: request.body,
+          redirect: request.redirect,
+          signal: request.signal,
+          duplex: request.body ? "half" : undefined,
+        });
+      };
+
+      const client = createOpencodeClient({
+        baseUrl: server.url,
+        fetch: nodeSafeFetch,
+        headers: { Authorization: `Basic ${basicAuth}` },
+      });
+
+      this.client = client;
+      this.server = server;
 
       this.logger.info(`OpencodeAgentClient: server running at ${this.server?.url}`);
 
@@ -181,7 +250,25 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       const session = await this.client.session.create({
         body: { title: "Konveyor Migration Assistant" },
       });
-      this.sessionId = session.data.id;
+
+      this.logger.info(
+        `OpencodeAgentClient: session.create response: ${JSON.stringify(session, null, 2)}`,
+      );
+
+      if (session.error) {
+        throw new Error(
+          `Session creation failed: ${typeof session.error === "string" ? session.error : JSON.stringify(session.error)}`,
+        );
+      }
+
+      const sessionData = session.data ?? session.response?.body;
+      const sessionId = sessionData?.id ?? sessionData?.ID;
+      if (!sessionId) {
+        throw new Error(
+          `Session response missing id. Keys: ${JSON.stringify(Object.keys(session))}`,
+        );
+      }
+      this.sessionId = sessionId;
       this.logger.info(`OpencodeAgentClient: session created ${this.sessionId}`);
 
       // Start event subscription
@@ -189,6 +276,17 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
 
       this.setState("running");
     } catch (err) {
+      if (this.server) {
+        try {
+          this.server.close();
+        } catch {
+          // Server may have already exited
+        }
+        this.server = null;
+      }
+      this.client = null;
+      delete process.env.OPENCODE_SERVER_PASSWORD;
+
       const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(`OpencodeAgentClient: start failed: ${error.message}`);
       this.setState("error");
@@ -219,6 +317,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     this.client = null;
     this.sessionId = null;
     this.promptActive = false;
+    delete process.env.OPENCODE_SERVER_PASSWORD;
     this.setState("stopped");
     this.logger.info("OpencodeAgentClient: stopped");
   }
@@ -235,22 +334,24 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     }
 
     this.promptActive = true;
+    this.activeResponseMessageId = responseMessageId;
 
     try {
-      const result = await this.client.session.prompt({
+      // Use the async prompt endpoint which returns 204 immediately.
+      // Actual results stream back via the SSE event subscription.
+      await this.client.session.promptAsync({
         path: { id: this.sessionId },
         body: {
           parts: [{ type: "text", text: content }],
         },
       });
 
-      const stopReason = result.data?.info?.stopReason ?? "end_turn";
-
-      this.emit("streamingComplete", responseMessageId, stopReason);
-      this.promptActive = false;
-      return stopReason;
+      // Return immediately -- streamingComplete is emitted by handleEvent
+      // when session.completed or message.updated with status=completed arrives.
+      return "end_turn";
     } catch (err) {
       this.promptActive = false;
+      this.activeResponseMessageId = null;
       throw err;
     }
   }
@@ -291,18 +392,34 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     try {
       const events = await this.client.event.subscribe();
 
+      this.logger.info("OpencodeAgentClient: SSE event stream connected");
+
       // Process events in background
       void (async () => {
+        let eventCount = 0;
         try {
           for await (const event of events.stream) {
             if (this.disposed || this.eventAbortController?.signal.aborted) {
               break;
             }
+            eventCount++;
+            const evtType = event.type ?? event.event ?? "unknown";
+            if (eventCount <= 20 || eventCount % 50 === 0) {
+              this.logger.info(
+                `OpencodeAgentClient: SSE event #${eventCount} type=${evtType}` +
+                  (evtType === "message.part.delta"
+                    ? ` field=${event.properties?.field ?? event.data?.field ?? "?"} delta=${(event.properties?.delta ?? event.data?.delta ?? "").slice(0, 40)}`
+                    : ""),
+              );
+            }
             this.handleEvent(event);
           }
+          this.logger.info(`OpencodeAgentClient: event stream ended after ${eventCount} events`);
         } catch (err) {
           if (!this.disposed) {
-            this.logger.warn(`OpencodeAgentClient: event stream error: ${err}`);
+            this.logger.warn(
+              `OpencodeAgentClient: event stream error after ${eventCount} events: ${err}`,
+            );
           }
         }
       })();
@@ -311,40 +428,47 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     }
   }
 
-  private handleEvent(event: { type: string; properties: any }): void {
-    const { type, properties } = event;
+  private handleEvent(event: any): void {
+    const type = event.type ?? event.event;
+    const properties = event.properties ?? event.data ?? event;
+
+    if (!type) {
+      this.logger.debug(
+        `OpencodeAgentClient: event missing type, keys=${JSON.stringify(Object.keys(event))}`,
+      );
+      return;
+    }
 
     switch (type) {
       case "message.part.delta": {
-        // Incremental text update
-        const { sessionID, messageID, partID, field, delta } = properties;
-        if (sessionID === this.sessionId && field === "content" && delta) {
-          this.emit("streamingChunk", messageID, delta, "text");
+        const { sessionID, delta, field } = properties;
+        if (sessionID !== this.sessionId || !delta) {
+          break;
+        }
+
+        const msgId = this.activeResponseMessageId ?? properties.messageID;
+
+        // OpenCode's delta fields: "text" = main visible response,
+        // "content" = extended thinking / reasoning
+        if (field === "text") {
+          this.emit("streamingChunk", msgId, delta, "text");
+        } else if (field === "content") {
+          this.emit("streamingChunk", msgId, delta, "thinking");
         }
         break;
       }
 
       case "message.part.updated": {
-        // Full part update — handle tool calls and other content types
-        const part = properties;
-        if (part.sessionID !== this.sessionId) {
+        const part = properties?.part ?? properties;
+        const partSessionID = part.sessionID ?? part.sessionId;
+        if (partSessionID !== this.sessionId) {
           break;
         }
 
-        if (part.type === "tool-invocation" || part.type === "tool_call") {
-          const toolData: ToolCallData = {
-            name: part.toolName ?? part.name ?? "Tool call",
-            callId: part.partID ?? part.id,
-            arguments: part.input ?? part.arguments,
-            status: this.mapToolStatus(part.state ?? part.status),
-            result: part.output ?? part.result,
-          };
-
-          if (toolData.status === "running") {
-            this.emit("toolCall", part.messageID, toolData);
-          } else {
-            this.emit("toolCallUpdate", part.messageID, toolData);
-          }
+        if (part.type === "tool" || part.type === "tool-invocation" || part.type === "tool_call") {
+          this.handleToolPartUpdate(part);
+        } else if (part.type === "reasoning" && part.text) {
+          this.emit("streamingChunk", part.messageID, part.text, "thinking");
         }
         break;
       }
@@ -370,14 +494,77 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       }
 
       case "session.updated": {
-        // Could be used for state tracking
         this.logger.debug("OpencodeAgentClient: session updated", { properties });
         break;
       }
 
-      default:
-        // Ignore other events (server.connected, heartbeat, etc.)
+      case "session.completed":
+      case "session.idle":
+      case "session.status": {
+        const status = properties?.status ?? properties?.state ?? type.split(".")[1];
+        if (
+          (status === "completed" || status === "idle" || type === "session.completed") &&
+          this.promptActive
+        ) {
+          this.promptActive = false;
+          const msgId = this.activeResponseMessageId ?? "";
+          this.activeResponseMessageId = null;
+          this.logger.info(
+            `OpencodeAgentClient: prompt finished (event=${type}, status=${status})`,
+          );
+          this.emit("streamingComplete", msgId, "end_turn");
+        }
         break;
+      }
+
+      case "session.error": {
+        const err = properties?.error ?? properties;
+        const errorName = err?.name ?? "UnknownError";
+        const errorData = err?.data ?? {};
+        const errorMsg = err?.message ?? errorName;
+
+        const detail = errorData.providerID
+          ? `${errorMsg} (provider=${errorData.providerID}, model=${errorData.modelID}` +
+            `${errorData.suggestions?.length ? `, try: ${errorData.suggestions.join(", ")}` : ""})`
+          : errorMsg;
+
+        this.logger.error(`OpencodeAgentClient: session error: ${detail}`);
+
+        if (this.promptActive) {
+          this.promptActive = false;
+          const msgId = this.activeResponseMessageId ?? "";
+          this.activeResponseMessageId = null;
+          this.emit("streamingChunk", msgId, `\n\n**Error:** ${detail}`, "text");
+          this.emit("streamingComplete", msgId, "error");
+        }
+        break;
+      }
+
+      default:
+        if (type.includes("error") || type.includes("fail")) {
+          this.logger.warn(
+            `OpencodeAgentClient: unhandled error event: ${type} ${JSON.stringify(properties)}`,
+          );
+        }
+        break;
+    }
+  }
+
+  private handleToolPartUpdate(part: any): void {
+    // OpenCode SDK uses ToolPart: { type: "tool", callID, tool, state: ToolState }
+    const state = part.state ?? {};
+    const toolData: ToolCallData = {
+      name: state.title ?? part.tool ?? part.toolName ?? part.name ?? "Tool call",
+      callId: part.callID ?? part.partID ?? part.id,
+      arguments: state.input ?? part.input ?? part.arguments,
+      status: this.mapToolStatus(state.status ?? part.status ?? "running"),
+      result: state.output ?? state.error ?? part.output ?? part.result,
+    };
+
+    if (toolData.status === "running") {
+      this.emit("toolCall", part.messageID, toolData);
+    } else {
+      this.emit("toolCallUpdate", part.messageID, toolData);
     }
   }
 
@@ -403,4 +590,44 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       this.emit("stateChange", newState);
     }
   }
+}
+
+// ─── Port helpers ───────────────────────────────────────────────────
+
+function isPortFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const srv = createServer();
+    srv.once("error", () => resolve(false));
+    srv.listen(port, "127.0.0.1", () => {
+      srv.close(() => resolve(true));
+    });
+  });
+}
+
+async function killProcessOnPort(port: number): Promise<void> {
+  const { execFile } = await import("child_process");
+  const myPid = process.pid;
+  return new Promise((resolve) => {
+    // -sTCP:LISTEN limits to the process that *owns* the listening socket,
+    // avoiding the extension host or other clients connected to the port.
+    execFile("lsof", ["-ti", `:${port}`, "-sTCP:LISTEN"], (err, stdout) => {
+      if (err || !stdout.trim()) {
+        resolve();
+        return;
+      }
+      const pids = stdout
+        .trim()
+        .split(/\s+/)
+        .map(Number)
+        .filter((pid) => pid !== myPid && pid !== 0);
+      for (const pid of pids) {
+        try {
+          process.kill(pid, "SIGTERM");
+        } catch {
+          // process may have already exited
+        }
+      }
+      setTimeout(resolve, 500);
+    });
+  });
 }

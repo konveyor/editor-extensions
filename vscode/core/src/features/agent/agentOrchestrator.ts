@@ -17,6 +17,7 @@ import type {
 } from "../../client/agentClient";
 import type { AgentFileTracker } from "./fileTracker";
 import { executeExtensionCommand } from "../../commands";
+import { routeFileChange } from "./fileChangeRouter";
 import { buildMigrationPrompt } from "./promptBuilder";
 import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./init";
 import { handlePermissionWithPolicy } from "./toolPermissionHandler";
@@ -35,6 +36,7 @@ import type { Logger } from "winston";
  */
 export class AgentOrchestrator {
   private lastTextMessageId: string | null = null;
+  private fileChangesRouted = 0;
 
   constructor(
     private readonly state: ExtensionState,
@@ -43,21 +45,56 @@ export class AgentOrchestrator {
   ) {}
 
   async run(): Promise<void> {
-    const agentMode = this.state.data.featureState?.agentMode !== false;
-    const client = agentMode ? this.getAgentClient() : await this.createDirectLLMClient();
-
-    if (!client) {
+    if (this.state.data.isFetchingSolution) {
+      vscode.window.showWarningMessage("Solution already being fetched");
       return;
     }
 
-    await this.runWithClient(client, agentMode, !agentMode /* disposeClient */);
+    const profileName = this.incidents[0]?.activeProfileName;
+    if (!profileName) {
+      vscode.window.showErrorMessage("No profile name found in incidents");
+      return;
+    }
+
+    const agentMode = this.state.data.featureState?.agentMode !== false;
+    let client: AgentClient | undefined;
+    let disposeClient = false;
+
+    if (agentMode) {
+      client = this.getAgentClient();
+    }
+
+    this.initializeState();
+    executeExtensionCommand("showChatPanel");
+
+    this.logger.info("AgentOrchestrator: starting", {
+      incidentsCount: this.incidents.length,
+      profileName,
+      agentMode,
+    });
+
+    if (!client) {
+      client = await this.createDirectLLMClient();
+      disposeClient = true;
+    }
+
+    if (!client) {
+      this.cleanup();
+      return;
+    }
+
+    if (agentMode && !disposeClient) {
+      await this.runAgentPath(client, profileName, disposeClient);
+    } else {
+      await this.runWorkflowPath(client, disposeClient);
+    }
   }
 
   private getAgentClient(): AgentClient | undefined {
     const agentClient = this.state.featureClients.get("agentClient") as AgentClient | undefined;
     if (!agentClient || agentClient.getState() !== "running") {
-      vscode.window.showErrorMessage(
-        "Agent is not running. Please ensure the agent backend is installed and has started.",
+      this.logger.info(
+        "AgentOrchestrator: agent client not available, will fall back to direct LLM",
       );
       return undefined;
     }
@@ -66,16 +103,51 @@ export class AgentOrchestrator {
 
   private async createDirectLLMClient(): Promise<AgentClient | undefined> {
     try {
-      const { parseModelConfig, getModelProviderFromConfig } = await import("../../modelProvider");
-      const { paths } = await import("../../paths");
+      const [
+        { parseModelConfig, getModelProviderFromConfig },
+        { paths },
+        { KaiInteractiveWorkflow, FileBasedResponseCache },
+        { getConfigKaiDemoMode, getCacheDir },
+        { DirectLLMClient },
+      ] = await Promise.all([
+        import("../../modelProvider"),
+        import("../../paths"),
+        import("@editor-extensions/agentic"),
+        import("../../utilities/configuration"),
+        import("../../client/directLLMClient"),
+      ]);
 
       const parsedConfig = await parseModelConfig(paths().settingsYaml);
       const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
 
-      const { DirectLLMClient } = await import("../../client/directLLMClient");
-      return new DirectLLMClient({
+      const workflow = new KaiInteractiveWorkflow(this.logger);
+      await workflow.init({
         modelProvider,
-        workspaceRoot: this.state.data.workspaceRoot,
+        workspaceDir: this.state.data.workspaceRoot,
+        fsCache: this.state.kaiFsCache,
+        solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
+        toolCache: new FileBasedResponseCache(
+          getConfigKaiDemoMode(),
+          (args) =>
+            typeof args === "string" ? args : JSON.stringify(args, Object.keys(args).sort()),
+          (args) => (typeof args === "string" ? args : JSON.parse(args)),
+          getCacheDir(this.state.data.workspaceRoot),
+          this.logger,
+        ),
+      });
+
+      const profileName = this.incidents[0]?.activeProfileName ?? "";
+      const programmingLanguage =
+        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
+      return new DirectLLMClient({
+        workflow,
+        workflowInput: {
+          incidents: this.incidents,
+          migrationHint: profileName,
+          programmingLanguage,
+          enableAgentMode: false,
+        },
         logger: this.logger,
       });
     } catch (err) {
@@ -88,33 +160,17 @@ export class AgentOrchestrator {
     }
   }
 
-  private async runWithClient(
+  /**
+   * Agent path: Goose/OpenCode agent with AgentClient event handlers.
+   */
+  private async runAgentPath(
     agentClient: AgentClient,
-    agentMode: boolean,
+    profileName: string,
     disposeClient: boolean,
   ): Promise<void> {
-    if (this.state.data.isFetchingSolution) {
-      vscode.window.showWarningMessage("Solution already being fetched");
-      return;
-    }
-
-    const profileName = this.incidents[0]?.activeProfileName;
-    if (!profileName) {
-      vscode.window.showErrorMessage("No profile name found in incidents");
-      return;
-    }
-
     const fileTracker = this.state.featureClients.get("agentFileTracker") as
       | AgentFileTracker
       | undefined;
-
-    this.logger.info("AgentOrchestrator: starting", {
-      incidentsCount: this.incidents.length,
-      profileName,
-    });
-
-    await executeExtensionCommand("showChatPanel");
-    this.initializeState();
 
     suspendBroadcastHandlers();
 
@@ -140,8 +196,9 @@ export class AgentOrchestrator {
       if (fileTracker && data.status === "succeeded") {
         fileTracker.resolvePendingFileChanges().then(async (changes) => {
           for (const change of changes) {
-            await executeExtensionCommand("changeApplied", change.path, change.content);
-            this.logger.info("AgentOrchestrator: file change applied", {
+            await routeFileChange(this.state, change.path, change.content, change.originalContent);
+            this.fileChangesRouted++;
+            this.logger.info("AgentOrchestrator: file change routed", {
               path: change.path,
             });
           }
@@ -167,33 +224,38 @@ export class AgentOrchestrator {
     agentClient.on("permissionRequest", onPermission);
 
     try {
-      const sessionId = await agentClient.createSession();
-      this.logger.info("AgentOrchestrator: created new session for getSolution", { sessionId });
+      if (fileTracker) {
+        fileTracker.clear();
+      }
 
+      const programmingLanguage =
+        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
+      const workspaceRoot = this.state.data.workspaceRoot;
+
+      const [sessionId, fileContentCache] = await Promise.all([
+        agentClient.createSession(),
+        fileTracker && this.incidents.length > 0
+          ? fileTracker.cacheIncidentFiles(this.incidents, workspaceRoot)
+          : Promise.resolve(undefined),
+      ]);
+
+      this.logger.info("AgentOrchestrator: created new session for getSolution", { sessionId });
       this.state.mutate((draft) => {
         if (draft.solutionScope) {
           draft.solutionScope.agentSessionId = sessionId;
         }
       });
 
-      if (fileTracker) {
-        fileTracker.clear();
-        if (this.incidents.length > 0) {
-          await fileTracker.cacheIncidentFiles(this.incidents, this.state.data.workspaceRoot);
-        }
-      }
-
-      const programmingLanguage =
-        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
-
       const prompt = await buildMigrationPrompt(
         {
           incidents: this.incidents,
           migrationHint: profileName,
           programmingLanguage,
-          enableAgentMode: agentMode,
+          enableAgentMode: true,
         },
-        this.state.data.workspaceRoot,
+        workspaceRoot,
+        fileContentCache,
       );
 
       const requestId = uuidv4();
@@ -202,12 +264,11 @@ export class AgentOrchestrator {
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
         for (const change of missedChanges) {
-          await executeExtensionCommand("changeApplied", change.path, change.content);
+          await routeFileChange(this.state, change.path, change.content, change.originalContent);
+          this.fileChangesRouted++;
         }
         if (missedChanges.length > 0) {
-          this.logger.info(
-            `AgentOrchestrator: notified solution server of ${missedChanges.length} post-scan file(s)`,
-          );
+          this.logger.info(`AgentOrchestrator: routed ${missedChanges.length} post-scan file(s)`);
         }
       }
     } catch (err) {
@@ -226,6 +287,79 @@ export class AgentOrchestrator {
     }
   }
 
+  /**
+   * Workflow path: KaiInteractiveWorkflow with processMessage queue.
+   * Restores per-file accept/reject via the MessageQueueManager pipeline.
+   */
+  private async runWorkflowPath(agentClient: AgentClient, disposeClient: boolean): Promise<void> {
+    if (!agentClient.getWorkflow) {
+      this.logger.error("AgentOrchestrator: workflow path requires a client with getWorkflow()");
+      return;
+    }
+
+    const workflow = agentClient.getWorkflow();
+    const { processMessage } = await import("../../utilities/ModifiedFiles/processMessage");
+    const { MessageQueueManager } = await import("../../utilities/ModifiedFiles/queueManager");
+
+    const pendingInteractions = new Map<string, (response: any) => void>();
+    const modifiedFilesPromises: Array<Promise<void>> = [];
+    const processedTokens = new Set<string>();
+
+    const queueManager = new MessageQueueManager(
+      this.state,
+      workflow,
+      modifiedFilesPromises,
+      processedTokens,
+      pendingInteractions,
+    );
+
+    this.state.currentQueueManager = queueManager;
+    this.state.pendingInteractionsMap = pendingInteractions;
+    this.state.resolvePendingInteraction = (messageId: string, response: any): boolean => {
+      const resolver = pendingInteractions.get(messageId);
+      if (!resolver) {
+        this.logger.error("AgentOrchestrator: resolver not found", { messageId });
+        return false;
+      }
+      pendingInteractions.delete(messageId);
+      resolver(response);
+      return true;
+    };
+
+    workflow.on("workflowMessage", async (msg) => {
+      await processMessage(msg, this.state, queueManager);
+    });
+
+    try {
+      this.logger.info("AgentOrchestrator: starting workflow via queue path");
+
+      const queueDrained = new Promise<void>((resolve) => {
+        queueManager.onDrain(resolve);
+      });
+
+      await agentClient.sendMessage("", uuidv4());
+      await queueDrained;
+      await Promise.all(modifiedFilesPromises);
+
+      this.logger.info("AgentOrchestrator: workflow complete, queue drained", {
+        queueLength: queueManager.getQueueLength(),
+        pendingInteractions: pendingInteractions.size,
+      });
+    } catch (err) {
+      this.handleError(err);
+    } finally {
+      queueManager.dispose();
+      this.state.currentQueueManager = undefined;
+      this.state.pendingInteractionsMap = undefined;
+      this.state.resolvePendingInteraction = undefined;
+      workflow.removeAllListeners();
+      this.cleanup();
+      if (disposeClient) {
+        agentClient.dispose();
+      }
+    }
+  }
+
   private initializeState(): void {
     const scope: Scope = { incidents: this.incidents };
 
@@ -237,6 +371,7 @@ export class AgentOrchestrator {
       draft.solutionScope = scope;
       draft.isProcessingQueuedMessages = false;
       draft.isWaitingForUserInteraction = false;
+      draft.pendingBatchReview = [];
     });
 
     this.state.mutate((draft) => {
@@ -453,6 +588,7 @@ export class AgentOrchestrator {
       fileTracker,
       mutate: (recipe) => this.state.mutate(recipe),
       pendingPermissions,
+      extensionState: this.state,
     });
   }
 
@@ -471,7 +607,19 @@ export class AgentOrchestrator {
   }
 
   private cleanup(): void {
-    this.logger.info("AgentOrchestrator: cleanup — batch review will remain active");
+    const pendingCount = this.state.data.pendingBatchReview?.length ?? 0;
+    const isBatchReview = this.state.data.isBatchReviewMode === true;
+
+    if (isBatchReview && pendingCount > 0) {
+      this.logger.info("AgentOrchestrator: cleanup — batch review active", {
+        pendingFiles: pendingCount,
+        fileChangesRouted: this.fileChangesRouted,
+      });
+    } else {
+      this.logger.info("AgentOrchestrator: cleanup complete", {
+        fileChangesRouted: this.fileChangesRouted,
+      });
+    }
 
     this.state.mutate((draft) => {
       draft.isFetchingSolution = false;

@@ -33,7 +33,6 @@ const originalRequire = (Module.prototype as any).require;
       ProgressLocation: {
         Notification: 15,
       },
-      // Add other vscode APIs as needed
     };
   }
 

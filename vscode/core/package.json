@@ -263,8 +263,7 @@
       "editor/title": [
         {
           "command": "konveyor-core.openChat",
-          "group": "navigation",
-          "when": "config.konveyor-core.experimentalChat.enabled"
+          "group": "navigation"
         }
       ],
       "view/title": [
@@ -379,6 +378,13 @@
           "scope": "window",
           "order": 21
         },
+        "konveyor-core.genai.batchReviewMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, file changes from the agent are queued for review instead of being applied immediately. Allows accepting or rejecting changes in bulk.",
+          "scope": "window",
+          "order": 22
+        },
         "konveyor-core.genai.autonomyLevel": {
           "type": "string",
           "enum": [
@@ -398,7 +404,9 @@
         },
         "konveyor-core.genai.permissionOverrides": {
           "type": "object",
-          "default": {},
+          "default": {
+            "commandExecution": "auto"
+          },
           "description": "Per-category permission overrides. Keys: fileEditing, commandExecution, webAccess, mcpTools. Values: auto, ask, deny. Empty means inherit from autonomy level.",
           "scope": "window",
           "order": 23

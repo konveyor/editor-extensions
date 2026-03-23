@@ -26,8 +26,9 @@ export interface ToolPermissionPolicy {
   source?: "local" | "hub";
 }
 
-/** Default policy: smart mode, no per-category overrides */
+/** Default policy: smart mode — only file edits require approval */
 export const DEFAULT_TOOL_PERMISSION_POLICY: ToolPermissionPolicy = {
   autonomyLevel: "smart",
+  overrides: { commandExecution: "auto" },
   source: "local",
 };

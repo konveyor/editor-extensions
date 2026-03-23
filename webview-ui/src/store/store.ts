@@ -10,6 +10,7 @@ import type {
   ServerState,
   SolutionState,
   Scope,
+  PendingBatchReviewFile,
   HubConfig,
   AgentState,
   AgentChatMessage,
@@ -63,7 +64,14 @@ interface ExtensionStore {
   availableTargets: string[];
   availableSources: string[];
 
+  // Feature flags
+  experimentalChatEnabled: boolean;
+  modelSupportsTools: boolean;
+
   // Batch review state
+  isBatchReviewMode: boolean;
+  pendingBatchReview: PendingBatchReviewFile[];
+  isBatchOperationInProgress: boolean;
 
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
@@ -96,6 +104,7 @@ interface ExtensionStore {
   setIsInitializingServer: (isInitializing: boolean) => void;
   setIsWaitingForUserInteraction: (isWaiting: boolean) => void;
   setIsProcessingQueuedMessages: (isProcessing: boolean) => void;
+  setBatchOperationInProgress: (isInProgress: boolean) => void;
   setActiveDecorators: (decorators: Record<string, string>) => void;
   deleteActiveDecorator: (streamId: string) => void;
 
@@ -117,6 +126,7 @@ interface ExtensionStore {
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
   setToolPermissions: (policy: ToolPermissionPolicy) => void;
+  setExperimentalChatEnabled: (enabled: boolean) => void;
 
   // Agent chat setters
   setAgentConfig: (config: AgentConfig | null) => void;
@@ -137,6 +147,7 @@ interface ExtensionStore {
     toolName: string,
     status: "running" | "succeeded" | "failed",
     result?: string,
+    args?: Record<string, unknown>,
   ) => void;
 
   // Utility
@@ -187,7 +198,14 @@ export const useExtensionStore = create<ExtensionStore>()(
       // Tool permission policy
       toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
 
+      // Feature flags
+      experimentalChatEnabled: false,
+      modelSupportsTools: true,
+
       // Batch review state
+      isBatchReviewMode: false,
+      pendingBatchReview: [],
+      isBatchOperationInProgress: false,
 
       // Focus/filter state
       focusedViolationFilter: null,
@@ -292,6 +310,11 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.isProcessingQueuedMessages = isProcessing;
         }),
 
+      setBatchOperationInProgress: (isInProgress) =>
+        set((state) => {
+          state.isBatchOperationInProgress = isInProgress;
+        }),
+
       setActiveDecorators: (decorators) =>
         set((state) => {
           state.activeDecorators = decorators;
@@ -394,6 +417,11 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.toolPermissions = policy;
         }),
 
+      setExperimentalChatEnabled: (enabled) =>
+        set((state) => {
+          state.experimentalChatEnabled = enabled;
+        }),
+
       // Agent chat setters
       setAgentConfig: (config) =>
         set((state) => {
@@ -419,13 +447,14 @@ export const useExtensionStore = create<ExtensionStore>()(
         set((state) => {
           let msg = state.agentMessages.find((m) => m.id === messageId);
           if (!msg) {
+            const isSystem = messageId.startsWith("system-");
             msg = {
               id: messageId,
-              role: "assistant",
+              role: isSystem ? "system" : "assistant",
               content: "",
               timestamp: new Date().toISOString(),
-              isStreaming: true,
-              isThinking: true,
+              isStreaming: !isSystem,
+              isThinking: !isSystem,
               contentBlocks: [],
             };
             state.agentMessages.push(msg);
@@ -501,7 +530,7 @@ export const useExtensionStore = create<ExtensionStore>()(
           }
         }),
 
-      updateAgentToolCall: (messageId, toolName, status, result) =>
+      updateAgentToolCall: (messageId, toolName, status, result, args) =>
         set((state) => {
           let msg = state.agentMessages.find((m) => m.id === messageId);
           if (!msg) {
@@ -519,7 +548,11 @@ export const useExtensionStore = create<ExtensionStore>()(
             name: toolName,
             status,
             result,
+            arguments: args ?? msg.toolCall?.arguments,
           };
+          if (status === "succeeded" || status === "failed") {
+            msg.isStreaming = false;
+          }
         }),
 
       clearAnalysisData: () =>

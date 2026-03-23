@@ -54,18 +54,42 @@ const server = new McpServer({
 
 server.tool(
   "run_analysis",
-  "Run Konveyor static analysis on the project to find migration issues and violations",
+  "Run Konveyor static analysis on the project. Returns a COMPLETE summary of all violations — no need to call any other tool afterward. Just present the results to the user.",
   {},
   async () => {
     try {
-      const result = await bridgeRequest("/api/run-analysis", { method: "POST" });
+      const result = (await bridgeRequest("/api/run-analysis", { method: "POST" })) as {
+        status: string;
+        totalIncidents?: number;
+        totalRuleSets?: number;
+        violations?: Array<{
+          violation: string;
+          incidents: number;
+          affectedFiles: string[];
+        }>;
+      };
+
+      const lines = [
+        `Analysis completed. ${result.totalIncidents ?? 0} incidents found across ${result.totalRuleSets ?? 0} rule sets.`,
+      ];
+
+      if (result.violations && result.violations.length > 0) {
+        lines.push("");
+        for (const v of result.violations) {
+          const files = v.affectedFiles.slice(0, 5).join(", ");
+          const more = v.affectedFiles.length > 5 ? ` +${v.affectedFiles.length - 5} more` : "";
+          lines.push(
+            `• ${v.violation}: ${v.incidents} incident${v.incidents !== 1 ? "s" : ""} (${files}${more})`,
+          );
+        }
+      }
+
+      if (!result.totalIncidents) {
+        lines.push("No migration issues found.");
+      }
+
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Analysis triggered successfully. ${JSON.stringify(result)}`,
-          },
-        ],
+        content: [{ type: "text" as const, text: lines.join("\n") }],
       };
     } catch (err) {
       return {
@@ -85,30 +109,40 @@ server.tool(
 
 server.tool(
   "get_analysis_results",
-  "Get current analysis results including violations, incidents, and their details",
+  "Get detailed analysis results grouped by file with line numbers. Only use this when the user explicitly asks for file-level or line-level detail — run_analysis already provides a complete summary.",
   {},
   async () => {
     try {
       const result = (await bridgeRequest("/api/analysis-results")) as {
-        ruleSets: unknown[];
-        enhancedIncidents: unknown[];
         isAnalyzing: boolean;
+        totalRuleSets: number;
+        totalIncidents: number;
+        fileResults: Array<{
+          file: string;
+          incidents: Array<{ violation: string; line?: number; message: string }>;
+        }>;
       };
 
-      const summary = {
-        isAnalyzing: result.isAnalyzing,
-        totalRuleSets: result.ruleSets.length,
-        totalIncidents: result.enhancedIncidents.length,
-        incidents: result.enhancedIncidents,
-      };
+      const lines = [
+        result.isAnalyzing ? "Analysis is currently running." : "Analysis is complete.",
+        `Rule sets: ${result.totalRuleSets}`,
+        `Total incidents: ${result.totalIncidents}`,
+      ];
+
+      if (result.fileResults && result.fileResults.length > 0) {
+        lines.push("", "Results by file:");
+        for (const fr of result.fileResults) {
+          const shortPath = fr.file.split("/").slice(-3).join("/");
+          lines.push(`\n${shortPath} (${fr.incidents.length} incidents):`);
+          for (const inc of fr.incidents) {
+            const loc = inc.line ? ` (line ${inc.line})` : "";
+            lines.push(`  - [${inc.violation}]${loc}: ${inc.message}`);
+          }
+        }
+      }
 
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(summary, null, 2),
-          },
-        ],
+        content: [{ type: "text" as const, text: lines.join("\n") }],
       };
     } catch (err) {
       return {

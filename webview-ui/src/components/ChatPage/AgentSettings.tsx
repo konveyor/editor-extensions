@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import type { ToolPermissionPolicy, ToolPermissionLevel } from "@editor-extensions/shared";
-import { SET_TOOL_PERMISSIONS, OPEN_NATIVE_CONFIG } from "@editor-extensions/shared";
+import {
+  SET_TOOL_PERMISSIONS,
+  OPEN_NATIVE_CONFIG,
+  SET_EXPERIMENTAL_CHAT,
+} from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
 import { PROVIDERS, type ProviderOption } from "./providerOptions";
 
@@ -23,6 +27,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const agentConfig = useExtensionStore((s) => s.agentConfig);
   const agentState = useExtensionStore((s) => s.agentState);
   const toolPermissions = useExtensionStore((s) => s.toolPermissions);
+  const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
 
   const [selectedProvider, setSelectedProvider] = useState(agentConfig?.provider ?? "");
   const [modelInput, setModelInput] = useState(agentConfig?.model ?? "");
@@ -126,24 +131,36 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
 
     const hasCredentialValues = Object.values(credentialInputs).some((v) => v.length > 0);
 
-    // Apply tool permissions if changed
-    if (permissionsChanged()) {
+    if (agentModeEnabled) {
+      if (permissionsChanged()) {
+        window.vscode.postMessage({
+          type: SET_TOOL_PERMISSIONS,
+          payload: { policy: buildPermissionPolicy() },
+        });
+      }
+
       window.vscode.postMessage({
-        type: SET_TOOL_PERMISSIONS,
-        payload: { policy: buildPermissionPolicy() },
+        type: "AGENT_UPDATE_CONFIG",
+        payload: {
+          provider: selectedProvider,
+          model: modelInput,
+          agentMode: agentModeEnabled,
+          extensions: extensionPayload,
+          ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
+        },
+      });
+    } else {
+      window.vscode.postMessage({
+        type: "UPDATE_MODEL_PROVIDER_CONFIG",
+        payload: {
+          provider: selectedProvider,
+          model: modelInput,
+          agentMode: agentModeEnabled,
+          ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
+        },
       });
     }
 
-    window.vscode.postMessage({
-      type: "AGENT_UPDATE_CONFIG",
-      payload: {
-        provider: selectedProvider,
-        model: modelInput,
-        agentMode: agentModeEnabled,
-        extensions: extensionPayload,
-        ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
-      },
-    });
     onClose();
   };
 
@@ -164,6 +181,18 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         <span className="agent-settings__title">Configuration</span>
         <button className="agent-settings__close" onClick={onClose} aria-label="Close settings">
           ✕
+        </button>
+      </div>
+
+      {/* Actions */}
+      <div className="agent-settings__actions">
+        <button
+          className="agent-settings__btn agent-settings__btn--primary"
+          onClick={handleApplyAndRestart}
+          disabled={!selectedProvider || !modelInput}
+          title={agentModeEnabled ? (!hasChanges ? "No changes to apply" : "Apply changes and restart agent") : "Apply model configuration"}
+        >
+          {agentModeEnabled ? (agentState === "running" ? "Apply & Restart" : "Apply & Start") : "Apply"}
         </button>
       </div>
 
@@ -260,7 +289,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         <div className="agent-settings__credential-hint">No API key required</div>
       )}
 
-      {/* Agent Mode */}
+      {/* Agent Mode — always visible */}
       <div className="agent-settings__section">
         <div className="agent-settings__section-divider" />
         <div className="agent-settings__permission-row">
@@ -286,111 +315,136 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Tool Permissions */}
+      {/* Experimental Chat */}
       <div className="agent-settings__section">
-        <div className="agent-settings__section-divider" />
-        <label className="agent-settings__label">
-          Tool Permissions
-          {toolPermissions.source === "hub" && (
-            <span className="agent-settings__stored-badge">Set by organization</span>
-          )}
-        </label>
-
         <div className="agent-settings__permission-row">
-          <span className="agent-settings__permission-label">Autonomy Level</span>
-          <select
-            className="agent-settings__permission-select"
-            value={autonomyLevel}
-            onChange={(e) => setAutonomyLevel(e.target.value as "auto" | "smart" | "ask")}
-            disabled={toolPermissions.source === "hub"}
+          <div>
+            <span className="agent-settings__permission-label">Experimental Chat</span>
+            <div className="agent-settings__agent-mode-hint">
+              {experimentalChatEnabled
+                ? "Agent-powered chat with start/stop controls"
+                : "Enable to use the full AI agent chat experience"}
+            </div>
+          </div>
+          <button
+            className={`agent-settings__toggle ${experimentalChatEnabled ? "agent-settings__toggle--on" : ""}`}
+            onClick={() => {
+              const newValue = !experimentalChatEnabled;
+              useExtensionStore.getState().setExperimentalChatEnabled(newValue);
+              window.vscode.postMessage({
+                type: SET_EXPERIMENTAL_CHAT,
+                payload: { enabled: newValue },
+              });
+            }}
+            role="switch"
+            aria-checked={experimentalChatEnabled}
+            aria-label="Toggle Experimental Chat"
           >
-            <option value="auto">Auto</option>
-            <option value="smart">Smart</option>
-            <option value="ask">Ask</option>
-          </select>
+            <span className="agent-settings__toggle-track">
+              <span className="agent-settings__toggle-thumb" />
+            </span>
+          </button>
         </div>
+      </div>
 
-        <div className="agent-settings__permission-overrides">
-          <span className="agent-settings__permission-overrides-header">Category Overrides</span>
-          {CATEGORY_KEYS.map((key) => (
-            <div key={key} className="agent-settings__permission-row">
-              <span className="agent-settings__permission-label">{CATEGORY_LABELS[key]}</span>
+      {agentModeEnabled && (
+        <>
+          {/* Tool Permissions */}
+          <div className="agent-settings__section">
+            <div className="agent-settings__section-divider" />
+            <label className="agent-settings__label">
+              Tool Permissions
+              {toolPermissions.source === "hub" && (
+                <span className="agent-settings__stored-badge">Set by organization</span>
+              )}
+            </label>
+
+            <div className="agent-settings__permission-row">
+              <span className="agent-settings__permission-label">Autonomy Level</span>
               <select
                 className="agent-settings__permission-select"
-                value={categoryOverrides[key] ?? "inherit"}
-                onChange={(e) =>
-                  setCategoryOverrides((prev) => ({
-                    ...prev,
-                    [key]: e.target.value as OverrideValue,
-                  }))
-                }
+                value={autonomyLevel}
+                onChange={(e) => setAutonomyLevel(e.target.value as "auto" | "smart" | "ask")}
                 disabled={toolPermissions.source === "hub"}
               >
-                <option value="inherit">Inherit</option>
                 <option value="auto">Auto</option>
+                <option value="smart">Smart</option>
                 <option value="ask">Ask</option>
-                <option value="deny">Deny</option>
               </select>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Extensions */}
-      {agentConfig && agentConfig.capabilities.length > 0 && (
-        <div className="agent-settings__section">
-          <div className="agent-settings__section-divider" />
-          <label className="agent-settings__label">Extensions</label>
-          <div className="agent-settings__extensions">
-            {agentConfig.capabilities.map((ext) => (
-              <div key={ext.id} className="agent-settings__extension">
-                <div className="agent-settings__extension-info">
-                  <span className="agent-settings__extension-name">{ext.name}</span>
-                  {ext.description && (
-                    <span className="agent-settings__extension-desc">{ext.description}</span>
-                  )}
+            <div className="agent-settings__permission-overrides">
+              <span className="agent-settings__permission-overrides-header">Category Overrides</span>
+              {CATEGORY_KEYS.map((key) => (
+                <div key={key} className="agent-settings__permission-row">
+                  <span className="agent-settings__permission-label">{CATEGORY_LABELS[key]}</span>
+                  <select
+                    className="agent-settings__permission-select"
+                    value={categoryOverrides[key] ?? "inherit"}
+                    onChange={(e) =>
+                      setCategoryOverrides((prev) => ({
+                        ...prev,
+                        [key]: e.target.value as OverrideValue,
+                      }))
+                    }
+                    disabled={toolPermissions.source === "hub"}
+                  >
+                    <option value="inherit">Inherit</option>
+                    <option value="auto">Auto</option>
+                    <option value="ask">Ask</option>
+                    <option value="deny">Deny</option>
+                  </select>
                 </div>
-                <button
-                  className={`agent-settings__toggle ${extensionStates[ext.id] ? "agent-settings__toggle--on" : ""}`}
-                  onClick={() => handleToggleExtension(ext.id)}
-                  role="switch"
-                  aria-checked={extensionStates[ext.id] ?? false}
-                  aria-label={`Toggle ${ext.name}`}
-                >
-                  <span className="agent-settings__toggle-track">
-                    <span className="agent-settings__toggle-thumb" />
-                  </span>
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+
+          {/* Extensions */}
+          {agentConfig && agentConfig.capabilities.length > 0 && (
+            <div className="agent-settings__section">
+              <div className="agent-settings__section-divider" />
+              <label className="agent-settings__label">Extensions</label>
+              <div className="agent-settings__extensions">
+                {agentConfig.capabilities.map((ext) => (
+                  <div key={ext.id} className="agent-settings__extension">
+                    <div className="agent-settings__extension-info">
+                      <span className="agent-settings__extension-name">{ext.name}</span>
+                      {ext.description && (
+                        <span className="agent-settings__extension-desc">{ext.description}</span>
+                      )}
+                    </div>
+                    <button
+                      className={`agent-settings__toggle ${extensionStates[ext.id] ? "agent-settings__toggle--on" : ""}`}
+                      onClick={() => handleToggleExtension(ext.id)}
+                      role="switch"
+                      aria-checked={extensionStates[ext.id] ?? false}
+                      aria-label={`Toggle ${ext.name}`}
+                    >
+                      <span className="agent-settings__toggle-track">
+                        <span className="agent-settings__toggle-thumb" />
+                      </span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Advanced */}
+          <div className="agent-settings__section">
+            <div className="agent-settings__section-divider" />
+            <button
+              className="agent-settings__link-btn"
+              onClick={() =>
+                window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })
+              }
+            >
+              Open native configuration file
+            </button>
+          </div>
+        </>
       )}
 
-      {/* Advanced */}
-      <div className="agent-settings__section">
-        <div className="agent-settings__section-divider" />
-        <button
-          className="agent-settings__link-btn"
-          onClick={() =>
-            window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })
-          }
-        >
-          Open native configuration file
-        </button>
-      </div>
-
-      {/* Actions */}
-      <div className="agent-settings__actions">
-        <button
-          className="agent-settings__btn agent-settings__btn--primary"
-          onClick={handleApplyAndRestart}
-          disabled={!selectedProvider || !modelInput}
-          title={!hasChanges ? "No changes to apply" : "Apply changes and restart agent"}
-        >
-          {agentState === "running" ? "Apply & Restart" : "Apply & Start"}
-        </button>
-      </div>
     </div>
   );
 };

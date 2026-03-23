@@ -2,14 +2,23 @@ import { useRef, useCallback, useEffect } from "react";
 import { ChatMessage } from "@editor-extensions/shared";
 import { MessageBoxHandle } from "@patternfly/chatbot";
 
-export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolution: boolean) => {
+const NEAR_BOTTOM_THRESHOLD = 150;
+const USER_SCROLLED_UP_THRESHOLD = 80;
+const STREAMING_POLL_MS = 250;
+
+export const useScrollManagement = (
+  chatMessages: ChatMessage[],
+  isFetchingSolution: boolean,
+  agentMessageCount?: number,
+  isAgentStreaming?: boolean,
+) => {
   const messageBoxRef = useRef<MessageBoxHandle | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
   const userHasScrolledUp = useRef(false);
   const lastUserScrollTime = useRef<number>(0);
-  const isHandlingLayoutChange = useRef(false); // Track if we're handling layout changes
-  const lastContentHeight = useRef<number>(0); // Track content height changes
+  const isHandlingLayoutChange = useRef(false);
+  const lastContentHeight = useRef<number>(0);
 
   const getMessageBoxElement = useCallback(() => {
     const selectors = [
@@ -19,71 +28,39 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
       ".pf-chatbot",
     ];
 
-    // Helper function to check if an element is scrollable
     const isScrollable = (element: Element): boolean => {
-      try {
-        const { scrollHeight, clientHeight } = element;
-        const computedStyle = window.getComputedStyle(element);
-        const overflowY = computedStyle.overflowY;
-
-        // Element must have content that exceeds its visible height
-        // and have overflow properties that allow scrolling
-        return (
-          scrollHeight > clientHeight &&
-          (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay")
-        );
-      } catch (error) {
-        console.warn(`Error checking scrollability for element:`, error);
-        return false;
-      }
+      const { scrollHeight, clientHeight } = element;
+      const computedStyle = window.getComputedStyle(element);
+      const overflowY = computedStyle.overflowY;
+      return (
+        scrollHeight > clientHeight &&
+        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay")
+      );
     };
 
-    // Helper function to validate if element is likely a message container
     const isValidMessageContainer = (element: Element): boolean => {
-      try {
-        // Check for expected container characteristics
-        const hasMessages = element.querySelector(
-          '[class*="message"], [class*="chat"], .pf-chatbot__message',
-        );
-        const hasMinHeight = element.clientHeight > 50; // Reasonable minimum height
-        const isVisible = window.getComputedStyle(element).display !== "none";
-
-        return Boolean(hasMessages || hasMinHeight) && isVisible;
-      } catch (error) {
-        console.warn(`Error validating message container:`, error);
-        return false;
-      }
+      const hasMessages = element.querySelector(
+        '[class*="message"], [class*="chat"], .pf-chatbot__message',
+      );
+      const hasMinHeight = element.clientHeight > 50;
+      const isVisible = window.getComputedStyle(element).display !== "none";
+      return Boolean(hasMessages || hasMinHeight) && isVisible;
     };
 
-    // Search for the best scrollable message container
     for (const selector of selectors) {
-      try {
-        const element = document.querySelector(selector);
-        if (element && isValidMessageContainer(element) && isScrollable(element)) {
-          return element;
-        }
-      } catch (error) {
-        console.warn(`Error querying selector "${selector}":`, error);
-        continue;
+      const element = document.querySelector(selector);
+      if (element && isValidMessageContainer(element) && isScrollable(element)) {
+        return element;
       }
     }
 
-    // If no scrollable container found, try to find any valid container
-    // but still ensure it has the potential to be scrollable
     for (const selector of selectors) {
-      try {
-        const element = document.querySelector(selector);
-        if (element && isValidMessageContainer(element)) {
-          // Even if not currently scrollable, it might become scrollable with content
-          return element;
-        }
-      } catch (error) {
-        console.warn(`Error in fallback query for selector "${selector}":`, error);
-        continue;
+      const element = document.querySelector(selector);
+      if (element && isValidMessageContainer(element)) {
+        return element;
       }
     }
 
-    console.warn("No suitable message container found with any of the selectors:", selectors);
     return null;
   }, []);
 
@@ -92,15 +69,8 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     if (!messageBox) {
       return false;
     }
-
-    try {
-      const { scrollTop, scrollHeight, clientHeight } = messageBox;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      return distanceFromBottom < 50;
-    } catch (error) {
-      console.warn("Error checking if near bottom:", error);
-      return false;
-    }
+    const { scrollTop, scrollHeight, clientHeight } = messageBox;
+    return scrollHeight - scrollTop - clientHeight < NEAR_BOTTOM_THRESHOLD;
   }, [getMessageBoxElement]);
 
   const scrollToBottom = useCallback(
@@ -118,19 +88,13 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
         const now = Date.now();
 
         const performScroll = () => {
-          try {
-            isHandlingLayoutChange.current = true; // Mark that we're causing a scroll
-            messageBox.scrollTop = messageBox.scrollHeight;
-            lastScrollTime.current = Date.now();
-            userHasScrolledUp.current = false;
-            // Reset flag after a delay to allow for scroll event processing
-            setTimeout(() => {
-              isHandlingLayoutChange.current = false;
-            }, 100);
-          } catch (error) {
-            console.warn("Error performing scroll to bottom:", error);
+          isHandlingLayoutChange.current = true;
+          messageBox.scrollTop = messageBox.scrollHeight;
+          lastScrollTime.current = Date.now();
+          userHasScrolledUp.current = false;
+          setTimeout(() => {
             isHandlingLayoutChange.current = false;
-          }
+          }, 100);
         };
 
         if (now - lastScrollTime.current < 50) {
@@ -144,27 +108,74 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     [getMessageBoxElement],
   );
 
-  // Auto-scroll for new messages — respects user scroll position
+  // Auto-scroll when chatMessages array changes (new message or streaming update)
   useEffect(() => {
-    if (Array.isArray(chatMessages) && chatMessages?.length > 0) {
-      const messageBox = getMessageBoxElement();
-      if (messageBox) {
-        const currentHeight = messageBox.scrollHeight;
-        const heightChanged = Math.abs(currentHeight - lastContentHeight.current) > 10;
-        lastContentHeight.current = currentHeight;
+    if (!Array.isArray(chatMessages) || chatMessages.length === 0) {
+      return;
+    }
+    const messageBox = getMessageBoxElement();
+    if (!messageBox) {
+      return;
+    }
 
-        // Scroll when user hasn't intentionally scrolled up AND either:
-        // - we're already near the bottom, or
-        // - content height just grew (new message arrived)
-        if (!userHasScrolledUp.current && (isNearBottom() || heightChanged)) {
-          const delay = heightChanged ? 200 : 100;
-          setTimeout(() => scrollToBottom(false), delay);
-        }
-      }
+    const currentHeight = messageBox.scrollHeight;
+    const heightChanged = Math.abs(currentHeight - lastContentHeight.current) > 5;
+    lastContentHeight.current = currentHeight;
+
+    if (!userHasScrolledUp.current && (isNearBottom() || heightChanged)) {
+      setTimeout(() => scrollToBottom(false), 50);
     }
   }, [chatMessages, scrollToBottom, isNearBottom, getMessageBoxElement]);
 
-  // Set up scroll listener with better layout change detection
+  // Auto-scroll when agentMessages array length changes (new agent message)
+  useEffect(() => {
+    if (agentMessageCount === undefined || agentMessageCount === 0) {
+      return;
+    }
+    if (!userHasScrolledUp.current) {
+      setTimeout(() => scrollToBottom(false), 50);
+    }
+  }, [agentMessageCount, scrollToBottom]);
+
+  // ResizeObserver: auto-scroll when the message container's content height
+  // grows (catches markdown rendering, code block expansion, image loads, etc.)
+  useEffect(() => {
+    const messageBox = getMessageBoxElement();
+    if (!messageBox) {
+      return;
+    }
+
+    let rafId: number | null = null;
+
+    const observer = new ResizeObserver(() => {
+      if (rafId) {
+        return;
+      }
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const newHeight = messageBox.scrollHeight;
+        if (newHeight > lastContentHeight.current + 5 && !userHasScrolledUp.current) {
+          lastContentHeight.current = newHeight;
+          scrollToBottom(false);
+        }
+      });
+    });
+
+    const firstChild = messageBox.firstElementChild;
+    if (firstChild) {
+      observer.observe(firstChild);
+    }
+    observer.observe(messageBox);
+
+    return () => {
+      observer.disconnect();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [getMessageBoxElement, scrollToBottom]);
+
+  // Scroll listener: detect intentional user scroll-up
   useEffect(() => {
     const messageBox = getMessageBoxElement();
     if (!messageBox) {
@@ -172,69 +183,49 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
     }
 
     const handleScroll = () => {
-      try {
-        // Ignore scroll events that we caused programmatically
-        if (isHandlingLayoutChange.current) {
-          return;
-        }
+      if (isHandlingLayoutChange.current) {
+        return;
+      }
 
-        // If user scrolls to near bottom, reset the "scrolled up" flag
-        if (isNearBottom()) {
-          userHasScrolledUp.current = false;
-        } else {
-          const now = Date.now();
-          if (now - lastScrollTime.current > 50) {
-            const messageBox = getMessageBoxElement();
-            if (messageBox) {
-              const { scrollTop, scrollHeight, clientHeight } = messageBox;
-              const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-              if (distanceFromBottom > 60 && now - lastScrollTime.current > 150) {
-                userHasScrolledUp.current = true;
-                lastUserScrollTime.current = now;
-              }
-            }
-          }
+      if (isNearBottom()) {
+        userHasScrolledUp.current = false;
+      } else {
+        const { scrollTop, scrollHeight, clientHeight } = messageBox;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        if (distanceFromBottom > USER_SCROLLED_UP_THRESHOLD) {
+          userHasScrolledUp.current = true;
+          lastUserScrollTime.current = Date.now();
         }
-      } catch (error) {
-        console.warn("Error handling scroll event:", error);
       }
     };
 
-    try {
-      messageBox.addEventListener("scroll", handleScroll, { passive: true });
-      return () => {
-        try {
-          messageBox.removeEventListener("scroll", handleScroll);
-        } catch (error) {
-          console.warn("Error removing scroll event listener:", error);
-        }
-      };
-    } catch (error) {
-      console.warn("Error setting up scroll event listener:", error);
-    }
+    messageBox.addEventListener("scroll", handleScroll, { passive: true });
+    return () => messageBox.removeEventListener("scroll", handleScroll);
   }, [getMessageBoxElement, isNearBottom]);
 
-  // Periodic scrolling during fetching — only when the user hasn't scrolled away
+  // Fast polling during active streaming/fetching
   useEffect(() => {
-    if (isFetchingSolution) {
-      const interval = setInterval(() => {
-        if (!userHasScrolledUp.current) {
-          const messageBox = getMessageBoxElement();
-          const heightGrew = messageBox && messageBox.scrollHeight > lastContentHeight.current + 10;
-          if (isNearBottom() || heightGrew) {
-            if (messageBox) {
-              lastContentHeight.current = messageBox.scrollHeight;
-            }
-            scrollToBottom(false);
-          }
-        }
-      }, 1000);
-
-      return () => clearInterval(interval);
+    if (!isFetchingSolution && !isAgentStreaming) {
+      return;
     }
-  }, [isFetchingSolution, scrollToBottom, isNearBottom, getMessageBoxElement]);
+    const interval = setInterval(() => {
+      if (userHasScrolledUp.current) {
+        return;
+      }
+      const messageBox = getMessageBoxElement();
+      if (!messageBox) {
+        return;
+      }
+      const heightGrew = messageBox.scrollHeight > lastContentHeight.current + 5;
+      if (isNearBottom() || heightGrew) {
+        lastContentHeight.current = messageBox.scrollHeight;
+        scrollToBottom(false);
+      }
+    }, STREAMING_POLL_MS);
 
-  // Cleanup timeout on component unmount to prevent memory leaks
+    return () => clearInterval(interval);
+  }, [isFetchingSolution, isAgentStreaming, scrollToBottom, isNearBottom, getMessageBoxElement]);
+
   useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) {
@@ -247,8 +238,7 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
   const triggerScrollOnUserAction = useCallback(() => {
     const timeoutId = setTimeout(() => {
       scrollToBottom(false);
-    }, 150); // Small delay to ensure DOM updates are complete
-
+    }, 150);
     return () => clearTimeout(timeoutId);
   }, [scrollToBottom]);
 

@@ -9,8 +9,7 @@ export const agentFeatureModule: FeatureModule = {
   name: "Migration Assistant Chat",
 
   isEnabled(): boolean {
-    const { getConfigExperimentalChatEnabled } = require("../../utilities/configuration");
-    return getConfigExperimentalChatEnabled();
+    return true;
   },
 
   async initialize(ctx: FeatureContext): Promise<vscode.Disposable> {
@@ -36,14 +35,24 @@ export const agentFeatureModule: FeatureModule = {
     const { agentMessageHandlers } = await import("./handlers");
     disposables.push(ctx.registerMessageHandlers(agentMessageHandlers));
 
-    // Create the agent client based on the configured backend
-    try {
-      const agentClient = await createAgentClient(ctx);
-      const { initializeAgent } = await import("./init");
-      const agentDisposable = await initializeAgent(ctx, agentClient);
-      disposables.push(agentDisposable);
-    } catch (err) {
-      ctx.logger.error(`Failed to initialize agent: ${err}`);
+    const { batchReviewHandlers } = await import("./batchReviewHandlers");
+    disposables.push(ctx.registerMessageHandlers(batchReviewHandlers));
+
+    // Start the Goose/OpenCode agent backend when agentMode is enabled.
+    // The chat webview and batch review handlers above are always registered so that
+    // getSolution (via DirectLLMClient) can render output regardless of this setting.
+    const { getConfigAgentMode } = await import("../../utilities/configuration");
+    if (getConfigAgentMode()) {
+      try {
+        const agentClient = await createAgentClient(ctx);
+        const { initializeAgent } = await import("./init");
+        const agentDisposable = await initializeAgent(ctx, agentClient);
+        disposables.push(agentDisposable);
+      } catch (err) {
+        ctx.logger.error(`Failed to initialize agent: ${err}`);
+      }
+    } else {
+      ctx.logger.info("Agent backend skipped (agentMode is false)");
     }
 
     ctx.logger.info("Agent feature module initialized");
@@ -74,15 +83,19 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
     "index.js",
   );
 
-  // Gather model environment variables
+  // Gather model environment variables and provider/model info
   let modelEnv: Record<string, string> = {};
+  let kaiProvider: string | undefined;
+  let kaiModel: string | undefined;
 
   try {
     const { paths } = await import("../../paths");
     const modelConfig = await parseModelConfig(paths().settingsYaml);
     modelEnv = (modelConfig.env ?? {}) as Record<string, string>;
+    kaiProvider = modelConfig.config.provider;
+    kaiModel = modelConfig.config.args?.model as string | undefined;
     ctx.logger.info(
-      `Agent: passing auth env vars from provider-settings.yaml (provider: ${modelConfig.config.provider})`,
+      `Agent: passing auth env vars from provider-settings.yaml (provider: ${kaiProvider}, model: ${kaiModel})`,
     );
   } catch (err) {
     ctx.logger.warn(
@@ -91,8 +104,8 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
   }
 
   try {
-    const { loadGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
-    const storedCreds = await loadGooseCredentials(ctx.extensionContext);
+    const { loadAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+    const storedCreds = await loadAgentCredentials(ctx.extensionContext);
     if (storedCreds) {
       modelEnv = { ...modelEnv, ...storedCreds };
       ctx.logger.info(
@@ -105,18 +118,26 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
 
   // Translate the generic tool permission policy to backend-specific config
   const toolPermissions = ctx.store.getState().toolPermissions;
-  const gooseMode = policyToGooseMode(toolPermissions);
-  modelEnv = { ...modelEnv, GOOSE_MODE: gooseMode };
+  if (backend === "goose") {
+    const gooseMode = policyToGooseMode(toolPermissions);
+    modelEnv = { ...modelEnv, GOOSE_MODE: gooseMode };
+  }
 
   if (backend === "opencode") {
     ctx.logger.info("Agent: using OpenCode backend");
     const { OpencodeAgentClient } = await import("../../client/opencodeClient");
+    const opencodeModel =
+      kaiProvider && kaiModel ? toOpencodeModelId(kaiProvider, kaiModel) : undefined;
+    if (opencodeModel) {
+      ctx.logger.info(`Agent: mapped to OpenCode model id "${opencodeModel}"`);
+    }
     return new OpencodeAgentClient({
       workspaceDir,
       logger: ctx.logger,
       opencodeBinaryPath: getConfigOpencodeBinaryPath(),
       modelEnv,
       toolPermissions,
+      opencodeModel,
     });
   }
 
@@ -128,4 +149,26 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
     gooseBinaryPath: getConfigGooseBinaryPath(),
     modelEnv,
   });
+}
+
+/**
+ * Map the extension's LangChain provider name + model arg to
+ * OpenCode's `provider/model` identifier format.
+ */
+const KAI_TO_OPENCODE_PROVIDER: Record<string, string> = {
+  ChatGoogleGenerativeAI: "google",
+  ChatOpenAI: "openai",
+  ChatBedrock: "amazon-bedrock",
+  ChatDeepSeek: "deepseek",
+  AzureChatOpenAI: "azure",
+  ChatOllama: "ollama",
+  ChatAnthropic: "anthropic",
+};
+
+function toOpencodeModelId(kaiProvider: string, modelName: string): string | undefined {
+  const ocProvider = KAI_TO_OPENCODE_PROVIDER[kaiProvider];
+  if (!ocProvider) {
+    return undefined;
+  }
+  return `${ocProvider}/${modelName}`;
 }

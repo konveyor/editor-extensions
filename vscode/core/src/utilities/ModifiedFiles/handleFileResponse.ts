@@ -142,10 +142,7 @@ export async function handleFileResponse(
     if (responseId === "apply") {
       const uri = vscode.Uri.file(path);
       const fileMessage = state.data.chatMessages.find(
-        (msg) =>
-          msg.kind === ChatMessageType.ModifiedFile &&
-          msg.messageToken === messageToken &&
-          (msg.value as ModifiedFileMessageValue).path === path,
+        (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
       );
 
       if (!fileMessage) {

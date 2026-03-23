@@ -77,6 +77,9 @@ export const getConfigKaiDemoMode = (): boolean =>
   getConfigValue<boolean>("genai.demoMode") ?? false;
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
+export const getConfigBatchReviewMode = (): boolean =>
+  getConfigValue<boolean>("genai.batchReviewMode") ?? false;
+
 export const getConfigAutoAcceptOnSave = (): boolean =>
   getConfigValue<boolean>("diff.autoAcceptOnSave") ?? false;
 export const getExcludedDiagnosticSources = (): string[] =>
@@ -111,7 +114,11 @@ export function getConfigAgentMode(): boolean {
 }
 
 export function getConfigPermissionOverrides(): Partial<Record<string, ToolPermissionLevel>> {
-  return getConfigValue<Record<string, ToolPermissionLevel>>("genai.permissionOverrides") ?? {};
+  const raw =
+    getConfigValue<Record<string, ToolPermissionLevel>>("genai.permissionOverrides") ?? {};
+  // VS Code returns a Proxy for nested config objects. Spread into a plain
+  // object so Immer can safely create its own proxy around the value.
+  return { ...raw };
 }
 
 export function getConfigToolPermissions(): ToolPermissionPolicy {
@@ -135,6 +142,10 @@ export async function updateConfigToolPermissions(policy: ToolPermissionPolicy):
 
 export async function updateConfigAgentMode(value: boolean): Promise<void> {
   await updateConfigValue("genai.agentMode", value);
+}
+
+export async function updateConfigExperimentalChatEnabled(value: boolean): Promise<void> {
+  await updateConfigValue("experimentalChat.enabled", value);
 }
 
 /**

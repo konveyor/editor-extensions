@@ -1,15 +1,9 @@
 import * as vscode from "vscode";
-import {
-  AgentState,
-  AgentContentBlockType,
-  AgentMessageTypes,
-  ChatMessageType,
-} from "@editor-extensions/shared";
-import { v4 as uuidv4 } from "uuid";
+import { AgentState, AgentContentBlockType, AgentMessageTypes } from "@editor-extensions/shared";
 import type { FeatureContext } from "../featureRegistry";
 import { AgentFileTracker } from "./fileTracker";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
-import { executeExtensionCommand } from "../../commands";
+import { routeFileChange } from "./fileChangeRouter";
 import { handlePermissionWithPolicy, type PendingPermission } from "./toolPermissionHandler";
 
 export { type PendingPermission } from "./toolPermissionHandler";
@@ -77,8 +71,61 @@ export async function initializeAgent(
     logger: ctx.logger,
     runAnalysis: async () => {
       const analyzerClient = ctx.extensionState.analyzerClient;
-      if (analyzerClient && (await analyzerClient.canAnalyzeInteractive())) {
+      if (!analyzerClient) {
+        ctx.logger.warn("MCP run_analysis: analyzerClient not available");
+        return;
+      }
+      if (analyzerClient.serverState !== "running") {
+        if (!(await analyzerClient.canAnalyzeInteractive())) {
+          return;
+        }
         await analyzerClient.start();
+        await new Promise<void>((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (analyzerClient.serverState === "running") {
+              clearInterval(checkInterval);
+              resolve();
+            } else if (
+              analyzerClient.serverState === "startFailed" ||
+              analyzerClient.serverState === "stopped"
+            ) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 500);
+        });
+      }
+      if (analyzerClient.serverState === "running") {
+        await analyzerClient.runAnalysis();
+
+        const storeData = ctx.store.getState();
+        const incidentCount = storeData.enhancedIncidents?.length ?? 0;
+        const ruleSetCount = storeData.ruleSets?.length ?? 0;
+
+        if (incidentCount > 0) {
+          const sysId = `system-analysis-${Date.now()}`;
+          const summary = `Analysis complete: ${incidentCount} incident${incidentCount !== 1 ? "s" : ""} found across ${ruleSetCount} rule set${ruleSetCount !== 1 ? "s" : ""}.`;
+          for (const provider of ctx.webviewProviders.values()) {
+            provider.sendMessageToWebview({
+              type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
+              messageId: sysId,
+              content: summary,
+              done: false,
+              timestamp: new Date().toISOString(),
+            });
+            provider.sendMessageToWebview({
+              type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
+              messageId: sysId,
+              content: "",
+              done: true,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      } else {
+        ctx.logger.warn(
+          `MCP run_analysis: analyzer not running (state: ${analyzerClient.serverState})`,
+        );
       }
     },
   });
@@ -161,17 +208,27 @@ export async function initializeAgent(
   };
 
   const sendToolCallToWebview = (
-    messageId: string,
-    data: { name: string; callId?: string; status: string; result?: string },
+    _responseMessageId: string,
+    data: {
+      name: string;
+      callId?: string;
+      status: string;
+      result?: string;
+      arguments?: Record<string, unknown>;
+    },
   ) => {
+    const toolMessageId = data.callId
+      ? `tool-${data.callId}`
+      : `tool-${_responseMessageId}-${Date.now()}`;
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
         type: AgentMessageTypes.AGENT_TOOL_CALL,
-        messageId,
+        messageId: toolMessageId,
         toolName: data.name,
         callId: data.callId,
         status: data.status,
         result: data.result,
+        arguments: data.arguments,
         timestamp: new Date().toISOString(),
       });
     }
@@ -219,26 +276,13 @@ export async function initializeAgent(
     }
     fileTracker.resolvePendingFileChanges().then(async (changes) => {
       for (const change of changes) {
-        // Show condensed change in chat for auto-mode changes
-        const relativePath = change.path.startsWith(ctx.store.getState().workspaceRoot)
-          ? change.path.slice(ctx.store.getState().workspaceRoot.length).replace(/^\//, "")
-          : change.path;
-
-        ctx.mutate((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.String,
-            messageToken: `change-${uuidv4()}`,
-            timestamp: new Date().toISOString(),
-            value: { message: `**Applied:** \`${relativePath}\`` },
-          });
-        });
-
-        // Notify solution server
-        Promise.resolve(
-          executeExtensionCommand("changeApplied", change.path, change.content),
-        ).catch(() => {});
-
-        ctx.logger.info("File change applied", { path: change.path });
+        await routeFileChange(
+          ctx.extensionState,
+          change.path,
+          change.content,
+          change.originalContent,
+        );
+        ctx.logger.info("File change routed", { path: change.path });
       }
     });
   });
@@ -270,6 +314,7 @@ export async function initializeAgent(
       fileTracker,
       mutate: ctx.mutate,
       pendingPermissions,
+      extensionState: ctx.extensionState,
     });
   });
 
@@ -285,10 +330,10 @@ export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void 
     .start()
     .then(async () => {
       try {
-        const { readGooseConfig } = await import("../../gooseConfig");
-        const { hasGooseCredentials } = await import("../../utilities/gooseCredentialStorage");
-        const config = readGooseConfig();
-        config.hasStoredCredentials = await hasGooseCredentials(ctx.extensionContext);
+        const { readAgentConfig } = await import("../../agentConfigReader");
+        const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+        const config = readAgentConfig();
+        config.hasStoredCredentials = await hasAgentCredentials(ctx.extensionContext);
         config.toolPermissions = ctx.store.getState().toolPermissions;
         config.agentMode = (ctx.store.getState().featureState?.agentMode as boolean) ?? true;
         const timestamp = new Date().toISOString();

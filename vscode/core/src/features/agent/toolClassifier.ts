@@ -7,6 +7,7 @@ const FILE_EDITING_TOOLS = new Set([
   "multiedit",
   "multi_edit",
   "text_editor",
+  "text editor",
   "apply_patch",
   "patch",
   "create",
@@ -27,24 +28,86 @@ const WEB_ACCESS_TOOLS = new Set([
 ]);
 
 /**
+ * Read-only Text Editor commands that should NOT be classified as file editing.
+ * When rawInput.command is one of these, the tool is informational.
+ */
+const TEXT_EDITOR_READ_COMMANDS = new Set(["view", "undo_edit"]);
+
+/**
+ * Known MCP server name prefixes used in Goose-style tool titles
+ * like "Konveyor: Run Analysis". The prefix before the colon
+ * identifies the MCP server.
+ */
+const MCP_SERVER_PREFIXES = new Set(["konveyor"]);
+
+/**
+ * Normalize a Goose-style tool title like "Developer: Text Editor"
+ * into the tool part ("text editor"). Returns the original string
+ * if no colon-prefix is present.
+ */
+function extractToolName(title: string): string {
+  const colonIdx = title.indexOf(":");
+  if (colonIdx >= 0) {
+    return title.slice(colonIdx + 1).trim();
+  }
+  return title;
+}
+
+/**
+ * Extract the prefix before the colon in a Goose-style tool title.
+ * Returns undefined if no colon-prefix is present.
+ */
+function extractPrefix(title: string): string | undefined {
+  const colonIdx = title.indexOf(":");
+  if (colonIdx >= 0) {
+    return title.slice(0, colonIdx).trim();
+  }
+  return undefined;
+}
+
+/**
  * Classify a tool call into one of the generic ToolCategory values.
  *
- * Works across all agent backends — tool names are normalized to lowercase
- * and matched against known sets. MCP tools are detected by prefix.
+ * Handles multiple naming conventions:
+ *  - Simple names: "bash", "text_editor"
+ *  - Goose-style: "Developer: Text Editor", "Developer: Shell"
+ *
+ * For Text Editor calls, rawInput.command distinguishes reads ("view")
+ * from writes ("str_replace", "write", "create") so reads aren't
+ * classified as file editing.
  */
-export function classifyTool(toolName: string, _rawInput?: Record<string, unknown>): ToolCategory {
-  const name = toolName.toLowerCase();
-  if (FILE_EDITING_TOOLS.has(name)) {
-    return "fileEditing";
+export function classifyTool(toolName: string, rawInput?: Record<string, unknown>): ToolCategory {
+  const raw = toolName.toLowerCase();
+  const extracted = extractToolName(raw);
+
+  // Check both the raw name and the extracted (post-colon) name
+  const candidates = raw === extracted ? [raw] : [raw, extracted];
+
+  for (const name of candidates) {
+    if (FILE_EDITING_TOOLS.has(name)) {
+      // Text Editor with a read-only command (e.g., "view") is not a file edit
+      const command = rawInput?.command;
+      if (typeof command === "string" && TEXT_EDITOR_READ_COMMANDS.has(command.toLowerCase())) {
+        return "other";
+      }
+      return "fileEditing";
+    }
+    if (COMMAND_EXECUTION_TOOLS.has(name)) {
+      return "commandExecution";
+    }
+    if (WEB_ACCESS_TOOLS.has(name)) {
+      return "webAccess";
+    }
+    if (name.startsWith("mcp__") || name.startsWith("mcp_")) {
+      return "mcpTools";
+    }
   }
-  if (COMMAND_EXECUTION_TOOLS.has(name)) {
-    return "commandExecution";
-  }
-  if (WEB_ACCESS_TOOLS.has(name)) {
-    return "webAccess";
-  }
-  if (name.startsWith("mcp__") || name.startsWith("mcp_")) {
+
+  // Check if the prefix before the colon is a known MCP server name
+  const prefix = extractPrefix(raw);
+  if (prefix && MCP_SERVER_PREFIXES.has(prefix)) {
     return "mcpTools";
   }
+
   return "other";
 }
