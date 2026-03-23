@@ -36,6 +36,7 @@ import type { Logger } from "winston";
  */
 export class AgentOrchestrator {
   private lastTextMessageId: string | null = null;
+  private fileChangesRouted = 0;
 
   constructor(
     private readonly state: ExtensionState,
@@ -152,6 +153,7 @@ export class AgentOrchestrator {
         fileTracker.resolvePendingFileChanges().then(async (changes) => {
           for (const change of changes) {
             await routeFileChange(this.state, change.path, change.content, change.originalContent);
+            this.fileChangesRouted++;
             this.logger.info("AgentOrchestrator: file change routed", {
               path: change.path,
             });
@@ -214,6 +216,7 @@ export class AgentOrchestrator {
         const missedChanges = await fileTracker.scanForMissedChanges();
         for (const change of missedChanges) {
           await routeFileChange(this.state, change.path, change.content, change.originalContent);
+          this.fileChangesRouted++;
         }
         if (missedChanges.length > 0) {
           this.logger.info(`AgentOrchestrator: routed ${missedChanges.length} post-scan file(s)`);
@@ -482,7 +485,19 @@ export class AgentOrchestrator {
   }
 
   private cleanup(): void {
-    this.logger.info("AgentOrchestrator: cleanup — batch review will remain active");
+    const pendingCount = this.state.data.pendingBatchReview?.length ?? 0;
+    const isBatchReview = this.state.data.isBatchReviewMode === true;
+
+    if (isBatchReview && pendingCount > 0) {
+      this.logger.info("AgentOrchestrator: cleanup — batch review active", {
+        pendingFiles: pendingCount,
+        fileChangesRouted: this.fileChangesRouted,
+      });
+    } else {
+      this.logger.info("AgentOrchestrator: cleanup complete", {
+        fileChangesRouted: this.fileChangesRouted,
+      });
+    }
 
     this.state.mutate((draft) => {
       draft.isFetchingSolution = false;

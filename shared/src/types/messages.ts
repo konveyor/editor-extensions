@@ -61,6 +61,7 @@ export interface StateChangeData {
   isProcessingQueuedMessages?: boolean;
   isBatchReviewMode?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
+  experimentalChatEnabled?: boolean;
 
   // Server
   serverState?: ServerState;

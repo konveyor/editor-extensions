@@ -64,6 +64,8 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "availableSources",
   // Tool permissions
   "toolPermissions",
+  // Feature flags
+  "experimentalChatEnabled",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */

@@ -39,6 +39,7 @@ const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
+  const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
   const agentState = useExtensionStore((s) => s.agentState);
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
@@ -232,54 +233,67 @@ const ChatPage: React.FC = () => {
         <Chatbot displayMode={ChatbotDisplayMode.embedded}>
           <ChatbotContent>
             <div className="chat-page">
-              <div className="chat-status-bar">
-                <span
-                  className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
-                />
-                <span className="chat-status-text">
-                  {isRunning
-                    ? "Migration Assistant"
-                    : isStarting
-                      ? "Starting..."
-                      : isError
-                        ? "Error"
-                        : "Stopped"}
-                  {isProcessing && <LoadingIndicator />}
-                </span>
-                <span className="chat-config-label" title={configLabel}>
-                  {configLabel}
-                </span>
-                {!isRunning && !isStarting && (
-                  <button className="chat-action-btn" onClick={handleStartAgent}>
-                    Start
+              {experimentalChatEnabled && (
+                <div className="chat-status-bar">
+                  <span
+                    className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
+                  />
+                  <span className="chat-status-text">
+                    {isRunning
+                      ? "Migration Assistant"
+                      : isStarting
+                        ? "Starting..."
+                        : isError
+                          ? "Error"
+                          : "Stopped"}
+                    {isProcessing && <LoadingIndicator />}
+                  </span>
+                  <span className="chat-config-label" title={configLabel}>
+                    {configLabel}
+                  </span>
+                  {!isRunning && !isStarting && (
+                    <button className="chat-action-btn" onClick={handleStartAgent}>
+                      Start
+                    </button>
+                  )}
+                  {isRunning && (
+                    <button className="chat-action-btn" onClick={handleStopAgent}>
+                      Stop
+                    </button>
+                  )}
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={() => setShowSettings((prev) => !prev)}
+                    aria-label="Settings"
+                    title="Configure provider, model, and extensions"
+                  >
+                    ⚙
                   </button>
-                )}
-                {isRunning && (
-                  <button className="chat-action-btn" onClick={handleStopAgent}>
-                    Stop
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={handleToggleView}
+                    aria-label="Toggle view position"
+                    title="Move between sidebar and panel"
+                  >
+                    ⇔
                   </button>
-                )}
-                <button
-                  className="chat-action-btn chat-action-btn--icon"
-                  onClick={() => setShowSettings((prev) => !prev)}
-                  aria-label="Settings"
-                  title="Configure provider, model, and extensions"
-                >
-                  ⚙
-                </button>
-                <button
-                  className="chat-action-btn chat-action-btn--icon"
-                  onClick={handleToggleView}
-                  aria-label="Toggle view position"
-                  title="Move between sidebar and panel"
-                >
-                  ⇔
-                </button>
-              </div>
+                </div>
+              )}
 
-              {showSettings && <AgentSettings onClose={() => setShowSettings(false)} />}
+              {!experimentalChatEnabled && isProcessing && (
+                <div className="chat-status-bar">
+                  <span className="chat-status-text">
+                    Migration Assistant
+                    <LoadingIndicator />
+                  </span>
+                </div>
+              )}
 
-              {isError && agentError && (
+              {experimentalChatEnabled && showSettings && (
+                <AgentSettings onClose={() => setShowSettings(false)} />
+              )}
+
+              {experimentalChatEnabled && isError && agentError && (
                 <div className="chat-error-banner">
                   <div className="chat-error-banner__message">{agentError}</div>
                   {agentError.includes("binary not found") ? (

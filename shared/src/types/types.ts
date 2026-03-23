@@ -174,6 +174,7 @@ export interface ExtensionData {
   toolPermissions: ToolPermissionPolicy;
   isBatchReviewMode: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
+  experimentalChatEnabled: boolean;
 }
 
 export type ConfigErrorType =

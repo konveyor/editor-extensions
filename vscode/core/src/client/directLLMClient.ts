@@ -232,13 +232,20 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
   // ─── Text-parsing fallback (no tool calling) ──────────────────────
 
   private async sendWithTextParsing(content: string, messageId: string): Promise<string> {
-    // Add instruction for structured output
+    const promptFilePaths = this.extractFilePathsFromPrompt(content);
+
     const augmentedContent =
       content +
       "\n\n" +
-      "IMPORTANT: For each file you modify, output the complete updated file " +
-      "content in a fenced code block with the file path as the info string. Example:\n" +
-      "```path/to/File.java\n" +
+      "CRITICAL OUTPUT FORMAT: For EVERY file you modify, output the COMPLETE " +
+      "updated file content in a fenced code block where the ONLY thing on " +
+      "the opening fence line is the file path. " +
+      "Do NOT use language tags like ```xml or ```java. Example:\n" +
+      "```pom.xml\n" +
+      "<!-- complete file content here -->\n" +
+      "```\n" +
+      "Another example:\n" +
+      "```src/main/java/com/example/MyClass.java\n" +
       "// complete file content here\n" +
       "```";
 
@@ -253,11 +260,22 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
       }
     }
 
-    // Parse code fences with file paths
-    const fileChanges = this.parseFileChangesFromText(fullText);
+    const fileChanges = this.parseFileChangesFromText(fullText, promptFilePaths);
     this.logger.info("DirectLLMClient: parsed file changes from text", {
       count: fileChanges.length,
+      promptFilePaths,
     });
+
+    if (fileChanges.length === 0) {
+      const codeBlockCount = Math.floor((fullText.match(/```/g)?.length ?? 0) / 2);
+      if (codeBlockCount > 0) {
+        this.logger.warn(
+          "DirectLLMClient: found code blocks but could not extract file paths — " +
+            "the LLM may not have followed the structured output format",
+          { codeBlockCount, promptFilePaths },
+        );
+      }
+    }
 
     for (const change of fileChanges) {
       await this.emitFileChange(messageId, change);
@@ -267,51 +285,233 @@ export class DirectLLMClient extends EventEmitter implements AgentClient {
     return "end_turn";
   }
 
-  private parseFileChangesFromText(text: string): WriteFileArgs[] {
+  /**
+   * Extract file paths from the prompt headings produced by buildMigrationPrompt.
+   * These are `### path/to/file.ext` lines that tell us which files the LLM
+   * was asked to modify.
+   */
+  private extractFilePathsFromPrompt(prompt: string): string[] {
+    const paths: string[] = [];
+    const headingRegex = /^### (\S+)$/gm;
+    let match;
+    while ((match = headingRegex.exec(prompt)) !== null) {
+      if (this.looksLikeFilePath(match[1])) {
+        paths.push(match[1]);
+      }
+    }
+    return paths;
+  }
+
+  // ─── Text-parsing helpers ────────────────────────────────────────
+
+  private static readonly LANGUAGE_TAGS = new Set([
+    "java",
+    "xml",
+    "json",
+    "yaml",
+    "yml",
+    "properties",
+    "diff",
+    "bash",
+    "shell",
+    "sh",
+    "sql",
+    "html",
+    "css",
+    "js",
+    "ts",
+    "tsx",
+    "jsx",
+    "py",
+    "go",
+    "rs",
+    "c",
+    "cpp",
+    "h",
+    "cs",
+    "kotlin",
+    "groovy",
+    "scala",
+    "ruby",
+    "rb",
+    "php",
+    "swift",
+    "md",
+    "markdown",
+    "text",
+    "txt",
+    "toml",
+    "ini",
+    "dockerfile",
+    "makefile",
+    "plaintext",
+  ]);
+
+  private parseFileChangesFromText(text: string, promptFilePaths: string[] = []): WriteFileArgs[] {
     const changes: WriteFileArgs[] = [];
-    // Match ```path/to/file.ext\n...content...\n```
-    const fenceRegex = /```([^\n`]+\.[a-zA-Z0-9]+)\n([\s\S]*?)```/g;
+    const seen = new Set<string>();
+
+    const fencePattern = /```([^\n`]*)\n([\s\S]*?)```/g;
     let match;
 
-    while ((match = fenceRegex.exec(text)) !== null) {
-      const filePath = match[1].trim();
+    while ((match = fencePattern.exec(text)) !== null) {
+      const infoString = match[1].trim();
       const content = match[2];
-      // Skip if it looks like a language tag rather than a path
-      if (filePath.includes("/") || filePath.includes("\\") || filePath.includes(".")) {
-        // Additional check: skip common language tags
-        const languageTags = new Set([
-          "java",
-          "xml",
-          "json",
-          "yaml",
-          "yml",
-          "properties",
-          "diff",
-          "bash",
-          "shell",
-          "sh",
-          "sql",
-          "html",
-          "css",
-          "js",
-          "ts",
-          "tsx",
-          "jsx",
-          "py",
-          "go",
-          "rs",
-          "c",
-          "cpp",
-          "h",
-          "cs",
-        ]);
-        if (!languageTags.has(filePath.toLowerCase())) {
-          changes.push({ path: filePath, content });
-        }
+      const blockStart = match.index;
+
+      const filePath = this.resolveFilePath(infoString, content, text, blockStart, promptFilePaths);
+
+      if (filePath && !seen.has(filePath)) {
+        seen.add(filePath);
+        changes.push({
+          path: filePath,
+          content: this.stripFilePathHeader(content, filePath),
+        });
       }
     }
 
     return changes;
+  }
+
+  private static readonly LANG_TO_EXTENSIONS: Record<string, string[]> = {
+    java: [".java"],
+    xml: [".xml", ".pom", ".xsd", ".xsl"],
+    json: [".json"],
+    yaml: [".yaml", ".yml"],
+    yml: [".yaml", ".yml"],
+    properties: [".properties"],
+    html: [".html", ".htm"],
+    css: [".css"],
+    js: [".js", ".mjs", ".cjs"],
+    ts: [".ts", ".mts", ".cts"],
+    tsx: [".tsx"],
+    jsx: [".jsx"],
+    py: [".py"],
+    go: [".go"],
+    rs: [".rs"],
+    kotlin: [".kt", ".kts"],
+    groovy: [".groovy"],
+    scala: [".scala"],
+    ruby: [".rb"],
+    rb: [".rb"],
+    php: [".php"],
+    swift: [".swift"],
+    cs: [".cs"],
+    c: [".c"],
+    cpp: [".cpp", ".cc", ".cxx"],
+    h: [".h", ".hpp"],
+    sql: [".sql"],
+    sh: [".sh"],
+    bash: [".sh", ".bash"],
+    shell: [".sh"],
+    dockerfile: ["Dockerfile"],
+    makefile: ["Makefile"],
+    toml: [".toml"],
+    ini: [".ini"],
+    md: [".md"],
+    markdown: [".md"],
+  };
+
+  /**
+   * Try multiple strategies to determine which file a code block belongs to.
+   */
+  private resolveFilePath(
+    infoString: string,
+    content: string,
+    fullText: string,
+    blockStart: number,
+    promptFilePaths: string[] = [],
+  ): string | undefined {
+    // Strategy 1: info string IS a file path (e.g. ```src/main/java/MyClass.java)
+    if (this.looksLikeFilePath(infoString)) {
+      return infoString;
+    }
+
+    // Strategy 2: info string is "lang:path" or "lang path/to/file"
+    // e.g. ```java:src/main/java/MyClass.java  or  ```java src/MyClass.java
+    const separatorMatch = infoString.match(/^\w+[:\s]+(.+)$/);
+    if (separatorMatch) {
+      const candidate = separatorMatch[1].trim();
+      if (this.looksLikeFilePath(candidate)) {
+        return candidate;
+      }
+    }
+
+    // Strategy 3: first line of content is a file-path comment
+    // e.g. // File: src/main/java/MyClass.java  or  # src/config.yaml
+    const firstLine = content.split("\n")[0]?.trim() ?? "";
+    const commentMatch = firstLine.match(/^(?:\/\/|#|\/\*|\*|<!--)\s*(?:File:\s*)?(\S+\.\w+)/);
+    if (commentMatch && this.looksLikeFilePath(commentMatch[1])) {
+      return commentMatch[1];
+    }
+
+    const preceding = fullText.substring(Math.max(0, blockStart - 300), blockStart);
+
+    // Strategy 4: preceding text mentions a file path in backticks
+    // e.g. "Here is the updated `pom.xml`:" or "`src/main/java/MyClass.java`"
+    const backtickPaths = [...preceding.matchAll(/`([^`]+\.\w+)`/g)];
+    if (backtickPaths.length > 0) {
+      const lastMention = backtickPaths[backtickPaths.length - 1][1];
+      if (this.looksLikeFilePath(lastMention)) {
+        return lastMention;
+      }
+    }
+
+    // Strategy 5: preceding text mentions a bare filename near the code block
+    // e.g. "Here is the updated pom.xml:" or "Modified MyClass.java below"
+    const bareFileMatch = [...preceding.matchAll(/\b([\w./-]+\.\w{1,10})\b/g)].filter((m) =>
+      this.looksLikeFilePath(m[1]),
+    );
+    if (bareFileMatch.length > 0) {
+      return bareFileMatch[bareFileMatch.length - 1][1];
+    }
+
+    // Strategy 6: match the code block's language tag to known prompt file paths
+    // e.g. ```xml code block + prompt mentions "pom.xml" → match by extension
+    if (promptFilePaths.length > 0 && infoString) {
+      const lang = infoString.toLowerCase().split(/\s/)[0];
+      const extensions = DirectLLMClient.LANG_TO_EXTENSIONS[lang];
+      if (extensions) {
+        const match = promptFilePaths.find((p) => extensions.some((ext) => p.endsWith(ext)));
+        if (match) {
+          return match;
+        }
+      }
+    }
+
+    // Strategy 7: single code block with single prompt file — assume it's the target
+    if (promptFilePaths.length === 1) {
+      return promptFilePaths[0];
+    }
+
+    return undefined;
+  }
+
+  private looksLikeFilePath(s: string): boolean {
+    if (!s || s.length < 3) {
+      return false;
+    }
+    if (!/\.\w{1,10}$/.test(s)) {
+      return false;
+    }
+    if (DirectLLMClient.LANGUAGE_TAGS.has(s.toLowerCase())) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Remove a first-line comment that only served to identify the file path.
+   */
+  private stripFilePathHeader(content: string, filePath: string): string {
+    const lines = content.split("\n");
+    if (lines.length > 0) {
+      const first = lines[0].trim();
+      if (/^(?:\/\/|#|\/\*|\*|<!--)\s*(?:File:\s*)?/.test(first) && first.includes(filePath)) {
+        return lines.slice(1).join("\n");
+      }
+    }
+    return content;
   }
 
   // ─── Emit synthetic permission request ────────────────────────────

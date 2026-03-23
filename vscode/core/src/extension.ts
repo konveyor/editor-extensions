@@ -39,6 +39,7 @@ import {
   getConfigToolPermissions,
   getConfigAgentMode,
   getConfigBatchReviewMode,
+  getConfigExperimentalChatEnabled,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -130,6 +131,7 @@ class VsCodeExtension {
       toolPermissions: getConfigToolPermissions(),
       isBatchReviewMode: getConfigBatchReviewMode(),
       pendingBatchReview: [],
+      experimentalChatEnabled: getConfigExperimentalChatEnabled(),
     };
 
     this.store = createExtensionStore(initialData);

@@ -64,6 +64,9 @@ interface ExtensionStore {
   availableTargets: string[];
   availableSources: string[];
 
+  // Feature flags
+  experimentalChatEnabled: boolean;
+
   // Batch review state
   isBatchReviewMode: boolean;
   pendingBatchReview: PendingBatchReviewFile[];
@@ -191,6 +194,9 @@ export const useExtensionStore = create<ExtensionStore>()(
 
       // Tool permission policy
       toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
+
+      // Feature flags
+      experimentalChatEnabled: false,
 
       // Batch review state
       isBatchReviewMode: false,

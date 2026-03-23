@@ -424,10 +424,24 @@ const actions: {
   },
   SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
     try {
-      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
+      const { join, isAbsolute } = await import("path");
+      let absPath = path;
+      if (!isAbsolute(path)) {
+        let wsRoot = state.data.workspaceRoot;
+        if (wsRoot.startsWith("file://")) {
+          wsRoot = new URL(wsRoot).pathname;
+        }
+        absPath = join(wsRoot, path);
+      }
+      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path: absPath, messageToken });
 
-      // Execute the command to show diff with decorations using streaming approach
-      await executeExtensionCommand("showDiffWithDecorations", path, diff, content, messageToken);
+      await executeExtensionCommand(
+        "showDiffWithDecorations",
+        absPath,
+        diff,
+        content,
+        messageToken,
+      );
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
 

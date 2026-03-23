@@ -52,6 +52,7 @@ const App: React.FC = () => {
         isSyncingProfiles: windowData.isSyncingProfiles ?? false,
         llmProxyAvailable: windowData.llmProxyAvailable ?? false,
         isWebEnvironment: windowData.isWebEnvironment ?? false,
+        experimentalChatEnabled: windowData.experimentalChatEnabled ?? false,
         isBatchReviewMode: windowData.isBatchReviewMode ?? false,
         pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
           ? windowData.pendingBatchReview
