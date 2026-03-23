@@ -132,6 +132,7 @@ class VsCodeExtension {
       isBatchReviewMode: getConfigBatchReviewMode(),
       pendingBatchReview: [],
       experimentalChatEnabled: getConfigExperimentalChatEnabled(),
+      modelSupportsTools: true,
     };
 
     this.store = createExtensionStore(initialData);
@@ -1126,8 +1127,12 @@ class VsCodeExtension {
 
       this.state.modelProvider = localProvider;
       this.state.modelProviderSource = "local-config";
+      this.state.mutate((draft) => {
+        draft.modelSupportsTools = localProvider.toolCallsSupported();
+      });
       this.state.logger.info("Model provider set from local config", {
         provider: modelConfig.config.provider,
+        supportsTools: localProvider.toolCallsSupported(),
       });
       // Dispose workflow if we're changing an existing provider and not currently fetching
       if (

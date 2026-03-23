@@ -48,6 +48,7 @@ import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickRespon
 import winston from "winston";
 import { updateConfigErrors } from "./utilities/configuration";
 import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
+import { generateProviderSettingsYaml } from "./modelProvider/providerConfigGenerator";
 
 export function setupWebviewMessageListener(
   webview: vscode.Webview,
@@ -552,6 +553,31 @@ const actions: {
     } catch (error) {
       logger.error("Error stopping workflow:", error);
       vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
+    }
+  },
+  UPDATE_MODEL_PROVIDER_CONFIG: async (payload, state, logger) => {
+    const { provider, model, credentials } = payload as {
+      provider: string;
+      model: string;
+      credentials?: Record<string, string>;
+    };
+
+    logger.info("Updating model provider config from chat UI", { provider, model });
+
+    try {
+      const { paths } = await import("./paths");
+      const yamlContent = generateProviderSettingsYaml(provider, model, credentials);
+      const encoder = new TextEncoder();
+      await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+
+      logger.info("Written provider-settings.yaml from chat UI config");
+      vscode.window.showInformationMessage(
+        `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error("Failed to update model provider config", { error: msg });
+      vscode.window.showErrorMessage(`Failed to update model config: ${msg}`);
     }
   },
 };

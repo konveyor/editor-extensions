@@ -44,6 +44,7 @@ const ChatPage: React.FC = () => {
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
 
+  const modelSupportsTools = useExtensionStore((s) => s.modelSupportsTools);
   const chatMessages = useExtensionStore((s) => s.chatMessages);
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
@@ -280,17 +281,28 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
-              {!experimentalChatEnabled && isProcessing && (
+              {!experimentalChatEnabled && (isProcessing || hasWorkflowContent) && (
                 <div className="chat-status-bar">
                   <span className="chat-status-text">
                     Migration Assistant
-                    <LoadingIndicator />
+                    {isProcessing && <LoadingIndicator />}
                   </span>
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={() => setShowSettings((prev) => !prev)}
+                    aria-label="Settings"
+                    title="Configure provider and model"
+                  >
+                    ⚙
+                  </button>
                 </div>
               )}
 
-              {experimentalChatEnabled && showSettings && (
-                <AgentSettings onClose={() => setShowSettings(false)} />
+              {showSettings && (
+                <AgentSettings
+                  onClose={() => setShowSettings(false)}
+                  compactMode={!experimentalChatEnabled}
+                />
               )}
 
               {experimentalChatEnabled && isError && agentError && (
@@ -324,6 +336,23 @@ const ChatPage: React.FC = () => {
                   ) : (
                     <div className="chat-error-banner__hint">Click Start to retry.</div>
                   )}
+                </div>
+              )}
+
+              {!modelSupportsTools && (hasWorkflowContent || isProcessing) && (
+                <div className="chat-warning-banner">
+                  <div className="chat-warning-banner__message">
+                    Your model does not support tool calling. File changes may not be detected
+                    reliably. Consider upgrading your model or enabling Agent Mode.
+                  </div>
+                  <div className="chat-warning-banner__hint">
+                    <button
+                      className="chat-warning-banner__link"
+                      onClick={() => setShowSettings(true)}
+                    >
+                      Open settings
+                    </button>
+                  </div>
                 </div>
               )}
 

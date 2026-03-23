@@ -66,6 +66,7 @@ interface ExtensionStore {
 
   // Feature flags
   experimentalChatEnabled: boolean;
+  modelSupportsTools: boolean;
 
   // Batch review state
   isBatchReviewMode: boolean;
@@ -197,6 +198,7 @@ export const useExtensionStore = create<ExtensionStore>()(
 
       // Feature flags
       experimentalChatEnabled: false,
+      modelSupportsTools: true,
 
       // Batch review state
       isBatchReviewMode: false,

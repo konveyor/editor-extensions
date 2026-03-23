@@ -62,6 +62,7 @@ export interface StateChangeData {
   isBatchReviewMode?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   experimentalChatEnabled?: boolean;
+  modelSupportsTools?: boolean;
 
   // Server
   serverState?: ServerState;

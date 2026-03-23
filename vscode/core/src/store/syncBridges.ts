@@ -37,6 +37,7 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "isProcessingQueuedMessages",
   "isBatchReviewMode",
   "pendingBatchReview",
+  "modelSupportsTools",
   // Server
   "serverState",
   "isStartingServer",

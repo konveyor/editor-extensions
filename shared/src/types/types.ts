@@ -175,6 +175,7 @@ export interface ExtensionData {
   isBatchReviewMode: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   experimentalChatEnabled: boolean;
+  modelSupportsTools: boolean;
 }
 
 export type ConfigErrorType =

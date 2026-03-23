@@ -84,10 +84,26 @@ export class AgentOrchestrator {
       const parsedConfig = await parseModelConfig(paths().settingsYaml);
       const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
 
+      await this.state.workflowManager.init({
+        modelProvider,
+        workspaceDir: this.state.data.workspaceRoot,
+        solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
+      });
+
+      const workflow = this.state.workflowManager.getWorkflow();
+      const profileName = this.incidents[0]?.activeProfileName ?? "";
+      const programmingLanguage =
+        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
       const { DirectLLMClient } = await import("../../client/directLLMClient");
       return new DirectLLMClient({
-        modelProvider,
-        workspaceRoot: this.state.data.workspaceRoot,
+        workflow,
+        workflowInput: {
+          incidents: this.incidents,
+          migrationHint: profileName,
+          programmingLanguage,
+          enableAgentMode: false,
+        },
         logger: this.logger,
       });
     } catch (err) {
@@ -196,21 +212,26 @@ export class AgentOrchestrator {
         }
       }
 
-      const programmingLanguage =
-        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
-
-      const prompt = await buildMigrationPrompt(
-        {
-          incidents: this.incidents,
-          migrationHint: profileName,
-          programmingLanguage,
-          enableAgentMode: agentMode,
-        },
-        this.state.data.workspaceRoot,
-      );
-
       const requestId = uuidv4();
-      await agentClient.sendMessage(prompt, requestId);
+
+      if (agentMode) {
+        const programmingLanguage =
+          this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
+        const prompt = await buildMigrationPrompt(
+          {
+            incidents: this.incidents,
+            migrationHint: profileName,
+            programmingLanguage,
+            enableAgentMode: agentMode,
+          },
+          this.state.data.workspaceRoot,
+        );
+
+        await agentClient.sendMessage(prompt, requestId);
+      } else {
+        await agentClient.sendMessage("", requestId);
+      }
 
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
