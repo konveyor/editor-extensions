@@ -327,10 +327,6 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      if (!state.featureClients.has("agentClient")) {
-        logger.warn("getSolution: Agent client not available");
-        return;
-      }
       const { AgentOrchestrator } = await import("./features/agent/agentOrchestrator");
       const orchestrator = new AgentOrchestrator(state, logger, incidents);
       await orchestrator.run();

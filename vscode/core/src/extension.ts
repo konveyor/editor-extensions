@@ -38,6 +38,8 @@ import {
   getConfigAutoAcceptOnSave,
   getConfigToolPermissions,
   getConfigAgentMode,
+  getConfigBatchReviewMode,
+  getConfigExperimentalChatEnabled,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -127,6 +129,10 @@ class VsCodeExtension {
       availableSources: [],
       featureState: { agentMode: getConfigAgentMode() },
       toolPermissions: getConfigToolPermissions(),
+      isBatchReviewMode: getConfigBatchReviewMode(),
+      pendingBatchReview: [],
+      experimentalChatEnabled: getConfigExperimentalChatEnabled(),
+      modelSupportsTools: true,
     };
 
     this.store = createExtensionStore(initialData);
@@ -672,14 +678,37 @@ class VsCodeExtension {
             this.state.logger.info("Tool permissions updated from settings");
           }
 
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.batchReviewMode`)) {
+            this.state.mutate((draft) => {
+              draft.isBatchReviewMode = getConfigBatchReviewMode();
+            });
+            this.state.logger.info(`Batch review mode changed to ${getConfigBatchReviewMode()}`);
+          }
+
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
+            const newAgentMode = getConfigAgentMode();
             this.state.mutate((draft) => {
               if (!draft.featureState) {
                 draft.featureState = {};
               }
-              draft.featureState.agentMode = getConfigAgentMode();
+              draft.featureState.agentMode = newAgentMode;
             });
-            this.state.logger.info(`Agent mode updated from settings: ${getConfigAgentMode()}`);
+            this.state.logger.info(`Agent mode updated from settings: ${newAgentMode}`);
+
+            const agentClient = this.state.featureClients.get("agentClient") as any;
+            const agentRunning = agentClient && agentClient.getState?.() === "running";
+            if (newAgentMode && !agentRunning) {
+              vscode.window
+                .showInformationMessage(
+                  "Agent Mode enabled. Reload the window to start the agent backend.",
+                  "Reload Window",
+                )
+                .then((selection) => {
+                  if (selection === "Reload Window") {
+                    vscode.commands.executeCommand("workbench.action.reloadWindow");
+                  }
+                });
+            }
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.analyzerPath`)) {
@@ -1114,8 +1143,12 @@ class VsCodeExtension {
 
       this.state.modelProvider = localProvider;
       this.state.modelProviderSource = "local-config";
+      this.state.mutate((draft) => {
+        draft.modelSupportsTools = localProvider.toolCallsSupported();
+      });
       this.state.logger.info("Model provider set from local config", {
         provider: modelConfig.config.provider,
+        supportsTools: localProvider.toolCallsSupported(),
       });
       // Dispose workflow if we're changing an existing provider and not currently fetching
       if (

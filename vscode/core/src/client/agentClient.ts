@@ -8,6 +8,7 @@
 
 import { EventEmitter } from "events";
 import type { AgentContentBlockType } from "@editor-extensions/shared";
+import type { KaiInteractiveWorkflow } from "@editor-extensions/agentic";
 
 // ─── Shared types ────────────────────────────────────────────────────
 
@@ -112,4 +113,7 @@ export interface AgentClient extends EventEmitter {
 
   /** Respond to an incoming request from the agent (e.g. permission request). */
   respondToRequest(requestId: number, result: unknown): void;
+
+  /** Return the underlying workflow, if this client wraps one (e.g. DirectLLMClient). */
+  getWorkflow?(): KaiInteractiveWorkflow;
 }

@@ -379,6 +379,13 @@
           "scope": "window",
           "order": 21
         },
+        "konveyor-core.genai.batchReviewMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, file changes from the agent are queued for review instead of being applied immediately. Allows accepting or rejecting changes in bulk.",
+          "scope": "window",
+          "order": 22
+        },
         "konveyor-core.genai.autonomyLevel": {
           "type": "string",
           "enum": [

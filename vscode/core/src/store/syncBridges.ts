@@ -35,6 +35,9 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "solutionScope",
   "isWaitingForUserInteraction",
   "isProcessingQueuedMessages",
+  "isBatchReviewMode",
+  "pendingBatchReview",
+  "modelSupportsTools",
   // Server
   "serverState",
   "isStartingServer",
@@ -62,6 +65,8 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "availableSources",
   // Tool permissions
   "toolPermissions",
+  // Feature flags
+  "experimentalChatEnabled",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */
@@ -134,6 +139,11 @@ export function setupSyncBridges(
 
         if (!hasChanges) {
           return;
+        }
+
+        // Normalize: ensure pendingBatchReview is always an array when present
+        if ("pendingBatchReview" in data && !data.pendingBatchReview) {
+          data.pendingBatchReview = [];
         }
 
         // Normalize: ensure activeDecorators is always an object when present

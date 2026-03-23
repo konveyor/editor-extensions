@@ -9,8 +9,7 @@ export const agentFeatureModule: FeatureModule = {
   name: "Migration Assistant Chat",
 
   isEnabled(): boolean {
-    const { getConfigExperimentalChatEnabled } = require("../../utilities/configuration");
-    return getConfigExperimentalChatEnabled();
+    return true;
   },
 
   async initialize(ctx: FeatureContext): Promise<vscode.Disposable> {
@@ -36,14 +35,24 @@ export const agentFeatureModule: FeatureModule = {
     const { agentMessageHandlers } = await import("./handlers");
     disposables.push(ctx.registerMessageHandlers(agentMessageHandlers));
 
-    // Create the agent client based on the configured backend
-    try {
-      const agentClient = await createAgentClient(ctx);
-      const { initializeAgent } = await import("./init");
-      const agentDisposable = await initializeAgent(ctx, agentClient);
-      disposables.push(agentDisposable);
-    } catch (err) {
-      ctx.logger.error(`Failed to initialize agent: ${err}`);
+    const { batchReviewHandlers } = await import("./batchReviewHandlers");
+    disposables.push(ctx.registerMessageHandlers(batchReviewHandlers));
+
+    // Start the Goose/OpenCode agent backend when agentMode is enabled.
+    // The chat webview and batch review handlers above are always registered so that
+    // getSolution (via DirectLLMClient) can render output regardless of this setting.
+    const { getConfigAgentMode } = await import("../../utilities/configuration");
+    if (getConfigAgentMode()) {
+      try {
+        const agentClient = await createAgentClient(ctx);
+        const { initializeAgent } = await import("./init");
+        const agentDisposable = await initializeAgent(ctx, agentClient);
+        disposables.push(agentDisposable);
+      } catch (err) {
+        ctx.logger.error(`Failed to initialize agent: ${err}`);
+      }
+    } else {
+      ctx.logger.info("Agent backend skipped (agentMode is false)");
     }
 
     ctx.logger.info("Agent feature module initialized");

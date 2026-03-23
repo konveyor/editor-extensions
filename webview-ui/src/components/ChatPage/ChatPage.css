@@ -183,6 +183,39 @@
   color: var(--vscode-textLink-activeForeground, #3794ff);
 }
 
+.chat-warning-banner {
+  padding: 6px 10px;
+  background: var(--vscode-inputValidation-warningBackground, #352a05);
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  font-size: 11px;
+  border-bottom: 1px solid var(--vscode-inputValidation-warningBorder, #9d8600);
+  flex-shrink: 0;
+}
+
+.chat-warning-banner__message {
+  font-weight: 500;
+}
+
+.chat-warning-banner__hint {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.chat-warning-banner__link {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.chat-warning-banner__link:hover {
+  color: var(--vscode-textLink-activeForeground, #3794ff);
+}
+
 .chat-welcome {
   padding: 16px;
 }

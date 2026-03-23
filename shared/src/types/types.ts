@@ -172,6 +172,10 @@ export interface ExtensionData {
   availableSources: string[];
   featureState: Record<string, unknown>;
   toolPermissions: ToolPermissionPolicy;
+  isBatchReviewMode: boolean;
+  pendingBatchReview?: PendingBatchReviewFile[];
+  experimentalChatEnabled: boolean;
+  modelSupportsTools: boolean;
 }
 
 export type ConfigErrorType =

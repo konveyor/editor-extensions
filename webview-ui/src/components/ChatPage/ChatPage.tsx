@@ -26,6 +26,7 @@ import CompactMigrationScope from "./CompactMigrationScope";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { useContainerWidth } from "../../hooks/useContainerWidth";
 import AgentSettings from "./AgentSettings";
+import { CompactBatchReview } from "./CompactBatchReview";
 import "./ChatPage.css";
 
 const MIN_USABLE_WIDTH = 200;
@@ -38,10 +39,12 @@ const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
+  const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
   const agentState = useExtensionStore((s) => s.agentState);
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
 
+  const modelSupportsTools = useExtensionStore((s) => s.modelSupportsTools);
   const chatMessages = useExtensionStore((s) => s.chatMessages);
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
@@ -231,54 +234,73 @@ const ChatPage: React.FC = () => {
         <Chatbot displayMode={ChatbotDisplayMode.embedded}>
           <ChatbotContent>
             <div className="chat-page">
-              <div className="chat-status-bar">
-                <span
-                  className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
-                />
-                <span className="chat-status-text">
-                  {isRunning
-                    ? "Migration Assistant"
-                    : isStarting
-                      ? "Starting..."
-                      : isError
-                        ? "Error"
-                        : "Stopped"}
-                  {isProcessing && <LoadingIndicator />}
-                </span>
-                <span className="chat-config-label" title={configLabel}>
-                  {configLabel}
-                </span>
-                {!isRunning && !isStarting && (
-                  <button className="chat-action-btn" onClick={handleStartAgent}>
-                    Start
+              {experimentalChatEnabled && (
+                <div className="chat-status-bar">
+                  <span
+                    className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
+                  />
+                  <span className="chat-status-text">
+                    {isRunning
+                      ? "Migration Assistant"
+                      : isStarting
+                        ? "Starting..."
+                        : isError
+                          ? "Error"
+                          : "Stopped"}
+                    {isProcessing && <LoadingIndicator />}
+                  </span>
+                  <span className="chat-config-label" title={configLabel}>
+                    {configLabel}
+                  </span>
+                  {!isRunning && !isStarting && (
+                    <button className="chat-action-btn" onClick={handleStartAgent}>
+                      Start
+                    </button>
+                  )}
+                  {isRunning && (
+                    <button className="chat-action-btn" onClick={handleStopAgent}>
+                      Stop
+                    </button>
+                  )}
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={() => setShowSettings((prev) => !prev)}
+                    aria-label="Settings"
+                    title="Configure provider, model, and extensions"
+                  >
+                    ⚙
                   </button>
-                )}
-                {isRunning && (
-                  <button className="chat-action-btn" onClick={handleStopAgent}>
-                    Stop
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={handleToggleView}
+                    aria-label="Toggle view position"
+                    title="Move between sidebar and panel"
+                  >
+                    ⇔
                   </button>
-                )}
-                <button
-                  className="chat-action-btn chat-action-btn--icon"
-                  onClick={() => setShowSettings((prev) => !prev)}
-                  aria-label="Settings"
-                  title="Configure provider, model, and extensions"
-                >
-                  ⚙
-                </button>
-                <button
-                  className="chat-action-btn chat-action-btn--icon"
-                  onClick={handleToggleView}
-                  aria-label="Toggle view position"
-                  title="Move between sidebar and panel"
-                >
-                  ⇔
-                </button>
-              </div>
+                </div>
+              )}
+
+              {!experimentalChatEnabled && (
+                <div className="chat-status-bar">
+                  <span className="chat-status-text">
+                    Migration Assistant
+                    {isProcessing && <LoadingIndicator />}
+                  </span>
+                  <button
+                    className="chat-action-btn chat-action-btn--icon"
+                    onClick={() => setShowSettings((prev) => !prev)}
+                    aria-label="Settings"
+                    title="Configure provider and model"
+                  >
+                    ⚙
+                  </button>
+                </div>
+              )}
 
               {showSettings && <AgentSettings onClose={() => setShowSettings(false)} />}
 
-              {isError && agentError && (
+              {experimentalChatEnabled && isError && agentError && (
                 <div className="chat-error-banner">
                   <div className="chat-error-banner__message">{agentError}</div>
                   {agentError.includes("binary not found") ? (
@@ -312,6 +334,24 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
+              {!modelSupportsTools && (hasWorkflowContent || isProcessing) && (
+                <div className="chat-warning-banner">
+                  <div className="chat-warning-banner__message">
+                    Your model does not support tool calling. File changes may not be detected
+                    reliably. Consider upgrading your model or enabling Agent Mode.
+                  </div>
+                  <div className="chat-warning-banner__hint">
+                    <button
+                      className="chat-warning-banner__link"
+                      onClick={() => setShowSettings(true)}
+                    >
+                      Open settings
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <CompactBatchReview />
               <MessageBox ref={messageBoxRef} className="chat-messages">
                 {isTriggeredByUser && solutionScope && (
                   <div className="chat-initial-scope">
@@ -330,13 +370,14 @@ const ChatPage: React.FC = () => {
                     {isRunning ? (
                       <p className="chat-agent-status__hint">
                         Use <strong>Get Solution</strong> from the analysis view to start a
-                        migration workflow. Goose will handle the code changes.
+                        migration workflow.
                       </p>
                     ) : isStarting ? (
-                      <p className="chat-agent-status__hint">Starting Goose agent...</p>
+                      <p className="chat-agent-status__hint">Starting agent...</p>
                     ) : (
                       <p className="chat-agent-status__hint">
-                        Start the Goose agent to enable AI-powered migration workflows.
+                        Use <strong>Get Solution</strong> from the analysis view to start a
+                        migration workflow.
                       </p>
                     )}
                   </div>
