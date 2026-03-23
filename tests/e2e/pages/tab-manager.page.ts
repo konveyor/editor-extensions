@@ -34,11 +34,26 @@ export class TabManager {
   }
 
   /**
+   * Modifies the content of the active tab by adding and removing a character.
+   * This triggers the "dirty" state of the file, enabling features like "analyze on save".
+   * Throws an error if the file is not the current active tab.
+   * @param tabName The name of the file to modify.
+   */
+  public async modifyTabFile(tabName: string): Promise<void> {
+    await this.ensureTabIsActive(tabName);
+    const editor = this.window.locator('.monaco-editor .view-lines').first();
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await this.window.keyboard.type(' ');
+    await this.window.keyboard.press('Backspace');
+  }
+
+  /**
    * Gets the name of the current active tab.
    * @returns The name of the current active tab.
    */
-  public async getCurrentActiveTab(): Promise<string | undefined> {
-    const activeTab = await this.window.locator('.tab.active .label-name').textContent();
+  public async getCurrentActiveTab(): Promise<string[] | undefined> {
+    const activeTab = await this.window.locator('.tab.active .label-name').allTextContents();
     if (activeTab) {
       return activeTab;
     }
@@ -51,8 +66,8 @@ export class TabManager {
    * @param tabName The name of the file to ensure is the current active tab.
    */
   public async ensureTabIsActive(tabName: string): Promise<void> {
-    const currentActiveTab = await this.getCurrentActiveTab();
-    if (currentActiveTab !== tabName) {
+    const currentActiveTabs = await this.getCurrentActiveTab();
+    if (!currentActiveTabs || !currentActiveTabs?.includes(tabName)) {
       await this.focusTabByName(tabName);
     }
   }
@@ -63,8 +78,8 @@ export class TabManager {
    * @param tabName The name of the file/tab to focus.
    */
   public async focusTabByName(tabName: string): Promise<void> {
-    const tabSelector = `.tab[role="tab"][data-resource-name="${tabName}"]`;
-    const tab = await this.window.locator(tabSelector);
+    const tabSelector = `.tab[role="tab"][data-resource-name="${tabName}"] .label-name`;
+    const tab = this.window.locator(tabSelector);
     await expect(tab).toBeVisible({ timeout: 10000 });
     await tab.first().click();
   }
@@ -76,7 +91,7 @@ export class TabManager {
    */
   public async closeTabByName(tabName: string): Promise<void> {
     const tabSelector = `.tab[role="tab"][data-resource-name="${tabName}"]`;
-    const tab = await this.window.locator(tabSelector);
+    const tab = this.window.locator(tabSelector);
     await expect(tab).toBeVisible({ timeout: 10000 });
     const closeBtn = tab.locator('.tab-actions .action-label.codicon-close').first();
     await expect(closeBtn).toBeVisible({ timeout: 5000 });

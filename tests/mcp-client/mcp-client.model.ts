@@ -88,7 +88,7 @@ export class MCPClient {
       config.realm,
       config.username,
       config.password,
-      config.isLocal
+      config.insecure
     );
     const mcpClient = new MCPClient(fullUrl, authManager);
     await mcpClient.connectTransport();
@@ -209,7 +209,7 @@ export class MCPClient {
       this.currentToken = token;
     }
 
-    const result = await this.client.callTool({
+    const result: any = await this.client.callTool({
       name: endpoint,
       arguments: params,
     });
@@ -236,6 +236,23 @@ export class MCPClient {
       );
     }
 
+    // Try to get data from structuredContent.result (new format)
+    if (result?.structuredContent?.result !== undefined) {
+      const structuredResult = result.structuredContent.result;
+
+      // If result is exactly null, return null
+      if (structuredResult === null) {
+        return null;
+      }
+
+      try {
+        return schema.parse(structuredResult);
+      } catch (parseError) {
+        throw new Error(`Failed to parse structured content response: ${parseError}`);
+      }
+    }
+
+    // Fall back to legacy content[] format
     if (!result?.content || !Array.isArray(result.content)) {
       throw new Error(`No content received from ${endpoint}`);
     }

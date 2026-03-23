@@ -12,21 +12,101 @@ import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { KAIViews } from '../../enums/views.enum';
 import { generateRandomString } from '../../utilities/utils';
-import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import {
+  getDefaultProviderConfig,
+  LLEMULATOR_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
+import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
-test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
+test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3', '@slow'] }, () => {
   let vscodeApp: VSCode;
   let tabManager: TabManager;
   const profileName = `plugins-settings-${generateRandomString()}`;
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(300000);
+
+    if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
+      await loadLlemulatorResponses({
+        reset: true,
+        responses: [
+          {
+            pattern: '.*CatalogService.*',
+            response: buildKaiResponse({
+              reasoning: 'LLEMULATOR RESPONSE',
+              language: 'java',
+              // Verifies #1309
+              fileContent:
+                'package com.redhat.coolstore.service;\n' +
+                '\n' +
+                'import java.util.List;\n' +
+                'import java.util.logging.Logger;\n' +
+                '\n' +
+                'import javax.inject.Inject;\n' +
+                '\n' +
+                'import jakarta.persistence.criteria.CriteriaBuilder;\n' +
+                'import jakarta.persistence.criteria.CriteriaQuery;\n' +
+                'import jakarta.persistence.criteria.Root;\n' +
+                '\n' +
+                'import jakarta.ejb.Stateless;\n' +
+                'import jakarta.persistence.EntityManager;\n' +
+                '\n' +
+                'import com.redhat.coolstore.model.*;\n' +
+                '\n' +
+                '@Stateless\n' +
+                'public class CatalogService {\n' +
+                '\n' +
+                '    @Inject\n' +
+                '    Logger log;\n' +
+                '\n' +
+                '    @Inject\n' +
+                '    private EntityManager em;\n' +
+                '\n' +
+                '    public CatalogService() {\n' +
+                '    }\n' +
+                '\n' +
+                '    public List<CatalogItemEntity> getCatalogItems() {\n' +
+                '        CriteriaBuilder cb = em.getCriteriaBuilder();\n' +
+                '        CriteriaQuery<CatalogItemEntity> criteria = cb.createQuery(CatalogItemEntity.class);\n' +
+                '        Root<CatalogItemEntity> member = criteria.from(CatalogItemEntity.class);\n' +
+                '        criteria.select(member);\n' +
+                '        return em.createQuery(criteria).getResultList();\n' +
+                '    }\n' +
+                '\n' +
+                '    public CatalogItemEntity getCatalogItemById(String itemId) {\n' +
+                '        return em.find(CatalogItemEntity.class, itemId);\n' +
+                '    }\n' +
+                '\n' +
+                '    public void updateInventoryItems(String itemId, int deducts) {\n' +
+                '        InventoryEntity inventoryEntity = getCatalogItemById(itemId).getInventory();\n' +
+                '        int currentQuantity = inventoryEntity.getQuantity();\n' +
+                '        inventoryEntity.setQuantity(currentQuantity-deducts);\n' +
+                '        em.merge(inventoryEntity);\n' +
+                '    }\n' +
+                '\n' +
+                '}\n',
+            }),
+            times: -1,
+          },
+          {
+            pattern: '.*',
+            response: buildKaiResponse({
+              reasoning: 'LLEMULATOR RESPONSE',
+              language: 'java',
+              fileContent: 'LLEMULATOR RESPONSE',
+            }),
+            times: -1,
+          },
+        ],
+      });
+    }
+
     const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
-    await vscodeApp.configureGenerativeAI(DEFAULT_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(getDefaultProviderConfig().config);
     await vscodeApp.waitDefault();
     tabManager = new TabManager(vscodeApp);
   });
@@ -37,6 +117,7 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
     await vscodeApp.startServer();
 
     await vscodeApp.openFile(FILES_NAMES[0], true);
+    await tabManager.modifyTabFile(FILES_NAMES[0]);
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitForAnalysisCompleted();
@@ -45,6 +126,7 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
     expect(files).toContain(FILES_NAMES[0]);
 
     await vscodeApp.openFile(FILES_NAMES[1], true);
+    await tabManager.modifyTabFile(FILES_NAMES[1]);
     await tabManager.saveTabFile(FILES_NAMES[1]);
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitForAnalysisCompleted();
@@ -67,9 +149,10 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
   test('Enable "Auto Accept on Save" setting', async () => {
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, true);
+    // Waiting is needed to prevent a config item from being unset when multiple items are updated quickly
+    await vscodeApp.waitDefault();
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
     await vscodeApp.startServer();
-
     await vscodeApp.runAnalysis();
     await vscodeApp.waitForAnalysisCompleted();
 
@@ -82,15 +165,18 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.waitForFileSolutionAccepted(FILES_NAMES[0]);
     await tabManager.closeTabByName(FILES_NAMES[0]);
-    await vscodeApp.executeTerminalCommand('git status --short', FILES_NAMES[0]);
+    await vscodeApp.executeTerminalCommand(
+      'git status --short',
+      new RegExp(`M.*${FILES_NAMES[0].replace('.', '\\.')}`)
+    );
   });
 
   test('Disable "Auto Accept on Save" setting', async () => {
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, false);
+    await vscodeApp.waitDefault();
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
     await vscodeApp.startServer();
-
     await vscodeApp.runAnalysis();
     await vscodeApp.waitForAnalysisCompleted();
 
@@ -102,7 +188,11 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3'] }, () => {
     );
     await tabManager.saveTabFile(FILES_NAMES[1]);
     await tabManager.closeTabByName(FILES_NAMES[1]);
-    await vscodeApp.executeTerminalCommand('git status --short', FILES_NAMES[0], false);
+    await vscodeApp.executeTerminalCommand(
+      'git status --short',
+      new RegExp(`M.*${FILES_NAMES[1].replace('.', '\\.')}`),
+      false
+    );
   });
 
   test('Exclude diagnostic sources in agent mode', async ({ testRepoData }) => {

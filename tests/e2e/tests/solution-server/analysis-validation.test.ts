@@ -1,8 +1,7 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
-import { Configuration } from '../../pages/configuration.page';
-import { solutionServerEnabled } from '../../enums/configuration-options.enum';
-import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import { HubConfigurationPage } from '../../pages/hub-configuration.page';
+import { getDefaultProviderConfig } from '../../fixtures/provider-configs.fixture';
 import { MCPClient } from '../../../mcp-client/mcp-client.model';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { KAIViews } from '../../enums/views.enum';
@@ -11,7 +10,9 @@ import {
   SuccessRateResponse,
 } from '../../../mcp-client/mcp-client-responses.model';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
-import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { getHubConfig } from '../../utilities/utils';
+import { LLEMULATOR_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 
 test.describe(
   `Solution server analysis validations`,
@@ -25,13 +26,39 @@ test.describe(
     test.beforeAll(async ({ testRepoData }) => {
       const repoInfo = testRepoData['coolstore'];
       test.setTimeout(600000);
-      mcpClient = await MCPClient.connect('http://localhost:8000');
+
+      if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
+        await loadLlemulatorResponses({
+          reset: true,
+          responses: [
+            {
+              pattern: '.*',
+              response: buildKaiResponse({
+                reasoning: 'LLEMULATOR RESPONSE javax',
+                language: 'java',
+                fileContent: 'LLEMULATOR RESPONSE javax',
+              }),
+              times: -1,
+            },
+          ],
+        });
+      }
+
+      mcpClient = await MCPClient.connect();
       vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
-      const config = await Configuration.open(vsCode);
-      await config.setEnabledConfiguration(solutionServerEnabled, true);
-      await vsCode.executeQuickCommand('Konveyor: Restart Solution Server');
+
+      // Configure hub with solution server enabled
+      const hubConfig = getHubConfig({
+        profileSyncEnabled: false,
+        solutionServerEnabled: true,
+      });
+      const hubConfigPage = await HubConfigurationPage.open(vsCode);
+      await hubConfigPage.fillForm(hubConfig);
+
+      await vsCode.assertNotification('Successfully connected to Hub solution server');
+
       await vsCode.createProfile(repoInfo.sources, repoInfo.targets);
-      await vsCode.configureGenerativeAI(DEFAULT_PROVIDER.config);
+      await vsCode.configureGenerativeAI(getDefaultProviderConfig().config);
       await vsCode.startServer();
       await vsCode.runAnalysis();
       await expect(vsCode.getWindow().getByText('Analysis completed').first()).toBeVisible({
@@ -40,19 +67,11 @@ test.describe(
     });
 
     test.beforeEach(async () => {
-      successRateBase = await mcpClient.getSuccessRate([
-        {
-          ruleset_name: 'eap8/eap7',
-          violation_name: 'javax-to-jakarta-import-00001',
-        },
-      ]);
+      successRateBase = await mcpClient.getSuccessRate({
+        ruleset_name: 'eap8/eap7',
+        violation_name: 'javax-to-jakarta-import-00001',
+      });
       bestHintBase = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
-    });
-
-    test('Reject solution and assert success rate', async () => {
-      await requestFixAndAssertSolution(false);
-      const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
-      expect(bestHint.hint_id).toEqual(bestHintBase.hint_id);
     });
 
     test('Accept solution and assert success rate', async () => {
@@ -62,6 +81,12 @@ test.describe(
 
       // The hint text is not deterministic, but it should always contain the word javax
       expect(bestHint.hint.toLowerCase()).toContain('javax');
+    });
+
+    test('Reject solution and assert success rate', async () => {
+      await requestFixAndAssertSolution(false);
+      const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
+      expect(bestHint.hint_id).toEqual(bestHintBase.hint_id);
     });
 
     test.afterAll(async () => {
@@ -89,23 +114,34 @@ test.describe(
     async function requestFixAndAssertSolution(accept: boolean) {
       await vsCode.searchAndRequestAction(
         'Replace the `javax.persistence` import statement with `jakarta.persistence`',
-        FixTypes.Incident,
-        ResolutionAction.Accept
+        FixTypes.Incident
       );
 
       const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
-      const actionButton = resolutionView.locator(
-        `button[aria-label="${accept ? 'Accept' : 'Reject'} all changes"]`
-      );
+      const actionButton = resolutionView.getByRole('button', {
+        name: new RegExp(accept ? 'Accept' : 'Reject'),
+      });
       await actionButton.waitFor();
 
-      let successRate = await mcpClient.getSuccessRate([
-        {
-          ruleset_name: 'eap8/eap7',
-          violation_name: 'javax-to-jakarta-import-00001',
-        },
-      ]);
-      expect(successRate.pending_solutions).toBe(successRateBase.pending_solutions + 1);
+      let successRate = await mcpClient.getSuccessRate({
+        ruleset_name: 'eap8/eap7',
+        violation_name: 'javax-to-jakarta-import-00001',
+      });
+      await expect
+        .poll(
+          async () => {
+            successRate = await mcpClient.getSuccessRate({
+              ruleset_name: 'eap8/eap7',
+              violation_name: 'javax-to-jakarta-import-00001',
+            });
+            return successRate.pending_solutions;
+          },
+          {
+            message: 'make sure solution server metrics eventually gets updated',
+            timeout: 10000,
+          }
+        )
+        .toBe(successRateBase.pending_solutions + 1);
       expect(successRate.counted_solutions).toBe(successRateBase.counted_solutions + 1);
       await actionButton.click();
 
@@ -118,13 +154,22 @@ test.describe(
           .filter({ hasText: 'Waiting for solution confirmation...' })
       ).not.toBeVisible({ timeout: 35000 });
 
-      successRate = await mcpClient.getSuccessRate([
-        {
-          ruleset_name: 'eap8/eap7',
-          violation_name: 'javax-to-jakarta-import-00001',
-        },
-      ]);
-      expect(successRate.pending_solutions).toBe(successRateBase.pending_solutions);
+      await expect
+        .poll(
+          async () => {
+            successRate = await mcpClient.getSuccessRate({
+              ruleset_name: 'eap8/eap7',
+              violation_name: 'javax-to-jakarta-import-00001',
+            });
+            return successRate.pending_solutions;
+          },
+          {
+            message: 'make sure solution server metrics eventually gets updated',
+            // Poll for 10 seconds
+            timeout: 10000,
+          }
+        )
+        .toBe(successRateBase.pending_solutions);
 
       const key = accept ? 'accepted_solutions' : 'rejected_solutions';
       expect(successRate[key]).toBe(successRateBase[key] + 1);
