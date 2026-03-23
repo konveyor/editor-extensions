@@ -332,13 +332,14 @@ const ChatPage: React.FC = () => {
                     {isRunning ? (
                       <p className="chat-agent-status__hint">
                         Use <strong>Get Solution</strong> from the analysis view to start a
-                        migration workflow. Goose will handle the code changes.
+                        migration workflow.
                       </p>
                     ) : isStarting ? (
-                      <p className="chat-agent-status__hint">Starting Goose agent...</p>
+                      <p className="chat-agent-status__hint">Starting agent...</p>
                     ) : (
                       <p className="chat-agent-status__hint">
-                        Start the Goose agent to enable AI-powered migration workflows.
+                        Use <strong>Get Solution</strong> from the analysis view to start a
+                        migration workflow.
                       </p>
                     )}
                   </div>
