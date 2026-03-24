@@ -118,6 +118,25 @@ export const agentMessageHandlers: Record<
         if (agentClient) {
           agentClient.updateModelEnv(cleaned);
         }
+
+        // Also write provider-settings.yaml so the DirectLLMClient fallback
+        // works when the agent hasn't started yet (e.g., before a reload)
+        try {
+          const { generateProviderSettingsYaml } =
+            await import("../../modelProvider/providerConfigGenerator");
+          const { paths } = await import("../../paths");
+          const vscode = await import("vscode");
+          const yamlContent = generateProviderSettingsYaml(
+            payload.provider,
+            payload.model,
+            payload.credentials,
+          );
+          const encoder = new TextEncoder();
+          await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+          logger.info("Also updated provider-settings.yaml for DirectLLMClient fallback");
+        } catch (err) {
+          logger.warn("Failed to update provider-settings.yaml from agent config:", err);
+        }
       }
 
       const agentClient = getAgentClient(state);

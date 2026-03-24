@@ -1,8 +1,25 @@
 import * as vscode from "vscode";
+import { join, isAbsolute } from "path";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import { handleFileResponse } from "../../utilities/ModifiedFiles/handleFileResponse";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+
+/**
+ * Resolve a potentially relative path against the workspace root.
+ * Paths stored in `pendingBatchReview` are relative but `handleFileResponse`
+ * and VS Code file APIs need absolute paths.
+ */
+function resolveAbsolutePath(filePath: string, state: ExtensionState): string {
+  if (isAbsolute(filePath)) {
+    return filePath;
+  }
+  let wsRoot = state.data.workspaceRoot;
+  if (wsRoot.startsWith("file://")) {
+    wsRoot = new URL(wsRoot).pathname;
+  }
+  return join(wsRoot, filePath);
+}
 
 /**
  * Message handlers for batch review operations.
@@ -15,7 +32,8 @@ export const batchReviewHandlers: Record<
   (payload: any, state: ExtensionState, logger: winston.Logger) => void | Promise<void>
 > = {
   FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state, logger) => {
-    await handleFileResponse(messageToken, responseId, path, content, state);
+    const absPath = resolveAbsolutePath(path, state);
+    await handleFileResponse(messageToken, responseId, absPath, content, state);
 
     state.mutate((draft) => {
       if (draft.pendingBatchReview) {
@@ -33,7 +51,8 @@ export const batchReviewHandlers: Record<
 
   CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
     try {
-      const uri = vscode.Uri.file(path);
+      const absPath = resolveAbsolutePath(path, state);
+      const uri = vscode.Uri.file(absPath);
       const currentBytes = await vscode.workspace.fs.readFile(uri);
       const currentText = new TextDecoder().decode(currentBytes);
 
@@ -45,7 +64,7 @@ export const batchReviewHandlers: Record<
       const responseId = hasChanges ? "apply" : "reject";
       const finalContent = hasChanges ? currentText : content;
 
-      await handleFileResponse(messageToken, responseId, path, finalContent, state, true);
+      await handleFileResponse(messageToken, responseId, absPath, finalContent, state, true);
 
       state.mutate((draft) => {
         if (draft.pendingBatchReview) {
@@ -58,7 +77,8 @@ export const batchReviewHandlers: Record<
       checkBatchReviewComplete(state, logger);
     } catch (error) {
       logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
-      await handleFileResponse(messageToken, "reject", path, content, state, true);
+      const absPath = resolveAbsolutePath(path, state);
+      await handleFileResponse(messageToken, "reject", absPath, content, state, true);
 
       state.mutate((draft) => {
         if (draft.pendingBatchReview) {
@@ -85,16 +105,10 @@ export const batchReviewHandlers: Record<
 
       for (const file of files) {
         try {
-          await handleFileResponse(
-            file.messageToken,
-            "apply",
-            file.path,
-            file.content,
-            state,
-            true,
-          );
+          const absPath = resolveAbsolutePath(file.path, state);
+          await handleFileResponse(file.messageToken, "apply", absPath, file.content, state, true);
 
-          appliedFileUris.push(vscode.Uri.file(file.path));
+          appliedFileUris.push(vscode.Uri.file(absPath));
 
           state.mutate((draft) => {
             if (draft.pendingBatchReview) {
@@ -162,7 +176,8 @@ export const batchReviewHandlers: Record<
 
       for (const file of files) {
         try {
-          await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
+          const absPath = resolveAbsolutePath(file.path, state);
+          await handleFileResponse(file.messageToken, "reject", absPath, undefined, state);
 
           state.mutate((draft) => {
             if (draft.pendingBatchReview) {

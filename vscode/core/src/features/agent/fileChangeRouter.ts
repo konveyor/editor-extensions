@@ -26,10 +26,13 @@ function normalizeFilePath(filePath: string, workspaceRoot: string): string {
 /**
  * Central routing function for file changes from any agent backend.
  *
- * When `isBatchReviewMode` is enabled, file changes are queued in
- * `pendingBatchReview` for the user to accept/reject in bulk.
- * When disabled, changes are applied immediately and the solution
- * server is notified.
+ * When `isBatchReviewMode` is enabled (or `forceReview` is true),
+ * file changes are queued in `pendingBatchReview` for the user to
+ * accept/reject. When disabled, changes are applied immediately and
+ * the solution server is notified.
+ *
+ * The workflow path (KaiInteractiveWorkflow) always passes
+ * `forceReview: true` so changes are never auto-applied from LLM output.
  *
  * In both cases, a `ChatMessageType.ModifiedFile` message is pushed
  * to `chatMessages` so the change is visible in the chat UI.
@@ -39,8 +42,9 @@ export async function routeFileChange(
   filePath: string,
   content: string,
   originalContent?: string,
+  forceReview = false,
 ): Promise<void> {
-  const isBatchReviewMode = state.data.isBatchReviewMode === true;
+  const isBatchReviewMode = forceReview || state.data.isBatchReviewMode === true;
   const relativePath = normalizeFilePath(filePath, state.data.workspaceRoot);
 
   if (isBatchReviewMode) {

@@ -48,6 +48,7 @@ import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickRespon
 import winston from "winston";
 import { updateConfigErrors } from "./utilities/configuration";
 import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
+import { generateProviderSettingsYaml } from "./modelProvider/providerConfigGenerator";
 
 export function setupWebviewMessageListener(
   webview: vscode.Webview,
@@ -424,10 +425,24 @@ const actions: {
   },
   SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
     try {
-      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
+      const { join, isAbsolute } = await import("path");
+      let absPath = path;
+      if (!isAbsolute(path)) {
+        let wsRoot = state.data.workspaceRoot;
+        if (wsRoot.startsWith("file://")) {
+          wsRoot = new URL(wsRoot).pathname;
+        }
+        absPath = join(wsRoot, path);
+      }
+      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path: absPath, messageToken });
 
-      // Execute the command to show diff with decorations using streaming approach
-      await executeExtensionCommand("showDiffWithDecorations", path, diff, content, messageToken);
+      await executeExtensionCommand(
+        "showDiffWithDecorations",
+        absPath,
+        diff,
+        content,
+        messageToken,
+      );
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
 
@@ -538,6 +553,48 @@ const actions: {
     } catch (error) {
       logger.error("Error stopping workflow:", error);
       vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
+    }
+  },
+  UPDATE_MODEL_PROVIDER_CONFIG: async (payload, state, logger) => {
+    const { provider, model, credentials, agentMode } = payload as {
+      provider: string;
+      model: string;
+      credentials?: Record<string, string>;
+      agentMode?: boolean;
+    };
+
+    logger.info("Updating model provider config from chat UI", { provider, model, agentMode });
+
+    try {
+      if (agentMode !== undefined) {
+        const { updateConfigAgentMode } = await import("./utilities/configuration");
+        await updateConfigAgentMode(agentMode);
+
+        state.mutate((draft) => {
+          if (!draft.featureState) {
+            draft.featureState = {};
+          }
+          draft.featureState.agentMode = agentMode;
+        });
+      }
+
+      if (provider && model) {
+        const { paths } = await import("./paths");
+        const yamlContent = generateProviderSettingsYaml(provider, model, credentials);
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+
+        logger.info("Written provider-settings.yaml from chat UI config");
+        vscode.window.showInformationMessage(
+          `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
+        );
+      } else if (agentMode !== undefined) {
+        vscode.window.showInformationMessage(`Agent mode ${agentMode ? "enabled" : "disabled"}.`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error("Failed to update model provider config", { error: msg });
+      vscode.window.showErrorMessage(`Failed to update model config: ${msg}`);
     }
   },
 };
