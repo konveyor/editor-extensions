@@ -556,24 +556,41 @@ const actions: {
     }
   },
   UPDATE_MODEL_PROVIDER_CONFIG: async (payload, state, logger) => {
-    const { provider, model, credentials } = payload as {
+    const { provider, model, credentials, agentMode } = payload as {
       provider: string;
       model: string;
       credentials?: Record<string, string>;
+      agentMode?: boolean;
     };
 
-    logger.info("Updating model provider config from chat UI", { provider, model });
+    logger.info("Updating model provider config from chat UI", { provider, model, agentMode });
 
     try {
-      const { paths } = await import("./paths");
-      const yamlContent = generateProviderSettingsYaml(provider, model, credentials);
-      const encoder = new TextEncoder();
-      await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+      if (agentMode !== undefined) {
+        const { updateConfigAgentMode } = await import("./utilities/configuration");
+        await updateConfigAgentMode(agentMode);
 
-      logger.info("Written provider-settings.yaml from chat UI config");
-      vscode.window.showInformationMessage(
-        `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
-      );
+        state.mutate((draft) => {
+          if (!draft.featureState) {
+            draft.featureState = {};
+          }
+          draft.featureState.agentMode = agentMode;
+        });
+      }
+
+      if (provider && model) {
+        const { paths } = await import("./paths");
+        const yamlContent = generateProviderSettingsYaml(provider, model, credentials);
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+
+        logger.info("Written provider-settings.yaml from chat UI config");
+        vscode.window.showInformationMessage(
+          `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
+        );
+      } else if (agentMode !== undefined) {
+        vscode.window.showInformationMessage(`Agent mode ${agentMode ? "enabled" : "disabled"}.`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error("Failed to update model provider config", { error: msg });

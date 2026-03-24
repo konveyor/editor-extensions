@@ -686,13 +686,29 @@ class VsCodeExtension {
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
+            const newAgentMode = getConfigAgentMode();
             this.state.mutate((draft) => {
               if (!draft.featureState) {
                 draft.featureState = {};
               }
-              draft.featureState.agentMode = getConfigAgentMode();
+              draft.featureState.agentMode = newAgentMode;
             });
-            this.state.logger.info(`Agent mode updated from settings: ${getConfigAgentMode()}`);
+            this.state.logger.info(`Agent mode updated from settings: ${newAgentMode}`);
+
+            const agentClient = this.state.featureClients.get("agentClient") as any;
+            const agentRunning = agentClient && agentClient.getState?.() === "running";
+            if (newAgentMode && !agentRunning) {
+              vscode.window
+                .showInformationMessage(
+                  "Agent Mode enabled. Reload the window to start the agent backend.",
+                  "Reload Window",
+                )
+                .then((selection) => {
+                  if (selection === "Reload Window") {
+                    vscode.commands.executeCommand("workbench.action.reloadWindow");
+                  }
+                });
+            }
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.analyzerPath`)) {

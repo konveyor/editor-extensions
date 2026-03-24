@@ -17,10 +17,9 @@ const CATEGORY_KEYS = ["fileEditing", "commandExecution", "webAccess", "mcpTools
 
 interface AgentSettingsProps {
   onClose: () => void;
-  compactMode?: boolean;
 }
 
-const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose, compactMode = false }) => {
+const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const agentConfig = useExtensionStore((s) => s.agentConfig);
   const agentState = useExtensionStore((s) => s.agentState);
   const toolPermissions = useExtensionStore((s) => s.toolPermissions);
@@ -127,36 +126,36 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose, compactMode = fa
 
     const hasCredentialValues = Object.values(credentialInputs).some((v) => v.length > 0);
 
-    if (compactMode) {
+    if (agentModeEnabled) {
+      if (permissionsChanged()) {
+        window.vscode.postMessage({
+          type: SET_TOOL_PERMISSIONS,
+          payload: { policy: buildPermissionPolicy() },
+        });
+      }
+
+      window.vscode.postMessage({
+        type: "AGENT_UPDATE_CONFIG",
+        payload: {
+          provider: selectedProvider,
+          model: modelInput,
+          agentMode: agentModeEnabled,
+          extensions: extensionPayload,
+          ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
+        },
+      });
+    } else {
       window.vscode.postMessage({
         type: "UPDATE_MODEL_PROVIDER_CONFIG",
         payload: {
           provider: selectedProvider,
           model: modelInput,
+          agentMode: agentModeEnabled,
           ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
         },
       });
-      onClose();
-      return;
     }
 
-    if (permissionsChanged()) {
-      window.vscode.postMessage({
-        type: SET_TOOL_PERMISSIONS,
-        payload: { policy: buildPermissionPolicy() },
-      });
-    }
-
-    window.vscode.postMessage({
-      type: "AGENT_UPDATE_CONFIG",
-      payload: {
-        provider: selectedProvider,
-        model: modelInput,
-        agentMode: agentModeEnabled,
-        extensions: extensionPayload,
-        ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
-      },
-    });
     onClose();
   };
 
@@ -273,34 +272,34 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose, compactMode = fa
         <div className="agent-settings__credential-hint">No API key required</div>
       )}
 
-      {!compactMode && (
-        <>
-          {/* Agent Mode */}
-          <div className="agent-settings__section">
-            <div className="agent-settings__section-divider" />
-            <div className="agent-settings__permission-row">
-              <div>
-                <span className="agent-settings__permission-label">Agent Mode</span>
-                <div className="agent-settings__agent-mode-hint">
-                  {agentModeEnabled
-                    ? "Full autonomy — agent explores and fixes broadly"
-                    : "Focused fix — agent addresses specific incidents only"}
-                </div>
-              </div>
-              <button
-                className={`agent-settings__toggle ${agentModeEnabled ? "agent-settings__toggle--on" : ""}`}
-                onClick={() => setAgentModeEnabled((prev) => !prev)}
-                role="switch"
-                aria-checked={agentModeEnabled}
-                aria-label="Toggle Agent Mode"
-              >
-                <span className="agent-settings__toggle-track">
-                  <span className="agent-settings__toggle-thumb" />
-                </span>
-              </button>
+      {/* Agent Mode — always visible */}
+      <div className="agent-settings__section">
+        <div className="agent-settings__section-divider" />
+        <div className="agent-settings__permission-row">
+          <div>
+            <span className="agent-settings__permission-label">Agent Mode</span>
+            <div className="agent-settings__agent-mode-hint">
+              {agentModeEnabled
+                ? "Full autonomy — agent explores and fixes broadly"
+                : "Focused fix — agent addresses specific incidents only"}
             </div>
           </div>
+          <button
+            className={`agent-settings__toggle ${agentModeEnabled ? "agent-settings__toggle--on" : ""}`}
+            onClick={() => setAgentModeEnabled((prev) => !prev)}
+            role="switch"
+            aria-checked={agentModeEnabled}
+            aria-label="Toggle Agent Mode"
+          >
+            <span className="agent-settings__toggle-track">
+              <span className="agent-settings__toggle-thumb" />
+            </span>
+          </button>
+        </div>
+      </div>
 
+      {agentModeEnabled && (
+        <>
           {/* Tool Permissions */}
           <div className="agent-settings__section">
             <div className="agent-settings__section-divider" />
@@ -403,9 +402,9 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose, compactMode = fa
           className="agent-settings__btn agent-settings__btn--primary"
           onClick={handleApplyAndRestart}
           disabled={!selectedProvider || !modelInput}
-          title={compactMode ? "Apply model configuration" : (!hasChanges ? "No changes to apply" : "Apply changes and restart agent")}
+          title={agentModeEnabled ? (!hasChanges ? "No changes to apply" : "Apply changes and restart agent") : "Apply model configuration"}
         >
-          {compactMode ? "Apply" : agentState === "running" ? "Apply & Restart" : "Apply & Start"}
+          {agentModeEnabled ? (agentState === "running" ? "Apply & Restart" : "Apply & Start") : "Apply"}
         </button>
       </div>
     </div>

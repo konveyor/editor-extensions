@@ -38,11 +38,11 @@ export const agentFeatureModule: FeatureModule = {
     const { batchReviewHandlers } = await import("./batchReviewHandlers");
     disposables.push(ctx.registerMessageHandlers(batchReviewHandlers));
 
-    // Only start the Goose/OpenCode agent backend when experimental chat is enabled.
+    // Start the Goose/OpenCode agent backend when agentMode is enabled.
     // The chat webview and batch review handlers above are always registered so that
     // getSolution (via DirectLLMClient) can render output regardless of this setting.
-    const { getConfigExperimentalChatEnabled } = await import("../../utilities/configuration");
-    if (getConfigExperimentalChatEnabled()) {
+    const { getConfigAgentMode } = await import("../../utilities/configuration");
+    if (getConfigAgentMode()) {
       try {
         const agentClient = await createAgentClient(ctx);
         const { initializeAgent } = await import("./init");
@@ -52,7 +52,7 @@ export const agentFeatureModule: FeatureModule = {
         ctx.logger.error(`Failed to initialize agent: ${err}`);
       }
     } else {
-      ctx.logger.info("Agent backend skipped (experimentalChat.enabled is false)");
+      ctx.logger.info("Agent backend skipped (agentMode is false)");
     }
 
     ctx.logger.info("Agent feature module initialized");

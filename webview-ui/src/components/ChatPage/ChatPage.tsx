@@ -281,7 +281,7 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
-              {!experimentalChatEnabled && (isProcessing || hasWorkflowContent) && (
+              {!experimentalChatEnabled && (
                 <div className="chat-status-bar">
                   <span className="chat-status-text">
                     Migration Assistant
@@ -298,12 +298,7 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
-              {showSettings && (
-                <AgentSettings
-                  onClose={() => setShowSettings(false)}
-                  compactMode={!experimentalChatEnabled}
-                />
-              )}
+              {showSettings && <AgentSettings onClose={() => setShowSettings(false)} />}
 
               {experimentalChatEnabled && isError && agentError && (
                 <div className="chat-error-banner">
