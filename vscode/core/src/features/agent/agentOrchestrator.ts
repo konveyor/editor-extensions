@@ -80,17 +80,29 @@ export class AgentOrchestrator {
     try {
       const { parseModelConfig, getModelProviderFromConfig } = await import("../../modelProvider");
       const { paths } = await import("../../paths");
+      const { KaiInteractiveWorkflow, FileBasedResponseCache } =
+        await import("@editor-extensions/agentic");
+      const { getConfigKaiDemoMode, getCacheDir } = await import("../../utilities/configuration");
 
       const parsedConfig = await parseModelConfig(paths().settingsYaml);
       const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
 
-      await this.state.workflowManager.init({
+      const workflow = new KaiInteractiveWorkflow(this.logger);
+      await workflow.init({
         modelProvider,
         workspaceDir: this.state.data.workspaceRoot,
+        fsCache: this.state.kaiFsCache,
         solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
+        toolCache: new FileBasedResponseCache(
+          getConfigKaiDemoMode(),
+          (args) =>
+            typeof args === "string" ? args : JSON.stringify(args, Object.keys(args).sort()),
+          (args) => (typeof args === "string" ? args : JSON.parse(args)),
+          getCacheDir(this.state.data.workspaceRoot),
+          this.logger,
+        ),
       });
 
-      const workflow = this.state.workflowManager.getWorkflow();
       const profileName = this.incidents[0]?.activeProfileName ?? "";
       const programmingLanguage =
         this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
@@ -275,9 +287,8 @@ export class AgentOrchestrator {
    * Restores per-file accept/reject via the MessageQueueManager pipeline.
    */
   private async runWorkflowPath(agentClient: AgentClient, disposeClient: boolean): Promise<void> {
-    const { DirectLLMClient } = await import("../../client/directLLMClient");
-    if (!(agentClient instanceof DirectLLMClient)) {
-      this.logger.error("AgentOrchestrator: workflow path requires DirectLLMClient");
+    if (!agentClient.getWorkflow) {
+      this.logger.error("AgentOrchestrator: workflow path requires a client with getWorkflow()");
       return;
     }
 
@@ -316,11 +327,16 @@ export class AgentOrchestrator {
 
     try {
       this.logger.info("AgentOrchestrator: starting workflow via queue path");
+
+      const queueDrained = new Promise<void>((resolve) => {
+        queueManager.onDrain(resolve);
+      });
+
       await agentClient.sendMessage("", uuidv4());
+      await queueDrained;
+      await Promise.all(modifiedFilesPromises);
 
-      await new Promise<void>((resolve) => setTimeout(resolve, 500));
-
-      this.logger.info("AgentOrchestrator: workflow.run() returned", {
+      this.logger.info("AgentOrchestrator: workflow complete, queue drained", {
         queueLength: queueManager.getQueueLength(),
         pendingInteractions: pendingInteractions.size,
       });

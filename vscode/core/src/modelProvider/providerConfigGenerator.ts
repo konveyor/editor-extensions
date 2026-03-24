@@ -11,13 +11,6 @@ const PROVIDER_MAP: Record<string, ProviderMapping> = {
     langchainProvider: "ChatOpenAI",
     envVarMap: { OPENAI_API_KEY: "OPENAI_API_KEY" },
   },
-  anthropic: {
-    langchainProvider: "ChatOpenAI",
-    envVarMap: { ANTHROPIC_API_KEY: "OPENAI_API_KEY" },
-    extraArgs: {
-      configuration: { baseURL: "https://api.anthropic.com/v1" },
-    },
-  },
   aws_bedrock: {
     langchainProvider: "ChatBedrock",
     envVarMap: {
