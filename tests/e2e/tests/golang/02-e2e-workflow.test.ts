@@ -4,12 +4,25 @@ import { VSCode } from '../../pages/vscode.page';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { KAIViews } from '../../enums/views.enum';
 import { generateRandomString } from '../../utilities/utils';
-import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import {
+  getAvailableProviders,
+  getDefaultProviderConfig,
+} from '../../fixtures/provider-configs.fixture';
+import { loadGotestWorkflowLlemulatorResponses } from '../../fixtures/gotest-llemulator';
+import { isLlemulatorConfigured } from '../../utilities/llemulator.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+
+/** Get Solution → Accept requires a configured provider (llemulator URL, OpenAI key, or AWS Bedrock). */
+const SKIP_KAI_SOLUTION_REASON =
+  'No LLM provider available for Get Solution (set TEST_LLEMULATOR_URL, OPENAI_API_KEY, or AWS Bedrock per provider-configs.fixture).';
+
+function canRunKaiSolutionE2e(): boolean {
+  return getAvailableProviders().length > 0;
+}
 
 test.describe.serial(
   'Golang Extension - E2E Workflow',
-  { tag: ['@tier3', '@experimental'] },
+  { tag: ['@tier1', '@experimental'] },
   () => {
     let vscodeApp: VSCode;
     const randomString = generateRandomString();
@@ -23,6 +36,11 @@ test.describe.serial(
       repoInfo = testRepoData['gotest'];
       if (!repoInfo) {
         throw new Error("'gotest' fixture is missing from test-repos.json");
+      }
+      if (isLlemulatorConfigured()) {
+        // Two scripted solutions: (1) main.go autoscaling migration, (2) go.mod client-go bump — see gotest-llemulator.ts
+        await loadGotestWorkflowLlemulatorResponses();
+        console.log('Llemulator responses loaded for gotest workflow (CI / TEST_LLEMULATOR_URL)');
       }
       // Use openForRepo which determines initialization based on repo language
       vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
@@ -51,7 +69,7 @@ test.describe.serial(
     });
 
     test('Configure GenAI Provider', async () => {
-      await vscodeApp.configureGenerativeAI(DEFAULT_PROVIDER.config);
+      await vscodeApp.configureGenerativeAI(getDefaultProviderConfig().config);
       console.log('GenAI provider configured');
     });
 
@@ -215,7 +233,11 @@ test.describe.serial(
     });
 
     test('Fix autoscaling issue and accept solution', async () => {
+      test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
       test.setTimeout(600000);
+      if (isLlemulatorConfigured()) {
+        await loadGotestWorkflowLlemulatorResponses();
+      }
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
@@ -256,8 +278,8 @@ test.describe.serial(
       const acceptButton = resolutionView.getByRole('button', { name: 'Accept' }).first();
       await expect(
         acceptButton,
-        'Accept button not found. This may occur if the model is unreachable.'
-      ).toBeVisible({ timeout: 30000 });
+        'Accept button not found. This may occur if the model is unreachable, or CI has no OPENAI_API_KEY and TEST_LLEMULATOR_URL (scripted responses).'
+      ).toBeVisible({ timeout: 120000 });
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
@@ -265,6 +287,7 @@ test.describe.serial(
     });
 
     test('Verify issues reduced after autoscaling fix', async () => {
+      test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
@@ -286,7 +309,11 @@ test.describe.serial(
     });
 
     test('Fix dependency issue and accept solution', async () => {
+      test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
       test.setTimeout(600000);
+      if (isLlemulatorConfigured()) {
+        await loadGotestWorkflowLlemulatorResponses();
+      }
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
@@ -325,7 +352,7 @@ test.describe.serial(
 
       // Click Accept button
       const acceptButton = resolutionView.getByRole('button', { name: 'Accept' }).first();
-      await expect(acceptButton).toBeVisible({ timeout: 30000 });
+      await expect(acceptButton).toBeVisible({ timeout: 120000 });
       await acceptButton.click();
       console.log('Dependency fix accepted');
 
@@ -337,6 +364,7 @@ test.describe.serial(
     });
 
     test('Verify all issues resolved', async () => {
+      test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
