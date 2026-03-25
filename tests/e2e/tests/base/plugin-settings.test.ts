@@ -17,17 +17,16 @@ import {
   LLEMULATOR_PROVIDER,
 } from '../../fixtures/provider-configs.fixture';
 import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
-test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3', '@slow'] }, () => {
+test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, () => {
   let vscodeApp: VSCode;
   let tabManager: TabManager;
   const profileName = `plugins-settings-${generateRandomString()}`;
 
   test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(300000);
-
     if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
       await loadLlemulatorResponses({
         reset: true,
@@ -111,6 +110,16 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3', '@slow'] },
     tabManager = new TabManager(vscodeApp);
   });
 
+  test.beforeEach(async function () {
+    test.setTimeout(300000);
+    const testName = test.info().title.replace(/[_"'\s]/g, '');
+    console.log(`Starting ${testName} at ${new Date()}`);
+
+    await vscodeApp.getWindow().screenshot({
+      path: `${SCREENSHOTS_FOLDER}/before-${testName}.png`,
+    });
+  });
+
   test('Enable "Analyze on Save" setting', async () => {
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, true);
@@ -172,14 +181,14 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3', '@slow'] },
   });
 
   test('Disable "Auto Accept on Save" setting', async () => {
+    // Needed to avoid grabbing things from previous tests
+    await vscodeApp.executeTerminalCommand('git checkout .');
+
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, false);
     await vscodeApp.waitDefault();
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
-    await vscodeApp.startServer();
-    await vscodeApp.runAnalysis();
-    await vscodeApp.waitForAnalysisCompleted();
-
+    await vscodeApp.openAnalysisView();
     await vscodeApp.setListKindAndSort('files', 'ascending');
     await vscodeApp.searchAndRequestAction(
       FILES_NAMES[1],
@@ -187,12 +196,13 @@ test.describe('Plugin Settings - Analyze on Save', { tag: ['@tier3', '@slow'] },
       ResolutionAction.ReviewInEditor
     );
     await tabManager.saveTabFile(FILES_NAMES[1]);
+    const rejectChangesBtn = vscodeApp.getWindow().getByText('Reject All Changes');
+    // the diff should still be there when auto accept on save is disabled
+    await rejectChangesBtn.click();
+    await tabManager.saveTabFile(FILES_NAMES[1]);
     await tabManager.closeTabByName(FILES_NAMES[1]);
-    await vscodeApp.executeTerminalCommand(
-      'git status --short',
-      new RegExp(`M.*${FILES_NAMES[1].replace('.', '\\.')}`),
-      false
-    );
+    await vscodeApp.executeTerminalCommand('git status', 'Changes not staged for commit', false);
+    await vscodeApp.executeQuickCommand('View: Close All Editors');
   });
 
   test('Exclude diagnostic sources in agent mode', async ({ testRepoData }) => {

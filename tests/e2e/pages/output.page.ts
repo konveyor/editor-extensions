@@ -16,7 +16,10 @@ export class OutputPanel {
   }
 
   public static getInstance(vsCode: VSCode): OutputPanel {
-    return (OutputPanel.instance ??= new OutputPanel(vsCode));
+    if (!OutputPanel.instance || OutputPanel.instance.vsCode !== vsCode) {
+      OutputPanel.instance = new OutputPanel(vsCode);
+    }
+    return OutputPanel.instance;
   }
 
   /**
