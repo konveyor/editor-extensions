@@ -1,149 +1,37 @@
 import { v4 as uuidv4 } from "uuid";
 import type {
   ToolPermissionPolicy,
-  ToolPermissionLevel,
   ExtensionData,
   ChatMessage,
+  ToolMessageValue,
 } from "@editor-extensions/shared";
 import { ChatMessageType } from "@editor-extensions/shared";
-import type {
-  AgentClient,
-  PermissionRequestData,
-  PermissionOption,
-} from "../../client/agentClient";
+import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
 import type { AgentFileTracker } from "./fileTracker";
 import { classifyTool } from "./toolClassifier";
 import { executeExtensionCommand } from "../../commands";
 import { routeFileChange } from "./fileChangeRouter";
 
-// ─── Policy resolution ──────────────────────────────────────────────
+// Re-export pure policy functions so existing consumers don't break
+export {
+  resolvePermission,
+  isReadOnlyToolCall,
+  shouldAutoApproveWithPolicy,
+  shouldDenyWithPolicy,
+  findAllowOnceOptionId,
+  findRejectOnceOptionId,
+  filterPermissionOptions,
+  policyToGooseMode,
+  policyToOpencodePermissions,
+} from "./toolPermissionPolicy";
 
-/**
- * Resolve the effective permission level for a tool given the policy.
- *
- * Checks per-category overrides first, then falls back to the global
- * autonomy level. In "smart" mode, file editing and command execution
- * require approval while reads and other tools are auto-approved.
- */
-export function resolvePermission(
-  policy: ToolPermissionPolicy,
-  toolName: string,
-  rawInput?: Record<string, unknown>,
-): ToolPermissionLevel {
-  const category = classifyTool(toolName, rawInput);
-
-  // Check per-category override first
-  if (category !== "other" && policy.overrides?.[category]) {
-    return policy.overrides[category]!;
-  }
-
-  // Fall back to autonomy level
-  switch (policy.autonomyLevel) {
-    case "auto":
-      return "auto";
-    case "ask":
-      return "ask";
-    case "smart":
-      // "smart" = auto for reads/other, ask for writes
-      return category === "fileEditing" || category === "commandExecution" ? "ask" : "auto";
-  }
-}
-
-/**
- * Should a permission request be auto-approved given the current policy?
- *
- * Uses the tool classifier + policy to decide, rather than delegating
- * the classification to the backend.
- */
-export function shouldAutoApproveWithPolicy(
-  policy: ToolPermissionPolicy,
-  data: PermissionRequestData,
-): boolean {
-  const level = resolvePermission(policy, data.toolName ?? data.title, data.rawInput);
-  return level === "auto";
-}
-
-/**
- * Should a permission request be auto-denied given the current policy?
- */
-export function shouldDenyWithPolicy(
-  policy: ToolPermissionPolicy,
-  data: PermissionRequestData,
-): boolean {
-  const level = resolvePermission(policy, data.toolName ?? data.title, data.rawInput);
-  return level === "deny";
-}
-
-/**
- * Finds the "reject_once" option from a permission request's options list.
- * Used for auto-deny responses.
- */
-export function findRejectOnceOptionId(options: PermissionOption[]): string | undefined {
-  return options.find((opt) => opt.kind === "reject_once")?.optionId;
-}
-
-// ─── Backend adapters ───────────────────────────────────────────────
-
-/**
- * Translate a generic ToolPermissionPolicy to Goose's GOOSE_MODE env var.
- *
- * The global autonomy level maps to the mode. Per-category overrides are
- * enforced extension-side (not expressible as a single GOOSE_MODE value).
- */
-export function policyToGooseMode(policy: ToolPermissionPolicy): string {
-  switch (policy.autonomyLevel) {
-    case "ask":
-      return "approve";
-    case "smart":
-      return "smart_approve";
-    case "auto":
-      return "auto";
-  }
-}
-
-/**
- * Translate a generic ToolPermissionPolicy to OpenCode's permission config.
- *
- * Maps each tool category to OpenCode's permission keys:
- *   fileEditing → "edit", commandExecution → "bash", webAccess → "webfetch"
- */
-export function policyToOpencodePermissions(policy: ToolPermissionPolicy): Record<string, string> {
-  const map = (level: ToolPermissionLevel): string => {
-    switch (level) {
-      case "auto":
-        return "allow";
-      case "deny":
-        return "deny";
-      case "ask":
-        return "ask";
-    }
-  };
-
-  return {
-    edit: map(resolvePermission(policy, "edit")),
-    bash: map(resolvePermission(policy, "bash")),
-    webfetch: map(resolvePermission(policy, "webfetch")),
-  };
-}
-
-// ─── Permission UI helpers ──────────────────────────────────────────
-
-/**
- * Finds the "allow_once" option from a permission request's options list.
- * Used for auto-approval responses.
- */
-export function findAllowOnceOptionId(options: PermissionOption[]): string | undefined {
-  return options.find((opt) => opt.kind === "allow_once")?.optionId;
-}
-
-/**
- * Filters permission options to only show "Allow" and "Reject" (once).
- * "Always Allow" and "Always Reject" are confusing in the context of
- * a migration workflow — they'd silently change mode semantics.
- */
-export function filterPermissionOptions(options: PermissionOption[]): PermissionOption[] {
-  return options.filter((opt) => opt.kind === "allow_once" || opt.kind === "reject_once");
-}
+import {
+  shouldAutoApproveWithPolicy,
+  shouldDenyWithPolicy,
+  findAllowOnceOptionId,
+  findRejectOnceOptionId,
+  filterPermissionOptions,
+} from "./toolPermissionPolicy";
 
 function truncateLines(text: string, maxLines: number): string {
   const lines = text.split("\n");
@@ -367,12 +255,13 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
 
   const preview = formatPermissionPreview(data, workspaceRoot, originalContent);
 
-  // --- Batch review mode: auto-approve file edits, route to review queue ---
   const isBatchReviewMode = ctx.extensionState?.data.isBatchReviewMode === true;
   const category = classifyTool(
     data.toolName ?? data.title,
     data.rawInput as Record<string, unknown> | undefined,
   );
+
+  // --- Batch review mode: auto-approve file edits, route to review queue ---
   if (isBatchReviewMode && category === "fileEditing" && rawFilePath) {
     const optionId = findAllowOnceOptionId(data.options);
     if (optionId) {
@@ -400,18 +289,8 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
         outcome: { outcome: "selected", optionId },
       });
 
-      const message = preview ? `**Applied:** ${label}\n\n${preview}` : `**Applied:** ${label}`;
-
-      mutate((draft) => {
-        draft.chatMessages.push({
-          kind: ChatMessageType.String,
-          messageToken: `auto-${uuidv4()}`,
-          timestamp: new Date().toISOString(),
-          value: { message },
-        } as ChatMessage);
-      });
-
       if (rawFilePath && ctx.extensionState) {
+        // File edits: routeFileChange pushes a ModifiedFile message
         routeFileChange(
           ctx.extensionState,
           rawFilePath,
@@ -422,6 +301,19 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
         Promise.resolve(
           executeExtensionCommand("changeApplied", rawFilePath, rawFileContent ?? ""),
         ).catch(() => {});
+      } else {
+        // Non-file tools (todo, reads, etc.): compact tool indicator
+        mutate((draft) => {
+          draft.chatMessages.push({
+            kind: ChatMessageType.Tool,
+            messageToken: `auto-${uuidv4()}`,
+            timestamp: new Date().toISOString(),
+            value: {
+              toolName: label,
+              toolStatus: "succeeded",
+            } as ToolMessageValue,
+          });
+        });
       }
       return;
     }
