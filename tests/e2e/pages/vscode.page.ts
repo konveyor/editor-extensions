@@ -597,6 +597,12 @@ export abstract class VSCode {
   ): Promise<void> {
     await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
     try {
+      const openModalButton = this.window.getByRole('button', {
+        name: 'Open Modal Editor in Main Window',
+      });
+      if (await openModalButton.isVisible()) {
+        await openModalButton.click();
+      }
       const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
       const editor = this.window.locator('.monaco-editor .view-lines').first();
       await expect(editor).toBeVisible({ timeout: 10000 });
