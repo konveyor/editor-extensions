@@ -4,6 +4,7 @@
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { CheckResultBuilder, withErrorHandling } from "../helpers";
+import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 
 export const languageProvidersCheck: HealthCheckModule = {
   id: "language-providers",
@@ -26,7 +27,7 @@ export const languageProvidersCheck: HealthCheckModule = {
       if (providers.length === 0) {
         return builder.warning(
           "No language providers are registered",
-          "Language providers (e.g., Konveyor Java, Konveyor Go) may still be loading. Analysis cannot run until at least one provider is registered.",
+          `Language providers (e.g., ${EXTENSION_SHORT_NAME} Java, ${EXTENSION_SHORT_NAME} Go) may still be loading. Analysis cannot run until at least one provider is registered.`,
           "Wait for language extensions to finish loading. Check that language-specific extensions are installed.",
         );
       }
