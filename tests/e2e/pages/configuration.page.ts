@@ -1,6 +1,8 @@
 import { VSCode } from './vscode.page';
 import { extensionId } from '../utilities/utils';
 import { VSCodeWeb } from './vscode-web.page';
+import { expect } from '@playwright/test';
+import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class Configuration {
   public constructor(private readonly vsCode: VSCode) {}
@@ -24,22 +26,70 @@ export class Configuration {
     await searchInput.click();
     await searchInput.pressSequentially(`@ext:${extensionId}`);
     await this.vsCode.waitDefault();
+
+    const openModalButton = window.getByRole('button', {
+      name: 'Open Modal Editor in Main Window',
+    });
+    if (await openModalButton.isVisible()) {
+      await openModalButton.click();
+    }
+  }
+
+  public async searchConfig(configuration: string): Promise<void> {
+    const window = this.vsCode.getWindow();
+    const searchInput = window.locator('div.settings-header div.suggest-input-container');
+    await searchInput.waitFor();
+    const clearFilterLocator = window.getByRole('button', { name: 'Clear Settings Search Input' });
+    if (await clearFilterLocator.isEnabled()) {
+      await clearFilterLocator.click();
+    }
+    await searchInput.click();
+    await searchInput.pressSequentially(`${configuration}`);
+    await expect(window.getByLabel(configuration)).toBeVisible();
   }
 
   public async setEnabledConfiguration(configuration: string, enabled: boolean) {
     const window = this.vsCode.getWindow();
-    const checkbox = window.getByLabel(configuration);
-    await checkbox.setChecked(enabled);
+    try {
+      await this.searchConfig(configuration);
+      const checkbox = window.getByLabel(configuration);
+      await checkbox.scrollIntoViewIfNeeded();
+      await checkbox.setChecked(enabled);
+    } catch (error) {
+      await window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/error-set-${configuration.replace(/[_"'\s]/g, '')}-to-${enabled}.png`,
+      });
+      throw error;
+    }
   }
 
   public async setInputConfiguration(configuration: string, value: string) {
     const window = this.vsCode.getWindow();
-    await window.getByLabel(configuration).fill(value);
+    try {
+      await this.searchConfig(configuration);
+      await this.vsCode.getWindow().getByLabel(configuration).fill(value);
+    } catch (error) {
+      await window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/error-setting-${configuration.replace(/[_"'\s]/g, '')}.png`,
+      });
+      throw error;
+    }
   }
 
   public async setDropdownConfiguration(configuration: string, value: string) {
-    const selectLocator = this.vsCode.getWindow().locator(`select[aria-label="${configuration}"]`);
-    await selectLocator.selectOption({ value });
+    const window = this.vsCode.getWindow();
+    try {
+      await this.searchConfig(configuration);
+      const selectLocator = this.vsCode
+        .getWindow()
+        .locator(`select[aria-label="${configuration}"]`);
+      await selectLocator.selectOption({ value });
+    } catch (error) {
+      await window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/error-setting-${configuration.replace(/[_"'\s]/g, '')}.png`,
+      });
+      throw error;
+    }
   }
 
   /**
