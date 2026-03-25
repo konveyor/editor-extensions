@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { EXTENSION_PUBLISHER } from "./utilities/constants";
+import { EXTENSION_PUBLISHER, EXTENSION_SHORT_NAME } from "./utilities/constants";
 
 export interface KnownLanguageExtension {
   id: string;
@@ -14,22 +14,22 @@ export interface KnownLanguageExtension {
 export const KNOWN_LANGUAGE_EXTENSIONS: KnownLanguageExtension[] = [
   {
     id: `${EXTENSION_PUBLISHER}.konveyor-java`,
-    displayName: "Konveyor Java",
+    displayName: `${EXTENSION_SHORT_NAME} Java`,
     language: "java",
   },
   {
     id: `${EXTENSION_PUBLISHER}.konveyor-go`,
-    displayName: "Konveyor Go",
+    displayName: `${EXTENSION_SHORT_NAME} Go`,
     language: "go",
   },
   {
     id: `${EXTENSION_PUBLISHER}.konveyor-javascript`,
-    displayName: "Konveyor JavaScript",
+    displayName: `${EXTENSION_SHORT_NAME} JavaScript`,
     language: "javascript",
   },
   {
     id: `${EXTENSION_PUBLISHER}.konveyor-csharp`,
-    displayName: "Konveyor C#",
+    displayName: `${EXTENSION_SHORT_NAME} C#`,
     language: "csharp",
   },
 ];

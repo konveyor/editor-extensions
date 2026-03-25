@@ -1157,7 +1157,7 @@ export function registerAllCommands(state: ExtensionState) {
     const errorMessage = `Failed to create command map: ${error instanceof Error ? error.message : String(error)}`;
     logger.error(errorMessage, { error });
     window.showErrorMessage(
-      `Konveyor extension failed to initialize commands. The extension cannot function properly.`,
+      `${EXTENSION_SHORT_NAME} extension failed to initialize commands. The extension cannot function properly.`,
     );
     throw new Error(errorMessage);
   }
@@ -1168,7 +1168,7 @@ export function registerAllCommands(state: ExtensionState) {
     const errorMessage = `Command map is empty - no commands available to register`;
     logger.error(errorMessage);
     window.showErrorMessage(
-      `Konveyor extension has no commands to register. The extension cannot function properly.`,
+      `${EXTENSION_SHORT_NAME} extension has no commands to register. The extension cannot function properly.`,
     );
     throw new Error(errorMessage);
   }

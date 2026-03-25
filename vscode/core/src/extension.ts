@@ -944,7 +944,7 @@ class VsCodeExtension {
   }
 
   private setupDiffStatusBar(): void {
-    this.diffStatusBarItem.name = "Konveyor Diff Status";
+    this.diffStatusBarItem.name = `${EXTENSION_DISPLAY_NAME} Diff Status`;
     this.diffStatusBarItem.tooltip = "Click to accept/reject all diff changes";
     this.diffStatusBarItem.command = `${EXTENSION_NAME}.showDiffActions`;
     this.diffStatusBarItem.hide();
@@ -1051,7 +1051,7 @@ class VsCodeExtension {
     } catch (error) {
       this.state.logger.error("Critical error during command registration", error);
       vscode.window.showErrorMessage(
-        `Konveyor extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
+        `${EXTENSION_DISPLAY_NAME} extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Re-throw to indicate the extension is not in a good state
       throw error;
@@ -1584,7 +1584,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
 
       vscode.window
         .showWarningMessage(
-          "Konveyor requires a workspace folder to analyze. Open a folder to get started.",
+          `${EXTENSION_DISPLAY_NAME} requires a workspace folder to analyze. Open a folder to get started.`,
           "Open Folder",
         )
         .then((selection) => {
@@ -1602,7 +1602,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
           if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             vscode.window
               .showInformationMessage(
-                "Workspace folder detected. Reload the window to activate Konveyor fully.",
+                `Workspace folder detected. Reload the window to activate ${EXTENSION_DISPLAY_NAME} fully.`,
                 "Reload Window",
               )
               .then((selection) => {

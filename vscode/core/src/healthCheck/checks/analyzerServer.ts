@@ -4,6 +4,7 @@
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { CheckResultBuilder, withErrorHandling, formatDetails } from "../helpers";
+import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 
 const SERVER_STATUS_MAP: Record<string, string> = {
   stopped: "Server is stopped",
@@ -47,7 +48,7 @@ export const analyzerServerCheck: HealthCheckModule = {
       const message = SERVER_STATUS_MAP[serverState] || `Server state: ${serverState}`;
       const suggestion =
         serverState === "stopped"
-          ? "Use 'Konveyor: Start Server' command to start the analyzer"
+          ? `Use '${EXTENSION_SHORT_NAME}: Start Server' command to start the analyzer`
           : serverState === "startFailed"
             ? "Check logs for startup errors. May be related to binary permissions or named pipe issues."
             : "Wait for server to complete initialization or check configuration";
