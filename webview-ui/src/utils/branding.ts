@@ -7,5 +7,5 @@ export const isKonveyor = (): boolean => {
 };
 
 export const getBrandName = (): string => {
-  return __EXTENSION_NAME__;
+  return __EXTENSION_SHORT_NAME__;
 };

@@ -27,6 +27,7 @@ import { useExtensionStore } from "../../../store/store";
 import { sendVscodeMessage as dispatch } from "../../../utils/vscodeMessaging";
 import { TruncatedDescription } from "../../TruncatedDescription/TruncatedDescription";
 import { enableGenAI } from "../../../hooks/actions";
+import { getBrandName } from "../../../utils/branding";
 
 export function WalkthroughDrawer({
   isOpen,
@@ -141,7 +142,7 @@ export function WalkthroughDrawer({
         : "Used to target the technologies your project uses.",
       fullDescription: isInTreeMode
         ? disabledFullDescription
-        : "Used to target the technologies your project uses. Label selectors help Konveyor identify which analysis rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.",
+        : `Used to target the technologies your project uses. Label selectors help ${getBrandName()} identify which analysis rules are relevant to your specific technology stack. Common examples include 'java', 'spring-boot', 'hibernate', or custom labels that match your project's characteristics.`,
     },
     {
       id: "rules",

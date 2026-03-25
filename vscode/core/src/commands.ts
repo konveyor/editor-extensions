@@ -27,7 +27,11 @@ import {
   fileUriToPath,
 } from "./utilities/configuration";
 import { EXTENSION_NAME, EXTENSION_PUBLISHER, EXTENSION_SHORT_NAME } from "./utilities/constants";
-import { getInstalledLanguageExtensions, EXTENSION_PACK_ID } from "./languageExtensions";
+import {
+  getInstalledLanguageExtensions,
+  KNOWN_LANGUAGE_EXTENSIONS,
+  EXTENSION_PACK_ID,
+} from "./languageExtensions";
 import { runPartialAnalysis } from "./analysis";
 import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
@@ -413,7 +417,7 @@ const commandsMap: (
         // Execute the Continue command with prompt and range
         await commands.executeCommand(
           "continue.customQuickActionSendToChat",
-          `Help me address this Konveyor migration issue:\nRule: ${incident.ruleset_name} - ${incident.ruleset_description}\nViolation: ${incident.violation_name} - ${incident.violation_description}\nCategory: ${incident.violation_category}\nMessage: ${incident.message}`,
+          `Help me address this ${EXTENSION_SHORT_NAME} migration issue:\nRule: ${incident.ruleset_name} - ${incident.ruleset_description}\nViolation: ${incident.violation_name} - ${incident.violation_description}\nCategory: ${incident.violation_category}\nMessage: ${incident.message}`,
           new Range(
             new Position(startLine, 0),
             new Position(endLine, doc.lineAt(endLine).text.length),
@@ -522,7 +526,7 @@ const commandsMap: (
         title: "Enter the path where the debug archive will be saved",
         value: pathlib.join(
           ".vscode",
-          `konveyor-log-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`,
+          `${EXTENSION_NAME}-log-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`,
         ),
         ignoreFocusOut: true,
         placeHolder: "Enter the path where the debug archive will be saved",
@@ -627,12 +631,7 @@ const commandsMap: (
         );
       }
       // add logs and write zip
-      const LANGUAGE_EXTENSION_IDS = [
-        "konveyor.konveyor-javascript",
-        "konveyor.konveyor-java",
-        "konveyor.konveyor-go",
-        "konveyor.konveyor-csharp",
-      ];
+      const LANGUAGE_EXTENSION_IDS = KNOWN_LANGUAGE_EXTENSIONS.map((ext) => ext.id);
       try {
         const zipArchive = new AdmZip();
         const coreLogPath = fileUriToPath(state.extensionContext.logUri.fsPath);
@@ -1157,7 +1156,7 @@ export function registerAllCommands(state: ExtensionState) {
     const errorMessage = `Failed to create command map: ${error instanceof Error ? error.message : String(error)}`;
     logger.error(errorMessage, { error });
     window.showErrorMessage(
-      `Konveyor extension failed to initialize commands. The extension cannot function properly.`,
+      `${EXTENSION_SHORT_NAME} extension failed to initialize commands. The extension cannot function properly.`,
     );
     throw new Error(errorMessage);
   }
@@ -1168,7 +1167,7 @@ export function registerAllCommands(state: ExtensionState) {
     const errorMessage = `Command map is empty - no commands available to register`;
     logger.error(errorMessage);
     window.showErrorMessage(
-      `Konveyor extension has no commands to register. The extension cannot function properly.`,
+      `${EXTENSION_SHORT_NAME} extension has no commands to register. The extension cannot function properly.`,
     );
     throw new Error(errorMessage);
   }
