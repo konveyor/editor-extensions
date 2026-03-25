@@ -59,6 +59,10 @@ getAvailableProviders().forEach((provider) => {
       });
     });
 
+    test.beforeEach(async () => {
+      console.log(`Starting ${test.info().title} with provider ${provider.model} at ${new Date()}`);
+    });
+
     test('Fix one issue', async () => {
       test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
