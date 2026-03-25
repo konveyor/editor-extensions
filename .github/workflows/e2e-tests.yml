@@ -84,7 +84,6 @@ jobs:
 
   # Critical tests - block PRs and releases
   test-tier0:
-    if: false # TODO abrugaro remove
     name: Critical Tests (@tier0)
     runs-on: ubuntu-latest
     needs: setup
