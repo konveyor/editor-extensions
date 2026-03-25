@@ -155,10 +155,10 @@ jobs:
           for vsix in ./artifacts/*.vsix; do
             if [ "${{ inputs.prerelease }}" = "true" ]; then
               echo "Publishing $(basename "$vsix") as pre-release"
-              npx @vscode/vsce publish --pre-release --packagePath "$vsix"
+              npx @vscode/vsce publish --skip-duplicate --pre-release --packagePath "$vsix"
             else
               echo "Publishing $(basename "$vsix") as stable release"
-              npx @vscode/vsce publish --packagePath "$vsix"
+              npx @vscode/vsce publish --skip-duplicate --packagePath "$vsix"
             fi
           done
 
@@ -190,11 +190,11 @@ jobs:
           for vsix in ./artifacts/*.vsix; do
             if [ "${{ inputs.prerelease }}" = "true" ]; then
               echo "Publishing $(basename "$vsix") to Open VSX as pre-release"
-              npx ovsx publish --pre-release --packagePath "$vsix" \
+              npx ovsx publish --skip-duplicate --pre-release --packagePath "$vsix" \
                 --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
             else
               echo "Publishing $(basename "$vsix") to Open VSX as stable release"
-              npx ovsx publish --packagePath "$vsix" \
+              npx ovsx publish --skip-duplicate --packagePath "$vsix" \
                 --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
             fi
           done
@@ -290,7 +290,7 @@ jobs:
         with:
           payload: |
             {
-              "test": "Extension Published",
+              "text": "Extension Published",
               "branch": "${{ inputs.ref }}",
               "note": "Published ${{ inputs.tag }}: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}"
             }
