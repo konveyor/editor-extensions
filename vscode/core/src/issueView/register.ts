@@ -11,7 +11,6 @@ export function registerIssueView({
   issueModel: model,
 }: ExtensionState): (data: Immutable<ExtensionData>) => void {
   const provider = new IssuesTreeDataProvider(model);
-  vscode.window.registerTreeDataProvider(`${EXTENSION_NAME}.issueView`, provider);
   const treeView = vscode.window.createTreeView<IncidentTypeItem | FileItem | ReferenceItem>(
     `${EXTENSION_NAME}.issueView`,
     {
