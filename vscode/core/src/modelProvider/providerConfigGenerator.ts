@@ -41,6 +41,10 @@ const PROVIDER_MAP: Record<string, ProviderMapping> = {
       configuration: { baseURL: "https://api.groq.com/openai/v1" },
     },
   },
+  anthropic: {
+    langchainProvider: "ChatAnthropic",
+    envVarMap: { ANTHROPIC_API_KEY: "ANTHROPIC_API_KEY" },
+  },
 };
 
 /**

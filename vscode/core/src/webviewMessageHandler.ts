@@ -578,7 +578,9 @@ const actions: {
         });
       }
 
-      if (provider && model) {
+      const hasCredentials = credentials && Object.values(credentials).some((v) => v.length > 0);
+
+      if (provider && model && hasCredentials) {
         const { paths } = await import("./paths");
         const yamlContent = generateProviderSettingsYaml(provider, model, credentials);
         const encoder = new TextEncoder();

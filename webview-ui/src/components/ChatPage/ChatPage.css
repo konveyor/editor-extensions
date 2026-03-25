@@ -486,15 +486,7 @@
   margin-top: 8px;
 }
 
-/* --- Tool Calls Summary (collapsed) --- */
-
-.tool-calls-summary {
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground, #8a8d90);
-  opacity: 0.6;
-  padding: 1px 0;
-  user-select: none;
-}
+/* (tool-calls-summary removed; replaced by CollapsibleToolGroup in ToolMessage) */
 
 /* --- Cancelled Label --- */
 

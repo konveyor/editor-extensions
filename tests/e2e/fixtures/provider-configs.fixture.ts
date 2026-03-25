@@ -12,27 +12,19 @@ export const AWS_PROVIDER: ProviderConfig = {
   model: 'meta.llama3-70b-instruct-v1:0',
   config: [
     '---',
-    'models:',
-    '  AmazonBedrock: &active',
-    '    provider: "ChatBedrock"',
-    '    args:',
-    '      model_id: "meta.llama3-70b-instruct-v1:0"',
-    'active: *active',
+    'active:',
+    '  provider: "ChatBedrock"',
+    '  args:',
+    '    model_id: "meta.llama3-70b-instruct-v1:0"',
   ].join('\n'),
 };
 
 export const OPENAI_GPT4O_PROVIDER: ProviderConfig = {
   provider: LLMProviders.openAI,
   model: 'gpt-4o',
-  config: [
-    '---',
-    'models:',
-    '  OpenAI: &active',
-    '    provider: "ChatOpenAI"',
-    '    args:',
-    '      model: "gpt-4o"',
-    'active: *active',
-  ].join('\n'),
+  config: ['---', 'active:', '  provider: "ChatOpenAI"', '  args:', '    model: "gpt-4o"'].join(
+    '\n'
+  ),
 };
 
 export const OPENAI_GPT4OMINI_PROVIDER: ProviderConfig = {
@@ -40,12 +32,10 @@ export const OPENAI_GPT4OMINI_PROVIDER: ProviderConfig = {
   model: 'gpt-4o-mini',
   config: [
     '---',
-    'models:',
-    '  OpenAI: &active',
-    '    provider: "ChatOpenAI"',
-    '    args:',
-    '      model: "gpt-4o-mini"',
-    'active: *active',
+    'active:',
+    '  provider: "ChatOpenAI"',
+    '  args:',
+    '    model: "gpt-4o-mini"',
   ].join('\n'),
 };
 
@@ -54,12 +44,10 @@ export const GOOGLE_GEMINI_PROVIDER: ProviderConfig = {
   model: 'gemini-2.5-pro',
   config: [
     '---',
-    'models:',
-    '  GoogleGenAI: &active',
-    '    provider: "ChatGoogleGenerativeAI"',
-    '    args:',
-    '      model: "gemini-2.5-pro"',
-    'active: *active',
+    'active:',
+    '  provider: "ChatGoogleGenerativeAI"',
+    '  args:',
+    '    model: "gemini-2.5-pro"',
   ].join('\n'),
 };
 
@@ -68,14 +56,12 @@ export const PARASOL_PROVIDER: ProviderConfig = {
   model: 'granite-3-3-8b-instruct',
   config: [
     '---',
-    'models:',
-    '  parasols-maas-granite: &active',
-    '    provider: "ChatOpenAI"',
-    '    args:',
-    '      model: "granite-3-3-8b-instruct"',
-    '      configuration:',
-    '        baseURL: "https://granite-3-3-8b-instruct-maas-apicast-production.apps.prod.rhoai.rh-aiservices-bu.com/v1"',
-    'active: *active',
+    'active:',
+    '  provider: "ChatOpenAI"',
+    '  args:',
+    '    model: "granite-3-3-8b-instruct"',
+    '    configuration:',
+    '      baseURL: "https://granite-3-3-8b-instruct-maas-apicast-production.apps.prod.rhoai.rh-aiservices-bu.com/v1"',
   ].join('\n'),
 };
 

@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import "./toolMessage.css";
-import { CheckCircleIcon, TimesCircleIcon, SyncAltIcon } from "@patternfly/react-icons";
+import {
+  CheckCircleIcon,
+  TimesCircleIcon,
+  SyncAltIcon,
+  AngleRightIcon,
+} from "@patternfly/react-icons";
+import type { ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
 
 interface ToolMessageProps {
   toolName: string;
@@ -65,6 +71,53 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({ toolName, status, deta
       <StatusIcon status={status} />
       <span className="tool-indicator__label">{label}</span>
       {detail && <span className="tool-indicator__detail">{detail}</span>}
+    </div>
+  );
+};
+
+const MAX_INLINE_LABELS = 3;
+
+interface CollapsibleToolGroupProps {
+  tools: ChatMessage[];
+}
+
+export const CollapsibleToolGroup: React.FC<CollapsibleToolGroupProps> = ({ tools }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const labels = tools.map((t) => getHumanReadableToolName((t.value as ToolMessageValue).toolName));
+
+  const summary =
+    labels.length <= MAX_INLINE_LABELS
+      ? labels.join(", ")
+      : `Used ${labels.length} tools`;
+
+  return (
+    <div className="tool-group">
+      <button
+        className="tool-group__toggle"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+      >
+        <AngleRightIcon
+          className={`tool-group__chevron ${expanded ? "tool-group__chevron--open" : ""}`}
+        />
+        <span className="tool-group__summary">{summary}</span>
+      </button>
+      {expanded && (
+        <div className="tool-group__detail">
+          {tools.map((t) => {
+            const val = t.value as ToolMessageValue;
+            return (
+              <ToolMessage
+                key={t.messageToken}
+                toolName={val.toolName}
+                status="succeeded"
+                detail={val.detail}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

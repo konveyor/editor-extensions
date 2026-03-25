@@ -47,3 +47,61 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+/* --- Collapsible tool group (Cursor-like) --- */
+
+.tool-group {
+  padding: 1px 0;
+}
+
+.tool-group__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground, #8a8d90);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.tool-group__toggle:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.tool-group__chevron {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.tool-group__chevron--open {
+  transform: rotate(90deg);
+}
+
+.tool-group__summary {
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-group__detail {
+  padding: 2px 0 2px 20px;
+}
+
+.tool-group__detail .tool-indicator {
+  font-size: 11px;
+  padding: 1px 0;
+}
+
+.tool-group__detail .tool-status-icon {
+  width: 12px;
+  height: 12px;
+}

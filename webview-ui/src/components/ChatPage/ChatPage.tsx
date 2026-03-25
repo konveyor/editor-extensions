@@ -15,10 +15,10 @@ import {
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
-import { openFile } from "../../hooks/actions";
+import { openFile, enableGenAI } from "../../hooks/actions";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
-import { ToolMessage } from "../ResolutionsPage/ToolMessage";
+import { ToolMessage, CollapsibleToolGroup } from "../ResolutionsPage/ToolMessage";
 import { MessageWrapper } from "../ResolutionsPage/MessageWrapper";
 import { CompactModifiedFile } from "./CompactModifiedFile";
 import LoadingIndicator from "../ResolutionsPage/LoadingIndicator";
@@ -27,6 +27,7 @@ import { useScrollManagement } from "../../hooks/useScrollManagement";
 import { useContainerWidth } from "../../hooks/useContainerWidth";
 import AgentSettings from "./AgentSettings";
 import { CompactBatchReview } from "./CompactBatchReview";
+import { PermissionReviewMessage } from "./PermissionReviewMessage";
 import "./ChatPage.css";
 
 const MIN_USABLE_WIDTH = 200;
@@ -44,6 +45,7 @@ const ChatPage: React.FC = () => {
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
 
+  const configErrors = useExtensionStore((s) => s.configErrors);
   const modelSupportsTools = useExtensionStore((s) => s.modelSupportsTools);
   const chatMessages = useExtensionStore((s) => s.chatMessages);
   const solutionScope = useExtensionStore((s) => s.solutionScope);
@@ -83,6 +85,12 @@ const ChatPage: React.FC = () => {
     agentConfig?.provider && agentConfig?.model
       ? `${agentConfig.provider} / ${agentConfig.model}`
       : "Not configured";
+
+  const providerNotConfigured = configErrors.some((e) => e.type === "provider-not-configured");
+  const providerConnectionFailed = configErrors.some(
+    (e) => e.type === "provider-connection-failed",
+  );
+  const genaiDisabled = configErrors.some((e) => e.type === "genai-disabled");
 
   const renderItems = useMemo((): RenderItem[] => {
     if (!hasWorkflowContent) {
@@ -161,21 +169,7 @@ const ChatPage: React.FC = () => {
           );
         }
 
-        return (
-          <div key={key} className="tool-calls-summary">
-            {tools.map((t) => {
-              const val = t.value as ToolMessageValue;
-              return (
-                <ToolMessage
-                  key={t.messageToken}
-                  toolName={val.toolName}
-                  status="succeeded"
-                  detail={val.detail}
-                />
-              );
-            })}
-          </div>
-        );
+        return <CollapsibleToolGroup key={key} tools={tools} />;
       }
 
       const msg = item.message;
@@ -192,6 +186,27 @@ const ChatPage: React.FC = () => {
       if (msg.kind === ChatMessageType.String) {
         const message = msg.value?.message as string;
         const selectedResponse = msg.selectedResponse;
+
+        if (msg.messageToken.startsWith("perm-") && message?.includes("```diff")) {
+          return (
+            <MessageWrapper key={msg.messageToken}>
+              <PermissionReviewMessage
+                content={message}
+                timestamp={msg.timestamp}
+                quickResponses={
+                  Array.isArray(msg.quickResponses) && msg.quickResponses.length > 0
+                    ? msg.quickResponses.map((response) => ({
+                        ...response,
+                        messageToken: msg.messageToken,
+                        isSelected: selectedResponse === response.id,
+                      }))
+                    : undefined
+                }
+              />
+            </MessageWrapper>
+          );
+        }
+
         return (
           <MessageWrapper key={msg.messageToken}>
             <ReceivedMessage
@@ -331,6 +346,54 @@ const ChatPage: React.FC = () => {
                   ) : (
                     <div className="chat-error-banner__hint">Click Start to retry.</div>
                   )}
+                </div>
+              )}
+
+              {genaiDisabled && (
+                <div className="chat-warning-banner">
+                  <div className="chat-warning-banner__message">
+                    GenAI is disabled. Enable it to use AI-powered migration assistance.
+                  </div>
+                  <div className="chat-warning-banner__hint">
+                    <button
+                      className="chat-warning-banner__link"
+                      onClick={() => dispatch(enableGenAI())}
+                    >
+                      Enable GenAI
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!genaiDisabled && providerNotConfigured && (
+                <div className="chat-warning-banner">
+                  <div className="chat-warning-banner__message">
+                    LLM provider is not configured. Set up a provider and model to get started.
+                  </div>
+                  <div className="chat-warning-banner__hint">
+                    <button
+                      className="chat-warning-banner__link"
+                      onClick={() => setShowSettings(true)}
+                    >
+                      Open settings
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!genaiDisabled && providerConnectionFailed && (
+                <div className="chat-error-banner">
+                  <div className="chat-error-banner__message">
+                    Failed to connect to the LLM provider. Check your credentials and try again.
+                  </div>
+                  <div className="chat-error-banner__hint">
+                    <button
+                      className="chat-error-banner__link"
+                      onClick={() => setShowSettings(true)}
+                    >
+                      Open settings
+                    </button>
+                  </div>
                 </div>
               )}
 
