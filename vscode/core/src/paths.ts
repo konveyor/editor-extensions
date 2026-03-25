@@ -179,7 +179,7 @@ export async function ensureKaiAnalyzerBinary(
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
   const networkGuidance =
-    `If you are in a network-restricted environment, configure a local binary path via the "konveyor.analyzerPath" setting ` +
+    `If you are in a network-restricted environment, configure a local binary path via the "${EXTENSION_NAME}.analyzerPath" setting ` +
     `or the "Override Analyzer Binary" command.`;
 
   // Download and parse sha256sum.txt to get expected SHA

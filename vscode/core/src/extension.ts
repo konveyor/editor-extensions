@@ -16,6 +16,7 @@ import {
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
   EXTENSION_NAME,
+  EXTENSION_SHORT_NAME,
   EXTENSION_VERSION,
 } from "./utilities/constants";
 import {
@@ -754,7 +755,7 @@ class VsCodeExtension {
           this.state.logger.info("Workspace folders changed!");
           vscode.window
             .showInformationMessage(
-              "Workspace folders have changed. Please restart the Konveyor extension for changes to take effect.",
+              `Workspace folders have changed. Please restart the ${EXTENSION_SHORT_NAME} extension for changes to take effect.`,
               "Restart Now",
             )
             .then((selection) => {
@@ -919,7 +920,9 @@ class VsCodeExtension {
       this.setupDiffStatusBar();
     } catch (error) {
       this.state.logger.error("Error initializing extension", error);
-      vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
+      vscode.window.showErrorMessage(
+        `Failed to initialize ${EXTENSION_SHORT_NAME} extension: ${error}`,
+      );
     }
   }
 
@@ -944,7 +947,7 @@ class VsCodeExtension {
   }
 
   private setupDiffStatusBar(): void {
-    this.diffStatusBarItem.name = "Konveyor Diff Status";
+    this.diffStatusBarItem.name = `${EXTENSION_SHORT_NAME} Diff Status`;
     this.diffStatusBarItem.tooltip = "Click to accept/reject all diff changes";
     this.diffStatusBarItem.command = `${EXTENSION_NAME}.showDiffActions`;
     this.diffStatusBarItem.hide();
@@ -1051,7 +1054,7 @@ class VsCodeExtension {
     } catch (error) {
       this.state.logger.error("Critical error during command registration", error);
       vscode.window.showErrorMessage(
-        `Konveyor extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
+        `${EXTENSION_SHORT_NAME} extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Re-throw to indicate the extension is not in a good state
       throw error;
@@ -1584,7 +1587,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
 
       vscode.window
         .showWarningMessage(
-          "Konveyor requires a workspace folder to analyze. Open a folder to get started.",
+          `${EXTENSION_SHORT_NAME} requires a workspace folder to analyze. Open a folder to get started.`,
           "Open Folder",
         )
         .then((selection) => {
@@ -1602,7 +1605,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
           if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             vscode.window
               .showInformationMessage(
-                "Workspace folder detected. Reload the window to activate Konveyor fully.",
+                `Workspace folder detected. Reload the window to activate ${EXTENSION_SHORT_NAME} fully.`,
                 "Reload Window",
               )
               .then((selection) => {
@@ -1647,8 +1650,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     providerRegistry = undefined;
     healthCheckRegistry?.dispose();
     healthCheckRegistry = undefined;
-    logger.error("Failed to activate Konveyor extension", error);
-    vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
+    logger.error(`Failed to activate ${EXTENSION_SHORT_NAME} extension`, error);
+    vscode.window.showErrorMessage(
+      `Failed to activate ${EXTENSION_SHORT_NAME} extension: ${error}`,
+    );
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
   }
 }

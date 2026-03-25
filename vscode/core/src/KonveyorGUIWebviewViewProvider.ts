@@ -232,7 +232,7 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta http-equiv="Content-Security-Policy" content="${this._getContentSecurityPolicy(nonce, webview)}">
         <link rel="stylesheet" type="text/css" href="${stylesUri}">
-        <title>Konveyor IDE Extension</title>
+        <title>${EXTENSION_SHORT_NAME} IDE Extension</title>
         <script nonce="${nonce}">
           const vscode = acquireVsCodeApi();
           window.vscode = vscode;
