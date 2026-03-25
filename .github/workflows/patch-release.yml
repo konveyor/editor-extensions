@@ -156,7 +156,7 @@ jobs:
         with:
           payload: |
             {
-              "test": "Patch Release",
+              "text": "Patch Release Failed",
               "branch": "${{ inputs.branch }}",
               "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
