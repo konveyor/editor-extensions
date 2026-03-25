@@ -3,11 +3,12 @@ import { RuleSet } from "@editor-extensions/shared";
 import { loadStateFromDataFolder, readDataFiles } from "./storage";
 import { paths } from "../paths";
 import { executeExtensionCommand } from "../commands";
+import { EXTENSION_SHORT_NAME } from "../utilities/constants";
 
 export const loadStaticResults = async () => {
   const options: vscode.OpenDialogOptions = {
     defaultUri: paths().workspaceRepo,
-    openLabel: "Load Konveyor results",
+    openLabel: `Load ${EXTENSION_SHORT_NAME} results`,
     filters: { "json files": ["json"] },
     canSelectMany: true,
   };
@@ -21,7 +22,9 @@ export const loadStaticResults = async () => {
   const analysisResults = await readDataFiles(uris);
 
   if (!analysisResults) {
-    vscode.window.showErrorMessage("Konveyor: failed to load data from selected file(s).");
+    vscode.window.showErrorMessage(
+      `${EXTENSION_SHORT_NAME}: failed to load data from selected file(s).`,
+    );
     return;
   }
 
@@ -29,7 +32,9 @@ export const loadStaticResults = async () => {
     executeExtensionCommand("loadRuleSets", analysisResults);
     vscode.window.showInformationMessage("Successfully loaded the analysis results");
   } else {
-    vscode.window.showErrorMessage("Konveyor: analysis results point to non-existing files.");
+    vscode.window.showErrorMessage(
+      `${EXTENSION_SHORT_NAME}: analysis results point to non-existing files.`,
+    );
   }
 };
 
