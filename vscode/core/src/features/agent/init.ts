@@ -81,6 +81,14 @@ export async function initializeAgent(
   ctx.featureClients.set("mcpBridgeServer", mcpBridgeServer);
   disposables.push({ dispose: () => mcpBridgeServer.dispose() });
 
+  // Dispose the LLM proxy bridge if it was started (for Hub LLM proxy support)
+  const llmProxyBridge = ctx.featureClients.get("llmProxyBridge") as
+    | { dispose: () => void }
+    | undefined;
+  if (llmProxyBridge) {
+    disposables.push({ dispose: () => llmProxyBridge.dispose() });
+  }
+
   // Configure MCP servers on the agent client before starting
   const { join } = await import("path");
   const mcpServerEntry = join(

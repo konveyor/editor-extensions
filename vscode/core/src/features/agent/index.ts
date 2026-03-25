@@ -117,6 +117,43 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
   const gooseMode = policyToGooseMode(toolPermissions);
   modelEnv = { ...modelEnv, GOOSE_MODE: gooseMode };
 
+  // When Hub LLM proxy is available, start a local bridge server that forwards
+  // agent requests to the Hub proxy with dynamic bearer token injection.
+  // This makes token refresh transparent to the agent subprocess.
+  const hubMgr = ctx.extensionState.hubConnectionManager;
+  const llmProxyConfig = hubMgr.getLLMProxyConfig();
+
+  if (llmProxyConfig?.available) {
+    const { LlmProxyBridgeServer } = await import("../../api/llmProxyBridgeServer");
+    const bridge = new LlmProxyBridgeServer({
+      getBearerToken: () => hubMgr.getBearerToken(),
+      isAuthEnabled: () => hubMgr.isAuthEnabled(),
+      proxyEndpoint: llmProxyConfig.endpoint,
+      scopedFetch: hubMgr.getScopedFetch(),
+      logger: ctx.logger,
+    });
+    const proxyPort = await bridge.start();
+    ctx.featureClients.set("llmProxyBridge", bridge);
+
+    ctx.logger.info(
+      `Agent: Hub LLM proxy bridge started on port ${proxyPort}, forwarding to ${llmProxyConfig.endpoint}`,
+    );
+
+    // Override model env — Hub proxy takes priority over local config.
+    // Goose uses OPENAI_HOST (not OPENAI_BASE_URL) for custom endpoints.
+    // OpenCode uses OPENAI_BASE_URL. Set both for compatibility.
+    modelEnv.OPENAI_API_KEY = "sk-hub-proxy";
+    modelEnv.OPENAI_HOST = `http://127.0.0.1:${proxyPort}`;
+    modelEnv.OPENAI_BASE_URL = `http://127.0.0.1:${proxyPort}/v1`;
+
+    if (backend !== "opencode") {
+      modelEnv.GOOSE_PROVIDER = "openai";
+      if (llmProxyConfig.model) {
+        modelEnv.GOOSE_MODEL = llmProxyConfig.model;
+      }
+    }
+  }
+
   if (backend === "opencode") {
     ctx.logger.info("Agent: using OpenCode backend");
     const { OpencodeAgentClient } = await import("../../client/opencodeClient");

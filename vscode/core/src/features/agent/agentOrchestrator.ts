@@ -78,14 +78,27 @@ export class AgentOrchestrator {
 
   private async createDirectLLMClient(): Promise<AgentClient | undefined> {
     try {
-      const { parseModelConfig, getModelProviderFromConfig } = await import("../../modelProvider");
-      const { paths } = await import("../../paths");
       const { KaiInteractiveWorkflow, FileBasedResponseCache } =
         await import("@editor-extensions/agentic");
       const { getConfigKaiDemoMode, getCacheDir } = await import("../../utilities/configuration");
 
-      const parsedConfig = await parseModelConfig(paths().settingsYaml);
-      const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
+      // Prefer the extension-level model provider (handles Hub proxy + local config).
+      // Fall back to creating one from provider-settings.yaml if not available.
+      let modelProvider = this.state.modelProvider;
+      if (modelProvider) {
+        this.logger.info("AgentOrchestrator: using extension-level model provider", {
+          source: this.state.modelProviderSource ?? "unknown",
+        });
+      } else {
+        this.logger.info(
+          "AgentOrchestrator: no extension-level provider, falling back to provider-settings.yaml",
+        );
+        const { parseModelConfig, getModelProviderFromConfig } =
+          await import("../../modelProvider");
+        const { paths } = await import("../../paths");
+        const parsedConfig = await parseModelConfig(paths().settingsYaml);
+        modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
+      }
 
       const workflow = new KaiInteractiveWorkflow(this.logger);
       await workflow.init({
