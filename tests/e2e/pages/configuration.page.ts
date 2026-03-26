@@ -51,10 +51,7 @@ export class Configuration {
   public async setEnabledConfiguration(configuration: string, enabled: boolean) {
     const window = this.vsCode.getWindow();
     try {
-      const checkbox = window.getByLabel(configuration);
-      if (!(await checkbox.isVisible())) {
-        await this.searchConfig(configuration);
-      }
+      await this.searchConfig(configuration);
       await checkbox.scrollIntoViewIfNeeded();
       await checkbox.setChecked(enabled);
     } catch (error) {
