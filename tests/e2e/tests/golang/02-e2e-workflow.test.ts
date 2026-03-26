@@ -283,6 +283,8 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
+      await vscodeApp.waitForFileSolutionAccepted('main.go');
+      await vscodeApp.waitForAnalysisCompleted();
       await vscodeApp.waitDefault();
     });
 
@@ -295,12 +297,17 @@ test.describe.serial(
       await vscodeApp.searchViolation('');
       await vscodeApp.waitDefault();
 
-      // Count issues after autoscaling fix
+      // Re-analysis after Accept can lag; poll until counts reflect the applied fix
+      await expect
+        .poll(async () => vscodeApp.getIssuesCount(), {
+          timeout: 600000,
+          message:
+            'Expected Total Issues to drop after autoscaling fix (wait for save + re-analysis).',
+        })
+        .toBeLessThan(violationCountBefore);
+
       const issueCountAfter = await vscodeApp.getIssuesCount();
       console.log(`Issues after autoscaling fix: ${issueCountAfter}`);
-
-      // Verify issues were reduced (autoscaling fix resolves 2 issues)
-      expect(issueCountAfter).toBeLessThan(violationCountBefore);
       console.log(`Issues reduced from ${violationCountBefore} to ${issueCountAfter}`);
 
       await vscodeApp.getWindow().screenshot({
@@ -356,6 +363,9 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Dependency fix accepted');
 
+      await vscodeApp.waitForFileSolutionAccepted('go.mod');
+      await vscodeApp.waitForAnalysisCompleted();
+
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'all-fixes-accepted.png'),
       });
@@ -369,12 +379,15 @@ test.describe.serial(
       await vscodeApp.waitDefault();
 
       // When all issues are resolved, the filter button may not be visible
-      // Just verify the issues count is 0
+      await expect
+        .poll(async () => vscodeApp.getIssuesCount(), {
+          timeout: 600000,
+          message: 'Expected Total Issues to reach 0 after dependency fix (re-analysis may lag).',
+        })
+        .toBe(0);
+
       const issueCountAfter = await vscodeApp.getIssuesCount();
       console.log(`Issues after all fixes: ${issueCountAfter}`);
-
-      // Verify all issues are resolved
-      expect(issueCountAfter).toBe(0);
       console.log(`All issues resolved: ${violationCountBefore} -> ${issueCountAfter}`);
 
       await vscodeApp.getWindow().screenshot({
