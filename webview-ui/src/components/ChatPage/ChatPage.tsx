@@ -415,39 +415,41 @@ const ChatPage: React.FC = () => {
               )}
 
               <CompactBatchReview />
-              <MessageBox ref={messageBoxRef} className="chat-messages">
-                {isTriggeredByUser && solutionScope && (
-                  <div className="chat-initial-scope">
-                    <div className="chat-initial-scope__header">Migration Scope</div>
-                    <div className="chat-initial-scope__body">
-                      <CompactMigrationScope
-                        incidents={solutionScope.incidents || []}
-                        onIncidentSelect={handleIncidentClick}
-                      />
+              <div className="chat-messages-area">
+                <MessageBox ref={messageBoxRef} className="chat-messages">
+                  {isTriggeredByUser && solutionScope && (
+                    <div className="chat-initial-scope">
+                      <div className="chat-initial-scope__header">Migration Scope</div>
+                      <div className="chat-initial-scope__body">
+                        <CompactMigrationScope
+                          incidents={solutionScope.incidents || []}
+                          onIncidentSelect={handleIncidentClick}
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {!hasWorkflowContent && !isProcessing && (
-                  <div className="chat-agent-status">
-                    {isRunning ? (
-                      <p className="chat-agent-status__hint">
-                        Use <strong>Get Solution</strong> from the analysis view to start a
-                        migration workflow.
-                      </p>
-                    ) : isStarting ? (
-                      <p className="chat-agent-status__hint">Starting agent...</p>
-                    ) : (
-                      <p className="chat-agent-status__hint">
-                        Use <strong>Get Solution</strong> from the analysis view to start a
-                        migration workflow.
-                      </p>
-                    )}
-                  </div>
-                )}
+                  {!hasWorkflowContent && !isProcessing && (
+                    <div className="chat-agent-status">
+                      {isRunning ? (
+                        <p className="chat-agent-status__hint">
+                          Use <strong>Get Solution</strong> from the analysis view to start a
+                          migration workflow.
+                        </p>
+                      ) : isStarting ? (
+                        <p className="chat-agent-status__hint">Starting agent...</p>
+                      ) : (
+                        <p className="chat-agent-status__hint">
+                          Use <strong>Get Solution</strong> from the analysis view to start a
+                          migration workflow.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
-                {renderChatMessages()}
-              </MessageBox>
+                  {renderChatMessages()}
+                </MessageBox>
+              </div>
             </div>
           </ChatbotContent>
           {hasWorkflowContent && (

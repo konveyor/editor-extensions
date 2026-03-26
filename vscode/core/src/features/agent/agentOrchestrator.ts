@@ -150,8 +150,8 @@ export class AgentOrchestrator {
       agentMode,
     });
 
-    await executeExtensionCommand("showChatPanel");
     this.initializeState();
+    executeExtensionCommand("showChatPanel");
 
     if (agentMode) {
       await this.runAgentPath(agentClient, profileName, disposeClient);

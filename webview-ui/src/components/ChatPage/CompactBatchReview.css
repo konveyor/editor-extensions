@@ -267,7 +267,7 @@
 }
 
 /* Hide PatternFly chatbot scroll-to-top button when batch review is visible */
-.cbr ~ .chat-messages .pf-chatbot__jump--top,
+.cbr ~ .chat-messages-area .pf-chatbot__jump--top,
 .cbr ~ * .pf-chatbot__jump--top {
   display: none !important;
 }

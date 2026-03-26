@@ -220,9 +220,15 @@
   padding: 16px;
 }
 
-.chat-messages {
+.chat-messages-area {
+  position: relative;
   flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.chat-messages {
+  height: 100%;
   overflow-y: auto;
   padding: 8px 0 8px 8px;
 }
@@ -861,7 +867,7 @@
 }
 
 /* Hide PatternFly chatbot scroll-to-top button when config panel is visible */
-.agent-settings ~ .chat-messages .pf-chatbot__jump--top,
+.agent-settings ~ .chat-messages-area .pf-chatbot__jump--top,
 .agent-settings ~ * .pf-chatbot__jump--top {
   display: none !important;
 }
