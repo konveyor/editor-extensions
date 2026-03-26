@@ -6,7 +6,6 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
-import { equal } from 'assert';
 
 test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }, () => {
   let vscodeApp: VSCode;
@@ -39,14 +38,30 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
     await vscodeApp.startServer();
   });
 
-  test('Analyze coolstore app', async () => {
+  test('Analyze coolstore app and check if stop button is disabled', async () => {
     test.setTimeout(300000);
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();
+    await vscodeApp.openAnalysisView();
+    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+    const stopButton = analysisView.getByRole('button', { name: 'Stop' });
+    await expect
+      .poll(
+        async () => {
+          const isDisabled = await stopButton.isDisabled().catch(() => false);
+          const isCompleted = await vscodeApp
+            .getWindow()
+            .getByText('Analysis completed')
+            .first()
+            .isVisible()
+            .catch(() => false);
+          return isDisabled || isCompleted;
+        },
+        { timeout: 30000 }
+      )
+      .toBe(true);
     await vscodeApp.waitDefault();
-    await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-      timeout: 400000,
-    });
+    await vscodeApp.waitForAnalysisCompleted();
   });
 
   test('Disable and enable Generative AI', async () => {

@@ -68,6 +68,20 @@ jobs:
           echo "go_vsix=${GO_VSIX}" >> $GITHUB_OUTPUT
           echo "csharp_vsix=${CSHARP_VSIX}" >> $GITHUB_OUTPUT
 
+      # Download analyzer binary for custom-binary-analysis.test.ts
+      - name: Install root dependencies (for collect-assets script)
+        run: npm ci
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        run: npm run collect-assets
+
+      - name: Upload downloaded assets (for custom binary tests)
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+          retention-days: 1
+
   # Critical tests - block PRs and releases
   test-tier0:
     name: Critical Tests (@tier0)
@@ -85,6 +99,12 @@ jobs:
         with:
           name: ${{ inputs.vsix_artifact_name }}
           path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
 
       - name: Run tier0 tests (excluding slow/infrastructure/offline)
         run: npx playwright test --grep "@tier0" --grep-invert "@slow|@requires-minikube|@offline"
@@ -133,11 +153,21 @@ jobs:
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
 
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
       - name: Download VSIX artifacts
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.vsix_artifact_name }}
           path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
 
       - name: Run tier1 tests (excluding slow/infrastructure on PRs)
         run: |
@@ -160,6 +190,7 @@ jobs:
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
           CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
 
       - name: Upload test results
         if: always()
@@ -183,11 +214,21 @@ jobs:
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
 
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
       - name: Download VSIX artifacts
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.vsix_artifact_name }}
           path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
 
       - name: Run tier2 tests
         id: tier2_tests
@@ -202,6 +243,7 @@ jobs:
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
           CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
 
       - name: Upload test results
         if: always()
@@ -225,11 +267,21 @@ jobs:
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
 
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
       - name: Download VSIX artifacts
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.vsix_artifact_name }}
           path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
 
       - name: Run tier3 tests
         run: npx playwright test --grep "@tier3"
@@ -242,6 +294,7 @@ jobs:
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
           CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
 
       - name: Upload test results
         if: always()
@@ -558,6 +611,18 @@ jobs:
         with:
           name: ${{ inputs.vsix_artifact_name }}
           path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+
+      - name: Get Konveyor Hub URL
+        id: get_hub_url
+        run: |
+          HUB_URL=$(minikube service konveyor-hub -n konveyor --url)
+          echo "hub_url=${HUB_URL}" >> $GITHUB_OUTPUT
 
       - name: Run infrastructure tests
         run: npx playwright test --grep "@requires-minikube"

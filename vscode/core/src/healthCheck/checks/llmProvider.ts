@@ -6,6 +6,7 @@ import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { parseModelConfig } from "../../modelProvider/config";
 import { paths } from "../../paths";
 import { CheckResultBuilder, withErrorHandling, formatError } from "../helpers";
+import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 
 const ERROR_SUGGESTIONS: Record<string, string> = {
   timeout: "Request timed out. Check your network connection and provider endpoint URL.",
@@ -63,10 +64,18 @@ export const llmProviderCheck: HealthCheckModule = {
           return builder.fail(
             "LLM provider not configured",
             `Configuration error: ${formatError(configError)}`,
-            "Configure your LLM provider settings using 'Konveyor: Open Model Provider Settings' command.",
+            `Configure your LLM provider settings using '${EXTENSION_SHORT_NAME}: Open Model Provider Settings' command.`,
           );
         }
       }
+
+      const hubProxy = state.hubConnectionManager?.getLLMProxyConfig?.();
+      logger.info("LLM provider health check context", {
+        modelProviderSource: state.modelProviderSource ?? "unknown",
+        hubProxyAvailable: hubProxy?.available ?? false,
+        hubProxyEndpoint: hubProxy?.endpoint,
+        hasBearerToken: !!state.hubConnectionManager?.getBearerToken?.(),
+      });
 
       logger.info("Testing LLM provider connectivity with simple message...");
 

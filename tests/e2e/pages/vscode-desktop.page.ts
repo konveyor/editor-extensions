@@ -14,6 +14,7 @@ import { extensionId, redhatJavaExtensionId } from '../utilities/utils';
 import { VSCode } from './vscode.page';
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 
 /**
  * Prepare workspace for offline/cached mode BEFORE VS Code launches.
@@ -39,8 +40,8 @@ export function prepareOfflineWorkspace(repoDir: string): void {
 
   // Set demoMode and cacheDir in settings BEFORE VS Code launches
   writeOrUpdateSettingsJson(path.join(repoDir, '.vscode', 'settings.json'), {
-    'konveyor-core.genai.demoMode': true,
-    'konveyor-core.genai.cacheDir': '.vscode/cache',
+    [kaiDemoMode]: true,
+    [kaiCacheDir]: '.vscode/cache',
   });
   console.log('Set demoMode and cacheDir in workspace settings');
 }
@@ -240,7 +241,7 @@ export class VSCodeDesktop extends VSCode {
       // Wait for Java extension initialization signal
       // The Java extension waits for core to activate, so this signal means both are ready
       // This is a persistent status bar item, so we can just wait for it to appear
-      const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__');
+      const javaInitStatusBar = this.window.getByText('__JAVA_EXTENSION_INITIALIZED__').first();
       await expect(javaInitStatusBar).toBeVisible({ timeout: 300_000 }); // 5 minute timeout
     } catch (error) {
       console.error('Failed to wait for extension initialization:', error);

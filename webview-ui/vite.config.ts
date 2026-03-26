@@ -9,13 +9,14 @@ export default defineConfig(() => {
   const packagePath = path.resolve(__dirname, "../vscode/core/package.json");
   const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf-8"));
 
-  // Use package.json values directly
   const extensionName = packageJson.name;
+  const extensionShortName = packageJson.contributes?.commands?.[0]?.category ?? extensionName;
 
   return {
     plugins: [react(), checker({ typescript: true })],
     define: {
       __EXTENSION_NAME__: JSON.stringify(extensionName),
+      __EXTENSION_SHORT_NAME__: JSON.stringify(extensionShortName),
     },
     build: {
       outDir: "build",

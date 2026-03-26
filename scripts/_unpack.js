@@ -119,6 +119,9 @@ export async function unpackAsset({ sourceFile, context, globs, targetDirectory,
       meta = await unpackZip({ sourceFile, context, globs, targetDirectory });
     }
     console.log(`Extracted ${green(meta.fileSet.length)} items`);
+    if (meta.fileSet.length === 0) {
+      throw new Error(`No files matched globs ${JSON.stringify(globs)} in archive ${sourceFile}`);
+    }
 
     if (chmod) {
       const extractedFiles = await fs.readdir(targetDirectory);

@@ -76,9 +76,7 @@ test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@
     await vscodeApp.startServer();
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();
-    await expect(vscodeApp.getWindow().getByText('Analysis completed').first()).toBeVisible({
-      timeout: 400000,
-    });
+    await vscodeApp.waitForAnalysisCompleted();
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
     const violations = analysisView.locator('.pf-v6-c-card__header-toggle');
     expect(await violations.count()).toBeGreaterThan(10);

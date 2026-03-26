@@ -117,7 +117,13 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
         await runnable.stream(processedInput, options),
       );
     } catch (err) {
-      this.logger.error("Error callling stream()", { error: err });
+      this.logger.error(
+        `Error calling stream(): ${err instanceof Error ? err.message : String(err)}`,
+        {
+          error: err,
+          errorStack: err instanceof Error ? err.stack : undefined,
+        },
+      );
       if (emitResponseChunks) {
         this.emitWorkflowMessage({
           id: messageId,

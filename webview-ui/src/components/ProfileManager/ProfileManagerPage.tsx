@@ -15,6 +15,7 @@ import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { ProfileList } from "./ProfileList";
 import { ProfileEditorForm } from "./ProfileEditorForm";
 import { AnalysisProfile } from "../../../../shared/dist/types";
+import { MAX_PROFILE_NAME_LENGTH } from "./constants";
 
 export const ProfileManagerPage: React.FC = () => {
   // ✅ Selective subscriptions
@@ -43,11 +44,12 @@ export const ProfileManagerPage: React.FC = () => {
   };
 
   const handleDuplicateProfile = (profile: AnalysisProfile) => {
-    const baseName = profile.name;
     let index = 1;
-    let newName = baseName;
+    let newName = profile.name;
     while (profiles.some((p) => p.name === newName)) {
-      newName = `${baseName} ${index++}`;
+      const suffix = ` ${index++}`;
+      const maxBaseLength = MAX_PROFILE_NAME_LENGTH - suffix.length;
+      newName = `${profile.name.slice(0, maxBaseLength)}${suffix}`;
     }
     const newProfile: AnalysisProfile = {
       ...profile,

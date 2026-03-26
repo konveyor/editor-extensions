@@ -7,9 +7,9 @@ import { FixTypes } from '../enums/fix-types.enum';
 import { ProfileActions } from '../enums/profile-action-types.enum';
 import { OutputPanel } from './output.page';
 import path from 'path';
+import pathlib from 'path';
 import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
-import pathlib from 'path';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -107,9 +107,9 @@ export abstract class VSCode {
 
   public async startServer(): Promise<void> {
     await this.openAnalysisView();
-    const analysisView = await this.getView(KAIViews.analysisView);
 
     try {
+      const analysisView = await this.getView(KAIViews.analysisView);
       // Check if server is already running
       const stopButton = analysisView.getByRole('button', { name: 'Stop' });
       const isServerRunning = await stopButton.isVisible();
@@ -129,6 +129,9 @@ export abstract class VSCode {
       }
     } catch (error) {
       console.log('Error starting server:', error);
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `error-starting-server.png`),
+      });
       throw error;
     }
   }
@@ -184,7 +187,7 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(this.isAnalysisRunning()).resolves.toBe(true);
+      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible();
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
@@ -482,7 +485,7 @@ export abstract class VSCode {
       await analysisView.locator('div.pf-v6-c-card__header-toggle').nth(0).click();
     }
 
-    if (fixType) {
+    if (fixType !== undefined) {
       await analysisView.locator('button#get-solution-button').nth(fixType).click();
     }
 
@@ -501,6 +504,14 @@ export abstract class VSCode {
       if (resolutionAction !== ResolutionAction.Accept) {
         await actionLocator.waitFor({ state: 'visible', timeout: 30000 });
         await actionLocator.dispatchEvent('click');
+        if (resolutionAction === ResolutionAction.ReviewInEditor) {
+          // Small label that is displayed in top of the editor
+          // This expect is needed as a big diff may take a few seconds to load
+          // Checks enabled rather than visible because a large diff may hide the button
+          await expect(this.window.getByText('Accept All Changes')).toBeEnabled({
+            timeout: 30_000,
+          });
+        }
         return [];
       }
 
@@ -513,7 +524,8 @@ export abstract class VSCode {
       const reviewHeaderLocator = resolutionView.locator(
         '.batch-review-expandable-header .batch-review-title'
       );
-      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 10000 });
+      // 60 secs timeout as responses can take some time specially when updating large files or in slow network environments
+      await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 60_000 });
       let headerText = await reviewHeaderLocator.textContent();
       const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
       const totalFiles = match ? parseInt(match[2], 10) : 1;
@@ -584,53 +596,65 @@ export abstract class VSCode {
     replaceAll: boolean = false
   ): Promise<void> {
     await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
+    try {
+      const openModalButton = this.window.getByRole('button', {
+        name: 'Open Modal Editor in Main Window',
+      });
+      if (await openModalButton.isVisible()) {
+        await openModalButton.click();
+      }
+      const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+      const editor = this.window.locator('.monaco-editor .view-lines').first();
+      await expect(editor).toBeVisible({ timeout: 10000 });
+      await editor.click();
+      await this.window.waitForTimeout(200);
 
-    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
-    const editor = this.window.locator('.monaco-editor .view-lines').first();
-    await expect(editor).toBeVisible({ timeout: 10000 });
-    await editor.click();
-    await this.window.waitForTimeout(200);
+      let existingSettings: Record<string, any> = {};
 
-    let existingSettings: Record<string, any> = {};
+      if (!replaceAll) {
+        let editorContent = '';
+        try {
+          editorContent = await editor.innerText();
+        } catch {
+          editorContent = '{}';
+        }
 
-    if (!replaceAll) {
-      let editorContent = '';
-      try {
-        editorContent = await editor.innerText();
-      } catch {
-        editorContent = '{}';
+        try {
+          existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
+        } catch {
+          existingSettings = {};
+        }
       }
 
-      try {
-        existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
-      } catch {
-        existingSettings = {};
-      }
+      const newContent = JSON.stringify(
+        {
+          ...existingSettings,
+          ...settings,
+        },
+        null,
+        2
+      );
+      console.log(`Writing \n ${newContent} \n into settings.`);
+
+      await editor.click();
+      await this.window.keyboard.press(`${modifier}+a`);
+      await this.window.waitForTimeout(100);
+      await this.window.keyboard.press('Backspace');
+      await this.window.waitForTimeout(100);
+      await this.pasteContent(newContent);
+
+      await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+      await this.window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/last-config.png`,
+      });
+      await this.window.waitForTimeout(300);
+      await this.window.keyboard.press(`${modifier}+w`);
+    } catch (error) {
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `error-editing-conf.png`),
+      });
+      throw error;
     }
-
-    const newContent = JSON.stringify(
-      {
-        ...existingSettings,
-        ...settings,
-      },
-      null,
-      2
-    );
-    console.log(`Writing \n ${newContent} \n into settings.`);
-
-    await editor.click();
-    await this.window.keyboard.press(`${modifier}+a`);
-    await this.window.waitForTimeout(100);
-    await this.window.keyboard.press('Backspace');
-    await this.window.waitForTimeout(100);
-    await this.pasteContent(newContent);
-
-    await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
-    await this.window.screenshot({
-      path: `${SCREENSHOTS_FOLDER}/last-config.png`,
-    });
-    await this.window.waitForTimeout(300);
-    await this.window.keyboard.press(`${modifier}+w`);
   }
 
   /**
@@ -661,7 +685,7 @@ export abstract class VSCode {
 
   public async executeTerminalCommand(
     command: string,
-    expectedOutput?: string,
+    expectedOutput?: string | RegExp,
     outputShouldBeVisible: boolean = true
   ): Promise<void> {
     if (!this.repoDir || !this.branch) {
@@ -669,16 +693,31 @@ export abstract class VSCode {
     }
     if (!(await this.window.getByRole('tab', { name: 'Terminal' }).isVisible())) {
       await this.executeQuickCommand(`Terminal: Create New Terminal`);
+      console.log('VSCodePage.executeTerminalCommand: creating new terminal...');
     }
     const terminalContainerLocator = this.window.locator('.terminal-widget-container').last();
     await expect(terminalContainerLocator).toBeVisible();
+    // Click on terminal to ensure it has focus before typing (force to bypass xterm canvas interception)
+    await terminalContainerLocator.click({ force: true });
     await this.window.keyboard.type(command);
     await this.window.keyboard.press('Enter');
     if (expectedOutput) {
+      await this.waitDefault();
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `last-command.png`),
+      });
       if (outputShouldBeVisible) {
         await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
       } else {
-        await expect(this.window.getByText(expectedOutput).first()).not.toBeVisible();
+        try {
+          await expect(this.window.getByText(expectedOutput).first()).not.toBeVisible();
+        } catch (error) {
+          const element = this.window.getByText(expectedOutput).first();
+          const html = await element.evaluate((el) => el.outerHTML);
+          console.log('Unexpected visible output in command:');
+          console.log(html);
+          throw error;
+        }
       }
     }
 
@@ -769,8 +808,8 @@ export abstract class VSCode {
     if (fullText == null) {
       throw new Error('No active profile found');
     }
-    const profileName = fullText.replace('(active)', '').trim();
-    return profileName;
+
+    return fullText.replace('(active)', '').trim();
   }
 
   public async getAllIssues(): Promise<{ title: string; incidentsCount: number }[]> {
@@ -820,7 +859,7 @@ export abstract class VSCode {
     );
     await input.waitFor({ state: 'visible', timeout: 5000 });
     await input.fill(filename);
-    const fileLocator = await this.window.locator('a').filter({ hasText: filename }).first();
+    const fileLocator = this.window.locator('a').filter({ hasText: filename }).first();
     await expect(fileLocator).toBeVisible({ timeout: 10000 });
     await fileLocator.click();
     if (closeOtherEditors) {
@@ -834,10 +873,17 @@ export abstract class VSCode {
     text: string | RegExp,
     options: { timeout: number } = { timeout: 10000 }
   ) {
-    await expect(
-      this.window.locator('.notification-list-item-message span', {
-        hasText: text,
-      })
-    ).toBeVisible({ timeout: options.timeout });
+    try {
+      await expect(
+        this.window.locator('.notification-list-item-message span', {
+          hasText: text,
+        })
+      ).toBeVisible({ timeout: options.timeout });
+    } catch (error) {
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `last-notification-error.png`),
+      });
+      throw error;
+    }
   }
 }

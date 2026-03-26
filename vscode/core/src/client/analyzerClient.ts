@@ -10,12 +10,18 @@ import {
   ServerState,
   SolutionState,
   Violation,
+  generateSafePipeName,
 } from "@editor-extensions/shared";
 import { paths, ignoresToExcludedPaths } from "../paths";
 import { normalizeFilePath } from "../utilities/pathUtils";
 import { Extension } from "../helpers/Extension";
 import { buildAssetPaths, AssetPaths } from "./paths";
-import { getConfigAnalyzerPath, getConfigKaiDemoMode, isAnalysisResponse } from "../utilities";
+import {
+  getConfigAnalyzerPath,
+  getConfigKaiDemoMode,
+  isAnalysisResponse,
+  EXTENSION_NAME,
+} from "../utilities";
 import { allIncidents } from "../issueView";
 import { Immutable } from "immer";
 import { ProgressEvent, VALID_PROGRESS_STAGES } from "./progressParser";
@@ -56,6 +62,10 @@ export class AnalyzerClient {
       component: "AnalyzerClient",
     });
     // TODO: Push the serverState from "initial" to either "configurationNeeded" or "configurationReady"
+  }
+
+  get rulesetsPath(): string {
+    return this.assetPaths.rulesets;
   }
 
   private fireServerStateChange(state: ServerState) {
@@ -137,7 +147,7 @@ export class AnalyzerClient {
     this.fireServerStateChange("starting");
     const startTime = performance.now();
 
-    const pipeName = rpc.generateRandomPipeName();
+    const pipeName = generateSafePipeName(EXTENSION_NAME);
     const [analyzerRpcServer, analyzerPid] = this.startAnalysisServer(pipeName);
     analyzerRpcServer.on("exit", (code, signal) => {
       this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);

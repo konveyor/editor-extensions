@@ -16,6 +16,7 @@ import {
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
   EXTENSION_NAME,
+  EXTENSION_SHORT_NAME,
   EXTENSION_VERSION,
 } from "./utilities/constants";
 import {
@@ -48,6 +49,7 @@ import {
   isHubForced,
 } from "./utilities/hubConfigStorage";
 import { getAllProfiles } from "./utilities/profiles/profileService";
+import { discoverLabels } from "./utilities/labels/discoverLabels";
 import { DiagnosticTaskManager } from "./taskManager/taskManager";
 // Removed registerSuggestionCommands import since we're using merge editor now
 // Removed InlineSuggestionCodeActionProvider import since we're using merge editor now
@@ -124,6 +126,8 @@ class VsCodeExtension {
         isSyncingProfiles: false,
         llmProxyAvailable: false, // Will be updated after hub initialization
         isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
+        availableTargets: [], // Will be populated from bundled rulesets
+        availableSources: [], // Will be populated from bundled rulesets
         analysisConfig: {
           labelSelector: "",
           labelSelectorValid: false,
@@ -353,6 +357,8 @@ class VsCodeExtension {
           profileSyncEnabled: data.profileSyncEnabled,
           isSyncingProfiles: data.isSyncingProfiles,
           llmProxyAvailable: data.llmProxyAvailable,
+          availableTargets: data.availableTargets,
+          availableSources: data.availableSources,
           timestamp: new Date().toISOString(),
         });
       });
@@ -492,6 +498,19 @@ class VsCodeExtension {
         draft.llmProxyAvailable = false;
       });
 
+      // Discover available target/source labels from bundled rulesets (non-blocking)
+      discoverLabels(this.state.analyzerClient.rulesetsPath).then(
+        (discoveredLabels) => {
+          this.state.mutateSettings((draft) => {
+            draft.availableTargets = discoveredLabels.targets;
+            draft.availableSources = discoveredLabels.sources;
+          });
+        },
+        (err) => {
+          this.state.logger.warn(`Failed to discover labels from rulesets: ${err}`);
+        },
+      );
+
       const allProfiles = await getAllProfiles(this.context);
       const storedActiveId = this.context.workspaceState.get<string>("activeProfileId");
       const matchingProfile = allProfiles.find((p) => p.id === storedActiveId);
@@ -546,15 +565,27 @@ class VsCodeExtension {
 
       // Set up workflow disposal callback for when Hub clients reconnect
       // This handles both solution server changes and LLM proxy availability
-      this.state.hubConnectionManager.setWorkflowDisposalCallback(() => {
-        this.state.logger.info("Hub clients reconnected, updating workflow and model provider");
+      this.state.hubConnectionManager.setWorkflowDisposalCallback((tokenRefreshOnly) => {
+        this.state.logger.info("Hub clients reconnected, updating workflow and model provider", {
+          tokenRefreshOnly,
+        });
 
         // Update model provider if LLM proxy is available
+        // Bearer token is baked into ChatOpenAI instances, so we must recreate on any token change
         const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
+        const callbackBearerToken = this.state.hubConnectionManager.getBearerToken();
+        this.state.logger.info("Hub callback: checking LLM proxy and token state", {
+          llmProxyAvailable: llmProxyConfig?.available ?? false,
+          hasBearerToken: !!callbackBearerToken,
+          bearerTokenLength: callbackBearerToken?.length ?? 0,
+          bearerTokenType: typeof callbackBearerToken,
+          authEnabled: this.state.hubConnectionManager.isAuthEnabled(),
+        });
         if (llmProxyConfig?.available) {
           this.createHubProxyModelProvider(llmProxyConfig)
             .then((provider) => {
               this.state.modelProvider = provider;
+              this.state.modelProviderSource = "hub-proxy";
               this.state.logger.info("Model provider updated with Hub LLM proxy");
 
               // Clear GenAI/provider-related config errors
@@ -572,17 +603,20 @@ class VsCodeExtension {
             });
         }
 
-        // Dispose workflow if needed (solution server or model provider changed)
-        const isWorkflowRunning = this.state.data.isFetchingSolution;
-        if (isWorkflowRunning) {
-          this.state.logger.warn(
-            "Hub clients changed but workflow is running - will dispose after completion",
-          );
-          this.state.workflowDisposalPending = true;
-        } else if (this.state.workflowManager.isInitialized) {
-          this.state.logger.info("Disposing workflow to use new Hub clients");
-          this.state.workflowManager.dispose();
-          this.state.workflowDisposalPending = false;
+        // Only dispose workflow on full reconnect (config change), not on token refresh.
+        // Token refresh preserves existing clients and their session state (e.g., clientId).
+        if (!tokenRefreshOnly) {
+          const isWorkflowRunning = this.state.data.isFetchingSolution;
+          if (isWorkflowRunning) {
+            this.state.logger.warn(
+              "Hub clients changed but workflow is running - will dispose after completion",
+            );
+            this.state.workflowDisposalPending = true;
+          } else if (this.state.workflowManager.isInitialized) {
+            this.state.logger.info("Disposing workflow to use new Hub clients");
+            this.state.workflowManager.dispose();
+            this.state.workflowDisposalPending = false;
+          }
         }
       });
 
@@ -721,7 +755,7 @@ class VsCodeExtension {
           this.state.logger.info("Workspace folders changed!");
           vscode.window
             .showInformationMessage(
-              "Workspace folders have changed. Please restart the Konveyor extension for changes to take effect.",
+              `Workspace folders have changed. Please restart the ${EXTENSION_SHORT_NAME} extension for changes to take effect.`,
               "Restart Now",
             )
             .then((selection) => {
@@ -886,7 +920,9 @@ class VsCodeExtension {
       this.setupDiffStatusBar();
     } catch (error) {
       this.state.logger.error("Error initializing extension", error);
-      vscode.window.showErrorMessage(`Failed to initialize Konveyor extension: ${error}`);
+      vscode.window.showErrorMessage(
+        `Failed to initialize ${EXTENSION_SHORT_NAME} extension: ${error}`,
+      );
     }
   }
 
@@ -911,7 +947,7 @@ class VsCodeExtension {
   }
 
   private setupDiffStatusBar(): void {
-    this.diffStatusBarItem.name = "Konveyor Diff Status";
+    this.diffStatusBarItem.name = `${EXTENSION_SHORT_NAME} Diff Status`;
     this.diffStatusBarItem.tooltip = "Click to accept/reject all diff changes";
     this.diffStatusBarItem.command = `${EXTENSION_NAME}.showDiffActions`;
     this.diffStatusBarItem.hide();
@@ -1018,7 +1054,7 @@ class VsCodeExtension {
     } catch (error) {
       this.state.logger.error("Critical error during command registration", error);
       vscode.window.showErrorMessage(
-        `Konveyor extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
+        `${EXTENSION_SHORT_NAME} extension failed to register commands properly. The extension may not function correctly. Error: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Re-throw to indicate the extension is not in a good state
       throw error;
@@ -1120,6 +1156,7 @@ class VsCodeExtension {
     // Check if GenAI is disabled via settings
     if (!getConfigGenAIEnabled()) {
       this.state.modelProvider = undefined;
+      this.state.modelProviderSource = undefined;
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1144,6 +1181,7 @@ class VsCodeExtension {
 
       try {
         this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyConfig);
+        this.state.modelProviderSource = "hub-proxy";
 
         // Clear GenAI/provider-related config errors now that we're using the Hub proxy
         this.state.mutateConfigErrors((draft) => {
@@ -1179,6 +1217,7 @@ class VsCodeExtension {
       } catch (err) {
         this.state.logger.error("Error setting up Hub LLM proxy provider:", err);
         this.state.modelProvider = undefined;
+        this.state.modelProviderSource = undefined;
 
         const configError = createConfigError.providerConnnectionFailed();
         configError.error =
@@ -1195,6 +1234,7 @@ class VsCodeExtension {
     } catch (err) {
       this.state.logger.error("Error getting model config:", err);
       this.state.modelProvider = undefined;
+      this.state.modelProviderSource = undefined;
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1210,19 +1250,71 @@ class VsCodeExtension {
       return configError;
     }
 
+    // Re-check: Hub proxy may have become available while we were reading settings.yaml.
+    // Without this guard, the local-config model would overwrite the hub proxy model
+    // that was set by the Hub connection callback during the await above.
+    const llmProxyRecheck = this.state.hubConnectionManager.getLLMProxyConfig();
+    if (llmProxyRecheck?.available) {
+      this.state.logger.info(
+        "Hub LLM proxy became available during config parsing, using Hub proxy instead of local config",
+        { endpoint: llmProxyRecheck.endpoint },
+      );
+
+      try {
+        this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyRecheck);
+        this.state.modelProviderSource = "hub-proxy";
+
+        this.state.mutateConfigErrors((draft) => {
+          draft.configErrors = draft.configErrors.filter(
+            (e) =>
+              e.type !== "provider-not-configured" &&
+              e.type !== "provider-connection-failed" &&
+              e.type !== "genai-disabled",
+          );
+        });
+
+        return undefined;
+      } catch (err) {
+        this.state.logger.error("Error setting up Hub LLM proxy provider (re-check):", err);
+        this.state.modelProvider = undefined;
+        this.state.modelProviderSource = undefined;
+
+        const configError = createConfigError.providerConnnectionFailed();
+        configError.error =
+          err instanceof Error
+            ? `Hub LLM Proxy: ${err.message.length > 150 ? err.message.slice(0, 150) + "..." : err.message}`
+            : String(err);
+        return configError;
+      }
+    }
+
     try {
       this.state.logger.info("About to run getModelProviderFromConfig", {
         hadPreviousProvider,
         demoMode: getConfigKaiDemoMode(),
         cacheDir: getCacheDir(this.data.workspaceRoot),
       });
-      this.state.modelProvider = await getModelProviderFromConfig(
+      const localProvider = await getModelProviderFromConfig(
         modelConfig,
         this.state.logger,
         getConfigKaiDemoMode() ? getCacheDir(this.data.workspaceRoot) : undefined,
         getTraceEnabled() ? getTraceDir(this.data.workspaceRoot) : undefined,
       );
 
+      // Re-check: Hub proxy may have been set by the callback during the health check above.
+      // If so, preserve it — the hub proxy takes priority over local config.
+      if (this.state.modelProviderSource === "hub-proxy") {
+        this.state.logger.info(
+          "Hub LLM proxy was set during local config health check, preserving hub proxy model provider",
+        );
+        return undefined;
+      }
+
+      this.state.modelProvider = localProvider;
+      this.state.modelProviderSource = "local-config";
+      this.state.logger.info("Model provider set from local config", {
+        provider: modelConfig.config.provider,
+      });
       // Dispose workflow if we're changing an existing provider and not currently fetching
       if (
         hadPreviousProvider &&
@@ -1245,8 +1337,18 @@ class VsCodeExtension {
 
       return undefined;
     } catch (err) {
+      // Re-check: Hub proxy may have been set by the callback during the health check above.
+      // If so, preserve it — don't overwrite a working hub proxy with undefined.
+      if (this.state.modelProviderSource === "hub-proxy") {
+        this.state.logger.info(
+          "Local config health check failed but Hub LLM proxy is already configured, preserving hub proxy",
+        );
+        return undefined;
+      }
+
       this.state.logger.error("Error running model health check:", err);
       this.state.modelProvider = undefined;
+      this.state.modelProviderSource = undefined;
       this.state.logger.error("Health check failed, setting modelProvider to undefined", {
         error: err,
         demoMode: getConfigKaiDemoMode(),
@@ -1281,36 +1383,68 @@ class VsCodeExtension {
     model?: string;
   }): Promise<KaiModelProvider> {
     const bearerToken = this.state.hubConnectionManager.getBearerToken();
-    if (!bearerToken) {
-      throw new Error("No bearer token available for Hub LLM proxy authentication");
+    const hasValidToken = !!bearerToken && bearerToken.length > 0;
+
+    // Use Hub's scoped fetch for TLS configuration (e.g., insecure/self-signed certs)
+    const scopedFetch = this.state.hubConnectionManager.getScopedFetch();
+
+    // When no valid token, Hub auth is effectively disabled server-side.
+    // Strip the Authorization header so the LLM proxy receives unauthenticated requests.
+    let effectiveFetch: typeof fetch | undefined;
+    if (!hasValidToken) {
+      if (this.state.hubConnectionManager.isAuthEnabled()) {
+        this.state.logger.warn(
+          "Auth is enabled in config but Hub returned no valid token. " +
+            "Hub likely has auth disabled server-side. " +
+            "Treating as no-auth and stripping Authorization header from LLM proxy requests.",
+          {
+            bearerTokenLength: bearerToken?.length ?? 0,
+          },
+        );
+      }
+      const baseFetch = scopedFetch || globalThis.fetch;
+      effectiveFetch = async (input: string | URL | Request, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        headers.delete("Authorization");
+        return baseFetch(input, { ...init, headers });
+      };
+    } else {
+      effectiveFetch = scopedFetch;
     }
+
+    // ChatOpenAI requires a non-empty apiKey even if we strip the header
+    const apiKey = hasValidToken ? bearerToken : "sk-placeholder-no-auth";
 
     this.state.logger.info("Creating Hub LLM proxy model provider", {
       endpoint: llmProxyConfig.endpoint,
       model: llmProxyConfig.model,
-      hasToken: !!bearerToken,
+      hasValidToken,
+      bearerTokenLength: bearerToken?.length ?? 0,
+      authMode: hasValidToken ? "bearer-token" : "no-auth",
+      hasScopedFetch: !!scopedFetch,
     });
 
     // Create OpenAI-compatible chat models pointing to Hub proxy
     // Use model from Hub configuration, fallback to gpt-4o if not specified
     const modelName = llmProxyConfig.model || "gpt-4o";
 
+    const openAIConfig = {
+      baseURL: llmProxyConfig.endpoint,
+      ...(effectiveFetch ? { fetch: effectiveFetch } : {}),
+    };
+
     const streamingModel = new ChatOpenAI({
-      openAIApiKey: bearerToken, // Use JWT as API key
-      configuration: {
-        baseURL: llmProxyConfig.endpoint, // Point to Hub's proxy endpoint
-      },
-      modelName,
+      apiKey: apiKey,
+      configuration: openAIConfig,
+      model: modelName,
       temperature: 0,
       streaming: true,
     });
 
     const nonStreamingModel = new ChatOpenAI({
-      openAIApiKey: bearerToken,
-      configuration: {
-        baseURL: llmProxyConfig.endpoint,
-      },
-      modelName,
+      apiKey: apiKey,
+      configuration: openAIConfig,
+      model: modelName,
       temperature: 0,
       streaming: false,
     });
@@ -1453,7 +1587,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
 
       vscode.window
         .showWarningMessage(
-          "Konveyor requires a workspace folder to analyze. Open a folder to get started.",
+          `${EXTENSION_SHORT_NAME} requires a workspace folder to analyze. Open a folder to get started.`,
           "Open Folder",
         )
         .then((selection) => {
@@ -1471,7 +1605,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
           if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             vscode.window
               .showInformationMessage(
-                "Workspace folder detected. Reload the window to activate Konveyor fully.",
+                `Workspace folder detected. Reload the window to activate ${EXTENSION_SHORT_NAME} fully.`,
                 "Reload Window",
               )
               .then((selection) => {
@@ -1516,8 +1650,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     providerRegistry = undefined;
     healthCheckRegistry?.dispose();
     healthCheckRegistry = undefined;
-    logger.error("Failed to activate Konveyor extension", error);
-    vscode.window.showErrorMessage(`Failed to activate Konveyor extension: ${error}`);
+    logger.error(`Failed to activate ${EXTENSION_SHORT_NAME} extension`, error);
+    vscode.window.showErrorMessage(
+      `Failed to activate ${EXTENSION_SHORT_NAME} extension: ${error}`,
+    );
     throw error; // Re-throw to ensure VS Code marks the extension as failed to activate
   }
 }

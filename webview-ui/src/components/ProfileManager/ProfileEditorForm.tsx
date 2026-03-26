@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { targetOptions, sourceOptions } from "./options";
 import {
   Button,
   Form,
@@ -39,8 +38,7 @@ import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { CreatableMultiSelectField } from "./CreatableMultiSelectField";
 import { buildLabelSelector } from "@editor-extensions/shared";
 import { getBrandName } from "../../utils/branding";
-
-const MAX_PROFILE_NAME_LENGTH = 24;
+import { MAX_PROFILE_NAME_LENGTH } from "./constants";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,6 +69,8 @@ export const ProfileEditorForm: React.FC<{
   isDisabled?: boolean;
 }> = ({ profile, isActive, onChange, onDelete, onMakeActive, allProfiles, isDisabled = false }) => {
   const isWebEnvironment = useExtensionStore((state) => state.isWebEnvironment);
+  const targetOptions = useExtensionStore((state) => state.availableTargets);
+  const sourceOptions = useExtensionStore((state) => state.availableSources);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localProfile, setLocalProfile] = useState(profile);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);

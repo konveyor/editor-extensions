@@ -132,6 +132,15 @@ jobs:
         run: |
           npm ci
 
+      - name: Download rulesets for cross-validation tests
+        shell: bash
+        run: |
+          RULESET_TAG="v0.9.0-alpha.4"
+          mkdir -p downloaded_assets/rulesets
+          curl -sL "https://github.com/konveyor/rulesets/archive/refs/tags/${RULESET_TAG}.tar.gz" \
+            | tar -xz -C /tmp
+          cp -r /tmp/rulesets-*/default/generated/* downloaded_assets/rulesets/
+
       # Run tests on Linux
       - name: Run tests (Linux)
         if: matrix.arch == 'linux'

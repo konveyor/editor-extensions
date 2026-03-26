@@ -56,11 +56,26 @@ const actions = [
         bearerToken,
 
         assets: [
-          { name: "kai-rpc-server.linux-x86_64.zip" },
-          { name: "kai-rpc-server.linux-aarch64.zip" },
-          { name: "kai-rpc-server.macos-x86_64.zip" },
-          { name: "kai-rpc-server.macos-arm64.zip" },
-          { name: "kai-rpc-server.windows-X64.zip" },
+          {
+            name: "kai-analyzer-rpc.linux-x86_64.zip",
+            fallbackName: "kai-rpc-server.linux-x86_64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.linux-aarch64.zip",
+            fallbackName: "kai-rpc-server.linux-aarch64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.macos-x86_64.zip",
+            fallbackName: "kai-rpc-server.macos-x86_64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.macos-arm64.zip",
+            fallbackName: "kai-rpc-server.macos-arm64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.windows-X64.zip",
+            fallbackName: "kai-rpc-server.windows-X64.zip",
+          },
         ],
       }),
     })),
@@ -80,11 +95,11 @@ const actions = [
         bearerToken,
 
         artifacts: [
-          { name: "kai-rpc-server.linux-aarch64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.linux-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.macos-arm64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.macos-x86_64.zip", contents: ["kai-rpc-server.*.zip"] },
-          { name: "kai-rpc-server.windows-X64.zip", contents: ["kai-rpc-server.*.zip"] },
+          { name: "kai-analyzer-rpc.linux-aarch64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.linux-x86_64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.macos-arm64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.macos-x86_64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.windows-X64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
         ],
       }),
     })),
@@ -99,11 +114,21 @@ const actions = [
 
       globs: ["kai-analyzer-rpc*"],
       assets: [
-        { name: "kai-rpc-server.linux-x86_64.zip", platform: "linux", arch: "x64", chmod: true },
-        { name: "kai-rpc-server.linux-aarch64.zip", platform: "linux", arch: "arm64", chmod: true },
-        { name: "kai-rpc-server.macos-x86_64.zip", platform: "darwin", arch: "x64", chmod: true },
-        { name: "kai-rpc-server.macos-arm64.zip", platform: "darwin", arch: "arm64", chmod: true },
-        { name: "kai-rpc-server.windows-X64.zip", platform: "win32", arch: "x64" },
+        { name: "kai-analyzer-rpc.linux-x86_64.zip", platform: "linux", arch: "x64", chmod: true },
+        {
+          name: "kai-analyzer-rpc.linux-aarch64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "kai-analyzer-rpc.macos-x86_64.zip", platform: "darwin", arch: "x64", chmod: true },
+        {
+          name: "kai-analyzer-rpc.macos-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "kai-analyzer-rpc.windows-X64.zip", platform: "win32", arch: "x64" },
       ],
     }),
   }),
@@ -117,7 +142,7 @@ const actions = [
       targetDirectory: () => join(DOWNLOAD_DIR, "opensource-labels-file"),
 
       globs: ["maven.default.index"],
-      assets: [{ name: "kai-rpc-server.linux-x86_64.zip" }],
+      assets: [{ name: "kai-analyzer-rpc.linux-x86_64.zip" }],
     }),
   }),
 
@@ -147,7 +172,7 @@ const actions = [
       targetDirectory: () => join(DOWNLOAD_DIR, "jdtls-bundles"),
 
       globs: ["*.jar"],
-      assets: [{ name: "kai-rpc-server.linux-x86_64.zip" }],
+      assets: [{ name: "kai-analyzer-rpc.linux-x86_64.zip" }],
     }),
   }),
 

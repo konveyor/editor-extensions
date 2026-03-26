@@ -195,7 +195,9 @@
     "branch": "7.4.x",
     "language": "java",
     "sources": [],
-    "targets": ["eap7", "eap8"]
+    "targets": ["eap7", "eap8"],
+    "issuesCount": 12,
+    "incidentsCount": 90
   },
   "gotest": {
     "repoUrl": "https://github.com/savitharaghunathan/gotest",

@@ -79,6 +79,14 @@ const actions: {
       return;
     }
 
+    const MAX_PROFILE_NAME_LENGTH = 24;
+    if (profile.name.length > MAX_PROFILE_NAME_LENGTH) {
+      vscode.window.showErrorMessage(
+        `Profile name "${profile.name}" exceeds the ${MAX_PROFILE_NAME_LENGTH}-character limit.`,
+      );
+      return;
+    }
+
     const allProfiles = await getAllProfiles(state.extensionContext);
 
     if (allProfiles.some((p) => p.name === profile.name)) {
