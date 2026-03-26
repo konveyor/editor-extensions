@@ -156,7 +156,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "Patch Release Failed",
+              "text": "Patch Release Failed\n\nBranch: ${{ inputs.branch }}\nPlanned tag: ${{ needs.compute-version.outputs.tag }}\nVersion: ${{ needs.compute-version.outputs.version }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nJobs:\n• compute-version: ${{ needs.compute-version.result }}\n• release: ${{ needs.release.result }}\n• housekeeping: ${{ needs.housekeeping.result }}",
               "branch": "${{ inputs.branch }}",
               "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }

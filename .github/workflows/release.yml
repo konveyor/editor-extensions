@@ -285,14 +285,70 @@ jobs:
     if: ${{ !inputs.prerelease }}
     runs-on: ubuntu-latest
     steps:
+      - name: Build Slack payload
+        env:
+          VERSION: ${{ inputs.version }}
+          TAG: ${{ inputs.tag }}
+          REF: ${{ inputs.ref }}
+          SKIP_VSCODE: ${{ inputs.skip_vscode_publish }}
+          SKIP_OPENVSX: ${{ inputs.skip_openvsx_publish }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          python3 << 'PY'
+          import json
+          import os
+
+          version = os.environ["VERSION"]
+          tag = os.environ["TAG"]
+          ref = os.environ["REF"]
+          skip_vscode = os.environ["SKIP_VSCODE"] == "true"
+          skip_openvsx = os.environ["SKIP_OPENVSX"] == "true"
+          repo_url = os.environ["REPO_URL"]
+          release_url = f"{repo_url}/releases/tag/{tag}"
+
+          lines = [
+              "Extension Published",
+              "",
+              f"Version: {version}",
+              f"Tag: {tag}",
+              f"Ref: {ref}",
+              "",
+              "Extension pack (konveyor.konveyor) at this version:",
+          ]
+          if not skip_vscode:
+              lines.append(
+                  f"• VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=konveyor.konveyor&version={version}"
+              )
+          else:
+              lines.append("• VS Code Marketplace: not published (skipped for this run)")
+          if not skip_openvsx:
+              lines.append(
+                  f"• Open VSX: https://open-vsx.org/extension/konveyor/konveyor/{version}"
+              )
+          else:
+              lines.append("• Open VSX: not published (skipped for this run)")
+          lines.extend(
+              [
+                  "",
+                  "Also published (same version): konveyor.konveyor-core, konveyor.konveyor-java, "
+                  "konveyor.konveyor-go, konveyor.konveyor-javascript, konveyor.konveyor-csharp",
+                  "",
+                  f"GitHub release: {release_url}",
+              ]
+          )
+
+          text = "\n".join(lines)
+          note = f"Published {tag}: {release_url}"
+          payload = {"text": text, "branch": ref, "note": note}
+          with open("slack-payload.json", "w", encoding="utf-8") as f:
+              json.dump(payload, f, ensure_ascii=False)
+              f.write("\n")
+          print("Slack payload written to slack-payload.json")
+          PY
+
       - name: Send published notification to Slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
-          payload: |
-            {
-              "text": "Extension Published",
-              "branch": "${{ inputs.ref }}",
-              "note": "Published ${{ inputs.tag }}: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}"
-            }
+          payload-file-path: slack-payload.json
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}
