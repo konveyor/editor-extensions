@@ -52,6 +52,7 @@ export class Configuration {
     const window = this.vsCode.getWindow();
     try {
       await this.searchConfig(configuration);
+      const checkbox = window.getByLabel(configuration);
       await checkbox.scrollIntoViewIfNeeded();
       await checkbox.setChecked(enabled);
     } catch (error) {
