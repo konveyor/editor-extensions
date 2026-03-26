@@ -12,9 +12,17 @@
  */
 import {
   buildKaiResponse,
+  getLlemulatorBaseUrl,
   loadLlemulatorResponses,
   type LlemulatorPatternRule,
 } from '../utilities/llemulator.utils';
+
+/** Matches only the first gotest rule (main.go), not the go.mod rule. */
+const MAIN_GO_PROBE_PROMPT =
+  'Migrate deprecated HorizontalPodAutoscaler from autoscaling/v2beta1 for nginx-hpa';
+
+/** Substring from MAIN_GO_MIGRATED — not present in GO_MOD_UPDATED. */
+export const GOTEST_MAIN_GO_RESPONSE_MARKER = 'Creating HPA using autoscaling/v2 API';
 
 /** main.go migrated from autoscaling/v2beta1 to autoscaling/v2 (addresses first two issues). */
 const MAIN_GO_MIGRATED = `package main
@@ -215,4 +223,44 @@ export async function loadGotestWorkflowLlemulatorResponses(): Promise<void> {
     reset: true,
     responses: gotestLlemulatorRules(),
   });
+}
+
+/**
+ * Confirms the main.go Kai script is active: a probe message matches the autoscaling rule and
+ * returns the migrated file body (not go.mod). Call after `loadGotestWorkflowLlemulatorResponses`.
+ */
+export async function verifyGotestMainGoLlemulatorRule(
+  token: string = 'dummy-key-for-llemulator'
+): Promise<void> {
+  const base = getLlemulatorBaseUrl();
+  if (!base) {
+    throw new Error('Llemulator is not configured. Set TEST_LLEMULATOR_URL.');
+  }
+
+  const res = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: MAIN_GO_PROBE_PROMPT }],
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`main.go llemulator probe failed: ${res.status} ${text}`);
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = data.choices?.[0]?.message?.content ?? '';
+  if (!content.includes(GOTEST_MAIN_GO_RESPONSE_MARKER)) {
+    throw new Error(
+      `Expected gotest main.go Kai body (marker "${GOTEST_MAIN_GO_RESPONSE_MARKER}"). Got: ${content.slice(0, 400)}`
+    );
+  }
 }

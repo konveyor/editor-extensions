@@ -17,7 +17,10 @@ import {
   getDefaultProviderConfig,
   LLEMULATOR_PROVIDER,
 } from '../../fixtures/provider-configs.fixture';
-import { loadGotestWorkflowLlemulatorResponses } from '../../fixtures/gotest-llemulator';
+import {
+  loadGotestWorkflowLlemulatorResponses,
+  verifyGotestMainGoLlemulatorRule,
+} from '../../fixtures/gotest-llemulator';
 import { getLlemulatorBaseUrl } from '../../utilities/llemulator.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
@@ -56,6 +59,8 @@ test.describe.serial(
             true
           );
         }
+        // Proves the main.go pattern rule returns the migrated main.go Kai body (not go.mod)
+        await verifyGotestMainGoLlemulatorRule();
         console.log('Llemulator scripts loaded for gotest workflow (see gotest-llemulator.ts)');
       }
       // Use openForRepo which determines initialization based on repo language
