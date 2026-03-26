@@ -860,6 +860,12 @@
   text-decoration: underline;
 }
 
+/* Hide PatternFly chatbot scroll-to-top button when config panel is visible */
+.agent-settings ~ .chat-messages .pf-chatbot__jump--top,
+.agent-settings ~ * .pf-chatbot__jump--top {
+  display: none !important;
+}
+
 /* --- Hide avatar icons in the chat page --- */
 
 .chat-page .pf-chatbot__message-avatar {
