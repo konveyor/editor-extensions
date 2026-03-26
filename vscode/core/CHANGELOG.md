@@ -7,6 +7,14 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.9] - 2026-03-26
+
+### Bug Fixes
+
+- Fixed duplicate profile name exceeding the 24-character limit by truncating the base name before appending the copy suffix. ([#1286](https://github.com/konveyor/editor-extensions/pull/1286))
+
+
 ## [0.4.7] - 2026-03-11
 
 ### Bug Fixes
