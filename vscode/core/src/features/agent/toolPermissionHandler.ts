@@ -289,32 +289,37 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
         outcome: { outcome: "selected", optionId },
       });
 
-      if (rawFilePath && ctx.extensionState) {
-        // File edits: routeFileChange pushes a ModifiedFile message
-        routeFileChange(
-          ctx.extensionState,
-          rawFilePath,
-          rawFileContent ?? "",
-          originalContent ?? "",
-        ).catch(() => {});
-      } else if (rawFilePath) {
+      if (category === "fileEditing" && rawFilePath && ctx.extensionState) {
+        const isBatchReview = ctx.extensionState.data.isBatchReviewMode === true;
+        if (isBatchReview) {
+          routeFileChange(
+            ctx.extensionState,
+            rawFilePath,
+            rawFileContent ?? "",
+            originalContent ?? "",
+          ).catch(() => {});
+        } else {
+          Promise.resolve(
+            executeExtensionCommand("changeApplied", rawFilePath, rawFileContent ?? ""),
+          ).catch(() => {});
+        }
+      } else if (category === "fileEditing" && rawFilePath) {
         Promise.resolve(
           executeExtensionCommand("changeApplied", rawFilePath, rawFileContent ?? ""),
         ).catch(() => {});
-      } else {
-        // Non-file tools (todo, reads, etc.): compact tool indicator
-        mutate((draft) => {
-          draft.chatMessages.push({
-            kind: ChatMessageType.Tool,
-            messageToken: `auto-${uuidv4()}`,
-            timestamp: new Date().toISOString(),
-            value: {
-              toolName: label,
-              toolStatus: "succeeded",
-            } as ToolMessageValue,
-          });
-        });
       }
+
+      mutate((draft) => {
+        draft.chatMessages.push({
+          kind: ChatMessageType.Tool,
+          messageToken: `auto-${uuidv4()}`,
+          timestamp: new Date().toISOString(),
+          value: {
+            toolName: label,
+            toolStatus: "succeeded",
+          } as ToolMessageValue,
+        });
+      });
       return;
     }
   }

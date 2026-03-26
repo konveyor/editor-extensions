@@ -79,39 +79,56 @@ const MAX_INLINE_LABELS = 3;
 
 interface CollapsibleToolGroupProps {
   tools: ChatMessage[];
+  hasFailed?: boolean;
 }
 
-export const CollapsibleToolGroup: React.FC<CollapsibleToolGroupProps> = ({ tools }) => {
+export const CollapsibleToolGroup: React.FC<CollapsibleToolGroupProps> = ({ tools, hasFailed }) => {
   const [expanded, setExpanded] = useState(false);
 
   const labels = tools.map((t) => getHumanReadableToolName((t.value as ToolMessageValue).toolName));
 
-  const summary =
-    labels.length <= MAX_INLINE_LABELS
-      ? labels.join(", ")
-      : `Used ${labels.length} tools`;
+  const failedCount = hasFailed
+    ? tools.filter((t) => (t.value as ToolMessageValue).toolStatus === "failed").length
+    : 0;
+
+  let summary: string;
+  if (hasFailed) {
+    summary =
+      tools.length === 1
+        ? "Tool call failed"
+        : failedCount === tools.length
+          ? `${tools.length} tool calls failed`
+          : `${tools.length} tool calls (${failedCount} failed)`;
+  } else {
+    summary =
+      labels.length <= MAX_INLINE_LABELS
+        ? labels.join(", ")
+        : `Used ${labels.length} tools`;
+  }
 
   return (
     <div className="tool-group">
       <button
-        className="tool-group__toggle"
+        className={`tool-group__toggle ${hasFailed ? "tool-group__toggle--failed" : ""}`}
         onClick={() => setExpanded((prev) => !prev)}
         aria-expanded={expanded}
       >
         <AngleRightIcon
           className={`tool-group__chevron ${expanded ? "tool-group__chevron--open" : ""}`}
         />
+        {hasFailed && <TimesCircleIcon className="tool-status-icon tool-status-icon--error" />}
         <span className="tool-group__summary">{summary}</span>
       </button>
       {expanded && (
         <div className="tool-group__detail">
           {tools.map((t) => {
             const val = t.value as ToolMessageValue;
+            const status = val.toolStatus === "failed" ? "failed" : "succeeded";
             return (
               <ToolMessage
                 key={t.messageToken}
                 toolName={val.toolName}
-                status="succeeded"
+                status={status}
                 detail={val.detail}
               />
             );

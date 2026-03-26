@@ -154,22 +154,7 @@ const ChatPage: React.FC = () => {
           );
         }
 
-        if (hasFailed) {
-          return (
-            <MessageWrapper key={key}>
-              <ToolMessage
-                toolName={
-                  tools.length === 1
-                    ? "Tool call failed"
-                    : `${tools.length} tool calls (some failed)`
-                }
-                status="failed"
-              />
-            </MessageWrapper>
-          );
-        }
-
-        return <CollapsibleToolGroup key={key} tools={tools} />;
+        return <CollapsibleToolGroup key={key} tools={tools} hasFailed={hasFailed || undefined} />;
       }
 
       const msg = item.message;
@@ -187,7 +172,7 @@ const ChatPage: React.FC = () => {
         const message = msg.value?.message as string;
         const selectedResponse = msg.selectedResponse;
 
-        if (msg.messageToken.startsWith("perm-") && message?.includes("```diff")) {
+        if (msg.messageToken.startsWith("perm-")) {
           return (
             <MessageWrapper key={msg.messageToken}>
               <PermissionReviewMessage

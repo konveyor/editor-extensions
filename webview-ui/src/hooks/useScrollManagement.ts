@@ -3,7 +3,7 @@ import { ChatMessage } from "@editor-extensions/shared";
 import { MessageBoxHandle } from "@patternfly/chatbot";
 
 const NEAR_BOTTOM_THRESHOLD = 150;
-const USER_SCROLLED_UP_THRESHOLD = 200;
+const USER_SCROLLED_UP_THRESHOLD = 80;
 const STREAMING_POLL_MS = 250;
 
 export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolution: boolean) => {
@@ -175,14 +175,11 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
       if (isNearBottom()) {
         userHasScrolledUp.current = false;
       } else {
-        const now = Date.now();
-        if (now - lastScrollTime.current > 100) {
-          const { scrollTop, scrollHeight, clientHeight } = messageBox;
-          const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-          if (distanceFromBottom > USER_SCROLLED_UP_THRESHOLD) {
-            userHasScrolledUp.current = true;
-            lastUserScrollTime.current = now;
-          }
+        const { scrollTop, scrollHeight, clientHeight } = messageBox;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        if (distanceFromBottom > USER_SCROLLED_UP_THRESHOLD) {
+          userHasScrolledUp.current = true;
+          lastUserScrollTime.current = Date.now();
         }
       }
     };

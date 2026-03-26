@@ -74,6 +74,15 @@
   background: var(--vscode-list-hoverBackground, #2a2d2e);
 }
 
+.tool-group__toggle--failed {
+  color: var(--vscode-testing-iconFailed, #f48771);
+}
+
+.tool-group__toggle--failed .tool-status-icon {
+  width: 12px;
+  height: 12px;
+}
+
 .tool-group__chevron {
   width: 10px;
   height: 10px;
