@@ -40,7 +40,7 @@ export class AgentFileTracker {
   async cacheIncidentFiles(
     incidents: ReadonlyArray<{ readonly uri: string }>,
     workspaceRoot: string,
-  ): Promise<void> {
+  ): Promise<Map<string, string>> {
     const uniquePaths = new Set<string>();
     for (const incident of incidents) {
       const absPath = this.uriToAbsolute(incident.uri, workspaceRoot);
@@ -63,6 +63,8 @@ export class AgentFileTracker {
       total: uniquePaths.size,
       cached,
     });
+
+    return new Map(this.originalContentCache);
   }
 
   /**

@@ -10,13 +10,14 @@ import type { EnhancedIncident } from "@editor-extensions/shared";
 export async function buildMigrationPrompt(
   input: KaiInteractiveWorkflowInput,
   workspaceDir: string,
+  fileContentCache?: ReadonlyMap<string, string>,
 ): Promise<string> {
   const { incidents = [], migrationHint, programmingLanguage } = input;
 
   const byUri = groupByUri(incidents);
   const fileBlocks = await Promise.all(
     Array.from(byUri.entries()).map(([uri, fileIncidents]) =>
-      buildFileBlock(uri, fileIncidents, workspaceDir),
+      buildFileBlock(uri, fileIncidents, workspaceDir, fileContentCache),
     ),
   );
 
@@ -62,16 +63,20 @@ async function buildFileBlock(
   uri: string,
   incidents: EnhancedIncident[],
   workspaceDir: string,
+  fileContentCache?: ReadonlyMap<string, string>,
 ): Promise<string> {
   const filePath = uriToRelative(uri, workspaceDir);
   const lines: string[] = [`### ${filePath}`, ``];
 
   let fileContent: string | undefined;
-  try {
-    const absPath = uriToAbsolute(uri, workspaceDir);
-    fileContent = await fs.readFile(absPath, "utf-8");
-  } catch {
-    // File may not be readable; proceed without content
+  const absPath = uriToAbsolute(uri, workspaceDir);
+  fileContent = fileContentCache?.get(absPath);
+  if (fileContent === undefined) {
+    try {
+      fileContent = await fs.readFile(absPath, "utf-8");
+    } catch {
+      // File may not be readable; proceed without content
+    }
   }
 
   for (const inc of incidents) {

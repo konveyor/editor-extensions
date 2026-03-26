@@ -45,6 +45,17 @@ export class AgentOrchestrator {
   ) {}
 
   async run(): Promise<void> {
+    if (this.state.data.isFetchingSolution) {
+      vscode.window.showWarningMessage("Solution already being fetched");
+      return;
+    }
+
+    const profileName = this.incidents[0]?.activeProfileName;
+    if (!profileName) {
+      vscode.window.showErrorMessage("No profile name found in incidents");
+      return;
+    }
+
     const agentMode = this.state.data.featureState?.agentMode !== false;
     let client: AgentClient | undefined;
     let disposeClient = false;
@@ -53,16 +64,30 @@ export class AgentOrchestrator {
       client = this.getAgentClient();
     }
 
+    this.initializeState();
+    executeExtensionCommand("showChatPanel");
+
+    this.logger.info("AgentOrchestrator: starting", {
+      incidentsCount: this.incidents.length,
+      profileName,
+      agentMode,
+    });
+
     if (!client) {
       client = await this.createDirectLLMClient();
       disposeClient = true;
     }
 
     if (!client) {
+      this.cleanup();
       return;
     }
 
-    await this.runWithClient(client, agentMode && !disposeClient, disposeClient);
+    if (agentMode && !disposeClient) {
+      await this.runAgentPath(client, profileName, disposeClient);
+    } else {
+      await this.runWorkflowPath(client, disposeClient);
+    }
   }
 
   private getAgentClient(): AgentClient | undefined {
@@ -78,11 +103,19 @@ export class AgentOrchestrator {
 
   private async createDirectLLMClient(): Promise<AgentClient | undefined> {
     try {
-      const { parseModelConfig, getModelProviderFromConfig } = await import("../../modelProvider");
-      const { paths } = await import("../../paths");
-      const { KaiInteractiveWorkflow, FileBasedResponseCache } =
-        await import("@editor-extensions/agentic");
-      const { getConfigKaiDemoMode, getCacheDir } = await import("../../utilities/configuration");
+      const [
+        { parseModelConfig, getModelProviderFromConfig },
+        { paths },
+        { KaiInteractiveWorkflow, FileBasedResponseCache },
+        { getConfigKaiDemoMode, getCacheDir },
+        { DirectLLMClient },
+      ] = await Promise.all([
+        import("../../modelProvider"),
+        import("../../paths"),
+        import("@editor-extensions/agentic"),
+        import("../../utilities/configuration"),
+        import("../../client/directLLMClient"),
+      ]);
 
       const parsedConfig = await parseModelConfig(paths().settingsYaml);
       const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
@@ -107,7 +140,6 @@ export class AgentOrchestrator {
       const programmingLanguage =
         this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
 
-      const { DirectLLMClient } = await import("../../client/directLLMClient");
       return new DirectLLMClient({
         workflow,
         workflowInput: {
@@ -125,38 +157,6 @@ export class AgentOrchestrator {
         `Failed to initialize LLM: ${msg}. Check your provider-settings.yaml configuration.`,
       );
       return undefined;
-    }
-  }
-
-  private async runWithClient(
-    agentClient: AgentClient,
-    agentMode: boolean,
-    disposeClient: boolean,
-  ): Promise<void> {
-    if (this.state.data.isFetchingSolution) {
-      vscode.window.showWarningMessage("Solution already being fetched");
-      return;
-    }
-
-    const profileName = this.incidents[0]?.activeProfileName;
-    if (!profileName) {
-      vscode.window.showErrorMessage("No profile name found in incidents");
-      return;
-    }
-
-    this.logger.info("AgentOrchestrator: starting", {
-      incidentsCount: this.incidents.length,
-      profileName,
-      agentMode,
-    });
-
-    this.initializeState();
-    executeExtensionCommand("showChatPanel");
-
-    if (agentMode) {
-      await this.runAgentPath(agentClient, profileName, disposeClient);
-    } else {
-      await this.runWorkflowPath(agentClient, disposeClient);
     }
   }
 
@@ -224,24 +224,28 @@ export class AgentOrchestrator {
     agentClient.on("permissionRequest", onPermission);
 
     try {
-      const sessionId = await agentClient.createSession();
-      this.logger.info("AgentOrchestrator: created new session for getSolution", { sessionId });
+      if (fileTracker) {
+        fileTracker.clear();
+      }
 
+      const programmingLanguage =
+        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
+
+      const workspaceRoot = this.state.data.workspaceRoot;
+
+      const [sessionId, fileContentCache] = await Promise.all([
+        agentClient.createSession(),
+        fileTracker && this.incidents.length > 0
+          ? fileTracker.cacheIncidentFiles(this.incidents, workspaceRoot)
+          : Promise.resolve(undefined),
+      ]);
+
+      this.logger.info("AgentOrchestrator: created new session for getSolution", { sessionId });
       this.state.mutate((draft) => {
         if (draft.solutionScope) {
           draft.solutionScope.agentSessionId = sessionId;
         }
       });
-
-      if (fileTracker) {
-        fileTracker.clear();
-        if (this.incidents.length > 0) {
-          await fileTracker.cacheIncidentFiles(this.incidents, this.state.data.workspaceRoot);
-        }
-      }
-
-      const programmingLanguage =
-        this.incidents.length > 0 ? getProgrammingLanguageFromUri(this.incidents[0].uri) : "Java";
 
       const prompt = await buildMigrationPrompt(
         {
@@ -250,7 +254,8 @@ export class AgentOrchestrator {
           programmingLanguage,
           enableAgentMode: true,
         },
-        this.state.data.workspaceRoot,
+        workspaceRoot,
+        fileContentCache,
       );
 
       const requestId = uuidv4();
