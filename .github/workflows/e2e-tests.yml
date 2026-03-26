@@ -561,8 +561,12 @@ jobs:
         run: |
           echo "=== Testing llemulator access through LLM proxy ==="
 
-          # Port-forward to llm-proxy
-          kubectl port-forward -n konveyor-tackle svc/llm-proxy 8090:8080 &
+          # Get the llm-proxy service port
+          LLM_PROXY_PORT=$(kubectl get svc llm-proxy -n konveyor-tackle -o jsonpath='{.spec.ports[0].port}')
+          echo "LLM Proxy service port: ${LLM_PROXY_PORT}"
+
+          # Port-forward to llm-proxy using the correct port
+          kubectl port-forward -n konveyor-tackle svc/llm-proxy 8090:${LLM_PROXY_PORT} &
           PF_PID=$!
 
           # Wait for port-forward to be ready
