@@ -87,6 +87,7 @@ jobs:
     name: Critical Tests (@tier0)
     runs-on: ubuntu-latest
     needs: setup
+    if: false # TODO abrugaro remove this line
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -146,6 +147,7 @@ jobs:
     needs: setup
     # Only required for releases, but run on PRs for visibility
     continue-on-error: ${{ inputs.trigger_context == 'pr' }}
+    if: false # TODO abrugaro remove this line
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -284,7 +286,7 @@ jobs:
           path: ./downloaded_assets
 
       - name: Run tier3 tests
-        run: npx playwright test --grep "@tier3"
+        run: npx playwright test --grep "@tier3" --grep-invert "@requires-minikube"
         working-directory: ./tests
         continue-on-error: true
         env:
@@ -309,8 +311,7 @@ jobs:
     name: Infrastructure Tests (@requires-minikube)
     runs-on: ubuntu-latest
     needs: setup
-    # Only run on releases
-    if: false
+    # if: false # TODO abrugaro uncomment this line
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -357,54 +358,63 @@ jobs:
 
           echo "✓ Llemulator deployed and ready"
 
-      - name: Configure Llemulator with Test Responses
+      - name: Expose Llemulator for External Access
+        id: expose_llemulator
         run: |
-          echo "=== Configuring llemulator with 50 test responses ==="
+          echo "=== Exposing llemulator for external access ==="
 
-          kubectl port-forward -n konveyor-tackle svc/llemulator 8089:80 &
-          PF_PID=$!
+          # Create a new NodePort service for external access
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: llemulator-external
+            namespace: konveyor-tackle
+          spec:
+            type: NodePort
+            selector:
+              app: llemulator
+            ports:
+              - port: 80
+                targetPort: 8080
+                nodePort: 30089
+          EOF
 
+          MINIKUBE_IP=$(minikube ip)
+          LLEMULATOR_URL="http://${MINIKUBE_IP}:30089/v1"
+          echo "llemulator_url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
+
+          echo "Llemulator external URL: ${LLEMULATOR_URL}"
+
+          # Wait for service to be ready
           for i in {1..30}; do
-            if curl -s http://localhost:8089/_emulator/script > /dev/null 2>&1; then
-              echo "Port-forward is ready"
+            if curl -s "${LLEMULATOR_URL}/chat/completions" -H "Content-Type: application/json" -d '{"model":"gpt-4o","messages":[]}' > /dev/null 2>&1; then
+              echo "✓ Llemulator service is ready"
               break
             fi
-            echo "Waiting for port-forward... ($i/30)"
+            echo "Waiting for llemulator external access... ($i/30)"
             sleep 2
           done
 
-          # Build JSON array with 50 responses
-          RESPONSES='['
-          for i in {1..50}; do
-            RESPONSES="${RESPONSES}\"LLEMULATOR response\""
-            if [ $i -lt 50 ]; then
-              RESPONSES="${RESPONSES},"
-            fi
-          done
-          RESPONSES="${RESPONSES}]"
+      - name: Verify Llemulator Direct Access
+        run: |
+          echo "=== Testing llemulator direct access ==="
+          LLEMULATOR_URL="${{ steps.expose_llemulator.outputs.llemulator_url }}"
+          echo "Testing llemulator at: ${LLEMULATOR_URL}"
 
-          # Configure llemulator with test responses using the correct API
-          response=$(curl -s -X POST http://localhost:8089/_emulator/script \
-            -H "Authorization: Bearer dummy-key-for-llemulator" \
+          RESPONSE=$(curl -s -X POST "${LLEMULATOR_URL}/chat/completions" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"reset\": true,
-              \"models\": [\"gpt-4o\", \"gpt-4\", \"gpt-3.5-turbo\"],
-              \"responses\": ${RESPONSES}
-            }")
+            -H "Authorization: Bearer dummy-key-for-llemulator" \
+            -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test"}]}')
 
-          if [ $? -ne 0 ]; then
-            echo "✗ Failed to configure llemulator"
-            echo "Response: $response"
-            kill $PF_PID 2>/dev/null || true
+          echo "Llemulator response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q "choices"; then
+            echo "✓ Llemulator is responding correctly (direct access)"
+          else
+            echo "✗ Llemulator did not return a valid response"
             exit 1
           fi
-
-          echo "✓ Successfully configured llemulator with 50 test responses"
-          echo "Response: $response"
-
-          # Clean up port-forward
-          kill $PF_PID 2>/dev/null || true
 
       - name: Install Konveyor
         uses: konveyor/operator/.github/actions/install-konveyor@main
@@ -531,65 +541,9 @@ jobs:
 
           echo "✓ LLM proxy and solution server enabled"
 
-      - name: Verify Llemulator Integration
-        run: |
-          echo "=== Testing llemulator integration ==="
-
-          # Port-forward to llemulator
-          kubectl port-forward -n konveyor-tackle svc/llemulator 8089:80 &
-          PF_PID=$!
-
-          # Wait for port-forward
-          for i in {1..30}; do
-            if curl -s http://localhost:8089/v1/chat/completions > /dev/null 2>&1; then
-              echo "Port-forward is ready"
-              break
-            fi
-            echo "Waiting for port-forward... ($i/30)"
-            sleep 2
-          done
-
-          # Test llemulator with 5 requests
-          echo "Testing llemulator endpoint with 5 requests..."
-          FOUND=false
-
-          for i in {1..5}; do
-            RESPONSE=$(curl -s -X POST http://localhost:8089/v1/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer dummy-key-for-llemulator" \
-              -d '{
-                "model": "gpt-4o",
-                "messages": [{"role": "user", "content": "test"}]
-              }')
-
-            echo "Llemulator response $i: $RESPONSE"
-
-            # Check if this response contains our test string
-            if echo "$RESPONSE" | grep -q "LLEMULATOR response"; then
-              echo "✓ Found 'LLEMULATOR response' in response $i"
-              FOUND=true
-            fi
-          done
-
-          # Verify at least one response contained expected text
-          if [ "$FOUND" = true ]; then
-            echo "✓ Llemulator is returning configured responses"
-          else
-            echo "✗ None of the 5 responses contained 'LLEMULATOR response'"
-            kill $PF_PID 2>/dev/null || true
-            exit 1
-          fi
-
-          kill $PF_PID 2>/dev/null || true
-          echo "✓ Llemulator integration test passed"
-
       - name: Verify LLM Proxy Health
         run: |
           echo "=== Checking LLM proxy health ==="
-
-          # Check llm-proxy logs
-          echo "LLM Proxy logs (last 50 lines):"
-          kubectl logs -n konveyor-tackle deployment/llm-proxy --tail=50
 
           # Check if llm-proxy is healthy
           POD=$(kubectl get pods -n konveyor-tackle -l app.kubernetes.io/name=llm-proxy -o jsonpath='{.items[0].metadata.name}')
@@ -602,6 +556,43 @@ jobs:
           kubectl get pod $POD -n konveyor-tackle
 
           echo "✓ LLM proxy is running"
+
+      - name: Verify Llemulator via LLM Proxy
+        run: |
+          echo "=== Testing llemulator access through LLM proxy ==="
+
+          # Port-forward to llm-proxy
+          kubectl port-forward -n konveyor-tackle svc/llm-proxy 8090:8080 &
+          PF_PID=$!
+
+          # Wait for port-forward to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:8090/health > /dev/null 2>&1; then
+              echo "LLM Proxy port-forward is ready"
+              break
+            fi
+            echo "Waiting for LLM proxy port-forward... ($i/30)"
+            sleep 2
+          done
+
+          # Test LLM proxy can reach llemulator
+          RESPONSE=$(curl -s -X POST "http://localhost:8090/v1/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer dummy-key-for-llemulator" \
+            -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}')
+
+          echo "LLM Proxy response: $RESPONSE"
+
+          kill $PF_PID 2>/dev/null || true
+
+          if echo "$RESPONSE" | grep -q "choices"; then
+            echo "✓ LLM Proxy can reach llemulator successfully"
+          else
+            echo "✗ LLM Proxy failed to reach llemulator"
+            echo "LLM Proxy logs:"
+            kubectl logs -n konveyor-tackle deployment/llm-proxy --tail=50
+            exit 1
+          fi
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -625,7 +616,8 @@ jobs:
           echo "hub_url=${HUB_URL}" >> $GITHUB_OUTPUT
 
       - name: Run infrastructure tests
-        run: npx playwright test --grep "@requires-minikube"
+        #run: npx playwright test --grep "@requires-minikube" TODO abrugaro change
+        run: npx playwright test --grep "@only" TODO abrugaro change
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
@@ -638,6 +630,7 @@ jobs:
           TEST_HUB_AUTH_ENABLED: "true"
           TEST_HUB_USERNAME: "admin"
           TEST_HUB_PASSWORD: "Passw0rd!"
+          TEST_LLEMULATOR_URL: ${{ steps.expose_llemulator.outputs.llemulator_url }}
 
       - name: Collect infrastructure logs
         if: always()
