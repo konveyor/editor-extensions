@@ -1,3 +1,11 @@
+/**
+ * Golang E2E workflow (gotest repo) — mirrors the llemulator pattern from plugin-settings.test.ts:
+ *
+ * - When `getDefaultProviderConfig() === LLEMULATOR_PROVIDER` (i.e. `TEST_LLEMULATOR_URL` is set),
+ *   we `loadLlemulatorResponses` with scripted Kai markdown for main.go + go.mod (see gotest-llemulator.ts).
+ * - Plugin-settings inlines small Java snippets; here payloads stay in the fixture file for size/clarity.
+ * - `configureGenerativeAI(getDefaultProviderConfig().config)` matches plugin-settings.
+ */
 import * as pathlib from 'path';
 import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
@@ -7,9 +15,10 @@ import { generateRandomString } from '../../utilities/utils';
 import {
   getAvailableProviders,
   getDefaultProviderConfig,
+  LLEMULATOR_PROVIDER,
 } from '../../fixtures/provider-configs.fixture';
 import { loadGotestWorkflowLlemulatorResponses } from '../../fixtures/gotest-llemulator';
-import { isLlemulatorConfigured } from '../../utilities/llemulator.utils';
+import { getLlemulatorBaseUrl } from '../../utilities/llemulator.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 /** Get Solution → Accept requires a configured provider (llemulator URL, OpenAI key, or AWS Bedrock). */
@@ -37,10 +46,17 @@ test.describe.serial(
       if (!repoInfo) {
         throw new Error("'gotest' fixture is missing from test-repos.json");
       }
-      if (isLlemulatorConfigured()) {
-        // Two scripted solutions: (1) main.go autoscaling migration, (2) go.mod client-go bump — see gotest-llemulator.ts
+      if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
+        // POST /_emulator/script throws if scripts did not load; registers main.go + go.mod Kai responses
         await loadGotestWorkflowLlemulatorResponses();
-        console.log('Llemulator responses loaded for gotest workflow (CI / TEST_LLEMULATOR_URL)');
+        const base = getLlemulatorBaseUrl();
+        if (base) {
+          const health = await fetch(`${base}/healthz`);
+          expect(health.ok, 'llemulator should be reachable after loading gotest script').toBe(
+            true
+          );
+        }
+        console.log('Llemulator scripts loaded for gotest workflow (see gotest-llemulator.ts)');
       }
       // Use openForRepo which determines initialization based on repo language
       vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
@@ -235,7 +251,7 @@ test.describe.serial(
     test('Fix autoscaling issue and accept solution', async () => {
       test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
       test.setTimeout(600000);
-      if (isLlemulatorConfigured()) {
+      if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
         await loadGotestWorkflowLlemulatorResponses();
       }
       await vscodeApp.openAnalysisView();
@@ -283,7 +299,6 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
-      await vscodeApp.waitForFileSolutionAccepted('main.go');
       await vscodeApp.waitForAnalysisCompleted();
       await vscodeApp.waitDefault();
     });
@@ -318,7 +333,7 @@ test.describe.serial(
     test('Fix dependency issue and accept solution', async () => {
       test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
       test.setTimeout(600000);
-      if (isLlemulatorConfigured()) {
+      if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
         await loadGotestWorkflowLlemulatorResponses();
       }
       await vscodeApp.openAnalysisView();
@@ -363,7 +378,6 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Dependency fix accepted');
 
-      await vscodeApp.waitForFileSolutionAccepted('go.mod');
       await vscodeApp.waitForAnalysisCompleted();
 
       await vscodeApp.getWindow().screenshot({

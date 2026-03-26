@@ -1,5 +1,7 @@
 /**
  * Deterministic LLM responses for savitharaghunathan/gotest when using llemulator (CI).
+ * Loaded from `02-e2e-workflow.test.ts` when `getDefaultProviderConfig() === LLEMULATOR_PROVIDER`
+ * (same gating idea as `plugin-settings.test.ts`, with payloads extracted here for size).
  * Matches real file shapes so Get Solution → Accept can complete without a live model.
  *
  * The workflow applies two separate fixes (two Get Solution → Accept steps):
