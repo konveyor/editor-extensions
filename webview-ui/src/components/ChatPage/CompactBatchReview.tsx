@@ -33,8 +33,9 @@ export const CompactBatchReview: React.FC = () => {
       setIsExpanded(false);
       setProcessingFiles(new Set());
       setHasBeenManuallyCollapsed(false);
+      setBatchOperationInProgress(false);
     }
-  }, [pendingFiles.length, currentIndex]);
+  }, [pendingFiles.length, currentIndex, setBatchOperationInProgress]);
 
   // Clear processing state for removed/errored files
   React.useEffect(() => {

@@ -311,6 +311,12 @@ export const AgentFileReview: React.FC = () => {
     }
   }, [isBatchOperationInProgress]);
 
+  React.useEffect(() => {
+    if (pendingFiles.length === 0) {
+      setBatchOperationInProgress(false);
+    }
+  }, [pendingFiles.length, setBatchOperationInProgress]);
+
   // Auto-expand the first file when the review appears
   React.useEffect(() => {
     if (pendingFiles.length > 0 && expandedTokens.size === 0) {
