@@ -91,7 +91,7 @@ jobs:
         with:
           payload: |
             {
-              "test": "Scheduled Prerelease",
+              "text": "Scheduled Prerelease Failed\n\nBranch: main\nPlanned tag: ${{ needs.compute-version.outputs.tag }}\nVersion: ${{ needs.compute-version.outputs.version }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nJobs:\n• compute-version: ${{ needs.compute-version.result }}\n• release: ${{ needs.release.result }}",
               "branch": "main",
               "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
