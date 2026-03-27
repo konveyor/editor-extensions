@@ -337,7 +337,7 @@ jobs:
 
       - name: Run infrastructure tests
         # TODO abrugaro change to: npx playwright test --grep "@requires-minikube"
-        run: npx playwright test --grep "@only"
+        run: npx playwright test --grep "@requires-minikube"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
@@ -370,7 +370,7 @@ jobs:
 
       - name: Run infrastructure tests (no auth)
         # TODO abrugaro change to: npx playwright test --grep "@requires-minikube"
-        run: npx playwright test --grep "@only"
+        run: npx playwright test --grep "@requires-minikube"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"

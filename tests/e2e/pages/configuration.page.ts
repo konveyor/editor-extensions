@@ -65,15 +65,31 @@ export class Configuration {
 
   public async setInputConfiguration(configuration: string, value: string) {
     const window = this.vsCode.getWindow();
-    await window.getByLabel(configuration).fill(value);
+    try {
+      await this.searchConfig(configuration);
+      await this.vsCode.getWindow().getByLabel(configuration).fill(value);
+    } catch (error) {
+      await window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/error-setting-${configuration.replace(/[_"'\s]/g, '')}.png`,
+      });
+      throw error;
+    }
   }
 
   public async setDropdownConfiguration(configuration: string, value: string) {
-    const selectLocator = this.vsCode.getWindow().locator(`select[aria-label="${configuration}"]`);
-    if (!(await selectLocator.isVisible())) {
-      await this.searchConfig(configuration);
+    const window = this.vsCode.getWindow();
+    await this.searchConfig(configuration);
+    try {
+      const selectLocator = this.vsCode
+        .getWindow()
+        .locator(`select[aria-label="${configuration}"]`);
+      await selectLocator.selectOption({ value });
+    } catch (error) {
+      await window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/error-setting-${configuration.replace(/[_"'\s]/g, '')}.png`,
+      });
+      throw error;
     }
-    await selectLocator.selectOption({ value });
   }
 
   /**
