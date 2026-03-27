@@ -627,12 +627,6 @@ jobs:
           name: downloaded-assets
           path: ./downloaded_assets
 
-      - name: Get Konveyor Hub URL
-        id: get_hub_url
-        run: |
-          HUB_URL=$(minikube service konveyor-hub -n konveyor --url)
-          echo "hub_url=${HUB_URL}" >> $GITHUB_OUTPUT
-
       - name: Run infrastructure tests
         #run: npx playwright test --grep "@requires-minikube" TODO abrugaro change
         run: npx playwright test --grep "@only" TODO abrugaro change
