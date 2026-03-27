@@ -77,10 +77,14 @@ test.describe.serial(
     test('Accept solution and assert success rate', async () => {
       await requestFixAndAssertSolution(true);
       const bestHint = await mcpClient.getBestHint('eap8/eap7', 'javax-to-jakarta-import-00001');
-      expect(bestHint.hint_id).not.toEqual(bestHintBase.hint_id);
 
-      // The hint text is not deterministic, but it should always contain the word javax
-      expect(bestHint.hint.toLowerCase()).toContain('javax');
+      // When using llemulator the best hint may not be updated, in that case
+      // just check that the request does not fail
+      if (getDefaultProviderConfig() !== LLEMULATOR_PROVIDER) {
+        expect(bestHint.hint_id).not.toEqual(bestHintBase.hint_id);
+        // The hint text is not deterministic, but it should always contain the word javax
+        expect(bestHint.hint.toLowerCase()).toContain('javax');
+      }
     });
 
     test('Reject solution and assert success rate', async () => {
