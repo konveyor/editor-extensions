@@ -27,7 +27,7 @@ active: *active
  * This test requires llemulator to be accessible from both within and outside the cluster,
  * so the LLM proxy can reach it and the test can load responses.
  */
-test.describe(
+test.describe.serial(
   'LLM Proxy Tests',
   {
     tag: ['@tier3', '@requires-minikube'],

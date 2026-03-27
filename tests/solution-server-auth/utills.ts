@@ -43,7 +43,7 @@ export function validateSolutionServerConfig(url?: string): MCPConfig {
     }
   }
 
-  const insecure = process.env.TEST_HUB_INSECURE === 'true';
+  const insecure = process.env.TEST_HUB_INSECURE === 'true' || !!process.env.CI;
   if (insecure) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   }

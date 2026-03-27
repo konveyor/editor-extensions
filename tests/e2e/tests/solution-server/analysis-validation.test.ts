@@ -14,7 +14,7 @@ import { getHubConfig } from '../../utilities/utils';
 import { LLEMULATOR_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 
-test.describe(
+test.describe.serial(
   `Solution server analysis validations`,
   { tag: ['@tier3', '@requires-minikube'] },
   () => {
