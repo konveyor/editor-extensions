@@ -33,10 +33,7 @@ test.describe(
     tag: ['@tier3', '@requires-minikube', '@only'],
   },
   () => {
-    test.skip(
-      !process.env.TEST_HUB_URL || !process.env.TEST_HUB_USERNAME || !process.env.TEST_HUB_PASSWORD,
-      'LLM proxy tests require TEST_HUB_URL, TEST_HUB_USERNAME, and TEST_HUB_PASSWORD to be set'
-    );
+    test.skip(!process.env.TEST_HUB_URL, 'LLM proxy tests require TEST_HUB_URL to be set');
     test.skip(!isLlemulatorConfigured(), 'LLM proxy tests require TEST_LLEMULATOR_URL to be set');
     test.setTimeout(600000);
 
@@ -75,12 +72,13 @@ test.describe(
 
     test('Hub LLM proxy configuration and notifications', async () => {
       console.log('Configuring Hub connection with profile sync enabled...');
+      const authEnabled = !!(process.env.TEST_HUB_USERNAME && process.env.TEST_HUB_PASSWORD);
       const hubConfig = getHubConfig({
         url: process.env.TEST_HUB_URL,
         auth: {
-          enabled: true,
-          username: process.env.TEST_HUB_USERNAME!,
-          password: process.env.TEST_HUB_PASSWORD!,
+          enabled: authEnabled,
+          username: process.env.TEST_HUB_USERNAME ?? '',
+          password: process.env.TEST_HUB_PASSWORD ?? '',
         },
         solutionServerEnabled: false,
         profileSyncEnabled: true,
@@ -107,6 +105,7 @@ test.describe(
       console.log('Hub LLM proxy notifications verified successfully');
     });
 
+    // Automates https://github.com/konveyor/editor-extensions/pull/1305
     test('Request solution returns llemulator response', async () => {
       console.log('Running analysis...');
       await vscodeApp.startServer();

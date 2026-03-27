@@ -352,6 +352,37 @@ jobs:
           TEST_HUB_PASSWORD: ${{ steps.infra.outputs.admin_password }}
           TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
 
+      - name: Disable Konveyor Authentication
+        run: |
+          echo "=== Disabling Konveyor authentication ==="
+
+          # Patch the Tackle CR to disable auth
+          kubectl patch tackle tackle -n konveyor-tackle --type='merge' -p '{"spec":{"feature_auth_required":false}}'
+
+          echo "Waiting for pods to restart..."
+          # Wait for the hub to restart with new config
+          kubectl rollout status deployment/tackle-hub -n konveyor-tackle --timeout=300s
+
+          # Give some extra time for the system to stabilize
+          sleep 30
+
+          echo "✓ Authentication disabled"
+
+      - name: Run infrastructure tests (no auth)
+        # TODO abrugaro change to: npx playwright test --grep "@requires-minikube"
+        run: npx playwright test --grep "@only"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "false"
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
       - name: Collect infrastructure logs
         if: always()
         run: |
@@ -388,20 +419,6 @@ jobs:
           # Collect secret status (not values, just existence)
           echo "Collecting secret status..."
           kubectl get secrets -n konveyor-tackle > tests/test-output/k8s-logs/secrets.txt || true
-
-          # Test llemulator connectivity
-          echo "Testing llemulator connectivity..."
-          {
-            kubectl port-forward -n konveyor-tackle svc/llemulator 8089:80 &
-            PF_PID=$!
-            sleep 5
-            curl -v http://localhost:8089/v1/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer dummy-key-for-llemulator" \ # nosecret
-              -d '{"model":"gpt-4o","messages":[{"role":"user","content":"test"}]}' \
-              2>&1 || true
-            kill $PF_PID 2>/dev/null || true
-          } > tests/test-output/k8s-logs/llemulator-connectivity-test.log 2>&1
 
           echo "✓ Infrastructure logs collected"
 
