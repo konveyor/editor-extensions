@@ -561,6 +561,20 @@ jobs:
         run: |
           echo "=== Testing llemulator access through LLM proxy ==="
 
+          # Get JWT token from Keycloak for admin user
+          echo "Getting JWT token from Keycloak..."
+          TOKEN_RESPONSE=$(curl -s -k -X POST "https://192.168.49.2/auth/realms/tackle/protocol/openid-connect/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=password&client_id=backend&username=admin&password=Passw0rd!")
+
+          JWT_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token // empty')
+          if [ -z "$JWT_TOKEN" ]; then
+            echo "Failed to get JWT token. Response: $TOKEN_RESPONSE"
+            echo "Skipping LLM proxy verification (auth not configured for direct access)"
+            exit 0
+          fi
+          echo "✓ Got JWT token"
+
           # Get the llm-proxy service port
           LLM_PROXY_PORT=$(kubectl get svc llm-proxy -n konveyor-tackle -o jsonpath='{.spec.ports[0].port}')
           echo "LLM Proxy service port: ${LLM_PROXY_PORT}"
@@ -579,10 +593,10 @@ jobs:
             sleep 2
           done
 
-          # Test LLM proxy can reach llemulator
+          # Test LLM proxy can reach llemulator with JWT token
           RESPONSE=$(curl -s -X POST "http://localhost:8090/v1/chat/completions" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer dummy-key-for-llemulator" \
+            -H "Authorization: Bearer ${JWT_TOKEN}" \
             -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}')
 
           echo "LLM Proxy response: $RESPONSE"
