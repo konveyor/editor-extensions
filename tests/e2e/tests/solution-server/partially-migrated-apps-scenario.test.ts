@@ -97,18 +97,12 @@ class SolutionServerWorkflowHelper {
         undefined,
         customRulesPath
       );
-      await vsCode.getWindow().screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `proooofileeee.png`),
-      });
       this.logger.success(
         `Profile created for ${appName} with custom rules from ${customRulesSubPath}`
       );
       await this.configureSolutionServer(vsCode, appName);
       await vsCode.runAnalysis();
       await vsCode.waitForAnalysisCompleted();
-      await vsCode.getWindow().screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `aresult.png`),
-      });
       this.logger.debug(`Successfully setup ${appName} repository`);
       return vsCode;
     } catch (error) {

@@ -4,9 +4,7 @@ import { HubConfigurationPage } from '../../pages/hub-configuration.page';
 import { getHubConfig } from '../../utilities/utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
-import { OutputPanel } from '../../pages/output.page';
-import { OutputChannels } from '../../enums/output.enum';
-import { SCREENSHOTS_FOLDER, SEC } from '../../utilities/consts';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import pathlib from 'path';
 
 test.describe(

@@ -227,16 +227,16 @@ runs:
         # Clear required actions
         kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X PUT \
           "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID" \
-          -H "Authorization: Bearer $ADMIN_TOKEN" \
+          -H "Authorization: Bearer $ADMIN_TOKEN" `# notsecret` \
           -H "Content-Type: application/json" \
-          -d '{"requiredActions": []}' &>/dev/null # notsecet
+          -d '{"requiredActions": []}' &>/dev/null
 
         # Reset password
         kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X PUT \
           "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID/reset-password" \
-          -H "Authorization: Bearer $ADMIN_TOKEN" \
+          -H "Authorization: Bearer $ADMIN_TOKEN" `# notsecret` \
           -H "Content-Type: application/json" \
-          -d "{\"type\": \"password\", \"value\": \"${ADMIN_PASSWORD}\", \"temporary\": false}" &>/dev/null # notsecet
+          -d "{\"type\": \"password\", \"value\": \"${ADMIN_PASSWORD}\", \"temporary\": false}" &>/dev/null
 
         echo "✓ Admin user configured (admin:${ADMIN_PASSWORD})"
 
