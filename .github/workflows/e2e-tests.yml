@@ -311,7 +311,7 @@ jobs:
     name: Infrastructure Tests (@requires-minikube)
     runs-on: ubuntu-latest
     needs: setup
-    # if: false # TODO abrugaro uncomment this line
+    if: false # TODO abrugaro uncomment this line
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
