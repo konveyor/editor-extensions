@@ -200,9 +200,9 @@ export class IssuesModel {
   }
 }
 
-export class IssuesTreeDataProvider
-  implements vscode.TreeDataProvider<IncidentTypeItem | FileItem | ReferenceItem>
-{
+export class IssuesTreeDataProvider implements vscode.TreeDataProvider<
+  IncidentTypeItem | FileItem | ReferenceItem
+> {
   private readonly _listener: vscode.Disposable;
   private readonly _onDidChange = new vscode.EventEmitter<
     IncidentTypeItem | FileItem | ReferenceItem | undefined

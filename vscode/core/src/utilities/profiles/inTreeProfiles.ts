@@ -4,6 +4,7 @@ import * as yaml from "js-yaml";
 import { AnalysisProfile } from "@editor-extensions/shared";
 
 const PROFILES_DIR = ".konveyor/profiles";
+const HUB_PROFILES_DIR = ".konveyor/hub-profiles";
 
 interface ProfileYamlMetadata {
   name: string;
@@ -26,13 +27,11 @@ interface ProfileYaml {
 }
 
 /**
- * Discovers all profile.yaml files in .konveyor/profiles/ directory
+ * Discovers all profile.yaml files in a given profiles directory.
+ * Each subdirectory is expected to contain a profile.yaml file.
  */
-export async function discoverInTreeProfiles(workspaceRoot: string): Promise<AnalysisProfile[]> {
-  const profilesPath = path.join(workspaceRoot, PROFILES_DIR);
-
+async function discoverProfilesInDirectory(profilesPath: string): Promise<AnalysisProfile[]> {
   try {
-    // Check if .konveyor/profiles/ exists
     const stat = await fs.stat(profilesPath);
     if (!stat.isDirectory()) {
       return [];
@@ -81,6 +80,28 @@ export async function discoverInTreeProfiles(workspaceRoot: string): Promise<Ana
     console.error(`Failed to read profiles directory ${profilesPath}:`, error);
     return [];
   }
+}
+
+/**
+ * Discovers all profile.yaml files in .konveyor/profiles/ directory (user-managed)
+ */
+export async function discoverInTreeProfiles(workspaceRoot: string): Promise<AnalysisProfile[]> {
+  return discoverProfilesInDirectory(path.join(workspaceRoot, PROFILES_DIR));
+}
+
+/**
+ * Discovers hub-synced profiles from .konveyor/hub-profiles/ directory.
+ * This directory is exclusively managed by the extension for hub-synced profiles.
+ */
+export async function discoverHubSyncedProfiles(workspaceRoot: string): Promise<AnalysisProfile[]> {
+  return discoverProfilesInDirectory(path.join(workspaceRoot, HUB_PROFILES_DIR));
+}
+
+/**
+ * Returns the absolute path to the hub-synced profiles directory.
+ */
+export function getHubProfilesDir(workspaceRoot: string): string {
+  return path.join(workspaceRoot, HUB_PROFILES_DIR);
 }
 
 /**
