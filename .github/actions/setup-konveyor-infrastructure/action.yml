@@ -128,7 +128,7 @@ runs:
 
         RESPONSE=$(curl -s -X POST "${LLEMULATOR_URL}/chat/completions" \
           -H "Content-Type: application/json" \
-          -H "Authorization: Bearer dummy-key-for-llemulator" `# notsecret` \
+          -H "Authorization: Bearer dummy-key-for-llemulator" \
           -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test"}]}')
 
         echo "Llemulator response: $RESPONSE"
@@ -201,7 +201,7 @@ runs:
               # Check for admin user in tackle realm
               USERS_RESPONSE=$(kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s \
                 "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users?username=admin" \
-                -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || echo "[]") # notsecet
+                -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || echo "[]") # notsecret
 
               if echo "$USERS_RESPONSE" | grep -q '"username":"admin"'; then
                 echo " found"
@@ -227,14 +227,14 @@ runs:
         # Clear required actions
         kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X PUT \
           "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID" \
-          -H "Authorization: Bearer $ADMIN_TOKEN" `# notsecret` \
+          -H "Authorization: Bearer $ADMIN_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{"requiredActions": []}' &>/dev/null
 
         # Reset password
         kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X PUT \
           "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID/reset-password" \
-          -H "Authorization: Bearer $ADMIN_TOKEN" `# notsecret` \
+          -H "Authorization: Bearer $ADMIN_TOKEN" \
           -H "Content-Type: application/json" \
           -d "{\"type\": \"password\", \"value\": \"${ADMIN_PASSWORD}\", \"temporary\": false}" &>/dev/null
 
@@ -336,7 +336,7 @@ runs:
         RESPONSE=$(curl -s -X POST "http://localhost:8090/v1/chat/completions" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer ${JWT_TOKEN}" \
-          -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}') # notsecet
+          -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}') # notsecret
 
         echo "LLM Proxy response: $RESPONSE"
 

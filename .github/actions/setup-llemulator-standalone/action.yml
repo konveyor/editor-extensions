@@ -66,7 +66,7 @@ runs:
 
         # Configure llemulator with 5 test responses
         response=$(curl -s -X POST http://localhost:${{ inputs.port }}/_emulator/script \
-          -H "Authorization: Bearer dummy-key-for-llemulator" `# notsecret` \
+          -H "Authorization: Bearer dummy-key-for-llemulator" \
           -H "Content-Type: application/json" \
           -d '{
             "reset": true,
@@ -95,7 +95,7 @@ runs:
         echo "=== Testing llemulator endpoint ==="
         RESPONSE=$(curl -s -X POST http://localhost:${{ inputs.port }}/v1/chat/completions \
           -H "Content-Type: application/json" \
-          -H "Authorization: Bearer dummy-key-for-llemulator" `# notsecret` \
+          -H "Authorization: Bearer dummy-key-for-llemulator" \
           -d '{
             "model": "gpt-4o",
             "messages": [{"role": "user", "content": "test"}]
