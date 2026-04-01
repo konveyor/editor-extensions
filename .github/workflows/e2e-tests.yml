@@ -87,7 +87,6 @@ jobs:
     name: Critical Tests (@tier0)
     runs-on: ubuntu-latest
     needs: setup
-    if: false # TODO abrugaro remove this line
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -147,7 +146,6 @@ jobs:
     needs: setup
     # Only required for releases, but run on PRs for visibility
     continue-on-error: ${{ inputs.trigger_context == 'pr' }}
-    if: false # TODO abrugaro remove this line
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -335,8 +333,24 @@ jobs:
           path: ./downloaded_assets
 
       - name: Run infrastructure tests
-        # TODO abrugaro change to: npx playwright test --grep "@requires-minikube"
         run: npx playwright test --grep "@requires-minikube"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "true"
+          TEST_HUB_USERNAME: ${{ steps.infra.outputs.admin_username }}
+          TEST_HUB_PASSWORD: ${{ steps.infra.outputs.admin_password }}
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
+      - name: Run experimental infrastructure tests (@tier3 @requires-minikube)
+        continue-on-error: true
+        run: npx playwright test --grep "@requires-minikube" --grep "@tier3"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"

@@ -16,7 +16,7 @@ import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemu
 
 test.describe.serial(
   `Solution server analysis validations`,
-  { tag: ['@tier3', '@requires-minikube'] },
+  { tag: ['@requires-minikube'] },
   () => {
     let vsCode: VSCode;
     let mcpClient: MCPClient;
