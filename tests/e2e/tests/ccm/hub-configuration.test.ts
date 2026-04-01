@@ -10,7 +10,7 @@ import pathlib from 'path';
 test.describe(
   'Hub Configuration Tests',
   {
-    tag: ['@requires-minikube'],
+    tag: ['@requires-minikube', '@tier2'],
   },
   () => {
     test.setTimeout(900000);

@@ -30,7 +30,7 @@ active: *active
 test.describe.serial(
   'LLM Proxy Tests',
   {
-    tag: ['@requires-minikube'],
+    tag: ['@requires-minikube', '@tier2'],
   },
   () => {
     test.skip(!process.env.TEST_HUB_URL, 'LLM proxy tests require TEST_HUB_URL to be set');
