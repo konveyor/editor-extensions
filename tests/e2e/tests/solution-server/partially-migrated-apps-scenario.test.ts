@@ -333,70 +333,48 @@ test.describe.serial(
     test.beforeAll(async ({ testRepoData: repoData }) => {
       if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
         // Minimal response for FileSystemAuditLogger -> StreamableAuditLogger fix
-        // Contains only essential elements: StreamableAuditLogger usage, no FileSystemAuditLogger
+        // Keeps javax.annotation as that fix comes second
         const auditLoggerFixResponse = buildKaiResponse({
-          reasoning:
-            'Replacing FileSystemAuditLogger with StreamableAuditLogger for TCP streaming. ' +
-            'The FileSystemAuditLogger is deprecated and should be replaced.',
+          reasoning: 'Replace FileSystemAuditLogger with StreamableAuditLogger for TCP streaming.',
           language: 'java',
-          fileContent: `package com.example.inventorymanagement.service;
-
-import com.enterprise.audit.logging.config.AuditConfiguration;
-import com.enterprise.audit.logging.service.StreamableAuditLogger;
+          fileContent: `import com.enterprise.audit.logging.service.StreamableAuditLogger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-@Service
-public class InventoryService {
+public class Service {
     private StreamableAuditLogger auditLogger;
 
     @PostConstruct
     public void init() {
-        AuditConfiguration config = new AuditConfiguration();
-        auditLogger = new StreamableAuditLogger(config, "localhost", 9090);
+        auditLogger = new StreamableAuditLogger(null, "localhost", 9090);
     }
 
     @PreDestroy
     public void cleanup() {
         if (auditLogger != null) { auditLogger.close(); }
-    }
-
-    public void setAuditLogger(StreamableAuditLogger auditLogger) {
-        this.auditLogger = auditLogger;
     }
 }`,
         });
 
-        // Minimal response for javax.annotation -> jakarta.annotation fix (applied second)
-        // Contains jakarta.annotation imports instead of javax.annotation, plus StreamableAuditLogger
+        // Minimal response for javax.annotation -> jakarta.annotation fix
         const javaAnnotationFixResponse = buildKaiResponse({
-          reasoning:
-            'Replacing javax.annotation with jakarta.annotation for OpenJDK 11+ compatibility',
+          reasoning: 'Replace javax.annotation with jakarta.annotation for OpenJDK 11+.',
           language: 'java',
-          fileContent: `package com.example.inventorymanagement.service;
-
-import com.enterprise.audit.logging.config.AuditConfiguration;
-import com.enterprise.audit.logging.service.StreamableAuditLogger;
+          fileContent: `import com.enterprise.audit.logging.service.StreamableAuditLogger;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
-@Service
-public class InventoryService {
+public class Service {
     private StreamableAuditLogger auditLogger;
 
     @PostConstruct
     public void init() {
-        AuditConfiguration config = new AuditConfiguration();
-        auditLogger = new StreamableAuditLogger(config, "localhost", 9090);
+        auditLogger = new StreamableAuditLogger(null, "localhost", 9090);
     }
 
     @PreDestroy
     public void cleanup() {
         if (auditLogger != null) { auditLogger.close(); }
-    }
-
-    public void setAuditLogger(StreamableAuditLogger auditLogger) {
-        this.auditLogger = auditLogger;
     }
 }`,
         });
@@ -404,19 +382,19 @@ public class InventoryService {
         await loadLlemulatorResponses({
           reset: true,
           responses: [
-            // First: FileSystemAuditLogger fix (pattern matches the violation text)
+            // FileSystemAuditLogger fix - matches prompts containing FileSystemAuditLogger
             {
               pattern: '.*FileSystemAuditLogger.*',
               response: auditLoggerFixResponse,
               times: -1,
             },
-            // Second: javax.annotation fix (pattern matches the violation text)
+            // javax.annotation fix - matches prompts about java.annotation or OpenJDK 11
             {
               pattern: '.*java\\.annotation.*|.*javax\\.annotation.*|.*OpenJDK 11.*',
               response: javaAnnotationFixResponse,
               times: -1,
             },
-            // Fallback for any other requests
+            // Fallback
             {
               pattern: '.*',
               response: javaAnnotationFixResponse,
@@ -454,7 +432,14 @@ public class InventoryService {
         throw new Error('VSCode instance not initialized - previous test may have failed');
       }
 
-      await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
+      try {
+        await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
+      } catch (error) {
+        await vsCode.getWindow().screenshot({
+          path: `${SCREENSHOTS_FOLDER}/error-apply-audit-logger-fix.png`,
+        });
+        throw error;
+      }
 
       helper.logger.success(
         'Complete fix workflow (audit logger + Java annotation) applied successfully'
