@@ -495,8 +495,11 @@ public class InventoryService {
       expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThanOrEqual(0);
 
       expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThan(0);
-      expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
-      expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
+      // Best hints won't get updated when using llemulator
+      if (getDefaultProviderConfig() !== LLEMULATOR_PROVIDER) {
+        expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
+        expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
+      }
 
       const totalSolutions = solutionServerMetrics.successRate.counted_solutions;
       expect(totalSolutions).toBeGreaterThan(0);
