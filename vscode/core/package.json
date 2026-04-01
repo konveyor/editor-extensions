@@ -263,8 +263,7 @@
       "editor/title": [
         {
           "command": "konveyor-core.openChat",
-          "group": "navigation",
-          "when": "config.konveyor-core.experimentalChat.enabled"
+          "group": "navigation"
         }
       ],
       "view/title": [

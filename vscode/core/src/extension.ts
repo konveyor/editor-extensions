@@ -1476,6 +1476,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     );
     await extension.initialize();
 
+    // Auto-reveal the chat sidebar on first activation so new users discover it
+    const hasShownChat = context.globalState.get<boolean>("konveyor.hasShownChatView");
+    if (!hasShownChat) {
+      context.globalState.update("konveyor.hasShownChatView", true);
+      vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`).then(undefined, () => {
+        logger.debug("Chat view not available for auto-reveal");
+      });
+    }
+
     // Create and return the API for language extensions
     const api = createCoreApi(providerRegistry, healthCheckRegistry, EXTENSION_VERSION);
     logger.info("Core extension API created and ready for language extensions", {
