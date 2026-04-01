@@ -333,7 +333,7 @@ jobs:
           path: ./downloaded_assets
 
       - name: Run infrastructure tests
-        run: npx playwright test --grep "@requires-minikube"
+        run: npx playwright test --grep "@requires-minikube" --grep-invert "@tier3"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
@@ -350,7 +350,7 @@ jobs:
 
       - name: Run experimental infrastructure tests (@tier3 @requires-minikube)
         continue-on-error: true
-        run: npx playwright test --grep "@requires-minikube" --grep "@tier3"
+        run: npx playwright test --grep "(?=.*@tier3)(?=.*@requires-minikube)"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
