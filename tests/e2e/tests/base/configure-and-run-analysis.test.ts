@@ -76,6 +76,7 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
     await expect(solutionButton.first()).not.toBeVisible({ timeout: 36000 });
 
     await vscodeApp.openWorkspaceSettingsAndWrite({ [genAISettingKey]: true }, true); // enable
+    await vscodeApp.openAnalysisView();
     await vscodeApp.waitDefault();
     await expect(
       analysisView.getByRole('heading', { name: 'Warning alert: GenAI' })

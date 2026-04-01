@@ -10,6 +10,7 @@ import path from 'path';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
+import * as vscode from 'vscode';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -608,6 +609,7 @@ export abstract class VSCode {
       const openModalButton = this.window.getByRole('button', {
         name: 'Open Modal Editor in Main Window',
       });
+      await expect(this.window.getByText('settings.json').first()).toBeVisible();
       if (await openModalButton.isVisible()) {
         await openModalButton.click();
       }
