@@ -332,63 +332,75 @@ test.describe.serial(
 
     test.beforeAll(async ({ testRepoData: repoData }) => {
       if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
-        // Minimal response for FileSystemAuditLogger -> StreamableAuditLogger fix
-        // Keeps javax.annotation as that fix comes second
+        // Response for FileSystemAuditLogger -> StreamableAuditLogger fix
+        // Must keep javax.annotation since that fix comes second
         const auditLoggerFixResponse = buildKaiResponse({
           reasoning: 'Replace FileSystemAuditLogger with StreamableAuditLogger for TCP streaming.',
           language: 'java',
-          fileContent: `import com.enterprise.audit.logging.service.StreamableAuditLogger;
+          fileContent: `package com.example.inventorymanagement.service;
+
+import com.enterprise.audit.logging.config.AuditConfiguration;
+import com.enterprise.audit.logging.service.StreamableAuditLogger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import org.springframework.stereotype.Service;
 
-public class Service {
+@Service
+public class InventoryService {
     private StreamableAuditLogger auditLogger;
 
     @PostConstruct
     public void init() {
-        auditLogger = new StreamableAuditLogger(null, "localhost", 9090);
+        AuditConfiguration config = new AuditConfiguration();
+        auditLogger = new StreamableAuditLogger(config, "localhost", 9090);
     }
 
     @PreDestroy
-    public void cleanup() {
-        if (auditLogger != null) { auditLogger.close(); }
-    }
+    public void cleanup() { if (auditLogger != null) { auditLogger.close(); } }
+
+    public void setAuditLogger(StreamableAuditLogger a) { this.auditLogger = a; }
 }`,
         });
 
-        // Minimal response for javax.annotation -> jakarta.annotation fix
+        // Response for javax.annotation -> jakarta.annotation fix
         const javaAnnotationFixResponse = buildKaiResponse({
           reasoning: 'Replace javax.annotation with jakarta.annotation for OpenJDK 11+.',
           language: 'java',
-          fileContent: `import com.enterprise.audit.logging.service.StreamableAuditLogger;
+          fileContent: `package com.example.inventorymanagement.service;
+
+import com.enterprise.audit.logging.config.AuditConfiguration;
+import com.enterprise.audit.logging.service.StreamableAuditLogger;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.springframework.stereotype.Service;
 
-public class Service {
+@Service
+public class InventoryService {
     private StreamableAuditLogger auditLogger;
 
     @PostConstruct
     public void init() {
-        auditLogger = new StreamableAuditLogger(null, "localhost", 9090);
+        AuditConfiguration config = new AuditConfiguration();
+        auditLogger = new StreamableAuditLogger(config, "localhost", 9090);
     }
 
     @PreDestroy
-    public void cleanup() {
-        if (auditLogger != null) { auditLogger.close(); }
-    }
+    public void cleanup() { if (auditLogger != null) { auditLogger.close(); } }
+
+    public void setAuditLogger(StreamableAuditLogger a) { this.auditLogger = a; }
 }`,
         });
 
         await loadLlemulatorResponses({
           reset: true,
           responses: [
-            // FileSystemAuditLogger fix - matches prompts containing FileSystemAuditLogger
+            // FileSystemAuditLogger fix
             {
               pattern: '.*FileSystemAuditLogger.*',
               response: auditLoggerFixResponse,
               times: -1,
             },
-            // javax.annotation fix - matches prompts about java.annotation or OpenJDK 11
+            // javax.annotation fix
             {
               pattern: '.*java\\.annotation.*|.*javax\\.annotation.*|.*OpenJDK 11.*',
               response: javaAnnotationFixResponse,
