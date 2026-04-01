@@ -45,9 +45,9 @@ import { runHealthCheck, formatHealthCheckReport } from "./healthCheck";
 import { getHealthCheckRegistry } from "./extension";
 import type { CheckStatus } from "./healthCheck/types";
 import { getRepositoryInfo } from "./utilities/git";
+import { getHubProfilesDir } from "./utilities/profiles/inTreeProfiles";
 
 const isWindows = process.platform === "win32";
-const PROFILES_DIR = ".konveyor/profiles";
 
 /**
  * Set profile files as read-only on disk to prevent manual edits
@@ -84,6 +84,17 @@ async function setProfileFilesReadOnly(syncDir: string, logger: Logger): Promise
   } catch (error) {
     logger.error("Failed to set profile files as read-only", error);
   }
+}
+
+/**
+ * Remove the hub-synced profiles directory.
+ * This directory is exclusively managed by the extension, so it is safe to delete
+ * without risk of destroying user-created profiles.
+ */
+export async function cleanupHubProfiles(workspaceRoot: string, logger: Logger): Promise<void> {
+  const hubDir = getHubProfilesDir(workspaceRoot);
+  await fs.rm(hubDir, { recursive: true, force: true });
+  logger.info("Cleaned up hub-synced profiles directory", { hubDir });
 }
 
 /**
@@ -716,7 +727,9 @@ const commandsMap: (
         }
 
         // Determine sync directory (use file system path, not URI)
-        const syncDir = pathlib.join(workspaceRoot, PROFILES_DIR);
+        // Hub-synced profiles go to a dedicated directory we own,
+        // separate from user-managed in-tree profiles
+        const syncDir = getHubProfilesDir(workspaceRoot);
 
         logger.info("Syncing profiles", { repoInfo, syncDir });
         const result = await profileSyncClient.syncProfiles(repoInfo, syncDir);
@@ -749,7 +762,7 @@ const commandsMap: (
               `Synced ${result.profilesSynced}/${result.profilesFound} profiles from Hub`,
             );
           }
-          // Note: Profile watcher will automatically reload profiles from .konveyor/profiles/
+          // Note: Profile watcher will automatically reload profiles from .konveyor/hub-profiles/
         } else if (!result.success) {
           if (!silent) {
             window.showWarningMessage(`Profile sync failed: ${result.error}`);

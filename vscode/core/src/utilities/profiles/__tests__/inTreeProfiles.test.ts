@@ -2,7 +2,11 @@ import expect from "expect";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { discoverInTreeProfiles } from "../inTreeProfiles";
+import {
+  discoverInTreeProfiles,
+  discoverHubSyncedProfiles,
+  getHubProfilesDir,
+} from "../inTreeProfiles";
 
 describe("discoverInTreeProfiles", () => {
   let tempDir: string;
@@ -218,5 +222,87 @@ spec:
     const result = await discoverInTreeProfiles(tempDir);
 
     expect(result[0].customRules).toEqual([]);
+  });
+});
+
+describe("discoverHubSyncedProfiles", () => {
+  let tempDir: string;
+  let hubProfilesDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "konveyor-test-"));
+    hubProfilesDir = path.join(tempDir, ".konveyor", "hub-profiles");
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("should return empty array when .konveyor/hub-profiles directory does not exist", async () => {
+    const result = await discoverHubSyncedProfiles(tempDir);
+    expect(result).toEqual([]);
+  });
+
+  it("should discover hub-synced profiles from .konveyor/hub-profiles/", async () => {
+    const profileDir = path.join(hubProfilesDir, "42");
+    await fs.mkdir(profileDir, { recursive: true });
+
+    const profileYaml = `metadata:
+  name: "Hub Profile"
+  id: "42"
+  source: "hub"
+  readonly: true
+  syncedAt: "2025-01-01T00:00:00.000Z"
+
+spec:
+  labelSelector: "konveyor.io/target=eap8"
+  useDefaultRules: true
+`;
+    await fs.writeFile(path.join(profileDir, "profile.yaml"), profileYaml);
+
+    // Add hub metadata to mark as hub-managed
+    await fs.writeFile(
+      path.join(profileDir, ".hub-metadata.json"),
+      JSON.stringify({
+        hubProfileId: 42,
+        applicationId: 1,
+        syncedAt: "2025-01-01T00:00:00.000Z",
+        isHubManaged: true,
+      }),
+    );
+
+    const result = await discoverHubSyncedProfiles(tempDir);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("42");
+    expect(result[0].name).toBe("Hub Profile");
+    expect(result[0].source).toBe("hub");
+    expect(result[0].readOnly).toBe(true);
+  });
+
+  it("should not find hub profiles in .konveyor/profiles/ (user directory)", async () => {
+    // Put a profile in the user directory, NOT the hub directory
+    const userProfilesDir = path.join(tempDir, ".konveyor", "profiles", "user-profile");
+    await fs.mkdir(userProfilesDir, { recursive: true });
+
+    const profileYaml = `metadata:
+  name: "User Profile"
+  id: "user-profile"
+  source: "local"
+
+spec:
+  labelSelector: "konveyor.io/target=quarkus"
+`;
+    await fs.writeFile(path.join(userProfilesDir, "profile.yaml"), profileYaml);
+
+    const result = await discoverHubSyncedProfiles(tempDir);
+    expect(result).toEqual([]);
+  });
+});
+
+describe("getHubProfilesDir", () => {
+  it("should return the correct hub profiles directory path", () => {
+    const result = getHubProfilesDir("/workspace");
+    expect(result).toBe(path.join("/workspace", ".konveyor", "hub-profiles"));
   });
 });
