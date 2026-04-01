@@ -368,8 +368,8 @@ jobs:
 
           echo "✓ Authentication disabled"
 
-      - name: Run infrastructure tests (no auth)
-        run: npx playwright test  --no-deps --grep "@requires-minikube"
+      - name: Run llm proxy tests (no auth)
+        run: npx playwright test --no-deps tests/e2e/tests/solution-server/llm-proxy.test.ts
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"

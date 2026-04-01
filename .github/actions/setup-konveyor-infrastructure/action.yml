@@ -128,7 +128,7 @@ runs:
 
         RESPONSE=$(curl -s -X POST "${LLEMULATOR_URL}/chat/completions" \
           -H "Content-Type: application/json" \
-          -H "Authorization: Bearer dummy-key-for-llemulator" \
+          -H "Authorization: Bearer dummy-key-for-llemulator" `# notsecret` \
           -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test"}]}')
 
         echo "Llemulator response: $RESPONSE"
