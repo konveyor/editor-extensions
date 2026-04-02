@@ -78,8 +78,8 @@ export class Configuration {
 
   public async setDropdownConfiguration(configuration: string, value: string) {
     const window = this.vsCode.getWindow();
-    await this.searchConfig(configuration);
     try {
+      await this.searchConfig(configuration);
       const selectLocator = this.vsCode
         .getWindow()
         .locator(`select[aria-label="${configuration}"]`);
