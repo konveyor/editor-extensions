@@ -29,6 +29,7 @@ import {
   ScopeWithKonveyorContext,
   ExtensionData,
   MessageTypes,
+  AgentMessageTypes,
   OPEN_RESOLUTION_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
@@ -592,6 +593,27 @@ const actions: {
         );
       } else if (agentMode !== undefined) {
         vscode.window.showInformationMessage(`Agent mode ${agentMode ? "enabled" : "disabled"}.`);
+      }
+
+      if (agentMode !== undefined) {
+        try {
+          const { readGooseConfig } = await import("./gooseConfig");
+          const { hasGooseCredentials } = await import("./utilities/gooseCredentialStorage");
+          const updatedConfig = readGooseConfig();
+          updatedConfig.hasStoredCredentials = await hasGooseCredentials(state.extensionContext);
+          updatedConfig.toolPermissions = state.store.getState().toolPermissions;
+          updatedConfig.agentMode = agentMode;
+          const timestamp = new Date().toISOString();
+          for (const webviewProvider of state.webviewProviders.values()) {
+            webviewProvider.sendMessageToWebview({
+              type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
+              config: updatedConfig,
+              timestamp,
+            });
+          }
+        } catch (err) {
+          logger.warn("Failed to broadcast agent config update:", err);
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

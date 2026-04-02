@@ -184,36 +184,16 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         </button>
       </div>
 
-      {/* Experimental Chat */}
-      <div className="agent-settings__section">
-        <div className="agent-settings__permission-row">
-          <div>
-            <span className="agent-settings__permission-label">Experimental Chat</span>
-            <div className="agent-settings__agent-mode-hint">
-              {experimentalChatEnabled
-                ? "Agent-powered chat with start/stop controls"
-                : "Enable to use the full AI agent chat experience"}
-            </div>
-          </div>
-          <button
-            className={`agent-settings__toggle ${experimentalChatEnabled ? "agent-settings__toggle--on" : ""}`}
-            onClick={() => {
-              const newValue = !experimentalChatEnabled;
-              useExtensionStore.getState().setExperimentalChatEnabled(newValue);
-              window.vscode.postMessage({
-                type: SET_EXPERIMENTAL_CHAT,
-                payload: { enabled: newValue },
-              });
-            }}
-            role="switch"
-            aria-checked={experimentalChatEnabled}
-            aria-label="Toggle Experimental Chat"
-          >
-            <span className="agent-settings__toggle-track">
-              <span className="agent-settings__toggle-thumb" />
-            </span>
-          </button>
-        </div>
+      {/* Actions */}
+      <div className="agent-settings__actions">
+        <button
+          className="agent-settings__btn agent-settings__btn--primary"
+          onClick={handleApplyAndRestart}
+          disabled={!selectedProvider || !modelInput}
+          title={agentModeEnabled ? (!hasChanges ? "No changes to apply" : "Apply changes and restart agent") : "Apply model configuration"}
+        >
+          {agentModeEnabled ? (agentState === "running" ? "Apply & Restart" : "Apply & Start") : "Apply"}
+        </button>
       </div>
 
       {/* Provider Selection */}
@@ -335,6 +315,38 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         </div>
       </div>
 
+      {/* Experimental Chat */}
+      <div className="agent-settings__section">
+        <div className="agent-settings__permission-row">
+          <div>
+            <span className="agent-settings__permission-label">Experimental Chat</span>
+            <div className="agent-settings__agent-mode-hint">
+              {experimentalChatEnabled
+                ? "Agent-powered chat with start/stop controls"
+                : "Enable to use the full AI agent chat experience"}
+            </div>
+          </div>
+          <button
+            className={`agent-settings__toggle ${experimentalChatEnabled ? "agent-settings__toggle--on" : ""}`}
+            onClick={() => {
+              const newValue = !experimentalChatEnabled;
+              useExtensionStore.getState().setExperimentalChatEnabled(newValue);
+              window.vscode.postMessage({
+                type: SET_EXPERIMENTAL_CHAT,
+                payload: { enabled: newValue },
+              });
+            }}
+            role="switch"
+            aria-checked={experimentalChatEnabled}
+            aria-label="Toggle Experimental Chat"
+          >
+            <span className="agent-settings__toggle-track">
+              <span className="agent-settings__toggle-thumb" />
+            </span>
+          </button>
+        </div>
+      </div>
+
       {agentModeEnabled && (
         <>
           {/* Tool Permissions */}
@@ -433,17 +445,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         </>
       )}
 
-      {/* Actions */}
-      <div className="agent-settings__actions">
-        <button
-          className="agent-settings__btn agent-settings__btn--primary"
-          onClick={handleApplyAndRestart}
-          disabled={!selectedProvider || !modelInput}
-          title={agentModeEnabled ? (!hasChanges ? "No changes to apply" : "Apply changes and restart agent") : "Apply model configuration"}
-        >
-          {agentModeEnabled ? (agentState === "running" ? "Apply & Restart" : "Apply & Start") : "Apply"}
-        </button>
-      </div>
     </div>
   );
 };
