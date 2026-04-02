@@ -685,6 +685,27 @@ class VsCodeExtension {
             this.state.logger.info(`Batch review mode changed to ${getConfigBatchReviewMode()}`);
           }
 
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.experimentalChat.enabled`)) {
+            const newValue = getConfigExperimentalChatEnabled();
+            this.state.mutate((draft) => {
+              draft.experimentalChatEnabled = newValue;
+            });
+            this.state.logger.info(`Experimental chat updated from settings: ${newValue}`);
+
+            if (newValue && !this.state.featureClients.get("agentClient")) {
+              vscode.window
+                .showInformationMessage(
+                  "Experimental Chat enabled. Reload the window to start the agent backend.",
+                  "Reload Window",
+                )
+                .then((selection) => {
+                  if (selection === "Reload Window") {
+                    vscode.commands.executeCommand("workbench.action.reloadWindow");
+                  }
+                });
+            }
+          }
+
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
             const newAgentMode = getConfigAgentMode();
             this.state.mutate((draft) => {

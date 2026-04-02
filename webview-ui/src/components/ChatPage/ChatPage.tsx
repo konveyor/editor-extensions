@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Chatbot,
   ChatbotContent,
@@ -11,6 +11,9 @@ import {
   ChatMessage,
   ChatMessageType,
   Incident,
+  AGENT_SEND_MESSAGE,
+  AGENT_CANCEL_GENERATION,
+  type AgentChatMessage,
   type ToolMessageValue,
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
@@ -28,6 +31,9 @@ import { useContainerWidth } from "../../hooks/useContainerWidth";
 import AgentSettings from "./AgentSettings";
 import { CompactBatchReview } from "./CompactBatchReview";
 import { PermissionReviewMessage } from "./PermissionReviewMessage";
+import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ResourceLink } from "./ResourceLink";
+import { ResourceBlock } from "./ResourceBlock";
 import "./ChatPage.css";
 
 const MIN_USABLE_WIDTH = 200;
@@ -38,12 +44,15 @@ type RenderItem =
 
 const ChatPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
   const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
   const agentState = useExtensionStore((s) => s.agentState);
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
+  const agentMessages = useExtensionStore((s) => s.agentMessages);
 
   const configErrors = useExtensionStore((s) => s.configErrors);
   const modelSupportsTools = useExtensionStore((s) => s.modelSupportsTools);
@@ -51,12 +60,19 @@ const ChatPage: React.FC = () => {
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
   const isAnalyzing = useExtensionStore((s) => s.isAnalyzing);
-  const isProcessing = isFetchingSolution;
+  const analysisProgressMessage = useExtensionStore((s) => s.analysisProgressMessage);
+  const enhancedIncidents = useExtensionStore((s) => s.enhancedIncidents);
+  const ruleSets = useExtensionStore((s) => s.ruleSets);
+  const analysisProgress = useExtensionStore((s) => s.analysisProgress);
+  const isProcessing = isFetchingSolution || isAnalyzing;
   const hasWorkflowContent = Array.isArray(chatMessages) && chatMessages.length > 0;
+  const incidentCount = enhancedIncidents.length;
   const isTriggeredByUser =
     Array.isArray(solutionScope?.incidents) && solutionScope!.incidents.length > 0;
 
-  const { messageBoxRef } = useScrollManagement(chatMessages, isProcessing);
+  const { messageBoxRef } = useScrollManagement(chatMessages, isProcessing, agentMessages.length);
+
+  const isAgentStreaming = agentMessages.some((m) => m.isStreaming);
 
   const handleIncidentClick = (incident: Incident) =>
     dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
@@ -76,6 +92,63 @@ const ChatPage: React.FC = () => {
   const handleToggleView = useCallback(() => {
     window.vscode.postMessage({ type: "AGENT_TOGGLE_VIEW", payload: {} });
   }, []);
+
+  const handleCancelGeneration = useCallback(() => {
+    if (isFetchingSolution) {
+      return;
+    }
+    window.vscode.postMessage({ type: AGENT_CANCEL_GENERATION, payload: {} });
+  }, [isFetchingSolution]);
+
+  const handleClearChat = useCallback(() => {
+    if (isFetchingSolution) {
+      return;
+    }
+    const store = useExtensionStore.getState();
+    store.setAgentMessages([]);
+    store.clearChatMessages();
+  }, [isFetchingSolution]);
+
+  const sendMessage = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || agentState !== "running" || isFetchingSolution) {
+        return;
+      }
+
+      const store = useExtensionStore.getState();
+      const userMessage: AgentChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: trimmed,
+        timestamp: new Date().toISOString(),
+      };
+      store.setAgentMessages([...store.agentMessages, userMessage]);
+
+      const responseId = `resp-${Date.now()}`;
+      window.vscode.postMessage({
+        type: AGENT_SEND_MESSAGE,
+        payload: { content: trimmed, messageId: responseId },
+      });
+      setChatInput("");
+      chatInputRef.current?.focus();
+    },
+    [agentState, isFetchingSolution],
+  );
+
+  const handleSendMessage = useCallback(() => {
+    sendMessage(chatInput);
+  }, [chatInput, sendMessage]);
+
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage],
+  );
 
   const isRunning = agentState === "running";
   const isStarting = agentState === "starting";
@@ -216,6 +289,114 @@ const ChatPage: React.FC = () => {
     });
   }, [renderItems, isAnalyzing]);
 
+  const renderAgentMessages = useCallback(() => {
+    return agentMessages.map((msg) => {
+      if (msg.role === "user") {
+        return (
+          <div key={msg.id} className="agent-chat-msg agent-chat-msg--user">
+            <div className="agent-chat-msg__content">{msg.content}</div>
+          </div>
+        );
+      }
+
+      if (msg.role === "system") {
+        return (
+          <div key={msg.id} className="chat-system-message">
+            <span className="chat-system-message__icon">✓</span>
+            <span className="chat-system-message__text">{msg.content}</span>
+          </div>
+        );
+      }
+
+      if (msg.toolCall) {
+        const statusLabel =
+          msg.toolCall.status === "running"
+            ? "running"
+            : msg.toolCall.status === "failed"
+              ? "failed"
+              : "succeeded";
+        return (
+          <MessageWrapper key={msg.id}>
+            <ToolMessage
+              toolName={msg.toolCall.name}
+              status={statusLabel}
+              detail={msg.toolCall.result}
+            />
+          </MessageWrapper>
+        );
+      }
+
+      const thinkingBlocks =
+        msg.contentBlocks?.filter((b) => b.type === "thinking") ?? [];
+      const resourceLinks =
+        msg.contentBlocks?.filter((b) => b.type === "resource_link") ?? [];
+      const resourceBlocks =
+        msg.contentBlocks?.filter((b) => b.type === "resource") ?? [];
+
+      if (msg.isThinking && !msg.content) {
+        const lastThinking = thinkingBlocks[thinkingBlocks.length - 1];
+        return (
+          <MessageWrapper key={msg.id}>
+            <ThinkingIndicator
+              thinkingText={lastThinking?.type === "thinking" ? lastThinking.text : undefined}
+            />
+          </MessageWrapper>
+        );
+      }
+
+      const extraContent =
+        resourceLinks.length > 0 || resourceBlocks.length > 0 ? (
+          <div className="agent-content-blocks">
+            {resourceLinks.map((block, i) =>
+              block.type === "resource_link" ? (
+                <ResourceLink key={`rl-${i}`} block={block} />
+              ) : null,
+            )}
+            {resourceBlocks.map((block, i) =>
+              block.type === "resource" ? (
+                <ResourceBlock key={`rb-${i}`} block={block} />
+              ) : null,
+            )}
+          </div>
+        ) : undefined;
+
+      return (
+        <MessageWrapper key={msg.id}>
+          <ReceivedMessage
+            content={msg.content || undefined}
+            timestamp={msg.timestamp}
+            isLoading={msg.isStreaming && !msg.content}
+            extraContent={
+              <>
+                {extraContent}
+                {msg.isCancelled && (
+                  <span className="agent-cancelled-label">Generation cancelled</span>
+                )}
+              </>
+            }
+          />
+        </MessageWrapper>
+      );
+    });
+  }, [agentMessages]);
+
+  const hasAgentContent = agentMessages.length > 0;
+  const lastAgentMsg = agentMessages[agentMessages.length - 1];
+  const isWaitingForResponse =
+    hasAgentContent && lastAgentMsg?.role === "user" && !isAgentStreaming;
+
+  const activeToolName = useMemo(() => {
+    for (let i = agentMessages.length - 1; i >= 0; i--) {
+      const msg = agentMessages[i];
+      if (msg.toolCall?.status === "running") {
+        return msg.toolCall.name;
+      }
+    }
+    return undefined;
+  }, [agentMessages]);
+
+  const isBusy = isAgentStreaming || isWaitingForResponse;
+
   return (
     <div ref={containerRef} className="chat-page-container">
       {isTooNarrow ? (
@@ -249,6 +430,19 @@ const ChatPage: React.FC = () => {
                           : "Stopped"}
                     {isProcessing && <LoadingIndicator />}
                   </span>
+                  {incidentCount > 0 && !isAnalyzing && (
+                    <span
+                      className="chat-incident-badge"
+                      title={`${incidentCount} incident${incidentCount !== 1 ? "s" : ""} across ${ruleSets.length} rule set${ruleSets.length !== 1 ? "s" : ""}`}
+                    >
+                      {incidentCount}
+                    </span>
+                  )}
+                  {isAnalyzing && analysisProgress > 0 && (
+                    <span className="chat-analysis-pct" title="Analysis progress">
+                      {Math.round(analysisProgress)}%
+                    </span>
+                  )}
                   <span className="chat-config-label" title={configLabel}>
                     {configLabel}
                   </span>
@@ -257,9 +451,19 @@ const ChatPage: React.FC = () => {
                       Start
                     </button>
                   )}
-                  {isRunning && (
+                  {isRunning && !isFetchingSolution && (
                     <button className="chat-action-btn" onClick={handleStopAgent}>
                       Stop
+                    </button>
+                  )}
+                  {(hasAgentContent || hasWorkflowContent) && !isFetchingSolution && (
+                    <button
+                      className="chat-action-btn chat-action-btn--icon"
+                      onClick={handleClearChat}
+                      aria-label="New conversation"
+                      title="Clear chat and start a new conversation"
+                    >
+                      +
                     </button>
                   )}
                   <button
@@ -414,13 +618,30 @@ const ChatPage: React.FC = () => {
                     </div>
                   )}
 
-                  {!hasWorkflowContent && !isProcessing && (
+                  {!hasWorkflowContent && !hasAgentContent && !isProcessing && (
                     <div className="chat-agent-status">
-                      {isRunning ? (
-                        <p className="chat-agent-status__hint">
-                          Use <strong>Get Solution</strong> from the analysis view to start a
-                          migration workflow.
-                        </p>
+                      {experimentalChatEnabled && isRunning ? (
+                        <>
+                          <p className="chat-agent-status__hint">
+                            Ask the Migration Assistant anything, or try a suggestion:
+                          </p>
+                          <div className="chat-suggestions">
+                            {[
+                              { label: "Run Analysis", prompt: "Run the Konveyor analyzer on my project and summarize the results." },
+                              { label: "Summarize Incidents", prompt: "What migration issues currently exist in this project? Give me a summary." },
+                              { label: "Plan Migration", prompt: "Help me plan a migration strategy for this project based on the analysis." },
+                              { label: "Explain a Rule", prompt: "Explain the most common migration rule violations in my project and how to fix them." },
+                            ].map((s) => (
+                              <button
+                                key={s.label}
+                                className="chat-suggestion-chip"
+                                onClick={() => sendMessage(s.prompt)}
+                              >
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
                       ) : isStarting ? (
                         <p className="chat-agent-status__hint">Starting agent...</p>
                       ) : (
@@ -433,18 +654,118 @@ const ChatPage: React.FC = () => {
                   )}
 
                   {renderChatMessages()}
+                  {experimentalChatEnabled && renderAgentMessages()}
+                  {experimentalChatEnabled && isAnalyzing && (
+                    <div className="chat-analysis-indicator">
+                      <div className="chat-analysis-indicator__header">
+                        <LoadingIndicator />
+                        <span className="chat-analysis-indicator__label">
+                          {analysisProgressMessage || "Running analysis..."}
+                        </span>
+                        {analysisProgress > 0 && (
+                          <span className="chat-analysis-indicator__pct">
+                            {Math.round(analysisProgress)}%
+                          </span>
+                        )}
+                      </div>
+                      {analysisProgress > 0 && (
+                        <div className="chat-analysis-indicator__bar">
+                          <div
+                            className="chat-analysis-indicator__fill"
+                            style={{ width: `${Math.min(analysisProgress, 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {experimentalChatEnabled && isBusy && !isFetchingSolution && (
+                    <div className="chat-response-indicator">
+                      <span className="chat-response-indicator__dot" />
+                      <span className="chat-response-indicator__dot" />
+                      <span className="chat-response-indicator__dot" />
+                      <span className="chat-response-indicator__label">
+                        {activeToolName
+                          ? `Running: ${activeToolName}`
+                          : isAgentStreaming
+                            ? "Responding..."
+                            : "Waiting for response..."}
+                      </span>
+                      <button
+                        className="chat-response-indicator__cancel"
+                        onClick={handleCancelGeneration}
+                        aria-label="Cancel generation"
+                        title="Stop the current response"
+                      >
+                        Stop
+                      </button>
+                    </div>
+                  )}
+                  {experimentalChatEnabled && isFetchingSolution && (
+                    <div className="chat-solution-indicator">
+                      <LoadingIndicator />
+                      <span className="chat-solution-indicator__label">
+                        Working on migration fix — chat is paused
+                      </span>
+                    </div>
+                  )}
                 </MessageBox>
               </div>
             </div>
           </ChatbotContent>
-          {hasWorkflowContent && (
+
+          {experimentalChatEnabled && isRunning ? (
+            <ChatbotFooter>
+              <div
+                className={`chat-input-area ${isBusy ? "chat-input-area--busy" : ""}`}
+              >
+                {isBusy && (
+                  <div className="chat-input-area__progress" />
+                )}
+                <textarea
+                  ref={chatInputRef}
+                  className="chat-input-area__textarea"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder={
+                    isFetchingSolution
+                      ? "Chat paused — migration fix in progress..."
+                      : isBusy
+                        ? "Type to interrupt and send a new message..."
+                        : "Ask the Migration Assistant..."
+                  }
+                  rows={1}
+                  disabled={!isRunning || isFetchingSolution}
+                />
+                <button
+                  className="chat-input-area__send"
+                  onClick={handleSendMessage}
+                  disabled={!chatInput.trim() || !isRunning || isFetchingSolution}
+                  aria-label="Send message"
+                  title={
+                    isFetchingSolution
+                      ? "Chat paused during migration fix"
+                      : isBusy
+                        ? "Send message (will cancel current response)"
+                        : "Send message (Enter)"
+                  }
+                >
+                  {isBusy ? "⏹" : "↑"}
+                </button>
+              </div>
+              <ChatbotFootnote
+                className="footnote"
+                label="Always review AI generated content prior to use."
+              />
+            </ChatbotFooter>
+          ) : hasWorkflowContent ? (
             <ChatbotFooter>
               <ChatbotFootnote
                 className="footnote"
                 label="Always review AI generated content prior to use."
               />
             </ChatbotFooter>
-          )}
+          ) : null}
         </Chatbot>
       )}
     </div>

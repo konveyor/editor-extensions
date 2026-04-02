@@ -71,8 +71,61 @@ export async function initializeAgent(
     logger: ctx.logger,
     runAnalysis: async () => {
       const analyzerClient = ctx.extensionState.analyzerClient;
-      if (analyzerClient && (await analyzerClient.canAnalyzeInteractive())) {
+      if (!analyzerClient) {
+        ctx.logger.warn("MCP run_analysis: analyzerClient not available");
+        return;
+      }
+      if (analyzerClient.serverState !== "running") {
+        if (!(await analyzerClient.canAnalyzeInteractive())) {
+          return;
+        }
         await analyzerClient.start();
+        await new Promise<void>((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (analyzerClient.serverState === "running") {
+              clearInterval(checkInterval);
+              resolve();
+            } else if (
+              analyzerClient.serverState === "startFailed" ||
+              analyzerClient.serverState === "stopped"
+            ) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 500);
+        });
+      }
+      if (analyzerClient.serverState === "running") {
+        await analyzerClient.runAnalysis();
+
+        const storeData = ctx.store.getState();
+        const incidentCount = storeData.enhancedIncidents?.length ?? 0;
+        const ruleSetCount = storeData.ruleSets?.length ?? 0;
+
+        if (incidentCount > 0) {
+          const sysId = `system-analysis-${Date.now()}`;
+          const summary = `Analysis complete: ${incidentCount} incident${incidentCount !== 1 ? "s" : ""} found across ${ruleSetCount} rule set${ruleSetCount !== 1 ? "s" : ""}.`;
+          for (const provider of ctx.webviewProviders.values()) {
+            provider.sendMessageToWebview({
+              type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
+              messageId: sysId,
+              content: summary,
+              done: false,
+              timestamp: new Date().toISOString(),
+            });
+            provider.sendMessageToWebview({
+              type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
+              messageId: sysId,
+              content: "",
+              done: true,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      } else {
+        ctx.logger.warn(
+          `MCP run_analysis: analyzer not running (state: ${analyzerClient.serverState})`,
+        );
       }
     },
   });
@@ -155,13 +208,16 @@ export async function initializeAgent(
   };
 
   const sendToolCallToWebview = (
-    messageId: string,
+    _responseMessageId: string,
     data: { name: string; callId?: string; status: string; result?: string },
   ) => {
+    const toolMessageId = data.callId
+      ? `tool-${data.callId}`
+      : `tool-${_responseMessageId}-${Date.now()}`;
     for (const provider of ctx.webviewProviders.values()) {
       provider.sendMessageToWebview({
         type: AgentMessageTypes.AGENT_TOOL_CALL,
-        messageId,
+        messageId: toolMessageId,
         toolName: data.name,
         callId: data.callId,
         status: data.status,

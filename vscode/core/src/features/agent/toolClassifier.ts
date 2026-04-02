@@ -34,6 +34,13 @@ const WEB_ACCESS_TOOLS = new Set([
 const TEXT_EDITOR_READ_COMMANDS = new Set(["view", "undo_edit"]);
 
 /**
+ * Known MCP server name prefixes used in Goose-style tool titles
+ * like "Konveyor: Run Analysis". The prefix before the colon
+ * identifies the MCP server.
+ */
+const MCP_SERVER_PREFIXES = new Set(["konveyor"]);
+
+/**
  * Normalize a Goose-style tool title like "Developer: Text Editor"
  * into the tool part ("text editor"). Returns the original string
  * if no colon-prefix is present.
@@ -44,6 +51,18 @@ function extractToolName(title: string): string {
     return title.slice(colonIdx + 1).trim();
   }
   return title;
+}
+
+/**
+ * Extract the prefix before the colon in a Goose-style tool title.
+ * Returns undefined if no colon-prefix is present.
+ */
+function extractPrefix(title: string): string | undefined {
+  const colonIdx = title.indexOf(":");
+  if (colonIdx >= 0) {
+    return title.slice(0, colonIdx).trim();
+  }
+  return undefined;
 }
 
 /**
@@ -82,6 +101,12 @@ export function classifyTool(toolName: string, rawInput?: Record<string, unknown
     if (name.startsWith("mcp__") || name.startsWith("mcp_")) {
       return "mcpTools";
     }
+  }
+
+  // Check if the prefix before the colon is a known MCP server name
+  const prefix = extractPrefix(raw);
+  if (prefix && MCP_SERVER_PREFIXES.has(prefix)) {
+    return "mcpTools";
   }
 
   return "other";

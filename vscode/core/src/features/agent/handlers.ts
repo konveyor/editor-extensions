@@ -8,7 +8,9 @@ import {
   AGENT_INSTALL_CLI,
   AGENT_OPEN_SETTINGS,
   AGENT_PERMISSION_RESPONSE,
+  AGENT_CANCEL_GENERATION,
   SET_TOOL_PERMISSIONS,
+  SET_EXPERIMENTAL_CHAT,
   OPEN_NATIVE_CONFIG,
   AgentMessageTypes,
 } from "@editor-extensions/shared";
@@ -33,6 +35,11 @@ export const agentMessageHandlers: Record<
     state,
     logger,
   ) => {
+    if (state.data.isFetchingSolution) {
+      logger.warn("AGENT_SEND_MESSAGE: blocked — getSolution workflow is active");
+      return;
+    }
+
     const agentClient = getAgentClient(state);
     if (!agentClient) {
       logger.warn("AGENT_SEND_MESSAGE: Agent client not available");
@@ -47,6 +54,28 @@ export const agentMessageHandlers: Record<
       await agentClient.sendMessage(content, messageId);
     } catch (err) {
       logger.error("AGENT_SEND_MESSAGE failed:", err);
+    }
+  },
+
+  [AGENT_CANCEL_GENERATION]: async (_payload, state, logger) => {
+    if (state.data.isFetchingSolution) {
+      logger.warn("AGENT_CANCEL_GENERATION: blocked — getSolution workflow is active");
+      return;
+    }
+
+    const agentClient = getAgentClient(state);
+    if (!agentClient) {
+      logger.warn("AGENT_CANCEL_GENERATION: Agent client not available");
+      return;
+    }
+
+    try {
+      if (agentClient.isPromptActive()) {
+        logger.info("AGENT_CANCEL_GENERATION: cancelling active generation");
+        agentClient.cancelGeneration();
+      }
+    } catch (err) {
+      logger.error("AGENT_CANCEL_GENERATION failed:", err);
     }
   },
 
@@ -65,6 +94,11 @@ export const agentMessageHandlers: Record<
   },
 
   [AGENT_STOP]: async (_payload, state, logger) => {
+    if (state.data.isFetchingSolution) {
+      logger.warn("AGENT_STOP: blocked — getSolution workflow is active");
+      return;
+    }
+
     const agentClient = getAgentClient(state);
     if (!agentClient) {
       logger.warn("AGENT_STOP: Agent client not available");
@@ -343,6 +377,34 @@ export const agentMessageHandlers: Record<
       } catch (err) {
         logger.warn("Failed to notify solution server of permission outcome", { err });
       }
+    }
+  },
+
+  [SET_EXPERIMENTAL_CHAT]: async ({ enabled }: { enabled: boolean }, state, logger) => {
+    logger.info(`SET_EXPERIMENTAL_CHAT: ${enabled}`);
+
+    try {
+      const { updateConfigExperimentalChatEnabled } = await import("../../utilities/configuration");
+      await updateConfigExperimentalChatEnabled(enabled);
+
+      state.mutate((draft) => {
+        draft.experimentalChatEnabled = enabled;
+      });
+
+      if (enabled && !getAgentClient(state)) {
+        vscode.window
+          .showInformationMessage(
+            "Experimental Chat enabled. Reload the window to start the agent backend.",
+            "Reload Window",
+          )
+          .then((selection) => {
+            if (selection === "Reload Window") {
+              vscode.commands.executeCommand("workbench.action.reloadWindow");
+            }
+          });
+      }
+    } catch (err) {
+      logger.error("SET_EXPERIMENTAL_CHAT failed:", err);
     }
   },
 

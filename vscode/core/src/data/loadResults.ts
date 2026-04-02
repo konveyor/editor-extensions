@@ -28,6 +28,7 @@ export const cleanRuleSets = (state: ExtensionState) => {
   state.diagnosticCollection.clear();
   state.mutate((draft) => {
     draft.ruleSets = [];
+    draft.enhancedIncidents = [];
   });
 };
 

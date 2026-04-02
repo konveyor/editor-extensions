@@ -126,6 +126,7 @@ interface ExtensionStore {
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
   setToolPermissions: (policy: ToolPermissionPolicy) => void;
+  setExperimentalChatEnabled: (enabled: boolean) => void;
 
   // Agent chat setters
   setAgentConfig: (config: AgentConfig | null) => void;
@@ -415,6 +416,11 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.toolPermissions = policy;
         }),
 
+      setExperimentalChatEnabled: (enabled) =>
+        set((state) => {
+          state.experimentalChatEnabled = enabled;
+        }),
+
       // Agent chat setters
       setAgentConfig: (config) =>
         set((state) => {
@@ -440,13 +446,14 @@ export const useExtensionStore = create<ExtensionStore>()(
         set((state) => {
           let msg = state.agentMessages.find((m) => m.id === messageId);
           if (!msg) {
+            const isSystem = messageId.startsWith("system-");
             msg = {
               id: messageId,
-              role: "assistant",
+              role: isSystem ? "system" : "assistant",
               content: "",
               timestamp: new Date().toISOString(),
-              isStreaming: true,
-              isThinking: true,
+              isStreaming: !isSystem,
+              isThinking: !isSystem,
               contentBlocks: [],
             };
             state.agentMessages.push(msg);
@@ -541,6 +548,9 @@ export const useExtensionStore = create<ExtensionStore>()(
             status,
             result,
           };
+          if (status === "succeeded" || status === "failed") {
+            msg.isStreaming = false;
+          }
         }),
 
       clearAnalysisData: () =>

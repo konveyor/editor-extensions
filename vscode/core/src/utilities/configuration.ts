@@ -144,6 +144,10 @@ export async function updateConfigAgentMode(value: boolean): Promise<void> {
   await updateConfigValue("genai.agentMode", value);
 }
 
+export async function updateConfigExperimentalChatEnabled(value: boolean): Promise<void> {
+  await updateConfigValue("experimentalChat.enabled", value);
+}
+
 /**
  * Get all configuration values for keys defined in the package.json file. Used in debugging.
  * @returns A record of all configuration values.

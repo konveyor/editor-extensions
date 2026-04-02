@@ -429,7 +429,7 @@ export class AnalyzerClient {
 
     await vscode.window.withProgress(
       {
-        location: vscode.ProgressLocation.Notification,
+        location: vscode.ProgressLocation.Window,
         title: "Running Analysis",
         cancellable: true,
       },
@@ -640,7 +640,7 @@ export class AnalyzerClient {
             return;
           }
           if (ruleSets.length === 0) {
-            vscode.window.showInformationMessage("Analysis completed. No incidents were found.");
+            this.logger.info("Analysis completed. No incidents were found.");
           }
 
           // Add active profile name to each RuleSet
@@ -656,7 +656,6 @@ export class AnalyzerClient {
           await executeExtensionCommand("loadRuleSets", ruleSets);
           this.taskManager.init();
           progress.report({ message: "Results processed!" });
-          vscode.window.showInformationMessage("Analysis completed successfully!");
 
           // Emit analysis complete event to registered providers
           this.providerRegistry.emitAnalysisComplete({

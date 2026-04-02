@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import type { ToolPermissionPolicy, ToolPermissionLevel } from "@editor-extensions/shared";
-import { SET_TOOL_PERMISSIONS, OPEN_NATIVE_CONFIG } from "@editor-extensions/shared";
+import {
+  SET_TOOL_PERMISSIONS,
+  OPEN_NATIVE_CONFIG,
+  SET_EXPERIMENTAL_CHAT,
+} from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
 import { PROVIDERS, type ProviderOption } from "./providerOptions";
 
@@ -23,6 +27,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const agentConfig = useExtensionStore((s) => s.agentConfig);
   const agentState = useExtensionStore((s) => s.agentState);
   const toolPermissions = useExtensionStore((s) => s.toolPermissions);
+  const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
 
   const [selectedProvider, setSelectedProvider] = useState(agentConfig?.provider ?? "");
   const [modelInput, setModelInput] = useState(agentConfig?.model ?? "");
@@ -177,6 +182,38 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         <button className="agent-settings__close" onClick={onClose} aria-label="Close settings">
           ✕
         </button>
+      </div>
+
+      {/* Experimental Chat */}
+      <div className="agent-settings__section">
+        <div className="agent-settings__permission-row">
+          <div>
+            <span className="agent-settings__permission-label">Experimental Chat</span>
+            <div className="agent-settings__agent-mode-hint">
+              {experimentalChatEnabled
+                ? "Agent-powered chat with start/stop controls"
+                : "Enable to use the full AI agent chat experience"}
+            </div>
+          </div>
+          <button
+            className={`agent-settings__toggle ${experimentalChatEnabled ? "agent-settings__toggle--on" : ""}`}
+            onClick={() => {
+              const newValue = !experimentalChatEnabled;
+              useExtensionStore.getState().setExperimentalChatEnabled(newValue);
+              window.vscode.postMessage({
+                type: SET_EXPERIMENTAL_CHAT,
+                payload: { enabled: newValue },
+              });
+            }}
+            role="switch"
+            aria-checked={experimentalChatEnabled}
+            aria-label="Toggle Experimental Chat"
+          >
+            <span className="agent-settings__toggle-track">
+              <span className="agent-settings__toggle-thumb" />
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Provider Selection */}

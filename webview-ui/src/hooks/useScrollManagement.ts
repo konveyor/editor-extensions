@@ -6,7 +6,11 @@ const NEAR_BOTTOM_THRESHOLD = 150;
 const USER_SCROLLED_UP_THRESHOLD = 80;
 const STREAMING_POLL_MS = 250;
 
-export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolution: boolean) => {
+export const useScrollManagement = (
+  chatMessages: ChatMessage[],
+  isFetchingSolution: boolean,
+  agentMessageCount?: number,
+) => {
   const messageBoxRef = useRef<MessageBoxHandle | null>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollTime = useRef<number>(0);
@@ -121,6 +125,16 @@ export const useScrollManagement = (chatMessages: ChatMessage[], isFetchingSolut
       setTimeout(() => scrollToBottom(false), 50);
     }
   }, [chatMessages, scrollToBottom, isNearBottom, getMessageBoxElement]);
+
+  // Auto-scroll when agentMessages array length changes (new agent message)
+  useEffect(() => {
+    if (agentMessageCount === undefined || agentMessageCount === 0) {
+      return;
+    }
+    if (!userHasScrolledUp.current) {
+      setTimeout(() => scrollToBottom(false), 50);
+    }
+  }, [agentMessageCount, scrollToBottom]);
 
   // ResizeObserver: auto-scroll when the message container's content height
   // grows (catches markdown rendering, code block expansion, image loads, etc.)

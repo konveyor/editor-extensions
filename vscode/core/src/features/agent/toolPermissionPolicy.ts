@@ -30,6 +30,12 @@ export function resolvePermission(
     return policy.overrides[category]!;
   }
 
+  // Harmless internal tools (e.g. Goose's "Todo Write") and our own
+  // MCP tools (e.g. "Konveyor: Run Analysis") never need approval
+  if (category === "other" || category === "mcpTools") {
+    return "auto";
+  }
+
   // Fall back to autonomy level
   switch (policy.autonomyLevel) {
     case "auto":
@@ -37,7 +43,7 @@ export function resolvePermission(
     case "ask":
       return "ask";
     case "smart":
-      // "smart" = auto for reads/other, ask for writes
+      // "smart" = auto for reads, ask for writes
       return category === "fileEditing" || category === "commandExecution" ? "ask" : "auto";
   }
 }
