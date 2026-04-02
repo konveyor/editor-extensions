@@ -600,6 +600,7 @@ export abstract class VSCode {
       const openModalButton = this.window.getByRole('button', {
         name: 'Open Modal Editor in Main Window',
       });
+      await expect(this.window.getByText('settings.json').first()).toBeVisible();
       if (await openModalButton.isVisible()) {
         await openModalButton.click();
       }
