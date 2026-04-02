@@ -276,15 +276,6 @@ class VsCodeExtension {
       // This means profiles are managed by Hub, not created in the webview
       const isInTreeMode = data.profiles.some((p) => p.source === "hub");
 
-      // Warn user if they have hub profiles but profile sync is disabled
-      // They need to delete the synced profiles to regain control
-      if (isInTreeMode && !data.hubConfig?.features?.profileSync?.enabled) {
-        this.state?.logger?.warn(
-          "Hub-synced profiles detected but profile sync is disabled. " +
-            "Delete the .konveyor/profiles directory to manage profiles in the webview.",
-        );
-      }
-
       // Update isInTreeMode in state
       this.data = produce(data, (draft) => {
         draft.isInTreeMode = isInTreeMode;
@@ -528,7 +519,7 @@ class VsCodeExtension {
         this.updateConfigurationErrors(draft);
       });
 
-      // Watch for changes to .konveyor/profiles directory
+      // Watch for changes to profile directories (.konveyor/profiles/ and .konveyor/hub-profiles/)
       this.setupProfileWatcher();
 
       this.setupModelProvider(paths().settingsYaml)
@@ -1091,16 +1082,9 @@ class VsCodeExtension {
       return;
     }
 
-    // Watch for changes to .konveyor/profiles directory
-    const profilesPattern = new vscode.RelativePattern(
-      workspaceRoot,
-      ".konveyor/profiles/**/profile.yaml",
-    );
-    const watcher = vscode.workspace.createFileSystemWatcher(profilesPattern);
-
-    // Reload profiles when files change
+    // Reload profiles when files change in either profiles directory
     const reloadProfiles = async () => {
-      this.state.logger.info("Detected changes to .konveyor/profiles, reloading profiles");
+      this.state.logger.info("Detected changes to profiles, reloading");
       const allProfiles = await getAllProfiles(this.context);
       const currentActiveId = this.state.data.activeProfileId;
 
@@ -1136,11 +1120,27 @@ class VsCodeExtension {
       }
     };
 
+    // Watch for changes to .konveyor/profiles directory (user in-tree profiles)
+    const profilesPattern = new vscode.RelativePattern(
+      workspaceRoot,
+      ".konveyor/profiles/**/profile.yaml",
+    );
+    const watcher = vscode.workspace.createFileSystemWatcher(profilesPattern);
     watcher.onDidCreate(reloadProfiles);
     watcher.onDidChange(reloadProfiles);
     watcher.onDidDelete(reloadProfiles);
-
     this.context.subscriptions.push(watcher);
+
+    // Watch for changes to .konveyor/hub-profiles directory (hub-synced profiles)
+    const hubProfilesPattern = new vscode.RelativePattern(
+      workspaceRoot,
+      ".konveyor/hub-profiles/**/profile.yaml",
+    );
+    const hubWatcher = vscode.workspace.createFileSystemWatcher(hubProfilesPattern);
+    hubWatcher.onDidCreate(reloadProfiles);
+    hubWatcher.onDidChange(reloadProfiles);
+    hubWatcher.onDidDelete(reloadProfiles);
+    this.context.subscriptions.push(hubWatcher);
   }
 
   private checkContinueInstalled(): void {

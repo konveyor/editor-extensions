@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { AnalysisProfile } from "@editor-extensions/shared";
 import { ExtensionState } from "../../extensionState";
 import { getBundledProfiles } from "./bundledProfiles";
-import { discoverInTreeProfiles } from "./inTreeProfiles";
+import { discoverInTreeProfiles, discoverHubSyncedProfiles } from "./inTreeProfiles";
 
 const USER_PROFILE_KEY = "userProfiles";
 const ACTIVE_PROFILE_KEY = "activeProfileId";
@@ -48,22 +48,15 @@ export async function getAllProfiles(context: vscode.ExtensionContext): Promise<
 
   let profiles: AnalysisProfile[] = [];
 
-  // If in-tree profiles exist, ONLY return those (IN-TREE ALWAYS WINS)
   if (workspaceRoot) {
-    const inTreeProfiles = await discoverInTreeProfiles(workspaceRoot);
-
-    const hubProfiles = inTreeProfiles.filter((p) => p.source === "hub");
+    // Check for hub-synced profiles in .konveyor/hub-profiles/ (managed by the extension)
+    const hubProfiles = await discoverHubSyncedProfiles(workspaceRoot);
     if (hubProfiles.length > 0) {
-      // Log if local in-tree profiles are being ignored
-      const localProfiles = inTreeProfiles.filter((p) => p.source === "local");
-      if (localProfiles.length > 0) {
-        vscode.window.showWarningMessage(
-          `Found ${localProfiles.length} local in-tree profile(s) that are being ignored because ` +
-            `Hub profile(s) are present. Hub profiles take precedence.`,
-        );
-      }
       return hubProfiles;
     }
+
+    // Check for user-managed in-tree profiles in .konveyor/profiles/
+    const inTreeProfiles = await discoverInTreeProfiles(workspaceRoot);
     profiles = [...profiles, ...inTreeProfiles];
   }
 
