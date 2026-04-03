@@ -281,6 +281,18 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
     }
   }
 
+  // --- Auto-approve Konveyor MCP tools (our own tools should never need permission) ---
+  const toolTitle = data.title?.toLowerCase() ?? "";
+  if (toolTitle.startsWith("konveyor:")) {
+    const optionId = findAllowOnceOptionId(data.options);
+    if (optionId) {
+      agentClient.respondToRequest(data.requestId, {
+        outcome: { outcome: "selected", optionId },
+      });
+      return;
+    }
+  }
+
   // --- Auto-approve ---
   if (shouldAutoApproveWithPolicy(policy, data)) {
     const optionId = findAllowOnceOptionId(data.options);

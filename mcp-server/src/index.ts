@@ -202,6 +202,229 @@ server.tool(
   },
 );
 
+// ─── Tool: get_migration_context ─────────────────────────────────────
+
+server.tool(
+  "get_migration_context",
+  `Get the current migration context for this project.
+
+Returns the active analysis profile (name, label selector with source/target
+labels), the workspace root path, and a list of any existing migration skill
+files. Use this to understand what migration is being performed before
+creating or updating migration skills.
+
+After calling this tool, explain to the user what migration is configured
+and what you plan to do next.`,
+  {},
+  async () => {
+    try {
+      const result = await bridgeRequest("/api/migration-context");
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Failed to get migration context: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// ─── Tool: get_migration_skills ─────────────────────────────────────
+
+server.tool(
+  "get_migration_skills",
+  `List existing migration skill files for this project.
+
+Returns the content of all skill files in .konveyor/skills/. Skills are
+markdown files with YAML frontmatter that capture institutional knowledge
+about a migration — patterns, conventions, things to preserve, common
+pitfalls. They are used to provide richer context to the AI when generating
+migration solutions.`,
+  {},
+  async () => {
+    try {
+      const result = (await bridgeRequest("/api/skills")) as {
+        skills: Array<{ filename: string; content: string }>;
+      };
+
+      if (result.skills.length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "No migration skills found. Use save_migration_skill to create one.",
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Failed to get migration skills: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// ─── Tool: ask_user ─────────────────────────────────────────────────
+
+server.tool(
+  "ask_user",
+  `Ask the user one or more questions and wait for their responses.
+
+Use this tool when you need user input during migration skill creation —
+for example, to ask about organizational conventions, preferred frameworks,
+or migration constraints. Each question is presented with clickable options
+in the Konveyor chat UI.
+
+The tool returns immediately after posting the questions. The user's
+responses will be delivered as your next message. Do NOT call any other
+tools until you receive the user's answers.`,
+  {
+    questions: z
+      .array(
+        z.object({
+          question: z.string().describe("The question to ask"),
+          options: z.array(z.string()).min(2).max(6).describe("Response options (2-6 choices)"),
+        }),
+      )
+      .min(1)
+      .max(10)
+      .describe("List of questions to ask the user"),
+  },
+  async ({ questions }) => {
+    try {
+      const result = (await bridgeRequest("/api/ask-user", {
+        method: "POST",
+        body: { questions },
+      })) as { answer?: string; timedOut?: boolean };
+
+      if (result.timedOut) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "The user did not respond within the timeout period. Proceed with reasonable defaults.",
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `User responses:\n\n${result.answer}`,
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Failed to ask user: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// ─── Tool: save_migration_skill ─────────────────────────────────────
+
+server.tool(
+  "save_migration_skill",
+  `Save a migration skill file that captures knowledge about this migration.
+
+A skill is a markdown file stored in .konveyor/skills/. It captures
+institutional knowledge that makes future migration solutions better —
+patterns found in the codebase, organizational conventions, things to
+preserve, common pitfalls, and migration-specific guidance.
+
+IMPORTANT: Before calling this tool, you MUST:
+
+1. Tell the user what you've learned so far from the analysis results
+   and codebase exploration. Summarize the key patterns you found and
+   the migration approach you'd recommend.
+
+2. Use the ask_user tool to ask about organizational preferences,
+   conventions, or constraints. For example:
+   - Preferred frameworks or libraries
+   - Files or patterns that should not be modified
+   - Internal conventions not visible in the code
+   - Known gotchas from previous migration attempts
+
+3. Only after the user has responded to your questions, call this
+   tool to save the skill.
+
+Structure the skill content as a markdown document with clear sections
+covering: application context, key patterns found, migration guidance,
+things to preserve, and common pitfalls.`,
+  {
+    name: z
+      .string()
+      .describe("Short kebab-case name for the skill file (e.g. 'coolstore-javaee-to-quarkus')"),
+    content: z
+      .string()
+      .describe("Full markdown content of the skill file, including YAML frontmatter"),
+  },
+  async ({ name, content }) => {
+    try {
+      const result = (await bridgeRequest("/api/skills", {
+        method: "POST",
+        body: { name, content },
+      })) as { status: string; path: string; filename: string };
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Migration skill saved successfully.\n\nFile: ${result.filename}\nPath: ${result.path}\n\nThis skill will be included in future migration solution prompts to provide richer context.`,
+          },
+        ],
+      };
+    } catch (err) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Failed to save migration skill: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
 // ─── Start server ─────────────────────────────────────────────────────
 
 async function main() {

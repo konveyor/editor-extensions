@@ -247,6 +247,14 @@ export class AgentOrchestrator {
         }
       });
 
+      const activeProfileData = this.state.data.profiles.find(
+        (p) => p.id === this.state.data.activeProfileId,
+      );
+      // Copy to a mutable object for the prompt builder
+      const activeProfile = activeProfileData
+        ? { ...activeProfileData, customRules: [...activeProfileData.customRules] }
+        : undefined;
+
       const prompt = await buildMigrationPrompt(
         {
           incidents: this.incidents,
@@ -256,6 +264,7 @@ export class AgentOrchestrator {
         },
         workspaceRoot,
         fileContentCache,
+        { activeProfile },
       );
 
       const requestId = uuidv4();

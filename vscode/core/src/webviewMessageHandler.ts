@@ -450,7 +450,56 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
     }
   },
-  QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
+  QUICK_RESPONSE: async ({ responseId, messageToken }, state, logger) => {
+    // Handle ask_user question responses
+    if (messageToken.startsWith("askq-")) {
+      // Mark the selected response on this question
+      state.mutate((draft) => {
+        for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+          if (draft.chatMessages[i].messageToken === messageToken) {
+            draft.chatMessages[i].selectedResponse = responseId;
+            break;
+          }
+        }
+      });
+
+      // Find the batch ID from the message value
+      const stateData = state.data;
+      const thisMsg = stateData.chatMessages.find((m) => m.messageToken === messageToken);
+      const batchId = (thisMsg?.value as Record<string, unknown>)?.askBatchId as string | undefined;
+      if (!batchId) {
+        return;
+      }
+
+      // Check if all questions in this batch are answered
+      const batchMessages = stateData.chatMessages.filter(
+        (m) => (m.value as Record<string, unknown>)?.askBatchId === batchId,
+      );
+      const allAnswered = batchMessages.every((m) => m.selectedResponse);
+      if (!allAnswered) {
+        return;
+      }
+
+      // Collect answers and resolve the long-poll on the bridge server
+      const answers = batchMessages.map((m) => {
+        const question = (m.value as { message: string }).message;
+        const selected = m.quickResponses?.find((r) => r.id === m.selectedResponse);
+        return `${question}\n→ ${selected?.content ?? "No answer"}`;
+      });
+
+      const responseText = answers.join("\n\n");
+      const bridgeServer = state.featureClients.get("mcpBridgeServer") as
+        | import("./api/mcpBridgeServer").McpBridgeServer
+        | undefined;
+      if (bridgeServer) {
+        const resolved = bridgeServer.resolveQuestion(batchId, responseText);
+        if (!resolved) {
+          logger?.warn("ask_user: no pending question found for batch", { batchId });
+        }
+      }
+      return;
+    }
+
     handleQuickResponse(messageToken, responseId, state);
   },
 

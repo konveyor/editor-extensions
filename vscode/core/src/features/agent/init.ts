@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
-import { AgentState, AgentContentBlockType, AgentMessageTypes } from "@editor-extensions/shared";
+import {
+  AgentState,
+  AgentContentBlockType,
+  AgentMessageTypes,
+  ChatMessageType,
+} from "@editor-extensions/shared";
 import type { FeatureContext } from "../featureRegistry";
 import { AgentFileTracker } from "./fileTracker";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
@@ -127,6 +132,19 @@ export async function initializeAgent(
           `MCP run_analysis: analyzer not running (state: ${analyzerClient.serverState})`,
         );
       }
+    },
+    onAskUser: (batchId, questions) => {
+      ctx.mutate((draft) => {
+        for (const q of questions) {
+          draft.chatMessages.push({
+            kind: ChatMessageType.String,
+            messageToken: q.questionId,
+            timestamp: new Date().toISOString(),
+            value: { message: q.question, askBatchId: batchId },
+            quickResponses: q.quickResponses,
+          });
+        }
+      });
     },
   });
 
