@@ -98,6 +98,7 @@ export const extensionDependencies: Record<string, string[]> = {
 // Other Configuration
 // ============================================================================
 export const extensionShortName = process.env.TEST_CATEGORY || 'Konveyor';
+export const extensionLongName = process.env.TEST_CATEGORY_LONG || 'Konveyor';
 
 // Function to get the analysis view title based on extension short name
 export function getAnalysisViewTitle(): string {
