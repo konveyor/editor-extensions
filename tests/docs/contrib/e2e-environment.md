@@ -1,7 +1,5 @@
 ## Table of Contents
 
-## Table of Contents
-
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
