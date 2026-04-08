@@ -44,7 +44,8 @@ test.describe(
         if (!process.env.CI) {
           throw error;
         }
-        console.log(
+        test.fixme(
+          true,
           'Hub configuration was not persisted, this might be due to bug https://github.com/konveyor/editor-extensions/issues/1249. Ignoring...'
         );
       }

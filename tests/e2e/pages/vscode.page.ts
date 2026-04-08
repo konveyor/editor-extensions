@@ -131,7 +131,10 @@ export abstract class VSCode {
     } catch (error) {
       console.log('Error starting server:', error);
       await this.window.screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `error-starting-server.png`),
+        path: pathlib.join(
+          SCREENSHOTS_FOLDER,
+          `error-starting-server-${new Date().toISOString().replace(/[:.]/g, '-')}.png`
+        ),
       });
       throw error;
     }
