@@ -97,18 +97,12 @@ class SolutionServerWorkflowHelper {
         undefined,
         customRulesPath
       );
-      await vsCode.getWindow().screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `proooofileeee.png`),
-      });
       this.logger.success(
         `Profile created for ${appName} with custom rules from ${customRulesSubPath}`
       );
       await this.configureSolutionServer(vsCode, appName);
       await vsCode.runAnalysis();
       await vsCode.waitForAnalysisCompleted();
-      await vsCode.getWindow().screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `aresult.png`),
-      });
       this.logger.debug(`Successfully setup ${appName} repository`);
       return vsCode;
     } catch (error) {
@@ -185,7 +179,6 @@ class SolutionServerWorkflowHelper {
     await expect(analysisViewAfter.locator('body')).toBeVisible({ timeout: 30000 });
 
     await this.validateSolutionApplication(vsCode, appName);
-
     await this.applyJavaAnnotationFixInternal(vsCode, appName);
   }
 
@@ -339,16 +332,84 @@ test.describe.serial(
 
     test.beforeAll(async ({ testRepoData: repoData }) => {
       if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
+        // Response for FileSystemAuditLogger -> StreamableAuditLogger fix
+        // Must keep javax.annotation since that fix comes second
+        const auditLoggerFixResponse = buildKaiResponse({
+          reasoning: 'Replace FileSystemAuditLogger with StreamableAuditLogger for TCP streaming.',
+          language: 'java',
+          fileContent: `package com.example.inventorymanagement.service;
+
+import com.enterprise.audit.logging.config.AuditConfiguration;
+import com.enterprise.audit.logging.service.StreamableAuditLogger;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import org.springframework.stereotype.Service;
+
+@Service
+public class InventoryService {
+    private StreamableAuditLogger auditLogger;
+
+    @PostConstruct
+    public void init() {
+        AuditConfiguration config = new AuditConfiguration();
+        auditLogger = new StreamableAuditLogger(config, "localhost", 9090);
+    }
+
+    @PreDestroy
+    public void cleanup() { if (auditLogger != null) { auditLogger.close(); } }
+
+    public void setAuditLogger(StreamableAuditLogger a) { this.auditLogger = a; }
+}`,
+        });
+
+        // Response for javax.annotation -> jakarta.annotation fix
+        const javaAnnotationFixResponse = buildKaiResponse({
+          reasoning: 'Replace javax.annotation with jakarta.annotation for OpenJDK 11+.',
+          language: 'java',
+          fileContent: `package com.example.inventorymanagement.service;
+
+import com.enterprise.audit.logging.config.AuditConfiguration;
+import com.enterprise.audit.logging.service.StreamableAuditLogger;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import org.springframework.stereotype.Service;
+
+@Service
+public class InventoryService {
+    private StreamableAuditLogger auditLogger;
+
+    @PostConstruct
+    public void init() {
+        AuditConfiguration config = new AuditConfiguration();
+        auditLogger = new StreamableAuditLogger(config, "localhost", 9090);
+    }
+
+    @PreDestroy
+    public void cleanup() { if (auditLogger != null) { auditLogger.close(); } }
+
+    public void setAuditLogger(StreamableAuditLogger a) { this.auditLogger = a; }
+}`,
+        });
+
         await loadLlemulatorResponses({
           reset: true,
           responses: [
+            // FileSystemAuditLogger fix
+            {
+              pattern: '.*FileSystemAuditLogger.*',
+              response: auditLoggerFixResponse,
+              times: -1,
+            },
+            // javax.annotation fix
+            {
+              pattern: '.*java\\.annotation.*|.*javax\\.annotation.*|.*OpenJDK 11.*',
+              response: javaAnnotationFixResponse,
+              times: -1,
+            },
+            // Fallback
             {
               pattern: '.*',
-              response: buildKaiResponse({
-                reasoning: 'LLEMULATOR RESPONSE',
-                language: 'java',
-                fileContent: 'LLEMULATOR RESPONSE',
-              }),
+              response: javaAnnotationFixResponse,
               times: -1,
             },
           ],
@@ -383,7 +444,14 @@ test.describe.serial(
         throw new Error('VSCode instance not initialized - previous test may have failed');
       }
 
-      await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
+      try {
+        await helper.applyAuditLoggerFix(vsCode, 'Inventory Management');
+      } catch (error) {
+        await vsCode.getWindow().screenshot({
+          path: `${SCREENSHOTS_FOLDER}/error-apply-audit-logger-fix.png`,
+        });
+        throw error;
+      }
 
       helper.logger.success(
         'Complete fix workflow (audit logger + Java annotation) applied successfully'
@@ -418,8 +486,11 @@ test.describe.serial(
       expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThanOrEqual(0);
 
       expect(solutionServerMetrics.successRate.accepted_solutions).toBeGreaterThan(0);
-      expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
-      expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
+      // Best hints won't get updated when using llemulator
+      if (getDefaultProviderConfig() !== LLEMULATOR_PROVIDER) {
+        expect(solutionServerMetrics.bestHint.hint).toContain('StreamableAuditLogger');
+        expect(solutionServerMetrics.bestHint.hint).toContain('FileSystemAuditLogger');
+      }
 
       const totalSolutions = solutionServerMetrics.successRate.counted_solutions;
       expect(totalSolutions).toBeGreaterThan(0);

@@ -37,7 +37,7 @@ export class AuthenticationManager {
     private readonly realm: string,
     private readonly username: string,
     private readonly password: string,
-    private readonly insecure: boolean = false
+    private readonly insecure: boolean = true
   ) {
     if (this.insecure) {
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';

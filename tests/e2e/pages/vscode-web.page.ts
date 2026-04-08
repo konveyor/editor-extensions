@@ -68,12 +68,15 @@ export class VSCodeWeb extends VSCode {
     await expect(newPage.getByRole('heading', { name: 'Starting workspace' })).not.toBeVisible({
       timeout: 300_000,
     });
+    await expect(newPage.getByRole('heading', { name: 'Explorer', exact: true })).toBeVisible({
+      timeout: 150_000,
+    });
     console.log('VSCodeWeb.open: Workspace started');
 
     try {
       await newPage
         .getByRole('button', { name: 'Yes, I trust the authors' })
-        .click({ timeout: 300_000 });
+        .click({ timeout: 30_000 });
     } catch (error) {
       console.log('VSCodeWeb.open: Trust button not found, trying to continue', error);
     }
@@ -110,7 +113,10 @@ export class VSCodeWeb extends VSCode {
 
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
     if (!(await navLi.isVisible())) {
+      // TODO rest of the extensions
       await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
+    } else {
+      console.log('Extensions already installed');
     }
 
     await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
@@ -279,7 +285,7 @@ export class VSCodeWeb extends VSCode {
       throw new Error('Repo URL is missing for creating a new workspace');
     }
     await page.getByRole('link', { name: 'Create Workspace' }).click();
-    await page.locator('#git-repo-url').fill(`${repoUrl}?cpuLimit=4&memoryLimit=7Gi`);
+    await page.locator('#git-repo-url').fill(`${repoUrl}?cpuLimit=4&memoryLimit=8Gi`);
     await page.locator('#accordion-item-git-repo-options').click();
     await page.getByPlaceholder('Enter the branch of the Git Repository').fill(branch);
     const newPagePromise = ctx.waitForEvent('page');
