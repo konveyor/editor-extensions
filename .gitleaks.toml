@@ -1,0 +1,8 @@
+[allowlist]
+  description = "Global Allowlist"
+
+  # Ignore lines containing test tokens
+  regexes = [
+    # Ignore dummy llemulator key used in CI tests
+    '''dummy-key-for-llemulator''',
+  ]

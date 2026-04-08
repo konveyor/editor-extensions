@@ -10,6 +10,7 @@ import path from 'path';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
+import * as vscode from 'vscode';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
@@ -130,7 +131,10 @@ export abstract class VSCode {
     } catch (error) {
       console.log('Error starting server:', error);
       await this.window.screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `error-starting-server.png`),
+        path: pathlib.join(
+          SCREENSHOTS_FOLDER,
+          `error-starting-server-${new Date().toISOString().replace(/[:.]/g, '-')}.png`
+        ),
       });
       throw error;
     }
@@ -138,17 +142,25 @@ export abstract class VSCode {
 
   public async searchViolation(term: string): Promise<void> {
     const analysisView = await this.getView(KAIViews.analysisView);
+    try {
+      const toggleFilterButton = analysisView.locator('button[aria-label="Show Filters"]');
+      const searchInput = analysisView.locator(
+        'input[aria-label="Search violations and incidents"]'
+      );
+      if (await searchInput.isVisible()) {
+        await searchInput.fill(term);
+        return;
+      }
 
-    const toggleFilterButton = analysisView.locator('button[aria-label="Show Filters"]');
-    const searchInput = analysisView.locator('input[aria-label="Search violations and incidents"]');
-    if (await searchInput.isVisible()) {
+      await toggleFilterButton.click();
       await searchInput.fill(term);
-      return;
+      await toggleFilterButton.click();
+    } catch (error) {
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `error-searching-violation.png`),
+      });
+      throw error;
     }
-
-    await toggleFilterButton.click();
-    await searchInput.fill(term);
-    await toggleFilterButton.click();
   }
 
   /**

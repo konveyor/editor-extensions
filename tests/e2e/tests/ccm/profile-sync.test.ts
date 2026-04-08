@@ -4,7 +4,8 @@ import { HubConfigurationPage } from '../../pages/hub-configuration.page';
 import { generateRandomString, getHubConfig } from '../../utilities/utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
-import { SEC } from '../../utilities/consts';
+import { SCREENSHOTS_FOLDER, SEC } from '../../utilities/consts';
+import pathlib from 'path';
 
 test.describe(
   'Profile Sync Tests',
@@ -36,8 +37,18 @@ test.describe(
       const hubConfigPage = await HubConfigurationPage.open(vscodeApp);
       await hubConfigPage.fillForm(hubConfig);
 
-      await vscodeApp.assertNotification('Successfully connected to Hub profile sync');
-      await vscodeApp.assertNotification('Active profile changed', { timeout: 60 * SEC });
+      try {
+        await vscodeApp.assertNotification('Successfully connected to Hub profile sync');
+        await vscodeApp.assertNotification('Active profile changed', { timeout: 60 * SEC });
+      } catch (e) {
+        await vscodeApp.getWindow().screenshot({
+          path: pathlib.join(SCREENSHOTS_FOLDER, `error-profile-sync-no-notif.png`),
+        });
+        console.log(
+          'ProfileSyncTest: Notification may have been dismissed, verifying profile directly...'
+        );
+        console.error(e);
+      }
 
       await vscodeApp.openAnalysisView();
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);

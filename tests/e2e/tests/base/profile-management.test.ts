@@ -8,7 +8,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 
 test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
-  const profileNameWithRules = `profileWithRules-${generateRandomString()}`;
+  const profileNameWithRules = `profileRules-${generateRandomString()}`;
   const createdProfiles: string[] = [];
   let profileView: FrameLocator;
 
@@ -16,7 +16,7 @@ test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
     test.setTimeout(600000);
     const repoInfo = testRepoData['inventory_management'];
     vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
-    await vscodeApp.executeQuickCommand('Konveyor: Manage Analysis Profile');
+    await vscodeApp.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
   });
 
   test.beforeEach(async () => {

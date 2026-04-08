@@ -284,7 +284,7 @@ jobs:
           path: ./downloaded_assets
 
       - name: Run tier3 tests
-        run: npx playwright test --grep "@tier3"
+        run: npx playwright test --grep "@tier3" --grep-invert "@requires-minikube"
         working-directory: ./tests
         continue-on-error: true
         env:
@@ -309,299 +309,13 @@ jobs:
     name: Infrastructure Tests (@requires-minikube)
     runs-on: ubuntu-latest
     needs: setup
-    # Only run on releases
-    if: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Checkout Konveyor Operator (for scripts)
-        uses: actions/checkout@v4
-        with:
-          repository: konveyor/operator
-          path: konveyor-operator
-          ref: main
-
-      - name: Start Minikube
-        uses: konveyor/operator/.github/actions/start-minikube@main
-        with:
-          cpus: "max"
-          memory: "max"
-
-      - name: Setup Namespace and Secrets
-        run: |
-          echo "=== Creating namespace and secrets ==="
-          kubectl create namespace konveyor-tackle || true
-
-          # Create API key secret for LLM proxy
-          kubectl create secret generic kai-api-keys \
-            --from-literal=OPENAI_API_KEY=dummy-key-for-llemulator \
-            -n konveyor-tackle \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-          echo "✓ Namespace and secrets created"
-
-      - name: Deploy Llemulator
-        run: |
-          echo "=== Deploying llemulator ==="
-          cd konveyor-operator
-          ./test/e2e/llm-proxy/setup-llemulator.sh
-          cd ..
-
-          echo "=== Verifying llemulator deployment ==="
-          kubectl get deployment llemulator -n konveyor-tackle
-          kubectl get service llemulator -n konveyor-tackle
-
-          echo "=== Waiting for llemulator to be ready ==="
-          kubectl wait --for=condition=available --timeout=300s deployment/llemulator -n konveyor-tackle
-
-          echo "✓ Llemulator deployed and ready"
-
-      - name: Configure Llemulator with Test Responses
-        run: |
-          echo "=== Configuring llemulator with 50 test responses ==="
-
-          kubectl port-forward -n konveyor-tackle svc/llemulator 8089:80 &
-          PF_PID=$!
-
-          for i in {1..30}; do
-            if curl -s http://localhost:8089/_emulator/script > /dev/null 2>&1; then
-              echo "Port-forward is ready"
-              break
-            fi
-            echo "Waiting for port-forward... ($i/30)"
-            sleep 2
-          done
-
-          # Build JSON array with 50 responses
-          RESPONSES='['
-          for i in {1..50}; do
-            RESPONSES="${RESPONSES}\"LLEMULATOR response\""
-            if [ $i -lt 50 ]; then
-              RESPONSES="${RESPONSES},"
-            fi
-          done
-          RESPONSES="${RESPONSES}]"
-
-          # Configure llemulator with test responses using the correct API
-          response=$(curl -s -X POST http://localhost:8089/_emulator/script \
-            -H "Authorization: Bearer dummy-key-for-llemulator" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"reset\": true,
-              \"models\": [\"gpt-4o\", \"gpt-4\", \"gpt-3.5-turbo\"],
-              \"responses\": ${RESPONSES}
-            }")
-
-          if [ $? -ne 0 ]; then
-            echo "✗ Failed to configure llemulator"
-            echo "Response: $response"
-            kill $PF_PID 2>/dev/null || true
-            exit 1
-          fi
-
-          echo "✓ Successfully configured llemulator with 50 test responses"
-          echo "Response: $response"
-
-          # Clean up port-forward
-          kill $PF_PID 2>/dev/null || true
-
-      - name: Install Konveyor
-        uses: konveyor/operator/.github/actions/install-konveyor@main
-        with:
-          namespace: konveyor-tackle
-          tackle_cr: |
-            kind: Tackle
-            apiVersion: tackle.konveyor.io/v1alpha1
-            metadata:
-              name: tackle
-            spec:
-              feature_auth_required: true
-              kai_solution_server_enabled: true
-              kai_llm_proxy_enabled: true
-              kai_llm_model: gpt-4o
-              kai_llm_provider: openai
-              kai_llm_baseurl: http://llemulator.konveyor-tackle.svc.cluster.local/v1
-              kai_api_key_secret_name: kai-api-keys
-
-      - name: Wait for Ingress
-        id: wait_ingress
-        run: |
-          echo "=== Waiting for ingress to be ready ==="
-          kubectl wait \
-            -n konveyor-tackle \
-            ingress/tackle \
-            --timeout=600s \
-            --for=jsonpath='{.status.loadBalancer.ingress[0]}'
-
-          minikube_ip=$(minikube ip)
-          echo "Minikube IP: ${minikube_ip}"
-          echo "UI_URL=https://${minikube_ip}" >> $GITHUB_ENV
-
-          echo "✓ Ingress is ready"
-
-      - name: Configure Hub Admin Credentials
-        run: |
-          echo "=== Configuring Hub admin credentials ==="
-
-          echo -n "Waiting for admin user in tackle realm..."
-          ADMIN_EXISTS=false
-          ADMIN_SECRET=$(kubectl get secret tackle-keycloak-sso -n konveyor-tackle -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || true)
-
-          for i in $(seq 1 30); do
-            # Get admin token
-            ADMIN_TOKEN_RESPONSE=$(kubectl exec -n konveyor-tackle deployment/tackle-hub -- curl -s -X POST \
-              http://tackle-keycloak-sso:8080/auth/realms/master/protocol/openid-connect/token \
-              -H "Content-Type: application/x-www-form-urlencoded" \
-              -d "grant_type=password&client_id=admin-cli&username=admin&password=$ADMIN_SECRET" 2>/dev/null || echo "{}")
-
-            if echo "$ADMIN_TOKEN_RESPONSE" | grep -q "access_token"; then
-              ADMIN_TOKEN=$(echo "$ADMIN_TOKEN_RESPONSE" | jq -r '.access_token' 2>/dev/null || true)
-              if [ -n "$ADMIN_TOKEN" ]; then
-                # Check for admin user in tackle realm
-                USERS_RESPONSE=$(kubectl exec -n konveyor-tackle deployment/tackle-hub -- curl -s \
-                  "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users?username=admin" \
-                  -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || echo "[]")
-
-                if echo "$USERS_RESPONSE" | grep -q '"username":"admin"'; then
-                  echo " found"
-                  ADMIN_EXISTS=true
-
-                  # Get admin user ID
-                  ADMIN_USER_ID=$(echo "$USERS_RESPONSE" | jq -r '.[0].id // empty' 2>/dev/null || true)
-                  break
-                fi
-              fi
-            fi
-            echo -n "."
-            sleep 5
-          done
-
-          if [ "$ADMIN_EXISTS" != true ]; then
-            echo " timeout (admin user may not exist yet)"
-            exit 1
-          fi
-
-          echo "Got Keycloak admin token and user ID: $ADMIN_USER_ID"
-
-          # Clear required actions
-          kubectl exec -n konveyor-tackle deployment/tackle-hub -- curl -s -X PUT \
-            "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"requiredActions": []}' &>/dev/null
-
-          # Reset password
-          kubectl exec -n konveyor-tackle deployment/tackle-hub -- curl -s -X PUT \
-            "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID/reset-password" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"type": "password", "value": "Passw0rd!", "temporary": false}' &>/dev/null
-
-          echo "✓ Admin user configured (admin:Passw0rd!)"
-
-      - name: Seed Hub with Test Data
-        run: |
-          echo "=== Seeding Hub with test data ==="
-          chmod +x ./tests/scripts/seed-hub.sh
-          HUB_URL="${{ env.UI_URL }}" \
-          USERNAME="admin" \
-          PASSWORD="Passw0rd!" \
-          ./tests/scripts/seed-hub.sh
-
-      - name: Check LLM Proxy and Solution Server deployments
-        run: |
-          echo "=== Checking if deployments exist ==="
-          for i in {1..60}; do
-            if kubectl get deployment llm-proxy -n konveyor-tackle > /dev/null 2>&1; then
-              echo "✓ llm-proxy deployment found"
-              break
-            fi
-            echo "Waiting for llm-proxy deployment to be created... ($i/60)"
-            sleep 5
-          done
-
-          echo "=== Waiting for deployments to be ready ==="
-          kubectl wait --for=condition=available --timeout=600s deployment/llm-proxy -n konveyor-tackle
-          kubectl wait --for=condition=available --timeout=600s deployment/kai-api -n konveyor-tackle
-
-          echo "=== Deployment status ==="
-          kubectl get deployments -n konveyor-tackle | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
-          kubectl get pods -n konveyor-tackle | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
-
-          echo "✓ LLM proxy and solution server enabled"
-
-      - name: Verify Llemulator Integration
-        run: |
-          echo "=== Testing llemulator integration ==="
-
-          # Port-forward to llemulator
-          kubectl port-forward -n konveyor-tackle svc/llemulator 8089:80 &
-          PF_PID=$!
-
-          # Wait for port-forward
-          for i in {1..30}; do
-            if curl -s http://localhost:8089/v1/chat/completions > /dev/null 2>&1; then
-              echo "Port-forward is ready"
-              break
-            fi
-            echo "Waiting for port-forward... ($i/30)"
-            sleep 2
-          done
-
-          # Test llemulator with 5 requests
-          echo "Testing llemulator endpoint with 5 requests..."
-          FOUND=false
-
-          for i in {1..5}; do
-            RESPONSE=$(curl -s -X POST http://localhost:8089/v1/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer dummy-key-for-llemulator" \
-              -d '{
-                "model": "gpt-4o",
-                "messages": [{"role": "user", "content": "test"}]
-              }')
-
-            echo "Llemulator response $i: $RESPONSE"
-
-            # Check if this response contains our test string
-            if echo "$RESPONSE" | grep -q "LLEMULATOR response"; then
-              echo "✓ Found 'LLEMULATOR response' in response $i"
-              FOUND=true
-            fi
-          done
-
-          # Verify at least one response contained expected text
-          if [ "$FOUND" = true ]; then
-            echo "✓ Llemulator is returning configured responses"
-          else
-            echo "✗ None of the 5 responses contained 'LLEMULATOR response'"
-            kill $PF_PID 2>/dev/null || true
-            exit 1
-          fi
-
-          kill $PF_PID 2>/dev/null || true
-          echo "✓ Llemulator integration test passed"
-
-      - name: Verify LLM Proxy Health
-        run: |
-          echo "=== Checking LLM proxy health ==="
-
-          # Check llm-proxy logs
-          echo "LLM Proxy logs (last 50 lines):"
-          kubectl logs -n konveyor-tackle deployment/llm-proxy --tail=50
-
-          # Check if llm-proxy is healthy
-          POD=$(kubectl get pods -n konveyor-tackle -l app.kubernetes.io/name=llm-proxy -o jsonpath='{.items[0].metadata.name}')
-          if [ -z "$POD" ]; then
-            echo "✗ No llm-proxy pod found"
-            exit 1
-          fi
-
-          echo "LLM Proxy pod: $POD"
-          kubectl get pod $POD -n konveyor-tackle
-
-          echo "✓ LLM proxy is running"
+      - name: Setup Konveyor Infrastructure
+        id: infra
+        uses: ./.github/actions/setup-konveyor-infrastructure
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -618,14 +332,8 @@ jobs:
           name: downloaded-assets
           path: ./downloaded_assets
 
-      - name: Get Konveyor Hub URL
-        id: get_hub_url
-        run: |
-          HUB_URL=$(minikube service konveyor-hub -n konveyor --url)
-          echo "hub_url=${HUB_URL}" >> $GITHUB_OUTPUT
-
       - name: Run infrastructure tests
-        run: npx playwright test --grep "@requires-minikube"
+        run: npx playwright test --grep "@requires-minikube" --grep-invert "@tier3"
         working-directory: ./tests
         env:
           __TEST_EXTENSION_END_TO_END__: "true"
@@ -634,10 +342,58 @@ jobs:
           JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
           GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
           CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
-          TEST_HUB_URL: ${{ env.UI_URL }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
           TEST_HUB_AUTH_ENABLED: "true"
-          TEST_HUB_USERNAME: "admin"
-          TEST_HUB_PASSWORD: "Passw0rd!"
+          TEST_HUB_USERNAME: ${{ steps.infra.outputs.admin_username }}
+          TEST_HUB_PASSWORD: ${{ steps.infra.outputs.admin_password }}
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
+      - name: Run experimental infrastructure tests (@tier3 @requires-minikube)
+        continue-on-error: true
+        run: npx playwright test --grep "(?=.*@tier3)(?=.*@requires-minikube)"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "true"
+          TEST_HUB_USERNAME: ${{ steps.infra.outputs.admin_username }}
+          TEST_HUB_PASSWORD: ${{ steps.infra.outputs.admin_password }}
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
+      - name: Disable Konveyor Authentication
+        run: |
+          echo "=== Disabling Konveyor authentication ==="
+
+          # Patch the Tackle CR to disable auth
+          kubectl patch tackle tackle -n konveyor-tackle --type='merge' -p '{"spec":{"feature_auth_required":false}}'
+
+          echo "Waiting for pods to restart..."
+          # Wait for the hub to restart with new config
+          kubectl rollout status deployment/tackle-hub -n konveyor-tackle --timeout=300s
+
+          # Give some extra time for the system to stabilize
+          sleep 30
+
+          echo "✓ Authentication disabled"
+
+      - name: Run llm proxy tests (no auth)
+        run: npx playwright test --no-deps e2e/tests/ccm/llm-proxy.test.ts
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "false"
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
 
       - name: Collect infrastructure logs
         if: always()
@@ -675,20 +431,6 @@ jobs:
           # Collect secret status (not values, just existence)
           echo "Collecting secret status..."
           kubectl get secrets -n konveyor-tackle > tests/test-output/k8s-logs/secrets.txt || true
-
-          # Test llemulator connectivity
-          echo "Testing llemulator connectivity..."
-          {
-            kubectl port-forward -n konveyor-tackle svc/llemulator 8089:80 &
-            PF_PID=$!
-            sleep 5
-            curl -v http://localhost:8089/v1/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer dummy-key-for-llemulator" \
-              -d '{"model":"gpt-4o","messages":[{"role":"user","content":"test"}]}' \
-              2>&1 || true
-            kill $PF_PID 2>/dev/null || true
-          } > tests/test-output/k8s-logs/llemulator-connectivity-test.log 2>&1
 
           echo "✓ Infrastructure logs collected"
 

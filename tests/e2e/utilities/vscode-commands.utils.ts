@@ -134,7 +134,6 @@ export async function installExtension(): Promise<void> {
         env: getCleanEnv(),
         shell: false,
       });
-      console.log('Java extension installed/updated successfully.');
 
       // Wait a moment for VSCode to process extension dependencies
       // VSCode should automatically install extensionDependencies (like redhat.java)
@@ -173,7 +172,6 @@ export async function installExtension(): Promise<void> {
         env: getCleanEnv(),
         shell: false,
       });
-      console.log('JavaScript extension installed/updated successfully.');
     }
 
     // Install konveyor-go extension if path provided
@@ -184,7 +182,6 @@ export async function installExtension(): Promise<void> {
         env: getCleanEnv(),
         shell: false,
       });
-      console.log('Go extension installed/updated successfully.');
     }
 
     // Install konveyor-csharp extension if path provided
@@ -195,7 +192,6 @@ export async function installExtension(): Promise<void> {
         env: getCleanEnv(),
         shell: false,
       });
-      console.log('C# extension installed/updated successfully.');
     }
   } catch (error) {
     console.error('Error installing the VSIX extension:', error);
