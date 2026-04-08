@@ -231,13 +231,55 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta http-equiv="Content-Security-Policy" content="${this._getContentSecurityPolicy(nonce, webview)}">
-        <link rel="stylesheet" type="text/css" href="${stylesUri}">
         <title>${EXTENSION_SHORT_NAME} IDE Extension</title>
         <script nonce="${nonce}">
           const vscode = acquireVsCodeApi();
           window.vscode = vscode;
           window.viewType = "${this._viewType}";
           window.konveyorInitialData = ${jsesc(data, { json: true, isScriptContext: true })};
+        </script>
+        <script nonce="${nonce}">
+          // CSS loading with service worker controller change recovery.
+          //
+          // In Eclipse Che / DevSpaces, webview resources are served by a
+          // service worker that intercepts requests to synthetic hostnames
+          // (*.vscode-resource.vscode-cdn.net). When a stale service worker
+          // is controlling the page, Firefox lets CSS fetch requests fall
+          // through to real DNS -- which fails because the hostname exceeds
+          // DNS label limits and contains invalid characters. The stylesheet
+          // transfers 0 bytes and the webview renders completely unstyled.
+          //
+          // The fix: inject the <link> immediately (works in Chromium and
+          // Electron where the SW handoff is fast or not involved), and
+          // listen for the 'controllerchange' event which fires when the
+          // correct service worker takes control. On controllerchange,
+          // re-inject the stylesheet so it loads through the new SW.
+          (function() {
+            var STYLES_URI = "${stylesUri}";
+
+            function injectStylesheet() {
+              var old = document.getElementById('konveyor-styles');
+              if (old) old.remove();
+              var link = document.createElement('link');
+              link.id = 'konveyor-styles';
+              link.rel = 'stylesheet';
+              link.type = 'text/css';
+              link.href = STYLES_URI;
+              document.head.appendChild(link);
+            }
+
+            // Inject immediately -- works in Chromium / Electron.
+            injectStylesheet();
+
+            // In VS Code Web / DevSpaces, also listen for service worker
+            // controller changes and re-inject when the correct SW takes
+            // over from a stale one.
+            if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+              navigator.serviceWorker.addEventListener('controllerchange', function() {
+                injectStylesheet();
+              });
+            }
+          })();
         </script>
       </head>
       <body>
