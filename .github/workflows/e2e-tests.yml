@@ -231,7 +231,7 @@ jobs:
 
       - name: Run tier2 tests
         id: tier2_tests
-        run: npx playwright test --grep "@tier2"
+        run: npx playwright test --grep "@tier2" --grep-invert "@slow|@requires-minikube|@offline"
         working-directory: ./tests
         continue-on-error: true
         env:
