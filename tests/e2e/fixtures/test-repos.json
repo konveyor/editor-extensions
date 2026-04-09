@@ -232,8 +232,8 @@
     "sources": [],
     "targets": ["patternfly-v6"],
     "customRulesFolder": "data/rulesets/patternfly",
-    "issuesCount": 36,
-    "incidentsCount": 350,
+    "issuesCount": 39,
+    "incidentsCount": 361,
     "issues": [
       {
         "title": "--pf-v5-global should be replaced with --pf-v6-global",
@@ -284,6 +284,10 @@
         "incidentsCount": 5
       },
       {
+        "title": "Chip import should be replaced with Chip import from deprecated",
+        "incidentsCount": 1
+      },
+      {
         "title": "chips should be replaced with labels",
         "incidentsCount": 7
       },
@@ -310,6 +314,14 @@
       {
         "title": "import { Modal } from \"@patternfly/react-core/next\" should be replaced with import { Modal } from '@patternfly/react-core'",
         "incidentsCount": 3
+      },
+      {
+        "title": "imports from '@patternfly/react-core' should be replaced with imports from '@patternfly/react-core/dist/esm/components/...'",
+        "incidentsCount": 9
+      },
+      {
+        "title": "imports from '@patternfly/react-core'; should be replaced with imports from '@patternfly/react-core/deprecated';",
+        "incidentsCount": 1
       },
       {
         "title": "isActive should be replaced with Remove isActive prop",

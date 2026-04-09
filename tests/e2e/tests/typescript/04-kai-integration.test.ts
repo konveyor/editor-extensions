@@ -4,8 +4,12 @@ import { VSCode } from '../../pages/vscode.page';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { KAIViews } from '../../enums/views.enum';
 import { generateRandomString } from '../../utilities/utils';
-import { DEFAULT_PROVIDER } from '../../fixtures/provider-configs.fixture';
+import {
+  getDefaultProviderConfig,
+  LLEMULATOR_PROVIDER,
+} from '../../fixtures/provider-configs.fixture';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
 
 test.describe.serial('TypeScript Extension - Kai Integration', { tag: '@tier3' }, () => {
   let vscodeApp: VSCode;
@@ -14,9 +18,33 @@ test.describe.serial('TypeScript Extension - Kai Integration', { tag: '@tier3' }
   let repoInfo: RepoData[string];
   const screenshotDir = pathlib.join(SCREENSHOTS_FOLDER, 'typescript-kai-integration');
   let violationCountBefore: number;
+  const provider = getDefaultProviderConfig();
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(1200000);
+
+    if (provider === LLEMULATOR_PROVIDER) {
+      await loadLlemulatorResponses({
+        reset: true,
+        responses: [
+          buildKaiResponse({
+            reasoning:
+              'Removed the deprecated theme prop from PageSidebar for PatternFly v5 compatibility.',
+            language: 'typescript',
+            fileContent: `import React from 'react';
+import { PageSidebar } from '@patternfly/react-core';
+
+export const Sidebar: React.FC = () => {
+  return <PageSidebar />;
+};`,
+            additionalInfo:
+              'The theme prop was removed in PatternFly v5. The sidebar now inherits theming from the Page component.',
+          }),
+        ],
+      });
+      console.log('Llemulator responses loaded for kai-integration test');
+    }
+
     repoInfo = testRepoData['static-report'];
     // Use openForRepo which determines initialization based on repo language
     vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
@@ -45,7 +73,7 @@ test.describe.serial('TypeScript Extension - Kai Integration', { tag: '@tier3' }
   });
 
   test('Configure GenAI Provider', async () => {
-    await vscodeApp.configureGenerativeAI(DEFAULT_PROVIDER.config);
+    await vscodeApp.configureGenerativeAI(provider.config);
     console.log('GenAI provider configured');
   });
 

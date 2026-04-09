@@ -22,6 +22,26 @@ function getCleanEnv() {
   return cleanEnv;
 }
 
+/**
+ * Resolves the extension path from file path or download URL.
+ * Returns the path to the VSIX file, or null if neither is available.
+ */
+async function resolveExtensionPath(
+  filePathEnv: string | undefined,
+  downloadUrlEnv: string | undefined,
+  downloadFileName: string
+): Promise<string | null> {
+  if (filePathEnv && fs.existsSync(filePathEnv)) {
+    return filePathEnv;
+  }
+  if (downloadUrlEnv) {
+    console.log(`Downloading VSIX from ${downloadUrlEnv}`);
+    await downloadFile(downloadUrlEnv, downloadFileName);
+    return downloadFileName;
+  }
+  return null;
+}
+
 export function isExtensionInstalled(extension: string) {
   try {
     const installedExtensions = execSync('code --list-extensions', {
@@ -126,10 +146,15 @@ export async function installExtension(): Promise<void> {
       }
     }
 
-    // Install konveyor-java extension if path provided
-    if (process.env.JAVA_VSIX_FILE_PATH && fs.existsSync(process.env.JAVA_VSIX_FILE_PATH)) {
-      console.log(`Installing Konveyor Java VSIX from ${process.env.JAVA_VSIX_FILE_PATH}`);
-      execSync(`code --install-extension "${process.env.JAVA_VSIX_FILE_PATH}" --force`, {
+    // Install konveyor-java extension if path or URL provided
+    const javaExtensionPath = await resolveExtensionPath(
+      process.env.JAVA_VSIX_FILE_PATH,
+      process.env.JAVA_VSIX_DOWNLOAD_URL,
+      'java-extension.vsix'
+    );
+    if (javaExtensionPath) {
+      console.log(`Installing Konveyor Java VSIX from ${javaExtensionPath}`);
+      execSync(`code --install-extension "${javaExtensionPath}" --force`, {
         stdio: 'inherit',
         env: getCleanEnv(),
         shell: false,
@@ -159,35 +184,45 @@ export async function installExtension(): Promise<void> {
       }
     }
 
-    // Install konveyor-javascript extension if path provided
-    if (
-      process.env.JAVASCRIPT_VSIX_FILE_PATH &&
-      fs.existsSync(process.env.JAVASCRIPT_VSIX_FILE_PATH)
-    ) {
-      console.log(
-        `Installing Konveyor JavaScript VSIX from ${process.env.JAVASCRIPT_VSIX_FILE_PATH}`
-      );
-      execSync(`code --install-extension "${process.env.JAVASCRIPT_VSIX_FILE_PATH}" --force`, {
+    // Install konveyor-javascript extension if path or URL provided
+    const jsExtensionPath = await resolveExtensionPath(
+      process.env.JAVASCRIPT_VSIX_FILE_PATH,
+      process.env.JAVASCRIPT_VSIX_DOWNLOAD_URL,
+      'javascript-extension.vsix'
+    );
+    if (jsExtensionPath) {
+      console.log(`Installing Konveyor JavaScript VSIX from ${jsExtensionPath}`);
+      execSync(`code --install-extension "${jsExtensionPath}" --force`, {
         stdio: 'inherit',
         env: getCleanEnv(),
         shell: false,
       });
     }
 
-    // Install konveyor-go extension if path provided
-    if (process.env.GO_VSIX_FILE_PATH && fs.existsSync(process.env.GO_VSIX_FILE_PATH)) {
-      console.log(`Installing Konveyor Go VSIX from ${process.env.GO_VSIX_FILE_PATH}`);
-      execSync(`code --install-extension "${process.env.GO_VSIX_FILE_PATH}" --force`, {
+    // Install konveyor-go extension if path or URL provided
+    const goExtensionPath = await resolveExtensionPath(
+      process.env.GO_VSIX_FILE_PATH,
+      process.env.GO_VSIX_DOWNLOAD_URL,
+      'go-extension.vsix'
+    );
+    if (goExtensionPath) {
+      console.log(`Installing Konveyor Go VSIX from ${goExtensionPath}`);
+      execSync(`code --install-extension "${goExtensionPath}" --force`, {
         stdio: 'inherit',
         env: getCleanEnv(),
         shell: false,
       });
     }
 
-    // Install konveyor-csharp extension if path provided
-    if (process.env.CSHARP_VSIX_FILE_PATH && fs.existsSync(process.env.CSHARP_VSIX_FILE_PATH)) {
-      console.log(`Installing Konveyor C# VSIX from ${process.env.CSHARP_VSIX_FILE_PATH}`);
-      execSync(`code --install-extension "${process.env.CSHARP_VSIX_FILE_PATH}" --force`, {
+    // Install konveyor-csharp extension if path or URL provided
+    const csharpExtensionPath = await resolveExtensionPath(
+      process.env.CSHARP_VSIX_FILE_PATH,
+      process.env.CSHARP_VSIX_DOWNLOAD_URL,
+      'csharp-extension.vsix'
+    );
+    if (csharpExtensionPath) {
+      console.log(`Installing Konveyor C# VSIX from ${csharpExtensionPath}`);
+      execSync(`code --install-extension "${csharpExtensionPath}" --force`, {
         stdio: 'inherit',
         env: getCleanEnv(),
         shell: false,
