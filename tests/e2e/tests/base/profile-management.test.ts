@@ -110,6 +110,7 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
   test('Delete profile using action Button', async ({ testRepoData }) => {
     test.setTimeout(300000);
     const toDelete = await getOrCreateProfile(testRepoData);
+    createdProfiles.pop();
     await vscodeApp.deleteProfile(toDelete);
   });
 
