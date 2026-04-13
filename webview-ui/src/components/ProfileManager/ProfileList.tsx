@@ -131,7 +131,7 @@ export const ProfileList: React.FC<{
                           setProfileToDelete(profile);
                           setIsOpen(false);
                         }}
-                        isDisabled={profile.readOnly}
+                        isDisabled={profile.readOnly || isDisabled}
                         isDanger
                       >
                         Delete

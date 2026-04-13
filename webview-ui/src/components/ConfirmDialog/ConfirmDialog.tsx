@@ -16,6 +16,7 @@ export const ConfirmDialog: React.FC<{
   isOpen,
   title,
   message,
+  confirmButtonText,
   confirmButtonVariant = ButtonVariant.primary,
   onConfirm,
   onCancel,
@@ -24,6 +25,7 @@ export const ConfirmDialog: React.FC<{
     <WarningModal
       isOpen={isOpen}
       title={title}
+      confirmButtonText={confirmButtonText}
       confirmButtonVariant={confirmButtonVariant}
       onClose={onCancel}
       onConfirm={onConfirm}
