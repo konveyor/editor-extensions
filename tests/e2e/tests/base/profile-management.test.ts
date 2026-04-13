@@ -5,12 +5,15 @@ import { KAIViews } from '../../enums/views.enum';
 import { FrameLocator } from 'playwright';
 import { ProfileActions } from '../../enums/profile-action-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import pathlib from 'path';
+import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
-test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
+test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
   let vscodeApp: VSCode;
   const profileNameWithRules = `profileRules-${generateRandomString()}`;
   const createdProfiles: string[] = [];
   let profileView: FrameLocator;
+  const screenshotDir = pathlib.join(SCREENSHOTS_FOLDER, 'profile-mngmnt');
 
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(600000);
@@ -21,6 +24,12 @@ test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
 
   test.beforeEach(async () => {
     profileView = await vscodeApp.getView(KAIViews.manageProfiles);
+    test.setTimeout(600_000);
+    const testName = test.info().title.replace(/ /g, '-');
+    console.log(`Starting ${testName} at ${new Date()}`);
+    await vscodeApp.getWindow().screenshot({
+      path: pathlib.join(screenshotDir, `before-${testName}.png`),
+    });
   });
 
   test('Create empty Profile', async () => {
@@ -98,10 +107,10 @@ test.describe(`Profile Tests`, { tag: ['@tier3'] }, () => {
     }
   });
 
-  // TODO: Remove skip once bug #565 is fixed.
-  test.skip('Delete profile using action Button', async ({ testRepoData }) => {
+  test('Delete profile using action Button', async ({ testRepoData }) => {
     test.setTimeout(300000);
-    let toDelete = await getOrCreateProfile(testRepoData);
+    const toDelete = await getOrCreateProfile(testRepoData);
+    createdProfiles.pop();
     await vscodeApp.deleteProfile(toDelete);
   });
 
