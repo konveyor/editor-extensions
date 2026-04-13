@@ -284,6 +284,8 @@ export async function initializeAgent(
         );
         ctx.logger.info("File change routed", { path: change.path });
       }
+    }).catch((err) => {
+      ctx.logger.error("Failed to resolve pending file changes", { error: err });
     });
   });
 

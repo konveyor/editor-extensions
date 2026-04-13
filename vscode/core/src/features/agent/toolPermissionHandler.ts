@@ -236,11 +236,6 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
         | string
         | undefined)
     : undefined;
-  const rawFileContent = data.rawInput
-    ? ((data.rawInput.new_str ?? data.rawInput.content ?? data.rawInput.file_text) as
-        | string
-        | undefined)
-    : undefined;
 
   // Look up original content for real diffs
   let originalContent: string | undefined;
@@ -251,6 +246,29 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
       : workspaceRoot;
     const absPath = isAbsolute(rawFilePath) ? rawFilePath : join(wsRoot, rawFilePath);
     originalContent = await fileTracker.getOriginalContent(absPath, wsRoot);
+  }
+
+  // Derive full post-edit file content. For delta edits (str_replace/insert),
+  // rawInput.new_str is just the snippet — apply it to original to get full body.
+  let rawFileContent: string | undefined;
+  if (data.rawInput) {
+    const input = data.rawInput as Record<string, unknown>;
+    const oldStr = input.old_str as string | undefined;
+    const newStr = input.new_str as string | undefined;
+    const insertLine = input.insert_line as number | undefined;
+
+    if (typeof oldStr === "string" && typeof newStr === "string" && originalContent) {
+      // str_replace: apply replacement to get full post-edit content
+      rawFileContent = originalContent.replace(oldStr, newStr);
+    } else if (typeof insertLine === "number" && typeof newStr === "string" && originalContent) {
+      // insert: insert new_str at the given line number
+      const lines = originalContent.split("\n");
+      lines.splice(insertLine, 0, newStr);
+      rawFileContent = lines.join("\n");
+    } else {
+      // Full file content (write/create): use content/file_text/new_str as-is
+      rawFileContent = (input.content ?? input.file_text ?? input.new_str) as string | undefined;
+    }
   }
 
   const preview = formatPermissionPreview(data, workspaceRoot, originalContent);

@@ -9,7 +9,6 @@
 
 import { EventEmitter } from "events";
 import { randomBytes } from "crypto";
-import { createServer } from "net";
 import type winston from "winston";
 import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import type {
@@ -181,17 +180,6 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       // Translate the generic tool permission policy to OpenCode's permission block
       if (this.config.toolPermissions) {
         config.permission = policyToOpencodePermissions(this.config.toolPermissions);
-      }
-
-      // Ensure the port is free before spawning.  A previous leaked server
-      // process may still be holding it.
-      const OPENCODE_PORT = 4096;
-      const portFree = await isPortFree(OPENCODE_PORT);
-      if (!portFree) {
-        this.logger.warn(
-          `OpencodeAgentClient: port ${OPENCODE_PORT} is in use — killing stale process`,
-        );
-        await killProcessOnPort(OPENCODE_PORT);
       }
 
       // Log the config (redact API keys) so we can diagnose server-side errors.
@@ -592,42 +580,3 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
   }
 }
 
-// ─── Port helpers ───────────────────────────────────────────────────
-
-function isPortFree(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const srv = createServer();
-    srv.once("error", () => resolve(false));
-    srv.listen(port, "127.0.0.1", () => {
-      srv.close(() => resolve(true));
-    });
-  });
-}
-
-async function killProcessOnPort(port: number): Promise<void> {
-  const { execFile } = await import("child_process");
-  const myPid = process.pid;
-  return new Promise((resolve) => {
-    // -sTCP:LISTEN limits to the process that *owns* the listening socket,
-    // avoiding the extension host or other clients connected to the port.
-    execFile("lsof", ["-ti", `:${port}`, "-sTCP:LISTEN"], (err, stdout) => {
-      if (err || !stdout.trim()) {
-        resolve();
-        return;
-      }
-      const pids = stdout
-        .trim()
-        .split(/\s+/)
-        .map(Number)
-        .filter((pid) => pid !== myPid && pid !== 0);
-      for (const pid of pids) {
-        try {
-          process.kill(pid, "SIGTERM");
-        } catch {
-          // process may have already exited
-        }
-      }
-      setTimeout(resolve, 500);
-    });
-  });
-}

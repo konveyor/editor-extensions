@@ -205,6 +205,8 @@ export class AgentOrchestrator {
           if (changes.length > 0 && data.callId) {
             this.markToolAsFileChangeRouted(data.callId);
           }
+        }).catch((err) => {
+          this.logger.error("AgentOrchestrator: failed to resolve pending file changes", { error: err });
         });
       }
     };

@@ -50,5 +50,5 @@ export const useModifiedFileData = (
       originalContent: data.originalContent || "",
       fileName,
     };
-  }, [data]);
+  }, [data, workspaceRoot]);
 };

@@ -11,6 +11,7 @@
  */
 
 import * as http from "http";
+import { randomBytes } from "crypto";
 import winston from "winston";
 import { type ExtensionStore } from "../store/extensionStore";
 
@@ -31,10 +32,21 @@ export class McpBridgeServer {
   private port: number | null = null;
   private readonly config: McpBridgeServerConfig;
   private readonly logger: winston.Logger;
+  private readonly bearerToken: string;
 
   constructor(config: McpBridgeServerConfig) {
     this.config = config;
     this.logger = config.logger;
+    // Generate a random bearer token for authentication
+    this.bearerToken = randomBytes(32).toString("hex");
+  }
+
+  /**
+   * Get the bearer token for authenticating requests to this server.
+   * Pass this to the MCP server via environment variable.
+   */
+  getBearerToken(): string {
+    return this.bearerToken;
   }
 
   /**
@@ -105,6 +117,14 @@ export class McpBridgeServer {
     if (method === "OPTIONS") {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    // Validate bearer token authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${this.bearerToken}`) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
       return;
     }
 

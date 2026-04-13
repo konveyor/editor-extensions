@@ -22,7 +22,7 @@ export const PROVIDERS: ProviderOption[] = [
     id: "anthropic",
     name: "Anthropic",
     envVars: [{ key: "ANTHROPIC_API_KEY", label: "API Key", isSecret: true }],
-    commonModels: ["claude-sonnet-4-5-20250514", "claude-3-5-haiku-20241022"],
+    commonModels: ["claude-sonnet-4-5-20250929", "claude-3-5-haiku-20241022"],
   },
   {
     id: "aws_bedrock",

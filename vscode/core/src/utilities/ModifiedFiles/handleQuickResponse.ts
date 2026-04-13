@@ -23,14 +23,6 @@ export async function handleQuickResponse(
 
       const msg = state.data.chatMessages[messageIndex];
 
-      // Update the chat message state to include the selected response
-      state.mutate((draft) => {
-        const message = draft.chatMessages.find((m) => m.messageToken === messageToken);
-        if (message) {
-          message.selectedResponse = responseId;
-        }
-      });
-
       // Create the workflow message with proper typing
       let interactionType = responseId.startsWith("choice-") ? "choice" : "yesNo";
       let responseData: { choice: number } | { yesNo: boolean } | { tasks: any; yesNo: boolean } =
@@ -63,6 +55,14 @@ export async function handleQuickResponse(
 
       const workflow = state.workflowManager.getWorkflow();
       await workflow.resolveUserInteraction(workflowMessage);
+
+      // Update the chat message state after workflow succeeds
+      state.mutate((draft) => {
+        const message = draft.chatMessages.find((m) => m.messageToken === messageToken);
+        if (message) {
+          message.selectedResponse = responseId;
+        }
+      });
 
       // Trigger the pending interaction resolver which will handle queue processing
       // and reset isWaitingForUserInteraction through the centralized handleUserInteractionComplete

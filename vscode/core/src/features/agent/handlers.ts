@@ -348,23 +348,10 @@ export const agentMessageHandlers: Record<
       }
     });
 
-    // Write file to disk and notify solution server
+    // Notify solution server of the decision (backend handles actual file writes)
     if (pending.filePath) {
       try {
-        if (accepted && pending.fileContent) {
-          // Write the accepted content to disk
-          const { join, isAbsolute } = await import("path");
-          const wsRoot = state.data.workspaceRoot;
-          const normalizedRoot = wsRoot.startsWith("file://") ? new URL(wsRoot).pathname : wsRoot;
-          const absPath = isAbsolute(pending.filePath)
-            ? pending.filePath
-            : join(normalizedRoot, pending.filePath);
-          const uri = vscode.Uri.file(absPath);
-          await vscode.workspace.fs.writeFile(uri, Buffer.from(pending.fileContent, "utf-8"));
-          logger.info("AGENT_PERMISSION_RESPONSE: file written to disk", { path: absPath });
-
-          await executeExtensionCommand("changeApplied", pending.filePath, pending.fileContent);
-        } else if (accepted) {
+        if (accepted) {
           await executeExtensionCommand(
             "changeApplied",
             pending.filePath,

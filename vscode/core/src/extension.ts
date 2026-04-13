@@ -382,7 +382,7 @@ class VsCodeExtension {
               this.state.modelProviderSource = "hub-proxy";
               this.state.logger.info("Model provider updated with Hub LLM proxy");
 
-              // Clear GenAI/provider-related config errors
+              // Clear GenAI/provider-related config errors and update tool support flag
               this.state.mutate((draft) => {
                 draft.configErrors = draft.configErrors.filter(
                   (e) =>
@@ -390,6 +390,7 @@ class VsCodeExtension {
                     e.type !== "provider-connection-failed" &&
                     e.type !== "genai-disabled",
                 );
+                draft.modelSupportsTools = provider.toolCallsSupported();
               });
             })
             .catch((error) => {
@@ -1021,6 +1022,9 @@ class VsCodeExtension {
     if (!getConfigGenAIEnabled()) {
       this.state.modelProvider = undefined;
       this.state.modelProviderSource = undefined;
+      this.state.mutate((draft) => {
+        draft.modelSupportsTools = false;
+      });
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1044,10 +1048,11 @@ class VsCodeExtension {
       );
 
       try {
-        this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyConfig);
+        const hubProvider = await this.createHubProxyModelProvider(llmProxyConfig);
+        this.state.modelProvider = hubProvider;
         this.state.modelProviderSource = "hub-proxy";
 
-        // Clear GenAI/provider-related config errors now that we're using the Hub proxy
+        // Clear GenAI/provider-related config errors and update tool support flag
         this.state.mutate((draft) => {
           draft.configErrors = draft.configErrors.filter(
             (e) =>
@@ -1055,6 +1060,7 @@ class VsCodeExtension {
               e.type !== "provider-connection-failed" &&
               e.type !== "genai-disabled",
           );
+          draft.modelSupportsTools = hubProvider.toolCallsSupported();
         });
 
         // Dispose workflow if we're changing an existing provider and not currently fetching
@@ -1082,6 +1088,9 @@ class VsCodeExtension {
         this.state.logger.error("Error setting up Hub LLM proxy provider:", err);
         this.state.modelProvider = undefined;
         this.state.modelProviderSource = undefined;
+        this.state.mutate((draft) => {
+          draft.modelSupportsTools = false;
+        });
 
         const configError = createConfigError.providerConnnectionFailed();
         configError.error =
@@ -1099,6 +1108,9 @@ class VsCodeExtension {
       this.state.logger.error("Error getting model config:", err);
       this.state.modelProvider = undefined;
       this.state.modelProviderSource = undefined;
+      this.state.mutate((draft) => {
+        draft.modelSupportsTools = false;
+      });
       // Only dispose workflow if not fetching solution
       if (
         !this.state.data.isFetchingSolution &&
@@ -1125,7 +1137,8 @@ class VsCodeExtension {
       );
 
       try {
-        this.state.modelProvider = await this.createHubProxyModelProvider(llmProxyRecheck);
+        const recheckProvider = await this.createHubProxyModelProvider(llmProxyRecheck);
+        this.state.modelProvider = recheckProvider;
         this.state.modelProviderSource = "hub-proxy";
 
         this.state.mutate((draft) => {
@@ -1135,6 +1148,7 @@ class VsCodeExtension {
               e.type !== "provider-connection-failed" &&
               e.type !== "genai-disabled",
           );
+          draft.modelSupportsTools = recheckProvider.toolCallsSupported();
         });
 
         return undefined;
@@ -1142,6 +1156,9 @@ class VsCodeExtension {
         this.state.logger.error("Error setting up Hub LLM proxy provider (re-check):", err);
         this.state.modelProvider = undefined;
         this.state.modelProviderSource = undefined;
+        this.state.mutate((draft) => {
+          draft.modelSupportsTools = false;
+        });
 
         const configError = createConfigError.providerConnnectionFailed();
         configError.error =
@@ -1217,6 +1234,9 @@ class VsCodeExtension {
       this.state.logger.error("Error running model health check:", err);
       this.state.modelProvider = undefined;
       this.state.modelProviderSource = undefined;
+      this.state.mutate((draft) => {
+        draft.modelSupportsTools = false;
+      });
       this.state.logger.error("Health check failed, setting modelProvider to undefined", {
         error: err,
         demoMode: getConfigKaiDemoMode(),

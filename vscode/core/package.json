@@ -404,9 +404,7 @@
         },
         "konveyor-core.genai.permissionOverrides": {
           "type": "object",
-          "default": {
-            "commandExecution": "auto"
-          },
+          "default": {},
           "description": "Per-category permission overrides. Keys: fileEditing, commandExecution, webAccess, mcpTools. Values: auto, ask, deny. Empty means inherit from autonomy level.",
           "scope": "window",
           "order": 23

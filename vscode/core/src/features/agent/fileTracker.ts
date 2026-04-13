@@ -27,7 +27,7 @@ export class AgentFileTracker {
   private readonly routedFiles = new Set<string>();
   private readonly pendingToolFiles = new Map<string, string>();
   private readonly logger: winston.Logger;
-  private scanning = false;
+  private scanPromise: Promise<TrackedFileChange[]> | null = null;
 
   constructor(logger: winston.Logger) {
     this.logger = logger.child({ component: "AgentFileTracker" });
@@ -128,40 +128,46 @@ export class AgentFileTracker {
    * Scan all cached files for changes that haven't been routed yet.
    * Works regardless of whether permission requests or tool arguments
    * were available -- checks every file in the original content cache.
+   * Uses a promise-based mutex to prevent concurrent scans.
    */
   async resolvePendingFileChanges(): Promise<TrackedFileChange[]> {
-    if (this.scanning) {
-      return [];
+    // If a scan is already in progress, return the existing promise
+    if (this.scanPromise) {
+      return this.scanPromise;
     }
-    this.scanning = true;
 
+    this.scanPromise = this.doScan();
     try {
-      const changes: TrackedFileChange[] = [];
+      return await this.scanPromise;
+    } finally {
+      this.scanPromise = null;
+    }
+  }
 
-      for (const [absPath, originalContent] of this.originalContentCache) {
-        if (this.routedFiles.has(absPath)) {
-          continue;
-        }
+  private async doScan(): Promise<TrackedFileChange[]> {
+    const changes: TrackedFileChange[] = [];
 
-        let currentContent: string;
-        try {
-          currentContent = await fs.readFile(absPath, "utf-8");
-        } catch {
-          continue;
-        }
-
-        if (currentContent === originalContent) {
-          continue;
-        }
-
-        this.routedFiles.add(absPath);
-        changes.push({ path: absPath, content: currentContent, originalContent });
+    for (const [absPath, originalContent] of this.originalContentCache) {
+      if (this.routedFiles.has(absPath)) {
+        continue;
       }
 
-      return changes;
-    } finally {
-      this.scanning = false;
+      let currentContent: string;
+      try {
+        currentContent = await fs.readFile(absPath, "utf-8");
+      } catch {
+        continue;
+      }
+
+      if (currentContent === originalContent) {
+        continue;
+      }
+
+      this.routedFiles.add(absPath);
+      changes.push({ path: absPath, content: currentContent, originalContent });
     }
+
+    return changes;
   }
 
   /** Mark a file as already routed to batch review. */
@@ -291,7 +297,7 @@ export class AgentFileTracker {
     this.originalContentCache.clear();
     this.routedFiles.clear();
     this.pendingToolFiles.clear();
-    this.scanning = false;
+    this.scanPromise = null;
   }
 
   private uriToAbsolute(uri: string, workspaceRoot: string): string | undefined {
