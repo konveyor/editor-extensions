@@ -35,20 +35,14 @@ import { MAX_PROFILE_NAME_LENGTH } from "./constants";
 
 function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isPending, setIsPending] = useState(false);
 
-  return {
-    callback: (...args: any[]) => {
-      setIsPending(true);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-        setIsPending(false);
-      }, delay);
-    },
-    isPending,
+  return (...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
   };
 }
 
@@ -78,7 +72,7 @@ export const ProfileEditorForm: React.FC<{
   const [rulesValidation, setRulesValidation] = useState<"default" | "error">("default");
   const [rulesErrorMsg, setRulesErrorMsg] = useState<string | null>(null);
 
-  const { callback: debouncedChange } = useDebouncedCallback(onChange, 300);
+  const debouncedChange = useDebouncedCallback(onChange, 300);
 
   useEffect(() => {
     // Handle profile prop changes
