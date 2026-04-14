@@ -70,6 +70,12 @@ test.describe.serial(
       ).toBeVisible({ timeout: 30000 });
     });
 
+    test.beforeEach(async function () {
+      test.setTimeout(300_000);
+      const testName = test.info().title.replace(/[_"'\s]/g, '');
+      console.log(`Starting ${testName} at ${new Date()}`);
+    });
+
     test('Hub LLM proxy configuration and notifications', async () => {
       console.log('Configuring Hub connection with profile sync enabled...');
       const authEnabled = !!(process.env.TEST_HUB_USERNAME && process.env.TEST_HUB_PASSWORD);
