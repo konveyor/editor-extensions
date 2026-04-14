@@ -23,6 +23,7 @@ const releaseTag = process.env.TEST_VERSION_TAG || 'development-builds';
  * - JAVA_VSIX_DOWNLOAD_URL ({prefix}-java-X.X.X*.vsix)
  * - JAVASCRIPT_VSIX_DOWNLOAD_URL ({prefix}-javascript-X.X.X*.vsix)
  * - GO_VSIX_DOWNLOAD_URL ({prefix}-go-X.X.X*.vsix)
+ * - CSHARP_VSIX_DOWNLOAD_URL ({prefix}-csharp-X.X.X*.vsix)
  * @return {Promise<void>}
  */
 async function main() {
@@ -66,6 +67,10 @@ async function main() {
     {
       name: 'GO',
       pattern: new RegExp(`^${extensionPrefix}-go-\\d+\\.\\d+\\.\\d+.*\\.vsix$`),
+    },
+    {
+      name: 'CSHARP',
+      pattern: new RegExp(`^${extensionPrefix}-csharp-\\d+\\.\\d+\\.\\d+.*\\.vsix$`),
     },
   ];
 

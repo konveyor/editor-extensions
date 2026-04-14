@@ -62,10 +62,23 @@ export class VSCodeWeb extends VSCode {
     await newPage.waitForLoadState();
     await page.close();
 
-    await expect(newPage.getByRole('heading', { name: 'Starting workspace' })).toBeVisible({
+    // Handle case where a running workspace is found and needs to be closed
+    const startingWorkspaceHeading = newPage.getByRole('heading', { name: 'Starting workspace' });
+    const closeRunningWorkspaceButton = newPage.getByRole('button', {
+      name: /Close running workspace .* and restart/,
+    });
+
+    await expect(startingWorkspaceHeading.or(closeRunningWorkspaceButton)).toBeVisible({
       timeout: 300_000,
     });
-    await expect(newPage.getByRole('heading', { name: 'Starting workspace' })).not.toBeVisible({
+
+    if (await closeRunningWorkspaceButton.isVisible()) {
+      console.log('VSCodeWeb.open: Found running workspace, closing and restarting...');
+      await closeRunningWorkspaceButton.click();
+      await expect(startingWorkspaceHeading).toBeVisible({ timeout: 300_000 });
+    }
+
+    await expect(startingWorkspaceHeading).not.toBeVisible({
       timeout: 300_000,
     });
     await expect(newPage.getByRole('heading', { name: 'Explorer', exact: true })).toBeVisible({
