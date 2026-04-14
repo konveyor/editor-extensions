@@ -1,0 +1,10 @@
+kind: feature
+
+description: >
+  Add migration intelligence package with built-in skills and prompts for
+  Konveyor-guided migrations. Includes three workflow skills (create-migration-guide,
+  generate-migration-plan, execute-migration-phase) and prompt templates, following
+  the Agent Skills format for consumption by any MCP-compatible agent.
+
+extensions:
+  - core
