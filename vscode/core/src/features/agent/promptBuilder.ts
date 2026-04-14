@@ -2,15 +2,29 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { KaiInteractiveWorkflowInput } from "@editor-extensions/agentic";
 import type { EnhancedIncident } from "@editor-extensions/shared";
+import { buildSkillIndex, getSkillWithContent } from "./skillLoader";
+
+/**
+ * Options for building a migration prompt.
+ */
+export interface BuildMigrationPromptOptions {
+  /** Path to the VS Code extension root (for loading packaged skills) */
+  extensionPath?: string;
+}
 
 /**
  * Builds a self-contained migration prompt for goose from the same
  * KaiInteractiveWorkflowInput that the LangGraph workflow consumes.
+ *
+ * If an extensionPath is provided, attempts to load the `execute-migration-phase`
+ * skill from the skill loader and prepends it as context. Falls back to a
+ * hardcoded prompt if the skill is not found.
  */
 export async function buildMigrationPrompt(
   input: KaiInteractiveWorkflowInput,
   workspaceDir: string,
   fileContentCache?: ReadonlyMap<string, string>,
+  options?: BuildMigrationPromptOptions,
 ): Promise<string> {
   const { incidents = [], migrationHint, programmingLanguage } = input;
 
@@ -34,19 +48,48 @@ export async function buildMigrationPrompt(
         `Do not skip unchanged files. Only call write_file for files that need modifications.`,
       ];
 
-  return [
-    `You are a migration assistant. Apply the following migration to the codebase.`,
-    ``,
-    `**Migration**: ${migrationHint}`,
-    `**Language**: ${programmingLanguage}`,
-    ``,
-    `## Incidents to fix`,
-    ``,
-    ...fileBlocks,
-    `## Instructions`,
-    ``,
-    ...instructions,
-  ].join("\n");
+  // Try to load skill-based prompt if extensionPath is provided
+  let systemPrompt: string | null = null;
+  if (options?.extensionPath) {
+    try {
+      const skillIndex = await buildSkillIndex(options.extensionPath, workspaceDir);
+      const skill = await getSkillWithContent(skillIndex, "execute-migration-phase");
+      if (skill) {
+        systemPrompt = skill.content;
+      }
+    } catch {
+      // Skill loading failed, fall back to hardcoded prompt
+    }
+  }
+
+  // Build the prompt parts
+  const promptParts: string[] = [];
+
+  if (systemPrompt) {
+    // Use skill content as the base prompt
+    promptParts.push(systemPrompt);
+    promptParts.push("");
+    promptParts.push(`**Migration**: ${migrationHint}`);
+    promptParts.push(`**Language**: ${programmingLanguage}`);
+  } else {
+    // Fallback to hardcoded prompt
+    promptParts.push(
+      `You are a migration assistant. Apply the following migration to the codebase.`,
+    );
+    promptParts.push("");
+    promptParts.push(`**Migration**: ${migrationHint}`);
+    promptParts.push(`**Language**: ${programmingLanguage}`);
+  }
+
+  promptParts.push("");
+  promptParts.push(`## Incidents to fix`);
+  promptParts.push("");
+  promptParts.push(...fileBlocks);
+  promptParts.push(`## Instructions`);
+  promptParts.push("");
+  promptParts.push(...instructions);
+
+  return promptParts.join("\n");
 }
 
 function groupByUri(incidents: EnhancedIncident[]): Map<string, EnhancedIncident[]> {

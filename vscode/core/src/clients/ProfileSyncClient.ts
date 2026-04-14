@@ -729,14 +729,19 @@ export class ProfileSyncClient {
     try {
       await fs.writeFile(tempTarFile, tarBuffer);
 
-      // Extract tar bundle to profile directory
+      // Extract tar bundle to profile directory.
+      // The TAR pipeline extracts all file types including:
+      // - rules/*.yaml (analysis rules)
+      // - skills/*/SKILL.md (migration skills for the agent)
+      // - prompts/*.md (prompt templates for the agent)
       await tar.extract({
         file: tempTarFile,
         cwd: profileDir,
         strip: 0,
-        filter: (path) => {
-          // Security filter: prevent path traversal attacks
-          const normalized = path.replace(/\\/g, "/");
+        filter: (entryPath) => {
+          // Security filter: prevent path traversal attacks.
+          // No file type filtering - we allow all files including .md for skills/prompts.
+          const normalized = entryPath.replace(/\\/g, "/");
 
           // Block relative path traversal attempts
           if (normalized.includes("../") || normalized.startsWith("..")) {
@@ -754,6 +759,21 @@ export class ProfileSyncClient {
         fileCount: extractedFiles.length,
         files: extractedFiles,
       });
+
+      // Check for skills and prompts directories in the extracted bundle
+      const hasSkills = extractedFiles.some(
+        (f) => typeof f === "string" && f.startsWith("skills/"),
+      );
+      const hasPrompts = extractedFiles.some(
+        (f) => typeof f === "string" && f.startsWith("prompts/"),
+      );
+      if (hasSkills || hasPrompts) {
+        this.logger.info("Profile bundle includes agent resources", {
+          profileId,
+          hasSkills,
+          hasPrompts,
+        });
+      }
     } finally {
       // Clean up temp file
       await fs.rm(tempDir, { recursive: true, force: true });
