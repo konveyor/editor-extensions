@@ -42,7 +42,7 @@ export class VSCodeWeb extends VSCode {
     await page.getByRole('heading', { name: 'Workspaces', exact: true }).waitFor();
 
     let newPage;
-    const repoRow = page.locator('tbody tr', { hasText: repoDir });
+    const repoRow = page.locator('tbody tr', { hasText: repoDir }).first();
 
     // Creates a new workspace or reuses one that already exists for the same repository
     if (!(await repoRow.isVisible())) {
@@ -63,19 +63,28 @@ export class VSCodeWeb extends VSCode {
     await page.close();
 
     // Handle case where a running workspace is found and needs to be closed
-    const startingWorkspaceHeading = newPage.getByRole('heading', { name: 'Starting workspace' });
-    const closeRunningWorkspaceButton = newPage.getByRole('button', {
-      name: /Close running workspace .* and restart/,
+    const startingWorkspaceHeading = newPage.getByRole('heading', {
+      name: /Starting workspace|Creating a workspace/,
     });
+    await expect(startingWorkspaceHeading).toBeVisible({ timeout: 300_000 });
 
-    await expect(startingWorkspaceHeading.or(closeRunningWorkspaceButton)).toBeVisible({
-      timeout: 300_000,
+    // Wait for the "Checking for the limit of running workspaces" step to complete (success or failure)
+    const workspaceLimitStep = newPage.locator('button.pf-c-wizard__nav-link', {
+      hasText: 'Checking for the limit of running workspaces',
     });
+    const stepFailedIcon = workspaceLimitStep.getByTestId('step-failed-icon');
+    const stepDoneIcon = workspaceLimitStep.getByTestId('step-done-icon');
 
-    if (await closeRunningWorkspaceButton.isVisible()) {
-      console.log('VSCodeWeb.open: Found running workspace, closing and restarting...');
+    await expect(stepFailedIcon.or(stepDoneIcon)).toBeVisible({ timeout: 300_000 });
+
+    if (await stepFailedIcon.isVisible()) {
+      console.log('VSCodeWeb.open: Found running workspace limit issue, closing and restarting...');
+      const closeRunningWorkspaceButton = newPage.getByRole('button', {
+        name: /Close running workspace .* and restart/,
+      });
+      await expect(closeRunningWorkspaceButton).toBeVisible({ timeout: 30_000 });
       await closeRunningWorkspaceButton.click();
-      await expect(startingWorkspaceHeading).toBeVisible({ timeout: 300_000 });
+      await expect(stepFailedIcon).not.toBeVisible({ timeout: 300_000 });
     }
 
     await expect(startingWorkspaceHeading).not.toBeVisible({
@@ -123,6 +132,15 @@ export class VSCodeWeb extends VSCode {
     await vscode.executeTerminalCommand(
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
     );
+
+    await vscode.openAnalysisView();
+    const analysisView = await vscode.getView(KAIViews.analysisView);
+    const agentModeSwitch = analysisView.locator('input#agent-mode-switch');
+    const isChecked = await agentModeSwitch.isChecked();
+    if (isChecked) {
+      await agentModeSwitch.click();
+      console.log('Agent mode disabled');
+    }
 
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
     if (!(await navLi.isVisible())) {
