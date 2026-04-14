@@ -49,7 +49,12 @@ function parseDiffLines(diff: string): ParsedDiffLine[] {
   let inHunk = false;
 
   for (const line of filtered) {
-    if (line.startsWith("diff ") || line.startsWith("index ") || line.startsWith("--- ") || line.startsWith("+++ ")) {
+    if (
+      line.startsWith("diff ") ||
+      line.startsWith("index ") ||
+      line.startsWith("--- ") ||
+      line.startsWith("+++ ")
+    ) {
       continue;
     }
     if (line.startsWith("@@")) {
@@ -84,9 +89,17 @@ const InlineDiff: React.FC<{ diff: string }> = React.memo(({ diff }) => {
         {lines.map((line, i) => (
           <div key={i} className={`afr-diff__line afr-diff__line--${line.type}`}>
             <span className="afr-diff__gutter">
-              {line.type === "addition" ? "+" : line.type === "deletion" ? "−" : line.type === "hunk-header" ? "@@" : " "}
+              {line.type === "addition"
+                ? "+"
+                : line.type === "deletion"
+                  ? "−"
+                  : line.type === "hunk-header"
+                    ? "@@"
+                    : " "}
             </span>
-            <span className="afr-diff__content">{line.type === "hunk-header" ? line.content : line.content}</span>
+            <span className="afr-diff__content">
+              {line.type === "hunk-header" ? line.content : line.content}
+            </span>
           </div>
         ))}
       </pre>
@@ -99,7 +112,7 @@ interface FileItemProps {
   file: PendingBatchReviewFile;
   displayPath: string;
   isExpanded: boolean;
-  isProcessing: boolean;
+  _isProcessing: boolean;
   isBusy: boolean;
   onToggle: () => void;
   onAccept: () => void;
@@ -108,9 +121,22 @@ interface FileItemProps {
 }
 
 const FileItem: React.FC<FileItemProps> = React.memo(
-  ({ file, displayPath, isExpanded, isProcessing, isBusy, onToggle, onAccept, onReject, onReviewInEditor }) => {
+  ({
+    file,
+    displayPath,
+    isExpanded,
+    isProcessing: _isProcessing,
+    isBusy,
+    onToggle,
+    onAccept,
+    onReject,
+    onReviewInEditor,
+  }) => {
     const noChanges = !file.diff || file.diff.trim() === "";
-    const stats = useMemo(() => (file.diff ? computeDiffStats(file.diff) : { additions: 0, deletions: 0 }), [file.diff]);
+    const stats = useMemo(
+      () => (file.diff ? computeDiffStats(file.diff) : { additions: 0, deletions: 0 }),
+      [file.diff],
+    );
 
     const fileLabel = file.isNew
       ? "new"
@@ -128,19 +154,19 @@ const FileItem: React.FC<FileItemProps> = React.memo(
           <span className={`afr-file__chevron ${isExpanded ? "afr-file__chevron--open" : ""}`}>
             ▶
           </span>
-          <span className="afr-file__icon">
-            {file.isNew ? "+" : file.isDeleted ? "−" : "~"}
-          </span>
+          <span className="afr-file__icon">{file.isNew ? "+" : file.isDeleted ? "−" : "~"}</span>
           <span className="afr-file__path" title={file.path}>
             {displayPath}
           </span>
-          <span className={`afr-file__badge afr-file__badge--${fileLabel}`}>
-            {fileLabel}
-          </span>
+          <span className={`afr-file__badge afr-file__badge--${fileLabel}`}>{fileLabel}</span>
           {!noChanges && !file.isNew && !file.isDeleted && (
             <span className="afr-file__stats">
-              {stats.additions > 0 && <span className="afr-file__stat afr-file__stat--add">+{stats.additions}</span>}
-              {stats.deletions > 0 && <span className="afr-file__stat afr-file__stat--del">−{stats.deletions}</span>}
+              {stats.additions > 0 && (
+                <span className="afr-file__stat afr-file__stat--add">+{stats.additions}</span>
+              )}
+              {stats.deletions > 0 && (
+                <span className="afr-file__stat afr-file__stat--del">−{stats.deletions}</span>
+              )}
             </span>
           )}
         </button>
@@ -163,18 +189,10 @@ const FileItem: React.FC<FileItemProps> = React.memo(
                 </button>
               )}
               <div className="afr-file__actions-right">
-                <button
-                  className="afr-btn afr-btn--reject"
-                  onClick={onReject}
-                  disabled={isBusy}
-                >
+                <button className="afr-btn afr-btn--reject" onClick={onReject} disabled={isBusy}>
                   Reject
                 </button>
-                <button
-                  className="afr-btn afr-btn--accept"
-                  onClick={onAccept}
-                  disabled={isBusy}
-                >
+                <button className="afr-btn afr-btn--accept" onClick={onAccept} disabled={isBusy}>
                   Accept
                 </button>
               </div>

@@ -42,6 +42,7 @@
     "@types/vscode-webview": "^1.57.5",
     "global-jsdom": "^26.0.0",
     "jsdom": "^26.0.0",
-    "vite-plugin-static-copy": "^3.0.0"
+    "vite-plugin-static-copy": "^3.0.0",
+    "eslint-plugin-react-hooks": "^5.0.0"
   }
 }
