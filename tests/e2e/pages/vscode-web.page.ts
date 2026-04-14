@@ -133,15 +133,6 @@ export class VSCodeWeb extends VSCode {
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
     );
 
-    await vscode.openAnalysisView();
-    const analysisView = await vscode.getView(KAIViews.analysisView);
-    const agentModeSwitch = analysisView.locator('input#agent-mode-switch');
-    const isChecked = await agentModeSwitch.isChecked();
-    if (isChecked) {
-      await agentModeSwitch.click();
-      console.log('Agent mode disabled');
-    }
-
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
     if (!(await navLi.isVisible())) {
       // TODO rest of the extensions
