@@ -1,4 +1,4 @@
-import { relative, dirname, join } from "node:path";
+import { relative, dirname, join, isAbsolute, sep } from "node:path";
 import { createWriteStream, createReadStream } from "node:fs";
 import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
@@ -442,7 +442,14 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
   }
 
   const f = relative(fsPaths().workspaceRepo, uri.fsPath);
-  _logger?.debug(`isUriIgnored: ${f}`);
+  _logger?.debug(
+    `isUriIgnored: path=${uri.fsPath}, relative=${f}, workspaceRepo=${fsPaths().workspaceRepo}`,
+  );
+
+  // Ignore files outside the workspace
+  if (f === ".." || f.startsWith(".." + sep) || isAbsolute(f)) {
+    return true;
+  }
 
   // Always ignore .konveyor directory
   if (f.startsWith(".konveyor/") || f === ".konveyor") {

@@ -22,6 +22,11 @@ export class BatchedAnalysisTrigger {
   }
 
   async notifyFileChanges(change: FileChange) {
+    // Don't schedule analysis for ignored files (e.g., files outside workspace)
+    if (isUriIgnored(change.path)) {
+      return;
+    }
+
     if (this.enableHotRerun) {
       this.extensionState.mutateAnalysisState((draft) => {
         draft.isAnalysisScheduled = true;
