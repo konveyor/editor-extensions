@@ -1,4 +1,4 @@
-import { relative, dirname, join } from "node:path";
+import { relative, dirname, join, isAbsolute, sep } from "node:path";
 import { createWriteStream, createReadStream } from "node:fs";
 import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
@@ -446,8 +446,8 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
     `isUriIgnored: path=${uri.fsPath}, relative=${f}, workspaceRepo=${fsPaths().workspaceRepo}`,
   );
 
-  // Ignore files outside the workspace (relative path starts with ..)
-  if (f.startsWith("..")) {
+  // Ignore files outside the workspace
+  if (f === ".." || f.startsWith(".." + sep) || isAbsolute(f)) {
     return true;
   }
 

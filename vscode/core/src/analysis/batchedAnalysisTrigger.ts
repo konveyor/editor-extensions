@@ -22,9 +22,8 @@ export class BatchedAnalysisTrigger {
   }
 
   async notifyFileChanges(change: FileChange) {
-    // Don't schedule analysis if server is not running - it's pointless
-    const serverState = this.extensionState.analyzerClient?.serverState;
-    if (serverState !== "running") {
+    // Don't schedule analysis for ignored files (e.g., files outside workspace)
+    if (isUriIgnored(change.path)) {
       return;
     }
 
