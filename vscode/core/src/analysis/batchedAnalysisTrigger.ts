@@ -22,6 +22,12 @@ export class BatchedAnalysisTrigger {
   }
 
   async notifyFileChanges(change: FileChange) {
+    // Don't schedule analysis if server is not running - it's pointless
+    const serverState = this.extensionState.analyzerClient?.serverState;
+    if (serverState !== "running") {
+      return;
+    }
+
     if (this.enableHotRerun) {
       this.extensionState.mutateAnalysisState((draft) => {
         draft.isAnalysisScheduled = true;

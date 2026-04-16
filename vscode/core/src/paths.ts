@@ -442,7 +442,14 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
   }
 
   const f = relative(fsPaths().workspaceRepo, uri.fsPath);
-  _logger?.debug(`isUriIgnored: ${f}`);
+  _logger?.debug(
+    `isUriIgnored: path=${uri.fsPath}, relative=${f}, workspaceRepo=${fsPaths().workspaceRepo}`,
+  );
+
+  // Ignore files outside the workspace (relative path starts with ..)
+  if (f.startsWith("..")) {
+    return true;
+  }
 
   // Always ignore .konveyor directory
   if (f.startsWith(".konveyor/") || f === ".konveyor") {
