@@ -356,15 +356,22 @@ export class VSCodeWeb extends VSCode {
 
       await this.executeQuickCommand(`Extensions: Install from VSIX...`);
       const pathInput = this.window.locator('.quick-input-box input');
-      await expect(pathInput).toHaveValue('/home/user/', { timeout: 30_000 });
-      await pathInput.fill(`/projects/${this.repoDir}/${extensionFileName}`);
-      await expect(
-        this.window.locator('.quick-input-list-entry').filter({ hasText: extensionFileName })
-      ).toBeVisible({ timeout: 30_000 });
-      await this.window.getByRole('button', { name: 'Install' }).click();
-      await expect(
-        this.window.getByText('Completed installing extension.', { exact: true })
-      ).toBeVisible({ timeout: 300_000 });
+      try {
+        await expect(pathInput).toHaveValue('/home/user/', { timeout: 30_000 });
+        await pathInput.fill(`/projects/${this.repoDir}/${extensionFileName}`);
+        await expect(
+          this.window.locator('.quick-input-list-entry').filter({ hasText: extensionFileName })
+        ).toBeVisible({ timeout: 30_000 });
+        await this.window.getByRole('button', { name: 'Install' }).click();
+        await expect(
+          this.window.getByText('Completed installing extension.', { exact: true })
+        ).toBeVisible({ timeout: 300_000 });
+      } catch (error) {
+        await this.window.screenshot({
+          path: pathlib.join(SCREENSHOTS_FOLDER, `install-extension-failed-${extension}.png`),
+        });
+        throw error;
+      }
       console.log(`VSCodeWeb.installExtensions: ${extension} extension installed`);
       await this.waitDefault();
     }
