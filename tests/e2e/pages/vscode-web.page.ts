@@ -134,12 +134,12 @@ export class VSCodeWeb extends VSCode {
     );
 
     const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
-    if (!(await navLi.isVisible())) {
-      // TODO rest of the extensions
-      await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
-    } else {
+    //if (!(await navLi.isVisible())) {
+    // TODO rest of the extensions
+    await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
+    /*} else {
       console.log('Extensions already installed');
-    }
+    }*/
 
     await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
     const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
