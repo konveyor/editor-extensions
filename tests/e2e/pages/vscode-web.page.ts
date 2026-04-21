@@ -343,70 +343,95 @@ export class VSCodeWeb extends VSCode {
     const t0 = Date.now();
     const ts = () => `[uninstall +${Math.round((Date.now() - t0) / 1000)}s]`;
 
+    // TODO (abrugaro): Make the search term configurable to support other brandings (e.g. mta)
+    const searchTerm = 'konveyor';
+
     console.log(`${ts()} Opening Extensions view...`);
     await this.openLeftBarElement('Extensions');
     console.log(`${ts()} Extensions view opened`);
 
+    console.log(`${ts()} Locating search container...`);
     const searchContainer = this.window.locator(
       '.extensions-search-container .suggest-input-container'
     );
-    console.log(`${ts()} Waiting for search container...`);
+    console.log(`${ts()} Waiting for search container to be visible...`);
     await expect(searchContainer).toBeVisible({ timeout: 10_000 });
     console.log(`${ts()} Search container visible`);
 
-    const clearBtn = this.window.getByRole('button', { name: 'Clear Extensions Search Results' });
-    if (await clearBtn.isEnabled()) {
-      console.log(`${ts()} Clearing previous search...`);
-      await clearBtn.click();
-    }
+    const typeSearch = async () => {
+      console.log(`${ts()} typeSearch: checking clear button...`);
+      const clearBtn = this.window.getByRole('button', { name: 'Clear Extensions Search Results' });
+      if (await clearBtn.isEnabled()) {
+        console.log(`${ts()} typeSearch: clearing previous search...`);
+        await clearBtn.click();
+      }
+      console.log(`${ts()} typeSearch: clicking search container...`);
+      await searchContainer.click();
+      console.log(`${ts()} typeSearch: clicked, now pasting search term via clipboard...`);
+      await this.window.evaluate(
+        (text) => navigator.clipboard.writeText(text),
+        `@installed ${searchTerm}`
+      );
+      await this.window.keyboard.press('Control+a');
+      await this.window.keyboard.press('Control+v');
+      console.log(`${ts()} typeSearch: pasted, waiting for results...`);
+      await this.window.waitForTimeout(2_000);
+      console.log(`${ts()} typeSearch: done`);
+    };
 
-    console.log(`${ts()} Typing @installed core...`);
-    await searchContainer.click();
-    await searchContainer.pressSequentially('@installed core');
-    await this.window.waitForTimeout(2_000);
-    console.log(`${ts()} Search typed, waiting for results...`);
-
+    await typeSearch();
     await this.window.screenshot({
       path: pathlib.join(SCREENSHOTS_FOLDER, 'uninstall-search-results.png'),
     });
 
-    const firstExtItem = this.window.locator('.extensions-list .extension-list-item').first();
-    if (!(await firstExtItem.isVisible().catch(() => false))) {
-      console.log(`${ts()} No installed "core" extension found, skipping uninstall.`);
+    const items = this.window.locator('.extensions-list .extension-list-item');
+    const total = await items.count();
+
+    if (total === 0) {
+      console.log(`${ts()} No installed "${searchTerm}" extensions found, skipping uninstall.`);
       return;
     }
 
-    const extText = await firstExtItem.textContent().catch(() => '?');
-    console.log(`${ts()} Found extension: "${extText?.trim()}", uninstalling...`);
-    await this.window.screenshot({
-      path: pathlib.join(SCREENSHOTS_FOLDER, 'before-uninstall-core.png'),
-    });
+    console.log(`${ts()} Found ${total} installed "${searchTerm}" extension(s).`);
+    for (let i = 0; i < total; i++) {
+      const item = items.nth(i);
+      const itemText = (await item.textContent().catch(() => ''))?.trim().slice(0, 60) ?? '?';
+      console.log(`${ts()} [${i + 1}/${total}] Opening detail for: "${itemText}"...`);
 
-    console.log(`${ts()} Hovering to reveal gear button...`);
-    await firstExtItem.hover();
-    const manageBtn = firstExtItem.locator('.codicon-gear');
-    console.log(`${ts()} Waiting for gear button...`);
-    await expect(manageBtn).toBeVisible({ timeout: 5_000 });
-    console.log(`${ts()} Clicking gear button...`);
-    await manageBtn.click();
+      await item.click();
+      await this.window.waitForTimeout(1_000);
 
-    console.log(`${ts()} Waiting for Uninstall menu item...`);
-    const uninstallOption = this.window
-      .locator('.context-view .action-menu-item', { hasText: /^Uninstall$/i })
-      .first();
-    await expect(uninstallOption).toBeVisible({ timeout: 5_000 });
-    console.log(`${ts()} Clicking Uninstall...`);
-    await uninstallOption.click();
+      const uninstallBtn = this.window.getByRole('button', { name: 'Uninstall' }).first();
+      if (!(await uninstallBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
+        console.log(
+          `${ts()} [${i + 1}/${total}] No Uninstall button found (already removed or invalid), skipping.`
+        );
+        continue;
+      }
 
-    const uninstallAllBtn = this.window.getByRole('button', { name: 'Uninstall All' });
-    if (await uninstallAllBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      console.log(`${ts()} Clicking Uninstall All...`);
-      await uninstallAllBtn.click();
-    } else {
-      console.log(`${ts()} No Uninstall All dialog appeared.`);
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `uninstall-detail-${i}.png`),
+      });
+      console.log(`${ts()} [${i + 1}/${total}] Clicking Uninstall...`);
+      await uninstallBtn.click();
+
+      // "Uninstall All" dialog appears when other extensions depend on this one.
+      // If it appears here we still accept it — any extra removals are welcome.
+      const uninstallAllBtn = this.window.getByRole('button', { name: 'Uninstall All' });
+      if (await uninstallAllBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        console.log(`${ts()} [${i + 1}/${total}] Clicking Uninstall All...`);
+        await uninstallAllBtn.click();
+      }
+
+      console.log(`${ts()} [${i + 1}/${total}] Uninstalled.`);
+      await this.window.waitForTimeout(1_000);
     }
 
-    console.log(`${ts()} Reloading window after uninstall...`);
+    await this.window.screenshot({
+      path: pathlib.join(SCREENSHOTS_FOLDER, 'after-uninstall.png'),
+    });
+
+    console.log(`${ts()} Reloading window to apply uninstalls...`);
     try {
       await this.executeQuickCommand('Developer: Reload Window');
     } catch {

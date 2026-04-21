@@ -27,7 +27,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   const profileName = `plugins-settings-${generateRandomString()}`;
 
   test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(600_000);
     if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
       await loadLlemulatorResponses({
         reset: true,
