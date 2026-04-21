@@ -63,9 +63,13 @@ const ChatPage: React.FC = () => {
   const analysisProgressMessage = useExtensionStore((s) => s.analysisProgressMessage);
   const enhancedIncidents = useExtensionStore((s) => s.enhancedIncidents);
   const ruleSets = useExtensionStore((s) => s.ruleSets);
-  const analysisProgress = useExtensionStore((s) => s.analysisProgress);
+  const analysisProgress = useExtensionStore((s) => s.analysisProgress) ?? 0;
+  const isWaitingForUserInteraction = useExtensionStore((s) => s.isWaitingForUserInteraction);
   const isProcessing = isFetchingSolution || isAnalyzing;
   const hasWorkflowContent = Array.isArray(chatMessages) && chatMessages.length > 0;
+  const hasPendingPermission = chatMessages.some(
+    (m) => m.messageToken?.startsWith("perm-") && !m.selectedResponse,
+  );
   const incidentCount = enhancedIncidents.length;
   const isTriggeredByUser =
     Array.isArray(solutionScope?.incidents) && solutionScope!.incidents.length > 0;
@@ -448,7 +452,7 @@ const ChatPage: React.FC = () => {
                         : isError
                           ? "Error"
                           : "Stopped"}
-                    {isProcessing && <LoadingIndicator />}
+                    {isAnalyzing && !isFetchingSolution && <LoadingIndicator />}
                   </span>
                   {incidentCount > 0 && !isAnalyzing && (
                     <span
@@ -509,7 +513,7 @@ const ChatPage: React.FC = () => {
                 <div className="chat-status-bar">
                   <span className="chat-status-text">
                     Migration Assistant
-                    {isProcessing && <LoadingIndicator />}
+                    {isAnalyzing && !isFetchingSolution && <LoadingIndicator />}
                   </span>
                   <button
                     className="chat-action-btn chat-action-btn--icon"
@@ -738,11 +742,15 @@ const ChatPage: React.FC = () => {
                       </button>
                     </div>
                   )}
-                  {experimentalChatEnabled && isFetchingSolution && (
-                    <div className="chat-solution-indicator">
+                  {isFetchingSolution && (
+                    <div className={`chat-solution-indicator${hasPendingPermission || isWaitingForUserInteraction ? " chat-solution-indicator--waiting" : ""}`}>
                       <LoadingIndicator />
                       <span className="chat-solution-indicator__label">
-                        Working on migration fix — chat is paused
+                        {hasPendingPermission
+                          ? "Waiting for your approval above..."
+                          : isWaitingForUserInteraction
+                            ? "Waiting for your response above..."
+                            : "Working on migration fix..."}
                       </span>
                     </div>
                   )}
@@ -754,9 +762,9 @@ const ChatPage: React.FC = () => {
           {experimentalChatEnabled && isRunning ? (
             <ChatbotFooter>
               <div
-                className={`chat-input-area ${isBusy ? "chat-input-area--busy" : ""}`}
+                className={`chat-input-area ${isBusy && !isFetchingSolution ? "chat-input-area--busy" : ""}`}
               >
-                {isBusy && (
+                {isBusy && !isFetchingSolution && (
                   <div className="chat-input-area__progress" />
                 )}
                 <textarea

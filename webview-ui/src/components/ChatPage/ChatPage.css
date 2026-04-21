@@ -1555,6 +1555,11 @@
   color: var(--vscode-foreground);
 }
 
+.chat-solution-indicator--waiting {
+  background: var(--vscode-editorInfo-background, rgba(75, 137, 220, 0.08));
+  border-left-color: var(--vscode-editorInfo-foreground, #4b89dc);
+}
+
 .chat-solution-indicator__label {
   line-height: 1.4;
 }
