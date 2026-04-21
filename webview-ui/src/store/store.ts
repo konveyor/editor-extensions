@@ -16,9 +16,7 @@ import type {
   AgentChatMessage,
   AgentContentBlockType,
   AgentConfig,
-  ToolPermissionPolicy,
 } from "@editor-extensions/shared";
-import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
 
@@ -76,9 +74,6 @@ interface ExtensionStore {
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
 
-  // Tool permission policy
-  toolPermissions: ToolPermissionPolicy;
-
   // Agent chat state (experimental)
   agentMessages: AgentChatMessage[];
   agentState: AgentState;
@@ -125,7 +120,6 @@ interface ExtensionStore {
   setLlmProxyAvailable: (available: boolean) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
-  setToolPermissions: (policy: ToolPermissionPolicy) => void;
   setExperimentalChatEnabled: (enabled: boolean) => void;
 
   // Agent chat setters
@@ -194,9 +188,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       isWebEnvironment: false,
       availableTargets: [],
       availableSources: [],
-
-      // Tool permission policy
-      toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
 
       // Feature flags
       experimentalChatEnabled: false,
@@ -410,11 +401,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsWebEnvironment: (isWeb) =>
         set((state) => {
           state.isWebEnvironment = isWeb;
-        }),
-
-      setToolPermissions: (policy) =>
-        set((state) => {
-          state.toolPermissions = policy;
         }),
 
       setExperimentalChatEnabled: (enabled) =>

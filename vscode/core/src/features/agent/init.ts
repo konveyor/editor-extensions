@@ -4,7 +4,7 @@ import type { FeatureContext } from "../featureRegistry";
 import { AgentFileTracker } from "./fileTracker";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
 import { routeFileChange } from "./fileChangeRouter";
-import { handlePermissionWithPolicy, type PendingPermission } from "./toolPermissionHandler";
+import { handlePermissionRequest, type PendingPermission } from "./toolPermissionHandler";
 
 export { type PendingPermission } from "./toolPermissionHandler";
 export const pendingPermissions = new Map<string, PendingPermission>();
@@ -308,10 +308,9 @@ export async function initializeAgent(
       return;
     }
 
-    handlePermissionWithPolicy({
+    handlePermissionRequest({
       agentClient,
       data,
-      policy: ctx.store.getState().toolPermissions,
       workspaceRoot: ctx.store.getState().workspaceRoot,
       fileTracker,
       mutate: ctx.mutate,
@@ -336,7 +335,6 @@ export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void 
         const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
         const config = readAgentConfig();
         config.hasStoredCredentials = await hasAgentCredentials(ctx.extensionContext);
-        config.toolPermissions = ctx.store.getState().toolPermissions;
         config.agentMode = (ctx.store.getState().featureState?.agentMode as boolean) ?? true;
         const timestamp = new Date().toISOString();
         for (const provider of ctx.webviewProviders.values()) {

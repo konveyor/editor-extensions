@@ -1,5 +1,3 @@
-import type { ToolPermissionPolicy } from "./toolPermissions";
-
 // ─── Agent backend types ────────────────────────────────────────────
 
 /** Supported agent backends */
@@ -41,8 +39,6 @@ export interface AgentConfig {
   hasStoredCredentials: boolean;
   /** Backend-specific capabilities (Goose extensions, OpenCode plugins, etc.) */
   capabilities: AgentCapability[];
-  /** Current tool permission policy */
-  toolPermissions: ToolPermissionPolicy;
   /** Path to the backend's native config file (for "Advanced" link) */
   nativeConfigPath?: string;
 }

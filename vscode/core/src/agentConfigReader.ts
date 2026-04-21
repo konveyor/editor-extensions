@@ -1,6 +1,5 @@
 import * as path from "path";
 import type { AgentBackend, AgentConfig, AgentCapability } from "@editor-extensions/shared";
-import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
 import { getConfigAgentBackend } from "./utilities/configuration";
 import { readGooseConfig, writeGooseConfig, getGooseConfigPath } from "./gooseConfig";
 import type { WriteGooseConfigChanges } from "./gooseConfig";
@@ -66,7 +65,6 @@ function readOpencodeConfig(): AgentConfig {
     model: "",
     capabilities,
     hasStoredCredentials: false,
-    toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
   };
 }
 

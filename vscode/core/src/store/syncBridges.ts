@@ -63,8 +63,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   // Labels
   "availableTargets",
   "availableSources",
-  // Tool permissions
-  "toolPermissions",
   // Feature flags
   "experimentalChatEnabled",
 ];

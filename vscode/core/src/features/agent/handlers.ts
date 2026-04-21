@@ -9,14 +9,11 @@ import {
   AGENT_OPEN_SETTINGS,
   AGENT_PERMISSION_RESPONSE,
   AGENT_CANCEL_GENERATION,
-  SET_TOOL_PERMISSIONS,
   SET_EXPERIMENTAL_CHAT,
   OPEN_NATIVE_CONFIG,
   AgentMessageTypes,
 } from "@editor-extensions/shared";
-import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import { pendingPermissions } from "./init";
-import { policyToGooseMode } from "./toolPermissionHandler";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import type { AgentClient } from "../../client/agentClient";
@@ -182,7 +179,6 @@ export const agentMessageHandlers: Record<
 
       const updatedConfig = readAgentConfig();
       updatedConfig.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-      updatedConfig.toolPermissions = state.store.getState().toolPermissions;
       if (payload.agentMode !== undefined) {
         updatedConfig.agentMode = payload.agentMode;
         state.mutate((draft) => {
@@ -288,7 +284,6 @@ export const agentMessageHandlers: Record<
       const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
       const config = readAgentConfig();
       config.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-      config.toolPermissions = state.store.getState().toolPermissions;
       config.agentMode = (state.store.getState().featureState?.agentMode as boolean) ?? true;
       const timestamp = new Date().toISOString();
 
@@ -394,10 +389,6 @@ export const agentMessageHandlers: Record<
     }
   },
 
-  [SET_TOOL_PERMISSIONS]: async ({ policy }: { policy: ToolPermissionPolicy }, state, logger) => {
-    await applyToolPermissions(policy, state, logger);
-  },
-
   [OPEN_NATIVE_CONFIG]: async (_payload, state, logger) => {
     try {
       const { getAgentConfigPath } = await import("../../agentConfigReader");
@@ -411,59 +402,3 @@ export const agentMessageHandlers: Record<
     }
   },
 };
-
-async function applyToolPermissions(
-  policy: ToolPermissionPolicy,
-  state: ExtensionState,
-  logger: winston.Logger,
-): Promise<void> {
-  const previous = state.store.getState().toolPermissions;
-  if (
-    previous.autonomyLevel === policy.autonomyLevel &&
-    JSON.stringify(previous.overrides) === JSON.stringify(policy.overrides)
-  ) {
-    return;
-  }
-
-  state.mutate((draft) => {
-    draft.toolPermissions = policy;
-  });
-
-  // Persist to VS Code settings
-  try {
-    const { updateConfigToolPermissions } = await import("../../utilities/configuration");
-    await updateConfigToolPermissions(policy);
-  } catch (err) {
-    logger.warn("Failed to persist tool permissions to settings:", err);
-  }
-
-  logger.info("Tool permissions changed", {
-    previous: previous.autonomyLevel,
-    current: policy.autonomyLevel,
-    overrides: policy.overrides,
-  });
-
-  // Translate to backend-specific config and restart the agent
-  const agentClient = getAgentClient(state);
-  if (agentClient) {
-    const backend = getConfigAgentBackend();
-    if (backend === "goose") {
-      const gooseMode = policyToGooseMode(policy);
-      agentClient.updateModelEnv({ GOOSE_MODE: gooseMode });
-    }
-
-    // Only restart if the agent is currently running and not mid-workflow
-    if (agentClient.getState() === "running" && !state.data.isFetchingSolution) {
-      logger.info("Restarting agent to apply new tool permissions", {
-        backend,
-        autonomyLevel: policy.autonomyLevel,
-      });
-      try {
-        await agentClient.stop();
-        await agentClient.start();
-      } catch (err) {
-        logger.error("Failed to restart agent after permission change:", err);
-      }
-    }
-  }
-}

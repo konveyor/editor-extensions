@@ -28,7 +28,6 @@ export const UPDATE_HUB_CONFIG = "UPDATE_HUB_CONFIG";
 export const SYNC_HUB_PROFILES = "SYNC_HUB_PROFILES";
 export const RETRY_PROFILE_SYNC = "RETRY_PROFILE_SYNC";
 export const STOP_WORKFLOW = "STOP_WORKFLOW";
-export const SET_TOOL_PERMISSIONS = "SET_TOOL_PERMISSIONS";
 export const OPEN_NATIVE_CONFIG = "OPEN_NATIVE_CONFIG";
 export const FILE_RESPONSE = "FILE_RESPONSE";
 export const BATCH_APPLY_ALL = "BATCH_APPLY_ALL";
@@ -68,7 +67,6 @@ export type WebviewActionType =
   | typeof SYNC_HUB_PROFILES
   | typeof RETRY_PROFILE_SYNC
   | typeof STOP_WORKFLOW
-  | typeof SET_TOOL_PERMISSIONS
   | typeof OPEN_NATIVE_CONFIG;
 
 export interface WebviewAction<S, T> {

@@ -186,9 +186,6 @@ export function useVSCodeMessageHandler() {
         // Handle agent config update
         if (isAgentConfigUpdate(message)) {
           store.setAgentConfig(message.config);
-          if (message.config.toolPermissions) {
-            store.setToolPermissions(message.config.toolPermissions);
-          }
           return;
         }
       } catch (error) {

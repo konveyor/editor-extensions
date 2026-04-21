@@ -37,7 +37,6 @@ import {
   getConfigLogLevel,
   getConfigGenAIEnabled,
   getConfigAutoAcceptOnSave,
-  getConfigToolPermissions,
   getConfigAgentMode,
   getConfigBatchReviewMode,
   getConfigExperimentalChatEnabled,
@@ -129,7 +128,6 @@ class VsCodeExtension {
       availableTargets: [],
       availableSources: [],
       featureState: { agentMode: getConfigAgentMode() },
-      toolPermissions: getConfigToolPermissions(),
       isBatchReviewMode: getConfigBatchReviewMode(),
       pendingBatchReview: [],
       experimentalChatEnabled: getConfigExperimentalChatEnabled(),
@@ -667,17 +665,6 @@ class VsCodeExtension {
               transport.level = newLogLevel;
             }
             this.state.logger.info(`Log level changed to ${newLogLevel}`);
-          }
-
-          // Sync agent settings → store when changed from VS Code Settings UI
-          if (
-            event.affectsConfiguration(`${EXTENSION_NAME}.genai.autonomyLevel`) ||
-            event.affectsConfiguration(`${EXTENSION_NAME}.genai.permissionOverrides`)
-          ) {
-            this.state.mutate((draft) => {
-              draft.toolPermissions = getConfigToolPermissions();
-            });
-            this.state.logger.info("Tool permissions updated from settings");
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.batchReviewMode`)) {

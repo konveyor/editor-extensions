@@ -20,7 +20,7 @@ import { executeExtensionCommand } from "../../commands";
 import { routeFileChange } from "./fileChangeRouter";
 import { buildMigrationPrompt } from "./promptBuilder";
 import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions } from "./init";
-import { handlePermissionWithPolicy } from "./toolPermissionHandler";
+import { handlePermissionRequest } from "./toolPermissionHandler";
 import type { Logger } from "winston";
 
 /**
@@ -582,10 +582,9 @@ export class AgentOrchestrator {
       | AgentFileTracker
       | undefined;
 
-    await handlePermissionWithPolicy({
+    await handlePermissionRequest({
       agentClient,
       data,
-      policy: this.state.data.toolPermissions,
       workspaceRoot: this.state.data.workspaceRoot,
       fileTracker,
       mutate: (recipe) => this.state.mutate(recipe),

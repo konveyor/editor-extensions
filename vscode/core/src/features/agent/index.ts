@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import type { FeatureModule, FeatureContext } from "../featureRegistry";
 import { KonveyorGUIWebviewViewProvider } from "../../KonveyorGUIWebviewViewProvider";
 import type { AgentClient } from "../../client/agentClient";
-import { policyToGooseMode } from "./toolPermissionHandler";
 
 export const agentFeatureModule: FeatureModule = {
   id: "agent",
@@ -116,13 +115,6 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
     ctx.logger.warn(`Agent: could not load credentials from SecretStorage: ${err}`);
   }
 
-  // Translate the generic tool permission policy to backend-specific config
-  const toolPermissions = ctx.store.getState().toolPermissions;
-  if (backend === "goose") {
-    const gooseMode = policyToGooseMode(toolPermissions);
-    modelEnv = { ...modelEnv, GOOSE_MODE: gooseMode };
-  }
-
   if (backend === "opencode") {
     ctx.logger.info("Agent: using OpenCode backend");
     const { OpencodeAgentClient } = await import("../../client/opencodeClient");
@@ -136,7 +128,6 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
       logger: ctx.logger,
       opencodeBinaryPath: getConfigOpencodeBinaryPath(),
       modelEnv,
-      toolPermissions,
       opencodeModel,
     });
   }

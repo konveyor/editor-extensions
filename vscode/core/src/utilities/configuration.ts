@@ -2,13 +2,7 @@ import * as vscode from "vscode";
 import * as pathlib from "path";
 import { fileURLToPath } from "url";
 import { EXTENSION_NAME } from "./constants";
-import {
-  AnalysisProfile,
-  createConfigError,
-  ExtensionData,
-  type ToolPermissionPolicy,
-  type ToolPermissionLevel,
-} from "@editor-extensions/shared";
+import { AnalysisProfile, createConfigError, ExtensionData } from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(EXTENSION_NAME)?.get<T>(key);
@@ -101,43 +95,8 @@ export const getConfigOpencodeBinaryPath = (): string | null =>
 
 // ─── Agent settings (persisted) ──────────────────────────────────────
 
-export function getConfigAutonomyLevel(): "auto" | "smart" | "ask" {
-  const value = getConfigValue<string>("genai.autonomyLevel");
-  if (value === "auto" || value === "smart" || value === "ask") {
-    return value;
-  }
-  return "smart";
-}
-
 export function getConfigAgentMode(): boolean {
   return getConfigValue<boolean>("genai.agentMode") ?? true;
-}
-
-export function getConfigPermissionOverrides(): Partial<Record<string, ToolPermissionLevel>> {
-  const raw =
-    getConfigValue<Record<string, ToolPermissionLevel>>("genai.permissionOverrides") ?? {};
-  // VS Code returns a Proxy for nested config objects. Spread into a plain
-  // object so Immer can safely create its own proxy around the value.
-  return { ...raw };
-}
-
-export function getConfigToolPermissions(): ToolPermissionPolicy {
-  const autonomyLevel = getConfigAutonomyLevel();
-  const overrides = getConfigPermissionOverrides();
-  const hasOverrides = Object.keys(overrides).length > 0;
-  return {
-    autonomyLevel,
-    overrides: hasOverrides ? overrides : undefined,
-    source: "local",
-  };
-}
-
-export async function updateConfigToolPermissions(policy: ToolPermissionPolicy): Promise<void> {
-  await updateConfigValue("genai.autonomyLevel", policy.autonomyLevel);
-  await updateConfigValue(
-    "genai.permissionOverrides",
-    policy.overrides && Object.keys(policy.overrides).length > 0 ? policy.overrides : undefined,
-  );
 }
 
 export async function updateConfigAgentMode(value: boolean): Promise<void> {

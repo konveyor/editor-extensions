@@ -3,7 +3,6 @@ import * as path from "path";
 import * as os from "os";
 import { parse, stringify } from "yaml";
 import type { AgentConfig, AgentCapability } from "@editor-extensions/shared";
-import { DEFAULT_TOOL_PERMISSION_POLICY } from "@editor-extensions/shared";
 
 export function getGooseConfigPath(): string {
   if (process.platform === "win32") {
@@ -52,7 +51,6 @@ export function readGooseConfig(): AgentConfig {
     model,
     capabilities,
     hasStoredCredentials: false,
-    toolPermissions: DEFAULT_TOOL_PERMISSION_POLICY,
   };
 }
 

@@ -643,7 +643,6 @@ const actions: {
           const { hasAgentCredentials } = await import("./utilities/agentCredentialStorage");
           const updatedConfig = readAgentConfig();
           updatedConfig.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-          updatedConfig.toolPermissions = state.store.getState().toolPermissions;
           updatedConfig.agentMode = agentMode;
           const timestamp = new Date().toISOString();
           for (const webviewProvider of state.webviewProviders.values()) {

@@ -5,4 +5,3 @@ export * from "./messages";
 export * from "./agent";
 export * from "./agentActions";
 export * from "./agentMessages";
-export * from "./toolPermissions";

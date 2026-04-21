@@ -10,7 +10,6 @@
 import { EventEmitter } from "events";
 import { randomBytes } from "crypto";
 import type winston from "winston";
-import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import type {
   AgentClient,
   AgentState,
@@ -18,7 +17,6 @@ import type {
   ToolCallData,
   PermissionRequestData,
 } from "./agentClient";
-import { policyToOpencodePermissions } from "../features/agent/toolPermissionHandler";
 
 // ─── Config ──────────────────────────────────────────────────────────
 
@@ -28,7 +26,6 @@ export interface OpencodeClientConfig {
   opencodeBinaryPath?: string | null;
   mcpServers?: McpServerConfig[];
   modelEnv?: Record<string, string>;
-  toolPermissions?: ToolPermissionPolicy;
   /** OpenCode model identifier, e.g. "anthropic/claude-sonnet-4" or "google/gemini-2.0-flash" */
   opencodeModel?: string;
 }
@@ -175,11 +172,6 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       }
       if (Object.keys(providerConfig).length > 0) {
         config.provider = providerConfig;
-      }
-
-      // Translate the generic tool permission policy to OpenCode's permission block
-      if (this.config.toolPermissions) {
-        config.permission = policyToOpencodePermissions(this.config.toolPermissions);
       }
 
       // Log the config (redact API keys) so we can diagnose server-side errors.

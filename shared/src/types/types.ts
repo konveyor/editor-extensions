@@ -1,5 +1,3 @@
-import type { ToolPermissionPolicy } from "./toolPermissions";
-
 export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub" | "chat";
 
 export interface Incident {
@@ -171,7 +169,6 @@ export interface ExtensionData {
   availableTargets: string[];
   availableSources: string[];
   featureState: Record<string, unknown>;
-  toolPermissions: ToolPermissionPolicy;
   isBatchReviewMode: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   experimentalChatEnabled: boolean;

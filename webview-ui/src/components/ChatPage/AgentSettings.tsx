@@ -1,23 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
-import type { ToolPermissionPolicy, ToolPermissionLevel } from "@editor-extensions/shared";
-import {
-  SET_TOOL_PERMISSIONS,
-  OPEN_NATIVE_CONFIG,
-  SET_EXPERIMENTAL_CHAT,
-} from "@editor-extensions/shared";
+import { OPEN_NATIVE_CONFIG, SET_EXPERIMENTAL_CHAT } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
 import { PROVIDERS, type ProviderOption } from "./providerOptions";
-
-type OverrideValue = ToolPermissionLevel | "inherit";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  fileEditing: "File Editing",
-  commandExecution: "Command Execution",
-  webAccess: "Web Access",
-  mcpTools: "MCP / External Tools",
-};
-
-const CATEGORY_KEYS = ["fileEditing", "commandExecution", "webAccess", "mcpTools"] as const;
 
 interface AgentSettingsProps {
   onClose: () => void;
@@ -26,7 +10,6 @@ interface AgentSettingsProps {
 const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const agentConfig = useExtensionStore((s) => s.agentConfig);
   const agentState = useExtensionStore((s) => s.agentState);
-  const toolPermissions = useExtensionStore((s) => s.toolPermissions);
   const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
 
   const [selectedProvider, setSelectedProvider] = useState(agentConfig?.provider ?? "");
@@ -35,12 +18,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const [extensionStates, setExtensionStates] = useState<Record<string, boolean>>({});
   const [credentialInputs, setCredentialInputs] = useState<Record<string, string>>({});
   const [showModelSuggestions, setShowModelSuggestions] = useState(false);
-
-  // Tool permission local state
-  const [autonomyLevel, setAutonomyLevel] = useState<"auto" | "smart" | "ask">(
-    toolPermissions.autonomyLevel,
-  );
-  const [categoryOverrides, setCategoryOverrides] = useState<Record<string, OverrideValue>>({});
 
   useEffect(() => {
     if (agentConfig) {
@@ -54,15 +31,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
       setExtensionStates(states);
     }
   }, [agentConfig]);
-
-  useEffect(() => {
-    setAutonomyLevel(toolPermissions.autonomyLevel);
-    const overrides: Record<string, OverrideValue> = {};
-    for (const key of CATEGORY_KEYS) {
-      overrides[key] = toolPermissions.overrides?.[key] ?? "inherit";
-    }
-    setCategoryOverrides(overrides);
-  }, [toolPermissions]);
 
   const currentProviderOption: ProviderOption | undefined = useMemo(
     () => PROVIDERS.find((p) => p.id === selectedProvider),
@@ -96,31 +64,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
     setExtensionStates((prev) => ({ ...prev, [extId]: !prev[extId] }));
   };
 
-  const buildPermissionPolicy = (): ToolPermissionPolicy => {
-    const overrides: Record<string, ToolPermissionLevel> = {};
-    for (const key of CATEGORY_KEYS) {
-      const val = categoryOverrides[key];
-      if (val && val !== "inherit") {
-        overrides[key] = val;
-      }
-    }
-    return {
-      autonomyLevel,
-      overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
-      source: toolPermissions.source,
-    };
-  };
-
-  const permissionsChanged = (): boolean => {
-    if (autonomyLevel !== toolPermissions.autonomyLevel) return true;
-    for (const key of CATEGORY_KEYS) {
-      const current = categoryOverrides[key] ?? "inherit";
-      const stored = toolPermissions.overrides?.[key] ?? "inherit";
-      if (current !== stored) return true;
-    }
-    return false;
-  };
-
   const handleApplyAndRestart = () => {
     const extensionPayload = agentConfig
       ? agentConfig.capabilities.map((ext) => ({
@@ -132,13 +75,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
     const hasCredentialValues = Object.values(credentialInputs).some((v) => v.length > 0);
 
     if (agentModeEnabled) {
-      if (permissionsChanged()) {
-        window.vscode.postMessage({
-          type: SET_TOOL_PERMISSIONS,
-          payload: { policy: buildPermissionPolicy() },
-        });
-      }
-
       window.vscode.postMessage({
         type: "AGENT_UPDATE_CONFIG",
         payload: {
@@ -169,8 +105,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
     modelInput !== (agentConfig?.model ?? "") ||
     agentModeEnabled !== (agentConfig?.agentMode ?? true) ||
     Object.values(credentialInputs).some((v) => v.length > 0) ||
-    agentConfig?.capabilities.some((ext) => extensionStates[ext.id] !== ext.enabled) ||
-    permissionsChanged();
+    agentConfig?.capabilities.some((ext) => extensionStates[ext.id] !== ext.enabled);
 
   const providerEnvVars = currentProviderOption?.envVars ?? [];
   const hasStoredCreds = agentConfig?.hasStoredCredentials ?? false;
@@ -349,56 +284,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
 
       {agentModeEnabled && (
         <>
-          {/* Tool Permissions */}
-          <div className="agent-settings__section">
-            <div className="agent-settings__section-divider" />
-            <label className="agent-settings__label">
-              Tool Permissions
-              {toolPermissions.source === "hub" && (
-                <span className="agent-settings__stored-badge">Set by organization</span>
-              )}
-            </label>
-
-            <div className="agent-settings__permission-row">
-              <span className="agent-settings__permission-label">Autonomy Level</span>
-              <select
-                className="agent-settings__permission-select"
-                value={autonomyLevel}
-                onChange={(e) => setAutonomyLevel(e.target.value as "auto" | "smart" | "ask")}
-                disabled={toolPermissions.source === "hub"}
-              >
-                <option value="auto">Auto</option>
-                <option value="smart">Smart</option>
-                <option value="ask">Ask</option>
-              </select>
-            </div>
-
-            <div className="agent-settings__permission-overrides">
-              <span className="agent-settings__permission-overrides-header">Category Overrides</span>
-              {CATEGORY_KEYS.map((key) => (
-                <div key={key} className="agent-settings__permission-row">
-                  <span className="agent-settings__permission-label">{CATEGORY_LABELS[key]}</span>
-                  <select
-                    className="agent-settings__permission-select"
-                    value={categoryOverrides[key] ?? "inherit"}
-                    onChange={(e) =>
-                      setCategoryOverrides((prev) => ({
-                        ...prev,
-                        [key]: e.target.value as OverrideValue,
-                      }))
-                    }
-                    disabled={toolPermissions.source === "hub"}
-                  >
-                    <option value="inherit">Inherit</option>
-                    <option value="auto">Auto</option>
-                    <option value="ask">Ask</option>
-                    <option value="deny">Deny</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Extensions */}
           {agentConfig && agentConfig.capabilities.length > 0 && (
             <div className="agent-settings__section">
