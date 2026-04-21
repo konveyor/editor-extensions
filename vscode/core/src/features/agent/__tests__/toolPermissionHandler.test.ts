@@ -1,31 +1,10 @@
 import expect from "expect";
-import type { ToolPermissionPolicy } from "@editor-extensions/shared";
 import {
-  resolvePermission,
   isReadOnlyToolCall,
-  policyToGooseMode,
-  shouldAutoApproveWithPolicy,
-  shouldDenyWithPolicy,
+  findAllowOnceOptionId,
+  filterPermissionOptions,
 } from "../toolPermissionPolicy";
-import type { PermissionRequestData } from "../../../client/agentClient";
-
-// --- Helpers ---
-
-function makePermData(toolName: string, rawInput?: Record<string, unknown>): PermissionRequestData {
-  return {
-    requestId: 1,
-    title: toolName,
-    toolName,
-    toolCallId: "tc-1",
-    kind: "tool_permission",
-    status: "pending",
-    rawInput,
-    options: [
-      { optionId: "allow", kind: "allow_once" as const, name: "Allow" },
-      { optionId: "reject", kind: "reject_once" as const, name: "Reject" },
-    ],
-  };
-}
+import type { PermissionOption } from "../../../client/agentClient";
 
 // --- isReadOnlyToolCall ---
 
@@ -56,160 +35,37 @@ describe("isReadOnlyToolCall", () => {
   });
 });
 
-// --- policyToGooseMode ---
+// --- Option helpers ---
 
-describe("policyToGooseMode", () => {
-  it("always returns 'approve' regardless of policy", () => {
-    const policies: ToolPermissionPolicy[] = [
-      { autonomyLevel: "auto" },
-      { autonomyLevel: "ask" },
-      { autonomyLevel: "smart" },
-      { autonomyLevel: "smart", overrides: { commandExecution: "auto" } },
-    ];
-    for (const policy of policies) {
-      expect(policyToGooseMode(policy)).toBe("approve");
-    }
+const sampleOptions: PermissionOption[] = [
+  { optionId: "allow", kind: "allow_once", name: "Allow" },
+  { optionId: "allow-always", kind: "allow_always", name: "Always Allow" },
+  { optionId: "reject", kind: "reject_once", name: "Reject" },
+  { optionId: "reject-always", kind: "reject_always", name: "Always Reject" },
+];
+
+describe("findAllowOnceOptionId", () => {
+  it("returns the allow_once option id", () => {
+    expect(findAllowOnceOptionId(sampleOptions)).toBe("allow");
+  });
+
+  it("returns undefined when no allow_once option exists", () => {
+    const noAllow = sampleOptions.filter((o) => o.kind !== "allow_once");
+    expect(findAllowOnceOptionId(noAllow)).toBeUndefined();
   });
 });
 
-// --- resolvePermission ---
-
-describe("resolvePermission", () => {
-  describe("read-only bypass", () => {
-    it("always returns 'auto' for view commands regardless of policy", () => {
-      const policies: ToolPermissionPolicy[] = [
-        { autonomyLevel: "ask" },
-        { autonomyLevel: "smart" },
-        { autonomyLevel: "auto" },
-      ];
-      for (const policy of policies) {
-        expect(resolvePermission(policy, "text_editor", { command: "view" })).toBe("auto");
-        expect(resolvePermission(policy, "Developer: Text Editor", { command: "view" })).toBe(
-          "auto",
-        );
-      }
-    });
-
-    it("returns 'auto' for view even with a fileEditing deny override", () => {
-      const policy: ToolPermissionPolicy = {
-        autonomyLevel: "ask",
-        overrides: { fileEditing: "deny" },
-      };
-      expect(resolvePermission(policy, "text_editor", { command: "view" })).toBe("auto");
-    });
+describe("filterPermissionOptions", () => {
+  it("keeps only allow_once and reject_once", () => {
+    const filtered = filterPermissionOptions(sampleOptions);
+    expect(filtered).toHaveLength(2);
+    expect(filtered.map((o) => o.kind)).toEqual(["allow_once", "reject_once"]);
   });
 
-  describe("ask mode", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "ask" };
-
-    it("returns 'ask' for file editing", () => {
-      expect(resolvePermission(policy, "text_editor", { command: "str_replace" })).toBe("ask");
-    });
-
-    it("returns 'ask' for command execution", () => {
-      expect(resolvePermission(policy, "bash")).toBe("ask");
-    });
-
-    it("returns 'ask' for uncategorized tools", () => {
-      expect(resolvePermission(policy, "todo_write")).toBe("ask");
-    });
-  });
-
-  describe("auto mode", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "auto" };
-
-    it("returns 'auto' for everything", () => {
-      expect(resolvePermission(policy, "text_editor", { command: "str_replace" })).toBe("auto");
-      expect(resolvePermission(policy, "bash")).toBe("auto");
-      expect(resolvePermission(policy, "todo_write")).toBe("auto");
-    });
-  });
-
-  describe("smart mode", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "smart" };
-
-    it("returns 'ask' for file editing writes", () => {
-      expect(resolvePermission(policy, "text_editor", { command: "str_replace" })).toBe("ask");
-      expect(resolvePermission(policy, "Developer: Text Editor", { command: "write" })).toBe("ask");
-    });
-
-    it("returns 'ask' for command execution", () => {
-      expect(resolvePermission(policy, "bash")).toBe("ask");
-      expect(resolvePermission(policy, "Developer: Shell")).toBe("ask");
-    });
-
-    it("returns 'auto' for other/uncategorized tools", () => {
-      expect(resolvePermission(policy, "todo_write")).toBe("auto");
-    });
-
-    it("returns 'auto' for MCP tools", () => {
-      expect(resolvePermission(policy, "mcp__some_server")).toBe("auto");
-    });
-
-    it("returns 'auto' for web access tools", () => {
-      expect(resolvePermission(policy, "webfetch")).toBe("auto");
-    });
-  });
-
-  describe("per-category overrides", () => {
-    it("uses commandExecution override over smart default", () => {
-      const policy: ToolPermissionPolicy = {
-        autonomyLevel: "smart",
-        overrides: { commandExecution: "auto" },
-      };
-      expect(resolvePermission(policy, "bash")).toBe("auto");
-      expect(resolvePermission(policy, "Developer: Shell")).toBe("auto");
-    });
-
-    it("uses fileEditing override over smart default", () => {
-      const policy: ToolPermissionPolicy = {
-        autonomyLevel: "smart",
-        overrides: { fileEditing: "auto" },
-      };
-      expect(resolvePermission(policy, "text_editor", { command: "str_replace" })).toBe("auto");
-    });
-
-    it("does not apply overrides to 'other' category", () => {
-      const policy: ToolPermissionPolicy = {
-        autonomyLevel: "ask",
-      };
-      expect(resolvePermission(policy, "todo_write")).toBe("ask");
-    });
-  });
-});
-
-// --- shouldAutoApproveWithPolicy / shouldDenyWithPolicy ---
-
-describe("shouldAutoApproveWithPolicy", () => {
-  it("returns true when resolved level is auto", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "auto" };
-    expect(shouldAutoApproveWithPolicy(policy, makePermData("bash"))).toBe(true);
-  });
-
-  it("returns false when resolved level is ask", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "ask" };
-    expect(shouldAutoApproveWithPolicy(policy, makePermData("bash"))).toBe(false);
-  });
-
-  it("returns true for read-only tool calls even in ask mode", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "ask" };
-    expect(
-      shouldAutoApproveWithPolicy(policy, makePermData("text_editor", { command: "view" })),
-    ).toBe(true);
-  });
-});
-
-describe("shouldDenyWithPolicy", () => {
-  it("returns true when resolved level is deny", () => {
-    const policy: ToolPermissionPolicy = {
-      autonomyLevel: "smart",
-      overrides: { commandExecution: "deny" },
-    };
-    expect(shouldDenyWithPolicy(policy, makePermData("bash"))).toBe(true);
-  });
-
-  it("returns false when resolved level is ask", () => {
-    const policy: ToolPermissionPolicy = { autonomyLevel: "ask" };
-    expect(shouldDenyWithPolicy(policy, makePermData("bash"))).toBe(false);
+  it("returns empty array when no once options exist", () => {
+    const alwaysOnly = sampleOptions.filter(
+      (o) => o.kind === "allow_always" || o.kind === "reject_always",
+    );
+    expect(filterPermissionOptions(alwaysOnly)).toHaveLength(0);
   });
 });

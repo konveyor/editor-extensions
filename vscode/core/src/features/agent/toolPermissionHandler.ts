@@ -1,35 +1,20 @@
 import { v4 as uuidv4 } from "uuid";
-import type {
-  ToolPermissionPolicy,
-  ExtensionData,
-  ChatMessage,
-  ToolMessageValue,
-} from "@editor-extensions/shared";
+import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
 import { ChatMessageType } from "@editor-extensions/shared";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
 import type { AgentFileTracker } from "./fileTracker";
-import { classifyTool } from "./toolClassifier";
 import { executeExtensionCommand } from "../../commands";
 import { routeFileChange } from "./fileChangeRouter";
 
-// Re-export pure policy functions so existing consumers don't break
 export {
-  resolvePermission,
   isReadOnlyToolCall,
-  shouldAutoApproveWithPolicy,
-  shouldDenyWithPolicy,
   findAllowOnceOptionId,
-  findRejectOnceOptionId,
   filterPermissionOptions,
-  policyToGooseMode,
-  policyToOpencodePermissions,
 } from "./toolPermissionPolicy";
 
 import {
-  shouldAutoApproveWithPolicy,
-  shouldDenyWithPolicy,
+  isReadOnlyToolCall,
   findAllowOnceOptionId,
-  findRejectOnceOptionId,
   filterPermissionOptions,
 } from "./toolPermissionPolicy";
 
@@ -70,7 +55,6 @@ export function buildPermissionLabel(data: PermissionRequestData, workspaceRoot?
   const displayPath = extractDisplayPath(data.rawInput, workspaceRoot);
   const command = data.rawInput.command as string | undefined;
 
-  // Shell commands: rawInput.command IS the shell command (not a verb)
   const title = data.title ?? "";
   if (title.includes("Shell") || data.toolName === "bash" || data.toolName === "shell") {
     const shellCmd = typeof command === "string" ? command : undefined;
@@ -81,7 +65,6 @@ export function buildPermissionLabel(data: PermissionRequestData, workspaceRoot?
     return "Shell";
   }
 
-  // Text editor commands: command is a verb like "view", "write", "str_replace"
   const verbMap: Record<string, string> = {
     view: "Read",
     str_replace: "Edit",
@@ -119,12 +102,10 @@ export function formatPermissionPreview(
   const input = data.rawInput;
   const command = input.command as string | undefined;
 
-  // view: no preview needed — the label says "Read: filename"
   if (command === "view") {
     return "";
   }
 
-  // str_replace: compute real unified diff between old_str and new_str
   const oldStr = input.old_str;
   const newStr = input.new_str;
   if (typeof oldStr === "string" && typeof newStr === "string") {
@@ -139,17 +120,14 @@ export function formatPermissionPreview(
     return "";
   }
 
-  // write/create with file_text: generate a real diff if we have original content
   const fileText = input.file_text ?? input.content ?? input.text;
   if (typeof fileText === "string") {
     if (originalContent !== undefined) {
-      // Generate unified diff
       const { createPatch } = require("diff");
       const displayPath = extractDisplayPath(input, workspaceRoot) ?? "file";
       const patch = createPatch(displayPath, originalContent, fileText, "", "", {
         context: 3,
       });
-      // Strip the header lines (first 4 lines: ---, +++, etc.) and wrap in diff fence
       const patchLines = (patch as string).split("\n");
       const diffBody = patchLines.slice(4).join("\n");
       if (diffBody.trim()) {
@@ -158,7 +136,6 @@ export function formatPermissionPreview(
       return "";
     }
 
-    // New file (no original): show all lines as additions
     return (
       "```diff\n" +
       truncateLines(fileText, 50)
@@ -169,7 +146,6 @@ export function formatPermissionPreview(
     );
   }
 
-  // insert: show the inserted text (Goose uses new_str for insert content)
   const insertText = input.insert_text ?? input.new_str;
   if (command === "insert" && typeof insertText === "string") {
     return (
@@ -197,7 +173,6 @@ export interface PendingPermission {
 export interface PermissionHandlerContext {
   agentClient: AgentClient;
   data: PermissionRequestData;
-  policy: ToolPermissionPolicy;
   workspaceRoot: string;
   fileTracker: AgentFileTracker | undefined;
   mutate: (recipe: (draft: ExtensionData) => void) => void;
@@ -208,23 +183,20 @@ export interface PermissionHandlerContext {
 /**
  * Shared handler for agent permission requests.
  *
- * Applies the tool permission policy (auto-approve / auto-deny / ask user),
- * builds a label + diff preview, pushes a chat message, and notifies the
- * solution server. Used by both free-chat mode (init.ts) and the
- * getSolution orchestrator (agentOrchestrator.ts).
+ * Read-only tool calls are auto-approved. Everything else is presented
+ * to the user for per-call accept/reject. Permanent permission policy
+ * is delegated to the agent's native configuration.
  */
-export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext): Promise<void> {
+export async function handlePermissionRequest(ctx: PermissionHandlerContext): Promise<void> {
   const {
     agentClient,
     data,
-    policy,
     workspaceRoot,
     fileTracker,
     mutate,
     pendingPermissions: pending,
   } = ctx;
 
-  // Cache file before any approval decision
   if (fileTracker && data.rawInput) {
     fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
   }
@@ -237,7 +209,6 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
         | undefined)
     : undefined;
 
-  // Look up original content for real diffs
   let originalContent: string | undefined;
   if (rawFilePath && fileTracker) {
     const { join, isAbsolute } = await import("path");
@@ -248,8 +219,6 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
     originalContent = await fileTracker.getOriginalContent(absPath, wsRoot);
   }
 
-  // Derive full post-edit file content. For delta edits (str_replace/insert),
-  // rawInput.new_str is just the snippet — apply it to original to get full body.
   let rawFileContent: string | undefined;
   if (data.rawInput) {
     const input = data.rawInput as Record<string, unknown>;
@@ -258,15 +227,12 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
     const insertLine = input.insert_line as number | undefined;
 
     if (typeof oldStr === "string" && typeof newStr === "string" && originalContent) {
-      // str_replace: apply replacement to get full post-edit content
       rawFileContent = originalContent.replace(oldStr, newStr);
     } else if (typeof insertLine === "number" && typeof newStr === "string" && originalContent) {
-      // insert: insert new_str at the given line number
       const lines = originalContent.split("\n");
       lines.splice(insertLine, 0, newStr);
       rawFileContent = lines.join("\n");
     } else {
-      // Full file content (write/create): use content/file_text/new_str as-is
       rawFileContent = (input.content ?? input.file_text ?? input.new_str) as string | undefined;
     }
   }
@@ -274,13 +240,9 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
   const preview = formatPermissionPreview(data, workspaceRoot, originalContent);
 
   const isBatchReviewMode = ctx.extensionState?.data.isBatchReviewMode === true;
-  const category = classifyTool(
-    data.toolName ?? data.title,
-    data.rawInput as Record<string, unknown> | undefined,
-  );
 
   // --- Batch review mode: auto-approve file edits, route to review queue ---
-  if (isBatchReviewMode && category === "fileEditing" && rawFilePath) {
+  if (isBatchReviewMode && rawFilePath) {
     const optionId = findAllowOnceOptionId(data.options);
     if (optionId) {
       agentClient.respondToRequest(data.requestId, {
@@ -299,33 +261,13 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
     }
   }
 
-  // --- Auto-approve ---
-  if (shouldAutoApproveWithPolicy(policy, data)) {
+  // --- Auto-approve read-only tool calls ---
+  if (isReadOnlyToolCall(data.rawInput)) {
     const optionId = findAllowOnceOptionId(data.options);
     if (optionId) {
       agentClient.respondToRequest(data.requestId, {
         outcome: { outcome: "selected", optionId },
       });
-
-      if (category === "fileEditing" && rawFilePath && ctx.extensionState) {
-        const isBatchReview = ctx.extensionState.data.isBatchReviewMode === true;
-        if (isBatchReview) {
-          routeFileChange(
-            ctx.extensionState,
-            rawFilePath,
-            rawFileContent ?? "",
-            originalContent ?? "",
-          ).catch(() => {});
-        } else {
-          Promise.resolve(
-            executeExtensionCommand("changeApplied", rawFilePath, rawFileContent ?? ""),
-          ).catch(() => {});
-        }
-      } else if (category === "fileEditing" && rawFilePath) {
-        Promise.resolve(
-          executeExtensionCommand("changeApplied", rawFilePath, rawFileContent ?? ""),
-        ).catch(() => {});
-      }
 
       mutate((draft) => {
         draft.chatMessages.push({
@@ -338,30 +280,6 @@ export async function handlePermissionWithPolicy(ctx: PermissionHandlerContext):
           } as ToolMessageValue,
         });
       });
-      return;
-    }
-  }
-
-  // --- Auto-deny ---
-  if (shouldDenyWithPolicy(policy, data)) {
-    const rejectId = findRejectOnceOptionId(data.options);
-    if (rejectId) {
-      agentClient.respondToRequest(data.requestId, {
-        outcome: { outcome: "selected", optionId: rejectId },
-      });
-
-      mutate((draft) => {
-        draft.chatMessages.push({
-          kind: ChatMessageType.String,
-          messageToken: `deny-${uuidv4()}`,
-          timestamp: new Date().toISOString(),
-          value: { message: `**Denied:** ${label}` },
-        } as ChatMessage);
-      });
-
-      if (rawFilePath) {
-        Promise.resolve(executeExtensionCommand("changeDiscarded", rawFilePath)).catch(() => {});
-      }
       return;
     }
   }
