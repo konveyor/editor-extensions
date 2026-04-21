@@ -121,9 +121,67 @@ export abstract class VSCode {
         await startButton.waitFor({ state: 'visible', timeout: 10000 });
         await startButton.click({ delay: 500 });
 
-        // Wait for server to start (Stop button becomes enabled)
-        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
-        await stopButton.isEnabled({ timeout: 180000 });
+        // Poll every 15s for up to 180s: log any visible notifications and server status
+        // to diagnose why the server may not be starting.
+        const pollIntervalMs = 15_000;
+        const maxWaitMs = 180_000;
+        const startedAt = Date.now();
+        let serverStarted = false;
+
+        while (Date.now() - startedAt < maxWaitMs) {
+          if (await stopButton.isVisible()) {
+            serverStarted = true;
+            break;
+          }
+
+          const elapsed = Math.round((Date.now() - startedAt) / 1000);
+          console.log(`startServer: still waiting after ${elapsed}s...`);
+
+          // Dump all visible notification texts
+          const notifLocator = this.window.locator('.notification-list-item-message');
+          const notifCount = await notifLocator.count();
+          if (notifCount > 0) {
+            for (let i = 0; i < notifCount; i++) {
+              const text = (
+                await notifLocator
+                  .nth(i)
+                  .textContent()
+                  .catch(() => '')
+              )?.trim();
+              if (text) console.log(`startServer: notification[${i}]: ${text}`);
+            }
+          } else {
+            console.log('startServer: no notifications visible');
+          }
+
+          // Log current server status badge text
+          const statusBadge = analysisView.locator('.server-status-wrapper');
+          const statusText = (await statusBadge.textContent().catch(() => ''))?.trim();
+          console.log(`startServer: server status: "${statusText}"`);
+
+          await this.window.waitForTimeout(pollIntervalMs);
+        }
+
+        if (!serverStarted) {
+          // Before throwing, capture the Konveyor Output channel for post-mortem
+          try {
+            await this.executeQuickCommand('Konveyor: Open Output Channel');
+          } catch {
+            // command may not exist under this name — try generic Output panel
+            try {
+              await this.executeQuickCommand('Output: Show Output Channels...');
+            } catch {
+              /* ignore */
+            }
+          }
+          await this.window.waitForTimeout(2000);
+          await this.window.screenshot({
+            path: pathlib.join(SCREENSHOTS_FOLDER, 'server-start-output-channel.png'),
+          });
+          throw new Error(`Server did not start within ${maxWaitMs / 1000}s`);
+        }
+
+        await stopButton.isEnabled({ timeout: 10000 });
         console.log('Server started successfully');
       } else {
         console.log('Server is already running');
@@ -699,7 +757,8 @@ export abstract class VSCode {
   public async executeTerminalCommand(
     command: string,
     expectedOutput?: string | RegExp,
-    outputShouldBeVisible: boolean = true
+    outputShouldBeVisible: boolean = true,
+    timeout: number = 30_000
   ): Promise<void> {
     if (!this.repoDir || !this.branch) {
       throw new Error('executeTerminalCommand requires repoDir and branch to be set');
@@ -720,7 +779,7 @@ export abstract class VSCode {
         path: pathlib.join(SCREENSHOTS_FOLDER, `last-command.png`),
       });
       if (outputShouldBeVisible) {
-        await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
+        await expect(this.window.getByText(expectedOutput).first()).toBeVisible({ timeout });
       } else {
         try {
           await expect(this.window.getByText(expectedOutput).first()).not.toBeVisible();
