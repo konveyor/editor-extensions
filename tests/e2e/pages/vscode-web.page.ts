@@ -29,6 +29,7 @@ export class VSCodeWeb extends VSCode {
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       storageState: './web-state.json',
+      permissions: ['clipboard-read', 'clipboard-write'],
     });
 
     const page = await context.newPage();
@@ -167,7 +168,10 @@ export class VSCodeWeb extends VSCode {
       );
     }
     const browser = await chromium.launch();
-    const contextOptions: BrowserContextOptions = { ignoreHTTPSErrors: true };
+    const contextOptions: BrowserContextOptions = {
+      ignoreHTTPSErrors: true,
+      permissions: ['clipboard-read', 'clipboard-write'],
+    };
     if (existsSync('./web-state.json')) {
       contextOptions.storageState = './web-state.json';
     }
@@ -308,8 +312,9 @@ export class VSCodeWeb extends VSCode {
       (text) => navigator.clipboard.writeText(text),
       `@installed ${searchTerm}`
     );
-    await this.window.keyboard.press('Control+a');
-    await this.window.keyboard.press('Control+v');
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    await this.window.keyboard.press(`${modifier}+a`);
+    await this.window.keyboard.press(`${modifier}+v`);
 
     const items = this.window.locator('.extensions-list .extension-list-item');
     // Wait up to 5 s for results to appear; if none show up just skip the uninstall.
