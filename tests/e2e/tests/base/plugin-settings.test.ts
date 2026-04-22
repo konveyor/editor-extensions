@@ -188,9 +188,6 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, false);
     await vscodeApp.waitDefault();
-    await vscodeApp.getWindow().screenshot({
-      path: `${SCREENSHOTS_FOLDER}/disabled-auto-accept-onsave.png`,
-    });
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
     await vscodeApp.openAnalysisView();
     await vscodeApp.setListKindAndSort('files', 'ascending');
