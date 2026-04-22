@@ -1,8 +1,11 @@
+import * as fs from "fs";
 import * as path from "path";
+import { parse } from "yaml";
 import type { AgentBackend, AgentConfig, AgentCapability } from "@editor-extensions/shared";
 import { getConfigAgentBackend } from "./utilities/configuration";
 import { readGooseConfig, writeGooseConfig, getGooseConfigPath } from "./gooseConfig";
 import type { WriteGooseConfigChanges } from "./gooseConfig";
+import { langchainProviderToUiId } from "./modelProvider/providerConfigGenerator";
 
 // ─── Backend-agnostic config API ────────────────────────────────────
 
@@ -58,11 +61,27 @@ export function getAgentConfigPath(backend: AgentBackend, workspaceRoot?: string
 function readOpencodeConfig(): AgentConfig {
   const capabilities: AgentCapability[] = [];
 
+  let provider = "";
+  let model = "";
+  try {
+    const { fsPaths } = require("./paths");
+    const content = fs.readFileSync(fsPaths().settingsYaml, "utf-8");
+    const doc = parse(content) as Record<string, any> | undefined;
+    const active = doc?.active;
+    if (active) {
+      const langchainName = typeof active.provider === "string" ? active.provider : "";
+      provider = langchainProviderToUiId(langchainName, active.args) ?? langchainName;
+      model = typeof active.args?.model === "string" ? active.args.model : "";
+    }
+  } catch {
+    // provider-settings.yaml missing or malformed — use defaults
+  }
+
   return {
     backend: "opencode",
     agentMode: true,
-    provider: "",
-    model: "",
+    provider,
+    model,
     capabilities,
     hasStoredCredentials: false,
   };

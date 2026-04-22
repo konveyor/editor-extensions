@@ -47,6 +47,28 @@ const PROVIDER_MAP: Record<string, ProviderMapping> = {
   },
 };
 
+export function langchainProviderToUiId(
+  langchainProvider: string,
+  args?: Record<string, unknown>,
+): string | undefined {
+  const matches = Object.entries(PROVIDER_MAP).filter(
+    ([, m]) => m.langchainProvider === langchainProvider,
+  );
+  if (matches.length === 0) return undefined;
+  if (matches.length === 1) return matches[0][0];
+  // Disambiguate duplicate LangChain names (e.g. ChatOpenAI → openai vs groq)
+  for (const [uiId, m] of matches) {
+    if (m.extraArgs && args) {
+      const extraKey = Object.keys(m.extraArgs)[0];
+      if (extraKey && JSON.stringify(args[extraKey]) === JSON.stringify(m.extraArgs[extraKey])) {
+        return uiId;
+      }
+    }
+  }
+  // Fall back to the entry without extraArgs (the "plain" one)
+  return matches.find(([, m]) => !m.extraArgs)?.[0] ?? matches[0][0];
+}
+
 /**
  * Generates provider-settings.yaml content from chat UI selections.
  * Maps UI provider IDs (e.g. "aws_bedrock") to LangChain provider names

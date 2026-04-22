@@ -315,18 +315,20 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
             </div>
           )}
 
-          {/* Advanced */}
-          <div className="agent-settings__section">
-            <div className="agent-settings__section-divider" />
-            <button
-              className="agent-settings__link-btn"
-              onClick={() =>
-                window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })
-              }
-            >
-              Open native configuration file
-            </button>
-          </div>
+          {/* Advanced – only Goose has a user-editable native config file */}
+          {agentConfig?.backend !== "opencode" && (
+            <div className="agent-settings__section">
+              <div className="agent-settings__section-divider" />
+              <button
+                className="agent-settings__link-btn"
+                onClick={() =>
+                  window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })
+                }
+              >
+                Open native configuration file
+              </button>
+            </div>
+          )}
         </>
       )}
 

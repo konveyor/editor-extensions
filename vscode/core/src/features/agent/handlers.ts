@@ -391,9 +391,16 @@ export const agentMessageHandlers: Record<
 
   [OPEN_NATIVE_CONFIG]: async (_payload, state, logger) => {
     try {
+      const fs = await import("fs");
+      const path = await import("path");
       const { getAgentConfigPath } = await import("../../agentConfigReader");
       const backend = getConfigAgentBackend();
       const configPath = getAgentConfigPath(backend, state.store.getState().workspaceRoot);
+
+      if (!fs.existsSync(configPath)) {
+        fs.mkdirSync(path.dirname(configPath), { recursive: true });
+        fs.writeFileSync(configPath, "", "utf-8");
+      }
 
       const uri = vscode.Uri.file(configPath);
       await vscode.commands.executeCommand("vscode.open", uri);
