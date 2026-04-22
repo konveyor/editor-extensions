@@ -96,12 +96,12 @@ export class GoExternalProviderManager implements vscode.Disposable {
   private getProviderBinaryPath(): string {
     const packageJson = this.context.extension.packageJSON;
     const baseAssetPath =
-      packageJson.includedAssetPaths?.genericExternalProvider ||
-      "../../downloaded_assets/generic-external-provider";
+      packageJson.includedAssetPaths?.goExternalProvider ||
+      "../../downloaded_assets/go-external-provider";
 
     const platformArch = `${platform}-${arch}`;
     const binaryName =
-      platform === "win32" ? "generic-external-provider.exe" : "generic-external-provider";
+      platform === "win32" ? "go-external-provider.exe" : "go-external-provider";
 
     const binaryPath = this.context.asAbsolutePath(
       path.join(baseAssetPath, platformArch, binaryName),

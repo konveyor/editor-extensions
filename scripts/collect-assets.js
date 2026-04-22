@@ -276,16 +276,16 @@ const actions = [
     }),
   }),
 
-  // Extract generic-external-provider binaries to platform-specific directories (same as kai pattern)
+  // Extract go-external-provider binaries to platform-specific directories
   async () => ({
-    id: "generic-external-provider binaries",
+    id: "go-external-provider binaries",
     meta: await unpackAssets({
-      title: "generic-external-provider binary",
+      title: "go-external-provider binary",
       sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "generic-external-provider", `${platform}-${arch}`),
+        join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
 
-      globs: ["generic-external-provider*"],
+      globs: ["go-external-provider*"],
       assets: [
         {
           name: "analyzer-lsp-binaries.linux-amd64.zip",
@@ -316,16 +316,16 @@ const actions = [
     }),
   }),
 
-  // Extract golang-dependency-provider binaries to platform-specific directories (same as kai pattern)
+  // Extract nodejs-external-provider binaries to platform-specific directories
   async () => ({
-    id: "golang-dependency-provider binaries",
+    id: "nodejs-external-provider binaries",
     meta: await unpackAssets({
-      title: "golang-dependency-provider binary",
+      title: "nodejs-external-provider binary",
       sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "golang-dependency-provider", `${platform}-${arch}`),
+        join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
 
-      globs: ["golang-dependency-provider*"],
+      globs: ["nodejs-external-provider*"],
       assets: [
         {
           name: "analyzer-lsp-binaries.linux-amd64.zip",

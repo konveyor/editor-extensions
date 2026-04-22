@@ -45,8 +45,7 @@
   ],
   "contributes": {},
   "includedAssetPaths": {
-    "genericExternalProvider": "../../downloaded_assets/generic-external-provider",
-    "golangDependencyProvider": "../../downloaded_assets/golang-dependency-provider"
+    "goExternalProvider": "../../downloaded_assets/go-external-provider"
   },
   "scripts": {
     "clean": "rimraf out",

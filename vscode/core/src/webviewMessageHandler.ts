@@ -308,7 +308,7 @@ const actions: {
         const newActiveId =
           activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
-        state.mutateProfiles((draft) => {
+        state.mutate((draft) => {
           draft.profiles = allProfiles;
           draft.activeProfileId = newActiveId;
         });

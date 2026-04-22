@@ -112,7 +112,7 @@ interface FileItemProps {
   file: PendingBatchReviewFile;
   displayPath: string;
   isExpanded: boolean;
-  _isProcessing: boolean;
+  isProcessing: boolean;
   isBusy: boolean;
   onToggle: () => void;
   onAccept: () => void;

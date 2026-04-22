@@ -211,7 +211,7 @@ await copy({
         }
 
         packageJson.includedAssetPaths = {
-          genericExternalProvider: "./assets/generic-external-provider",
+          nodejsExternalProvider: "./assets/nodejs-external-provider",
         };
 
         return JSON.stringify(packageJson, null, 2);
@@ -234,11 +234,11 @@ await copy({
       dest: `dist/${JS_EXTENSION_NAME}/`,
     },
 
-    // seed assets - generic-external-provider binaries
+    // seed assets - nodejs-external-provider binaries
     {
-      context: "downloaded_assets/generic-external-provider",
-      src: ["*/generic-external-provider*"],
-      dest: `dist/${JS_EXTENSION_NAME}/assets/generic-external-provider`,
+      context: "downloaded_assets/nodejs-external-provider",
+      src: ["*/nodejs-external-provider*"],
+      dest: `dist/${JS_EXTENSION_NAME}/assets/nodejs-external-provider`,
     },
   ],
 });
@@ -265,8 +265,7 @@ await copy({
         }
 
         packageJson.includedAssetPaths = {
-          genericExternalProvider: "./assets/generic-external-provider",
-          golangDependencyProvider: "./assets/golang-dependency-provider",
+          goExternalProvider: "./assets/go-external-provider",
         };
 
         return JSON.stringify(packageJson, null, 2);
@@ -289,18 +288,11 @@ await copy({
       dest: `dist/${GO_EXTENSION_NAME}/`,
     },
 
-    // seed assets - generic-external-provider binaries
+    // seed assets - go-external-provider binaries
     {
-      context: "downloaded_assets/generic-external-provider",
-      src: ["*/generic-external-provider*"],
-      dest: `dist/${GO_EXTENSION_NAME}/assets/generic-external-provider`,
-    },
-
-    // seed assets - golang-dependency-provider binaries
-    {
-      context: "downloaded_assets/golang-dependency-provider",
-      src: ["*/golang-dependency-provider*"],
-      dest: `dist/${GO_EXTENSION_NAME}/assets/golang-dependency-provider`,
+      context: "downloaded_assets/go-external-provider",
+      src: ["*/go-external-provider*"],
+      dest: `dist/${GO_EXTENSION_NAME}/assets/go-external-provider`,
     },
   ],
 });
