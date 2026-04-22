@@ -188,6 +188,9 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(acceptOnSaveSettingKey, false);
     await vscodeApp.waitDefault();
+    await vscodeApp.getWindow().screenshot({
+      path: `${SCREENSHOTS_FOLDER}/disabled-auto-accept-onsave.png`,
+    });
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, false);
     await vscodeApp.openAnalysisView();
     await vscodeApp.setListKindAndSort('files', 'ascending');
@@ -199,7 +202,9 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await tabManager.saveTabFile(FILES_NAMES[1]);
     const rejectChangesBtn = vscodeApp.getWindow().getByText('Reject All Changes');
     // the diff should still be there when auto accept on save is disabled
+    await vscodeApp.waitDefault();
     await rejectChangesBtn.click();
+    await vscodeApp.assertNotification('Changes rejected and document saved', { timeout: 30_000 });
     await tabManager.saveTabFile(FILES_NAMES[1]);
     await tabManager.closeTabByName(FILES_NAMES[1]);
     await vscodeApp.executeTerminalCommand('git status', 'Changes not staged for commit', false);
@@ -207,6 +212,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   });
 
   test('Exclude diagnostic sources in agent mode', async ({ testRepoData }) => {
+    test.skip(!!process.env.WEB_ENV, 'Skipping test that requires a VS Code restart in web mode.');
     test.setTimeout(600000);
     const repoInfo = testRepoData['coolstore'];
 

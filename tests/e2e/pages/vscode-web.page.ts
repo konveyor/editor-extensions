@@ -401,7 +401,9 @@ export class VSCodeWeb extends VSCode {
       await item.click();
       await this.window.waitForTimeout(1_000);
 
-      const uninstallBtn = this.window.getByRole('button', { name: 'Uninstall' }).first();
+      const uninstallBtn = this.window
+        .getByRole('button', { name: 'Uninstall', exact: true })
+        .first();
       if (!(await uninstallBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
         console.log(
           `${ts()} [${i + 1}/${total}] No Uninstall button found (already removed or invalid), skipping.`
@@ -414,11 +416,13 @@ export class VSCodeWeb extends VSCode {
       });
       console.log(`${ts()} [${i + 1}/${total}] Clicking Uninstall...`);
       await uninstallBtn.click();
-
-      // "Uninstall All" dialog appears when other extensions depend on this one.
-      // If it appears here we still accept it — any extra removals are welcome.
+      console.log(`${ts()} [${i + 1}/${total}] Clicking Uninstall clicked...`);
       const uninstallAllBtn = this.window.getByRole('button', { name: 'Uninstall All' });
-      if (await uninstallAllBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const dialogAppeared = await uninstallAllBtn
+        .waitFor({ state: 'visible', timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (dialogAppeared) {
         console.log(`${ts()} [${i + 1}/${total}] Clicking Uninstall All...`);
         await uninstallAllBtn.click();
       }
