@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from "events";
+import { execFile } from "child_process";
 import { randomBytes } from "crypto";
 import type winston from "winston";
 import type {
@@ -30,12 +31,69 @@ export interface OpencodeClientConfig {
   opencodeModel?: string;
 }
 
+const DEFAULT_OPENCODE_PORT = 4096;
+
+/**
+ * Kill any process listening on the given port. Handles orphaned servers
+ * left behind by a previous extension host that didn't shut down cleanly.
+ */
+async function killProcessOnPort(port: number, logger: winston.Logger): Promise<void> {
+  const cmd = process.platform === "win32" ? "netstat" : "lsof";
+  const args =
+    process.platform === "win32"
+      ? ["-ano", "-p", "TCP"]
+      : ["-ti", `tcp:${port}`];
+
+  return new Promise<void>((resolve) => {
+    execFile(cmd, args, (err, stdout) => {
+      if (err || !stdout.trim()) {
+        resolve();
+        return;
+      }
+
+      if (process.platform === "win32") {
+        const pids = new Set<string>();
+        for (const line of stdout.split("\n")) {
+          if (line.includes(`:${port}`) && line.includes("LISTENING")) {
+            const pid = line.trim().split(/\s+/).pop();
+            if (pid && pid !== "0") {
+              pids.add(pid);
+            }
+          }
+        }
+        for (const pid of pids) {
+          try {
+            process.kill(Number(pid), "SIGTERM");
+            logger.info(`OpencodeAgentClient: killed orphaned process ${pid} on port ${port}`);
+          } catch {
+            // Process may have already exited
+          }
+        }
+        resolve();
+      } else {
+        // lsof -ti returns PIDs, one per line
+        const pids = stdout.trim().split("\n").filter(Boolean);
+        for (const pid of pids) {
+          try {
+            process.kill(Number(pid), "SIGTERM");
+            logger.info(`OpencodeAgentClient: killed orphaned process ${pid} on port ${port}`);
+          } catch {
+            // Process may have already exited
+          }
+        }
+        resolve();
+      }
+    });
+  });
+}
+
 // ─── OpencodeAgentClient ─────────────────────────────────────────────
 
 export class OpencodeAgentClient extends EventEmitter implements AgentClient {
   private agentState: AgentState = "stopped";
   private sessionId: string | null = null;
   private server: { url: string; close(): void } | null = null;
+  private serverAbortController: AbortController | null = null;
   private client: any | null = null;
   private eventAbortController: AbortController | null = null;
   private promptActive = false;
@@ -190,9 +248,14 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       const { createOpencodeServer } = await import("@opencode-ai/sdk");
       const { createOpencodeClient } = await import("@opencode-ai/sdk");
 
+      // Kill any orphaned server left by a previous extension host
+      await killProcessOnPort(DEFAULT_OPENCODE_PORT, this.logger);
+
+      this.serverAbortController = new AbortController();
       const server = await createOpencodeServer({
         config: Object.keys(config).length > 0 ? config : undefined,
         timeout: 30_000,
+        signal: this.serverAbortController.signal,
       });
 
       // VS Code's Node.js fetch doesn't accept a Request object as the
@@ -256,6 +319,10 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
 
       this.setState("running");
     } catch (err) {
+      if (this.serverAbortController) {
+        this.serverAbortController.abort();
+        this.serverAbortController = null;
+      }
       if (this.server) {
         try {
           this.server.close();
@@ -284,7 +351,11 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       this.eventAbortController = null;
     }
 
-    // Close server
+    // Signal the server to shut down, then call close() as a fallback
+    if (this.serverAbortController) {
+      this.serverAbortController.abort();
+      this.serverAbortController = null;
+    }
     if (this.server) {
       try {
         this.server.close();
@@ -317,8 +388,26 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     this.activeResponseMessageId = responseMessageId;
 
     try {
-      // Use the async prompt endpoint which returns 204 immediately.
-      // Actual results stream back via the SSE event subscription.
+      // promptAsync returns 204 immediately — actual results stream back
+      // via SSE events. We must wait for the prompt to finish so callers
+      // (e.g. AgentOrchestrator) don't tear down listeners prematurely.
+      const completionPromise = new Promise<string>((resolve, reject) => {
+        const onComplete = (_msgId: string, stopReason: string) => {
+          cleanup();
+          resolve(stopReason);
+        };
+        const onError = (err: Error) => {
+          cleanup();
+          reject(err);
+        };
+        const cleanup = () => {
+          this.removeListener("streamingComplete", onComplete);
+          this.removeListener("error", onError);
+        };
+        this.once("streamingComplete", onComplete);
+        this.once("error", onError);
+      });
+
       await this.client.session.promptAsync({
         path: { id: this.sessionId },
         body: {
@@ -326,9 +415,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         },
       });
 
-      // Return immediately -- streamingComplete is emitted by handleEvent
-      // when session.completed or message.updated with status=completed arrives.
-      return "end_turn";
+      return await completionPromise;
     } catch (err) {
       this.promptActive = false;
       this.activeResponseMessageId = null;

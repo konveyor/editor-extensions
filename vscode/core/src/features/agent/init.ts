@@ -315,7 +315,6 @@ export async function initializeAgent(
       fileTracker,
       mutate: ctx.mutate,
       pendingPermissions,
-      extensionState: ctx.extensionState,
     });
   });
 

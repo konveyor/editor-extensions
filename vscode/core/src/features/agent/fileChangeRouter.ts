@@ -45,7 +45,7 @@ export async function routeFileChange(
   originalContent?: string,
   forceReview = false,
 ): Promise<void> {
-  const isBatchReviewMode = forceReview || state.data.isBatchReviewMode === true;
+  const isBatchReviewMode = forceReview;
   const relativePath = normalizeFilePath(filePath, state.data.workspaceRoot);
 
   if (isBatchReviewMode) {

@@ -589,7 +589,6 @@ export class AgentOrchestrator {
       fileTracker,
       mutate: (recipe) => this.state.mutate(recipe),
       pendingPermissions,
-      extensionState: this.state,
     });
   }
 

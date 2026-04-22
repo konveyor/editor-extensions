@@ -3,8 +3,6 @@ import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-exten
 import { ChatMessageType } from "@editor-extensions/shared";
 import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
 import type { AgentFileTracker } from "./fileTracker";
-import { executeExtensionCommand } from "../../commands";
-import { routeFileChange } from "./fileChangeRouter";
 
 export {
   isReadOnlyToolCall,
@@ -177,7 +175,6 @@ export interface PermissionHandlerContext {
   fileTracker: AgentFileTracker | undefined;
   mutate: (recipe: (draft: ExtensionData) => void) => void;
   pendingPermissions: Map<string, PendingPermission>;
-  extensionState?: import("../../extensionState").ExtensionState;
 }
 
 /**
@@ -238,28 +235,6 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
   }
 
   const preview = formatPermissionPreview(data, workspaceRoot, originalContent);
-
-  const isBatchReviewMode = ctx.extensionState?.data.isBatchReviewMode === true;
-
-  // --- Batch review mode: auto-approve file edits, route to review queue ---
-  if (isBatchReviewMode && rawFilePath) {
-    const optionId = findAllowOnceOptionId(data.options);
-    if (optionId) {
-      agentClient.respondToRequest(data.requestId, {
-        outcome: { outcome: "selected", optionId },
-      });
-
-      if (ctx.extensionState) {
-        routeFileChange(
-          ctx.extensionState,
-          rawFilePath,
-          rawFileContent ?? "",
-          originalContent ?? "",
-        ).catch(() => {});
-      }
-      return;
-    }
-  }
 
   // --- Auto-approve read-only tool calls ---
   if (isReadOnlyToolCall(data.rawInput)) {
