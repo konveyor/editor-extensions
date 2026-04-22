@@ -1163,6 +1163,10 @@
 .chat-page .pf-chatbot__message-text code,
 .chat-page .pf-chatbot__message-inline-code {
   font-size: 11px !important;
+  line-height: 1.8;
+  padding: 1px 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .chat-page .pf-chatbot__message-text pre {

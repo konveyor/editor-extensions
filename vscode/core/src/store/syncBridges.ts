@@ -174,41 +174,67 @@ export function setupSyncBridges(
   );
 
   // --- Chat messages bridge ---
-  // Preserves the existing streaming optimization:
-  // - If message count is unchanged and > 0, it's a streaming update → send only the last message
-  // - Otherwise it's a structural change → send the full array
-  let previousChatMessagesLength = store.getState().chatMessages.length;
+  // Streaming text appends only touch the last message — use the throttled
+  // CHAT_STREAMING_UPDATE path for efficiency. Any other in-place change
+  // (e.g. tool status update at an earlier index) sends the full array via
+  // CHAT_STATE_CHANGE so it bypasses the webview's throttle and arrives
+  // immediately.
+  let previousChatMessages = store.getState().chatMessages;
 
   unsubscribers.push(
     store.subscribe(
       (s) => s.chatMessages,
       (chatMessages) => {
         const currentLength = chatMessages.length;
-        const isStreamingUpdate = currentLength === previousChatMessagesLength && currentLength > 0;
+        const previousLength = previousChatMessages.length;
+        const isInPlaceUpdate = currentLength === previousLength && currentLength > 0;
 
-        if (isStreamingUpdate) {
-          // Streaming chunk — send only the last message for efficiency.
-          // Create a plain object copy to avoid Immer proxy issues.
-          const lastMessage = chatMessages[currentLength - 1];
-          const plainMessage = JSON.parse(JSON.stringify(lastMessage));
+        if (isInPlaceUpdate) {
+          const lastChanged =
+            chatMessages[currentLength - 1] !== previousChatMessages[currentLength - 1];
 
-          broadcast(getProviders, {
-            type: MessageTypes.CHAT_STREAMING_UPDATE,
-            message: plainMessage,
-            messageIndex: currentLength - 1,
-            timestamp: new Date().toISOString(),
-          });
+          // Check if ONLY the last message changed (typical streaming append)
+          let onlyLastChanged = lastChanged;
+          if (lastChanged) {
+            for (let i = 0; i < currentLength - 1; i++) {
+              if (chatMessages[i] !== previousChatMessages[i]) {
+                onlyLastChanged = false;
+                break;
+              }
+            }
+          }
+
+          if (onlyLastChanged) {
+            const plainMessage = JSON.parse(
+              JSON.stringify(chatMessages[currentLength - 1]),
+            );
+            broadcast(getProviders, {
+              type: MessageTypes.CHAT_STREAMING_UPDATE,
+              message: plainMessage,
+              messageIndex: currentLength - 1,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            // Non-last message changed (e.g. tool status update) — send full
+            // array so the update bypasses the webview's streaming throttle.
+            broadcast(getProviders, {
+              type: MessageTypes.CHAT_STATE_CHANGE,
+              chatMessages,
+              previousLength,
+              timestamp: new Date().toISOString(),
+            });
+          }
         } else {
           // Structural change — send full array
           broadcast(getProviders, {
             type: MessageTypes.CHAT_STATE_CHANGE,
             chatMessages,
-            previousLength: previousChatMessagesLength,
+            previousLength,
             timestamp: new Date().toISOString(),
           });
         }
 
-        previousChatMessagesLength = currentLength;
+        previousChatMessages = chatMessages;
       },
       { equalityFn: (a, b) => a === b },
     ),
