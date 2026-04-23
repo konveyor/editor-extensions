@@ -276,16 +276,16 @@ const actions = [
     }),
   }),
 
-  // Extract generic-external-provider binaries to platform-specific directories (same as kai pattern)
+  // Extract nodejs-external-provider binaries to platform-specific directories (same as kai pattern)
   async () => ({
-    id: "generic-external-provider binaries",
+    id: "nodejs-external-provider binaries",
     meta: await unpackAssets({
-      title: "generic-external-provider binary",
+      title: "nodejs-external-provider binary",
       sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "generic-external-provider", `${platform}-${arch}`),
+        join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
 
-      globs: ["generic-external-provider*"],
+      globs: ["nodejs-external-provider*"],
       assets: [
         {
           name: "analyzer-lsp-binaries.linux-amd64.zip",
@@ -316,16 +316,56 @@ const actions = [
     }),
   }),
 
-  // Extract golang-dependency-provider binaries to platform-specific directories (same as kai pattern)
+  // Extract go-external-provider binaries to platform-specific directories (same as kai pattern)
   async () => ({
-    id: "golang-dependency-provider binaries",
+    id: "go-external-provider binaries",
     meta: await unpackAssets({
-      title: "golang-dependency-provider binary",
+      title: "go-external-provider binary",
       sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "golang-dependency-provider", `${platform}-${arch}`),
+        join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
 
-      globs: ["golang-dependency-provider*"],
+      globs: ["go-external-provider*"],
+      assets: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
+
+  // Extract konveyor-analyzer-dep binaries to platform-specific directories (same as kai pattern)
+  async () => ({
+    id: "konveyor-analyzer-dep binaries",
+    meta: await unpackAssets({
+      title: "konveyor-analyzer-dep binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "konveyor-analyzer-dep", `${platform}-${arch}`),
+
+      globs: ["konveyor-analyzer-dep*"],
       assets: [
         {
           name: "analyzer-lsp-binaries.linux-amd64.zip",
