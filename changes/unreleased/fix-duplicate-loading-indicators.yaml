@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Consolidated duplicate running indicators in chat view and fixed getSolution not showing loading state in non-experimental mode.

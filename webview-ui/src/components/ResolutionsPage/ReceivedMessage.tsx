@@ -2,7 +2,6 @@ import "./receivedMessage.css";
 import React, { useState, useEffect } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
 import { getBrandName } from "../../utils/branding";
@@ -25,7 +24,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
   ({
     content,
     extraContent,
-    isLoading: _isLoading,
+    isLoading = false,
     timestamp = new Date(),
     quickResponses,
     isProcessing = false,
@@ -59,16 +58,19 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
     };
 
     const handleQuickResponse = (responseId: string, messageToken: string) => {
-      // Update state to reflect selected response
-      // Note: Consider using React.memo or other optimization techniques if flickering persists
       setSelectedResponse(responseId);
-      window.vscode.postMessage({
-        type: "QUICK_RESPONSE",
-        payload: {
-          responseId,
-          messageToken,
-        },
-      });
+
+      if (messageToken.startsWith("perm-")) {
+        window.vscode.postMessage({
+          type: "AGENT_PERMISSION_RESPONSE",
+          payload: { messageToken, optionId: responseId },
+        });
+      } else {
+        window.vscode.postMessage({
+          type: "QUICK_RESPONSE",
+          payload: { responseId, messageToken },
+        });
+      }
     };
 
     return (
@@ -78,6 +80,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
         role="bot"
         avatar={avatar}
         content={content}
+        isLoading={isLoading}
         quickResponses={quickResponses?.map((response) => ({
           ...response,
           onClick: () => {
@@ -93,7 +96,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
               }
             : undefined
         }
-        additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
+        additionalRehypePlugins={[rehypeRaw]}
       />
     );
   },

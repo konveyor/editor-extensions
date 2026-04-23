@@ -103,6 +103,13 @@ export async function handleFileResponse(
   state: ExtensionState,
   skipAnalysis: boolean = false,
 ): Promise<void> {
+  // Normalize file: URI prefixes that Goose may include in paths
+  if (path.startsWith("file://")) {
+    path = new URL(path).pathname;
+  } else if (path.startsWith("file:")) {
+    path = path.slice("file:".length);
+  }
+
   const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });
   try {
     logger.info(`handleFileResponse called`, {
@@ -135,10 +142,7 @@ export async function handleFileResponse(
     if (responseId === "apply") {
       const uri = vscode.Uri.file(path);
       const fileMessage = state.data.chatMessages.find(
-        (msg) =>
-          msg.kind === ChatMessageType.ModifiedFile &&
-          msg.messageToken === messageToken &&
-          (msg.value as ModifiedFileMessageValue).path === path,
+        (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
       );
 
       if (!fileMessage) {
@@ -215,7 +219,7 @@ export async function handleFileResponse(
       }
 
       // Update the chat message status in the centralized state (for Accept/Reject All consistency)
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -229,7 +233,7 @@ export async function handleFileResponse(
         }
       });
     } else if (responseId === "noChanges") {
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -243,13 +247,29 @@ export async function handleFileResponse(
         }
       });
     } else {
-      // For reject, notify the solution server that the change was discarded
+      // For reject, revert the file to its original content if we have it.
+      // This is critical for the Goose flow where files are already written to
+      // disk by the time we process them.
+      const uri = vscode.Uri.file(path);
+      const fileState = state.modifiedFiles.get(uri.fsPath);
+
+      if (fileState?.originalContent) {
+        try {
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(fileState.originalContent));
+          logger.info(`Reverted file to original content: ${path}`);
+        } catch (revertError) {
+          logger.error(`Failed to revert file ${path}:`, revertError);
+          vscode.window.showErrorMessage(`Failed to revert ${path}: ${revertError}`);
+        }
+      }
+
+      // Notify the solution server that the change was discarded
       try {
         await executeExtensionCommand("changeDiscarded", path);
       } catch (error) {
         logger.error("Error notifying solution server of rejection:", error);
       }
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -311,7 +331,7 @@ export async function handleFileResponse(
         logger.info("Successfully resolved workflow interaction for modifiedFile");
 
         // Reset the waiting flag since we've resolved the interaction
-        state.mutateSolutionWorkflow((draft) => {
+        state.mutate((draft) => {
           draft.isWaitingForUserInteraction = false;
         });
       } catch (error) {

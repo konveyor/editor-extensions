@@ -137,7 +137,7 @@ export const ProfileList: React.FC<{
                         >
                           Duplicate
                         </DropdownItem>
-                       <DropdownItem
+                        <DropdownItem
                           key="delete"
                           onClick={() => {
                             setProfileToDelete(profile);

@@ -98,12 +98,12 @@ export class JavaScriptExternalProviderManager implements vscode.Disposable {
   private getProviderBinaryPath(): string {
     const packageJson = this.context.extension.packageJSON;
     const baseAssetPath =
-      packageJson.includedAssetPaths?.genericExternalProvider ||
-      "../../downloaded_assets/generic-external-provider";
+      packageJson.includedAssetPaths?.nodejsExternalProvider ||
+      "../../downloaded_assets/nodejs-external-provider";
 
     const platformArch = `${platform}-${arch}`;
     const binaryName =
-      platform === "win32" ? "generic-external-provider.exe" : "generic-external-provider";
+      platform === "win32" ? "nodejs-external-provider.exe" : "nodejs-external-provider";
 
     const binaryPath = this.context.asAbsolutePath(
       path.join(baseAssetPath, platformArch, binaryName),

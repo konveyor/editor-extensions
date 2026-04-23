@@ -8,7 +8,6 @@ import { FileEditor } from "../../utilities/ideUtils";
 import { InMemoryCacheWithRevisions } from "@editor-extensions/agentic";
 import { Logger } from "winston";
 import { ExtensionData } from "@editor-extensions/shared";
-import { Immutable } from "immer";
 import { EXTENSION_NAME } from "../../utilities/constants";
 export interface VerticalDiffCodeLens {
   start: number;
@@ -30,19 +29,17 @@ export class VerticalDiffManager {
 
   private readonly logger: Logger;
   private readonly kaiFsCache: InMemoryCacheWithRevisions<string, string>;
-  private readonly mutateDecorators: (
-    recipe: (draft: ExtensionData) => void,
-  ) => Immutable<ExtensionData>;
+  private readonly mutate: (recipe: (draft: ExtensionData) => void) => void;
 
   constructor(
     private readonly fileEditor: FileEditor,
     extensionState: ExtensionState,
   ) {
     // Destructure the properties we need from extensionState
-    const { logger, kaiFsCache, mutateDecorators } = extensionState;
+    const { logger, kaiFsCache, mutate } = extensionState;
     this.logger = logger;
     this.kaiFsCache = kaiFsCache;
-    this.mutateDecorators = mutateDecorators;
+    this.mutate = mutate;
 
     this.userChangeListener = undefined;
   }
@@ -211,7 +208,7 @@ export class VerticalDiffManager {
     // Get the streamId for this file to clear activeDecorators
     const streamId = this.fileUriToStreamId.get(fileUri);
     if (streamId) {
-      this.mutateDecorators((draft) => {
+      this.mutate((draft) => {
         if (draft.activeDecorators && draft.activeDecorators[streamId]) {
           delete draft.activeDecorators[streamId];
           this.logger.info(
@@ -299,7 +296,7 @@ export class VerticalDiffManager {
 
         // Clear activeDecorators when all decorators are resolved
         if ((status === "closed" || numDiffs === 0) && streamId) {
-          this.mutateDecorators((draft) => {
+          this.mutate((draft) => {
             if (draft.activeDecorators && draft.activeDecorators[streamId]) {
               delete draft.activeDecorators[streamId];
             }

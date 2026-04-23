@@ -22,6 +22,15 @@ export async function parseModelConfig(yamlUri: Uri): Promise<ParsedModelConfig>
   const yamlDoc = parse(yamlString);
 
   const baseEnv = yamlDoc.environment;
+
+  if (!yamlDoc.active) {
+    throw new Error(
+      "provider-settings.yaml is missing the required 'active' block. " +
+        "Please add an 'active:' section with at least 'provider' and 'args.model'. " +
+        "See sample-provider-settings.yaml for examples.",
+    );
+  }
+
   const { environment, provider, args, template, llamaHeader, llmRetries, llmRetryDelay } =
     yamlDoc.active;
 

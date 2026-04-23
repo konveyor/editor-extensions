@@ -54,7 +54,7 @@ describe("BatchedAnalysisTrigger - Prerequisites Validation for Issue #1101", ()
           } as unknown as AnalyzerClient)
         : (null as unknown as AnalyzerClient),
       data,
-      mutateAnalysisState: (recipe: (draft: any) => void) => {
+      mutate: (recipe: (draft: any) => void) => {
         recipe(data);
       },
     } as unknown as ExtensionState;
