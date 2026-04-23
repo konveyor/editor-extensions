@@ -3,6 +3,14 @@ import type { FeatureModule, FeatureContext } from "../featureRegistry";
 import { KonveyorGUIWebviewViewProvider } from "../../KonveyorGUIWebviewViewProvider";
 import type { AgentClient } from "../../client/agentClient";
 
+// Re-export skill loader types and functions
+export { buildSkillIndex, loadSkillContent, loadPrompt, getSkillWithContent } from "./skillLoader";
+export type { SkillEntry, SkillIndex } from "./skillLoader";
+
+// Re-export prompt builder
+export { buildMigrationPrompt } from "./promptBuilder";
+export type { BuildMigrationPromptOptions } from "./promptBuilder";
+
 export const agentFeatureModule: FeatureModule = {
   id: "agent",
   name: "Migration Assistant Chat",
