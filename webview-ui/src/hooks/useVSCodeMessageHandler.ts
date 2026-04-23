@@ -11,6 +11,8 @@ import {
   isAgentToolCall,
   isAgentConfigUpdate,
   ConfigErrorType,
+  ChatMessageType,
+  type ToolMessageValue,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../store/store";
 
@@ -124,6 +126,28 @@ export function useVSCodeMessageHandler() {
         // server, profiles, config errors, decorators, and settings handlers)
         if (isStateChange(message)) {
           store.batchUpdate(message.data);
+
+          // When the workflow finishes, finalize any tool messages still
+          // stuck as "running". Some backends don't send explicit tool
+          // completion events.
+          if (message.data?.isFetchingSolution === false) {
+            const msgs = store.chatMessages;
+            const hasStuck = msgs.some(
+              (m) =>
+                m.kind === ChatMessageType.Tool &&
+                (m.value as ToolMessageValue).toolStatus === "running",
+            );
+            if (hasStuck) {
+              store.setChatMessages(
+                msgs.map((m) =>
+                  m.kind === ChatMessageType.Tool &&
+                  (m.value as ToolMessageValue).toolStatus === "running"
+                    ? { ...m, value: { ...m.value, toolStatus: "succeeded" } }
+                    : m,
+                ),
+              );
+            }
+          }
           return;
         }
 

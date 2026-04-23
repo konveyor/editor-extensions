@@ -621,6 +621,19 @@ export class AgentOrchestrator {
       });
     }
 
+    // Finalize any tool messages still marked "running" — some backends
+    // (e.g. OpenCode) don't send explicit tool completion events.
+    this.state.mutate((draft) => {
+      for (const msg of draft.chatMessages) {
+        if (msg.kind === ChatMessageType.Tool) {
+          const val = msg.value as ToolMessageValue;
+          if (val.toolStatus === "running") {
+            val.toolStatus = "succeeded";
+          }
+        }
+      }
+    });
+
     this.state.mutate((draft) => {
       draft.isFetchingSolution = false;
       draft.solutionState = "received";
