@@ -4,7 +4,7 @@ import { expect, Page } from '@playwright/test';
 import { VSCode } from './vscode.page';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
-import { generateRandomString, getOSInfo } from '../utilities/utils';
+import { extensionShortName, generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { ExtensionTypes } from '../enums/extension-types.enum';
 import pathlib from 'path';
@@ -291,8 +291,8 @@ export class VSCodeWeb extends VSCode {
   }
 
   private async uninstallEditorExtensions(): Promise<void> {
-    // TODO (abrugaro): Make the search term configurable to support other brandings
-    const searchTerm = 'konveyor';
+    fs.mkdirSync(SCREENSHOTS_FOLDER, { recursive: true });
+    const searchTerm = extensionShortName.toLocaleLowerCase();
 
     console.log(`Opening Extensions view...`);
     await this.openLeftBarElement('Extensions');
