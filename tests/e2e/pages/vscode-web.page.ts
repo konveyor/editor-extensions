@@ -316,28 +316,40 @@ export class VSCodeWeb extends VSCode {
     await this.window.keyboard.press(`${modifier}+a`);
     await this.window.keyboard.press(`${modifier}+v`);
 
-    const items = this.window.locator('.extensions-list .extension-list-item');
+    const itemsLocator = this.window.locator('.extensions-list .extension-list-item');
     // Wait up to 5 s for results to appear; if none show up just skip the uninstall.
-    await expect(items.first())
+    await expect(itemsLocator.first())
       .toBeVisible({ timeout: 5_000 })
       .catch(() => {});
-    const total = await items.count();
+    const initialTotal = await itemsLocator.count();
     await this.window.screenshot({
       path: pathlib.join(SCREENSHOTS_FOLDER, 'uninstall-search-results.png'),
     });
 
-    if (total === 0) {
+    if (initialTotal === 0) {
       console.log(`No installed "${searchTerm}" extensions found, skipping uninstall.`);
       return;
     }
 
-    console.log(`Found ${total} installed "${searchTerm}" extension(s).`);
-    for (let i = 0; i < total; i++) {
-      const item = items.nth(i);
-      const itemText = (await item.textContent().catch(() => ''))?.trim().slice(0, 60) ?? '?';
-      console.log(`[${i + 1}/${total}] Opening detail for: "${itemText}"...`);
+    console.log(`Found ${initialTotal} installed "${searchTerm}" extension(s).`);
 
-      await item.click();
+    // Re-query the list on every iteration: "Uninstall All" can remove multiple extensions
+    // at once, causing previously captured locators/indices to become stale or point to
+    // non-existent DOM nodes.
+    let attempt = 0;
+    while ((await itemsLocator.count()) > 0) {
+      attempt++;
+      const item = itemsLocator.first();
+      const itemText = (await item.textContent().catch(() => ''))?.trim().slice(0, 60) ?? '?';
+      console.log(`[attempt ${attempt}] Opening detail for: "${itemText}"...`);
+
+      const isAttached = await item.isVisible({ timeout: 5_000 }).catch(() => false);
+      if (!isAttached) {
+        console.log(`[attempt ${attempt}] Item no longer visible, stopping.`);
+        break;
+      }
+
+      await item.click({ force: true });
       await this.window.waitForTimeout(1_000);
 
       const uninstallBtn = this.window
@@ -345,15 +357,17 @@ export class VSCodeWeb extends VSCode {
         .first();
       if (!(await uninstallBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
         console.log(
-          `[${i + 1}/${total}] No Uninstall button found (already removed or invalid), skipping.`
+          `[attempt ${attempt}] No Uninstall button found (already removed or invalid), skipping.`
         );
-        continue;
+        // Move on: if the first item has no uninstall button but others might, break to avoid
+        // an infinite loop.
+        break;
       }
 
       await this.window.screenshot({
-        path: pathlib.join(SCREENSHOTS_FOLDER, `uninstall-detail-${i}.png`),
+        path: pathlib.join(SCREENSHOTS_FOLDER, `uninstall-detail-${attempt}.png`),
       });
-      console.log(`[${i + 1}/${total}] Clicking Uninstall...`);
+      console.log(`[attempt ${attempt}] Clicking Uninstall...`);
       await uninstallBtn.click({ force: true });
       const uninstallAllBtn = this.window.getByRole('button', { name: 'Uninstall All' });
       const dialogAppeared = await uninstallAllBtn
@@ -361,11 +375,11 @@ export class VSCodeWeb extends VSCode {
         .then(() => true)
         .catch(() => false);
       if (dialogAppeared) {
-        console.log(`[${i + 1}/${total}] Clicking Uninstall All...`);
+        console.log(`[attempt ${attempt}] Clicking Uninstall All...`);
         await uninstallAllBtn.click();
       }
 
-      console.log(`[${i + 1}/${total}] Uninstalled.`);
+      console.log(`[attempt ${attempt}] Uninstalled.`);
       await this.window.waitForTimeout(1_000);
     }
 
