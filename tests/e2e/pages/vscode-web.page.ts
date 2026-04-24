@@ -333,9 +333,6 @@ export class VSCodeWeb extends VSCode {
 
     console.log(`Found ${initialTotal} installed "${searchTerm}" extension(s).`);
 
-    // Re-query the list on every iteration: "Uninstall All" can remove multiple extensions
-    // at once, causing previously captured locators/indices to become stale or point to
-    // non-existent DOM nodes.
     let attempt = 0;
     while ((await itemsLocator.count()) > 0) {
       attempt++;
@@ -359,8 +356,6 @@ export class VSCodeWeb extends VSCode {
         console.log(
           `[attempt ${attempt}] No Uninstall button found (already removed or invalid), skipping.`
         );
-        // Move on: if the first item has no uninstall button but others might, break to avoid
-        // an infinite loop.
         break;
       }
 
