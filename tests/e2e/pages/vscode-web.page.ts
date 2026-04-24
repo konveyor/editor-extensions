@@ -354,7 +354,7 @@ export class VSCodeWeb extends VSCode {
         path: pathlib.join(SCREENSHOTS_FOLDER, `uninstall-detail-${i}.png`),
       });
       console.log(`[${i + 1}/${total}] Clicking Uninstall...`);
-      await uninstallBtn.click();
+      await uninstallBtn.click({ force: true });
       const uninstallAllBtn = this.window.getByRole('button', { name: 'Uninstall All' });
       const dialogAppeared = await uninstallAllBtn
         .waitFor({ state: 'visible', timeout: 3_000 })
