@@ -232,8 +232,8 @@
     "sources": [],
     "targets": ["patternfly-v6"],
     "customRulesFolder": "data/rulesets/patternfly",
-    "issuesCount": 39,
-    "incidentsCount": 361,
+    "issuesCount": 50,
+    "incidentsCount": 447,
     "issues": [
       {
         "title": "--pf-v5-global should be replaced with --pf-v6-global",

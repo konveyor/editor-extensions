@@ -4,7 +4,7 @@ import { expect, Page } from '@playwright/test';
 import { VSCode } from './vscode.page';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
-import { generateRandomString, getOSInfo } from '../utilities/utils';
+import { extensionShortName, generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { ExtensionTypes } from '../enums/extension-types.enum';
 import pathlib from 'path';
@@ -29,6 +29,7 @@ export class VSCodeWeb extends VSCode {
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       storageState: './web-state.json',
+      permissions: ['clipboard-read', 'clipboard-write'],
     });
 
     const page = await context.newPage();
@@ -38,25 +39,13 @@ export class VSCodeWeb extends VSCode {
       throw new Error('VSCodeWeb.open: User is not logged in.');
     }
 
+    console.log(`VSCodeWeb.open: navigating to dashboard`);
     await page.goto(`${process.env.WEB_BASE_URL}/dashboard/#/workspaces/`);
     await page.getByRole('heading', { name: 'Workspaces', exact: true }).waitFor();
 
     let newPage;
-    const repoRow = page.locator('tbody tr', { hasText: repoDir }).first();
-
-    // Creates a new workspace or reuses one that already exists for the same repository
-    if (!(await repoRow.isVisible())) {
-      console.log('VSCodeWeb.open: Creating new workspace...');
-      newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
-    } else {
-      console.log('VSCodeWeb.open: Found existing workspace');
-      console.log(await repoRow.allTextContents());
-
-      [newPage] = await Promise.all([
-        context.waitForEvent('page'),
-        repoRow.getByRole('button', { name: 'Open' }).first().click(),
-      ]);
-    }
+    console.log(`VSCodeWeb.open: Creating new workspace...`);
+    newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
 
     const vscode = new VSCodeWeb(newPage, repoDir, branch);
     await newPage.waitForLoadState();
@@ -66,6 +55,7 @@ export class VSCodeWeb extends VSCode {
     const startingWorkspaceHeading = newPage.getByRole('heading', {
       name: /Starting workspace|Creating a workspace/,
     });
+    console.log(`VSCodeWeb.open: waiting for workspace start heading`);
     await expect(startingWorkspaceHeading).toBeVisible({ timeout: 300_000 });
 
     // Wait for the "Checking for the limit of running workspaces" step to complete (success or failure)
@@ -77,10 +67,11 @@ export class VSCodeWeb extends VSCode {
 
     await expect(stepFailedIcon.or(stepDoneIcon)).toBeVisible({ timeout: 300_000 });
 
+    console.log(`VSCodeWeb.open: workspace limit step resolved`);
     if (await stepFailedIcon.isVisible()) {
-      console.log('VSCodeWeb.open: Found running workspace limit issue, closing and restarting...');
+      console.log(`VSCodeWeb.open: Found running workspace limit issue, closing and restarting...`);
       const closeRunningWorkspaceButton = newPage.getByRole('button', {
-        name: /Close running workspace .* and restart/,
+        name: 'Close running workspace',
       });
       await expect(closeRunningWorkspaceButton).toBeVisible({ timeout: 30_000 });
       await closeRunningWorkspaceButton.click();
@@ -93,14 +84,14 @@ export class VSCodeWeb extends VSCode {
     await expect(newPage.getByRole('heading', { name: 'Explorer', exact: true })).toBeVisible({
       timeout: 150_000,
     });
-    console.log('VSCodeWeb.open: Workspace started');
+    console.log(`VSCodeWeb.open: Workspace started`);
 
     try {
       await newPage
         .getByRole('button', { name: 'Yes, I trust the authors' })
         .click({ timeout: 30_000 });
     } catch (error) {
-      console.log('VSCodeWeb.open: Trust button not found, trying to continue', error);
+      console.log('VSCodeWeb.open: Trust button not found, trying to continue');
     }
 
     await expect(
@@ -111,7 +102,7 @@ export class VSCodeWeb extends VSCode {
     await expect(newPage.locator('a.statusbar-item-label').filter({ hasText: 'Mem:' })).toBeVisible(
       { timeout: 300_000 }
     );
-    console.log('VSCodeWeb.open: Metrics loaded');
+    console.log(`VSCodeWeb.open: Metrics loaded`);
 
     // TODO: Replace this waiting
     await newPage.waitForTimeout(30_000);
@@ -133,13 +124,12 @@ export class VSCodeWeb extends VSCode {
       `git restore --staged . && git checkout . && git clean -df && git checkout ${vscode.branch}`
     );
 
-    const navLi = newPage.locator(`a[aria-label^="${VSCode.COMMAND_CATEGORY}"]`).locator('..');
-    if (!(await navLi.isVisible())) {
-      // TODO rest of the extensions
-      await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
-    } else {
-      console.log('Extensions already installed');
-    }
+    await vscode.uninstallEditorExtensions();
+
+    console.log(`VSCodeWeb.open: starting installExtensions`);
+    // TODO rest of the extensions
+    await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
+    console.log(`VSCodeWeb.open: installExtensions done`);
 
     await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
     const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
@@ -150,12 +140,10 @@ export class VSCodeWeb extends VSCode {
       console.log('VSCodeWeb.open: Java extension is NOT in lightweight mode');
       console.log(await newPage.getByRole('button', { name: 'Java:' }).allTextContents());
     }
-    await newPage.screenshot({
-      path: pathlib.join(SCREENSHOTS_FOLDER, `java-button.png`),
-    });
-
+    console.log(`VSCodeWeb.open: waiting for Java ready`);
     const javaReadySelector = newPage.getByRole('button', { name: /Java: (Ready|Warning)/ });
     await javaReadySelector.waitFor({ timeout: 180_000 });
+    console.log(`VSCodeWeb.open: open() complete`);
     return vscode;
   }
 
@@ -180,7 +168,10 @@ export class VSCodeWeb extends VSCode {
       );
     }
     const browser = await chromium.launch();
-    const contextOptions: BrowserContextOptions = { ignoreHTTPSErrors: true };
+    const contextOptions: BrowserContextOptions = {
+      ignoreHTTPSErrors: true,
+      permissions: ['clipboard-read', 'clipboard-write'],
+    };
     if (existsSync('./web-state.json')) {
       contextOptions.storageState = './web-state.json';
     }
@@ -241,8 +232,10 @@ export class VSCodeWeb extends VSCode {
 
     const path = await import('path');
     const glob = await import('glob');
+    // Dynamic import of a CJS module returns { default: module }, so sync lives under default
+    const syncFn = glob.default.sync ?? (glob as any).sync;
 
-    const yamlFiles = glob.sync(path.join(customRulesPath, '**/*.yaml'));
+    const yamlFiles = syncFn(path.join(customRulesPath, '**/*.yaml'));
     if (yamlFiles.length === 0) {
       throw new Error(`No YAML files found in ${customRulesPath}`);
     }
@@ -297,6 +290,101 @@ export class VSCodeWeb extends VSCode {
     return this.window;
   }
 
+  private async uninstallEditorExtensions(): Promise<void> {
+    fs.mkdirSync(SCREENSHOTS_FOLDER, { recursive: true });
+    const searchTerm = extensionShortName.toLocaleLowerCase();
+
+    console.log(`Opening Extensions view...`);
+    await this.openLeftBarElement('Extensions');
+    const searchContainer = this.window.locator(
+      '.extensions-search-container .suggest-input-container'
+    );
+    await expect(searchContainer).toBeVisible({ timeout: 10_000 });
+
+    const clearBtn = this.window.getByRole('button', { name: 'Clear Extensions Search Results' });
+    if (await clearBtn.isEnabled()) {
+      console.log(`uninstallEditorExtensions: clearing previous search...`);
+      await clearBtn.click();
+    }
+    await searchContainer.click();
+    console.log(`uninstallEditorExtensions: pasting search term via clipboard...`);
+    await this.window.evaluate(
+      (text) => navigator.clipboard.writeText(text),
+      `@installed ${searchTerm}`
+    );
+    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+    await this.window.keyboard.press(`${modifier}+a`);
+    await this.window.keyboard.press(`${modifier}+v`);
+
+    const items = this.window.locator('.extensions-list .extension-list-item');
+    // Wait up to 5 s for results to appear; if none show up just skip the uninstall.
+    await expect(items.first())
+      .toBeVisible({ timeout: 5_000 })
+      .catch(() => {});
+    const total = await items.count();
+    await this.window.screenshot({
+      path: pathlib.join(SCREENSHOTS_FOLDER, 'uninstall-search-results.png'),
+    });
+
+    if (total === 0) {
+      console.log(`No installed "${searchTerm}" extensions found, skipping uninstall.`);
+      return;
+    }
+
+    console.log(`Found ${total} installed "${searchTerm}" extension(s).`);
+    for (let i = 0; i < total; i++) {
+      const item = items.nth(i);
+      const itemText = (await item.textContent().catch(() => ''))?.trim().slice(0, 60) ?? '?';
+      console.log(`[${i + 1}/${total}] Opening detail for: "${itemText}"...`);
+
+      await item.click();
+      await this.window.waitForTimeout(1_000);
+
+      const uninstallBtn = this.window
+        .getByRole('button', { name: 'Uninstall', exact: true })
+        .first();
+      if (!(await uninstallBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
+        console.log(
+          `[${i + 1}/${total}] No Uninstall button found (already removed or invalid), skipping.`
+        );
+        continue;
+      }
+
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `uninstall-detail-${i}.png`),
+      });
+      console.log(`[${i + 1}/${total}] Clicking Uninstall...`);
+      await uninstallBtn.click();
+      const uninstallAllBtn = this.window.getByRole('button', { name: 'Uninstall All' });
+      const dialogAppeared = await uninstallAllBtn
+        .waitFor({ state: 'visible', timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (dialogAppeared) {
+        console.log(`[${i + 1}/${total}] Clicking Uninstall All...`);
+        await uninstallAllBtn.click();
+      }
+
+      console.log(`[${i + 1}/${total}] Uninstalled.`);
+      await this.window.waitForTimeout(1_000);
+    }
+
+    await this.window.screenshot({
+      path: pathlib.join(SCREENSHOTS_FOLDER, 'after-uninstall.png'),
+    });
+
+    console.log(`Reloading window to apply uninstalls...`);
+    try {
+      await this.executeQuickCommand('Developer: Reload Window');
+    } catch {
+      // Page may start reloading before the command completes — ignore
+    }
+    console.log(`Waiting for VS Code to come back...`);
+    await expect(
+      this.window.locator('a.statusbar-item-label').filter({ hasText: 'Mem:' })
+    ).toBeVisible({ timeout: 300_000 });
+  }
+
   private static async createWorkspace(
     ctx: BrowserContext,
     page: Page,
@@ -322,20 +410,64 @@ export class VSCodeWeb extends VSCode {
   }
 
   /**
-   * Downloads a file by URL into the workspace
+   * Downloads a file by URL into the workspace.
+   * Detection is done via the Explorer view instead of terminal output because
+   * DevSpaces uses a canvas-based xterm.js renderer, making terminal text inaccessible to Playwright.
    * @param url
    * @private
    */
   private async getFileByUrl(url: string): Promise<string> {
     const extensionFileName = `${url.split('/').pop()}-${generateRandomString()}.vsix`;
+    const tmpName = `${extensionFileName}.downloading`;
+    // Download to a temp name and rename on success so the final file only
+    // appears in the Explorer once the download is fully complete
     await this.executeTerminalCommand(
-      `clear && wget ${url} -O ${extensionFileName}`,
-      `‘${extensionFileName}’ saved`
+      `wget ${url} -O ${tmpName} && mv ${tmpName} ${extensionFileName}`
     );
+    // Wait for the file to appear in the Explorer (DOM-accessible, unlike terminal canvas output)
+    await this.openLeftBarElement('Explorer');
+    const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
+      hasText: extensionFileName,
+    });
+    await expect(fileItem, `Extension download timed out: ${extensionFileName}`).toBeVisible({
+      timeout: 180_000,
+    });
     return extensionFileName;
   }
 
   private async installExtensions(extensions: ExtensionTypes[]) {
+    fs.mkdirSync(SCREENSHOTS_FOLDER, { recursive: true });
+
+    // Force konveyor extensions onto the REMOTE/workspace extension host in DevSpaces.
+    // Without this override, VS Code follows the extension's own `extensionKind` (which may
+    // prefer "ui"/local), causing konveyor-java to land in the browser extension host where
+    // it cannot access the remote filesystem or run the Java analyzer binary.
+    // `remote.extensionKind` is a machine-scoped setting that must go into User Settings
+    // (not workspace/.vscode/settings.json) and requires a window reload to take effect.
+    await this.openWorkspaceSettingsAndWrite({
+      'remote.extensionKind': {
+        'konveyor.konveyor-core': ['workspace'],
+        'konveyor.konveyor-java': ['workspace'],
+      },
+    });
+
+    // Reload the window so the remote.extensionKind setting takes effect before installation.
+    // This setting is only applied at startup/reload, not dynamically.
+    console.log(
+      'VSCodeWeb.installExtensions: Reloading window to apply remote.extensionKind setting...'
+    );
+    try {
+      await this.executeQuickCommand('Developer: Reload Window');
+    } catch {
+      // Page may start reloading before executeQuickCommand's final waitForTimeout completes — ignore
+    }
+    // Wait for VS Code to fully come back after the reload
+    await expect(
+      this.window.locator('a.statusbar-item-label').filter({ hasText: 'Mem:' })
+    ).toBeVisible({ timeout: 300_000 });
+    await this.window.waitForTimeout(10_000);
+    console.log('VSCodeWeb.installExtensions: Window reloaded, proceeding with installation.');
+
     for (const extension of extensions) {
       console.log('VSCodeWeb.installExtensions: Installing extension', extension);
       const vsixPath = process.env[`${extension}_VSIX_FILE_PATH`];
@@ -354,17 +486,67 @@ export class VSCodeWeb extends VSCode {
         );
       }
 
-      await this.executeQuickCommand(`Extensions: Install from VSIX...`);
-      const pathInput = this.window.locator('.quick-input-box input');
-      await expect(pathInput).toHaveValue('/home/user/', { timeout: 30_000 });
-      await pathInput.fill(`/projects/${this.repoDir}/${extensionFileName}`);
-      await expect(
-        this.window.locator('.quick-input-list-entry').filter({ hasText: extensionFileName })
-      ).toBeVisible({ timeout: 30_000 });
-      await this.window.getByRole('button', { name: 'Install' }).click();
-      await expect(
-        this.window.getByText('Completed installing extension.', { exact: true })
-      ).toBeVisible({ timeout: 300_000 });
+      console.log(
+        `VSCodeWeb.installExtensions: Installing ${extension} via Explorer right-click...`
+      );
+      try {
+        // Dismiss any leftover notifications BEFORE opening the context menu — calling
+        // executeQuickCommand after right-click would close the context menu.
+        await this.executeQuickCommand('Notifications: Clear All Notifications').catch(() => {});
+
+        await this.openLeftBarElement('Explorer');
+        const fileItem = this.window.locator(`.explorer-folders-view .monaco-list-row`, {
+          hasText: extensionFileName,
+        });
+        await expect(fileItem).toBeVisible({ timeout: 30_000 });
+        const installMenuItem = this.window.locator(
+          `div.context-view .monaco-menu a.action-menu-item`,
+          { hasText: /Install Extension VSIX/i }
+        );
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          await fileItem.click({ button: 'right' });
+          const found = await installMenuItem
+            .first()
+            .isVisible({ timeout: 10_000 })
+            .catch(() => false);
+          if (found) {
+            console.log(
+              `VSCodeWeb.installExtensions: "Install Extension VSIX" found on attempt ${attempt}.`
+            );
+            break;
+          }
+          console.log(
+            `VSCodeWeb.installExtensions: "Install Extension VSIX" not in menu yet, closing and retrying...`
+          );
+          await this.window.keyboard.press('Escape');
+          if (attempt === maxAttempts) {
+            throw new Error(
+              `"Install Extension VSIX" not found in context menu after ${maxAttempts} attempts`
+            );
+          }
+          await this.window.waitForTimeout(10_000);
+        }
+
+        await this.window.screenshot({
+          path: pathlib.join(SCREENSHOTS_FOLDER, `context-menu-${extension}.png`),
+        });
+        console.log(`VSCodeWeb.installExtensions: Clicking Install Extension VSIX...`);
+        await installMenuItem.first().click({ force: true });
+        console.log(`VSCodeWeb.installExtensions: Waiting for installation to complete...`);
+        const completionLocator = this.window
+          .locator('.notification-list-item-message', {
+            hasText: /Completed installing extension/i,
+          })
+          .or(this.window.getByText(/Completed installing extension/i).first());
+        await expect(completionLocator.first()).toBeVisible({ timeout: 600_000 });
+      } catch (error) {
+        console.log(`VSCodeWeb.installExtensions: Error installing ${extension}:`, error);
+        await this.window.screenshot({
+          path: pathlib.join(SCREENSHOTS_FOLDER, `install-extension-failed-${extension}.png`),
+        });
+        throw error;
+      }
       console.log(`VSCodeWeb.installExtensions: ${extension} extension installed`);
       await this.waitDefault();
     }
