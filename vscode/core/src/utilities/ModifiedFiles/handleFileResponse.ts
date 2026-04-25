@@ -204,11 +204,20 @@ export async function handleFileResponse(
       }
 
       // Notify solution server of the change
+      // Read from disk to capture any in-place edits the user made before accepting
       try {
         if (isDeleted) {
           await executeExtensionCommand("changeDiscarded", path);
         } else {
-          await executeExtensionCommand("changeApplied", path, fileContent);
+          let finalContent = fileContent;
+          try {
+            const diskBytes = await vscode.workspace.fs.readFile(uri);
+            finalContent = new TextDecoder().decode(diskBytes);
+            logger.info(`Using on-disk content for solution server (captures in-place edits): ${path}`);
+          } catch (readError) {
+            logger.warn(`Could not read disk content, using original content: ${path}`, readError);
+          }
+          await executeExtensionCommand("changeApplied", path, finalContent);
         }
       } catch (error) {
         logger.error("Error notifying solution server:", error);
