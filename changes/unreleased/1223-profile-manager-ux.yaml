@@ -1,0 +1,4 @@
+kind: enhancement
+description: >
+  Improved Profile Manager UI/UX with masthead split button for New Profile/Import actions,
+  PatternFly EmptyState component, compact SimpleList layout, and independent scrolling panels.

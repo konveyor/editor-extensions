@@ -58,13 +58,13 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
     const errorMessage = profileView.locator('.pf-m-error', {
       hasText: 'A profile with this name already exists.',
     });
-    await profileView.getByRole('button', { name: '+ New Profile' }).click();
+    await profileView.getByRole('button', { name: 'New Profile' }).click();
     await profileView.getByRole('textbox', { name: 'Profile Name' }).fill(existingProfileName);
     const sourceInput = profileView.getByRole('combobox', { name: 'Type to filter' }).nth(1);
     await sourceInput.click({ delay: 500 });
     await expect(errorMessage).toBeVisible();
     // Cleanup: deleting immediately to prevent afterAll cleanup from failing, when multiple profiles share the same name.
-    const deleteButton = profileView.getByRole('button', { name: 'Delete Profile' });
+    const deleteButton = profileView.getByRole('button', { name: 'Delete' });
     await deleteButton.waitFor({ state: 'visible', timeout: 10000 });
     // Ensures the button is clicked even if there are notifications overlaying it due to screen size
     await deleteButton.first().dispatchEvent('click');
