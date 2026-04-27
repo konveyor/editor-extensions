@@ -99,10 +99,6 @@ export const batchReviewHandlers: Record<
     try {
       logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
 
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = true;
-      });
-
       for (const file of files) {
         try {
           const absPath = resolveAbsolutePath(file.path, state);
@@ -157,10 +153,6 @@ export const batchReviewHandlers: Record<
       vscode.window.showErrorMessage(
         "An unexpected error occurred while applying files. Check the output for details.",
       );
-    } finally {
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
     }
   },
 
@@ -169,10 +161,6 @@ export const batchReviewHandlers: Record<
 
     try {
       logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
-
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = true;
-      });
 
       for (const file of files) {
         try {
@@ -216,10 +204,6 @@ export const batchReviewHandlers: Record<
       vscode.window.showErrorMessage(
         "An unexpected error occurred while rejecting files. Check the output for details.",
       );
-    } finally {
-      state.mutate((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
     }
   },
 };

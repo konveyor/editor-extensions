@@ -16,12 +16,12 @@ import {
 import { pendingPermissions } from "./init";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
-import type { AgentClient } from "../../client/agentClient";
+import type { AcpClient } from "../../client/acpClient";
 import { executeExtensionCommand } from "../../commands";
 import { getConfigAgentBackend } from "../../utilities/configuration";
 
-function getAgentClient(state: ExtensionState): AgentClient | undefined {
-  return state.featureClients.get("agentClient") as AgentClient | undefined;
+function getAgentClient(state: ExtensionState): AcpClient | undefined {
+  return state.featureClients.get("agentClient") as AcpClient | undefined;
 }
 
 export const agentMessageHandlers: Record<
@@ -232,10 +232,10 @@ export const agentMessageHandlers: Record<
 
   [AGENT_INSTALL_CLI]: async (_payload, state, logger) => {
     try {
-      const terminal = vscode.window.createTerminal({ name: "Install Agent CLI" });
-      terminal.show();
-
       const backend = getConfigAgentBackend();
+      const label = backend.charAt(0).toUpperCase() + backend.slice(1);
+      const terminal = vscode.window.createTerminal({ name: `Install ${label} CLI` });
+      terminal.show();
 
       let installCmd: string;
       if (backend === "opencode") {
@@ -270,12 +270,10 @@ export const agentMessageHandlers: Record<
   },
 
   [AGENT_OPEN_SETTINGS]: async () => {
-    const backend = getConfigAgentBackend();
-    const settingsKey =
-      backend === "opencode"
-        ? "konveyor-core.experimentalChat.opencodeBinaryPath"
-        : "konveyor-core.experimentalChat.gooseBinaryPath";
-    await vscode.commands.executeCommand("workbench.action.openSettings", settingsKey);
+    await vscode.commands.executeCommand(
+      "workbench.action.openSettings",
+      "konveyor-core.experimentalChat.agentBinaryPath",
+    );
   },
 
   AGENT_WEBVIEW_READY: async (_payload, state, _logger) => {

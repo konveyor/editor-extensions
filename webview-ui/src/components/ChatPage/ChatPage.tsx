@@ -64,7 +64,6 @@ const ChatPage: React.FC = () => {
   const enhancedIncidents = useExtensionStore((s) => s.enhancedIncidents);
   const ruleSets = useExtensionStore((s) => s.ruleSets);
   const analysisProgress = useExtensionStore((s) => s.analysisProgress) ?? 0;
-  const isWaitingForUserInteraction = useExtensionStore((s) => s.isWaitingForUserInteraction);
   const isProcessing = isFetchingSolution || isAnalyzing;
   const hasWorkflowContent = Array.isArray(chatMessages) && chatMessages.length > 0;
   const hasPendingPermission = chatMessages.some(
@@ -743,14 +742,12 @@ const ChatPage: React.FC = () => {
                     </div>
                   )}
                   {isFetchingSolution && (
-                    <div className={`chat-solution-indicator${hasPendingPermission || isWaitingForUserInteraction ? " chat-solution-indicator--waiting" : ""}`}>
+                    <div className={`chat-solution-indicator${hasPendingPermission ? " chat-solution-indicator--waiting" : ""}`}>
                       <LoadingIndicator />
                       <span className="chat-solution-indicator__label">
                         {hasPendingPermission
                           ? "Waiting for your approval above..."
-                          : isWaitingForUserInteraction
-                            ? "Waiting for your response above..."
-                            : "Working on migration fix..."}
+                          : "Working on migration fix..."}
                       </span>
                     </div>
                   )}

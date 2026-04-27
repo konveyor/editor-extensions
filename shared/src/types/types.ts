@@ -157,10 +157,8 @@ export interface ExtensionData {
   solutionServerEnabled: boolean;
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
-  isWaitingForUserInteraction?: boolean;
   hubConfig: HubConfig | undefined;
   hubForced?: boolean;
-  isProcessingQueuedMessages?: boolean;
   profileSyncEnabled: boolean;
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;

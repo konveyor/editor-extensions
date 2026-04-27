@@ -45,7 +45,6 @@ import {
   saveUserProfiles,
   setActiveProfileId,
 } from "./utilities/profiles/profileService";
-import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
 import winston from "winston";
 import { updateConfigErrors } from "./utilities/configuration";
 import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
@@ -492,8 +491,21 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
     }
   },
-  QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
-    handleQuickResponse(messageToken, responseId, state);
+  QUICK_RESPONSE: async ({ responseId, messageToken }, state, logger) => {
+    logger.info("Quick response received", { responseId, messageToken });
+
+    // Mark the selected response in the chat message
+    state.mutate((draft) => {
+      const msg = draft.chatMessages.find((m) => m.messageToken === messageToken);
+      if (msg) {
+        msg.selectedResponse = responseId;
+      }
+    });
+
+    // Dispatch known actions
+    if (responseId === "run-analysis") {
+      executeExtensionCommand("runAnalysis");
+    }
   },
 
   [RUN_ANALYSIS]() {
@@ -543,60 +555,26 @@ const actions: {
   [STOP_WORKFLOW]: async (_payload, state, logger) => {
     logger.info("Stop workflow requested by user");
 
-    if (!state.workflowManager?.isInitialized) {
-      logger.warn("No active workflow to stop");
-      return;
-    }
+    // Update state to reflect workflow stopped
+    state.mutate((draft) => {
+      draft.isFetchingSolution = false;
+      draft.solutionState = "none";
+    });
 
-    try {
-      // Stop the workflow - this rejects all pending promises
-      const workflow = state.workflowManager.getWorkflow();
-      workflow.stop();
-
-      // Clean up queue manager
-      if (state.currentQueueManager) {
-        state.currentQueueManager.dispose();
-        state.currentQueueManager = undefined;
-      }
-
-      // Clear pending interactions
-      if (state.pendingInteractionsMap) {
-        state.pendingInteractionsMap.clear();
-        state.pendingInteractionsMap = undefined;
-      }
-      state.resolvePendingInteraction = undefined;
-
-      // Update state to reflect workflow stopped
-      state.mutate((draft) => {
-        draft.isFetchingSolution = false;
-        draft.solutionState = "none";
-        draft.isWaitingForUserInteraction = false;
-        draft.isProcessingQueuedMessages = false;
+    // Add a message to the chat indicating the workflow was stopped
+    state.mutate((draft) => {
+      draft.chatMessages.push({
+        messageToken: `stopped-${Date.now()}`,
+        kind: ChatMessageType.String,
+        value: {
+          message:
+            "Workflow stopped by user. You can return to the analysis view to select a different issue to fix.",
+        },
+        timestamp: new Date().toISOString(),
       });
+    });
 
-      // Add a message to the chat indicating the workflow was stopped
-      state.mutate((draft) => {
-        draft.chatMessages.push({
-          messageToken: `stopped-${Date.now()}`,
-          kind: ChatMessageType.String,
-          value: {
-            message:
-              "Workflow stopped by user. You can return to the analysis view to select a different issue to fix.",
-          },
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      // Dispose workflow manager
-      if (state.workflowManager.dispose) {
-        state.workflowManager.dispose();
-      }
-
-      logger.info("Workflow stopped successfully");
-    } catch (error) {
-      logger.error("Error stopping workflow:", error);
-      vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
-    }
+    logger.info("Workflow stopped successfully");
   },
   UPDATE_MODEL_PROVIDER_CONFIG: async (payload, state, logger) => {
     const { provider, model, credentials, agentMode } = payload as {

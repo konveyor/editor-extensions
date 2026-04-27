@@ -3,11 +3,6 @@ import * as vscode from "vscode";
 import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
-import {
-  KaiWorkflowMessage,
-  KaiWorkflowMessageType,
-  KaiUserInteraction,
-} from "@editor-extensions/agentic";
 
 /**
  * Creates a new file with the specified content
@@ -116,8 +111,6 @@ export async function handleFileResponse(
       messageToken,
       responseId,
       path,
-      hasPendingInteraction: state.pendingInteractionsMap?.has(messageToken) ?? false,
-      totalPendingInteractions: state.pendingInteractionsMap?.size ?? 0,
     });
 
     const messageIndex = state.data.chatMessages.findIndex(
@@ -130,12 +123,6 @@ export async function handleFileResponse(
         totalChatMessages: state.data.chatMessages.length,
         chatMessageTokens: state.data.chatMessages.map((m) => m.messageToken),
       });
-
-      // This might be a stale interaction - clean it up
-      if (state.resolvePendingInteraction) {
-        logger.warn("Attempting to resolve stale pending interaction");
-        state.resolvePendingInteraction(messageToken, { responseId, path });
-      }
       return;
     }
 
@@ -282,77 +269,6 @@ export async function handleFileResponse(
           modifiedFileMessage.status = "rejected";
         }
       });
-    }
-
-    // With batch review, ModifiedFile messages don't create workflow interactions
-    // All file responses are handled through the BatchReviewModal UI
-    // We just need to update the status and notify the solution server (already done above)
-
-    // Resolve the workflow interaction for modifiedFile type
-    // This is needed to complete the promise-based flow in the agentic workflow
-    // Only attempt to access workflow if it's initialized (agent mode)
-    const fileMessage = state.data.chatMessages.find(
-      (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
-    );
-
-    logger.debug(`[handleFileResponse] Found fileMessage for token ${messageToken}:`, {
-      found: !!fileMessage,
-      value: fileMessage?.value,
-    });
-
-    const fileMessageValue = fileMessage ? (fileMessage.value as ModifiedFileMessageValue) : null;
-    const hasUserInteraction = fileMessageValue?.userInteraction;
-
-    if (state.workflowManager?.isInitialized) {
-      try {
-        const workflow = state.workflowManager.getWorkflow();
-
-        // Build the data object conditionally
-        const interactionData: KaiUserInteraction = {
-          type: "modifiedFile" as any, // Using 'as any' since modifiedFile type might not be in the enum
-          systemMessage: {},
-        };
-
-        // Only add response field if there's user interaction
-        if (hasUserInteraction) {
-          interactionData.response = {
-            yesNo: responseId === "apply",
-          };
-        }
-
-        const workflowMessage: KaiWorkflowMessage = {
-          id: messageToken || fileMessageValue?.messageToken || "",
-          type: KaiWorkflowMessageType.UserInteraction,
-          data: interactionData,
-        };
-
-        await workflow.resolveUserInteraction(workflowMessage);
-
-        logger.info("Successfully resolved workflow interaction for modifiedFile");
-
-        // Reset the waiting flag since we've resolved the interaction
-        state.mutate((draft) => {
-          draft.isWaitingForUserInteraction = false;
-        });
-      } catch (error) {
-        logger.error("Error resolving workflow interaction:", error);
-      }
-    }
-
-    // Also resolve the pending interaction with the UserInteraction ID
-    if (state.resolvePendingInteraction) {
-      const resolved = state.resolvePendingInteraction(messageToken, {
-        responseId: responseId,
-        path: path,
-      });
-
-      if (!resolved) {
-        logger.debug(`No pending interaction found for UserInteraction ID: ${messageToken}`);
-      }
-    }
-
-    if (!fileMessageValue) {
-      logger.warn(`Could not find UserInteraction ID for ModifiedFile message: ${messageToken}`);
     }
   } catch (error) {
     logger.error("Error handling file response:", error);
