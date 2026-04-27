@@ -82,7 +82,7 @@ export class VSCodeWeb extends VSCode {
       timeout: 300_000,
     });
     await expect(newPage.getByRole('heading', { name: 'Explorer', exact: true })).toBeVisible({
-      timeout: 150_000,
+      timeout: 200_000,
     });
     console.log(`VSCodeWeb.open: Workspace started`);
 
@@ -319,7 +319,7 @@ export class VSCodeWeb extends VSCode {
     const itemsLocator = this.window.locator('.extensions-list .extension-list-item');
     // Wait up to 5 s for results to appear; if none show up just skip the uninstall.
     await expect(itemsLocator.first())
-      .toBeVisible({ timeout: 5_000 })
+      .toBeVisible({ timeout: 30_000 })
       .catch(() => {});
     const initialTotal = await itemsLocator.count();
     await this.window.screenshot({
@@ -541,6 +541,7 @@ export class VSCodeWeb extends VSCode {
           path: pathlib.join(SCREENSHOTS_FOLDER, `context-menu-${extension}.png`),
         });
         console.log(`VSCodeWeb.installExtensions: Clicking Install Extension VSIX...`);
+        await this.waitDefault();
         await installMenuItem.first().click({ force: true });
         console.log(`VSCodeWeb.installExtensions: Waiting for installation to complete...`);
         const completionLocator = this.window
