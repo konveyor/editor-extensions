@@ -83,10 +83,6 @@ const AnalysisPage: React.FC = () => {
   const serverState = useExtensionStore((state) => state.serverState);
   const solutionServerEnabled = useExtensionStore((state) => state.solutionServerEnabled);
   const solutionServerConnected = useExtensionStore((state) => state.solutionServerConnected);
-  const isWaitingForUserInteraction = useExtensionStore(
-    (state) => state.isWaitingForUserInteraction,
-  );
-  const isProcessingQueuedMessages = useExtensionStore((state) => state.isProcessingQueuedMessages);
   const profileSyncEnabled = useExtensionStore((state) => state.profileSyncEnabled);
   const profileSyncConnected = useExtensionStore((state) => state.profileSyncConnected);
   const isSyncingProfiles = useExtensionStore((state) => state.isSyncingProfiles);
@@ -408,18 +404,12 @@ const AnalysisPage: React.FC = () => {
                 </StackItem>
               </Stack>
             </PageSection>
-            {(isWaitingForSolution ||
-              isWaitingForUserInteraction ||
-              isProcessingQueuedMessages) && (
+            {isWaitingForSolution && (
               <Backdrop>
                 <div style={{ textAlign: "center", paddingTop: "15rem" }}>
                   <Spinner size="lg" />
                   <Title headingLevel="h2" size="lg">
-                    {isWaitingForUserInteraction
-                      ? "Waiting for user action..."
-                      : isProcessingQueuedMessages
-                        ? "Processing solution..."
-                        : "Waiting for solution confirmation..."}
+                    Waiting for solution confirmation...
                   </Title>
                   <Button
                     variant="primary"

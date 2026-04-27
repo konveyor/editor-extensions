@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { FeatureModule, FeatureContext } from "../featureRegistry";
 import { KonveyorGUIWebviewViewProvider } from "../../KonveyorGUIWebviewViewProvider";
-import type { AgentClient } from "../../client/agentClient";
+import type { AcpClient } from "../../client/acpClient";
 
 export const agentFeatureModule: FeatureModule = {
   id: "agent",
@@ -37,13 +37,13 @@ export const agentFeatureModule: FeatureModule = {
     const { batchReviewHandlers } = await import("./batchReviewHandlers");
     disposables.push(ctx.registerMessageHandlers(batchReviewHandlers));
 
-    // Start the Goose/OpenCode agent backend when agentMode is enabled.
+    // Start the ACP agent backend when agentMode is enabled.
     // The chat webview and batch review handlers above are always registered so that
     // getSolution (via DirectLLMClient) can render output regardless of this setting.
     const { getConfigAgentMode } = await import("../../utilities/configuration");
     if (getConfigAgentMode()) {
       try {
-        const agentClient = await createAgentClient(ctx);
+        const agentClient = await createAcpClient(ctx);
         const { initializeAgent } = await import("./init");
         const agentDisposable = await initializeAgent(ctx, agentClient);
         disposables.push(agentDisposable);
@@ -61,40 +61,43 @@ export const agentFeatureModule: FeatureModule = {
 };
 
 /**
- * Create the appropriate AgentClient based on the configured backend setting.
+ * Backend-specific config for each ACP-compatible agent.
  */
-async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
-  const { getConfigAgentBackend, getConfigGooseBinaryPath, getConfigOpencodeBinaryPath } =
+interface BackendConfig {
+  binaryName: string;
+  binaryArgs: string[];
+  minimumVersion: string;
+}
+
+const BACKEND_CONFIGS: Record<string, BackendConfig> = {
+  goose: { binaryName: "goose", binaryArgs: ["acp"], minimumVersion: "1.16.0" },
+  opencode: { binaryName: "opencode", binaryArgs: ["acp"], minimumVersion: "0.1.0" },
+};
+
+/**
+ * Create an AcpClient for the configured backend.
+ *
+ * Both Goose and OpenCode implement ACP and are launched the same way:
+ * `<binary> acp` over JSON-RPC 2.0 / stdio.
+ */
+async function createAcpClient(ctx: FeatureContext): Promise<AcpClient> {
+  const { getConfigAgentBackend, getConfigAgentBinaryPath } =
     await import("../../utilities/configuration");
   const { parseModelConfig } = await import("../../modelProvider");
-  const { join } = await import("path");
+  const { AcpClient } = await import("../../client/acpClient");
 
   const backend = getConfigAgentBackend();
   const workspaceDir = ctx.store.getState().workspaceRoot;
 
-  // Build MCP server config for the Konveyor MCP bridge
-  const mcpServerEntry = join(
-    ctx.extensionContext.extensionPath,
-    "..",
-    "..",
-    "mcp-server",
-    "dist",
-    "index.js",
-  );
-
-  // Gather model environment variables and provider/model info
+  // Gather model environment variables
   let modelEnv: Record<string, string> = {};
-  let kaiProvider: string | undefined;
-  let kaiModel: string | undefined;
 
   try {
     const { paths } = await import("../../paths");
     const modelConfig = await parseModelConfig(paths().settingsYaml);
     modelEnv = (modelConfig.env ?? {}) as Record<string, string>;
-    kaiProvider = modelConfig.config.provider;
-    kaiModel = modelConfig.config.args?.model as string | undefined;
     ctx.logger.info(
-      `Agent: passing auth env vars from provider-settings.yaml (provider: ${kaiProvider}, model: ${kaiModel})`,
+      `Agent: passing auth env vars from provider-settings.yaml (provider: ${modelConfig.config.provider})`,
     );
   } catch (err) {
     ctx.logger.warn(
@@ -115,51 +118,20 @@ async function createAgentClient(ctx: FeatureContext): Promise<AgentClient> {
     ctx.logger.warn(`Agent: could not load credentials from SecretStorage: ${err}`);
   }
 
-  if (backend === "opencode") {
-    ctx.logger.info("Agent: using OpenCode backend");
-    const { OpencodeAgentClient } = await import("../../client/opencodeClient");
-    const opencodeModel =
-      kaiProvider && kaiModel ? toOpencodeModelId(kaiProvider, kaiModel) : undefined;
-    if (opencodeModel) {
-      ctx.logger.info(`Agent: mapped to OpenCode model id "${opencodeModel}"`);
-    }
-    return new OpencodeAgentClient({
-      workspaceDir,
-      logger: ctx.logger,
-      opencodeBinaryPath: getConfigOpencodeBinaryPath(),
-      modelEnv,
-      opencodeModel,
-    });
-  }
+  const backendConfig = BACKEND_CONFIGS[backend] ?? {
+    binaryName: backend,
+    binaryArgs: ["acp"],
+    minimumVersion: "0.1.0",
+  };
+  ctx.logger.info(`Agent: using ${backendConfig.binaryName} backend (ACP)`);
 
-  ctx.logger.info("Agent: using Goose backend");
-  const { GooseClient } = await import("../../client/gooseClient");
-  return new GooseClient({
+  return new AcpClient({
     workspaceDir,
     logger: ctx.logger,
-    gooseBinaryPath: getConfigGooseBinaryPath(),
+    binaryPath: getConfigAgentBinaryPath(),
+    binaryName: backendConfig.binaryName,
+    binaryArgs: backendConfig.binaryArgs,
+    minimumVersion: backendConfig.minimumVersion,
     modelEnv,
   });
-}
-
-/**
- * Map the extension's LangChain provider name + model arg to
- * OpenCode's `provider/model` identifier format.
- */
-const KAI_TO_OPENCODE_PROVIDER: Record<string, string> = {
-  ChatGoogleGenerativeAI: "google",
-  ChatOpenAI: "openai",
-  ChatBedrock: "amazon-bedrock",
-  ChatDeepSeek: "deepseek",
-  AzureChatOpenAI: "azure",
-  ChatOllama: "ollama",
-  ChatAnthropic: "anthropic",
-};
-
-function toOpencodeModelId(kaiProvider: string, modelName: string): string | undefined {
-  const ocProvider = KAI_TO_OPENCODE_PROVIDER[kaiProvider];
-  if (!ocProvider) {
-    return undefined;
-  }
-  return `${ocProvider}/${modelName}`;
 }

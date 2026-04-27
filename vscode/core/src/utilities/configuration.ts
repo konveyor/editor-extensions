@@ -82,16 +82,13 @@ export const getExcludedDiagnosticSources = (): string[] =>
 export const getConfigExperimentalChatEnabled = (): boolean =>
   getConfigValue<boolean>("experimentalChat.enabled") ?? false;
 
-export const getConfigAgentBackend = (): "goose" | "opencode" => {
+export const getConfigAgentBackend = (): string => {
   const value = getConfigValue<string>("experimentalChat.agentBackend");
-  return value === "opencode" ? "opencode" : "goose";
+  return value || "goose";
 };
 
-export const getConfigGooseBinaryPath = (): string | null =>
-  getConfigValue<string>("experimentalChat.gooseBinaryPath") ?? null;
-
-export const getConfigOpencodeBinaryPath = (): string | null =>
-  getConfigValue<string>("experimentalChat.opencodeBinaryPath") ?? null;
+export const getConfigAgentBinaryPath = (): string | null =>
+  getConfigValue<string>("experimentalChat.agentBinaryPath") ?? null;
 
 // ─── Agent settings (persisted) ──────────────────────────────────────
 
