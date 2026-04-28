@@ -1,0 +1,17 @@
+{
+  "name": "@editor-extensions/migration-intelligence",
+  "version": "0.1.0",
+  "description": "Portable migration intelligence package — skills, prompts, and agent instructions for Konveyor-guided migrations",
+  "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/konveyor/editor-extensions"
+  },
+  "files": [
+    "AGENTS.md",
+    "SKILL.md",
+    "skills/",
+    "prompts/"
+  ]
+}
