@@ -199,7 +199,11 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible();
+      await expect(
+        analysisView.getByRole('button', {
+          name: 'Analyzing...',
+        })
+      ).toBeDisabled();
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
