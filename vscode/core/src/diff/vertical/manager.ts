@@ -25,6 +25,7 @@ export class VerticalDiffManager {
   private fileUriToStreamId: Map<string, string> = new Map();
 
   private userChangeListener: vscode.Disposable | undefined;
+  private closeDocumentListener: vscode.Disposable | undefined;
 
   logDiffs: DiffLine[] | undefined;
 
@@ -45,6 +46,21 @@ export class VerticalDiffManager {
     this.mutateDecorators = mutateDecorators;
 
     this.userChangeListener = undefined;
+
+    // Listen for editor tab closes to clean up diff state.
+    // Without this, closing a tab with active code lenses leaves
+    // activeDecorators populated, which keeps the chat continue
+    // button disabled (see #1362).
+    this.closeDocumentListener = vscode.workspace.onDidCloseTextDocument((doc) => {
+      const fileUri = doc.uri.toString();
+      if (this.fileUriToHandler.has(fileUri)) {
+        this.logger.info(
+          `[Manager] Editor closed for file with active diff, cleaning up: ${fileUri}`,
+        );
+        // Reject (discard) the diff since the user closed without accepting
+        this.clearForFileUri(fileUri, false);
+      }
+    });
   }
 
   /**
@@ -413,6 +429,12 @@ export class VerticalDiffManager {
 
     // Dispose document change listener
     this.disableDocumentChangeListener();
+
+    // Dispose close document listener
+    if (this.closeDocumentListener) {
+      this.closeDocumentListener.dispose();
+      this.closeDocumentListener = undefined;
+    }
 
     // Clear callback references
     this.onDiffStatusChange = undefined;
