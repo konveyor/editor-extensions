@@ -33,8 +33,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "isFetchingSolution",
   "solutionState",
   "solutionScope",
-  "isWaitingForUserInteraction",
-  "isProcessingQueuedMessages",
   "isBatchReviewMode",
   "pendingBatchReview",
   "modelSupportsTools",
@@ -205,9 +203,7 @@ export function setupSyncBridges(
           }
 
           if (onlyLastChanged) {
-            const plainMessage = JSON.parse(
-              JSON.stringify(chatMessages[currentLength - 1]),
-            );
+            const plainMessage = JSON.parse(JSON.stringify(chatMessages[currentLength - 1]));
             broadcast(getProviders, {
               type: MessageTypes.CHAT_STREAMING_UPDATE,
               message: plainMessage,

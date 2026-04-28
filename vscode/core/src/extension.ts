@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { EventEmitter } from "events";
 import { KonveyorGUIWebviewViewProvider } from "./KonveyorGUIWebviewViewProvider";
 import { registerAllCommands as registerAllCommands } from "./commands";
 import { ExtensionState } from "./extensionState";
@@ -14,12 +13,7 @@ import {
   EXTENSION_SHORT_NAME,
   EXTENSION_VERSION,
 } from "./utilities/constants";
-import {
-  KaiInteractiveWorkflow,
-  InMemoryCacheWithRevisions,
-  FileBasedResponseCache,
-  type KaiModelProvider,
-} from "@editor-extensions/agentic";
+import { InMemoryCacheWithRevisions, type KaiModelProvider } from "@editor-extensions/agentic";
 import { HubConnectionManager } from "./hub";
 import { Immutable } from "immer";
 import { createExtensionStore, type ExtensionStore } from "./store/extensionStore";
@@ -116,10 +110,8 @@ class VsCodeExtension {
       isInTreeMode: false,
       activeDecorators: {},
       solutionServerConnected: false,
-      isWaitingForUserInteraction: false,
       hubConfig: getDefaultHubConfig(),
       hubForced: false,
-      isProcessingQueuedMessages: false,
       profileSyncEnabled: false,
       profileSyncConnected: false,
       isSyncingProfiles: false,
@@ -191,71 +183,6 @@ class VsCodeExtension {
       },
       mutate,
       modifiedFiles: new Map(),
-      modifiedFilesEventEmitter: new EventEmitter(),
-      lastMessageId: "0",
-      currentTaskManagerIterations: 0,
-      workflowManager: {
-        workflow: undefined,
-        isInitialized: false,
-        init: async (config) => {
-          if (this.state.workflowManager.isInitialized) {
-            return;
-          }
-
-          try {
-            this.state.workflowManager.workflow = new KaiInteractiveWorkflow(this.state.logger);
-            // Make sure fsCache and solutionServerClient are passed to the workflow init
-            // Get solution server client from hub connection manager (may be undefined if not connected)
-            await this.state.workflowManager.workflow.init({
-              ...config,
-              fsCache: this.state.kaiFsCache,
-              solutionServerClient: config.solutionServerClient,
-              toolCache: new FileBasedResponseCache(
-                getConfigKaiDemoMode(), // cache enabled only when demo mode is on
-                (args) =>
-                  typeof args === "string" ? args : JSON.stringify(args, Object.keys(args).sort()),
-                (args) => (typeof args === "string" ? args : JSON.parse(args)),
-                getCacheDir(this.state.data.workspaceRoot),
-                this.state.logger,
-              ),
-            });
-            this.state.workflowManager.isInitialized = true;
-          } catch (error) {
-            console.error("Failed to initialize workflow:", error);
-            // Reset state on initialization failure to avoid inconsistent state
-            this.state.workflowManager.workflow = undefined;
-            this.state.workflowManager.isInitialized = false;
-            throw error; // Re-throw to let caller handle the error
-          }
-        },
-        getWorkflow: () => {
-          if (!this.state.workflowManager.workflow) {
-            throw new Error("Workflow not initialized");
-          }
-          return this.state.workflowManager.workflow;
-        },
-        dispose: () => {
-          try {
-            // Clean up workflow resources if workflow exists
-            if (this.state.workflowManager.workflow) {
-              // Remove all event listeners to prevent memory leaks
-              this.state.workflowManager.workflow.removeAllListeners();
-
-              // Clear any pending user interactions
-              const workflow = this.state.workflowManager.workflow as any;
-              if (workflow.userInteractionPromises) {
-                workflow.userInteractionPromises.clear();
-              }
-            }
-          } catch (error) {
-            console.error("Error during workflow cleanup:", error);
-          } finally {
-            // Always reset state regardless of cleanup success/failure
-            this.state.workflowManager.workflow = undefined;
-            this.state.workflowManager.isInitialized = false;
-          }
-        },
-      },
       modelProvider: undefined,
       verticalDiffManager: undefined,
       staticDiffAdapter: undefined,
@@ -398,19 +325,7 @@ class VsCodeExtension {
 
         // Only dispose workflow on full reconnect (config change), not on token refresh.
         // Token refresh preserves existing clients and their session state (e.g., clientId).
-        if (!tokenRefreshOnly) {
-          const isWorkflowRunning = this.state.data.isFetchingSolution;
-          if (isWorkflowRunning) {
-            this.state.logger.warn(
-              "Hub clients changed but workflow is running - will dispose after completion",
-            );
-            this.state.workflowDisposalPending = true;
-          } else if (this.state.workflowManager.isInitialized) {
-            this.state.logger.info("Disposing workflow to use new Hub clients");
-            this.state.workflowManager.dispose();
-            this.state.workflowDisposalPending = false;
-          }
-        }
+        // No additional cleanup needed — workflow lifecycle is handled per-run by the orchestrator.
       });
 
       // Initialize hub connection manager with loaded config
@@ -1012,15 +927,6 @@ class VsCodeExtension {
       this.state.mutate((draft) => {
         draft.modelSupportsTools = false;
       });
-      // Only dispose workflow if not fetching solution
-      if (
-        !this.state.data.isFetchingSolution &&
-        this.state.workflowManager &&
-        this.state.workflowManager.dispose
-      ) {
-        this.state.workflowManager.dispose();
-        this.state.workflowDisposalPending = false;
-      }
       return createConfigError.genaiDisabled();
     }
 
@@ -1050,26 +956,6 @@ class VsCodeExtension {
           draft.modelSupportsTools = hubProvider.toolCallsSupported();
         });
 
-        // Dispose workflow if we're changing an existing provider and not currently fetching
-        if (
-          hadPreviousProvider &&
-          !this.state.data.isFetchingSolution &&
-          this.state.workflowManager &&
-          this.state.workflowManager.dispose
-        ) {
-          this.state.logger.info("Disposing workflow manager - switching to Hub LLM proxy");
-          this.state.workflowManager.dispose();
-          this.state.workflowDisposalPending = false;
-        } else if (hadPreviousProvider && this.state.data.isFetchingSolution) {
-          this.state.logger.info(
-            "Hub proxy configured but workflow disposal deferred - solution in progress",
-          );
-          this.state.workflowDisposalPending = true;
-          vscode.window.showInformationMessage(
-            "Now using Hub LLM proxy. The proxy will be used for the next solution.",
-          );
-        }
-
         return undefined;
       } catch (err) {
         this.state.logger.error("Error setting up Hub LLM proxy provider:", err);
@@ -1098,16 +984,6 @@ class VsCodeExtension {
       this.state.mutate((draft) => {
         draft.modelSupportsTools = false;
       });
-      // Only dispose workflow if not fetching solution
-      if (
-        !this.state.data.isFetchingSolution &&
-        this.state.workflowManager &&
-        this.state.workflowManager.dispose
-      ) {
-        this.state.workflowManager.dispose();
-        this.state.workflowDisposalPending = false;
-      }
-
       const configError = createConfigError.providerNotConfigured();
       configError.error = err instanceof Error ? err.message : String(err);
       return configError;
@@ -1187,26 +1063,6 @@ class VsCodeExtension {
         provider: modelConfig.config.provider,
         supportsTools: localProvider.toolCallsSupported(),
       });
-      // Dispose workflow if we're changing an existing provider and not currently fetching
-      if (
-        hadPreviousProvider &&
-        !this.state.data.isFetchingSolution &&
-        this.state.workflowManager &&
-        this.state.workflowManager.dispose
-      ) {
-        this.state.logger.info("Disposing workflow manager - provider configuration changed");
-        this.state.workflowManager.dispose();
-        this.state.workflowDisposalPending = false;
-      } else if (hadPreviousProvider && this.state.data.isFetchingSolution) {
-        this.state.logger.info(
-          "Provider updated but workflow disposal deferred - solution in progress",
-        );
-        this.state.workflowDisposalPending = true;
-        vscode.window.showInformationMessage(
-          "Model provider updated. The new provider will be used for the next solution.",
-        );
-      }
-
       return undefined;
     } catch (err) {
       // Re-check: Hub proxy may have been set by the callback during the health check above.
@@ -1228,16 +1084,6 @@ class VsCodeExtension {
         error: err,
         demoMode: getConfigKaiDemoMode(),
       });
-      // Only dispose workflow if not fetching solution
-      if (
-        !this.state.data.isFetchingSolution &&
-        this.state.workflowManager &&
-        this.state.workflowManager.dispose
-      ) {
-        this.state.workflowManager.dispose();
-        this.state.workflowDisposalPending = false;
-      }
-
       const configError = createConfigError.providerConnnectionFailed();
       configError.error =
         err instanceof Error
@@ -1378,21 +1224,6 @@ class VsCodeExtension {
   }
 
   public async dispose() {
-    // Clean up pending interactions and resolver function to prevent memory leaks
-    this.state.resolvePendingInteraction = undefined;
-    this.state.mutate((draft) => {
-      draft.isWaitingForUserInteraction = false;
-    });
-
-    // Dispose workflow manager
-    if (this.state.workflowManager && this.state.workflowManager.dispose) {
-      try {
-        this.state.workflowManager.dispose();
-      } catch (error) {
-        this.state.logger.error("Error disposing workflow manager:", error);
-      }
-    }
-
     // Decoration managers removed - using vertical diff system
     // Cleanup is handled by vertical diff manager
 

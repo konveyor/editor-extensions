@@ -40,8 +40,6 @@ const App: React.FC = () => {
         isInTreeMode: windowData.isInTreeMode ?? false,
         workspaceRoot: windowData.workspaceRoot ?? "/",
         activeProfileId: windowData.activeProfileId ?? null,
-        isWaitingForUserInteraction: windowData.isWaitingForUserInteraction ?? false,
-        isProcessingQueuedMessages: windowData.isProcessingQueuedMessages ?? false,
         activeDecorators: windowData.activeDecorators ?? {},
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],

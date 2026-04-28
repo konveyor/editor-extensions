@@ -9,12 +9,14 @@ import {
   ToolMessageValue,
 } from "@editor-extensions/shared";
 import type { ExtensionState } from "../../extensionState";
+import type { AcpClient } from "../../client/acpClient";
 import type {
-  AgentClient,
+  AgentBackendClient,
   ToolCallData,
   StreamingResourceData,
   PermissionRequestData,
-} from "../../client/agentClient";
+} from "../../client/agentBackendClient";
+import type { DirectLLMClient } from "../../client/directLLMClient";
 import type { AgentFileTracker } from "./fileTracker";
 import { executeExtensionCommand } from "../../commands";
 import { routeFileChange } from "./fileChangeRouter";
@@ -24,15 +26,12 @@ import { handlePermissionRequest } from "./toolPermissionHandler";
 import type { Logger } from "winston";
 
 /**
- * Self-contained orchestrator for the agent-driven "Get Solution" lifecycle.
+ * Self-contained orchestrator for the "Get Solution" lifecycle.
  *
- * Works with any AgentClient implementation (GooseClient, OpencodeAgentClient).
- * Routes streaming / file-change events into extension state without
- * going through the KaiWorkflow adapter or processMessage pipeline.
- *
- * File changes reach batch review through a single path
- * (routeFileChangeToBatchReview) regardless of which agent backend
- * is active or whether it used MCP or built-in tools.
+ * Works with AcpClient (agent binaries over ACP) and DirectLLMClient
+ * (direct LLM call via KaiInteractiveWorkflow). Both emit the same
+ * event interface, so a single code path handles streaming, tool
+ * calls, and file changes.
  */
 export class AgentOrchestrator {
   private lastTextMessageId: string | null = null;
@@ -57,12 +56,6 @@ export class AgentOrchestrator {
     }
 
     const agentMode = this.state.data.featureState?.agentMode !== false;
-    let client: AgentClient | undefined;
-    let disposeClient = false;
-
-    if (agentMode) {
-      client = this.getAgentClient();
-    }
 
     this.initializeState();
     executeExtensionCommand("showChatPanel");
@@ -72,6 +65,13 @@ export class AgentOrchestrator {
       profileName,
       agentMode,
     });
+
+    let client: AgentBackendClient | undefined;
+    let disposeClient = false;
+
+    if (agentMode) {
+      client = this.getAcpClient();
+    }
 
     if (!client) {
       client = await this.createDirectLLMClient();
@@ -83,15 +83,11 @@ export class AgentOrchestrator {
       return;
     }
 
-    if (agentMode && !disposeClient) {
-      await this.runAgentPath(client, profileName, disposeClient);
-    } else {
-      await this.runWorkflowPath(client, disposeClient);
-    }
+    await this.runClientPath(client, profileName, disposeClient);
   }
 
-  private getAgentClient(): AgentClient | undefined {
-    const agentClient = this.state.featureClients.get("agentClient") as AgentClient | undefined;
+  private getAcpClient(): AcpClient | undefined {
+    const agentClient = this.state.featureClients.get("agentClient") as AcpClient | undefined;
     if (!agentClient || agentClient.getState() !== "running") {
       this.logger.info(
         "AgentOrchestrator: agent client not available, will fall back to direct LLM",
@@ -101,7 +97,7 @@ export class AgentOrchestrator {
     return agentClient;
   }
 
-  private async createDirectLLMClient(): Promise<AgentClient | undefined> {
+  private async createDirectLLMClient(): Promise<DirectLLMClient | undefined> {
     try {
       const [
         { parseModelConfig, getModelProviderFromConfig },
@@ -149,6 +145,8 @@ export class AgentOrchestrator {
           enableAgentMode: false,
         },
         logger: this.logger,
+        routeFileChange: (filePath, content, originalContent) =>
+          routeFileChange(this.state, filePath, content, originalContent, true),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -161,10 +159,12 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Agent path: Goose/OpenCode agent with AgentClient event handlers.
+   * Unified execution path for both AcpClient and DirectLLMClient.
+   * Both emit the same events; AcpClient additionally emits
+   * permissionRequest which DirectLLMClient never fires.
    */
-  private async runAgentPath(
-    agentClient: AgentClient,
+  private async runClientPath(
+    client: AgentBackendClient,
     profileName: string,
     disposeClient: boolean,
   ): Promise<void> {
@@ -194,20 +194,30 @@ export class AgentOrchestrator {
     const onToolCallUpdate = (_msgId: string, data: ToolCallData): void => {
       this.handleToolCallUpdate(data);
       if (fileTracker && data.status === "succeeded") {
-        fileTracker.resolvePendingFileChanges().then(async (changes) => {
-          for (const change of changes) {
-            await routeFileChange(this.state, change.path, change.content, change.originalContent);
-            this.fileChangesRouted++;
-            this.logger.info("AgentOrchestrator: file change routed", {
-              path: change.path,
+        fileTracker
+          .resolvePendingFileChanges()
+          .then(async (changes) => {
+            for (const change of changes) {
+              await routeFileChange(
+                this.state,
+                change.path,
+                change.content,
+                change.originalContent,
+              );
+              this.fileChangesRouted++;
+              this.logger.info("AgentOrchestrator: file change routed", {
+                path: change.path,
+              });
+            }
+            if (changes.length > 0 && data.callId) {
+              this.markToolAsFileChangeRouted(data.callId);
+            }
+          })
+          .catch((err) => {
+            this.logger.error("AgentOrchestrator: failed to resolve pending file changes", {
+              error: err,
             });
-          }
-          if (changes.length > 0 && data.callId) {
-            this.markToolAsFileChangeRouted(data.callId);
-          }
-        }).catch((err) => {
-          this.logger.error("AgentOrchestrator: failed to resolve pending file changes", { error: err });
-        });
+          });
       }
     };
 
@@ -216,14 +226,14 @@ export class AgentOrchestrator {
     };
 
     const onPermission = (data: PermissionRequestData): void => {
-      this.handlePermissionRequest(agentClient, data);
+      this.handlePermissionRequest(client as AcpClient, data);
     };
 
-    agentClient.on("streamingChunk", onChunk);
-    agentClient.on("toolCall", onToolCall);
-    agentClient.on("toolCallUpdate", onToolCallUpdate);
-    agentClient.on("streamingComplete", onComplete);
-    agentClient.on("permissionRequest", onPermission);
+    client.on("streamingChunk", onChunk);
+    client.on("toolCall", onToolCall);
+    client.on("toolCallUpdate", onToolCallUpdate);
+    client.on("streamingComplete", onComplete);
+    client.on("permissionRequest", onPermission);
 
     try {
       if (fileTracker) {
@@ -236,7 +246,7 @@ export class AgentOrchestrator {
       const workspaceRoot = this.state.data.workspaceRoot;
 
       const [sessionId, fileContentCache] = await Promise.all([
-        agentClient.createSession(),
+        client.createSession(),
         fileTracker && this.incidents.length > 0
           ? fileTracker.cacheIncidentFiles(this.incidents, workspaceRoot)
           : Promise.resolve(undefined),
@@ -261,7 +271,7 @@ export class AgentOrchestrator {
       );
 
       const requestId = uuidv4();
-      await agentClient.sendMessage(prompt, requestId);
+      await client.sendMessage(prompt, requestId);
 
       if (fileTracker) {
         const missedChanges = await fileTracker.scanForMissedChanges();
@@ -276,88 +286,15 @@ export class AgentOrchestrator {
     } catch (err) {
       this.handleError(err);
     } finally {
-      agentClient.removeListener("streamingChunk", onChunk);
-      agentClient.removeListener("toolCall", onToolCall);
-      agentClient.removeListener("toolCallUpdate", onToolCallUpdate);
-      agentClient.removeListener("streamingComplete", onComplete);
-      agentClient.removeListener("permissionRequest", onPermission);
+      client.removeListener("streamingChunk", onChunk);
+      client.removeListener("toolCall", onToolCall);
+      client.removeListener("toolCallUpdate", onToolCallUpdate);
+      client.removeListener("streamingComplete", onComplete);
+      client.removeListener("permissionRequest", onPermission);
       resumeBroadcastHandlers();
       this.cleanup();
       if (disposeClient) {
-        agentClient.dispose();
-      }
-    }
-  }
-
-  /**
-   * Workflow path: KaiInteractiveWorkflow with processMessage queue.
-   * Restores per-file accept/reject via the MessageQueueManager pipeline.
-   */
-  private async runWorkflowPath(agentClient: AgentClient, disposeClient: boolean): Promise<void> {
-    if (!agentClient.getWorkflow) {
-      this.logger.error("AgentOrchestrator: workflow path requires a client with getWorkflow()");
-      return;
-    }
-
-    const workflow = agentClient.getWorkflow();
-    const { processMessage } = await import("../../utilities/ModifiedFiles/processMessage");
-    const { MessageQueueManager } = await import("../../utilities/ModifiedFiles/queueManager");
-
-    const pendingInteractions = new Map<string, (response: any) => void>();
-    const modifiedFilesPromises: Array<Promise<void>> = [];
-    const processedTokens = new Set<string>();
-
-    const queueManager = new MessageQueueManager(
-      this.state,
-      workflow,
-      modifiedFilesPromises,
-      processedTokens,
-      pendingInteractions,
-    );
-
-    this.state.currentQueueManager = queueManager;
-    this.state.pendingInteractionsMap = pendingInteractions;
-    this.state.resolvePendingInteraction = (messageId: string, response: any): boolean => {
-      const resolver = pendingInteractions.get(messageId);
-      if (!resolver) {
-        this.logger.error("AgentOrchestrator: resolver not found", { messageId });
-        return false;
-      }
-      pendingInteractions.delete(messageId);
-      resolver(response);
-      return true;
-    };
-
-    workflow.on("workflowMessage", async (msg) => {
-      await processMessage(msg, this.state, queueManager);
-    });
-
-    try {
-      this.logger.info("AgentOrchestrator: starting workflow via queue path");
-
-      const queueDrained = new Promise<void>((resolve) => {
-        queueManager.onDrain(resolve);
-      });
-
-      await agentClient.sendMessage("", uuidv4());
-      await queueDrained;
-      await Promise.all(modifiedFilesPromises);
-
-      this.logger.info("AgentOrchestrator: workflow complete, queue drained", {
-        queueLength: queueManager.getQueueLength(),
-        pendingInteractions: pendingInteractions.size,
-      });
-    } catch (err) {
-      this.handleError(err);
-    } finally {
-      queueManager.dispose();
-      this.state.currentQueueManager = undefined;
-      this.state.pendingInteractionsMap = undefined;
-      this.state.resolvePendingInteraction = undefined;
-      workflow.removeAllListeners();
-      this.cleanup();
-      if (disposeClient) {
-        agentClient.dispose();
+        client.dispose();
       }
     }
   }
@@ -371,8 +308,6 @@ export class AgentOrchestrator {
       draft.isFetchingSolution = true;
       draft.solutionState = "started";
       draft.solutionScope = scope;
-      draft.isProcessingQueuedMessages = false;
-      draft.isWaitingForUserInteraction = false;
       draft.pendingBatchReview = [];
     });
 
@@ -547,12 +482,9 @@ export class AgentOrchestrator {
   }
 
   private async handlePermissionRequest(
-    agentClient: AgentClient,
+    agentClient: AcpClient,
     data: PermissionRequestData,
   ): Promise<void> {
-    // Enrich the existing tool message with file context from the permission
-    // request's rawInput (the initial tool_call may arrive without arguments
-    // in approval mode).
     if (data.toolCallId && data.rawInput) {
       const { filePath, detail } = this.extractToolContext(
         data.rawInput as Record<string, unknown>,
@@ -621,8 +553,7 @@ export class AgentOrchestrator {
       });
     }
 
-    // Finalize any tool messages still marked "running" — some backends
-    // (e.g. OpenCode) don't send explicit tool completion events.
+    // Finalize any tool messages still marked "running"
     this.state.mutate((draft) => {
       for (const msg of draft.chatMessages) {
         if (msg.kind === ChatMessageType.Tool) {
@@ -637,7 +568,6 @@ export class AgentOrchestrator {
     this.state.mutate((draft) => {
       draft.isFetchingSolution = false;
       draft.solutionState = "received";
-      draft.isProcessingQueuedMessages = false;
     });
 
     this.state.mutate((draft) => {

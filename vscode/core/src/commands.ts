@@ -146,17 +146,6 @@ function checkProvidersRegistered(state: ExtensionState, logger: Logger): boolea
   return true;
 }
 
-/**
- * Helper function to execute deferred workflow disposal after solution completes
- */
-export function executeDeferredWorkflowDisposal(state: ExtensionState, logger: Logger): void {
-  if (state.workflowDisposalPending && state.workflowManager && state.workflowManager.dispose) {
-    logger.info("Executing deferred workflow disposal after solution completion");
-    state.workflowManager.dispose();
-    state.workflowDisposalPending = false;
-  }
-}
-
 const commandsMap: (
   state: ExtensionState,
   logger: Logger,
@@ -393,9 +382,7 @@ const commandsMap: (
         if (draft.solutionState === "started") {
           draft.solutionState = "failedOnSending";
         }
-        draft.isWaitingForUserInteraction = false;
       });
-      executeDeferredWorkflowDisposal(state, logger);
       window.showInformationMessage("Fetching state has been reset.");
     },
     [`${EXTENSION_NAME}.changeDiscarded`]: async (path: string) => {

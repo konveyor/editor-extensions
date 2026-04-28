@@ -457,29 +457,19 @@
             "opencode"
           ],
           "default": "goose",
-          "description": "(Experimental) Which AI agent backend to use for the Migration Assistant chat. Only used when genai.agentMode is enabled.",
+          "description": "(Experimental) Which ACP agent backend to use for the Migration Assistant chat. Any ACP-compliant agent binary can be used. Only used when genai.agentMode is enabled.",
           "scope": "window",
           "order": 31
         },
-        "konveyor-core.experimentalChat.gooseBinaryPath": {
+        "konveyor-core.experimentalChat.agentBinaryPath": {
           "type": [
             "string",
             "null"
           ],
           "default": null,
-          "description": "(Experimental) Path to the goose binary. Only used when genai.agentMode is enabled. If not set, the extension will search PATH.",
+          "description": "(Experimental) Path to the ACP agent binary (goose, opencode, or any ACP-compliant agent). If not set, the extension will search PATH using the selected backend name.",
           "scope": "window",
           "order": 32
-        },
-        "konveyor-core.experimentalChat.opencodeBinaryPath": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null,
-          "description": "(Experimental) Path to the opencode binary. Only used when genai.agentMode is enabled. If not set, the extension will search PATH.",
-          "scope": "window",
-          "order": 33
         },
         "konveyor-core.debug.webview": {
           "type": "boolean",
@@ -534,8 +524,8 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.20.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
-    "@opencode-ai/sdk": "^1.2.24",
     "@types/mustache": "^4.2.5",
     "adm-zip": "^0.5.16",
     "diff": "^8.0.3",

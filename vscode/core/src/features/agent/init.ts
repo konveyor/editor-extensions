@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { AgentState, AgentContentBlockType, AgentMessageTypes } from "@editor-extensions/shared";
 import type { FeatureContext } from "../featureRegistry";
 import { AgentFileTracker } from "./fileTracker";
-import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
+import type { AcpClient } from "../../client/acpClient";
+import type { PermissionRequestData } from "../../client/agentBackendClient";
 import { routeFileChange } from "./fileChangeRouter";
 import { handlePermissionRequest, type PendingPermission } from "./toolPermissionHandler";
 
@@ -15,7 +16,7 @@ export const pendingPermissions = new Map<string, PendingPermission>();
  * to chatMessages state and doesn't need the webview broadcast).
  */
 let broadcastBinding: {
-  client: AgentClient;
+  client: AcpClient;
   handlers: {
     streamingChunk: (...args: any[]) => void;
     streamingComplete: (...args: any[]) => void;
@@ -52,12 +53,12 @@ export function resumeBroadcastHandlers(): void {
 /**
  * Initialize the agent and wire up all event listeners.
  *
- * Accepts an AgentClient (GooseClient or OpencodeAgentClient) created
- * by the feature module based on the configured backend.
+ * Accepts an AcpClient created by the feature module.
+ * Works with any ACP-compliant agent binary (Goose, OpenCode, etc.).
  */
 export async function initializeAgent(
   ctx: FeatureContext,
-  agentClient: AgentClient,
+  agentClient: AcpClient,
 ): Promise<vscode.Disposable> {
   const { McpBridgeServer } = await import("../../api/mcpBridgeServer");
 
@@ -274,19 +275,22 @@ export async function initializeAgent(
     if (data.status !== "succeeded") {
       return;
     }
-    fileTracker.resolvePendingFileChanges().then(async (changes) => {
-      for (const change of changes) {
-        await routeFileChange(
-          ctx.extensionState,
-          change.path,
-          change.content,
-          change.originalContent,
-        );
-        ctx.logger.info("File change routed", { path: change.path });
-      }
-    }).catch((err) => {
-      ctx.logger.error("Failed to resolve pending file changes", { error: err });
-    });
+    fileTracker
+      .resolvePendingFileChanges()
+      .then(async (changes) => {
+        for (const change of changes) {
+          await routeFileChange(
+            ctx.extensionState,
+            change.path,
+            change.content,
+            change.originalContent,
+          );
+          ctx.logger.info("File change routed", { path: change.path });
+        }
+      })
+      .catch((err) => {
+        ctx.logger.error("Failed to resolve pending file changes", { error: err });
+      });
   });
 
   agentClient.on("error", (error: Error) => {
@@ -325,7 +329,7 @@ export async function initializeAgent(
   return vscode.Disposable.from(...disposables);
 }
 
-export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void {
+export function startAgent(agentClient: AcpClient, ctx: FeatureContext): void {
   agentClient
     .start()
     .then(async () => {
@@ -368,26 +372,24 @@ export function startAgent(agentClient: AgentClient, ctx: FeatureContext): void 
     });
 }
 
-async function promptAgentInstall(agentClient: AgentClient, ctx: FeatureContext): Promise<void> {
+async function promptAgentInstall(agentClient: AcpClient, ctx: FeatureContext): Promise<void> {
   const { getConfigAgentBackend } = await import("../../utilities/configuration");
   const backend = getConfigAgentBackend();
+  const label = backend.charAt(0).toUpperCase() + backend.slice(1);
 
   const action = await vscode.window.showWarningMessage(
-    `${backend === "goose" ? "Goose" : "OpenCode"} CLI is not installed. Install it to use the Migration Assistant chat.`,
-    `Install ${backend === "goose" ? "Goose" : "OpenCode"} CLI`,
+    `${label} CLI is not installed. Install it to use the Migration Assistant chat.`,
+    `Install ${label} CLI`,
     "Set Path Manually",
   );
 
   if (action?.startsWith("Install")) {
-    const terminal = vscode.window.createTerminal({
-      name: `Install ${backend === "goose" ? "Goose" : "OpenCode"} CLI`,
-    });
+    const terminal = vscode.window.createTerminal({ name: `Install ${label} CLI` });
     terminal.show();
 
     let installCmd: string;
     if (backend === "opencode") {
-      installCmd =
-        process.platform === "win32" ? "npm install -g opencode-ai" : "npm install -g opencode-ai";
+      installCmd = "npm install -g opencode-ai";
     } else {
       installCmd =
         process.platform === "win32"
@@ -406,10 +408,9 @@ async function promptAgentInstall(agentClient: AgentClient, ctx: FeatureContext)
     });
     ctx.extensionContext.subscriptions.push(disposable);
   } else if (action === "Set Path Manually") {
-    const settingsKey =
-      backend === "opencode"
-        ? "konveyor-core.experimentalChat.opencodeBinaryPath"
-        : "konveyor-core.experimentalChat.gooseBinaryPath";
-    await vscode.commands.executeCommand("workbench.action.openSettings", settingsKey);
+    await vscode.commands.executeCommand(
+      "workbench.action.openSettings",
+      "konveyor-core.experimentalChat.agentBinaryPath",
+    );
   }
 }

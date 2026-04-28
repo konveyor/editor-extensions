@@ -4,7 +4,7 @@ import {
   findAllowOnceOptionId,
   filterPermissionOptions,
 } from "../toolPermissionPolicy";
-import type { PermissionOption } from "../../../client/agentClient";
+import type { PermissionOption } from "../../../client/agentBackendClient";
 
 // --- isReadOnlyToolCall ---
 
