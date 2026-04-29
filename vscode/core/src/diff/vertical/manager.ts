@@ -25,6 +25,7 @@ export class VerticalDiffManager {
   private fileUriToStreamId: Map<string, string> = new Map();
 
   private userChangeListener: vscode.Disposable | undefined;
+  private closeDocumentListener: vscode.Disposable | undefined;
 
   logDiffs: DiffLine[] | undefined;
 
@@ -45,6 +46,23 @@ export class VerticalDiffManager {
     this.mutateDecorators = mutateDecorators;
 
     this.userChangeListener = undefined;
+
+    // Listen for editor tab closes to clean up diff state.
+    // Without this, closing a tab with active code lenses leaves
+    // activeDecorators populated, which keeps the chat continue
+    // button disabled (see #1362).
+    this.closeDocumentListener = vscode.workspace.onDidCloseTextDocument((doc) => {
+      const fileUri = doc.uri.toString();
+      if (this.fileUriToHandler.has(fileUri)) {
+        this.logger.info(
+          `[Manager] Editor closed for file with active diff, cleaning up: ${fileUri}`,
+        );
+        // Use the tab-close-specific cleanup that avoids editor edits
+        // (which silently fail on a closing document) and instead reverts
+        // the file from disk.
+        this.clearForClosedDocument(fileUri);
+      }
+    });
   }
 
   /**
@@ -198,6 +216,73 @@ export class VerticalDiffManager {
     this.refreshCodeLens();
 
     // Notify status change
+    if (this.onDiffStatusChange) {
+      this.onDiffStatusChange(fileUri);
+    }
+  }
+
+  /**
+   * Clean up diff state when a document is closed by the user (tab close).
+   *
+   * Unlike clearForFileUri, this does NOT attempt editor edits (which silently
+   * fail on a closing/closed document and leave the in-memory buffer dirty with
+   * patched content).  Instead it:
+   *  1. Clears all internal state maps (handler, codelens, streamId, decorators)
+   *  2. Disposes the handler without running accept/reject edits
+   *  3. Reverts the file so VS Code drops its dirty buffer and reloads from disk
+   *
+   * See #1362 — without the revert, closing the tab left the file showing the
+   * patched content even though git status showed no changes.
+   */
+  private async clearForClosedDocument(fileUri: string): Promise<void> {
+    // --- 1. Clear activeDecorators (same as clearForFileUri) ---
+    const streamId = this.fileUriToStreamId.get(fileUri);
+    if (streamId) {
+      this.mutateDecorators((draft) => {
+        if (draft.activeDecorators && draft.activeDecorators[streamId]) {
+          delete draft.activeDecorators[streamId];
+          this.logger.info(
+            `[Manager] Cleared activeDecorators for streamId: ${streamId} via clearForClosedDocument`,
+          );
+        }
+      });
+      this.fileUriToStreamId.delete(fileUri);
+    }
+
+    // --- 2. Dispose handler without running editor edits ---
+    const handler = this.fileUriToHandler.get(fileUri);
+    if (handler) {
+      // Just dispose listeners/decorations — do NOT call handler.clear()
+      // because the editor is gone and edits would silently fail, leaving
+      // a dirty in-memory buffer with patched content.
+      handler.dispose();
+      this.fileUriToHandler.delete(fileUri);
+    }
+
+    // --- 3. Clean up remaining state ---
+    this.disableDocumentChangeListener();
+    this.fileUriToCodeLens.delete(fileUri);
+    this.refreshCodeLens();
+    void vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.diffVisible`, false);
+
+    // --- 4. Revert the file to its on-disk content ---
+    // The diff decorations inserted/deleted lines in the editor buffer but never
+    // saved.  VS Code's hot-exit may preserve this dirty buffer across reloads.
+    // Reverting forces VS Code to drop it and re-read from disk (the clean version).
+    try {
+      const uri = vscode.Uri.parse(fileUri);
+      await vscode.commands.executeCommand("workbench.action.files.revert", uri);
+      this.logger.info(`[Manager] Reverted file to disk content after tab close: ${fileUri}`);
+    } catch (error) {
+      // Revert may fail if the document is fully disposed — that's fine,
+      // the next open will read from disk anyway.
+      this.logger.debug(
+        `[Manager] Could not revert file (may already be fully closed): ${fileUri}`,
+        error,
+      );
+    }
+
+    // --- 5. Notify status change ---
     if (this.onDiffStatusChange) {
       this.onDiffStatusChange(fileUri);
     }
@@ -413,6 +498,12 @@ export class VerticalDiffManager {
 
     // Dispose document change listener
     this.disableDocumentChangeListener();
+
+    // Dispose close document listener
+    if (this.closeDocumentListener) {
+      this.closeDocumentListener.dispose();
+      this.closeDocumentListener = undefined;
+    }
 
     // Clear callback references
     this.onDiffStatusChange = undefined;
