@@ -52,6 +52,28 @@ export const BatchReviewExpandable: React.FC = () => {
     }
   }, [pendingFiles.length, currentIndex]);
 
+  // Reset viewingInEditor when activeDecorators are cleared for the viewed file.
+  // This handles the case where the user closes the editor tab (which clears
+  // activeDecorators via onDidCloseTextDocument) — the UI reverts back to
+  // showing "Review in Editor" so the user can re-open the review. (#1362)
+  React.useEffect(() => {
+    if (viewingInEditor === null) {
+      return;
+    }
+    const decoratorStillActive = Boolean(
+      activeDecorators &&
+        typeof activeDecorators === "object" &&
+        viewingInEditor in activeDecorators,
+    );
+    if (!decoratorStillActive) {
+      console.log(
+        "[BatchReviewExpandable] Decorator cleared for viewed file, resetting viewingInEditor",
+        { viewingInEditor },
+      );
+      setViewingInEditor(null);
+    }
+  }, [activeDecorators, viewingInEditor]);
+
   // Debug: Log decorator state
   React.useEffect(() => {
     if (pendingFiles.length > 0) {
