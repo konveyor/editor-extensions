@@ -171,7 +171,13 @@ jobs:
       - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+        run: |
+          BRANCH="${{ github.base_ref || github.ref_name }}"
+          if [ "$BRANCH" = "main" ]; then
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          else
+            npm run collect-assets -- --use-release
+          fi
 
       - name: Set development version
         run: |

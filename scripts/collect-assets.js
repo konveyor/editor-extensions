@@ -17,7 +17,7 @@ const cli = parseCli(
     workflow: "build-and-push-binaries.yml",
     rulesetOrg: "konveyor",
     rulesetRepo: "rulesets",
-    releaseTag: "v0.9.0-alpha.4",
+    releaseTag: "v0.9.2",
     // C# provider specific defaults
     csharpBranch: "main",
   },
@@ -158,7 +158,7 @@ const actions = [
       releaseTag: cli.releaseTag,
       bearerToken,
 
-      context: "{{root}}/default/generated",
+      context: "{{root}}/stable/java",
       globs: ["**/*"],
     }),
   }),

@@ -584,53 +584,66 @@ export abstract class VSCode {
     replaceAll: boolean = false
   ): Promise<void> {
     await this.executeQuickCommand('Preferences: Open User Settings (JSON)');
+    try {
+      const openModalButton = this.window.getByRole('button', {
+        name: 'Open Modal Editor in Main Window',
+      });
+      await expect(this.window.getByText('settings.json').first()).toBeVisible();
+      if (await openModalButton.isVisible()) {
+        await openModalButton.click();
+      }
+      const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
+      const editor = this.window.locator('.monaco-editor .view-lines').first();
+      await expect(editor).toBeVisible({ timeout: 10000 });
+      await editor.click();
+      await this.window.waitForTimeout(200);
 
-    const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
-    const editor = this.window.locator('.monaco-editor .view-lines').first();
-    await expect(editor).toBeVisible({ timeout: 10000 });
-    await editor.click();
-    await this.window.waitForTimeout(200);
+      let existingSettings: Record<string, any> = {};
 
-    let existingSettings: Record<string, any> = {};
+      if (!replaceAll) {
+        let editorContent = '';
+        try {
+          editorContent = await editor.innerText();
+        } catch {
+          editorContent = '{}';
+        }
 
-    if (!replaceAll) {
-      let editorContent = '';
-      try {
-        editorContent = await editor.innerText();
-      } catch {
-        editorContent = '{}';
+        try {
+          existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
+        } catch {
+          existingSettings = {};
+        }
       }
 
-      try {
-        existingSettings = editorContent ? JSON.parse(editorContent.replace(/\u00A0/g, ' ')) : {};
-      } catch {
-        existingSettings = {};
-      }
+      const newContent = JSON.stringify(
+        {
+          ...existingSettings,
+          ...settings,
+        },
+        null,
+        2
+      );
+      console.log(`Writing \n ${newContent} \n into settings.`);
+
+      await editor.click();
+      await this.window.keyboard.press(`${modifier}+a`);
+      await this.window.waitForTimeout(100);
+      await this.window.keyboard.press('Backspace');
+      await this.window.waitForTimeout(100);
+      await this.pasteContent(newContent);
+
+      await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
+      await this.window.screenshot({
+        path: `${SCREENSHOTS_FOLDER}/last-config.png`,
+      });
+      await this.window.waitForTimeout(300);
+      await this.window.keyboard.press(`${modifier}+w`);
+    } catch (error) {
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `error-editing-conf.png`),
+      });
+      throw error;
     }
-
-    const newContent = JSON.stringify(
-      {
-        ...existingSettings,
-        ...settings,
-      },
-      null,
-      2
-    );
-    console.log(`Writing \n ${newContent} \n into settings.`);
-
-    await editor.click();
-    await this.window.keyboard.press(`${modifier}+a`);
-    await this.window.waitForTimeout(100);
-    await this.window.keyboard.press('Backspace');
-    await this.window.waitForTimeout(100);
-    await this.pasteContent(newContent);
-
-    await this.window.keyboard.press(`${modifier}+s`, { delay: 500 });
-    await this.window.screenshot({
-      path: `${SCREENSHOTS_FOLDER}/last-config.png`,
-    });
-    await this.window.waitForTimeout(300);
-    await this.window.keyboard.press(`${modifier}+w`);
   }
 
   /**
