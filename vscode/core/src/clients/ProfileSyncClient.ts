@@ -186,7 +186,7 @@ export class ProfileSyncClient {
         enabled: config.enabled,
       });
 
-      if (!config.enabled === false) {
+      if (config.enabled === false) {
         this.logger.info("LLM proxy is not enabled");
         this.llmProxyConfig = {
           available: false,
