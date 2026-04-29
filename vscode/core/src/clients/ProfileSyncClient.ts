@@ -179,8 +179,12 @@ export class ProfileSyncClient {
       // The Hub API returns the config.json content as a JSON-encoded string,
       // so we need to parse it twice: once from the response, once from the string
       const rawConfig = await response.json();
-      const config: { model?: string; enabled?: boolean } =
+      const parsedConfig: { model?: string; enabled?: boolean | string } =
         typeof rawConfig === "string" ? JSON.parse(rawConfig) : rawConfig;
+      const config = {
+        ...parsedConfig,
+        enabled: parsedConfig.enabled !== "false" && parsedConfig.enabled !== false,
+      };
       this.logger.info("LLM proxy configuration fetched successfully", {
         model: config.model,
         enabled: config.enabled,
