@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "./extensionState";
-import { executeExtensionCommand } from "./commands";
+import { executeExtensionCommand, cleanupHubProfiles } from "./commands";
 import {
   ADD_PROFILE,
   AnalysisProfile,
@@ -281,6 +281,40 @@ const actions: {
       state.mutateSettings((draft) => {
         draft.isSyncingProfiles = false;
       });
+
+      // Clean up hub-synced profiles directory when profile sync is disabled.
+      // This directory is exclusively owned by the extension, so it's safe to delete.
+      // Only reload profiles if cleanup succeeds — otherwise getAllProfiles would
+      // return stale hub-only profiles and lock out local profile management.
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (workspaceRoot) {
+        try {
+          await cleanupHubProfiles(workspaceRoot, state.logger);
+        } catch (error) {
+          state.logger.error("Failed to clean up hub-synced profiles, skipping profile reload", {
+            error,
+          });
+          return;
+        }
+
+        // Reload profiles so the UI reflects the cleanup
+        const allProfiles = await getAllProfiles(state.extensionContext);
+        const currentActiveId = state.data.activeProfileId;
+        const activeStillExists = currentActiveId
+          ? allProfiles.find((p) => p.id === currentActiveId)
+          : null;
+        const newActiveId =
+          activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
+
+        state.mutateProfiles((draft) => {
+          draft.profiles = allProfiles;
+          draft.activeProfileId = newActiveId;
+        });
+
+        if (newActiveId) {
+          await state.extensionContext.workspaceState.update("activeProfileId", newActiveId);
+        }
+      }
     }
   },
   [SYNC_HUB_PROFILES]: async (_payload, _state) => {
