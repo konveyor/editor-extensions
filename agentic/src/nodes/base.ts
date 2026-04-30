@@ -22,6 +22,8 @@ import {
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 
 export abstract class BaseNode extends KaiWorkflowEventEmitter {
+  private static readonly DEFAULT_LLM_TIMEOUT_MS = 300_000; // 5 minutes
+
   constructor(
     private readonly name: string,
     protected readonly modelProvider: KaiModelProvider,
@@ -55,6 +57,9 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
    * Falls back to invoke() when native tools are supported but not in streaming.
    * If native tools are not supported, parses response on-the-fly and assembles
    * into tool_call_chunks making it transparent to callers.
+   *
+   * Includes a configurable timeout (default 5 min) to prevent hanging when
+   * the model provider is misconfigured or unreachable.
    */
   protected async streamOrInvoke(
     input: BaseLanguageModelInput,
@@ -64,6 +69,8 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       emitResponseChunks?: boolean;
       // toolsSelector matches tool names to enable
       toolsSelectors?: string[];
+      // timeout in ms for the entire LLM request (default: 5 minutes)
+      timeoutMs?: number;
     },
     options?: KaiModelProviderInvokeCallOptions | undefined,
   ): Promise<AIMessage | AIMessageChunk | undefined> {
@@ -72,50 +79,75 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
       enableTools = true,
       emitResponseChunks = true,
       toolsSelectors = [],
+      timeoutMs = BaseNode.DEFAULT_LLM_TIMEOUT_MS,
     } = streamOptions || {};
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     try {
-      // if we don't have tools enabled or registered, we should be able to stream without any issues
-      if (!enableTools || !this.tools.length) {
+      const executeRequest = async (): Promise<AIMessage | AIMessageChunk | undefined> => {
+        // if we don't have tools enabled or registered, we should be able to stream without any issues
+        if (!enableTools || !this.tools.length) {
+          return this.process_stream(
+            messageId,
+            enableTools,
+            emitResponseChunks,
+            await this.modelProvider.stream(input, options),
+          );
+        }
+
+        let runnable: KaiModelProvider = this.modelProvider;
+        let processedInput: BaseLanguageModelInput = input;
+
+        if (this.modelProvider.toolCallsSupported()) {
+          runnable = this.modelProvider.bindTools(this.tools);
+        } else {
+          // use custom tool parsing if model does not support tool calls
+          processedInput = this.getInputWithTools(input, toolsSelectors);
+        }
+
+        // use invoke if the model does not support streaming tool calls but supports normal tool calls
+        if (
+          this.modelProvider.toolCallsSupported() &&
+          !this.modelProvider.toolCallsSupportedInStreaming()
+        ) {
+          const fullResponse = await runnable.invoke(processedInput, options);
+          if (emitResponseChunks) {
+            this.emitWorkflowMessage({
+              id: messageId,
+              type: KaiWorkflowMessageType.LLMResponse,
+              data: fullResponse,
+            });
+          }
+          return fullResponse;
+        }
+
         return this.process_stream(
           messageId,
           enableTools,
           emitResponseChunks,
-          await this.modelProvider.stream(input, options),
+          await runnable.stream(processedInput, options),
         );
+      };
+
+      const requestPromise = executeRequest();
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            new Error(
+              `LLM request timed out after ${timeoutMs / 1000}s. ` +
+                `Verify your provider-settings.yaml configuration is correct.`,
+            ),
+          );
+        }, timeoutMs);
+      });
+
+      try {
+        return await Promise.race([requestPromise, timeoutPromise]);
+      } finally {
+        // Suppress unhandled rejection from the request if it settles after the timeout
+        requestPromise.catch(() => {});
       }
-
-      let runnable: KaiModelProvider = this.modelProvider;
-      let processedInput: BaseLanguageModelInput = input;
-
-      if (this.modelProvider.toolCallsSupported()) {
-        runnable = this.modelProvider.bindTools(this.tools);
-      } else {
-        // use custom tool parsing if model does not support tool calls
-        processedInput = this.getInputWithTools(input, toolsSelectors);
-      }
-
-      // use invoke if the model does not support streaming tool calls but supports normal tool calls
-      if (
-        this.modelProvider.toolCallsSupported() &&
-        !this.modelProvider.toolCallsSupportedInStreaming()
-      ) {
-        const fullResponse = await runnable.invoke(processedInput, options);
-        if (emitResponseChunks) {
-          this.emitWorkflowMessage({
-            id: messageId,
-            type: KaiWorkflowMessageType.LLMResponse,
-            data: fullResponse,
-          });
-        }
-        return fullResponse;
-      }
-
-      return this.process_stream(
-        messageId,
-        enableTools,
-        emitResponseChunks,
-        await runnable.stream(processedInput, options),
-      );
     } catch (err) {
       this.logger.error(
         `Error calling stream(): ${err instanceof Error ? err.message : String(err)}`,
@@ -124,12 +156,14 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
           errorStack: err instanceof Error ? err.stack : undefined,
         },
       );
-      if (emitResponseChunks) {
-        this.emitWorkflowMessage({
-          id: messageId,
-          type: KaiWorkflowMessageType.Error,
-          data: `Failed to get llm response - ${String(err)}`,
-        });
+      this.emitWorkflowMessage({
+        id: messageId,
+        type: KaiWorkflowMessageType.Error,
+        data: `Failed to get llm response - ${String(err)}`,
+      });
+    } finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
       }
     }
   }
