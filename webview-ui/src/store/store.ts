@@ -12,6 +12,10 @@ import type {
   Scope,
   PendingBatchReviewFile,
   HubConfig,
+  AgentState,
+  AgentChatMessage,
+  AgentContentBlockType,
+  AgentConfig,
 } from "@editor-extensions/shared";
 
 const MAX_CHAT_MESSAGES = 50000;
@@ -47,7 +51,6 @@ interface ExtensionStore {
   solutionScope?: Scope;
   solutionServerEnabled: boolean;
   solutionServerConnected: boolean;
-  isAgentMode: boolean;
   isContinueInstalled: boolean;
   hubConfig?: HubConfig;
   hubForced?: boolean;
@@ -59,12 +62,23 @@ interface ExtensionStore {
   availableTargets: string[];
   availableSources: string[];
 
+  // Feature flags
+  experimentalChatEnabled: boolean;
+  modelSupportsTools: boolean;
+
   // Batch review state
+  isBatchReviewMode: boolean;
   pendingBatchReview: PendingBatchReviewFile[];
   isBatchOperationInProgress: boolean;
 
   // Focus/filter state (from tree view "Open Details")
   focusedViolationFilter: string | null;
+
+  // Agent chat state (experimental)
+  agentMessages: AgentChatMessage[];
+  agentState: AgentState;
+  agentError?: string;
+  agentConfig: AgentConfig | null;
 
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
@@ -96,7 +110,6 @@ interface ExtensionStore {
   setSolutionScope: (scope: Scope | undefined) => void;
   setSolutionServerConnected: (connected: boolean) => void;
   setSolutionServerEnabled: (enabled: boolean) => void;
-  setIsAgentMode: (isAgentMode: boolean) => void;
   setIsContinueInstalled: (isInstalled: boolean) => void;
   setHubConfig: (config: HubConfig | undefined) => void;
   setHubForced: (forced: boolean | undefined) => void;
@@ -107,6 +120,29 @@ interface ExtensionStore {
   setLlmProxyAvailable: (available: boolean) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
+  setExperimentalChatEnabled: (enabled: boolean) => void;
+
+  // Agent chat setters
+  setAgentConfig: (config: AgentConfig | null) => void;
+  setAgentMessages: (messages: AgentChatMessage[]) => void;
+  setAgentState: (state: AgentState) => void;
+  setAgentError: (error: string | undefined) => void;
+  appendAgentStreamingChunk: (
+    messageId: string,
+    content: string,
+    contentType?: AgentContentBlockType,
+    resourceData?: { uri?: string; name?: string; mimeType?: string; text?: string },
+  ) => void;
+  finalizeAgentMessage: (messageId: string, stopReason?: string) => void;
+  cancelAgentMessage: (messageId: string) => void;
+  setAgentThinking: (messageId: string, isThinking: boolean) => void;
+  updateAgentToolCall: (
+    messageId: string,
+    toolName: string,
+    status: "running" | "succeeded" | "failed",
+    result?: string,
+    args?: Record<string, unknown>,
+  ) => void;
 
   // Utility
   clearAnalysisData: () => void;
@@ -142,7 +178,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       solutionScope: undefined,
       solutionServerEnabled: false,
       solutionServerConnected: false,
-      isAgentMode: false,
       isContinueInstalled: false,
       hubConfig: undefined,
       hubForced: undefined,
@@ -154,12 +189,23 @@ export const useExtensionStore = create<ExtensionStore>()(
       availableTargets: [],
       availableSources: [],
 
+      // Feature flags
+      experimentalChatEnabled: false,
+      modelSupportsTools: true,
+
       // Batch review state
+      isBatchReviewMode: false,
       pendingBatchReview: [],
       isBatchOperationInProgress: false,
 
       // Focus/filter state
       focusedViolationFilter: null,
+
+      // Agent chat state
+      agentMessages: [],
+      agentState: "stopped" as AgentState,
+      agentError: undefined,
+      agentConfig: null,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -307,11 +353,6 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.solutionServerEnabled = enabled;
         }),
 
-      setIsAgentMode: (isAgentMode) =>
-        set((state) => {
-          state.isAgentMode = isAgentMode;
-        }),
-
       setIsContinueInstalled: (isInstalled) =>
         set((state) => {
           state.isContinueInstalled = isInstalled;
@@ -360,6 +401,144 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsWebEnvironment: (isWeb) =>
         set((state) => {
           state.isWebEnvironment = isWeb;
+        }),
+
+      setExperimentalChatEnabled: (enabled) =>
+        set((state) => {
+          state.experimentalChatEnabled = enabled;
+        }),
+
+      // Agent chat setters
+      setAgentConfig: (config) =>
+        set((state) => {
+          state.agentConfig = config;
+        }),
+
+      setAgentMessages: (messages) =>
+        set((state) => {
+          state.agentMessages = messages;
+        }),
+
+      setAgentState: (agentState) =>
+        set((state) => {
+          state.agentState = agentState;
+        }),
+
+      setAgentError: (error) =>
+        set((state) => {
+          state.agentError = error;
+        }),
+
+      appendAgentStreamingChunk: (messageId, content, contentType, resourceData) =>
+        set((state) => {
+          let msg = state.agentMessages.find((m) => m.id === messageId);
+          if (!msg) {
+            const isSystem = messageId.startsWith("system-");
+            msg = {
+              id: messageId,
+              role: isSystem ? "system" : "assistant",
+              content: "",
+              timestamp: new Date().toISOString(),
+              isStreaming: !isSystem,
+              isThinking: !isSystem,
+              contentBlocks: [],
+            };
+            state.agentMessages.push(msg);
+          }
+
+          msg.isStreaming = true;
+
+          const blockType = contentType ?? "text";
+
+          if (blockType === "text" && content) {
+            if (msg.isThinking) {
+              msg.isThinking = false;
+            }
+            msg.content += content;
+          } else if (blockType === "resource_link" && resourceData?.uri) {
+            if (!msg.contentBlocks) {
+              msg.contentBlocks = [];
+            }
+            msg.contentBlocks.push({
+              type: "resource_link",
+              uri: resourceData.uri,
+              name: resourceData.name,
+              mimeType: resourceData.mimeType,
+            });
+          } else if (blockType === "resource" && resourceData?.uri) {
+            if (!msg.contentBlocks) {
+              msg.contentBlocks = [];
+            }
+            msg.contentBlocks.push({
+              type: "resource",
+              uri: resourceData.uri,
+              name: resourceData.name,
+              mimeType: resourceData.mimeType,
+              text: resourceData.text,
+            });
+          } else if (blockType === "thinking" && content) {
+            msg.isThinking = true;
+            if (!msg.contentBlocks) {
+              msg.contentBlocks = [];
+            }
+            msg.contentBlocks.push({ type: "thinking", text: content });
+          }
+        }),
+
+      finalizeAgentMessage: (messageId, stopReason) =>
+        set((state) => {
+          const msg = state.agentMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.isStreaming = false;
+            msg.isThinking = false;
+            if (stopReason) {
+              msg.stopReason = stopReason;
+            }
+          }
+        }),
+
+      cancelAgentMessage: (messageId) =>
+        set((state) => {
+          const msg = state.agentMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.isStreaming = false;
+            msg.isCancelled = true;
+            msg.isThinking = false;
+            msg.stopReason = "cancelled";
+          }
+        }),
+
+      setAgentThinking: (messageId, isThinking) =>
+        set((state) => {
+          const msg = state.agentMessages.find((m) => m.id === messageId);
+          if (msg) {
+            msg.isThinking = isThinking;
+          }
+        }),
+
+      updateAgentToolCall: (messageId, toolName, status, result, args) =>
+        set((state) => {
+          let msg = state.agentMessages.find((m) => m.id === messageId);
+          if (!msg) {
+            msg = {
+              id: messageId,
+              role: "assistant",
+              content: "",
+              timestamp: new Date().toISOString(),
+              isStreaming: true,
+              contentBlocks: [],
+            };
+            state.agentMessages.push(msg);
+          }
+          msg.toolCall = {
+            name: toolName,
+            status,
+            result,
+            arguments: args ?? msg.toolCall?.arguments,
+          };
+          if (status === "succeeded" || status === "failed") {
+            msg.isStreaming = false;
+          }
         }),
 
       clearAnalysisData: () =>
