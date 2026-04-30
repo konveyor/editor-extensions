@@ -23,9 +23,12 @@ export interface FileBasedCacheOptions {
  * @template C - The coordinates of the cache - paths to cache files.
  * @template O - Additional options for the cache.
  */
-export class FileBasedResponseCache<K, V>
-  implements InputOutputCache<K, V, CacheFilePaths, FileBasedCacheOptions>
-{
+export class FileBasedResponseCache<K, V> implements InputOutputCache<
+  K,
+  V,
+  CacheFilePaths,
+  FileBasedCacheOptions
+> {
   enabled: boolean;
 
   constructor(
@@ -131,9 +134,12 @@ export const ALL_REVISIONS = -1;
  * @template C - undefined (coordinates not available for in-memory cache).
  * @template O - Any additional options.
  */
-export class InMemoryCacheWithRevisions<K, V>
-  implements InputOutputCache<K, V, void, InMemoryCacheWithRevisionsOptions>
-{
+export class InMemoryCacheWithRevisions<K, V> implements InputOutputCache<
+  K,
+  V,
+  void,
+  InMemoryCacheWithRevisionsOptions
+> {
   private readonly cache: Map<K, V[]>;
   enabled: boolean;
 

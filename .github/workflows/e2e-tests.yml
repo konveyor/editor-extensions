@@ -73,9 +73,7 @@ jobs:
         run: npm ci
 
       - name: Download analyzer binary assets (for custom binary tests)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+        run: npm run collect-assets
 
       - name: Upload downloaded assets (for custom binary tests)
         uses: actions/upload-artifact@v4

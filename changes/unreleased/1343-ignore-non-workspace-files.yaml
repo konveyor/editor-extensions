@@ -1,3 +1,0 @@
-kind: bugfix
-description: >
-  ignore files outside workspace in analysis trigger

@@ -5,7 +5,6 @@ import { OutputChannelTransport } from "winston-transport-vscode";
 import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
 import { GoVscodeProxyServer } from "./goVscodeProxyServer";
 import { GoExternalProviderManager } from "./goExternalProviderManager";
-import { getDependencyProviderBinaryPath } from "./pathUtils";
 import {
   CORE_EXTENSION_ID,
   EXTENSION_DISPLAY_NAME,
@@ -149,9 +148,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
 
-  // Get golang-dependency-provider path
-  const dependencyProviderPath = getDependencyProviderBinaryPath(context);
-
   // Format provider address for GRPC
   // Windows named pipes: unix:\\.\pipe\vscode-ipc-123
   // Unix domain sockets: unix:///tmp/vscode-ipc-123.sock
@@ -160,7 +156,6 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Provider configuration", {
     providerAddress,
     workspaceLocation,
-    dependencyProviderPath,
   });
 
   // Register Go provider with core
@@ -176,8 +171,7 @@ export async function activate(context: vscode.ExtensionContext) {
           analysisMode: "source-only",
           pipeName: lspProxySocketPath, // JSON-RPC socket for vscode proxy communication
           providerSpecificConfig: {
-            lspServerName: "go",
-            dependencyProviderPath: dependencyProviderPath,
+            lspServerName: "generic",
           },
         },
       ],
