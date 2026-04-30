@@ -43,6 +43,9 @@ console.log("branch:", branch);
 console.log("pr:", pr);
 console.log("workflow:", workflow);
 
+const isNoFilesMatchedError = (err) =>
+  err instanceof Error && err.message.includes("No files matched globs");
+
 const actions = [
   // If from a release, download the release asset zips
   useRelease &&
@@ -172,12 +175,18 @@ const actions = [
           ...rulesetConfig,
           context: "{{root}}/preview",
         });
-      } catch {
+      } catch (err) {
+        if (!isNoFilesMatchedError(err)) {
+          throw err;
+        }
         console.warn("No preview rulesets found in this release, skipping");
       }
       console.log("Extracted rulesets using post-rulesets#342 layout (stable + preview)");
       return { id: "seed rulesets", meta: stableMeta };
-    } catch {
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
       console.warn(
         "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
       );
@@ -346,7 +355,10 @@ const actions = [
           assets: analyzerProviderAssets,
         }),
       };
-    } catch {
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
       console.warn(
         "nodejs-external-provider not found — falling back to generic-external-provider (pre-analyzer-lsp#1142 release)",
       );
@@ -407,7 +419,10 @@ const actions = [
           assets: analyzerProviderAssets,
         }),
       };
-    } catch {
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
       console.warn(
         "go-external-provider not found — falling back to golang-dependency-provider (pre-analyzer-lsp#1142 release)",
       );
@@ -466,7 +481,10 @@ const actions = [
           ],
         }),
       };
-    } catch {
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
       console.warn(
         "konveyor-analyzer-dep not found in this release — skipping (pre-analyzer-lsp#1142 release)",
       );
