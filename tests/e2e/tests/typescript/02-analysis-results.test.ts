@@ -69,13 +69,8 @@ export const Sidebar: React.FC = () => {
 
   test('Create profile with PatternFly rulesets', async () => {
     await vscodeApp.waitDefault();
-    await vscodeApp.createProfile(
-      repoInfo.sources,
-      repoInfo.targets,
-      profileName,
-      repoInfo.customRulesFolder
-    );
-    console.log(`Profile created: ${profileName} with custom rules`);
+    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    console.log(`Profile created: ${profileName}`);
   });
 
   test('Configure GenAI Provider', async () => {
@@ -106,8 +101,6 @@ export const Sidebar: React.FC = () => {
     await vscodeApp.waitForAnalysisCompleted();
     console.log('Analysis completed successfully');
   });
-
-  // --- Analysis Results Verification ---
 
   test('Verify analysis results are displayed', async () => {
     await vscodeApp.openAnalysisView();

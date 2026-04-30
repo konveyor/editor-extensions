@@ -17,7 +17,7 @@ const cli = parseCli(
     workflow: "build-and-push-binaries.yml",
     rulesetOrg: "konveyor",
     rulesetRepo: "rulesets",
-    releaseTag: "v0.9.0-alpha.4",
+    releaseTag: "v0.9.2",
     // C# provider specific defaults
     csharpBranch: "main",
   },
@@ -146,22 +146,49 @@ const actions = [
     }),
   }),
 
-  // Download and extract seed rulesets from a rulesets repo release
-  async () => ({
-    id: "seed rulesets",
-    meta: await downloadAndExtractGitHubReleaseSourceCode({
+  // Download and extract seed rulesets from a rulesets repo release.
+  // Supports both the layout introduced in konveyor/rulesets#342 (stable/<lang>/* and preview/*)
+  // and the legacy layout (default/generated/*). Tries the new layout first; falls back to the
+  // legacy one. Throws if neither layout produces any files.
+  async () => {
+    const rulesetConfig = {
       downloadDirectory: join(DOWNLOAD_CACHE, "sources"),
       targetDirectory: join(DOWNLOAD_DIR, "rulesets"),
-
       org: cli.rulesetOrg,
       repo: cli.rulesetRepo,
       releaseTag: cli.releaseTag,
       bearerToken,
+      globs: ["**/*.yaml", "**/*.yml", "!**/tests/**"],
+    };
 
-      context: "{{root}}/default/generated",
-      globs: ["**/*"],
-    }),
-  }),
+    try {
+      // Post-konveyor/rulesets#342: rules live in stable/<lang>/* and preview/*
+      const stableMeta = await downloadAndExtractGitHubReleaseSourceCode({
+        ...rulesetConfig,
+        context: "{{root}}/stable",
+      });
+      try {
+        await downloadAndExtractGitHubReleaseSourceCode({
+          ...rulesetConfig,
+          context: "{{root}}/preview",
+        });
+      } catch {
+        console.warn("No preview rulesets found in this release, skipping");
+      }
+      console.log("Extracted rulesets using post-rulesets#342 layout (stable + preview)");
+      return { id: "seed rulesets", meta: stableMeta };
+    } catch {
+      console.warn(
+        "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
+      );
+      const meta = await downloadAndExtractGitHubReleaseSourceCode({
+        ...rulesetConfig,
+        context: "{{root}}/default/generated",
+      });
+      console.log("Extracted rulesets using pre-rulesets#342 layout (default/generated)");
+      return { id: "seed rulesets", meta };
+    }
+  },
 
   // Extract jdt.ls bundles from the linux-x64_64 downloaded workflow artifact or release asset
   async () => ({
@@ -276,125 +303,176 @@ const actions = [
     }),
   }),
 
-  // Extract nodejs-external-provider binaries to platform-specific directories (same as kai pattern)
-  async () => ({
-    id: "nodejs-external-provider binaries",
-    meta: await unpackAssets({
-      title: "nodejs-external-provider binary",
-      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
-      targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
+  // Extract nodejs-external-provider binaries to platform-specific directories.
+  // Falls back to generic-external-provider for analyzer-lsp releases predating
+  // the per-language provider refactor (konveyor/analyzer-lsp#1142).
+  async () => {
+    const analyzerProviderAssets = [
+      {
+        name: "analyzer-lsp-binaries.linux-amd64.zip",
+        platform: "linux",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.linux-arm64.zip",
+        platform: "linux",
+        arch: "arm64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-amd64.zip",
+        platform: "darwin",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-arm64.zip",
+        platform: "darwin",
+        arch: "arm64",
+        chmod: true,
+      },
+      { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+    ];
+    try {
+      return {
+        id: "nodejs-external-provider binaries",
+        meta: await unpackAssets({
+          title: "nodejs-external-provider binary",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
+          globs: ["nodejs-external-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    } catch {
+      console.warn(
+        "nodejs-external-provider not found — falling back to generic-external-provider (pre-analyzer-lsp#1142 release)",
+      );
+      return {
+        id: "nodejs-external-provider binaries (generic fallback)",
+        meta: await unpackAssets({
+          title: "nodejs-external-provider binary (generic fallback)",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
+          globs: ["generic-external-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    }
+  },
 
-      globs: ["nodejs-external-provider*"],
-      assets: [
-        {
-          name: "analyzer-lsp-binaries.linux-amd64.zip",
-          platform: "linux",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.linux-arm64.zip",
-          platform: "linux",
-          arch: "arm64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-amd64.zip",
-          platform: "darwin",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-arm64.zip",
-          platform: "darwin",
-          arch: "arm64",
-          chmod: true,
-        },
-        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
-      ],
-    }),
-  }),
+  // Extract go-external-provider binaries to platform-specific directories.
+  // Falls back to golang-dependency-provider for analyzer-lsp releases predating
+  // the per-language provider refactor (konveyor/analyzer-lsp#1142).
+  async () => {
+    const analyzerProviderAssets = [
+      {
+        name: "analyzer-lsp-binaries.linux-amd64.zip",
+        platform: "linux",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.linux-arm64.zip",
+        platform: "linux",
+        arch: "arm64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-amd64.zip",
+        platform: "darwin",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-arm64.zip",
+        platform: "darwin",
+        arch: "arm64",
+        chmod: true,
+      },
+      { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+    ];
+    try {
+      return {
+        id: "go-external-provider binaries",
+        meta: await unpackAssets({
+          title: "go-external-provider binary",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
+          globs: ["go-external-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    } catch {
+      console.warn(
+        "go-external-provider not found — falling back to golang-dependency-provider (pre-analyzer-lsp#1142 release)",
+      );
+      return {
+        id: "go-external-provider binaries (golang-dependency-provider fallback)",
+        meta: await unpackAssets({
+          title: "go-external-provider binary (golang-dependency-provider fallback)",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
+          globs: ["golang-dependency-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    }
+  },
 
-  // Extract go-external-provider binaries to platform-specific directories (same as kai pattern)
-  async () => ({
-    id: "go-external-provider binaries",
-    meta: await unpackAssets({
-      title: "go-external-provider binary",
-      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
-      targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
-
-      globs: ["go-external-provider*"],
-      assets: [
-        {
-          name: "analyzer-lsp-binaries.linux-amd64.zip",
-          platform: "linux",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.linux-arm64.zip",
-          platform: "linux",
-          arch: "arm64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-amd64.zip",
-          platform: "darwin",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-arm64.zip",
-          platform: "darwin",
-          arch: "arm64",
-          chmod: true,
-        },
-        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
-      ],
-    }),
-  }),
-
-  // Extract konveyor-analyzer-dep binaries to platform-specific directories (same as kai pattern)
-  async () => ({
-    id: "konveyor-analyzer-dep binaries",
-    meta: await unpackAssets({
-      title: "konveyor-analyzer-dep binary",
-      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
-      targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "konveyor-analyzer-dep", `${platform}-${arch}`),
-
-      globs: ["konveyor-analyzer-dep*"],
-      assets: [
-        {
-          name: "analyzer-lsp-binaries.linux-amd64.zip",
-          platform: "linux",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.linux-arm64.zip",
-          platform: "linux",
-          arch: "arm64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-amd64.zip",
-          platform: "darwin",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-arm64.zip",
-          platform: "darwin",
-          arch: "arm64",
-          chmod: true,
-        },
-        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
-      ],
-    }),
-  }),
+  // Extract konveyor-analyzer-dep binaries to platform-specific directories.
+  // Skips gracefully on older analyzer-lsp releases that predate this binary.
+  async () => {
+    try {
+      return {
+        id: "konveyor-analyzer-dep binaries",
+        meta: await unpackAssets({
+          title: "konveyor-analyzer-dep binary",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "konveyor-analyzer-dep", `${platform}-${arch}`),
+          globs: ["konveyor-analyzer-dep*"],
+          assets: [
+            {
+              name: "analyzer-lsp-binaries.linux-amd64.zip",
+              platform: "linux",
+              arch: "x64",
+              chmod: true,
+            },
+            {
+              name: "analyzer-lsp-binaries.linux-arm64.zip",
+              platform: "linux",
+              arch: "arm64",
+              chmod: true,
+            },
+            {
+              name: "analyzer-lsp-binaries.darwin-amd64.zip",
+              platform: "darwin",
+              arch: "x64",
+              chmod: true,
+            },
+            {
+              name: "analyzer-lsp-binaries.darwin-arm64.zip",
+              platform: "darwin",
+              arch: "arm64",
+              chmod: true,
+            },
+            { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+          ],
+        }),
+      };
+    } catch {
+      console.warn(
+        "konveyor-analyzer-dep not found in this release — skipping (pre-analyzer-lsp#1142 release)",
+      );
+      return { id: "konveyor-analyzer-dep binaries (skipped)" };
+    }
+  },
 
   // Download c-sharp-analyzer-provider release assets
   useRelease &&

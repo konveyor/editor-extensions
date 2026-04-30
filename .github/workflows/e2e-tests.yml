@@ -9,6 +9,10 @@ on:
       trigger_context:
         required: true
         type: string # 'pr', 'release', 'manual'
+      use_release:
+        required: false
+        type: boolean
+        default: false # when true, collect-assets uses --use-release (pinned tag) instead of latest workflow artifacts
     secrets:
       OPENAI_API_KEY:
         required: false
@@ -75,7 +79,12 @@ jobs:
       - name: Download analyzer binary assets (for custom binary tests)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+        run: |
+          if ${{ inputs.use_release }}; then
+            npm run collect-assets -- --use-release
+          else
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          fi
 
       - name: Upload downloaded assets (for custom binary tests)
         uses: actions/upload-artifact@v4
