@@ -276,47 +276,7 @@ const actions = [
     }),
   }),
 
-  // Extract nodejs-external-provider binaries to platform-specific directories (same as kai pattern)
-  async () => ({
-    id: "nodejs-external-provider binaries",
-    meta: await unpackAssets({
-      title: "nodejs-external-provider binary",
-      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
-      targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
-
-      globs: ["nodejs-external-provider*"],
-      assets: [
-        {
-          name: "analyzer-lsp-binaries.linux-amd64.zip",
-          platform: "linux",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.linux-arm64.zip",
-          platform: "linux",
-          arch: "arm64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-amd64.zip",
-          platform: "darwin",
-          arch: "x64",
-          chmod: true,
-        },
-        {
-          name: "analyzer-lsp-binaries.darwin-arm64.zip",
-          platform: "darwin",
-          arch: "arm64",
-          chmod: true,
-        },
-        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
-      ],
-    }),
-  }),
-
-  // Extract go-external-provider binaries to platform-specific directories (same as kai pattern)
+  // Extract go-external-provider binaries to platform-specific directories
   async () => ({
     id: "go-external-provider binaries",
     meta: await unpackAssets({
@@ -356,16 +316,16 @@ const actions = [
     }),
   }),
 
-  // Extract konveyor-analyzer-dep binaries to platform-specific directories (same as kai pattern)
+  // Extract nodejs-external-provider binaries to platform-specific directories
   async () => ({
-    id: "konveyor-analyzer-dep binaries",
+    id: "nodejs-external-provider binaries",
     meta: await unpackAssets({
-      title: "konveyor-analyzer-dep binary",
+      title: "nodejs-external-provider binary",
       sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
-        join(DOWNLOAD_DIR, "konveyor-analyzer-dep", `${platform}-${arch}`),
+        join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
 
-      globs: ["konveyor-analyzer-dep*"],
+      globs: ["nodejs-external-provider*"],
       assets: [
         {
           name: "analyzer-lsp-binaries.linux-amd64.zip",

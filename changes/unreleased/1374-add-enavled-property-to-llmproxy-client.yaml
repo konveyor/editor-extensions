@@ -1,3 +1,0 @@
-kind: bugfix
-description: >
-  Add enabled property to LLM proxy client.

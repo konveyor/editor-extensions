@@ -1,11 +1,6 @@
-import { extensionLongName, extensionShortName } from '../utilities/utils';
-
-const coreExtensionChannel =
-  extensionShortName === 'Konveyor'
-    ? `${extensionLongName} Core Extension`
-    : `${extensionLongName} - Core`;
+import { extensionShortName } from '../utilities/utils';
 
 export const OutputChannels = {
-  CoreExtension: coreExtensionChannel,
+  CoreExtension: `${extensionShortName} Core Extension`,
   ExtensionHost: 'Extension Host',
 } as const;

@@ -15,18 +15,6 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { javaHealthChecks } from "./healthCheck";
 
-/** How long to wait for JDTLS Standard mode before giving up */
-const JDTLS_READY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-
-/**
- * API shape exported by the Red Hat Java extension (redhat.java).
- * Only the subset we depend on.
- */
-interface RedHatJavaExtensionApi {
-  serverReady(): Promise<boolean>;
-  onDidServerModeChange: vscode.Event<string>;
-}
-
 /**
  * Check if a command is available on the system
  */
@@ -56,77 +44,6 @@ async function checkCommand(command: string, versionFlag = "-version"): Promise<
   return false;
 }
 
-/**
- * Wait for the Java Language Server to be ready (Standard mode).
- *
- * The Red Hat Java extension can be active while JDTLS is still in Lightweight
- * mode. We need Standard mode for workspace commands to work. This uses the
- * extension's exported API (serverReady / onDidServerModeChange) to wait.
- */
-function waitForJavaLanguageServer(
-  javaApi: RedHatJavaExtensionApi,
-  context: vscode.ExtensionContext,
-  logger: winston.Logger,
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    let settled = false;
-
-    const timeout = setTimeout(() => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      logger.warn(
-        `Java Language Server did not reach Standard mode within ${JDTLS_READY_TIMEOUT_MS}ms`,
-      );
-      vscode.window
-        .showWarningMessage(
-          "The Java Language Server has not reached Standard mode. " +
-            "Java analysis will be disabled until the language server is ready.",
-          "Reload Window",
-        )
-        .then((selection) => {
-          if (selection === "Reload Window") {
-            vscode.commands.executeCommand("workbench.action.reloadWindow");
-          }
-        });
-      resolve(false);
-    }, JDTLS_READY_TIMEOUT_MS);
-
-    context.subscriptions.push({ dispose: () => clearTimeout(timeout) });
-
-    // Try serverReady() first — it resolves when JDTLS is fully initialized
-    if (typeof javaApi.serverReady === "function") {
-      javaApi.serverReady().then(() => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timeout);
-        logger.info("Java Language Server is ready (via serverReady)");
-        resolve(true);
-      });
-    }
-
-    // Also listen for mode changes as a fallback
-    if (typeof javaApi.onDidServerModeChange === "function") {
-      const listener = javaApi.onDidServerModeChange((mode: string) => {
-        if (settled) {
-          return;
-        }
-        logger.info(`Java Language Server mode changed to: ${mode}`);
-        if (mode === "Standard") {
-          settled = true;
-          clearTimeout(timeout);
-          listener.dispose();
-          resolve(true);
-        }
-      });
-      context.subscriptions.push(listener);
-    }
-  });
-}
-
 export async function activate(context: vscode.ExtensionContext) {
   // Setup logger
   const outputChannel = vscode.window.createOutputChannel(EXTENSION_DISPLAY_NAME);
@@ -152,8 +69,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Logger created");
   logger.info(`Extension ${EXTENSION_ID} starting`);
 
-  // redhat.java is declared in extensionDependencies, so VS Code guarantees
-  // it is installed before activating this extension.
+  // Check for Red Hat Java Language Support extension
   const javaExt = vscode.extensions.getExtension("redhat.java");
   if (!javaExt) {
     const message =
@@ -168,11 +84,11 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  let javaApi: RedHatJavaExtensionApi | undefined;
   if (!javaExt.isActive) {
     logger.info("Java Language Support extension is not yet active, waiting...");
+
     try {
-      javaApi = (await javaExt.activate()) as RedHatJavaExtensionApi;
+      await javaExt.activate();
       logger.info("Java Language Support activated successfully");
     } catch (err) {
       logger.error("Failed to activate Java Language Support", err);
@@ -181,32 +97,8 @@ export async function activate(context: vscode.ExtensionContext) {
       );
       return;
     }
-  } else {
-    javaApi = javaExt.exports as RedHatJavaExtensionApi;
   }
 
-  // Defer provider initialization until JDTLS reaches Standard mode.
-  // In DevSpaces and similar remote environments, the language server starts in
-  // Lightweight mode and transitions to Standard after project import completes.
-  // activate() returns immediately so VS Code isn't blocked; initialization
-  // runs in the background once JDTLS signals readiness.
-  if (javaApi) {
-    logger.info("Waiting for Java Language Server to be ready (non-blocking)...");
-    waitForJavaLanguageServer(javaApi, context, logger).then((ready) => {
-      if (ready) {
-        initializeProviders(context, logger);
-      }
-    });
-  } else {
-    // No API available (unexpected) — try to initialize immediately
-    initializeProviders(context, logger);
-  }
-}
-
-async function initializeProviders(
-  context: vscode.ExtensionContext,
-  logger: winston.Logger,
-): Promise<void> {
   // Check for Java installation
   const hasJava = await checkCommand("java");
   if (!hasJava) {

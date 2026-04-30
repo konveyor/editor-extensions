@@ -45,8 +45,7 @@
   ],
   "contributes": {},
   "includedAssetPaths": {
-    "goExternalProvider": "../../downloaded_assets/go-external-provider",
-    "konveyorAnalyzerDep": "../../downloaded_assets/konveyor-analyzer-dep"
+    "goExternalProvider": "../../downloaded_assets/go-external-provider"
   },
   "scripts": {
     "clean": "rimraf out",

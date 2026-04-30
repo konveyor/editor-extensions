@@ -266,7 +266,6 @@ await copy({
 
         packageJson.includedAssetPaths = {
           goExternalProvider: "./assets/go-external-provider",
-          konveyorAnalyzerDep: "./assets/konveyor-analyzer-dep",
         };
 
         return JSON.stringify(packageJson, null, 2);
@@ -294,13 +293,6 @@ await copy({
       context: "downloaded_assets/go-external-provider",
       src: ["*/go-external-provider*"],
       dest: `dist/${GO_EXTENSION_NAME}/assets/go-external-provider`,
-    },
-
-    // seed assets - konveyor-analyzer-dep binaries
-    {
-      context: "downloaded_assets/konveyor-analyzer-dep",
-      src: ["*/konveyor-analyzer-dep*"],
-      dest: `dist/${GO_EXTENSION_NAME}/assets/konveyor-analyzer-dep`,
     },
   ],
 });

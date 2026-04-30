@@ -50,7 +50,7 @@ export class GoExternalProviderManager implements vscode.Disposable {
     });
 
     // Spawn the provider process
-    this.process = spawn(binaryPath, ["-name", "go", "-socket", this.providerSocketPath], {
+    this.process = spawn(binaryPath, ["-name", "generic", "-socket", this.providerSocketPath], {
       cwd: path.dirname(binaryPath),
     });
 
