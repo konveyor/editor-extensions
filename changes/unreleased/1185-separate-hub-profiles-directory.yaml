@@ -1,8 +1,0 @@
-kind: bugfix
-description: >
-  Hub-synced profiles are now stored in a dedicated .konveyor/hub-profiles/ directory,
-  separate from user-managed profiles in .konveyor/profiles/. When Hub profile sync is
-  disabled, the hub profiles directory is automatically cleaned up, restoring local
-  profile management without requiring manual directory deletion.
-extensions:
-  - core

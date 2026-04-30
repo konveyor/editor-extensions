@@ -7,6 +7,14 @@ All notable changes to the "konveyor" extension pack will be documented in this 
 
 
 
+
+## [0.4.11] - 2026-04-30
+
+### Bug Fixes
+
+- Hub-synced profiles are now stored in a dedicated .konveyor/hub-profiles/ directory, separate from user-managed profiles in .konveyor/profiles/. When Hub profile sync is disabled, the hub profiles directory is automatically cleaned up, restoring local profile management without requiring manual directory deletion. ([#1185](https://github.com/konveyor/editor-extensions/pull/1185))
+
+
 ## [0.4.9] - 2026-03-26
 
 ### Bug Fixes
