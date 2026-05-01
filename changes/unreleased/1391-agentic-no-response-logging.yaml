@@ -1,0 +1,4 @@
+kind: bugfix
+description: >
+  Upgrade no-response logging from silly to warn in agentic workflow nodes
+  so silent LLM failures are visible in normal log output.
