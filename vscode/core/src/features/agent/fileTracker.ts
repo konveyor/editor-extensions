@@ -13,8 +13,8 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
-import { execFile } from "child_process";
 import { fileURLToPath } from "url";
+import { execFile } from "child_process";
 import type winston from "winston";
 
 export interface TrackedFileChange {
@@ -110,28 +110,25 @@ export class AgentFileTracker {
       this.pendingToolFiles.set(callId, absPath);
     }
 
-    if (this.originalContentCache.has(absPath)) {
+    if (this.originalContentCache.has(absPath) || this.inflightReads.has(absPath)) {
       return;
     }
 
-    // Track the in-flight read so scanners can await it before comparing
-    if (!this.inflightReads.has(absPath)) {
-      const readPromise = fs
-        .readFile(absPath, "utf-8")
-        .then((content) => {
-          if (!this.originalContentCache.has(absPath)) {
-            this.originalContentCache.set(absPath, content);
-            this.logger.debug("Cached original for tool-targeted file", { path: absPath });
-          }
-        })
-        .catch(() => {
-          // File may not exist yet (new file) — that's fine
-        })
-        .finally(() => {
-          this.inflightReads.delete(absPath);
-        });
-      this.inflightReads.set(absPath, readPromise);
-    }
+    const readPromise = fs.readFile(absPath, "utf-8")
+      .then((content) => {
+        if (!this.originalContentCache.has(absPath)) {
+          this.originalContentCache.set(absPath, content);
+          this.logger.debug("Cached original for tool-targeted file", { path: absPath });
+        }
+      })
+      .catch(() => {
+        // File may not exist yet (new file) — that's fine
+      })
+      .finally(() => {
+        this.inflightReads.delete(absPath);
+      });
+
+    this.inflightReads.set(absPath, readPromise);
   }
 
   /**
@@ -155,7 +152,7 @@ export class AgentFileTracker {
   }
 
   private async doScan(): Promise<TrackedFileChange[]> {
-    // Wait for any in-flight reads to complete before comparing
+    // Wait for any inflight reads to complete before comparing
     if (this.inflightReads.size > 0) {
       await Promise.allSettled(this.inflightReads.values());
     }
@@ -187,8 +184,10 @@ export class AgentFileTracker {
 
   /** Mark a file as already routed to batch review. */
   markAsRouted(absPath: string): void {
-    if (absPath.startsWith("file://") || absPath.startsWith("file:")) {
+    if (absPath.startsWith("file://")) {
       absPath = fileURLToPath(absPath);
+    } else if (absPath.startsWith("file:")) {
+      absPath = absPath.slice("file:".length);
     }
     this.routedFiles.add(absPath);
   }
@@ -201,8 +200,10 @@ export class AgentFileTracker {
    */
   async getOriginalContent(absPath: string, workspaceRoot?: string): Promise<string | undefined> {
     // Normalize absPath — it may arrive as a file: or file:// URI
-    if (absPath.startsWith("file://") || absPath.startsWith("file:")) {
+    if (absPath.startsWith("file://")) {
       absPath = fileURLToPath(absPath);
+    } else if (absPath.startsWith("file:")) {
+      absPath = absPath.slice("file:".length);
     }
 
     const cached = this.originalContentCache.get(absPath);
@@ -212,8 +213,10 @@ export class AgentFileTracker {
 
     // Normalize workspaceRoot — it may arrive as a file:// URI
     let normalizedRoot = workspaceRoot;
-    if (normalizedRoot?.startsWith("file://") || normalizedRoot?.startsWith("file:")) {
-      normalizedRoot = fileURLToPath(normalizedRoot);
+    if (normalizedRoot?.startsWith("file://")) {
+      normalizedRoot = new URL(normalizedRoot).pathname;
+    } else if (normalizedRoot?.startsWith("file:")) {
+      normalizedRoot = normalizedRoot.slice("file:".length);
     }
 
     // Fall back to git for files not in the cache
@@ -306,13 +309,12 @@ export class AgentFileTracker {
     this.originalContentCache.clear();
     this.routedFiles.clear();
     this.pendingToolFiles.clear();
-    this.inflightReads.clear();
     this.scanPromise = null;
   }
 
   private uriToAbsolute(uri: string, workspaceRoot: string): string | undefined {
     try {
-      if (uri.startsWith("file://") || uri.startsWith("file:")) {
+      if (uri.startsWith("file://")) {
         return fileURLToPath(uri);
       }
       if (path.isAbsolute(uri)) {

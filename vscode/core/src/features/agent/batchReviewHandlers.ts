@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { join, isAbsolute } from "path";
+import { fileURLToPath } from "url";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import { handleFileResponse } from "../../utilities/ModifiedFiles/handleFileResponse";
@@ -16,7 +17,7 @@ function resolveAbsolutePath(filePath: string, state: ExtensionState): string {
   }
   let wsRoot = state.data.workspaceRoot;
   if (wsRoot.startsWith("file://")) {
-    wsRoot = new URL(wsRoot).pathname;
+    wsRoot = fileURLToPath(wsRoot);
   }
   return join(wsRoot, filePath);
 }

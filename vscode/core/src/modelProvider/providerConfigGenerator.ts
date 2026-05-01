@@ -47,6 +47,23 @@ const PROVIDER_MAP: Record<string, ProviderMapping> = {
   },
 };
 
+function isSubset(expected: unknown, actual: unknown): boolean {
+  if (expected === actual) return true;
+  if (
+    expected &&
+    actual &&
+    typeof expected === "object" &&
+    typeof actual === "object" &&
+    !Array.isArray(expected) &&
+    !Array.isArray(actual)
+  ) {
+    return Object.entries(expected as Record<string, unknown>).every(([k, v]) =>
+      isSubset(v, (actual as Record<string, unknown>)[k]),
+    );
+  }
+  return false;
+}
+
 export function langchainProviderToUiId(
   langchainProvider: string,
   args?: Record<string, unknown>,
@@ -62,11 +79,8 @@ export function langchainProviderToUiId(
   }
   // Disambiguate duplicate LangChain names (e.g. ChatOpenAI → openai vs groq)
   for (const [uiId, m] of matches) {
-    if (m.extraArgs && args) {
-      const extraKey = Object.keys(m.extraArgs)[0];
-      if (extraKey && JSON.stringify(args[extraKey]) === JSON.stringify(m.extraArgs[extraKey])) {
-        return uiId;
-      }
+    if (m.extraArgs && args && isSubset(m.extraArgs, args)) {
+      return uiId;
     }
   }
   // Fall back to the entry without extraArgs (the "plain" one)

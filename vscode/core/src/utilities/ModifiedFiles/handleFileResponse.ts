@@ -1,5 +1,6 @@
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
+import { fileUriToPath } from "../pathUtils";
 import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";

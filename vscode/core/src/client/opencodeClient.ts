@@ -334,9 +334,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         this.server = null;
       }
       this.client = null;
-      for (const key of this.injectedEnvKeys) {
-        delete process.env[key];
-      }
+      for (const key of this.injectedEnvKeys) { delete process.env[key]; }
       this.injectedEnvKeys = [];
 
       const error = err instanceof Error ? err : new Error(String(err));
@@ -373,9 +371,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     this.client = null;
     this.sessionId = null;
     this.promptActive = false;
-    for (const key of this.injectedEnvKeys) {
-      delete process.env[key];
-    }
+    for (const key of this.injectedEnvKeys) { delete process.env[key]; }
     this.injectedEnvKeys = [];
     this.setState("stopped");
     this.logger.info("OpencodeAgentClient: stopped");
