@@ -684,16 +684,12 @@ const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger)
     logger.info("Batch review complete — resetting all workflow state");
 
     // Reset all solution workflow flags to unblock analysis
-    state.mutateSolutionWorkflow((draft) => {
+    state.mutate((draft) => {
       draft.pendingBatchReview = [];
       draft.isFetchingSolution = false;
       draft.solutionState = "none";
       draft.isWaitingForUserInteraction = false;
       draft.isProcessingQueuedMessages = false;
-    });
-
-    // Reset analysis flags in case they're stale
-    state.mutateAnalysisState((draft) => {
       draft.isAnalyzing = false;
       draft.isAnalysisScheduled = false;
     });

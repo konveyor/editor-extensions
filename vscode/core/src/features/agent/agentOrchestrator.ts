@@ -366,7 +366,7 @@ export class AgentOrchestrator {
       this.state.currentQueueManager = undefined;
       this.state.pendingInteractionsMap = undefined;
       this.state.resolvePendingInteraction = undefined;
-      workflow.removeListener("workflowMessage", onWorkflowMessage);
+      workflow.removeAllListeners();
       this.cleanup();
       if (disposeClient) {
         agentClient.dispose();

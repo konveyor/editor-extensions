@@ -4,7 +4,6 @@ import { fileUriToPath } from "../pathUtils";
 import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
-import { fileUriToPath } from "../pathUtils";
 import {
   KaiWorkflowMessage,
   KaiWorkflowMessageType,
