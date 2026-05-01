@@ -9,6 +9,16 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.12] - 2026-05-01
+
+### Bug Fixes
+
+- Add enabled property to LLM proxy client. ([#1374](https://github.com/konveyor/editor-extensions/pull/1374))
+- Fix continue button remaining disabled after closing editor tab with active code lenses. When the user opens a solution in review mode (with accept/reject code lenses) and closes the editor tab without accepting or rejecting, the activeDecorators state was not cleaned up. This left the batch review UI in a stuck state where the continue button stayed disabled. Added an onDidCloseTextDocument listener to VerticalDiffManager that clears diff state when the editor tab is closed, treating it as a reject/discard. Also fixes a related issue where the closed file retained patched content in VS Code's in-memory buffer by reverting the file to its on-disk state, and resets the webview review UI so users can re-open the review.
+- Fix solution server not receiving user's in-place edits when accepting a solution. Previously, when a user edited the LLM-suggested fix directly in the editor before clicking Accept, the solution server received the original LLM-generated content instead of the user's modified version. The fix now reads the file from disk at accept time, capturing any edits made between fix generation and acceptance.
+
+
 ## [0.4.11] - 2026-04-30
 
 ### Bug Fixes

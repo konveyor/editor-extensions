@@ -1,8 +1,0 @@
-kind: bugfix
-description: >
-  Java extension now waits for the Java Language Server to reach Standard mode
-  before starting the LSP proxy and provider, fixing a race condition in
-  DevSpaces where the extension would fail to activate and require a window
-  reload.
-extensions:
-  - java

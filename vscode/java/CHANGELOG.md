@@ -3,6 +3,14 @@
 All notable changes to the "konveyor-java" extension will be documented in this file.
 
 
+
+## [0.4.12] - 2026-05-01
+
+### Bug Fixes
+
+- Java extension now waits for the Java Language Server to reach Standard mode before starting the LSP proxy and provider, fixing a race condition in DevSpaces where the extension would fail to activate and require a window reload. ([#1349](https://github.com/konveyor/editor-extensions/pull/1349))
+
+
 ## [0.4.5] - 2026-03-06
 
 ### Bug Fixes
