@@ -14,9 +14,15 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 const BRIDGE_PORT = process.env.KONVEYOR_BRIDGE_PORT;
+const BRIDGE_TOKEN = process.env.KONVEYOR_BRIDGE_TOKEN;
 
 if (!BRIDGE_PORT) {
   console.error("KONVEYOR_BRIDGE_PORT environment variable is required");
+  process.exit(1);
+}
+
+if (!BRIDGE_TOKEN) {
+  console.error("KONVEYOR_BRIDGE_TOKEN environment variable is required");
   process.exit(1);
 }
 
@@ -29,9 +35,16 @@ async function bridgeRequest(
   const { method = "GET", body } = options;
   const url = `${BRIDGE_BASE}${path}`;
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${BRIDGE_TOKEN}`,
+  };
+  if (body) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(url, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -40,7 +53,11 @@ async function bridgeRequest(
     throw new Error(`Bridge request failed: ${response.status} ${text}`);
   }
 
-  return response.json();
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+  return JSON.parse(text);
 }
 
 // ─── Server setup ─────────────────────────────────────────────────────

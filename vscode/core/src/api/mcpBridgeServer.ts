@@ -260,7 +260,25 @@ export class McpBridgeServer {
         const body = await this.readBody(req);
         try {
           const changes = JSON.parse(body);
-          const files: FileChange[] = changes.files ?? [];
+          if (
+            !changes.files ||
+            !Array.isArray(changes.files) ||
+            !changes.files.every(
+              (f: unknown) =>
+                typeof (f as FileChange).path === "string" &&
+                typeof (f as FileChange).content === "string",
+            )
+          ) {
+            res.writeHead(400);
+            res.end(
+              JSON.stringify({
+                error:
+                  "Invalid file change payload: expected { files: Array<{ path: string, content: string }> }",
+              }),
+            );
+            return;
+          }
+          const files = changes.files as FileChange[];
           this.logger.info(`McpBridgeServer: received file changes for ${files.length} file(s)`);
 
           if (this.config.onFileChanges && files.length > 0) {
@@ -283,10 +301,19 @@ export class McpBridgeServer {
     }
   }
 
-  private readBody(req: http.IncomingMessage): Promise<string> {
+  private readBody(req: http.IncomingMessage, maxBytes = 5 * 1024 * 1024): Promise<string> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      let total = 0;
+      req.on("data", (chunk: Buffer) => {
+        total += chunk.length;
+        if (total > maxBytes) {
+          reject(new Error("Request body too large"));
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
       req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
       req.on("error", reject);
     });
