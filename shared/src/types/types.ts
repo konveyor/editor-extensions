@@ -1,4 +1,4 @@
-export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub";
+export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub" | "chat";
 
 export interface Incident {
   uri: string;
@@ -86,6 +86,7 @@ export interface RuleSet {
 
 export interface Scope {
   incidents: EnhancedIncident[];
+  agentSessionId?: string;
 }
 
 export interface ScopeWithKonveyorContext {
@@ -154,14 +155,12 @@ export interface ExtensionData {
   activeProfileId: string | null;
   isInTreeMode: boolean;
   solutionServerEnabled: boolean;
-  isAgentMode: boolean;
   activeDecorators?: Record<string, string>;
   solutionServerConnected: boolean;
   isWaitingForUserInteraction?: boolean;
   hubConfig: HubConfig | undefined;
   hubForced?: boolean;
   isProcessingQueuedMessages?: boolean;
-  pendingBatchReview?: PendingBatchReviewFile[];
   profileSyncEnabled: boolean;
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
@@ -169,6 +168,11 @@ export interface ExtensionData {
   isWebEnvironment: boolean;
   availableTargets: string[];
   availableSources: string[];
+  featureState: Record<string, unknown>;
+  isBatchReviewMode: boolean;
+  pendingBatchReview?: PendingBatchReviewFile[];
+  experimentalChatEnabled: boolean;
+  modelSupportsTools: boolean;
 }
 
 export type ConfigErrorType =
@@ -369,7 +373,14 @@ export interface AnalysisProfile {
   syncedAt?: string;
 }
 
-export type ToolMessageValue = { toolName: string; toolStatus: string };
+export type ToolMessageValue = {
+  toolName: string;
+  toolStatus: string;
+  toolResult?: string;
+  filePath?: string;
+  detail?: string;
+  isFileChangeRouted?: boolean;
+};
 
 export type ModifiedFileMessageValue = {
   path: string;
