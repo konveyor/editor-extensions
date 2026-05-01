@@ -38,6 +38,7 @@
     "shared",
     "webview-ui",
     "agentic",
+    "mcp-server",
     "vscode/core",
     "vscode/java",
     "vscode/javascript",
@@ -47,12 +48,12 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "postinstall": "npm run build -w shared && npm run build -w agentic",
+    "postinstall": "npm run build -w shared && npm run build -w agentic && npm run build -w mcp-server",
     "clean": "rimraf ./dist ./downloaded_assets ./downloaded_cache && npm run clean --workspaces --if-present",
     "clean:all": "npm run clean && rimraf ./node_modules ./**/node_modules/ ./**/tsconfig.tsbuildinfo",
     "lint": "eslint ./scripts && npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
-    "dev": "concurrently -c auto 'npm:dev:shared' 'npm:dev:agentic' 'npm:dev:webview-ui' 'npm:dev:vscode'",
+    "dev": "concurrently -c auto 'npm:dev:shared' 'npm:dev:agentic' 'npm:dev:mcp-server' 'npm:dev:webview-ui' 'npm:dev:vscode'",
     "dev:shared": "npm run dev -w shared",
     "dev:agentic": "npm run dev -w agentic",
     "dev:webview-ui": "wait-on -d 500 shared/dist/index.mjs && npm run start -w webview-ui",
@@ -73,7 +74,8 @@
     "test": "npm run build && npm run test --workspaces --if-present",
     "changelog:validate": "node scripts/changelog.js validate",
     "changelog:create": "node scripts/changelog.js create",
-    "changelog:assemble": "node scripts/changelog.js assemble"
+    "changelog:assemble": "node scripts/changelog.js assemble",
+    "dev:mcp-server": "npm run dev -w mcp-server"
   },
   "lint-staged": {
     "./scripts/*.{mjs,js,mts,ts}": "eslint --fix",
