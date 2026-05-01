@@ -22,13 +22,14 @@ import {
   STOP_WORKFLOW,
   RESTART_SOLUTION_SERVER,
   ENABLE_GENAI,
-  TOGGLE_AGENT_MODE,
   UPDATE_PROFILE,
   WEBVIEW_READY,
   WebviewAction,
   WebviewActionType,
   ScopeWithKonveyorContext,
   ExtensionData,
+  MessageTypes,
+  AgentMessageTypes,
   OPEN_RESOLUTION_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
@@ -45,11 +46,10 @@ import {
   setActiveProfileId,
 } from "./utilities/profiles/profileService";
 import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
-import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
-import { runPartialAnalysis } from "./analysis/runAnalysis";
 import winston from "winston";
-import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
+import { updateConfigErrors } from "./utilities/configuration";
 import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
+import { generateProviderSettingsYaml } from "./modelProvider/providerConfigGenerator";
 
 export function setupWebviewMessageListener(
   webview: vscode.Webview,
@@ -101,17 +101,17 @@ const actions: {
     const updatedAllProfiles = await getAllProfiles(state.extensionContext);
     setActiveProfileId(profile.id, state);
 
-    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
+    // Save active profile ID to workspace state
     await state.extensionContext.workspaceState.update("activeProfileId", profile.id);
 
-    // Use mutateProfiles to broadcast profile updates to webview
-    state.mutateProfiles((draft) => {
+    // Broadcast profile updates to webview
+    state.mutate((draft) => {
       draft.profiles = updatedAllProfiles;
       draft.activeProfileId = profile.id;
     });
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
@@ -139,19 +139,19 @@ const actions: {
       state.extensionContext.workspaceState.update("activeProfileId", newActiveProfileId);
 
       // Broadcast profile update with new active profile
-      state.mutateProfiles((draft) => {
+      state.mutate((draft) => {
         draft.profiles = allProfiles;
         draft.activeProfileId = newActiveProfileId;
       });
     } else {
       // Just update profiles list
-      state.mutateProfiles((draft) => {
+      state.mutate((draft) => {
         draft.profiles = allProfiles;
       });
     }
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
   },
@@ -189,7 +189,7 @@ const actions: {
     const isActiveProfile = currentActiveProfileId === originalId;
 
     // Update profiles and active profile ID if necessary
-    state.mutateProfiles((draft) => {
+    state.mutate((draft) => {
       draft.profiles = fullProfiles;
       if (currentActiveProfileId === originalId) {
         draft.activeProfileId = updatedProfile.id;
@@ -197,7 +197,7 @@ const actions: {
     });
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
 
@@ -224,16 +224,16 @@ const actions: {
     const currentActiveProfileId = state.data.activeProfileId;
     const isProfileChanging = currentActiveProfileId !== profileId;
 
-    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
+    // Save active profile ID to workspace state
     await state.extensionContext.workspaceState.update("activeProfileId", profileId);
 
     // Broadcast active profile change to webview
-    state.mutateProfiles((draft) => {
+    state.mutate((draft) => {
       draft.activeProfileId = profileId;
     });
 
     // Update config errors
-    state.mutateConfigErrors((draft) => {
+    state.mutate((draft) => {
       updateConfigErrorsFromActiveProfile(draft);
     });
 
@@ -262,7 +262,7 @@ const actions: {
     await saveHubConfig(state.extensionContext, configToSave);
 
     // Update state
-    state.mutateSettings((draft) => {
+    state.mutate((draft) => {
       draft.hubConfig = config;
       draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
       draft.profileSyncEnabled = config.enabled && config.features.profileSync.enabled;
@@ -272,7 +272,7 @@ const actions: {
     await state.hubConnectionManager.updateConfig(config);
 
     // Update connection state based on actual connection status
-    state.mutateServerState((draft) => {
+    state.mutate((draft) => {
       draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
       draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
       draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
@@ -280,7 +280,7 @@ const actions: {
 
     // Clear syncing state if profile sync is disabled or disconnected
     if (!state.hubConnectionManager.isProfileSyncConnected()) {
-      state.mutateSettings((draft) => {
+      state.mutate((draft) => {
         draft.isSyncingProfiles = false;
       });
 
@@ -308,7 +308,7 @@ const actions: {
         const newActiveId =
           activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
 
-        state.mutateProfiles((draft) => {
+        state.mutate((draft) => {
           draft.profiles = allProfiles;
           draft.activeProfileId = newActiveId;
         });
@@ -327,18 +327,34 @@ const actions: {
     // Delegate to the command which attempts to reconnect profile sync
     await executeExtensionCommand("retryProfileSync");
   },
-  [WEBVIEW_READY](_payload, state, logger) {
+  [WEBVIEW_READY]: async (_payload, state, logger) => {
     logger.info("Webview is ready - sending full state to ensure configuration is loaded");
 
     // Send the full current state to the webview
     // This ensures that all configuration (especially hubConfig) is properly loaded
     // even if the webview was initialized after the extension sent initial updates
+    const { chatMessages, ...stateFields } = state.data;
+    const timestamp = new Date().toISOString();
     state.webviewProviders.forEach((provider) => {
       provider.sendMessageToWebview({
-        type: "FULL_STATE_UPDATE",
-        ...state.data,
+        type: MessageTypes.STATE_CHANGE,
+        data: stateFields,
+        timestamp,
+      });
+      provider.sendMessageToWebview({
+        type: MessageTypes.CHAT_STATE_CHANGE,
+        chatMessages,
+        previousLength: 0,
+        timestamp,
       });
     });
+
+    // Notify feature modules that the webview is ready
+    for (const [key, handler] of Object.entries(actions)) {
+      if (key.endsWith("_WEBVIEW_READY") && handler) {
+        await handler(_payload, state, logger);
+      }
+    }
   },
   [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
     executeExtensionCommand("configureCustomRules", profileId);
@@ -412,7 +428,7 @@ const actions: {
       );
       await saveUserProfiles(state.extensionContext, userProfiles);
 
-      state.mutateProfiles((draft) => {
+      state.mutate((draft) => {
         const target = draft.profiles.find((p) => p.id === updated.id);
         if (target) {
           Object.assign(target, updated);
@@ -446,59 +462,38 @@ const actions: {
   },
   [GET_SOLUTION](scope: Scope) {
     executeExtensionCommand("getSolution", scope.incidents);
-    executeExtensionCommand("showResolutionPanel");
   },
   async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
     executeExtensionCommand("askContinue", incident);
   },
   SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
     try {
-      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
+      const { join, isAbsolute } = await import("path");
+      let absPath = path;
+      if (!isAbsolute(path)) {
+        let wsRoot = state.data.workspaceRoot;
+        if (wsRoot.startsWith("file://")) {
+          wsRoot = new URL(wsRoot).pathname;
+        }
+        absPath = join(wsRoot, path);
+      }
+      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path: absPath, messageToken });
 
-      // Execute the command to show diff with decorations using streaming approach
-      await executeExtensionCommand("showDiffWithDecorations", path, diff, content, messageToken);
+      await executeExtensionCommand(
+        "showDiffWithDecorations",
+        absPath,
+        diff,
+        content,
+        messageToken,
+      );
     } catch (error) {
       logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
-
-      // Clear the processing state for this file on error
-      // This prevents the UI from getting stuck in "Processing changes..."
-      state.mutateSolutionWorkflow((draft) => {
-        // Clear from pendingBatchReview if there's an error
-        if (draft.pendingBatchReview) {
-          const fileIndex = draft.pendingBatchReview.findIndex(
-            (file) => file.messageToken === messageToken,
-          );
-          if (fileIndex !== -1) {
-            // Mark as error rather than removing, so user can retry
-            draft.pendingBatchReview[fileIndex].hasError = true;
-            logger.info(`Marked file as error in pendingBatchReview: ${path}`);
-          }
-        }
-      });
 
       vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
     }
   },
   QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
     handleQuickResponse(messageToken, responseId, state);
-  },
-  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state, logger) => {
-    await handleFileResponse(messageToken, responseId, path, content, state);
-
-    // Remove from pendingBatchReview after processing individual file
-    state.mutateSolutionWorkflow((draft) => {
-      if (draft.pendingBatchReview) {
-        draft.pendingBatchReview = draft.pendingBatchReview.filter(
-          (file) => file.messageToken !== messageToken,
-        );
-        logger.info(`Removed file from pendingBatchReview: ${path}`, {
-          remaining: draft.pendingBatchReview.length,
-        });
-      }
-    });
-
-    // Check if batch review is complete
-    checkBatchReviewComplete(state, logger);
   },
 
   [RUN_ANALYSIS]() {
@@ -542,9 +537,6 @@ const actions: {
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");
   },
-  [TOGGLE_AGENT_MODE]() {
-    toggleAgentMode();
-  },
   [OPEN_RESOLUTION_PANEL]() {
     executeExtensionCommand("showResolutionPanel");
   },
@@ -575,7 +567,7 @@ const actions: {
       state.resolvePendingInteraction = undefined;
 
       // Update state to reflect workflow stopped
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isFetchingSolution = false;
         draft.solutionState = "none";
         draft.isWaitingForUserInteraction = false;
@@ -583,7 +575,7 @@ const actions: {
       });
 
       // Add a message to the chat indicating the workflow was stopped
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         draft.chatMessages.push({
           messageToken: `stopped-${Date.now()}`,
           kind: ChatMessageType.String,
@@ -606,254 +598,68 @@ const actions: {
       vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
     }
   },
-  CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
-    try {
-      logger.info("CONTINUE_WITH_FILE_STATE called", { path, messageToken });
+  UPDATE_MODEL_PROVIDER_CONFIG: async (payload, state, logger) => {
+    const { provider, model, credentials, agentMode } = payload as {
+      provider: string;
+      model: string;
+      credentials?: Record<string, string>;
+      agentMode?: boolean;
+    };
 
-      const uri = vscode.Uri.file(path);
-
-      const currentContent = await vscode.workspace.fs.readFile(uri);
-      const currentText = currentContent.toString();
-
-      const modifiedFileState = state.modifiedFiles.get(path);
-      const originalContent = modifiedFileState?.originalContent || "";
-
-      const normalize = (text: string) => text.replace(/\r\n/g, "\n").replace(/\n$/, "");
-      const hasChanges = normalize(currentText) !== normalize(originalContent);
-
-      const responseId = hasChanges ? "apply" : "reject";
-      const finalContent = hasChanges ? currentText : content;
-
-      logger.debug(
-        `Continue decision: ${responseId.toUpperCase()} - ${hasChanges ? "file has changes" : "file unchanged"}`,
-      );
-      console.log("Continue decision: ", { responseId, hasChanges });
-
-      await handleFileResponse(messageToken, responseId, path, finalContent, state, true); // Skip analysis - it runs on save
-
-      state.mutateSolutionWorkflow((draft) => {
-        if (draft.pendingBatchReview) {
-          draft.pendingBatchReview = draft.pendingBatchReview.filter(
-            (file) => file.messageToken !== messageToken,
-          );
-        }
-      });
-
-      logger.info(`File state continued with response: ${responseId}`, {
-        path,
-        messageToken,
-      });
-
-      checkBatchReviewComplete(state, logger);
-    } catch (error) {
-      logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
-      await handleFileResponse(messageToken, "reject", path, content, state, true); // Skip analysis - it runs on save
-
-      state.mutateSolutionWorkflow((draft) => {
-        if (draft.pendingBatchReview) {
-          draft.pendingBatchReview = draft.pendingBatchReview.filter(
-            (file) => file.messageToken !== messageToken,
-          );
-        }
-      });
-
-      checkBatchReviewComplete(state, logger);
-    }
-  },
-
-  BATCH_APPLY_ALL: async ({ files }, state, logger) => {
-    const failures: Array<{ path: string; error: string }> = [];
-    const appliedFileUris: vscode.Uri[] = [];
+    logger.info("Updating model provider config from chat UI", { provider, model, agentMode });
 
     try {
-      logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
-      console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
+      if (agentMode !== undefined) {
+        const { updateConfigAgentMode } = await import("./utilities/configuration");
+        await updateConfigAgentMode(agentMode);
 
-      state.mutateSolutionWorkflow((draft) => {
-        draft.isProcessingQueuedMessages = true;
-      });
+        state.mutate((draft) => {
+          if (!draft.featureState) {
+            draft.featureState = {};
+          }
+          draft.featureState.agentMode = agentMode;
+        });
+      }
 
-      for (const file of files) {
+      const hasCredentials = credentials && Object.values(credentials).some((v) => v.length > 0);
+
+      if (provider && model && hasCredentials) {
+        const { paths } = await import("./paths");
+        const yamlContent = generateProviderSettingsYaml(provider, model, credentials);
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+
+        logger.info("Written provider-settings.yaml from chat UI config");
+        vscode.window.showInformationMessage(
+          `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
+        );
+      } else if (agentMode !== undefined) {
+        vscode.window.showInformationMessage(`Agent mode ${agentMode ? "enabled" : "disabled"}.`);
+      }
+
+      if (agentMode !== undefined) {
         try {
-          logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
-          await handleFileResponse(
-            file.messageToken,
-            "apply",
-            file.path,
-            file.content,
-            state,
-            true,
-          );
-
-          appliedFileUris.push(vscode.Uri.file(file.path));
-
-          state.mutateSolutionWorkflow((draft) => {
-            if (draft.pendingBatchReview) {
-              draft.pendingBatchReview = draft.pendingBatchReview.filter(
-                (f) => f.messageToken !== file.messageToken,
-              );
-              logger.info(
-                `BATCH_APPLY_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
-              );
-            }
-          });
-        } catch (fileError) {
-          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
-          logger.error(`BATCH_APPLY_ALL: Failed to apply file ${file.path}:`, fileError);
-          failures.push({ path: file.path, error: errorMessage });
-
-          state.mutateSolutionWorkflow((draft) => {
-            if (draft.pendingBatchReview) {
-              const fileIndex = draft.pendingBatchReview.findIndex(
-                (f) => f.messageToken === file.messageToken,
-              );
-              if (fileIndex !== -1) {
-                draft.pendingBatchReview[fileIndex].hasError = true;
-              }
-            }
-          });
+          const { readAgentConfig } = await import("./agentConfigReader");
+          const { hasAgentCredentials } = await import("./utilities/agentCredentialStorage");
+          const updatedConfig = readAgentConfig();
+          updatedConfig.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
+          updatedConfig.agentMode = agentMode;
+          const timestamp = new Date().toISOString();
+          for (const webviewProvider of state.webviewProviders.values()) {
+            webviewProvider.sendMessageToWebview({
+              type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
+              config: updatedConfig,
+              timestamp,
+            });
+          }
+        } catch (err) {
+          logger.warn("Failed to broadcast agent config update:", err);
         }
       }
-
-      if (appliedFileUris.length > 0) {
-        try {
-          logger.info(
-            `BATCH_APPLY_ALL: Running combined analysis for ${appliedFileUris.length} files`,
-          );
-          await runPartialAnalysis(state, appliedFileUris);
-          logger.info(`BATCH_APPLY_ALL: Combined analysis completed`);
-        } catch (analysisError) {
-          logger.warn(`BATCH_APPLY_ALL: Failed to run combined analysis:`, analysisError);
-        }
-      }
-
-      const successCount = files.length - failures.length;
-      logger.info(
-        `BATCH_APPLY_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
-      );
-
-      if (failures.length > 0) {
-        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
-        logger.error(`BATCH_APPLY_ALL: Failures:\n${failureDetails}`);
-
-        if (failures.length === 1) {
-          vscode.window.showErrorMessage(
-            `Failed to apply 1 file: ${failures[0].path}. See output for details.`,
-          );
-        } else {
-          vscode.window.showErrorMessage(
-            `Failed to apply ${failures.length} out of ${files.length} files. See output for details.`,
-          );
-        }
-      } else {
-        logger.info(`BATCH_APPLY_ALL: Successfully applied all ${files.length} files`);
-        console.log(`[BATCH_APPLY_ALL] Successfully completed`);
-      }
-
-      // Check if workflow cleanup should happen
-      checkBatchReviewComplete(state, logger);
-    } catch (unexpectedError) {
-      logger.error("Unexpected error in BATCH_APPLY_ALL:", unexpectedError);
-      console.error("[BATCH_APPLY_ALL] Unexpected error:", unexpectedError);
-
-      vscode.window.showErrorMessage(
-        "An unexpected error occurred while applying files. Check the output for details.",
-      );
-    } finally {
-      // Always reset processing flag
-      state.mutateSolutionWorkflow((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
-    }
-  },
-
-  BATCH_REJECT_ALL: async ({ files }, state, logger) => {
-    const failures: Array<{ path: string; error: string }> = [];
-
-    try {
-      logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
-      console.log(`[BATCH_REJECT_ALL] Processing ${files.length} files`);
-
-      // Set processing flag at the start
-      state.mutateSolutionWorkflow((draft) => {
-        draft.isProcessingQueuedMessages = true;
-      });
-
-      // Process files one by one with individual error handling
-      for (const file of files) {
-        try {
-          logger.info(`BATCH_REJECT_ALL: Rejecting file ${file.path}`);
-          await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
-
-          // Remove this file from pendingBatchReview only on success
-          state.mutateSolutionWorkflow((draft) => {
-            if (draft.pendingBatchReview) {
-              draft.pendingBatchReview = draft.pendingBatchReview.filter(
-                (f) => f.messageToken !== file.messageToken,
-              );
-              logger.info(
-                `BATCH_REJECT_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
-              );
-            }
-          });
-        } catch (fileError) {
-          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
-          logger.error(`BATCH_REJECT_ALL: Failed to reject file ${file.path}:`, fileError);
-          failures.push({ path: file.path, error: errorMessage });
-
-          // Mark the file as having an error in pendingBatchReview
-          state.mutateSolutionWorkflow((draft) => {
-            if (draft.pendingBatchReview) {
-              const fileIndex = draft.pendingBatchReview.findIndex(
-                (f) => f.messageToken === file.messageToken,
-              );
-              if (fileIndex !== -1) {
-                draft.pendingBatchReview[fileIndex].hasError = true;
-              }
-            }
-          });
-        }
-      }
-
-      // Report results
-      const successCount = files.length - failures.length;
-      logger.info(
-        `BATCH_REJECT_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
-      );
-
-      // Notify user if there were failures
-      if (failures.length > 0) {
-        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
-        logger.error(`BATCH_REJECT_ALL: Failures:\n${failureDetails}`);
-
-        if (failures.length === 1) {
-          vscode.window.showErrorMessage(
-            `Failed to reject 1 file: ${failures[0].path}. See output for details.`,
-          );
-        } else {
-          vscode.window.showErrorMessage(
-            `Failed to reject ${failures.length} out of ${files.length} files. See output for details.`,
-          );
-        }
-      } else {
-        logger.info(`BATCH_REJECT_ALL: Successfully rejected all ${files.length} files`);
-        console.log(`[BATCH_REJECT_ALL] Successfully completed`);
-      }
-
-      // Check if workflow cleanup should happen
-      checkBatchReviewComplete(state, logger);
-    } catch (unexpectedError) {
-      logger.error("Unexpected error in BATCH_REJECT_ALL:", unexpectedError);
-      console.error("[BATCH_REJECT_ALL] Unexpected error:", unexpectedError);
-
-      vscode.window.showErrorMessage(
-        "An unexpected error occurred while rejecting files. Check the output for details.",
-      );
-    } finally {
-      // Always reset processing flag
-      state.mutateSolutionWorkflow((draft) => {
-        draft.isProcessingQueuedMessages = false;
-      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error("Failed to update model provider config", { error: msg });
+      vscode.window.showErrorMessage(`Failed to update model config: ${msg}`);
     }
   },
 };
@@ -917,6 +723,25 @@ const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger)
     logger.info("Workflow state fully reset — analysis is now unblocked");
   }
 };
+
+export function registerMessageHandlers(
+  handlers: Record<
+    string,
+    (payload: any, state: ExtensionState, logger: winston.Logger) => void | Promise<void>
+  >,
+): { dispose: () => void } {
+  const keys = Object.keys(handlers);
+  for (const key of keys) {
+    actions[key] = handlers[key];
+  }
+  return {
+    dispose() {
+      for (const key of keys) {
+        delete actions[key];
+      }
+    },
+  };
+}
 
 export const messageHandler = async (
   message: WebviewAction<WebviewActionType, unknown>,
