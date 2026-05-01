@@ -213,9 +213,7 @@ export async function handleFileResponse(
           try {
             const diskBytes = await vscode.workspace.fs.readFile(uri);
             finalContent = new TextDecoder().decode(diskBytes);
-            logger.info(
-              `Using on-disk content for solution server (captures in-place edits): ${path}`,
-            );
+            logger.info(`Using on-disk content for solution server (captures in-place edits): ${path}`);
           } catch (readError) {
             logger.warn(`Could not read disk content, using original content: ${path}`, readError);
           }

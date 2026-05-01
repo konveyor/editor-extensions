@@ -156,11 +156,13 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
           errorStack: err instanceof Error ? err.stack : undefined,
         },
       );
-      this.emitWorkflowMessage({
-        id: messageId,
-        type: KaiWorkflowMessageType.Error,
-        data: `Failed to get llm response - ${String(err)}`,
-      });
+      if (emitResponseChunks) {
+        this.emitWorkflowMessage({
+          id: messageId,
+          type: KaiWorkflowMessageType.Error,
+          data: `Failed to get llm response - ${String(err)}`,
+        });
+      }
     } finally {
       if (timeoutId !== undefined) {
         clearTimeout(timeoutId);

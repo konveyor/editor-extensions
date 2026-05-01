@@ -199,7 +199,11 @@ export abstract class VSCode {
       await runAnalysisBtnLocator.click();
 
       console.log('Waiting for analysis progress indicator...');
-      await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible();
+      await expect(
+        analysisView.getByRole('button', {
+          name: 'Analyzing...',
+        })
+      ).toBeDisabled();
       console.log('Analysis started successfully');
     } catch (error) {
       console.log('Error running analysis:', error);
@@ -699,7 +703,8 @@ export abstract class VSCode {
   public async executeTerminalCommand(
     command: string,
     expectedOutput?: string | RegExp,
-    outputShouldBeVisible: boolean = true
+    outputShouldBeVisible: boolean = true,
+    timeout: number = 30_000
   ): Promise<void> {
     if (!this.repoDir || !this.branch) {
       throw new Error('executeTerminalCommand requires repoDir and branch to be set');
@@ -720,7 +725,7 @@ export abstract class VSCode {
         path: pathlib.join(SCREENSHOTS_FOLDER, `last-command.png`),
       });
       if (outputShouldBeVisible) {
-        await expect(this.window.getByText(expectedOutput).first()).toBeVisible();
+        await expect(this.window.getByText(expectedOutput).first()).toBeVisible({ timeout });
       } else {
         try {
           await expect(this.window.getByText(expectedOutput).first()).not.toBeVisible();
