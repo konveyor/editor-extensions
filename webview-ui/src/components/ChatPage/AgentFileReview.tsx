@@ -340,7 +340,7 @@ export const AgentFileReview: React.FC = () => {
     if (pendingFiles.length > 0 && expandedTokens.size === 0) {
       setExpandedTokens(new Set([pendingFiles[0].messageToken]));
     }
-  }, [pendingFiles.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pendingFiles.length > 0]);
 
   if (pendingFiles.length === 0) {
     return null;
