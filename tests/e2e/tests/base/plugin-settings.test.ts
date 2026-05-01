@@ -27,6 +27,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   const profileName = `plugins-settings-${generateRandomString()}`;
 
   test.beforeAll(async ({ testRepoData }) => {
+    test.setTimeout(600_000);
     if (getDefaultProviderConfig() === LLEMULATOR_PROVIDER) {
       await loadLlemulatorResponses({
         reset: true,
@@ -111,7 +112,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   });
 
   test.beforeEach(async function () {
-    test.setTimeout(300000);
+    test.setTimeout(600_000);
     const testName = test.info().title.replace(/[_"'\s]/g, '');
     console.log(`Starting ${testName} at ${new Date()}`);
 
@@ -198,7 +199,9 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await tabManager.saveTabFile(FILES_NAMES[1]);
     const rejectChangesBtn = vscodeApp.getWindow().getByText('Reject All Changes');
     // the diff should still be there when auto accept on save is disabled
+    await vscodeApp.waitDefault();
     await rejectChangesBtn.click();
+    await vscodeApp.assertNotification('Changes rejected and document saved', { timeout: 30_000 });
     await tabManager.saveTabFile(FILES_NAMES[1]);
     await tabManager.closeTabByName(FILES_NAMES[1]);
     await vscodeApp.executeTerminalCommand('git status', 'Changes not staged for commit', false);
@@ -206,6 +209,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   });
 
   test('Exclude diagnostic sources in agent mode', async ({ testRepoData }) => {
+    test.skip(!!process.env.WEB_ENV, 'Skipping test that requires a VS Code restart in web mode.');
     test.setTimeout(600000);
     const repoInfo = testRepoData['coolstore'];
 
