@@ -13,7 +13,19 @@
 import * as http from "http";
 import { randomBytes } from "crypto";
 import winston from "winston";
-import { type ExtensionStore } from "../store/extensionStore";
+import type { EnhancedIncident, RuleSet } from "@editor-extensions/shared";
+
+/**
+ * Minimal store interface for the MCP bridge.
+ * The full ExtensionStore is provided by the agent feature (PR #1389).
+ */
+export interface McpBridgeStore {
+  getState(): {
+    enhancedIncidents: EnhancedIncident[];
+    ruleSets?: RuleSet[];
+    isAnalyzing: boolean;
+  };
+}
 
 export interface FileChange {
   path: string;
@@ -21,7 +33,7 @@ export interface FileChange {
 }
 
 export interface McpBridgeServerConfig {
-  store: ExtensionStore;
+  store: McpBridgeStore;
   logger: winston.Logger;
   runAnalysis?: () => Promise<void>;
   onFileChanges?: (files: FileChange[]) => Promise<void>;
