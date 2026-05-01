@@ -325,10 +325,7 @@ If you have any additional details or steps that need to be performed, put it he
     );
 
     if (!response) {
-      this.logger.warn(
-        `AnalysisIssueFix: LLM returned no response for file "${fileName}". ` +
-          `This may indicate a model provider configuration issue.`,
-      );
+      this.logger.silly("AnalysisIssueFix returned undefined response");
       return {
         outputAdditionalInfo: undefined,
         outputUpdatedFile: undefined,
@@ -463,9 +460,6 @@ ${state.inputAllReasoning}`,
     );
 
     if (!response) {
-      this.logger.warn(
-        "SummarizeHistory: LLM returned no response. This may indicate a model provider configuration issue.",
-      );
       return {
         summarizedHistory: "",
         iterationCount: state.iterationCount,

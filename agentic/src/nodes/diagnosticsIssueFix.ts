@@ -343,9 +343,7 @@ Instructions for Agent B to solve Issue 3, Issue 4, etc. (mention specific issue
     );
 
     if (!response) {
-      this.logger.warn(
-        "PlanFixes: LLM returned no response. This may indicate a model provider configuration issue.",
-      );
+      this.logger.silly("PlanFixes returned undefined response");
       return {
         plannerOutputNominatedAgents: [],
         iterationCount: state.iterationCount,
@@ -403,9 +401,7 @@ ${
     );
 
     if (!response) {
-      this.logger.warn(
-        "FixGeneralIssues: LLM returned no response. This may indicate a model provider configuration issue.",
-      );
+      this.logger.silly("FixGeneralIssues returned undefined response");
       return {
         messages: [new AIMessage(`DONE`)],
         outputModifiedFilesFromGeneralFix: [],
@@ -475,9 +471,7 @@ ${state.inputInstructionsForGeneralFix}
     );
 
     if (!response) {
-      this.logger.warn(
-        "FixJavaDependencyIssues: LLM returned no response. This may indicate a model provider configuration issue.",
-      );
+      this.logger.silly("FixJavaDependencyIssues returned undefined response");
       return {
         messages: [new AIMessage(`DONE`)],
         outputModifiedFilesFromGeneralFix: [],
