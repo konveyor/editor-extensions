@@ -858,18 +858,63 @@ const actions: {
   },
 };
 
-// Helper function to check if batch review is complete
+/**
+ * Check if batch review is complete and fully reset workflow state.
+ *
+ * Previously this only cleared pendingBatchReview but did NOT reset the
+ * workflow flags (isFetchingSolution, solutionState, isWaitingForUserInteraction,
+ * isProcessingQueuedMessages). This left the extension in a broken state where
+ * analysis could not run because it thought a resolution was still in progress.
+ *
+ * Now when the batch is done, we reset ALL workflow state to ensure a clean
+ * slate for the next analysis run. This fixes the bug where accepting a
+ * solution and then reverting the file left the extension stuck (#1363).
+ */
 const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger) => {
   const hasPendingBatchReview =
     state.data.pendingBatchReview && state.data.pendingBatchReview.length > 0;
 
   if (!hasPendingBatchReview) {
-    logger.info("Batch review complete");
+    logger.info("Batch review complete — resetting all workflow state");
 
-    // Clear any remaining state
+    // Reset all solution workflow flags to unblock analysis
     state.mutateSolutionWorkflow((draft) => {
       draft.pendingBatchReview = [];
+      draft.isFetchingSolution = false;
+      draft.solutionState = "none";
+      draft.isWaitingForUserInteraction = false;
+      draft.isProcessingQueuedMessages = false;
     });
+
+    // Reset analysis flags in case they're stale
+    state.mutateAnalysisState((draft) => {
+      draft.isAnalyzing = false;
+      draft.isAnalysisScheduled = false;
+    });
+
+    // Clean up stale workflow resources that may have been left behind
+    // by the SolutionWorkflowOrchestrator
+    if (state.currentQueueManager) {
+      logger.debug("Disposing stale queue manager after batch review complete");
+      state.currentQueueManager.dispose();
+      state.currentQueueManager = undefined;
+    }
+
+    if (state.pendingInteractionsMap && state.pendingInteractionsMap.size > 0) {
+      logger.debug("Clearing stale pending interactions after batch review complete");
+      state.pendingInteractionsMap.clear();
+      state.pendingInteractionsMap = undefined;
+    }
+
+    state.resolvePendingInteraction = undefined;
+
+    // Clear the modified files cache — the batch is done, these are no longer needed
+    state.modifiedFiles.clear();
+
+    // Reset the kaiFsCache
+    state.kaiFsCache.reset();
+
+    logger.info("Workflow state fully reset — analysis is now unblocked");
   }
 };
 
