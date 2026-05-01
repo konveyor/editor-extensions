@@ -67,7 +67,12 @@ export type WebviewActionType =
   | typeof SYNC_HUB_PROFILES
   | typeof RETRY_PROFILE_SYNC
   | typeof STOP_WORKFLOW
-  | typeof OPEN_NATIVE_CONFIG;
+  | typeof OPEN_NATIVE_CONFIG
+  | typeof FILE_RESPONSE
+  | typeof BATCH_APPLY_ALL
+  | typeof BATCH_REJECT_ALL
+  | typeof CONTINUE_WITH_FILE_STATE
+  | typeof SHOW_DIFF_WITH_DECORATORS;
 
 export interface WebviewAction<S, T> {
   type: S;

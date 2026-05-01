@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+import { fileUriToPath } from "../pathUtils";
 import {
   KaiWorkflowMessage,
   KaiWorkflowMessageType,
@@ -104,10 +105,8 @@ export async function handleFileResponse(
   skipAnalysis: boolean = false,
 ): Promise<void> {
   // Normalize file: URI prefixes that Goose may include in paths
-  if (path.startsWith("file://")) {
-    path = new URL(path).pathname;
-  } else if (path.startsWith("file:")) {
-    path = path.slice("file:".length);
+  if (path.startsWith("file://") || path.startsWith("file:")) {
+    path = fileUriToPath(path);
   }
 
   const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });

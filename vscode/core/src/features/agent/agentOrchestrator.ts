@@ -338,9 +338,11 @@ export class AgentOrchestrator {
       return true;
     };
 
-    workflow.on("workflowMessage", async (msg) => {
+    const onWorkflowMessage = async (msg: any) => {
       await processMessage(msg, this.state, queueManager);
-    });
+    };
+
+    workflow.on("workflowMessage", onWorkflowMessage);
 
     try {
       this.logger.info("AgentOrchestrator: starting workflow via queue path");
@@ -364,6 +366,7 @@ export class AgentOrchestrator {
       this.state.currentQueueManager = undefined;
       this.state.pendingInteractionsMap = undefined;
       this.state.resolvePendingInteraction = undefined;
+      // Remove workflow listeners — safe here since workflow is complete
       workflow.removeAllListeners();
       this.cleanup();
       if (disposeClient) {

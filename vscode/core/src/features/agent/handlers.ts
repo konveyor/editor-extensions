@@ -173,7 +173,11 @@ export const agentMessageHandlers: Record<
 
       const agentClient = getAgentClient(state);
       if (agentClient) {
-        await agentClient.stop();
+        try {
+          await agentClient.stop();
+        } catch (stopErr) {
+          logger.warn("Failed to stop agent during config update, proceeding with start:", stopErr);
+        }
         await agentClient.start();
       }
 
@@ -304,8 +308,9 @@ export const agentMessageHandlers: Record<
           timestamp,
         });
       });
-    } catch {
+    } catch (err) {
       // Best-effort — agent may not be configured yet
+      _logger?.debug?.("AGENT_WEBVIEW_READY: best-effort config send failed:", err);
     }
   },
 

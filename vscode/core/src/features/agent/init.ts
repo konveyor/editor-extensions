@@ -150,7 +150,10 @@ export async function initializeAgent(
       type: "stdio",
       command: "node",
       args: [mcpServerEntry],
-      env: [{ name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) }],
+      env: [
+        { name: "KONVEYOR_BRIDGE_PORT", value: String(bridgePort) },
+        { name: "KONVEYOR_BRIDGE_TOKEN", value: mcpBridgeServer.getBearerToken() },
+      ],
     },
   ]);
 

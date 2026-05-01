@@ -8,7 +8,7 @@ interface ResourceBlockProps {
 export const ResourceBlock: React.FC<ResourceBlockProps> = ({ block }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const displayName = block.name || block.uri.split("/").pop() || block.uri;
-  const content = block.text || "(binary content)";
+  const content = block.text ?? "(binary content)";
 
   return (
     <div className="agent-resource-block">

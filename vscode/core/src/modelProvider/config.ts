@@ -21,9 +21,16 @@ export async function parseModelConfig(yamlUri: Uri): Promise<ParsedModelConfig>
   const yamlString = new TextDecoder("utf8").decode(yamlFile);
   const yamlDoc = parse(yamlString);
 
+  if (!yamlDoc || typeof yamlDoc !== "object" || Array.isArray(yamlDoc)) {
+    throw new Error(
+      "provider-settings.yaml must contain a top-level mapping with an 'active' block. " +
+        "See sample-provider-settings.yaml for examples.",
+    );
+  }
+
   const baseEnv = yamlDoc.environment;
 
-  if (!yamlDoc.active) {
+  if (!yamlDoc.active || typeof yamlDoc.active !== "object" || Array.isArray(yamlDoc.active)) {
     throw new Error(
       "provider-settings.yaml is missing the required 'active' block. " +
         "Please add an 'active:' section with at least 'provider' and 'args.model'. " +

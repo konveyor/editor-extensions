@@ -96,6 +96,7 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
   private promptActive = false;
   private activeResponseMessageId: string | null = null;
   private disposed = false;
+  private injectedEnvKeys: string[] = [];
 
   private readonly config: OpencodeClientConfig;
   private readonly logger: winston.Logger;
@@ -212,10 +213,14 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
       // setting it here makes it available to the server as OPENCODE_SERVER_PASSWORD.
       const serverPassword = randomBytes(32).toString("hex");
       process.env.OPENCODE_SERVER_PASSWORD = serverPassword;
+      this.injectedEnvKeys.push("OPENCODE_SERVER_PASSWORD");
 
       // Inject model env into the process environment for the server
       if (this.config.modelEnv) {
-        Object.assign(process.env, this.config.modelEnv);
+        for (const key of Object.keys(this.config.modelEnv)) {
+          process.env[key] = this.config.modelEnv[key];
+          this.injectedEnvKeys.push(key);
+        }
       }
 
       const config: Record<string, any> = {};
@@ -329,7 +334,10 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
         this.server = null;
       }
       this.client = null;
-      delete process.env.OPENCODE_SERVER_PASSWORD;
+      for (const key of this.injectedEnvKeys) {
+        delete process.env[key];
+      }
+      this.injectedEnvKeys = [];
 
       const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(`OpencodeAgentClient: start failed: ${error.message}`);
@@ -365,7 +373,10 @@ export class OpencodeAgentClient extends EventEmitter implements AgentClient {
     this.client = null;
     this.sessionId = null;
     this.promptActive = false;
-    delete process.env.OPENCODE_SERVER_PASSWORD;
+    for (const key of this.injectedEnvKeys) {
+      delete process.env[key];
+    }
+    this.injectedEnvKeys = [];
     this.setState("stopped");
     this.logger.info("OpencodeAgentClient: stopped");
   }

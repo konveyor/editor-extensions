@@ -124,18 +124,18 @@ export type WebviewMessage =
  */
 // Core
 export function isStateChange(msg: WebviewMessage): msg is StateChangeMessage {
-  return (msg as any).type === MessageTypes.STATE_CHANGE;
+  return msg.type === MessageTypes.STATE_CHANGE;
 }
 
 export function isFocusViolation(msg: WebviewMessage): msg is FocusViolationMessage {
-  return (msg as any).type === MessageTypes.FOCUS_VIOLATION;
+  return msg.type === MessageTypes.FOCUS_VIOLATION;
 }
 
 // Chat
 export function isChatStateChange(msg: WebviewMessage): msg is ChatStateChangeMessage {
-  return (msg as any).type === MessageTypes.CHAT_STATE_CHANGE;
+  return msg.type === MessageTypes.CHAT_STATE_CHANGE;
 }
 
 export function isChatStreamingUpdate(msg: WebviewMessage): msg is ChatStreamingUpdateMessage {
-  return (msg as any).type === MessageTypes.CHAT_STREAMING_UPDATE;
+  return msg.type === MessageTypes.CHAT_STREAMING_UPDATE;
 }

@@ -2,6 +2,7 @@ import "./receivedMessage.css";
 import React, { useState, useEffect } from "react";
 import { Message } from "@patternfly/chatbot";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import avatar from "../../../public/avatarIcons/avatar.svg?inline";
 import { QuickResponse } from "../../../../shared/src/types/types";
 import { getBrandName } from "../../utils/branding";
@@ -96,7 +97,7 @@ export const ReceivedMessage: React.FC<ReceivedMessageProps> = React.memo(
               }
             : undefined
         }
-        additionalRehypePlugins={[rehypeRaw]}
+        additionalRehypePlugins={[rehypeRaw, rehypeSanitize]}
       />
     );
   },

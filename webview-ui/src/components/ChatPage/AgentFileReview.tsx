@@ -98,7 +98,7 @@ const InlineDiff: React.FC<{ diff: string }> = React.memo(({ diff }) => {
                     : " "}
             </span>
             <span className="afr-diff__content">
-              {line.type === "hunk-header" ? line.content : line.content}
+              {line.content}
             </span>
           </div>
         ))}
@@ -340,7 +340,7 @@ export const AgentFileReview: React.FC = () => {
     if (pendingFiles.length > 0 && expandedTokens.size === 0) {
       setExpandedTokens(new Set([pendingFiles[0].messageToken]));
     }
-  }, [pendingFiles.length > 0]);
+  }, [pendingFiles.length]);
 
   if (pendingFiles.length === 0) {
     return null;

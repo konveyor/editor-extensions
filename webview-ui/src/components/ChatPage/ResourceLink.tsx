@@ -20,10 +20,14 @@ export const ResourceLink: React.FC<ResourceLinkProps> = ({ block }) => {
 
   if (isFileUri) {
     return (
-      <span className="agent-resource-link agent-resource-link--file" onClick={handleClick}>
+      <button
+        type="button"
+        className="agent-resource-link agent-resource-link--file"
+        onClick={handleClick}
+      >
         <span className="agent-resource-link__icon">📄</span>
         <span className="agent-resource-link__name">{displayName}</span>
-      </span>
+      </button>
     );
   }
 
