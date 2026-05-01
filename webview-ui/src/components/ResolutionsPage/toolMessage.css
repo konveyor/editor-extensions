@@ -1,116 +1,124 @@
-.tool-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 0;
-  font-size: 12px;
-  line-height: 1.3;
-  color: var(--vscode-descriptionForeground, #8a8d90);
-  overflow: hidden;
+.tool-message-container {
+  background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
+  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
+  border-radius: 4px;
+  min-height: 2.5rem; /* Ensure consistent height */
 }
 
-.tool-status-icon {
-  width: 14px;
-  height: 14px;
+.tool-message-container.has-details {
+  padding: 0;
+}
+
+.tool-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--pf-global--Color--300, #8a8d90); /* lighter gray */
+  font-size: 1rem; /* match chat text */
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.tool-icon {
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
 }
 
-.tool-status-icon--success {
+.tool-icon.success {
   color: var(--vscode-testing-iconPassed, #73c991);
 }
 
-.tool-status-icon--error {
+.tool-icon.error {
   color: var(--vscode-testing-iconFailed, #f48771);
 }
 
-.tool-status-icon--running {
+.tool-icon.running {
   color: var(--vscode-textLink-foreground, #3794ff);
-  animation: tool-spin 1s linear infinite;
 }
 
-@keyframes tool-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.tool-name {
+  font-weight: 400;
 }
 
-.tool-indicator__label {
-  flex-shrink: 0;
-  color: var(--vscode-descriptionForeground, #8a8d90);
-}
-
-.tool-indicator__detail {
-  color: var(--vscode-descriptionForeground, #8a8d90);
+.tool-status {
+  text-transform: capitalize;
+  font-size: 0.95em;
   opacity: 0.7;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  margin-left: 0.25em;
 }
 
-/* --- Collapsible tool group (Cursor-like) --- */
-
-.tool-group {
-  padding: 1px 0;
-}
-
-.tool-group__toggle {
-  display: inline-flex;
+.tool-message-container.minimal-tool-message {
+  padding: 0.5rem;
+  background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.08));
+  border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
+  border-radius: 4px;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border: none;
+  min-height: 2.5rem; /* Ensure consistent height */
+}
+
+.tool-message-text {
+  color: var(--vscode-editor-foreground);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 0.5rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* Add more spacing between icon and text */
+  height: 100%;
+  min-height: 2.5rem;
+}
+
+.tool-message-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--vscode-editor-foreground);
+  font-size: 1rem;
+  font-weight: 400;
+  width: 100%;
+  min-height: 2.5rem;
+}
+
+.tool-details {
+  padding: 0.75rem;
+  border-top: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.3));
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.tool-error-details {
+  font-size: 0.9rem;
+}
+
+.tool-error-details pre {
+  background: var(--vscode-editor-inactiveSelectionBackground, rgba(127, 127, 127, 0.1));
+  padding: 0.5rem;
   border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground, #8a8d90);
-  cursor: pointer;
-  font-size: 11px;
-  font-family: inherit;
-  line-height: 1.4;
-  user-select: none;
+  overflow: auto;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85rem;
 }
 
-.tool-group__toggle:hover {
-  background: var(--vscode-list-hoverBackground, #2a2d2e);
+/* Override PatternFly expandable section styles to match our theme */
+.tool-expandable {
+  width: 100%;
 }
 
-.tool-group__toggle--failed {
-  color: var(--vscode-testing-iconFailed, #f48771);
+.tool-expandable button {
+  padding: 0.5rem !important;
+  width: 100%;
+  text-align: left;
+  background: transparent !important;
+  color: var(--vscode-editor-foreground) !important;
+  border: none !important;
+  display: flex;
+  align-items: center;
 }
 
-.tool-group__toggle--failed .tool-status-icon {
-  width: 12px;
-  height: 12px;
-}
-
-.tool-group__chevron {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.tool-group__chevron--open {
-  transform: rotate(90deg);
-}
-
-.tool-group__summary {
-  opacity: 0.8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tool-group__detail {
-  padding: 2px 0 2px 20px;
-}
-
-.tool-group__detail .tool-indicator {
-  font-size: 11px;
-  padding: 1px 0;
-}
-
-.tool-group__detail .tool-status-icon {
-  width: 12px;
-  height: 12px;
+.tool-expandable button:hover {
+  background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.1)) !important;
 }
