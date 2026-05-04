@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button, Label, Flex, FlexItem, Progress, ProgressSize } from "@patternfly/react-core";
-import { FileIcon, AngleUpIcon, AngleDownIcon } from "@patternfly/react-icons";
+import { FileIcon, AngleUpIcon, AngleDownIcon, StopIcon } from "@patternfly/react-icons";
 import { useExtensionStore } from "../../../store/store";
 import "./batchReviewExpandable.css";
 
@@ -20,6 +20,7 @@ export const BatchReviewExpandable: React.FC = () => {
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
   const [viewingInEditor, setViewingInEditor] = useState<string | null>(null);
   const [hasBeenManuallyCollapsed, setHasBeenManuallyCollapsed] = useState(false);
+  const isFetchingSolution = useExtensionStore((state) => state.isFetchingSolution);
 
   // Auto-expand when new files arrive (unless user manually collapsed)
   React.useEffect(() => {
@@ -52,8 +53,8 @@ export const BatchReviewExpandable: React.FC = () => {
     }
     const decoratorStillActive = Boolean(
       activeDecorators &&
-        typeof activeDecorators === "object" &&
-        viewingInEditor in activeDecorators,
+      typeof activeDecorators === "object" &&
+      viewingInEditor in activeDecorators,
     );
     if (!decoratorStillActive) {
       console.log(
@@ -136,9 +137,9 @@ export const BatchReviewExpandable: React.FC = () => {
   // Check if decorators are ACTIVE for this file (not just opened, but has unresolved decorators)
   const hasActiveDecorators = Boolean(
     activeDecorators &&
-      typeof activeDecorators === "object" &&
-      currentFile.messageToken in activeDecorators &&
-      activeDecorators[currentFile.messageToken] === currentFile.path,
+    typeof activeDecorators === "object" &&
+    currentFile.messageToken in activeDecorators &&
+    activeDecorators[currentFile.messageToken] === currentFile.path,
   );
 
   // Track if we've opened the file (for UI state), but decorators might be resolved
@@ -290,6 +291,13 @@ export const BatchReviewExpandable: React.FC = () => {
     }
   };
 
+  const handleStopWorkflow = () => {
+    window.vscode.postMessage({
+      type: "STOP_WORKFLOW",
+      payload: {},
+    });
+  };
+
   const handleApplyAll = () => {
     // Set batch operation in progress
     setBatchOperationInProgress(true);
@@ -386,6 +394,14 @@ export const BatchReviewExpandable: React.FC = () => {
               Reject All
             </Button>
           </FlexItem>
+          {/* Stop workflow button - shown when workflow is still running */}
+          {isFetchingSolution && (
+            <FlexItem>
+              <Button variant="danger" size="sm" icon={<StopIcon />} onClick={handleStopWorkflow}>
+                Stop
+              </Button>
+            </FlexItem>
+          )}
         </Flex>
       </div>
     );
@@ -444,6 +460,14 @@ export const BatchReviewExpandable: React.FC = () => {
                 </Button>
               </FlexItem>
             </>
+          )}
+          {/* Stop workflow button - shown when workflow is still running */}
+          {isFetchingSolution && (
+            <FlexItem>
+              <Button variant="danger" size="sm" icon={<StopIcon />} onClick={handleStopWorkflow}>
+                Stop
+              </Button>
+            </FlexItem>
           )}
         </Flex>
         <Progress
@@ -506,15 +530,7 @@ export const BatchReviewExpandable: React.FC = () => {
               </Button>
             </FlexItem>
             <FlexItem flex={{ default: "flex_1" }}>
-              <span
-                style={{
-                  color: "#6a6e73",
-                  textAlign: "center",
-                  display: "block",
-                }}
-              >
-                ✨ This is a new file
-              </span>
+              <span className="batch-review-info-text">✨ This is a new file</span>
             </FlexItem>
             <FlexItem>
               <Button variant="danger" onClick={handleReject} size="sm" isDisabled={isProcessing}>
