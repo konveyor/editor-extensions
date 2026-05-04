@@ -231,9 +231,8 @@
     "language": "typescript",
     "sources": [],
     "targets": ["patternfly-v6"],
-    "customRulesFolder": "data/rulesets/patternfly",
-    "issuesCount": 50,
-    "incidentsCount": 447,
+    "issuesCount": 45,
+    "incidentsCount": 403,
     "issues": [
       {
         "title": "--pf-v5-global should be replaced with --pf-v6-global",
