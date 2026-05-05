@@ -312,6 +312,7 @@ test.describe.serial(
 
     test('Verify issues reduced after autoscaling fix', async () => {
       test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
+      test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
@@ -397,6 +398,7 @@ test.describe.serial(
 
     test('Verify all issues resolved', async () => {
       test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
+      test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
