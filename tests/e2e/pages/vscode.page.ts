@@ -177,9 +177,7 @@ export abstract class VSCode {
   }
 
   public async runAnalysis() {
-    if (getOSInfo() === 'windows' || !!process.env.WEB_ENV) {
-      await this.window.waitForTimeout(15000);
-    }
+    await this.window.waitForTimeout(15000);
     await this.openAnalysisView();
     const analysisView = await this.getView(KAIViews.analysisView);
 
