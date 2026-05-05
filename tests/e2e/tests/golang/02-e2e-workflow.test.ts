@@ -304,7 +304,9 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
-      await vscodeApp.waitForAnalysisCompleted();
+      // Don't wait for notification — partial analysis fires and auto-dismisses
+      // before waitForAnalysisCompleted() starts watching (race condition).
+      // The next test polls issue count to verify re-analysis completed.
       await vscodeApp.waitDefault();
     });
 
@@ -383,13 +385,14 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Dependency fix accepted');
 
-      await vscodeApp.waitForAnalysisCompleted();
+      // Don't wait for notification — partial analysis fires and auto-dismisses
+      // before waitForAnalysisCompleted() starts watching (race condition).
+      // The next test polls issue count to verify re-analysis completed.
+      await vscodeApp.waitDefault();
 
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'all-fixes-accepted.png'),
       });
-
-      await vscodeApp.waitDefault();
     });
 
     test('Verify all issues resolved', async () => {
