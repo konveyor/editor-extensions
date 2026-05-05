@@ -40,7 +40,6 @@ import { handleConfigureCustomRules } from "./utilities/profiles/profileActions"
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
-import { SolutionWorkflowOrchestrator } from "./solutionWorkflowOrchestrator";
 import { runHealthCheck, formatHealthCheckReport } from "./healthCheck";
 import { getHealthCheckRegistry } from "./extension";
 import type { CheckStatus } from "./healthCheck/types";
@@ -165,6 +164,13 @@ const commandsMap: (
   [command: string]: (...args: any) => any;
 } = (state, logger) => {
   return {
+    [`${EXTENSION_NAME}.openChat`]: async () => {
+      try {
+        await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
+      } catch {
+        logger.error("Chat view not available");
+      }
+    },
     [`${EXTENSION_NAME}.openProfilesPanel`]: async () => {
       const provider = state.webviewProviders.get("profiles");
       if (provider) {
@@ -248,7 +254,7 @@ const commandsMap: (
         await state.hubConnectionManager.connect();
 
         // Update connection state
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
         });
 
@@ -265,7 +271,7 @@ const commandsMap: (
         window.showErrorMessage(`Failed to connect solution server: ${errorMessage}`);
 
         // Update state to reflect failed connection
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.solutionServerConnected = false;
         });
       }
@@ -280,7 +286,7 @@ const commandsMap: (
         await state.hubConnectionManager.connect();
 
         // Update connection state
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
           draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
         });
@@ -300,7 +306,7 @@ const commandsMap: (
         window.showErrorMessage(`Failed to connect profile sync: ${errorMessage}`);
 
         // Update state to reflect failed connection
-        state.mutateServerState((draft) => {
+        state.mutate((draft) => {
           draft.profileSyncConnected = false;
         });
       }
@@ -336,7 +342,8 @@ const commandsMap: (
       analyzerClient.runAnalysis();
     },
     [`${EXTENSION_NAME}.getSolution`]: async (incidents: EnhancedIncident[]) => {
-      const orchestrator = new SolutionWorkflowOrchestrator(state, logger, incidents);
+      const { AgentOrchestrator } = await import("./features/agent/agentOrchestrator");
+      const orchestrator = new AgentOrchestrator(state, logger, incidents);
       await orchestrator.run();
     },
     [`${EXTENSION_NAME}.getSuccessRate`]: async () => {
@@ -361,7 +368,7 @@ const commandsMap: (
         const updatedIncidents = await solutionServerClient.getSuccessRate(currentIncidents);
 
         // Update the state with the enhanced incidents
-        state.mutateAnalysisState((draft) => {
+        state.mutate((draft) => {
           draft.enhancedIncidents = updatedIncidents;
         });
       } catch (error: any) {
@@ -381,7 +388,7 @@ const commandsMap: (
     },
     [`${EXTENSION_NAME}.resetFetchingState`]: async () => {
       logger.warn("Manually resetting isFetchingSolution state");
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isFetchingSolution = false;
         if (draft.solutionState === "started") {
           draft.solutionState = "failedOnSending";
@@ -511,6 +518,15 @@ const commandsMap: (
     [`${EXTENSION_NAME}.showResolutionPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("resolution");
       resolutionProvider?.showWebviewPanel();
+    },
+    [`${EXTENSION_NAME}.showChatPanel`]: async () => {
+      try {
+        await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
+      } catch {
+        logger.warn("Chat view not available, falling back to resolution panel");
+        const resolutionProvider = state.webviewProviders?.get("resolution");
+        resolutionProvider?.showWebviewPanel();
+      }
     },
     [`${EXTENSION_NAME}.showAnalysisPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("sidebar");
@@ -724,7 +740,7 @@ const commandsMap: (
 
       // Update state to show syncing (only if not silent)
       if (!silent) {
-        state.mutateSettings((draft) => {
+        state.mutate((draft) => {
           draft.isSyncingProfiles = true;
         });
       }
@@ -749,7 +765,7 @@ const commandsMap: (
         const result = await profileSyncClient.syncProfiles(repoInfo, syncDir);
 
         // Manage ConfigErrors based on result
-        state.mutateConfigErrors((draft) => {
+        state.mutate((draft) => {
           // Clear previous profile sync errors
           draft.configErrors = draft.configErrors.filter(
             (e) => e.type !== "no-hub-profiles" && e.type !== "hub-profile-sync-failed",
@@ -799,7 +815,7 @@ const commandsMap: (
       } finally {
         // Clear syncing state (only if not silent)
         if (!silent) {
-          state.mutateSettings((draft) => {
+          state.mutate((draft) => {
             draft.isSyncingProfiles = false;
           });
         }
@@ -832,7 +848,7 @@ const commandsMap: (
         }
 
         // Set activeDecorators to indicate decorators are being applied
-        state.mutateDecorators((draft) => {
+        state.mutate((draft) => {
           if (!draft.activeDecorators) {
             draft.activeDecorators = {};
           }
@@ -842,17 +858,21 @@ const commandsMap: (
           `[Commands] Set activeDecorators for messageToken: ${messageToken}, filePath: ${filePath}`,
         );
 
-        // Get original content
+        // Get original content — prefer the cached version from modifiedFiles
+        // since Goose writes files to disk before we process them, so disk
+        // content is already the modified version.
         const uri = Uri.file(filePath);
-        let originalContent = "";
+        const cachedFileState = state.modifiedFiles.get(uri.fsPath);
+        let originalContent = cachedFileState?.originalContent ?? "";
 
-        try {
-          const doc = await workspace.openTextDocument(uri);
-          originalContent = doc.getText();
-        } catch {
-          // File might not exist yet (new file), use empty content
-          logger.debug(`File not found, treating as new file: ${filePath}`);
-          originalContent = "";
+        if (!originalContent) {
+          try {
+            const doc = await workspace.openTextDocument(uri);
+            originalContent = doc.getText();
+          } catch {
+            logger.debug(`File not found, treating as new file: ${filePath}`);
+            originalContent = "";
+          }
         }
 
         // Check if diff is for a new file (no original content)
@@ -866,7 +886,7 @@ const commandsMap: (
           logger.info(`Skipping decorator view for new file: ${filePath}`);
           // For new files, we can't show decorators since there's no file to decorate
           // Just clear the activeDecorators to indicate completion
-          state.mutateDecorators((draft) => {
+          state.mutate((draft) => {
             if (draft.activeDecorators) {
               delete draft.activeDecorators[messageToken];
             }
@@ -887,7 +907,7 @@ const commandsMap: (
         logger.error("Error in vertical diff:", error);
 
         // Clear activeDecorators on error
-        state.mutateDecorators((draft) => {
+        state.mutate((draft) => {
           if (draft.activeDecorators) {
             delete draft.activeDecorators[messageToken];
           }

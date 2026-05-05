@@ -27,7 +27,6 @@ import {
 import { ChatCard } from "./ChatCard/ChatCard";
 import { MessageWrapper } from "./MessageWrapper";
 import { useScrollManagement } from "../../hooks/useScrollManagement";
-import { BatchReviewExpandable } from "./BatchReview";
 
 // Unified hook for both modes - using Zustand store
 const useResolutionData = () => {
@@ -239,7 +238,6 @@ const ResolutionPage: React.FC = () => {
           </MessageBox>
         </ChatbotContent>
         <ChatbotFooter>
-          <BatchReviewExpandable />
           <ChatbotFootnote
             className="footnote"
             label="Always review AI generated content prior to use."
