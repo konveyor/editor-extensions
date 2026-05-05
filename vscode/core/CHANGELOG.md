@@ -10,6 +10,15 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.14] - 2026-05-05
+
+### Bug Fixes
+
+- Fix analysis being blocked after accepting a solution and reverting the file. When the batch review completed (all files accepted/rejected/continued), checkBatchReviewComplete only cleared pendingBatchReview but did not reset the workflow state flags (isFetchingSolution, solutionState, isWaitingForUserInteraction, isProcessingQueuedMessages). This left the extension in a broken state where analysis could not run because it thought a resolution was still in progress. Now checkBatchReviewComplete fully resets all workflow flags when the batch is done, and also cleans up stale workflow resources (queue manager, pending interactions, modified files cache).
+- Replaced hardcoded "Konveyor Hub" references in configuration UI with dynamic branding to support downstream rebranding.
+
+
 ## [0.4.12] - 2026-05-01
 
 ### Bug Fixes
