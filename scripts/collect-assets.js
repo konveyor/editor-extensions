@@ -43,6 +43,9 @@ console.log("branch:", branch);
 console.log("pr:", pr);
 console.log("workflow:", workflow);
 
+const isNoFilesMatchedError = (err) =>
+  err instanceof Error && err.message.includes("No files matched globs");
+
 const actions = [
   // If from a release, download the release asset zips
   useRelease &&
@@ -146,22 +149,55 @@ const actions = [
     }),
   }),
 
-  // Download and extract seed rulesets from a rulesets repo release
-  async () => ({
-    id: "seed rulesets",
-    meta: await downloadAndExtractGitHubReleaseSourceCode({
+  // Download and extract seed rulesets from a rulesets repo release.
+  // Supports both the layout introduced in konveyor/rulesets#342 (stable/<lang>/* and preview/*)
+  // and the legacy layout (default/generated/*). Tries the new layout first; falls back to the
+  // legacy one. Throws if neither layout produces any files.
+  async () => {
+    const rulesetConfig = {
       downloadDirectory: join(DOWNLOAD_CACHE, "sources"),
       targetDirectory: join(DOWNLOAD_DIR, "rulesets"),
-
       org: cli.rulesetOrg,
       repo: cli.rulesetRepo,
       releaseTag: cli.releaseTag,
       bearerToken,
+      globs: ["**/*.yaml", "**/*.yml", "!**/tests/**"],
+    };
 
-      context: "{{root}}/stable/java",
-      globs: ["**/*"],
-    }),
-  }),
+    try {
+      // Post-konveyor/rulesets#342: rules live in stable/<lang>/* and preview/*
+      const stableMeta = await downloadAndExtractGitHubReleaseSourceCode({
+        ...rulesetConfig,
+        context: "{{root}}/stable",
+      });
+      try {
+        await downloadAndExtractGitHubReleaseSourceCode({
+          ...rulesetConfig,
+          context: "{{root}}/preview",
+        });
+      } catch (err) {
+        if (!isNoFilesMatchedError(err)) {
+          throw err;
+        }
+        console.warn("No preview rulesets found in this release, skipping");
+      }
+      console.log("Extracted rulesets using post-rulesets#342 layout (stable + preview)");
+      return { id: "seed rulesets", meta: stableMeta };
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
+      console.warn(
+        "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
+      );
+      const meta = await downloadAndExtractGitHubReleaseSourceCode({
+        ...rulesetConfig,
+        context: "{{root}}/default/generated",
+      });
+      console.log("Extracted rulesets using pre-rulesets#342 layout (default/generated)");
+      return { id: "seed rulesets", meta };
+    }
+  },
 
   // Extract jdt.ls bundles from the linux-x64_64 downloaded workflow artifact or release asset
   async () => ({
