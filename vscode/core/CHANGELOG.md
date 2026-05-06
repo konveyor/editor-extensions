@@ -11,6 +11,14 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.16] - 2026-05-06
+
+### Enhancements
+
+- Dynamically discover available target and source labels from bundled rulesets at runtime instead of using hardcoded lists, fixing missing Spring and other migration targets in the profile editor.
+
+
 ## [0.4.14] - 2026-05-05
 
 ### Bug Fixes
