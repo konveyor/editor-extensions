@@ -306,7 +306,6 @@ test.describe.serial(
 
       // Don't wait for notification — partial analysis fires and auto-dismisses
       // before waitForAnalysisCompleted() starts watching (race condition).
-      // The next test polls issue count to verify re-analysis completed.
       await vscodeApp.waitDefault();
     });
 
@@ -320,18 +319,26 @@ test.describe.serial(
       await vscodeApp.searchViolation('');
       await vscodeApp.waitDefault();
 
-      // Re-analysis after Accept can lag; poll until counts reflect the applied fix
-      await expect
-        .poll(async () => vscodeApp.getIssuesCount(), {
-          timeout: 600000,
-          message:
-            'Expected Total Issues to drop after autoscaling fix (wait for save + re-analysis).',
-        })
-        .toBeLessThan(violationCountBefore);
+      const issuesBefore = await vscodeApp.getIssuesCount();
+      console.log(
+        `Issues before full re-analysis: ${issuesBefore} (started with ${violationCountBefore})`
+      );
+
+      // Partial analysis after Accept does not reliably update the issue count
+      // due to analyzer cache behavior (see https://github.com/konveyor/editor-extensions/issues/1402).
+      // Run a full analysis (reset_cache=true) to pick up the applied fix.
+      console.log('Running full analysis to verify autoscaling fix was applied...');
+      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+      const runAnalysisBtn = analysisView.getByRole('button', { name: 'Run Analysis' });
+      await expect(runAnalysisBtn).toBeEnabled({ timeout: 60000 });
+      await runAnalysisBtn.click();
+      await vscodeApp.waitForAnalysisCompleted();
 
       const issueCountAfter = await vscodeApp.getIssuesCount();
-      console.log(`Issues after autoscaling fix: ${issueCountAfter}`);
-      console.log(`Issues reduced from ${violationCountBefore} to ${issueCountAfter}`);
+      console.log(
+        `Issues after full re-analysis: ${issueCountAfter} (expected < ${violationCountBefore})`
+      );
+      expect(issueCountAfter).toBeLessThan(violationCountBefore);
 
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'after-autoscaling-fix-verified.png'),
@@ -388,7 +395,6 @@ test.describe.serial(
 
       // Don't wait for notification — partial analysis fires and auto-dismisses
       // before waitForAnalysisCompleted() starts watching (race condition).
-      // The next test polls issue count to verify re-analysis completed.
       await vscodeApp.waitDefault();
 
       await vscodeApp.getWindow().screenshot({
@@ -402,17 +408,26 @@ test.describe.serial(
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
-      // When all issues are resolved, the filter button may not be visible
-      await expect
-        .poll(async () => vscodeApp.getIssuesCount(), {
-          timeout: 600000,
-          message: 'Expected Total Issues to reach 0 after dependency fix (re-analysis may lag).',
-        })
-        .toBe(0);
+      const issuesBefore = await vscodeApp.getIssuesCount();
+      console.log(
+        `Issues before full re-analysis: ${issuesBefore} (started with ${violationCountBefore})`
+      );
+
+      // Partial analysis after Accept does not reliably update the issue count
+      // due to analyzer cache behavior (see https://github.com/konveyor/editor-extensions/issues/1402).
+      // Run a full analysis (reset_cache=true) to pick up both applied fixes.
+      console.log('Running full analysis to verify all fixes were applied...');
+      const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+      const runAnalysisBtn = analysisView.getByRole('button', { name: 'Run Analysis' });
+      await expect(runAnalysisBtn).toBeEnabled({ timeout: 60000 });
+      await runAnalysisBtn.click();
+      await vscodeApp.waitForAnalysisCompleted();
 
       const issueCountAfter = await vscodeApp.getIssuesCount();
-      console.log(`Issues after all fixes: ${issueCountAfter}`);
-      console.log(`All issues resolved: ${violationCountBefore} -> ${issueCountAfter}`);
+      console.log(
+        `Issues after full re-analysis: ${issueCountAfter} (expected 0, was ${violationCountBefore})`
+      );
+      expect(issueCountAfter).toBe(0);
 
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'analysis-view-all-resolved.png'),
