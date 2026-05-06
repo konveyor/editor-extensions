@@ -48,7 +48,7 @@ providers.forEach((config) => {
       const repoName = getRepoName(testInfo);
       const repoInfo = testRepoData[repoName];
       profileName = `${repoInfo.repoName}-${randomString}`;
-      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+      vscodeApp = await VSCodeFactory.init(repoInfo);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();

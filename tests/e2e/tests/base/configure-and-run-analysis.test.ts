@@ -22,7 +22,7 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo);
   });
 
   test('Create Profile and Set Sources and targets', async () => {

@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import { BrowserContextOptions, chromium } from 'playwright';
 import { expect, Page } from '@playwright/test';
 import { VSCode } from './vscode.page';
+import { RepoInfo } from '../types/repo-info';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { extensionShortName, generateRandomString, getOSInfo } from '../utilities/utils';
@@ -13,17 +14,25 @@ import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 export class VSCodeWeb extends VSCode {
   protected window: Page;
 
-  constructor(window: Page, repoDir?: string, branch = 'main') {
+  constructor(window: Page, repoInfo?: RepoInfo, repoDir?: string) {
     super();
     this.window = window;
+    this.repoInfo = repoInfo;
     this.repoDir = repoDir;
-    this.branch = branch;
+    this.branch = repoInfo?.branch ?? 'main';
   }
 
-  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
+  public static async open(repoInfo?: RepoInfo) {
+    const { repoUrl, repoName, branch = 'main', workspacePath } = repoInfo ?? {};
+    const repoDir = repoName
+      ? workspacePath
+        ? `${repoName}/${workspacePath}`
+        : repoName
+      : undefined;
+
     const browser = await chromium.launch();
     if (!existsSync('./web-state.json')) {
-      return VSCodeWeb.init(repoUrl, repoDir, branch);
+      return VSCodeWeb.init(repoInfo);
     }
 
     const context = await browser.newContext({
@@ -47,7 +56,7 @@ export class VSCodeWeb extends VSCode {
     console.log(`VSCodeWeb.open: Creating new workspace...`);
     newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
 
-    const vscode = new VSCodeWeb(newPage, repoDir, branch);
+    const vscode = new VSCodeWeb(newPage, repoInfo, repoDir);
     await newPage.waitForLoadState();
     await page.close();
 
@@ -149,11 +158,9 @@ export class VSCodeWeb extends VSCode {
 
   /**
    * launches VSCode with KAI plugin installed and repoUrl app opened.
-   * @param repoUrl
-   * @param repoDir path to repo
-   * @param branch optional branch to clone from
+   * @param repoInfo
    */
-  public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
+  public static async init(repoInfo?: RepoInfo): Promise<VSCode> {
     if (
       [
         process.env.WEB_BASE_URL,
@@ -182,7 +189,7 @@ export class VSCodeWeb extends VSCode {
     if (!(await loginButton.isVisible())) {
       await page.close();
       console.log('VSCodeWeb.init: User already logged in');
-      return VSCodeWeb.open(repoUrl, repoDir, branch);
+      return VSCodeWeb.open(repoInfo);
     }
     console.log('VSCodeWeb.init: User not logged in, go to login');
     await expect(loginButton).toBeVisible();
@@ -201,7 +208,7 @@ export class VSCodeWeb extends VSCode {
     await context.storageState({ path: './web-state.json' });
     await page.waitForTimeout(5000);
     await page.close();
-    return VSCodeWeb.open(repoUrl, repoDir, branch);
+    return VSCodeWeb.open(repoInfo);
   }
 
   public async closeVSCode(): Promise<void> {

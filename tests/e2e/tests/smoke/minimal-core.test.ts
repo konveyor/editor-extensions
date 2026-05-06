@@ -18,7 +18,7 @@ test.describe.serial('Minimal core smoke flow', { tag: ['@tier0', '@smoke'] }, (
     if (!repoInfo) {
       throw new Error("'coolstore' fixture is missing from test-repos.json");
     }
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo);
     await vscodeApp.waitDefault();
   });
 

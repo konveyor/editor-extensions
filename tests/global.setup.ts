@@ -65,9 +65,10 @@ async function globalSetup() {
 
   // For Java repos, use init() which installs extensions and waits for Java initialization
   // For other languages, use open() which skips Java-specific initialization
+  const repoInfo = { repoUrl, repoName: repoName, language };
   const vscodeApp = isJava
-    ? await VSCodeFactory.init(repoUrl, repoName)
-    : await VSCodeFactory.open(repoUrl, repoName, 'main', false);
+    ? await VSCodeFactory.init(repoInfo)
+    : await VSCodeFactory.open(repoInfo, false);
 
   if (getOSInfo() === 'windows' && process.env.CI) {
     await vscodeApp.getWindow().waitForTimeout(60000);
@@ -91,7 +92,7 @@ async function globalSetup() {
   console.log('Completed global setup.');
 
   if (getOSInfo() === 'windows' && process.env.CI) {
-    const vscodeApp = await VSCodeFactory.open(repoUrl, repoName, 'main', true);
+    const vscodeApp = await VSCodeFactory.open(repoInfo, true);
     await vscodeApp.createProfile([], ['openjdk17'], generateRandomString());
     await vscodeApp.configureGenerativeAI();
     await vscodeApp.openAnalysisView();

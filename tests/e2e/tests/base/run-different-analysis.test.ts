@@ -15,11 +15,7 @@ test.describe('Run analysis for different repositories', { tag: ['@tier3'] }, ()
       test.setTimeout(900000);
       const profileName = `run-diff-${generateRandomString()}`;
 
-      const vscodeApp = await VSCodeFactory.open(
-        repoInfo.repoUrl,
-        repoInfo.repoName,
-        repoInfo.branch
-      );
+      const vscodeApp = await VSCodeFactory.open(repoInfo);
 
       try {
         await test.step('Check data is set', async () => {

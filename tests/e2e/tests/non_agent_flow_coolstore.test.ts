@@ -29,13 +29,7 @@ providers.forEach((config) => {
 
         // prepareOffline=true extracts LLM cache and sets demoMode/cacheDir BEFORE VS Code launches
         // This ensures the extension can use cached healthcheck data during initial activation
-        vscodeApp = await VSCodeFactory.open(
-          repoInfo.repoUrl,
-          repoInfo.repoName,
-          repoInfo.branch,
-          true, // waitForInitialization
-          true // prepareOffline
-        );
+        vscodeApp = await VSCodeFactory.open(repoInfo, true, true);
         try {
           await vscodeApp.deleteProfile(profileName);
         } catch {

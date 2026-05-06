@@ -41,7 +41,7 @@ test.describe(
 
         console.log('Launching VS Code with Hub env vars set to enable all features');
 
-        vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+        vscodeApp = await VSCodeFactory.init(repoInfo);
 
         await HubConfigurationPage.open(vscodeApp);
         const view = await vscodeApp.getView(KAIViews.hubConfiguration);
@@ -95,7 +95,7 @@ test.describe(
 
         console.log('Launching VS Code with Hub env vars set to disable optional features');
 
-        vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+        vscodeApp = await VSCodeFactory.init(repoInfo);
 
         await HubConfigurationPage.open(vscodeApp);
         const view = await vscodeApp.getView(KAIViews.hubConfiguration);

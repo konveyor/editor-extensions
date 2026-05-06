@@ -1,14 +1,9 @@
 import { VSCodeWeb } from '../pages/vscode-web.page';
 import { VSCodeDesktop } from '../pages/vscode-desktop.page';
 import { VSCode } from '../pages/vscode.page';
+import { RepoInfo } from '../types/repo-info';
 
-type RepoInfo = {
-  repoUrl: string;
-  repoName: string;
-  branch?: string;
-  language?: string;
-  workspacePath?: string;
-};
+export { RepoInfo };
 
 /**
  * Opens VS Code with the appropriate initialization based on the repo's language.
@@ -17,56 +12,38 @@ type RepoInfo = {
  * For C# and other non-Java languages, extensions are installed if VSIX paths are provided.
  */
 export async function openForRepo(repoInfo: RepoInfo, prepareOffline = false): Promise<VSCode> {
-  const { repoUrl, repoName, branch = 'main', language = 'java', workspacePath } = repoInfo;
-  const needsJavaInit = language === 'java';
-
-  // If workspacePath is provided, construct the full path relative to repoName
-  const repoDir = workspacePath ? `${repoName}/${workspacePath}` : repoName;
+  const needsJavaInit = (repoInfo.language ?? 'java') === 'java';
 
   if (needsJavaInit) {
-    return init(repoUrl, repoDir, branch, prepareOffline);
+    return init(repoInfo, prepareOffline);
   } else {
-    // For non-Java languages, install extensions if VSIX paths are provided
-    // This ensures C#, JavaScript, Go extensions are installed when needed
-    return open(repoUrl, repoDir, branch, false, prepareOffline);
+    return open(repoInfo, false, prepareOffline);
   }
 }
 
 /**
- *
- * @param repoUrl
- * @param repoDir
- * @param branch
+ * @param repoInfo
  * @param waitForInitialization
  * @param prepareOffline if true, extracts LLM cache and sets demoMode/cacheDir before VS Code launches
  */
 export async function open(
-  repoUrl?: string,
-  repoDir?: string,
-  branch = 'main',
+  repoInfo?: RepoInfo,
   waitForInitialization = true,
   prepareOffline = false
 ) {
   if (process.env.WEB_ENV) {
-    return VSCodeWeb.open(repoUrl, repoDir, branch);
+    return VSCodeWeb.open(repoInfo);
   }
-  return VSCodeDesktop.open(repoUrl, repoDir, branch, waitForInitialization, prepareOffline);
+  return VSCodeDesktop.open(repoInfo, waitForInitialization, prepareOffline);
 }
 
 /**
- * @param repoUrl
- * @param repoDir
- * @param branch
+ * @param repoInfo
  * @param prepareOffline if true, extracts LLM cache and sets demoMode/cacheDir before VS Code launches
  */
-export async function init(
-  repoUrl?: string,
-  repoDir?: string,
-  branch?: string,
-  prepareOffline = false
-): Promise<VSCode> {
+export async function init(repoInfo?: RepoInfo, prepareOffline = false): Promise<VSCode> {
   if (process.env.WEB_ENV) {
-    return VSCodeWeb.init(repoUrl, repoDir, branch);
+    return VSCodeWeb.init(repoInfo);
   }
-  return VSCodeDesktop.init(repoUrl, repoDir, branch, prepareOffline);
+  return VSCodeDesktop.init(repoInfo, prepareOffline);
 }

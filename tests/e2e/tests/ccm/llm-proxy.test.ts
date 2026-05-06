@@ -58,7 +58,7 @@ test.describe.serial(
       }
 
       const repoInfo = testRepoData['coolstore'];
-      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      vscodeApp = await VSCodeFactory.init(repoInfo);
       await vscodeApp.createProfile([], repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(INVALID_GENAI_CONFIG);
       await vscodeApp.openAnalysisView();

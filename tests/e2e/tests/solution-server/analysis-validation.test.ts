@@ -45,7 +45,7 @@ test.describe.serial(
       }
 
       mcpClient = await MCPClient.connect();
-      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+      vsCode = await VSCodeFactory.init(repoInfo);
 
       // Configure hub with solution server enabled
       const hubConfig = getHubConfig({

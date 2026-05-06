@@ -11,11 +11,13 @@ import pathlib from 'path';
 import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
 import * as vscode from 'vscode';
+import { RepoInfo } from '../types/repo-info';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
 
 export abstract class VSCode {
+  public repoInfo?: RepoInfo;
   repoDir?: string;
   protected branch?: string;
   protected abstract window: Page;

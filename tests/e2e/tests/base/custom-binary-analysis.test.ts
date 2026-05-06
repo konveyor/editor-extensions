@@ -54,7 +54,7 @@ test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@
     }
     console.log(`Custom analyzer path found in ${binaryPath}`);
     const repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo);
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
   });
 
