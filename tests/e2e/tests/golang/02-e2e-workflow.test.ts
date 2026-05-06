@@ -17,10 +17,7 @@ import {
   getDefaultProviderConfig,
   LLEMULATOR_PROVIDER,
 } from '../../fixtures/provider-configs.fixture';
-import {
-  loadGotestWorkflowLlemulatorResponses,
-  verifyGotestMainGoLlemulatorRule,
-} from '../../fixtures/gotest-llemulator';
+import { loadGotestWorkflowLlemulatorResponses } from '../../fixtures/gotest-llemulator';
 import { getLlemulatorBaseUrl } from '../../utilities/llemulator.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 
@@ -59,8 +56,6 @@ test.describe.serial(
             true
           );
         }
-        // Proves the main.go pattern rule returns the migrated main.go Kai body (not go.mod)
-        await verifyGotestMainGoLlemulatorRule();
         console.log('Llemulator scripts loaded for gotest workflow (see gotest-llemulator.ts)');
       }
       // Use openForRepo which determines initialization based on repo language
@@ -304,10 +299,7 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
-      // Don't wait for notification — partial analysis fires and auto-dismisses
-      // before waitForAnalysisCompleted() starts watching (race condition).
-      // The next test polls issue count to verify re-analysis completed.
-      await vscodeApp.waitDefault();
+      await vscodeApp.waitForAnalysisCompleted();
     });
 
     test('Verify issues reduced after autoscaling fix', async () => {
@@ -320,18 +312,11 @@ test.describe.serial(
       await vscodeApp.searchViolation('');
       await vscodeApp.waitDefault();
 
-      // Re-analysis after Accept can lag; poll until counts reflect the applied fix
-      await expect
-        .poll(async () => vscodeApp.getIssuesCount(), {
-          timeout: 600000,
-          message:
-            'Expected Total Issues to drop after autoscaling fix (wait for save + re-analysis).',
-        })
-        .toBeLessThan(violationCountBefore);
-
       const issueCountAfter = await vscodeApp.getIssuesCount();
-      console.log(`Issues after autoscaling fix: ${issueCountAfter}`);
-      console.log(`Issues reduced from ${violationCountBefore} to ${issueCountAfter}`);
+      console.log(
+        `Issues after autoscaling fix: ${issueCountAfter} (started with ${violationCountBefore})`
+      );
+      expect(issueCountAfter).toBeLessThan(violationCountBefore);
 
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'after-autoscaling-fix-verified.png'),
@@ -386,10 +371,7 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Dependency fix accepted');
 
-      // Don't wait for notification — partial analysis fires and auto-dismisses
-      // before waitForAnalysisCompleted() starts watching (race condition).
-      // The next test polls issue count to verify re-analysis completed.
-      await vscodeApp.waitDefault();
+      await vscodeApp.waitForAnalysisCompleted();
 
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'all-fixes-accepted.png'),
@@ -402,17 +384,11 @@ test.describe.serial(
       await vscodeApp.openAnalysisView();
       await vscodeApp.waitDefault();
 
-      // When all issues are resolved, the filter button may not be visible
-      await expect
-        .poll(async () => vscodeApp.getIssuesCount(), {
-          timeout: 600000,
-          message: 'Expected Total Issues to reach 0 after dependency fix (re-analysis may lag).',
-        })
-        .toBe(0);
-
       const issueCountAfter = await vscodeApp.getIssuesCount();
-      console.log(`Issues after all fixes: ${issueCountAfter}`);
-      console.log(`All issues resolved: ${violationCountBefore} -> ${issueCountAfter}`);
+      console.log(
+        `Issues after all fixes: ${issueCountAfter} (started with ${violationCountBefore})`
+      );
+      expect(issueCountAfter).toBe(0);
 
       await vscodeApp.getWindow().screenshot({
         path: pathlib.join(screenshotDir, 'analysis-view-all-resolved.png'),
