@@ -29,6 +29,7 @@ export enum KaiWorkflowMessageType {
 export interface KaiModifiedFile {
   path: string;
   content: string;
+  originalContent?: string;
   userInteraction?: KaiUserInteraction;
 }
 
@@ -37,6 +38,7 @@ export interface KaiToolCall {
   name?: string;
   args?: string;
   status: "generating" | "running" | "succeeded" | "failed";
+  result?: string;
 }
 
 export interface KaiUserInteraction {

@@ -49,8 +49,7 @@ export class AnalyzerClient {
 
   constructor(
     private extContext: vscode.ExtensionContext,
-    private mutateServerState: (recipe: (draft: ExtensionData) => void) => void,
-    private mutateAnalysisState: (recipe: (draft: ExtensionData) => void) => void,
+    private mutate: (recipe: (draft: ExtensionData) => void) => void,
     private getExtStateData: () => Immutable<ExtensionData>,
     private readonly taskManager: TaskManager,
     private readonly logger: Logger,
@@ -69,7 +68,7 @@ export class AnalyzerClient {
   }
 
   private fireServerStateChange(state: ServerState) {
-    this.mutateServerState((draft) => {
+    this.mutate((draft) => {
       this.logger.info(`serverState change from [${draft.serverState}] to [${state}]`);
       draft.serverState = state;
       draft.isStartingServer = state === "starting";
@@ -78,7 +77,7 @@ export class AnalyzerClient {
   }
 
   private fireAnalysisStateChange(flag: boolean) {
-    this.mutateAnalysisState((draft) => {
+    this.mutate((draft) => {
       draft.isAnalyzing = flag;
       // Reset progress when analysis completes
       if (!flag) {
@@ -430,7 +429,7 @@ export class AnalyzerClient {
 
     await vscode.window.withProgress(
       {
-        location: vscode.ProgressLocation.Notification,
+        location: vscode.ProgressLocation.Window,
         title: "Running Analysis",
         cancellable: true,
       },
@@ -548,7 +547,7 @@ export class AnalyzerClient {
             progress.report({ message: notificationMessage });
 
             // Update extension state for webview with detailed message
-            this.mutateAnalysisState((draft) => {
+            this.mutate((draft) => {
               draft.analysisProgress = Math.min(100, Math.max(0, Math.round(progressPercent)));
               draft.analysisProgressMessage = webviewMessage;
             });
@@ -641,7 +640,7 @@ export class AnalyzerClient {
             return;
           }
           if (ruleSets.length === 0) {
-            vscode.window.showInformationMessage("Analysis completed. No incidents were found.");
+            this.logger.info("Analysis completed. No incidents were found.");
           }
 
           // Add active profile name to each RuleSet
@@ -657,7 +656,6 @@ export class AnalyzerClient {
           await executeExtensionCommand("loadRuleSets", ruleSets);
           this.taskManager.init();
           progress.report({ message: "Results processed!" });
-          vscode.window.showInformationMessage("Analysis completed successfully!");
 
           // Emit analysis complete event to registered providers
           this.providerRegistry.emitAnalysisComplete({

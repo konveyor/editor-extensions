@@ -50,7 +50,6 @@ import {
   runAnalysis,
   stopServer,
   getSuccessRate,
-  toggleAgentMode,
   openResolutionPanel,
 } from "../../hooks/actions";
 import { useViolations } from "../../hooks/useViolations";
@@ -83,7 +82,6 @@ const AnalysisPage: React.FC = () => {
   const isInTreeMode = useExtensionStore((state) => state.isInTreeMode);
   const serverState = useExtensionStore((state) => state.serverState);
   const solutionServerEnabled = useExtensionStore((state) => state.solutionServerEnabled);
-  const isAgentMode = useExtensionStore((state) => state.isAgentMode);
   const solutionServerConnected = useExtensionStore((state) => state.solutionServerConnected);
   const isWaitingForUserInteraction = useExtensionStore(
     (state) => state.isWaitingForUserInteraction,
@@ -130,10 +128,6 @@ const AnalysisPage: React.FC = () => {
 
   const handleRunAnalysis = () => dispatch(runAnalysis());
   const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
-
-  const handleAgentModeToggle = () => {
-    dispatch(toggleAgentMode());
-  };
 
   const panelContent = (
     <WalkthroughDrawer
@@ -186,16 +180,6 @@ const AnalysisPage: React.FC = () => {
                         {!isGenAIDisabled && (
                           <ToolbarItem>
                             <div>
-                              <div className="agent-mode-wrapper">
-                                <Switch
-                                  id="agent-mode-switch"
-                                  isChecked={isAgentMode}
-                                  label="Agent Mode"
-                                  onChange={(_event) => handleAgentModeToggle()}
-                                  aria-label="Toggle Agent Mode"
-                                  isReversed
-                                />
-                              </div>
                             </div>
                           </ToolbarItem>
                         )}

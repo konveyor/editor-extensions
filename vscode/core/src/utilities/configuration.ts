@@ -59,20 +59,8 @@ export const getConfigAnalyzerPath = (): string => getConfigValue<string>("analy
 export const getConfigLogLevel = (): string => getConfigValue<string>("logLevel") || "debug";
 export const getConfigLabelSelector = (): string =>
   getConfigValue<string>("analysis.labelSelector") || "discovery";
-export const getConfigAnalyzeOnSave = (): boolean => {
-  const agentMode = getConfigAgentMode();
-  const analyzeOnSave = getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
-
-  // When agent mode is enabled, analyzeOnSave must be enabled
-  if (agentMode && !analyzeOnSave) {
-    console.warn(
-      "Agent mode is enabled but analyzeOnSave is disabled. Forcing analyzeOnSave to true for agent mode compatibility.",
-    );
-    return true;
-  }
-
-  return analyzeOnSave;
-};
+export const getConfigAnalyzeOnSave = (): boolean =>
+  getConfigValue<boolean>("analysis.analyzeOnSave") ?? true;
 export const getCacheDir = (workspaceRoot: string | undefined): string | undefined =>
   getWorkspaceRelativePath(getConfigValue<string>("genai.cacheDir"), workspaceRoot);
 export const getTraceDir = (workspaceRoot: string | undefined): string | undefined =>
@@ -83,12 +71,41 @@ export const getConfigKaiDemoMode = (): boolean =>
   getConfigValue<boolean>("genai.demoMode") ?? false;
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
-export const getConfigAgentMode = (): boolean =>
-  getConfigValue<boolean>("genai.agentMode") ?? false;
+export const getConfigBatchReviewMode = (): boolean =>
+  getConfigValue<boolean>("genai.batchReviewMode") ?? false;
+
 export const getConfigAutoAcceptOnSave = (): boolean =>
   getConfigValue<boolean>("diff.autoAcceptOnSave") ?? false;
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("genai.excludedDiagnosticSources") ?? [];
+
+export const getConfigExperimentalChatEnabled = (): boolean =>
+  getConfigValue<boolean>("experimentalChat.enabled") ?? false;
+
+export const getConfigAgentBackend = (): "goose" | "opencode" => {
+  const value = getConfigValue<string>("experimentalChat.agentBackend");
+  return value === "opencode" ? "opencode" : "goose";
+};
+
+export const getConfigGooseBinaryPath = (): string | null =>
+  getConfigValue<string>("experimentalChat.gooseBinaryPath") ?? null;
+
+export const getConfigOpencodeBinaryPath = (): string | null =>
+  getConfigValue<string>("experimentalChat.opencodeBinaryPath") ?? null;
+
+// ─── Agent settings (persisted) ──────────────────────────────────────
+
+export function getConfigAgentMode(): boolean {
+  return getConfigValue<boolean>("genai.agentMode") ?? true;
+}
+
+export async function updateConfigAgentMode(value: boolean): Promise<void> {
+  await updateConfigValue("genai.agentMode", value);
+}
+
+export async function updateConfigExperimentalChatEnabled(value: boolean): Promise<void> {
+  await updateConfigValue("experimentalChat.enabled", value);
+}
 
 /**
  * Get all configuration values for keys defined in the package.json file. Used in debugging.
@@ -108,11 +125,6 @@ export function getAllConfigurationValues(): Record<string, any> {
 export const updateAnalyzerPath = async (value: string | undefined): Promise<void> => {
   await updateConfigValue("analyzerPath", value, vscode.ConfigurationTarget.Workspace);
 };
-export const toggleAgentMode = async (): Promise<void> => {
-  const currentValue = getConfigAgentMode();
-  await updateConfigValue("genai.agentMode", !currentValue, vscode.ConfigurationTarget.Workspace);
-};
-
 export const enableGenAI = async (): Promise<void> => {
   await updateConfigValue("genai.enabled", true, vscode.ConfigurationTarget.Workspace);
 };
