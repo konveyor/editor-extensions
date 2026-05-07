@@ -10,7 +10,6 @@ test.describe('TypeScript Extension - Installation & Startup', { tag: '@tier2' }
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(600_000);
     repoInfo = testRepoData['static-report'];
-    // Use openForRepo which determines initialization based on repo language
     vscodeApp = await VSCodeFactory.init(repoInfo);
 
     // Open analysis view and wait for it to be accessible

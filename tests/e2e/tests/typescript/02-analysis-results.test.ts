@@ -52,9 +52,7 @@ export const Sidebar: React.FC = () => {
     if (!repoInfo) {
       throw new Error("'static-report' fixture is missing from test-repos.json");
     }
-    // Use openForRepo which determines initialization based on repo language
     vscodeApp = await VSCodeFactory.init(repoInfo);
-    // Wait for extensions to load
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
   });

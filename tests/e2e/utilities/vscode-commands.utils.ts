@@ -249,7 +249,7 @@ const languageExtensionMap: Record<string, ExtensionTypes> = {
  */
 export function getExtensionsForLanguage(language?: string): ExtensionTypes[] {
   const extensions: ExtensionTypes[] = [ExtensionTypes.Core];
-  const languageExtension = languageExtensionMap[language ?? 'java'];
+  const languageExtension = languageExtensionMap[language?.toLowerCase() ?? 'java'];
   if (languageExtension) {
     extensions.push(languageExtension);
   }
