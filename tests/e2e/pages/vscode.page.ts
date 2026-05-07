@@ -466,7 +466,7 @@ export abstract class VSCode {
       await manageProfileView
         .getByRole('listitem')
         .filter({ hasText: profileName })
-        .waitFor({ state: 'hidden', timeout: 15000 });
+        .waitFor({ state: 'hidden', timeout: 60_000 });
 
       console.log(`Profile '${profileName}' deleted successfully`);
     } catch (error) {

@@ -11,6 +11,8 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
+import { FixTypes } from '../../enums/fix-types.enum';
+import { ResolutionAction } from '../../enums/resolution-action.enum';
 
 test.describe.serial('TypeScript Extension - Analysis & Kai Integration', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
@@ -22,7 +24,7 @@ test.describe.serial('TypeScript Extension - Analysis & Kai Integration', { tag:
   const provider = getDefaultProviderConfig();
 
   test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(1200000);
+    test.setTimeout(600_000);
 
     if (provider === LLEMULATOR_PROVIDER) {
       await loadLlemulatorResponses({
@@ -51,13 +53,14 @@ export const Sidebar: React.FC = () => {
       throw new Error("'static-report' fixture is missing from test-repos.json");
     }
     // Use openForRepo which determines initialization based on repo language
-    vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
+    vscodeApp = await VSCodeFactory.init(repoInfo);
     // Wait for extensions to load
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
   });
 
   test.beforeEach(async () => {
+    test.setTimeout(600_000);
     const testName = test.info().title.replace(/ /g, '-');
     console.log(`Starting ${testName} at ${new Date()}`);
     await vscodeApp.getWindow().screenshot({
@@ -235,61 +238,28 @@ export const Sidebar: React.FC = () => {
     await vscodeApp.openAnalysisView();
     await vscodeApp.waitDefault();
 
-    const analysisView = await vscodeApp.getView(KAIViews.analysisView);
+    let analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
     // Count violations before fix
     const violations = analysisView.locator('[class*="pf-v"][class*="-c-card__header-toggle"]');
     violationCountBefore = await violations.count();
     console.log(`Violations before fix: ${violationCountBefore}`);
 
-    // Search for the specific violation to fix
-    const violationText = 'The theme prop has been removed from PageSidebar';
-    await vscodeApp.searchViolation(violationText);
-
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, 'after-search-violation.png'),
+    await vscodeApp.searchAndRequestAction(
+      'The theme prop has been removed from PageSidebar',
+      FixTypes.Incident,
+      ResolutionAction.Accept
+    );
+    await vscodeApp.openAnalysisView();
+    analysisView = await vscodeApp.getView(KAIViews.analysisView);
+    await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
+      timeout: 60_000,
     });
-
-    // Click the Get Solution button for the specific issue (scope="issue")
-    const fixButton = analysisView.locator('button#get-solution-button[data-scope="issue"]');
-    await expect(fixButton).toBeVisible({ timeout: 30000 });
-    await fixButton.click();
-    console.log('Fix button clicked for PageSidebar theme prop issue');
-
-    const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-    await vscodeApp.waitDefault();
-
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, 'resolution-view-before-solution.png'),
-    });
-
-    // Wait for solution generation to complete (loading indicator disappears)
-    const loadingIndicator = resolutionView.locator('.loading-indicator');
-    console.log('Waiting for solution generation to complete...');
-    await expect(loadingIndicator).toHaveCount(0, { timeout: 600000 });
-    console.log('Solution generation completed');
-
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, 'solution-ready.png'),
-    });
-
-    // Click Accept button
-    const acceptButton = resolutionView.getByRole('button', { name: 'Accept' }).first();
-    await expect(acceptButton).toBeVisible({ timeout: 30000 });
-    await acceptButton.click();
-    console.log('Accept button clicked');
-
-    await vscodeApp.getWindow().screenshot({
-      path: pathlib.join(screenshotDir, 'changes-accepted.png'),
-    });
-
-    await vscodeApp.waitDefault();
-    console.log('Solution accepted (non-agent mode)');
+    await vscodeApp.waitForAnalysisCompleted();
   });
 
   test('Return to analysis view and verify state', async () => {
     await vscodeApp.openAnalysisView();
-    await vscodeApp.waitDefault();
 
     const analysisView = await vscodeApp.getView(KAIViews.analysisView);
 
@@ -301,19 +271,16 @@ export const Sidebar: React.FC = () => {
     // Verify violations decreased
     expect(violationCountAfter).toBeLessThan(violationCountBefore);
     console.log(`Violations reduced from ${violationCountBefore} to ${violationCountAfter}`);
-
     await vscodeApp.getWindow().screenshot({
       path: pathlib.join(screenshotDir, 'analysis-view-final-state.png'),
     });
-
-    console.log('Analysis view is functional after Kai integration');
   });
 
-  // --- Cleanup ---
-
   test('Delete profile', async () => {
+    if (process.env.WEB_ENV === '1') {
+      await vscodeApp.getWindow().waitForTimeout(30_000);
+    }
     await vscodeApp.deleteProfile(profileName);
-    console.log(`Profile deleted: ${profileName}`);
   });
 
   test.afterEach(async () => {

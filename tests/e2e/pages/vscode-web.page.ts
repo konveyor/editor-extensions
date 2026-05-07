@@ -8,6 +8,7 @@ import { BrowserContext } from 'playwright-core';
 import { extensionShortName, generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { ExtensionTypes } from '../enums/extension-types.enum';
+import { getExtensionsForLanguage } from '../utilities/vscode-commands.utils';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
@@ -135,24 +136,14 @@ export class VSCodeWeb extends VSCode {
 
     await vscode.uninstallEditorExtensions();
 
+    const language = repoInfo?.language ?? 'java';
     console.log(`VSCodeWeb.open: starting installExtensions`);
-    // TODO rest of the extensions
-    await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
+    await vscode.installExtensions(getExtensionsForLanguage(language));
     console.log(`VSCodeWeb.open: installExtensions done`);
 
-    await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
-    const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
-    if (await javaLightSelector.isVisible()) {
-      console.log('VSCodeWeb.open: Change Java extension mode');
-      await javaLightSelector.click();
-    } else {
-      console.log('VSCodeWeb.open: Java extension is NOT in lightweight mode');
-      console.log(await newPage.getByRole('button', { name: 'Java:' }).allTextContents());
+    if (language === 'java') {
+      await vscode.waitForJavaReady(newPage);
     }
-    console.log(`VSCodeWeb.open: waiting for Java ready`);
-    const javaReadySelector = newPage.getByRole('button', { name: /Java: (Ready|Warning)/ });
-    await javaReadySelector.waitFor({ timeout: 180_000 });
-    console.log(`VSCodeWeb.open: open() complete`);
     return vscode;
   }
 
@@ -229,6 +220,22 @@ export class VSCodeWeb extends VSCode {
     } catch (e) {
       console.warn('VSCodeWeb.closeVSCode: ignoring error during close', e);
     }
+  }
+
+  public async waitForJavaReady(page: Page = this.window): Promise<void> {
+    await expect(page.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
+    const javaLightSelector = page.getByRole('button', { name: 'Java: Lightweight Mode' });
+    if (await javaLightSelector.isVisible()) {
+      console.log('VSCodeWeb.waitForJavaReady: Change Java extension mode');
+      await javaLightSelector.click();
+    } else {
+      console.log('VSCodeWeb.waitForJavaReady: Java extension is NOT in lightweight mode');
+      console.log(await page.getByRole('button', { name: 'Java:' }).allTextContents());
+    }
+    console.log('VSCodeWeb.waitForJavaReady: waiting for Java ready');
+    const javaReadySelector = page.getByRole('button', { name: /Java: (Ready|Warning)/ });
+    await javaReadySelector.waitFor({ timeout: 180_000 });
+    console.log('VSCodeWeb.waitForJavaReady: Java ready');
   }
 
   protected async selectCustomRules(customRulesPath: string) {
