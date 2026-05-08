@@ -299,18 +299,23 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Autoscaling fix accepted');
 
+      // TODO: Remove explicit Run Analysis once partial analysis after Accept is fixed.
+      // The Go analyzer does not trigger partial re-analysis after Accept, so we run
+      // a full analysis to pick up the applied fix. See https://github.com/konveyor/editor-extensions/issues/1402
+      await vscodeApp.openAnalysisView();
+      const reAnalysisView = await vscodeApp.getView(KAIViews.analysisView);
+      const runAnalysisBtn = reAnalysisView.getByRole('button', { name: 'Run Analysis' });
+      await expect(runAnalysisBtn).toBeEnabled({ timeout: 60000 });
+      await runAnalysisBtn.click();
       await vscodeApp.waitForAnalysisCompleted();
     });
 
     test('Verify issues reduced after autoscaling fix', async () => {
       test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
-      test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
-      await vscodeApp.waitDefault();
 
       // Clear the search filter to see all remaining issues
       await vscodeApp.searchViolation('');
-      await vscodeApp.waitDefault();
 
       const issueCountAfter = await vscodeApp.getIssuesCount();
       console.log(
@@ -371,6 +376,14 @@ test.describe.serial(
       await acceptButton.click();
       console.log('Dependency fix accepted');
 
+      // TODO: Remove explicit Run Analysis once partial analysis after Accept is fixed.
+      // The Go analyzer does not trigger partial re-analysis after Accept, so we run
+      // a full analysis to pick up the applied fix. See https://github.com/konveyor/editor-extensions/issues/1402
+      await vscodeApp.openAnalysisView();
+      const reAnalysisView = await vscodeApp.getView(KAIViews.analysisView);
+      const runAnalysisBtn = reAnalysisView.getByRole('button', { name: 'Run Analysis' });
+      await expect(runAnalysisBtn).toBeEnabled({ timeout: 60000 });
+      await runAnalysisBtn.click();
       await vscodeApp.waitForAnalysisCompleted();
 
       await vscodeApp.getWindow().screenshot({
@@ -380,9 +393,7 @@ test.describe.serial(
 
     test('Verify all issues resolved', async () => {
       test.skip(!canRunKaiSolutionE2e(), SKIP_KAI_SOLUTION_REASON);
-      test.setTimeout(600000);
       await vscodeApp.openAnalysisView();
-      await vscodeApp.waitDefault();
 
       const issueCountAfter = await vscodeApp.getIssuesCount();
       console.log(
