@@ -386,17 +386,23 @@ export class VSCodeWeb extends VSCode {
 
     console.log(`Found ${initialTotal} installed "${searchTerm}" extension(s).`);
 
+    let index = 0;
     let attempt = 0;
-    while ((await itemsLocator.count()) > 0) {
+    const MAX_ATTEMPTS = initialTotal * 4;
+    while (index < initialTotal && attempt < MAX_ATTEMPTS) {
       attempt++;
-      const item = itemsLocator.first();
+      const items = await itemsLocator.all();
+      if (index >= items.length) break;
+
+      const item = items[index];
       const itemText = (await item.textContent().catch(() => ''))?.trim().slice(0, 60) ?? '?';
       console.log(`[attempt ${attempt}] Opening detail for: "${itemText}"...`);
 
-      const isAttached = await item.isVisible({ timeout: 5_000 }).catch(() => false);
-      if (!isAttached) {
-        console.log(`[attempt ${attempt}] Item no longer visible, stopping.`);
-        break;
+      const isVisible = await item.isVisible({ timeout: 5_000 }).catch(() => false);
+      if (!isVisible) {
+        console.log(`[attempt ${attempt}] Item no longer visible, advancing to next...`);
+        index++;
+        continue;
       }
 
       await item.click({ force: true });
@@ -407,9 +413,10 @@ export class VSCodeWeb extends VSCode {
         .first();
       if (!(await uninstallBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
         console.log(
-          `[attempt ${attempt}] No Uninstall button found (already removed or invalid), skipping.`
+          `[attempt ${attempt}] No Uninstall button found (already removed or invalid), advancing to next...`
         );
-        break;
+        index++;
+        continue;
       }
 
       await this.window.screenshot({
@@ -425,9 +432,11 @@ export class VSCodeWeb extends VSCode {
       if (dialogAppeared) {
         console.log(`[attempt ${attempt}] Clicking Uninstall All...`);
         await uninstallAllBtn.click();
+        break;
       }
 
       console.log(`[attempt ${attempt}] Uninstalled.`);
+      index++;
       await this.window.waitForTimeout(1_000);
     }
 

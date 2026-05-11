@@ -14,7 +14,7 @@ import { FixTypes } from '../../enums/fix-types.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 
 // Affected by https://github.com/konveyor/kai/issues/928
-test.describe.serial('C# Extension - Analysis & Kai Integration', { tag: '@tier3' }, () => {
+test.describe.serial('C# Extension - Analysis & Kai Integration', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
   const randomString = generateRandomString();
   const profileName = `csharp-e2e-${randomString}`;
