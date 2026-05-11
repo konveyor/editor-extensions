@@ -33,6 +33,7 @@ export class VSCodeWeb extends VSCode {
 
     const browser = await chromium.launch();
     if (!existsSync('./web-state.json')) {
+      await browser.close();
       return VSCodeWeb.init(repoInfo);
     }
 
@@ -46,6 +47,9 @@ export class VSCodeWeb extends VSCode {
 
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (await loginButton.isVisible()) {
+      await page.close();
+      await context.close();
+      await browser.close();
       throw new Error('VSCodeWeb.open: User is not logged in.');
     }
 
@@ -179,6 +183,8 @@ export class VSCodeWeb extends VSCode {
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (!(await loginButton.isVisible())) {
       await page.close();
+      await context.close();
+      await browser.close();
       console.log('VSCodeWeb.init: User already logged in');
       return VSCodeWeb.open(repoInfo);
     }
@@ -199,6 +205,8 @@ export class VSCodeWeb extends VSCode {
     await context.storageState({ path: './web-state.json' });
     await page.waitForTimeout(5000);
     await page.close();
+    await context.close();
+    await browser.close();
     return VSCodeWeb.open(repoInfo);
   }
 
