@@ -246,12 +246,43 @@ export class VSCodeWeb extends VSCode {
 
     const path = await import('path');
     const glob = await import('glob');
+    const fsSync = await import('fs');
+    const os = await import('os');
+    const { execSync } = await import('child_process');
     // Dynamic import of a CJS module returns { default: module }, so sync lives under default
     const syncFn = glob.default.sync ?? (glob as any).sync;
 
-    const yamlFiles = syncFn(path.join(customRulesPath, '**/*.yaml'));
+    let resolvedRulesPath = customRulesPath;
+
+    if (!fsSync.existsSync(customRulesPath) && this.repoInfo) {
+      const { repoUrl, repoName, branch = 'main' } = this.repoInfo;
+
+      // Extract the sub-path relative to the repo root from the absolute customRulesPath.
+      // The path is typically built as: path.join(process.cwd(), repoName, subPath)
+      const repoRootInPath = path.join(process.cwd(), repoName);
+      let subPath: string;
+      if (customRulesPath.startsWith(repoRootInPath)) {
+        subPath = customRulesPath.substring(repoRootInPath.length + 1);
+      } else {
+        // Fallback: locate the repo name segment inside the path
+        const parts = customRulesPath.split(path.sep);
+        const repoIdx = parts.indexOf(repoName);
+        subPath = repoIdx >= 0 ? parts.slice(repoIdx + 1).join(path.sep) : customRulesPath;
+      }
+
+      const tmpDir = fsSync.mkdtempSync(path.join(os.tmpdir(), 'kai-rules-'));
+      const cloneTarget = path.join(tmpDir, repoName);
+      console.log(
+        `customRulesPath not found locally. Cloning ${repoUrl} (branch: ${branch}) to ${tmpDir}`
+      );
+      execSync(`git clone --depth 1 -b ${branch} ${repoUrl} ${cloneTarget}`, { stdio: 'pipe' });
+      resolvedRulesPath = path.join(cloneTarget, subPath);
+      console.log(`Using cloned custom rules from: ${resolvedRulesPath}`);
+    }
+
+    const yamlFiles = syncFn(path.join(resolvedRulesPath, '**/*.yaml'));
     if (yamlFiles.length === 0) {
-      throw new Error(`No YAML files found in ${customRulesPath}`);
+      throw new Error(`No YAML files found in ${resolvedRulesPath}`);
     }
 
     console.log(`Found ${yamlFiles.length} YAML files to upload`);
