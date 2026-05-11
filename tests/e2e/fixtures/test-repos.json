@@ -399,10 +399,9 @@
     "language": "csharp",
     "workspacePath": "testdata/nerd-dinner",
     "sources": [],
-    "targets": ["dotnet-core", "dotnet"],
-    "customRulesFolder": "rulesets/dotnet-core-migration",
-    "issuesCount": 4,
-    "incidentsCount": 40,
+    "targets": ["dotnet-core"],
+    "issuesCount": 3,
+    "incidentsCount": 38,
     "issues": []
   }
 }
