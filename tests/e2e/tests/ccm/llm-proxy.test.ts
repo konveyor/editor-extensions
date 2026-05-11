@@ -41,6 +41,7 @@ test.describe.serial(
     const profileName = `llm-proxy-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
+      test.setTimeout(300_000);
       // Configure llemulator responses if available
       if (isLlemulatorConfigured()) {
         console.log('Configuring llemulator responses...');

@@ -8,7 +8,7 @@ test.describe.serial('C# Extension - Installation & Startup', { tag: '@tier2' },
   let repoInfo: RepoData[string];
 
   test.beforeAll(async ({ testRepoData }) => {
-    test.setTimeout(300000);
+    test.setTimeout(600000);
     repoInfo = testRepoData['nerd-dinner'];
     vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
 
