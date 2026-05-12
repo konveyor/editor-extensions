@@ -16,6 +16,7 @@ import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
 import { RepoInfo } from '../types/repo-info';
+import { language } from 'tree-sitter-java';
 
 /**
  * Prepare workspace for offline/cached mode BEFORE VS Code launches.
@@ -144,7 +145,7 @@ export class VSCodeDesktop extends VSCode {
     console.log('VSCode opened');
     const vscode = new VSCodeDesktop(vscodeApp, window, repoInfo, repoDir);
 
-    if (waitForInitialization) {
+    if (waitForInitialization && repoInfo?.language == 'java') {
       // Wait for extension initialization
       // Extensions will activate automatically via workspaceContains activation events
       await vscode.waitForExtensionInitialization();
