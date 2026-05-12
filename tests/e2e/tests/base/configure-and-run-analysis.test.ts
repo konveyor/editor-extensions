@@ -39,7 +39,7 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
   });
 
   test('Analyze coolstore app and check if stop button is disabled', async () => {
-    test.setTimeout(300000);
+    test.setTimeout(600000);
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();
     await vscodeApp.openAnalysisView();

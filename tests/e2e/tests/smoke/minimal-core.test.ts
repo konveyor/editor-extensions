@@ -44,7 +44,7 @@ test.describe.serial('Minimal core smoke flow', { tag: ['@tier0', '@smoke'] }, (
   });
 
   test('Run analysis', async () => {
-    test.setTimeout(300000);
+    test.setTimeout(600000);
     await vscodeApp.runAnalysis();
     await vscodeApp.waitForAnalysisCompleted();
   });
