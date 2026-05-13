@@ -1,0 +1,99 @@
+name: Scheduled Prerelease
+
+on:
+  schedule:
+    # Runs daily at 8:00 AM UTC
+    - cron: "0 8 * * *"
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (preview only)"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  HUSKY: 0
+
+jobs:
+  compute-version:
+    name: Compute Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calc.outputs.version }}
+      tag: ${{ steps.calc.outputs.tag }}
+      has_changes: ${{ steps.calc.outputs.has_changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute base version
+        id: base
+        run: |
+          BASE=$(npm pkg get version | tr -d '"' | awk -F. '{print $1"."$2-1}')
+          echo "base_version=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Compute next version
+        id: calc
+        uses: ./.github/actions/compute-version
+        with:
+          base_version: ${{ steps.base.outputs.base_version }}
+
+      - name: Skip summary
+        if: steps.calc.outputs.has_changes != 'true'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Prerelease Skipped — No Changes
+
+          **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          No new commits since \`${{ steps.calc.outputs.prev_tag }}\`. Skipping release.
+          EOF
+
+      - name: Dry run summary
+        if: inputs.dry_run && steps.calc.outputs.has_changes == 'true'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## [DRY RUN] Prerelease
+
+          **Tag:** \`${{ steps.calc.outputs.tag }}\`
+          **Version:** \`${{ steps.calc.outputs.version }}\`
+          **Run time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          This is a dry run. No release was created.
+          EOF
+
+  release:
+    name: Release
+    needs: compute-version
+    if: >-
+      needs.compute-version.outputs.has_changes == 'true'
+      && !inputs.dry_run
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.compute-version.outputs.version }}
+      tag: ${{ needs.compute-version.outputs.tag }}
+      prerelease: true
+      ref: main
+    secrets: inherit
+
+  report_failure:
+    name: Report Failure
+    needs: [compute-version, release]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "Scheduled Prerelease Failed\n\nBranch: main\nPlanned tag: ${{ needs.compute-version.outputs.tag }}\nVersion: ${{ needs.compute-version.outputs.version }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nJobs:\n• compute-version: ${{ needs.compute-version.result }}\n• release: ${{ needs.release.result }}",
+              "branch": "main",
+              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}

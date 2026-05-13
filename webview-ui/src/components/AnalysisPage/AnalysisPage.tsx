@@ -1,0 +1,456 @@
+import "./styles.css";
+
+import React, { useState, useEffect } from "react";
+import {
+  Alert,
+  AlertActionCloseButton,
+  AlertGroup,
+  Backdrop,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Drawer,
+  DrawerContent,
+  DrawerContentBody,
+  EmptyState,
+  EmptyStateBody,
+  ExpandableSectionToggle,
+  Flex,
+  FlexItem,
+  Masthead,
+  MastheadContent,
+  MastheadMain,
+  Page,
+  PageSection,
+  PageSidebar,
+  PageSidebarBody,
+  Spinner,
+  Stack,
+  StackItem,
+  Switch,
+  Title,
+  Toolbar,
+  ToolbarContent,
+  ToolbarGroup,
+  ToolbarItem,
+  Tooltip,
+  Icon,
+} from "@patternfly/react-core";
+import ClockIcon from "@patternfly/react-icons/dist/esm/icons/clock-icon";
+
+import {
+  openFile,
+  startServer,
+  runAnalysis,
+  stopServer,
+  getSuccessRate,
+  toggleAgentMode,
+  openResolutionPanel,
+} from "../../hooks/actions";
+import { useViolations } from "../../hooks/useViolations";
+import { useExtensionStore } from "../../store/store";
+import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
+import { WalkthroughDrawer } from "./WalkthroughDrawer/WalkthroughDrawer";
+import { ConfigButton } from "./ConfigButton/ConfigButton";
+import { ServerStatusToggle } from "../ServerStatusToggle/ServerStatusToggle";
+import { ViolationsCount } from "../ViolationsCount/ViolationsCount";
+import ViolationIncidentsList from "../ViolationIncidentsList";
+import { ProfileSelector } from "../ProfileSelector/ProfileSelector";
+import ProgressIndicator from "../ProgressIndicator";
+import ConfigAlerts from "./ConfigAlerts";
+import GetSolutionDropdown from "../GetSolutionDropdown";
+import { Incident } from "@editor-extensions/shared";
+
+const AnalysisPage: React.FC = () => {
+  const isAnalyzing = useExtensionStore((state) => state.isAnalyzing);
+  const analysisProgress = useExtensionStore((state) => state.analysisProgress ?? 0);
+  const analysisProgressMessage = useExtensionStore((state) => state.analysisProgressMessage ?? "");
+  const isAnalysisScheduled = useExtensionStore((state) => state.isAnalysisScheduled);
+  const isStartingServer = useExtensionStore((state) => state.isStartingServer);
+  const isInitializingServer = useExtensionStore((state) => state.isInitializingServer);
+  const isWaitingForSolution = useExtensionStore((state) => state.isFetchingSolution);
+  const analysisResults = useExtensionStore((state) => state.ruleSets);
+  const enhancedIncidents = useExtensionStore((state) => state.enhancedIncidents);
+  const rawConfigErrors = useExtensionStore((state) => state.configErrors);
+  const profiles = useExtensionStore((state) => state.profiles);
+  const activeProfileId = useExtensionStore((state) => state.activeProfileId);
+  const isInTreeMode = useExtensionStore((state) => state.isInTreeMode);
+  const serverState = useExtensionStore((state) => state.serverState);
+  const solutionServerEnabled = useExtensionStore((state) => state.solutionServerEnabled);
+  const isAgentMode = useExtensionStore((state) => state.isAgentMode);
+  const solutionServerConnected = useExtensionStore((state) => state.solutionServerConnected);
+  const isWaitingForUserInteraction = useExtensionStore(
+    (state) => state.isWaitingForUserInteraction,
+  );
+  const isProcessingQueuedMessages = useExtensionStore((state) => state.isProcessingQueuedMessages);
+  const profileSyncEnabled = useExtensionStore((state) => state.profileSyncEnabled);
+  const profileSyncConnected = useExtensionStore((state) => state.profileSyncConnected);
+  const isSyncingProfiles = useExtensionStore((state) => state.isSyncingProfiles);
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [focusedIncident, setFocusedIncident] = useState<Incident | null>(null);
+  const [expandedViolations, setExpandedViolations] = useState<Set<string>>(new Set());
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isGenAIAlertDismissed, setIsGenAIAlertDismissed] = useState(false);
+
+  const violations = useViolations(analysisResults);
+  const hasViolations = violations.length > 0;
+  const hasAnalysisResults = !!analysisResults;
+  const serverRunning = serverState === "running";
+  const isServerToggleDisabled = isAnalyzing || isAnalysisScheduled;
+  const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
+
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (enhancedIncidents.length > 0 && solutionServerEnabled && solutionServerConnected) {
+      dispatch(getSuccessRate());
+    }
+  }, [enhancedIncidents.length, solutionServerEnabled, solutionServerConnected, dispatch]);
+
+  useEffect(() => {
+    if (isServerToggleDisabled) {
+      console.info("Server toggle disabled", {
+        isAnalyzing,
+        isAnalysisScheduled,
+      });
+    }
+  }, [isServerToggleDisabled, isAnalyzing, isAnalysisScheduled]);
+
+  const handleIncidentSelect = (incident: Incident) => {
+    setFocusedIncident(incident);
+    dispatch(openFile(incident.uri, incident.lineNumber ?? 0));
+  };
+
+  const handleRunAnalysis = () => dispatch(runAnalysis());
+  const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
+
+  const handleAgentModeToggle = () => {
+    dispatch(toggleAgentMode());
+  };
+
+  const panelContent = (
+    <WalkthroughDrawer
+      isOpen={isConfigOpen}
+      onClose={() => setIsConfigOpen(false)}
+      drawerRef={drawerRef}
+    />
+  );
+
+  const selectedProfile = profiles.find((p) => p.id === activeProfileId);
+
+  // Profile validation errors that should block server start
+  const profileValidationErrors = rawConfigErrors.filter(
+    (e) =>
+      e.type === "no-active-profile" ||
+      e.type === "invalid-label-selector" ||
+      e.type === "no-custom-rules",
+  );
+  const hasProfileValidationErrors = profileValidationErrors.length > 0;
+
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <Drawer isExpanded={isConfigOpen}>
+      <DrawerContent panelContent={panelContent}>
+        <DrawerContentBody>
+          <Page
+            sidebar={
+              <PageSidebar isSidebarOpen={false}>
+                <PageSidebarBody />
+              </PageSidebar>
+            }
+            masthead={
+              <Masthead>
+                <MastheadMain />
+                <MastheadContent>
+                  <Toolbar>
+                    <ToolbarContent>
+                      <ToolbarGroup align={{ default: "alignEnd" }}>
+                        <ToolbarItem>
+                          <ServerStatusToggle
+                            isRunning={serverRunning}
+                            isStarting={isStartingServer}
+                            isInitializing={isInitializingServer}
+                            onToggle={handleServerToggle}
+                            hasWarning={hasProfileValidationErrors}
+                            isDisabled={isServerToggleDisabled}
+                          />
+                        </ToolbarItem>
+                        {!isGenAIDisabled && (
+                          <ToolbarItem>
+                            <div>
+                              <div className="agent-mode-wrapper">
+                                <Switch
+                                  id="agent-mode-switch"
+                                  isChecked={isAgentMode}
+                                  label="Agent Mode"
+                                  onChange={(_event) => handleAgentModeToggle()}
+                                  aria-label="Toggle Agent Mode"
+                                  isReversed
+                                />
+                              </div>
+                            </div>
+                          </ToolbarItem>
+                        )}
+                        <ToolbarItem>
+                          <ConfigButton
+                            onClick={() => setIsConfigOpen(true)}
+                            hasWarning={rawConfigErrors.length > 0}
+                            warningMessage="Please review your configuration before running analysis."
+                            id="analysis-configuration-button"
+                          />
+                        </ToolbarItem>
+                      </ToolbarGroup>
+                    </ToolbarContent>
+                  </Toolbar>
+                </MastheadContent>
+              </Masthead>
+            }
+          >
+            {errorMessage && (
+              <PageSection padding={{ default: "noPadding" }}>
+                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
+                  <Alert
+                    variant="danger"
+                    title="Error"
+                    actionClose={
+                      <Button variant="link" onClick={() => setErrorMessage(null)}>
+                        Close
+                      </Button>
+                    }
+                  >
+                    {errorMessage}
+                  </Alert>
+
+                  <AlertGroup isToast>
+                    <Alert
+                      variant="danger"
+                      title={errorMessage}
+                      // actionClose={<AlertActionCloseButton onClose={() => setErrorMessage(null)} />}
+                    />
+                  </AlertGroup>
+                </Card>
+              </PageSection>
+            )}
+            <ConfigAlerts
+              configErrors={rawConfigErrors}
+              solutionServerEnabled={solutionServerEnabled}
+              solutionServerConnected={solutionServerConnected}
+              profileSyncEnabled={profileSyncEnabled}
+              profileSyncConnected={profileSyncConnected}
+              onOpenProfileManager={() => dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })}
+              dispatch={dispatch}
+            />
+            {!isGenAIDisabled && !isGenAIAlertDismissed && (
+              <PageSection padding={{ default: "noPadding" }}>
+                <Card isCompact style={{ maxWidth: "600px", margin: "0 auto" }}>
+                  <Alert
+                    variant="info"
+                    title="Generative AI is enabled"
+                    actionClose={
+                      <AlertActionCloseButton onClose={() => setIsGenAIAlertDismissed(true)} />
+                    }
+                  >
+                    This feature uses AI technology. Do not include any personal information or
+                    other sensitive information in your input.
+                  </Alert>
+                </Card>
+              </PageSection>
+            )}
+            {selectedProfile && (
+              <PageSection padding={{ default: "padding" }}>
+                <Card isCompact>
+                  <CardHeader>
+                    <Flex
+                      justifyContent={{ default: "justifyContentSpaceBetween" }}
+                      alignItems={{ default: "alignItemsCenter" }}
+                      style={{ width: "100%" }}
+                    >
+                      <Flex
+                        spaceItems={{ default: "spaceItemsMd" }}
+                        alignItems={{ default: "alignItemsCenter" }}
+                      >
+                        <ExpandableSectionToggle
+                          isExpanded={isExpanded}
+                          onToggle={(isExpanded) => setIsExpanded(isExpanded)}
+                          toggleId="profile-details-toggle"
+                        />
+                        <ProfileSelector
+                          profiles={profiles}
+                          activeProfile={activeProfileId}
+                          onChange={(id) => dispatch({ type: "SET_ACTIVE_PROFILE", payload: id })}
+                          onManageProfiles={() =>
+                            dispatch({ type: "OPEN_PROFILE_MANAGER", payload: {} })
+                          }
+                          isDisabled={isStartingServer || isAnalyzing}
+                          isInTreeMode={isInTreeMode}
+                        />
+                      </Flex>
+                      <div className="analysis-button-wrapper">
+                        <Button
+                          variant="primary"
+                          onClick={handleRunAnalysis}
+                          isLoading={isAnalyzing}
+                          isDisabled={
+                            isAnalyzing ||
+                            isStartingServer ||
+                            !serverRunning ||
+                            isWaitingForSolution ||
+                            isSyncingProfiles
+                          }
+                        >
+                          {isAnalyzing ? "Analyzing..." : "Run Analysis"}
+                        </Button>
+                        {isAnalysisScheduled && !isAnalyzing && (
+                          <Tooltip
+                            content="Analysis is scheduled for changed files. Click to run full analysis now."
+                            position="bottom"
+                          >
+                            <Icon className="analysis-scheduled-icon">
+                              <ClockIcon />
+                            </Icon>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </Flex>
+                  </CardHeader>
+
+                  {isExpanded && (
+                    <CardBody>
+                      <DescriptionList isCompact columnModifier={{ default: "1Col" }}>
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Label Selector</DescriptionListTerm>
+                          <DescriptionListDescription>
+                            <code>{selectedProfile.labelSelector || "Not set"}</code>
+                          </DescriptionListDescription>
+                        </DescriptionListGroup>
+                        {(selectedProfile.customRules?.length ?? 0) > 0 && (
+                          <DescriptionListGroup>
+                            <DescriptionListTerm>Custom Rules</DescriptionListTerm>
+                            <DescriptionListDescription>
+                              {selectedProfile.customRules.length} file(s)
+                            </DescriptionListDescription>
+                          </DescriptionListGroup>
+                        )}
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>Use Default Rules</DescriptionListTerm>
+                          <DescriptionListDescription>
+                            {selectedProfile.useDefaultRules ? "Yes" : "No"}
+                          </DescriptionListDescription>
+                        </DescriptionListGroup>
+                      </DescriptionList>
+                    </CardBody>
+                  )}
+                </Card>
+              </PageSection>
+            )}
+            <PageSection>
+              <Stack hasGutter>
+                <StackItem>
+                  <Card>
+                    <CardHeader
+                      actions={
+                        hasViolations && !isAnalyzing
+                          ? {
+                              actions: [
+                                <GetSolutionDropdown
+                                  key="get-solution-workspace"
+                                  incidents={enhancedIncidents}
+                                  scope="workspace"
+                                />,
+                              ],
+                              hasNoOffset: true,
+                            }
+                          : undefined
+                      }
+                    >
+                      <Flex className="header-layout">
+                        <FlexItem>
+                          <CardTitle style={{ overflow: "visible" }}>Analysis Results</CardTitle>
+                          {!isAnalyzing && (
+                            <ViolationsCount
+                              violationsCount={violations.length}
+                              incidentsCount={violations.reduce(
+                                (prev, curr) => prev + curr.incidents.length,
+                                0,
+                              )}
+                            />
+                          )}
+                        </FlexItem>
+                      </Flex>
+                    </CardHeader>
+                    <CardBody>
+                      {isAnalyzing && (
+                        <ProgressIndicator
+                          progress={analysisProgress}
+                          message={analysisProgressMessage}
+                        />
+                      )}
+                      {!isAnalyzing && !hasViolations && (
+                        <EmptyState variant="sm">
+                          <Title
+                            headingLevel="h2"
+                            size="md"
+                            className="empty-state-analysis-results"
+                          >
+                            {hasAnalysisResults ? "No Violations Found" : "No Analysis Results"}
+                          </Title>
+                          <EmptyStateBody>
+                            {hasAnalysisResults
+                              ? "Great job! Your analysis didn't find any violations."
+                              : "Run an analysis to see results here."}
+                          </EmptyStateBody>
+                        </EmptyState>
+                      )}
+                      {hasViolations && !isAnalyzing && (
+                        <ViolationIncidentsList
+                          enhancedIncidents={enhancedIncidents}
+                          focusedIncident={focusedIncident}
+                          onIncidentSelect={handleIncidentSelect}
+                          expandedViolations={expandedViolations}
+                          setExpandedViolations={setExpandedViolations}
+                          solutionServerEnabled={solutionServerEnabled}
+                        />
+                      )}
+                    </CardBody>
+                  </Card>
+                </StackItem>
+              </Stack>
+            </PageSection>
+            {(isWaitingForSolution ||
+              isWaitingForUserInteraction ||
+              isProcessingQueuedMessages) && (
+              <Backdrop>
+                <div style={{ textAlign: "center", paddingTop: "15rem" }}>
+                  <Spinner size="lg" />
+                  <Title headingLevel="h2" size="lg">
+                    {isWaitingForUserInteraction
+                      ? "Waiting for user action..."
+                      : isProcessingQueuedMessages
+                        ? "Processing solution..."
+                        : "Waiting for solution confirmation..."}
+                  </Title>
+                  <Button
+                    variant="primary"
+                    onClick={() => dispatch(openResolutionPanel())}
+                    style={{ marginTop: "1rem" }}
+                  >
+                    Open Resolution Panel
+                  </Button>
+                </div>
+              </Backdrop>
+            )}
+          </Page>
+        </DrawerContentBody>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+export default AnalysisPage;

@@ -1,0 +1,26 @@
+.config-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.config-button__icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.config-button__warning-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  color: var(--pf-t--global--icon--color--status--warning--default);
+  font-size: 14px;
+  padding: 2px;
+}
+
+.config-button:hover .config-button__warning-icon {
+  color: var(--pf-t--global--icon--color--status--warning--default);
+}

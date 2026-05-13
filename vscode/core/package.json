@@ -1,0 +1,478 @@
+{
+  "name": "konveyor-core",
+  "displayName": "Konveyor Core Extension",
+  "description": "Open-source migration and modernization tool",
+  "author": "Konveyor",
+  "icon": "resources/icon.png",
+  "license": "Apache-2.0",
+  "version": "0.6.0",
+  "main": "./out/extension.js",
+  "publisher": "konveyor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/konveyor/editor-extensions"
+  },
+  "bugs": "https://github.com/konveyor/editor-extensions/issues",
+  "preview": false,
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "Migration",
+    "Migrate",
+    "modernizing",
+    "Analyze"
+  ],
+  "engines": {
+    "vscode": "^1.93.0",
+    "node": ">=22.9.0",
+    "npm": "^9.5.0 || >=10.5.2"
+  },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "activationEvents": [
+    "onFileSystem:konveyorMemFs",
+    "onFileSystem:konveyorReadOnly"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "konveyor-core.openProfilesPanel",
+        "title": "Manage Analysis Profile",
+        "category": "Konveyor",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "konveyor-core.modelProviderSettingsOpen",
+        "title": "Open the GenAI model provider configuration file",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor-core.modelProviderSettingsBackupReset",
+        "title": "Open the default the GenAI model provider configuration file and backup the current file",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor-core.showAnalysisPanel",
+        "title": "Open Analysis View",
+        "category": "Konveyor",
+        "icon": "$(book)"
+      },
+      {
+        "command": "konveyor-core.showResolutionPanel",
+        "title": "Open Resolution View",
+        "category": "Konveyor",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "konveyor-core.expandAllIssues",
+        "title": "Expand All",
+        "category": "Konveyor",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "konveyor-core.expandSingleIssue",
+        "title": "Expand All",
+        "category": "Konveyor",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "konveyor-core.fixGroupOfIncidents",
+        "title": "Resolve incidents",
+        "category": "Konveyor",
+        "icon": "$(debug-console)"
+      },
+      {
+        "command": "konveyor-core.fixIncident",
+        "title": "Resolve incident",
+        "category": "Konveyor",
+        "icon": "$(debug-console)"
+      },
+      {
+        "command": "konveyor-core.openAnalysisDetails",
+        "title": "Open Details",
+        "category": "Konveyor",
+        "icon": "$(book)"
+      },
+      {
+        "command": "konveyor-core.overrideAnalyzerBinaries",
+        "title": "Override Analyzer Binary",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor-core.configureCustomRules",
+        "title": "Configure Custom Rules",
+        "category": "Konveyor",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "konveyor-core.startServer",
+        "title": "Start Server",
+        "category": "Konveyor",
+        "icon": "$(play)"
+      },
+      {
+        "command": "konveyor-core.stopServer",
+        "title": "Stop Server",
+        "category": "Konveyor",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "konveyor-core.restartServer",
+        "title": "Restart Server",
+        "category": "Konveyor",
+        "icon": "$(restart)"
+      },
+      {
+        "command": "konveyor-core.restartSolutionServer",
+        "title": "Restart Solution Server",
+        "category": "Konveyor",
+        "icon": "$(restart)"
+      },
+      {
+        "command": "konveyor-core.runAnalysis",
+        "title": "Run Analysis",
+        "category": "Konveyor",
+        "icon": "$(play)"
+      },
+      {
+        "command": "konveyor-core.loadStaticResults",
+        "title": "Load results from files",
+        "category": "Konveyor"
+      },
+      {
+        "command": "konveyor-core.loadResultsFromDataFolder",
+        "title": "Reload results",
+        "category": "Konveyor"
+      },
+      {
+        "command": "konveyor-core.cleanRuleSets",
+        "title": "Reset analysis results",
+        "category": "Konveyor"
+      },
+      {
+        "command": "konveyor-core.loadRuleSets",
+        "title": "Load analysis results",
+        "category": "Konveyor"
+      },
+      {
+        "command": "konveyor-core.generateDebugArchive",
+        "title": "Generate Debug Archive",
+        "category": "Konveyor",
+        "icon": "$(bug)"
+      },
+      {
+        "command": "konveyor-core.configureSolutionServerCredentials",
+        "title": "Configure Solution Server Credentials",
+        "category": "Konveyor",
+        "icon": "$(key)"
+      },
+      {
+        "command": "konveyor-core.showDiffActions",
+        "title": "Show Diff Actions",
+        "category": "Konveyor",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "konveyor-core.runHealthCheck",
+        "title": "Run Health Check",
+        "category": "Konveyor",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "konveyor-core.syncHubProfiles",
+        "title": "Sync Profiles from Hub",
+        "category": "Konveyor",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "konveyor-core.retryProfileSync",
+        "title": "Retry Profile Sync Connection",
+        "category": "Konveyor",
+        "icon": "$(debug-restart)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "konveyor-core.submenu",
+        "label": "Konveyor Actions"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "konveyor",
+          "title": "Konveyor",
+          "icon": "resources/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "konveyor": [
+        {
+          "id": "konveyor-core.issueView",
+          "name": "Konveyor"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "konveyor-core.issueView",
+        "contents": "Konveyor requires a workspace folder to analyze your project. Open a folder containing your application code to get started.\n[Open Folder](command:vscode.openFolder)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "when": "workspaceFolderCount == 0"
+      },
+      {
+        "view": "konveyor-core.issueView",
+        "contents": "No analysis providers are registered. Install a Konveyor language extension to enable code analysis for your project.\nSupported languages: Java, Go, JavaScript, and C#.\n[Install Extension Pack](command:workbench.extensions.installExtension?%22konveyor.konveyor%22)\n[Browse Extensions](command:workbench.extensions.search?%22%40publisher%3Akonveyor%22)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "when": "workspaceFolderCount != 0 && !konveyor-core.hasProviders"
+      },
+      {
+        "view": "konveyor-core.issueView",
+        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "when": "workspaceFolderCount != 0 && konveyor-core.hasProviders"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "konveyor-core.showAnalysisPanel",
+          "group": "navigation@1",
+          "when": "view == konveyor-core.issueView"
+        },
+        {
+          "command": "konveyor-core.showResolutionPanel",
+          "group": "navigation@2",
+          "when": "view == konveyor-core.issueView"
+        },
+        {
+          "command": "konveyor-core.expandAllIssues",
+          "group": "navigation@3",
+          "when": "view == konveyor-core.issueView"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "konveyor-core.fixGroupOfIncidents",
+          "group": "inline@3",
+          "when": "view == konveyor-core.issueView && viewItem == incident-type-item"
+        },
+        {
+          "command": "konveyor-core.fixIncident",
+          "group": "inline@1",
+          "when": "view == konveyor-core.issueView && viewItem == reference-item"
+        },
+        {
+          "command": "konveyor-core.expandSingleIssue",
+          "group": "inline@2",
+          "when": "view == konveyor-core.issueView && viewItem == incident-type-item"
+        },
+        {
+          "command": "konveyor-core.openAnalysisDetails",
+          "group": "inline@1",
+          "when": "view == konveyor-core.issueView && viewItem == incident-type-item"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "konveyor-core.submenu",
+          "group": "navigation@1"
+        }
+      ],
+      "konveyor-core.submenu": [],
+      "commandPalette": [
+        {
+          "command": "konveyor-core.expandSingleIssue",
+          "when": "never"
+        },
+        {
+          "command": "konveyor-core.loadRuleSets",
+          "when": "never"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Konveyor",
+      "properties": {
+        "konveyor-core.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "http",
+            "verbose",
+            "debug",
+            "silly"
+          ],
+          "default": "debug",
+          "description": "Logging level used for the extension",
+          "scope": "window",
+          "order": 1
+        },
+        "konveyor-core.analyzerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the analyzer binary. If not set, the extension will use the bundled binary.",
+          "scope": "resource",
+          "order": 2
+        },
+        "konveyor-core.diff.autoAcceptOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically apply diff changes when saving files.",
+          "scope": "window",
+          "order": 3
+        },
+        "konveyor-core.analysis.analyzeOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Should analysis of file be run when it is saved? (Automatically enabled when Agent Mode is active)",
+          "scope": "window",
+          "order": 10
+        },
+        "konveyor-core.genai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GenAI functionality for solution generation.",
+          "scope": "window",
+          "order": 20
+        },
+        "konveyor-core.genai.agentMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
+          "scope": "window",
+          "order": 21
+        },
+        "konveyor-core.genai.excludedDiagnosticSources": {
+          "type": "array",
+          "default": [
+            "trunk"
+          ],
+          "description": "List of diagnostic sources to exclude from agentic workflow.",
+          "scope": "window",
+          "order": 22
+        },
+        "konveyor-core.genai.cacheDir": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Path to a directory containing cached responses",
+          "scope": "window",
+          "order": 23
+        },
+        "konveyor-core.genai.traceDir": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Path to a directory containing traces of LLM interactions",
+          "scope": "window",
+          "order": 24
+        },
+        "konveyor-core.genai.traceEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to create traces of the communication with the model",
+          "scope": "window",
+          "order": 25
+        },
+        "konveyor-core.genai.demoMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to run GenAI in demo mode i.e. use cached LLM responses",
+          "scope": "window",
+          "order": 26
+        },
+        "konveyor-core.genai.httpProtocol": {
+          "type": "string",
+          "enum": [
+            "http1",
+            "http2"
+          ],
+          "default": "http1",
+          "enumDescriptions": [
+            "HTTP/1.1 - Compatible with all networks, including restrictive corporate firewalls (default)",
+            "HTTP/2 - Better performance and efficiency, but may be blocked by some firewalls"
+          ],
+          "description": "HTTP protocol version for AI model provider connections",
+          "scope": "window",
+          "order": 27
+        },
+        "konveyor-core.debug.webview": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging for webview message handling",
+          "scope": "window",
+          "order": 40
+        }
+      }
+    },
+    "keybindings": []
+  },
+  "includedAssetPaths": {
+    "kai": "../../downloaded_assets/kai",
+    "fernFlowerPath": "../../assets/fernflower/fernflower.jar",
+    "jdtls": "../../downloaded_assets/jdt.ls-1.38.0",
+    "jdtlsBundles": "../../downloaded_assets/jdtls-bundles",
+    "openSourceLabelsFile": "../../downloaded_assets/opensource-labels-file/maven.default.index",
+    "rulesets": "../../downloaded_assets/rulesets"
+  },
+  "scripts": {
+    "clean": "rimraf out",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prebuild": "npm run clean",
+    "build": "webpack --mode production",
+    "dev": "webpack --watch --mode development",
+    "pretest": "npm run build",
+    "test": "npm run test:unit-tests && npm run test:integration",
+    "test:unit-tests": "cross-env NODE_ENV=test mocha",
+    "test:integration": "vscode-test"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,cts,mts}": "eslint --fix",
+    "*.{css,json,md,yaml,yml}": "prettier --write"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/express": "^5.0.3",
+    "@types/jsesc": "^3.0.3",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.93.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "copy-webpack-plugin": "^14.0.0",
+    "cross-env": "^10.1.0",
+    "css-loader": "^7.1.2",
+    "express": "^5.1.0",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.1",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@types/mustache": "^4.2.5",
+    "adm-zip": "^0.5.16",
+    "diff": "^8.0.3",
+    "glob": "^13.0.0",
+    "https-proxy-agent": "^7.0.6",
+    "jsesc": "^3.1.0",
+    "mustache": "^4.2.0",
+    "undici": "^7.14.0",
+    "winston": "^3.17.0",
+    "winston-transport-vscode": "^0.1.0"
+  }
+}

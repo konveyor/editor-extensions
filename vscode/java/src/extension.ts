@@ -1,0 +1,398 @@
+import * as vscode from "vscode";
+import winston from "winston";
+import { OutputChannelTransport } from "winston-transport-vscode";
+import { KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
+import {
+  CORE_EXTENSION_ID,
+  EXTENSION_DISPLAY_NAME,
+  EXTENSION_ID,
+  EXTENSION_NAME,
+  EXTENSION_VERSION,
+} from "./utilities/constants";
+import { LspProxyServer } from "./lspProxyServer";
+import { JavaExternalProviderManager } from "./javaExternalProviderManager";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { javaHealthChecks } from "./healthCheck";
+
+/** How long to wait for JDTLS Standard mode before giving up */
+const JDTLS_READY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
+/**
+ * API shape exported by the Red Hat Java extension (redhat.java).
+ * Only the subset we depend on.
+ */
+interface RedHatJavaExtensionApi {
+  serverReady(): Promise<boolean>;
+  onDidServerModeChange: vscode.Event<string>;
+}
+
+/**
+ * Check if a command is available on the system
+ */
+async function checkCommand(command: string, versionFlag = "-version"): Promise<boolean> {
+  // On Windows, Maven is installed as mvn.cmd, not mvn.exe
+  const commandName = process.platform === "win32" && command === "mvn" ? "mvn.cmd" : command;
+
+  // Try multiple version flags as fallbacks for better cross-platform compatibility
+  const versionFlags = [versionFlag, "-version", "--version", "-v"];
+  const uniqueFlags = [...new Set(versionFlags)]; // Remove duplicates
+
+  for (const flag of uniqueFlags) {
+    try {
+      await promisify(execFile)(commandName, [flag]);
+      return true;
+    } catch {
+      // Try with shell option as fallback for this flag
+      try {
+        await promisify(execFile)(commandName, [flag], { shell: true });
+        return true;
+      } catch {
+        // Continue to next flag
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Wait for the Java Language Server to be ready (Standard mode).
+ *
+ * The Red Hat Java extension can be active while JDTLS is still in Lightweight
+ * mode. We need Standard mode for workspace commands to work. This uses the
+ * extension's exported API (serverReady / onDidServerModeChange) to wait.
+ */
+function waitForJavaLanguageServer(
+  javaApi: RedHatJavaExtensionApi,
+  context: vscode.ExtensionContext,
+  logger: winston.Logger,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const timeout = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      logger.warn(
+        `Java Language Server did not reach Standard mode within ${JDTLS_READY_TIMEOUT_MS}ms`,
+      );
+      vscode.window
+        .showWarningMessage(
+          "The Java Language Server has not reached Standard mode. " +
+            "Java analysis will be disabled until the language server is ready.",
+          "Reload Window",
+        )
+        .then((selection) => {
+          if (selection === "Reload Window") {
+            vscode.commands.executeCommand("workbench.action.reloadWindow");
+          }
+        });
+      resolve(false);
+    }, JDTLS_READY_TIMEOUT_MS);
+
+    context.subscriptions.push({ dispose: () => clearTimeout(timeout) });
+
+    // Try serverReady() first — it resolves when JDTLS is fully initialized
+    if (typeof javaApi.serverReady === "function") {
+      javaApi.serverReady().then(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timeout);
+        logger.info("Java Language Server is ready (via serverReady)");
+        resolve(true);
+      });
+    }
+
+    // Also listen for mode changes as a fallback
+    if (typeof javaApi.onDidServerModeChange === "function") {
+      const listener = javaApi.onDidServerModeChange((mode: string) => {
+        if (settled) {
+          return;
+        }
+        logger.info(`Java Language Server mode changed to: ${mode}`);
+        if (mode === "Standard") {
+          settled = true;
+          clearTimeout(timeout);
+          listener.dispose();
+          resolve(true);
+        }
+      });
+      context.subscriptions.push(listener);
+    }
+  });
+}
+
+export async function activate(context: vscode.ExtensionContext) {
+  // Setup logger
+  const outputChannel = vscode.window.createOutputChannel(EXTENSION_DISPLAY_NAME);
+  const logger = winston.createLogger({
+    level: "info",
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.errors({ stack: true }),
+      winston.format.json(),
+    ),
+    transports: [
+      new winston.transports.File({
+        filename: vscode.Uri.joinPath(context.logUri, "java-extension.log").fsPath,
+        maxsize: 10 * 1024 * 1024, // 10MB
+        maxFiles: 3,
+      }),
+      new OutputChannelTransport({
+        outputChannel,
+      }),
+    ],
+  });
+
+  logger.info("Logger created");
+  logger.info(`Extension ${EXTENSION_ID} starting`);
+
+  // redhat.java is declared in extensionDependencies, so VS Code guarantees
+  // it is installed before activating this extension.
+  const javaExt = vscode.extensions.getExtension("redhat.java");
+  if (!javaExt) {
+    const message =
+      "The Red Hat Java Language Support extension is required for Java analysis. " +
+      "Please install it from the VS Code marketplace.";
+    logger.error(message);
+    vscode.window.showErrorMessage(message, "Install Java Extension").then((selection) => {
+      if (selection === "Install Java Extension") {
+        vscode.commands.executeCommand("workbench.extensions.search", "redhat.java");
+      }
+    });
+    return;
+  }
+
+  let javaApi: RedHatJavaExtensionApi | undefined;
+  if (!javaExt.isActive) {
+    logger.info("Java Language Support extension is not yet active, waiting...");
+    try {
+      javaApi = (await javaExt.activate()) as RedHatJavaExtensionApi;
+      logger.info("Java Language Support activated successfully");
+    } catch (err) {
+      logger.error("Failed to activate Java Language Support", err);
+      vscode.window.showErrorMessage(
+        "Failed to activate Java Language Support extension. Java analysis may not work correctly.",
+      );
+      return;
+    }
+  } else {
+    javaApi = javaExt.exports as RedHatJavaExtensionApi;
+  }
+
+  // Defer provider initialization until JDTLS reaches Standard mode.
+  // In DevSpaces and similar remote environments, the language server starts in
+  // Lightweight mode and transitions to Standard after project import completes.
+  // activate() returns immediately so VS Code isn't blocked; initialization
+  // runs in the background once JDTLS signals readiness.
+  if (javaApi) {
+    logger.info("Waiting for Java Language Server to be ready (non-blocking)...");
+    waitForJavaLanguageServer(javaApi, context, logger).then((ready) => {
+      if (ready) {
+        initializeProviders(context, logger);
+      }
+    });
+  } else {
+    // No API available (unexpected) — try to initialize immediately
+    initializeProviders(context, logger);
+  }
+}
+
+async function initializeProviders(
+  context: vscode.ExtensionContext,
+  logger: winston.Logger,
+): Promise<void> {
+  // Check for Java installation
+  const hasJava = await checkCommand("java");
+  if (!hasJava) {
+    const message =
+      "Java is not installed or not available in PATH. " +
+      "The Konveyor analyzer requires Java to be installed.";
+    logger.error(message);
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+  logger.info("Java installation detected");
+
+  // Check for Maven installation
+  const hasMaven = await checkCommand("mvn");
+  if (!hasMaven) {
+    const message =
+      "Maven is not installed or not available in PATH. " +
+      "The Konveyor analyzer requires Maven to be installed for Java project analysis.";
+    logger.error(message);
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+  logger.info("Maven installation detected");
+
+  // Get core extension API
+  const coreExtension = vscode.extensions.getExtension(CORE_EXTENSION_ID);
+  if (!coreExtension) {
+    const message = `${EXTENSION_DISPLAY_NAME} requires the core extension to be installed`;
+    logger.error(message);
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+
+  logger.info("Found core extension, activating...");
+
+  let coreApi: KonveyorCoreApi;
+  try {
+    coreApi = await coreExtension.activate();
+  } catch (err) {
+    const message = "Failed to activate core extension.";
+    logger.error(message, err);
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+
+  // Check version compatibility
+  const javaExtVersion = EXTENSION_VERSION;
+  const coreExtVersion = coreApi.version;
+  if (javaExtVersion !== coreExtVersion) {
+    const message =
+      `Version mismatch detected!\n\n` +
+      `Konveyor Java extension (v${javaExtVersion}) is not compatible with Konveyor Core extension (v${coreExtVersion}).\n\n` +
+      `Please ensure both extensions are at the same version. This mismatch can cause analysis failures and unexpected behavior.`;
+    logger.error(message, {
+      javaVersion: javaExtVersion,
+      coreVersion: coreExtVersion,
+    });
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+
+  logger.info("Version compatibility check passed", {
+    javaVersion: javaExtVersion,
+    coreVersion: coreExtVersion,
+  });
+
+  // Create socket paths for communication
+  const providerSocketPath = generateSafePipeName(EXTENSION_NAME); // GRPC socket for kai-analyzer-rpc
+  const lspProxySocketPath = generateSafePipeName(EXTENSION_NAME); // JSON-RPC socket for JDTLS proxy
+
+  logger.info("Socket paths generated", {
+    providerSocket: providerSocketPath,
+    lspProxySocket: lspProxySocketPath,
+  });
+
+  // Start LSP proxy server (JSON-RPC over UDS)
+  let lspProxyServer: LspProxyServer;
+  let providerManager: JavaExternalProviderManager;
+
+  try {
+    lspProxyServer = new LspProxyServer(lspProxySocketPath, logger);
+    await lspProxyServer.start();
+    context.subscriptions.push(lspProxyServer);
+  } catch (err) {
+    const message =
+      "Failed to start Java LSP proxy server. Java analysis will be disabled. " +
+      `Error: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message, err);
+    vscode.window.showWarningMessage(
+      "Java provider could not start: LSP proxy server failed. Java analysis will be disabled.",
+    );
+    return;
+  }
+
+  try {
+    // Start java-external-provider subprocess (GRPC over UDS)
+    providerManager = new JavaExternalProviderManager(providerSocketPath, context, logger);
+    await providerManager.start();
+    context.subscriptions.push(providerManager);
+  } catch (err) {
+    const message =
+      "Failed to start java-external-provider. Java analysis will be disabled. " +
+      `Error: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message, err);
+    vscode.window.showWarningMessage(
+      "Java provider could not start. Java analysis will be disabled. " +
+        "This may occur if your project has no supported Java build tools.",
+    );
+    // Clean up LSP proxy server since we won't be using it
+    lspProxyServer.dispose();
+    return;
+  }
+
+  // Get workspace location for analysis
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+
+  // Format provider address for GRPC
+  // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
+  // analyzer-lsp expects: unix:/path for Unix domain sockets
+  const providerAddress =
+    process.platform === "win32"
+      ? `passthrough:unix://${providerSocketPath}` // Windows: analyzer-lsp format (see provider/grpc/socket/pipe_windows.go:27)
+      : `unix:${providerSocketPath}`; // Unix: standard format
+
+  logger.info("Provider configuration", {
+    platform: process.platform,
+    providerAddress,
+    workspaceLocation,
+    providerSocketPath,
+  });
+
+  // Register Java provider with core
+  const providerDisposable = coreApi.registerProvider({
+    name: "java",
+    providerConfig: {
+      name: "java",
+      address: providerAddress, // GRPC socket address
+      useSocket: true,
+      initConfig: [
+        {
+          location: workspaceLocation,
+          analysisMode: "source-only",
+          pipeName: lspProxySocketPath, // JSON-RPC socket for JDTLS communication
+        },
+      ],
+      contextLines: 10,
+    },
+    rulesetsPaths: [
+      // In Phase 1, rulesets are still in core extension
+      // Will be moved to java extension in later phase
+    ],
+  });
+
+  context.subscriptions.push(providerDisposable);
+
+  // Register Java-specific health checks
+  javaHealthChecks.forEach((healthCheck) => {
+    const healthCheckDisposable = coreApi.registerHealthCheck(healthCheck);
+    context.subscriptions.push(healthCheckDisposable);
+    logger.info(`Java health check registered: ${healthCheck.id}`);
+  });
+
+  // Subscribe to analysis completion events
+  const analysisCompleteDisposable = coreApi.onAnalysisComplete((results) => {
+    logger.info("Analysis complete", results);
+  });
+
+  context.subscriptions.push(analysisCompleteDisposable);
+
+  logger.info("Konveyor Java extension activated and registered with core", {
+    providerSocket: providerSocketPath,
+    lspProxySocket: lspProxySocketPath,
+    workspaceLocation,
+  });
+
+  // Signal completion for E2E tests with a persistent status bar item
+  if (process.env.__TEST_EXTENSION_END_TO_END__) {
+    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    statusBarItem.text = "__JAVA_EXTENSION_INITIALIZED__";
+    statusBarItem.show();
+    context.subscriptions.push(statusBarItem);
+  }
+}
+
+export function deactivate() {
+  // Logger may not be available at this point
+  console.log("Konveyor Java extension is now deactivated");
+}

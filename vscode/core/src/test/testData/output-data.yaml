@@ -1,0 +1,92 @@
+- name: cloud-readiness
+  description: This ruleset detects logging configurations that may be problematic when migrating an application to a cloud environment.
+  violations:
+    session-00000:
+      description: HTTP session replication (distributable web.xml)
+      category: mandatory
+      labels:
+      - clustering
+      incidents:
+      - uri: file:///opt/input/source/src/main/webapp/WEB-INF/web.xml
+        message: |-
+          Session replication ensures that client sessions are not disrupted by node failure. Each node in the cluster shares information about ongoing sessions and can take over sessions if another node disappears. In a cloud environment, however, data in the memory of a running container can be wiped out by a restart.
+
+           Recommendations
+
+           * Review the session replication usage and ensure that it is configured properly.
+           * Disable HTTP session clustering and accept its implications.
+           * Re-architect the application so that sessions are stored in a cache backing service or a remote data grid.
+
+           A remote data grid has the following benefits:
+
+           * The application is more scaleable and elastic.
+           * The application can survive EAP node failures because a JVM failure does not cause session data loss.
+           * Session data can be shared by multiple applications.
+        codeSnip: |2
+            1  <!--suppress ServletWithoutMappingInspection -->
+            2  <web-app xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            3           xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+            4           version="3.0">
+            5      <distributable />
+            6  </web-app>
+        lineNumber: 5
+        variables:
+          data: distributable
+          innerText: ""
+          matchingXML: ""
+      - uri: file:///opt/input/source/src/main/webapp/WEB-INF/web.xml
+        message: |-
+          sdsdsdsdfsdfsdfsd
+        codeSnip: |2
+            1  <!--suppress ServletWithoutMappingInspection -->
+            2  <web-app xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            3           xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+            4           version="3.0">
+            5      <distributable />
+            6  </web-app>
+        variables:
+          data: distributable
+          innerText: ""
+          matchingXML: ""
+- name: cloud
+  description: This ruleset detects logging configurations that may be problematic when migrating an application to a cloud environment.
+  violations:
+    session-00000:
+      description: HTTP session replication (distributable web.xml)
+      category: mandatory
+      labels:
+      - clustering
+      incidents:
+      - uri: file:///opt/input/source/src/main/webapp/WEB-INF/web.xml
+        message: |-
+          Session replication ensures that client sessions are not disrupted by node failure. Each node in the cluster shares information about ongoing sessions and can take over sessions if another node disappears. In a cloud environment, however, data in the memory of a running container can be wiped out by a restart.
+
+           Recommendations
+
+           * Review the session replication usage and ensure that it is configured properly.
+           * Disable HTTP session clustering and accept its implications.
+           * Re-architect the application so that sessions are stored in a cache backing service or a remote data grid.
+
+           A remote data grid has the following benefits:
+
+           * The application is more scaleable and elastic.
+           * The application can survive EAP node failures because a JVM failure does not cause session data loss.
+           * Session data can be shared by multiple applications.
+        codeSnip: |2
+            1  <!--suppress ServletWithoutMappingInspection -->
+            2  <web-app xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            3           xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+            4           version="3.0">
+            5      <distributable />
+            6  </web-app>
+        lineNumber: 1
+        variables:
+          data: distributable
+          innerText: ""
+          matchingXML: ""
+      - uri: file:///opt/input/source/src/main/webapp/WEB-INF/web.xml
+        message: ""
+        variables:
+          data: distributable
+          innerText: ""
+          matchingXML: ""

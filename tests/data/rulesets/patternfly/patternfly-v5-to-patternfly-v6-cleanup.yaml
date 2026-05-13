@@ -1,0 +1,82 @@
+- ruleID: patternfly-v5-to-patternfly-v6-cleanup-00000
+  description: data-codemods attribute should be replaced with remove data-codemods
+  effort: 1
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: data-codemods
+      filePattern: \.(j|t)sx?$
+  message: 'Codemods will remove data-codemods attributes and comments, which were introduced by our codemods in order to
+    work correctly.
+
+
+    Replace `data-codemods attribute` with `remove data-codemods`.
+
+
+    Before:
+
+    ```
+
+    <Component data-codemods="true" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Component />
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-cleanup-00010
+  description: data-codemods comments should be replaced with remove data-codemods comments
+  effort: 1
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: /\* data-codemods \*/$
+      filePattern: \.(j|t)sx?$
+  message: 'Codemods will remove data-codemods comments, which were introduced by our codemods in order to work correctly.
+
+
+    Replace `import { {{ component }} }; from data-codemods comments` with `import { {{ component }} } from remove data-codemods
+    comments`.
+
+
+    Before:
+
+    ```
+
+    import { Component /* data-codemods */ } from "@patternfly/react-core";
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { {{ component }} } from "@patternfly/react-core";
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables:
+  - pattern: import {(?P<imports>[A-Za-z,\s]+)}
+    name: component
+    nameOfCaptureGroup: imports
+    defaultValue: Component
+  migration_complexity: low

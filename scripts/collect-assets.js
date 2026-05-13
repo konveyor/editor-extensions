@@ -1,0 +1,614 @@
+#! /usr/bin/env node
+import { writeJson } from "fs-extra/esm";
+import { join } from "path";
+import { cwdToProjectRoot, ensureDirs, parseCli } from "./_util.js";
+import {
+  downloadAndExtractGitHubReleaseSourceCode,
+  downloadGitHubReleaseAssets,
+  downloadWorkflowArtifactsAndExtractAssets,
+} from "./_download.js";
+import { unpackAssets } from "./_unpack.js";
+
+const cli = parseCli(
+  {
+    org: "konveyor",
+    repo: "kai",
+    branch: "main",
+    workflow: "build-and-push-binaries.yml",
+    rulesetOrg: "konveyor",
+    rulesetRepo: "rulesets",
+    releaseTag: "v0.9.2",
+    // C# provider specific defaults
+    csharpBranch: "main",
+  },
+  "release",
+);
+console.log("collect-assets configuration:", cli);
+
+// Run in project root
+const cwd = cwdToProjectRoot();
+
+// Setup download target
+const [DOWNLOAD_CACHE, DOWNLOAD_DIR] = await ensureDirs(["downloaded_cache", "downloaded_assets"]);
+const { useWorkflow, useRelease, org, repo, releaseTag, branch, pr, workflow, csharpBranch } = cli;
+const bearerToken = process.env.GITHUB_TOKEN ?? undefined;
+
+// TODO(djzager): This is just to make it so the linter doesn't complain about the variables being unused
+console.log("useWorkflow:", useWorkflow);
+console.log("useRelease:", useRelease);
+console.log("org:", org);
+console.log("repo:", repo);
+console.log("releaseTag:", releaseTag);
+console.log("branch:", branch);
+console.log("pr:", pr);
+console.log("workflow:", workflow);
+
+const isNoFilesMatchedError = (err) =>
+  err instanceof Error && err.message.includes("No files matched globs");
+
+const actions = [
+  // If from a release, download the release asset zips
+  useRelease &&
+    (async () => ({
+      id: "download release assets",
+      meta: await downloadGitHubReleaseAssets({
+        targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+        org,
+        repo,
+        releaseTag,
+        bearerToken,
+
+        assets: [
+          {
+            name: "kai-analyzer-rpc.linux-x86_64.zip",
+            fallbackName: "kai-rpc-server.linux-x86_64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.linux-aarch64.zip",
+            fallbackName: "kai-rpc-server.linux-aarch64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.macos-x86_64.zip",
+            fallbackName: "kai-rpc-server.macos-x86_64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.macos-arm64.zip",
+            fallbackName: "kai-rpc-server.macos-arm64.zip",
+          },
+          {
+            name: "kai-analyzer-rpc.windows-X64.zip",
+            fallbackName: "kai-rpc-server.windows-X64.zip",
+          },
+        ],
+      }),
+    })),
+
+  // // If from a workflow, download the artifacts and unpack
+  useWorkflow &&
+    (async () => ({
+      id: "download workflow artifacts and extract assets",
+      meta: await downloadWorkflowArtifactsAndExtractAssets({
+        downloadDirectory: join(DOWNLOAD_CACHE, "artifacts"),
+        targetDirectory: join(DOWNLOAD_CACHE, "assets"),
+        org,
+        repo,
+        branch,
+        pr,
+        workflow,
+        bearerToken,
+
+        artifacts: [
+          { name: "kai-analyzer-rpc.linux-aarch64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.linux-x86_64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.macos-arm64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.macos-x86_64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+          { name: "kai-analyzer-rpc.windows-X64.zip", contents: ["kai-analyzer-rpc.*.zip"] },
+        ],
+      }),
+    })),
+
+  // Extract Kai binaries from the downloaded workflows artifact or release assets
+  async () => ({
+    id: "kai binaries",
+    meta: await unpackAssets({
+      title: "kai binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "assets"),
+      targetDirectory: ({ platform, arch }) => join(DOWNLOAD_DIR, "kai", `${platform}-${arch}`),
+
+      globs: ["kai-analyzer-rpc*"],
+      assets: [
+        { name: "kai-analyzer-rpc.linux-x86_64.zip", platform: "linux", arch: "x64", chmod: true },
+        {
+          name: "kai-analyzer-rpc.linux-aarch64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "kai-analyzer-rpc.macos-x86_64.zip", platform: "darwin", arch: "x64", chmod: true },
+        {
+          name: "kai-analyzer-rpc.macos-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "kai-analyzer-rpc.windows-X64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
+
+  // Extract opensource-labels-file from the linux-x64_64 downloaded workflow artifact or release asset
+  async () => ({
+    id: "opensource-labels-file",
+    meta: await unpackAssets({
+      title: "opensource-labels-file",
+      sourceDirectory: join(DOWNLOAD_CACHE, "assets"),
+      targetDirectory: () => join(DOWNLOAD_DIR, "opensource-labels-file"),
+
+      globs: ["maven.default.index"],
+      assets: [{ name: "kai-analyzer-rpc.linux-x86_64.zip" }],
+    }),
+  }),
+
+  // Download and extract seed rulesets from a rulesets repo release.
+  // Supports both the layout introduced in konveyor/rulesets#342 (stable/<lang>/* and preview/*)
+  // and the legacy layout (default/generated/*). Tries the new layout first; falls back to the
+  // legacy one. Throws if neither layout produces any files.
+  async () => {
+    const rulesetConfig = {
+      downloadDirectory: join(DOWNLOAD_CACHE, "sources"),
+      targetDirectory: join(DOWNLOAD_DIR, "rulesets"),
+      org: cli.rulesetOrg,
+      repo: cli.rulesetRepo,
+      releaseTag: cli.releaseTag,
+      bearerToken,
+      globs: ["**/*.yaml", "**/*.yml", "!**/tests/**"],
+    };
+
+    try {
+      // Post-konveyor/rulesets#342: rules live in stable/<lang>/* and preview/*
+      const stableMeta = await downloadAndExtractGitHubReleaseSourceCode({
+        ...rulesetConfig,
+        context: "{{root}}/stable",
+      });
+      try {
+        await downloadAndExtractGitHubReleaseSourceCode({
+          ...rulesetConfig,
+          context: "{{root}}/preview",
+        });
+      } catch (err) {
+        if (!isNoFilesMatchedError(err)) {
+          throw err;
+        }
+        console.warn("No preview rulesets found in this release, skipping");
+      }
+      console.log("Extracted rulesets using post-rulesets#342 layout (stable + preview)");
+      return { id: "seed rulesets", meta: stableMeta };
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
+      console.warn(
+        "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
+      );
+      const meta = await downloadAndExtractGitHubReleaseSourceCode({
+        ...rulesetConfig,
+        context: "{{root}}/default/generated",
+      });
+      console.log("Extracted rulesets using pre-rulesets#342 layout (default/generated)");
+      return { id: "seed rulesets", meta };
+    }
+  },
+
+  // Extract jdt.ls bundles from the linux-x64_64 downloaded workflow artifact or release asset
+  async () => ({
+    id: "jdt.ls bundles",
+    meta: await unpackAssets({
+      title: "jdt.ls bundles",
+      sourceDirectory: join(DOWNLOAD_CACHE, "assets"),
+      targetDirectory: () => join(DOWNLOAD_DIR, "jdtls-bundles"),
+
+      globs: ["*.jar"],
+      assets: [{ name: "kai-analyzer-rpc.linux-x86_64.zip" }],
+    }),
+  }),
+
+  // Download analyzer-lsp-binaries from analyzer-lsp release
+  useRelease &&
+    (async () => ({
+      id: "download analyzer-lsp-binaries release assets",
+      meta: await downloadGitHubReleaseAssets({
+        targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+        org,
+        repo: "analyzer-lsp",
+        releaseTag,
+        bearerToken,
+
+        assets: [
+          { name: "analyzer-lsp-binaries.linux-amd64.zip" },
+          { name: "analyzer-lsp-binaries.linux-arm64.zip" },
+          { name: "analyzer-lsp-binaries.darwin-amd64.zip" },
+          { name: "analyzer-lsp-binaries.darwin-arm64.zip" },
+          { name: "analyzer-lsp-binaries.windows-amd64.zip" },
+        ],
+      }),
+    })),
+
+  // Download analyzer-lsp-binaries from analyzer-lsp workflow artifacts
+  useWorkflow &&
+    (async () => ({
+      id: "download analyzer-lsp-binaries workflow artifacts",
+      meta: await downloadWorkflowArtifactsAndExtractAssets({
+        downloadDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-artifacts"),
+        targetDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+        org,
+        repo: "analyzer-lsp",
+        branch,
+        pr,
+        workflow: "pr-testing.yml",
+        bearerToken,
+
+        artifacts: [
+          {
+            name: "analyzer-lsp-binaries.linux-amd64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.linux-arm64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.darwin-amd64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.darwin-arm64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+          {
+            name: "analyzer-lsp-binaries.windows-amd64.zip",
+            contents: ["analyzer-lsp-binaries.*.zip"],
+          },
+        ],
+      }),
+    })),
+
+  // Extract java-external-provider binaries to platform-specific directories (same as kai pattern)
+  async () => ({
+    id: "java-external-provider binaries",
+    meta: await unpackAssets({
+      title: "java-external-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "java-external-provider", `${platform}-${arch}`),
+
+      globs: ["java-external-provider*"],
+      assets: [
+        {
+          name: "analyzer-lsp-binaries.linux-amd64.zip",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.linux-arm64.zip",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-amd64.zip",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "analyzer-lsp-binaries.darwin-arm64.zip",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+      ],
+    }),
+  }),
+
+  // Extract nodejs-external-provider binaries to platform-specific directories.
+  // Falls back to generic-external-provider for analyzer-lsp releases predating
+  // the per-language provider refactor (konveyor/analyzer-lsp#1142).
+  async () => {
+    const analyzerProviderAssets = [
+      {
+        name: "analyzer-lsp-binaries.linux-amd64.zip",
+        platform: "linux",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.linux-arm64.zip",
+        platform: "linux",
+        arch: "arm64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-amd64.zip",
+        platform: "darwin",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-arm64.zip",
+        platform: "darwin",
+        arch: "arm64",
+        chmod: true,
+      },
+      { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+    ];
+    try {
+      return {
+        id: "nodejs-external-provider binaries",
+        meta: await unpackAssets({
+          title: "nodejs-external-provider binary",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
+          globs: ["nodejs-external-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
+      console.warn(
+        "nodejs-external-provider not found — falling back to generic-external-provider (pre-analyzer-lsp#1142 release)",
+      );
+      return {
+        id: "nodejs-external-provider binaries (generic fallback)",
+        meta: await unpackAssets({
+          title: "nodejs-external-provider binary (generic fallback)",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "nodejs-external-provider", `${platform}-${arch}`),
+          globs: ["generic-external-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    }
+  },
+
+  // Extract go-external-provider binaries to platform-specific directories.
+  // Falls back to golang-dependency-provider for analyzer-lsp releases predating
+  // the per-language provider refactor (konveyor/analyzer-lsp#1142).
+  async () => {
+    const analyzerProviderAssets = [
+      {
+        name: "analyzer-lsp-binaries.linux-amd64.zip",
+        platform: "linux",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.linux-arm64.zip",
+        platform: "linux",
+        arch: "arm64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-amd64.zip",
+        platform: "darwin",
+        arch: "x64",
+        chmod: true,
+      },
+      {
+        name: "analyzer-lsp-binaries.darwin-arm64.zip",
+        platform: "darwin",
+        arch: "arm64",
+        chmod: true,
+      },
+      { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+    ];
+    try {
+      return {
+        id: "go-external-provider binaries",
+        meta: await unpackAssets({
+          title: "go-external-provider binary",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
+          globs: ["go-external-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
+      console.warn(
+        "go-external-provider not found — falling back to golang-dependency-provider (pre-analyzer-lsp#1142 release)",
+      );
+      return {
+        id: "go-external-provider binaries (golang-dependency-provider fallback)",
+        meta: await unpackAssets({
+          title: "go-external-provider binary (golang-dependency-provider fallback)",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "go-external-provider", `${platform}-${arch}`),
+          globs: ["golang-dependency-provider*"],
+          assets: analyzerProviderAssets,
+        }),
+      };
+    }
+  },
+
+  // Extract konveyor-analyzer-dep binaries to platform-specific directories.
+  // Skips gracefully on older analyzer-lsp releases that predate this binary.
+  async () => {
+    try {
+      return {
+        id: "konveyor-analyzer-dep binaries",
+        meta: await unpackAssets({
+          title: "konveyor-analyzer-dep binary",
+          sourceDirectory: join(DOWNLOAD_CACHE, "analyzer-provider-assets"),
+          targetDirectory: ({ platform, arch }) =>
+            join(DOWNLOAD_DIR, "konveyor-analyzer-dep", `${platform}-${arch}`),
+          globs: ["konveyor-analyzer-dep*"],
+          assets: [
+            {
+              name: "analyzer-lsp-binaries.linux-amd64.zip",
+              platform: "linux",
+              arch: "x64",
+              chmod: true,
+            },
+            {
+              name: "analyzer-lsp-binaries.linux-arm64.zip",
+              platform: "linux",
+              arch: "arm64",
+              chmod: true,
+            },
+            {
+              name: "analyzer-lsp-binaries.darwin-amd64.zip",
+              platform: "darwin",
+              arch: "x64",
+              chmod: true,
+            },
+            {
+              name: "analyzer-lsp-binaries.darwin-arm64.zip",
+              platform: "darwin",
+              arch: "arm64",
+              chmod: true,
+            },
+            { name: "analyzer-lsp-binaries.windows-amd64.zip", platform: "win32", arch: "x64" },
+          ],
+        }),
+      };
+    } catch (err) {
+      if (!isNoFilesMatchedError(err)) {
+        throw err;
+      }
+      console.warn(
+        "konveyor-analyzer-dep not found in this release — skipping (pre-analyzer-lsp#1142 release)",
+      );
+      return { id: "konveyor-analyzer-dep binaries (skipped)" };
+    }
+  },
+
+  // Download c-sharp-analyzer-provider release assets
+  useRelease &&
+    (async () => ({
+      id: "download c-sharp-analyzer-provider release assets",
+      meta: await downloadGitHubReleaseAssets({
+        targetDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
+        org: "konveyor",
+        repo: "c-sharp-analyzer-provider",
+        releaseTag,
+        bearerToken,
+        assets: [
+          { name: "c-sharp-analyzer-provider-linux-x86_64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-linux-aarch64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-darwin-x86_64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-darwin-aarch64.tar.gz" },
+          { name: "c-sharp-analyzer-provider-windows-x86_64.zip" },
+          { name: "c-sharp-analyzer-provider-windows-aarch64.zip" },
+        ],
+      }),
+    })),
+
+  // Download c-sharp-analyzer-provider from workflow artifacts
+  useWorkflow &&
+    csharpBranch &&
+    (async () => ({
+      id: "download c-sharp-analyzer-provider workflow artifacts",
+      meta: await downloadWorkflowArtifactsAndExtractAssets({
+        downloadDirectory: join(DOWNLOAD_CACHE, "csharp-provider-artifacts"),
+        targetDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
+        org: "konveyor",
+        repo: "c-sharp-analyzer-provider",
+        branch: csharpBranch,
+        workflow: "release-binaries.yml",
+        bearerToken,
+
+        artifacts: [
+          {
+            name: "c-sharp-analyzer-provider-linux-x86_64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-linux-aarch64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-darwin-x86_64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-darwin-aarch64",
+            contents: ["c-sharp-analyzer-provider-*.tar.gz"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-windows-x86_64",
+            contents: ["c-sharp-analyzer-provider-*.zip"],
+          },
+          {
+            name: "c-sharp-analyzer-provider-windows-aarch64",
+            contents: ["c-sharp-analyzer-provider-*.zip"],
+          },
+        ],
+      }),
+    })),
+
+  // Extract c-sharp-analyzer-provider binaries to platform-specific directories
+  async () => ({
+    id: "c-sharp-analyzer-provider binaries",
+    meta: await unpackAssets({
+      title: "c-sharp-analyzer-provider binary",
+      sourceDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
+      targetDirectory: ({ platform, arch }) =>
+        join(DOWNLOAD_DIR, "c-sharp-analyzer-provider", `${platform}-${arch}`),
+
+      globs: ["c-sharp-analyzer-provider-cli*"],
+      assets: [
+        {
+          name: "c-sharp-analyzer-provider-linux-x86_64.tar.gz",
+          platform: "linux",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "c-sharp-analyzer-provider-linux-aarch64.tar.gz",
+          platform: "linux",
+          arch: "arm64",
+          chmod: true,
+        },
+        {
+          name: "c-sharp-analyzer-provider-darwin-x86_64.tar.gz",
+          platform: "darwin",
+          arch: "x64",
+          chmod: true,
+        },
+        {
+          name: "c-sharp-analyzer-provider-darwin-aarch64.tar.gz",
+          platform: "darwin",
+          arch: "arm64",
+          chmod: true,
+        },
+        { name: "c-sharp-analyzer-provider-windows-x86_64.zip", platform: "win32", arch: "x64" },
+        { name: "c-sharp-analyzer-provider-windows-aarch64.zip", platform: "win32", arch: "arm64" },
+      ],
+    }),
+  }),
+];
+
+// Run the queued actions
+const meta = [];
+try {
+  for (const action of actions) {
+    if (action && typeof action === "function") {
+      const actionMeta = await action();
+      meta.push(actionMeta);
+    }
+  }
+  writeJson(join(DOWNLOAD_DIR, "collect-assets-meta.json"), { cwd, actions: meta }, { spaces: 2 });
+} catch (error) {
+  console.error("Asset collection failed:", error);
+  process.exit(1);
+}

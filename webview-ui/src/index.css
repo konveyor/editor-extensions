@@ -1,0 +1,237 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Force PatternFly to use bundled fonts - fixes DevSpaces 401 error */
+@font-face {
+  font-family: "RedHatDisplay";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatDisplayVF.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatDisplay";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatDisplayVF-Italic.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatText";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatTextVF.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatText";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatTextVF-Italic.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatMono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatMonoVF.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "RedHatMono";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/RedHatMonoVF-Italic.woff2") format("woff2-variations");
+}
+
+/* Override PatternFly font variables to use local fonts */
+:root {
+  --pf-t--global--font--family--heading:
+    "RedHatDisplay", "Red Hat Display", "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans JP",
+    "Noto Sans KR", "Noto Sans Malayalam", "Noto Sans SC", "Noto Sans TC", "Noto Sans Thai",
+    BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+  --pf-t--global--font--family--body:
+    "RedHatText", "Red Hat Text", "Noto Sans Arabic", "Noto Sans Hebrew", "Noto Sans JP",
+    "Noto Sans KR", "Noto Sans Malayalam", "Noto Sans SC", "Noto Sans TC", "Noto Sans Thai",
+    BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+  --pf-t--global--font--family--mono:
+    "RedHatMono", "Red Hat Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas",
+    "Liberation Mono", "Courier New", monospace;
+}
+
+.pf-v6-c-masthead,
+.pf-v6-c-page,
+.pf-v6-c-page__main-container,
+.pf-v6-c-card {
+  background-color: var(--vscode-editor-background) !important;
+}
+
+:root {
+  /* Diff highlights */
+  --vscode-diffEditor-insertedTextBackground: #9ccc2c33;
+  --vscode-diffEditor-removedTextBackground: #f4877133;
+  --vscode-diffEditor-insertedLineBackground: #14421244;
+  --vscode-diffEditor-removedLineBackground: #6f131344;
+  --vscode-diffEditor-border: #3794ff;
+  --vscode-diffEditor-diagonalFill: #6fc3ff22;
+
+  /* Gutter markers */
+  --vscode-editorGutter-addedBackground: #587c0c;
+  --vscode-editorGutter-deletedBackground: #94151b;
+
+  /* Line numbers */
+  --vscode-editorLineNumber-foreground: #858585;
+  --vscode-editorLineNumber-activeForeground: #c6c6c6;
+
+  /* Selection & cursor */
+  --vscode-editor-selectionBackground: #264f78;
+  --vscode-editor-inactiveSelectionBackground: #3a3d4166;
+  --vscode-editorCursor-foreground: #aeafad;
+
+  /* Whitespace & indentation */
+  --vscode-editorWhitespace-foreground: #e3e4e229;
+  --vscode-editorIndentGuide-background: #404040;
+  --vscode-editorIndentGuide-activeBackground: #707070;
+
+  /* Highlights */
+  --vscode-editor-lineHighlightBackground: #ffffff0a;
+  --vscode-editor-lineHighlightBorder: #ffffff0f;
+  --vscode-editor-wordHighlightBackground: #575757b8;
+  --vscode-editor-wordHighlightStrongBackground: #004972b8;
+  --vscode-editor-findMatchBackground: #515c6a;
+  --vscode-editor-findMatchHighlightBackground: #ea5c004d;
+  --vscode-editor-hoverHighlightBackground: #575757b8;
+  --vscode-editor-rangeHighlightBackground: #ffffff0b;
+  --vscode-editor-symbolHighlightBackground: #ea5c0055;
+
+  /* Links and status */
+  --vscode-editorLink-activeForeground: #4e94ce;
+  --vscode-errorForeground: #f48771;
+
+  /* PatternFly overrides */
+  --pf-v6-c-card--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--primary--default: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--floating--default: var(--vscode-editor-background) !important;
+  --pf-v6-c-button--hover--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-v6-c-page--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-v6-c-page__main-container--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--primary--default: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--primary--hover: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--primary--clicked: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--secondary--default: var(--vscode-editor-background) !important;
+  --pf-t--global--dark--text--color--100: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--regular: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--subtle: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--disabled: var(--vscode-editor-foreground) !important;
+  --pf-v6-c-button--m-control--Color: var(--vscode-editor-foreground) !important;
+  --pf-v6-c-button--m-control--BackgroundColor: var(--vscode-editor-background) !important;
+  --pf-t--global--background--color--control--default: var(--vscode-editor-background) !important;
+  --pf-t--global--icon--color--regular: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--brand--default: var(--vscode-editor-foreground) !important;
+  --pf-t--global--icon--color--brand--default: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--brand--hover: var(--vscode-editor-foreground) !important;
+  --pf-t--global--icon--color--brand--hover: var(--vscode-editor-foreground) !important;
+  --pf-t--global--text--color--regular: var(--vscode-editor-foreground) !important;
+  --pf-t--global--border--color--default: var(--vscode-editor-foreground) !important;
+  --pf-v6-c-content--Color: var(--vscode-editor-foreground) !important;
+
+  --pf-t--global--text--color--link--100: #3794ff;
+  --pf-t--global--color--status--danger--100: #f48771;
+
+  /* PatternFly global background colors */
+  --pf-global--BackgroundColor--100: #f5f5f5;
+  --pf-global--BackgroundColor--200: #e5e5e5;
+  --pf-global--BackgroundColor--dark-100: #2d2d2d;
+  --pf-global--BackgroundColor--dark-200: #1e1e1e;
+  --pf-global--BackgroundColor--dark-150: #262626;
+
+  /* PatternFly global border colors */
+  --pf-global--BorderColor--100: #d1d1d1;
+  --pf-global--BorderColor--200: #b8bbbe;
+  --pf-global--BorderColor--300: #8b8d8f;
+  --pf-global--BorderColor--dark-100: #6a6a6a;
+  --pf-global--BorderColor--dark-200: #525252;
+  --pf-global--BorderColor--dark-300: #3c3f41;
+
+  /* PatternFly global text colors */
+  --pf-global--Color--100: #151515;
+  --pf-global--Color--200: #6a6e73;
+  --pf-global--Color--dark-100: #f0f0f0;
+  --pf-global--Color--dark-200: #b8bbbe;
+
+  --pf-global--warning-color--100: #b98412;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.pf-v6-c-page {
+  --pf-v6-c-page--inset: 0;
+}
+
+.pf-c-page__main-section {
+  height: calc(100vh - 76px);
+  overflow-y: auto;
+}
+
+.pf-c-expandable-section__toggle-text {
+  width: 100%;
+}
+
+.pf-c-expandable-section__content {
+  margin-bottom: 10px;
+}
+
+.response-wrapper .pf-v6-c-label {
+  --pf-v6-c-label--BorderRadius: 5px;
+  --pf-v6-c-label--PaddingBlockStart: 0.5rem;
+  --pf-v6-c-label--PaddingBlockEnd: 0.5rem;
+  --pf-v6-c-label--PaddingInlineStart: 1rem;
+  --pf-v6-c-label--PaddingInlineEnd: 1rem;
+}
+
+.response-wrapper code {
+  background-color: rgba(255, 255, 255, 0.5);
+  color: brown;
+}
+
+.pf-chatbot__message-text {
+  word-break: break-word;
+}
+
+.pf-chatbot__message-text > details > summary {
+  cursor: pointer;
+}
+
+.pf-chatbot {
+  background-color: var(--vscode-editor-background) !important;
+}
+
+.pf-chatbot__content {
+  background-color: var(--vscode-editor-background) !important;
+}
+
+.pf-chatbot {
+  height: 100vh;
+}
+
+.pf-chatbot__messagebox {
+  width: 100%;
+  max-width: 100% !important; /* to ignore media queries */
+}
+
+.pf-chatbot__jump {
+  inset-inline-start: 95% !important;
+}

@@ -1,0 +1,45 @@
+- ruleID: patternfly-v5-to-patternfly-v6-helper-text-00000
+  description: HelperTextItem hasIcon should be replaced with HelperTextItem
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: HelperTextItem
+    - builtin.filecontent:
+        pattern: <HelperTextItem[^>]*\bhasIcon\b
+        filePattern: \.(j|t)sx?$
+  message: 'The hasIcon and isDynamic props have been removed from HelperTextItem.
+
+    An icon will now render automatically when the variant prop has a value other
+
+    than "default" or when the icon prop is passed in.
+
+
+    Replace `HelperTextItem hasIcon` with `HelperTextItem`.
+
+
+    Before:
+
+    ```
+
+    <HelperTextItem hasIcon />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <HelperTextItem />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10029
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

@@ -1,0 +1,33 @@
+- ruleID: patternfly-v5-to-patternfly-v6-component-structure-00000
+  description: Masthead structure should be replaced with Masthead with MastheadToggle and MastheadBrand wrapped in MastheadMain
+  effort: 5
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Masthead
+    - builtin.filecontent:
+        pattern: <Masthead[^>]*>[^<]*<MastheadToggle|<Masthead[^>]*>[^<]*<MastheadBrand
+        filePattern: \.(j|t)sx?$
+  message: 'The structure of Masthead has been updated, MastheadToggle and MastheadBrand\
+
+
+    \ should now be wrapped in MastheadMain.\n\nReplace `Masthead structure` with\
+
+    \ `Masthead with MastheadToggle and MastheadBrand wrapped in MastheadMain`.\n\n\
+
+
+    Before:\n```\n<Masthead>\n  <MastheadToggle>Foo</MastheadToggle>\n  <MastheadBrand>Bar</MastheadBrand>\n\
+
+
+    </Masthead>\n```\n\nAfter:\n```\n<Masthead>\n  <MastheadMain>\n    <MastheadToggle>Foo</MastheadToggle>\n\
+
+    \    <MastheadBrand>Bar</MastheadBrand>\n  </MastheadMain>\n</Masthead>\n```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10809
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: medium

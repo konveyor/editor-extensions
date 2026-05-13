@@ -1,0 +1,5 @@
+root=false
+
+[*]
+# wider line length for docs!
+max_line_length = 120

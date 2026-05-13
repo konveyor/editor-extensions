@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed duplicate profile name exceeding the 24-character limit by truncating the base name before appending the copy suffix.

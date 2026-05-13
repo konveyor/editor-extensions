@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  When an automatic analysis kicks off due to file save, it appears that we can still stop the analysis server which leaves the extension in an unrecoverable state.
+  This change prevents stopping the analysis server during running or scheduled analysis.
+extensions:
+  - core

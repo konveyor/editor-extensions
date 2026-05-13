@@ -1,0 +1,3 @@
+kind: enhancement
+description: >
+  Dynamically discover available target and source labels from bundled rulesets at runtime instead of using hardcoded lists, fixing missing Spring and other migration targets in the profile editor.

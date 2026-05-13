@@ -1,0 +1,82 @@
+/**
+ * Batch Review Footer Styles
+ * Integrates with PatternFly Chatbot footer design
+ * Optimized for sticky footer container to prevent jitter
+ */
+
+.batch-review-footer {
+  background-color: var(--vscode-editor-background);
+  border-top: 1px solid var(--vscode-panel-border, #3c3f41);
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3f41);
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  animation: slideInFromBottom 0.3s ease-out;
+  /* Prevent layout shift during scroll */
+  contain: layout style;
+  /* Ensure smooth rendering */
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.batch-review-footer-content {
+  max-width: 100%;
+}
+
+.batch-review-footer-text {
+  font-size: 0.875rem;
+  color: var(--vscode-foreground);
+}
+
+/* Ensure footer sticks above MessageBar */
+.batch-review-footer + .pf-v6-c-form {
+  margin-top: 8px;
+}
+
+/* VS Code theme override - ensure proper dark theme styling */
+.vscode-dark .batch-review-footer {
+  filter: brightness(1.1);
+}
+
+.vscode-light .batch-review-footer {
+  background-color: var(--vscode-sideBar-background, #f3f3f3);
+}
+
+/* Responsive design - stack on smaller screens */
+@media (max-width: 768px) {
+  .batch-review-footer .pf-v6-l-split {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .batch-review-footer .pf-v6-l-split__item:last-child {
+    justify-content: flex-start;
+  }
+}
+
+/* Hover effect for interactive elements */
+.batch-review-footer:hover {
+  filter: brightness(1.15);
+  transition: filter 0.2s ease;
+}
+
+/* VS Code dark theme hover effect */
+.vscode-dark .batch-review-footer:hover {
+  filter: brightness(1.2);
+}
+
+/* Accessibility - focus styles */
+.batch-review-footer button:focus {
+  outline: 2px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: 2px;
+}

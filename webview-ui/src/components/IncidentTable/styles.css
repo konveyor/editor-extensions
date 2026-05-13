@@ -1,0 +1,13 @@
+.message {
+  color: var(--vscode-foreground);
+}
+.incident-table-card {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+.incident-table {
+  color: var(--vscode-foreground) !important;
+}
+.line-number {
+  color: var(--vscode-foreground);
+}

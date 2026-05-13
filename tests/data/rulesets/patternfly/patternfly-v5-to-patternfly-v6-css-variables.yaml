@@ -1,0 +1,119 @@
+- ruleID: patternfly-v5-to-patternfly-v6-css-variables-00000
+  description: --pf-v5-global--FontSize--lg should be replaced with --pf-t--global--font--size--lg
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: --pf-v5-global--FontSize--lg
+      filePattern: \.(css|scss)$
+  message: 'CSS variable naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+
+    Replace `--pf-v5-global--FontSize--lg` with `--pf-t--global--font--size--lg`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    var(--pf-v5-global--FontSize--lg)
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    var(--pf-t--global--font--size--lg)
+
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-css-variables-00010
+  description: --pf-v5-global-- should be replaced with --pf-t--global--
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: --pf-v5-global--
+      filePattern: \.(j|t)sx?$|\.(s?css)$
+  message: 'CSS token variables have been updated with new naming conventions.
+
+
+    Replace `--pf-v5-global--` with `--pf-t--global--`.
+
+
+    Before:
+
+    ```
+
+    style={{ marginTop: "var(--pf-v5-global--spacer--3xl)" }}
+
+    ```
+
+
+    After:
+
+    ```
+
+    style={{ marginTop: "var(--pf-t--global--spacer--3xl)" }}
+
+    ```'
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-css-variables-00020
+  description: --pf-v5-global should be replaced with --pf-v6-global
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: --pf-v5-global
+      filePattern: \.(css|scss)$
+  message: 'CSS variable prefix has been updated from v5 to v6
+
+
+    Replace `--pf-v5-global` with `--pf-v6-global`.
+
+
+    Before:
+
+    ```
+
+    --pf-v5-global--spacer--md
+
+    ```
+
+
+    After:
+
+    ```
+
+    --pf-v6-global--spacer--md
+
+    ```'
+  customVariables: []
+  migration_complexity: low

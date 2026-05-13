@@ -1,0 +1,50 @@
+{
+  "encountered_errors": [],
+  "scope": {
+    "incident": {
+      "uri": "src/main/java/com/redhat/coolstore/service/CatalogService.java",
+      "message": "Replace the `javax.ejb` import statement with `jakarta.ejb`",
+      "codeSnip": " 2  \n 3  import java.util.List;\n 4  import java.util.logging.Logger;\n 5  \n 6  import javax.inject.Inject;\n 7  \n 8  import javax.persistence.criteria.CriteriaBuilder;\n 9  import javax.persistence.criteria.CriteriaQuery;\n10  import javax.persistence.criteria.Root;\n11  \n12  import javax.ejb.Stateless;\n13  import javax.persistence.EntityManager;\n14  \n15  import com.redhat.coolstore.model.*;\n16  \n17  @Stateless\n18  public class CatalogService {\n19  \n20      @Inject\n21      Logger log;\n22  ",
+      "lineNumber": 12,
+      "variables": {
+        "file": "src/main/java/com/redhat/coolstore/service/CatalogService.java",
+        "kind": "Module",
+        "name": "javax.ejb.Stateless",
+        "package": "com.redhat.coolstore.service",
+        "renamed": "ejb"
+      }
+    }
+  },
+  "changes": [
+    {
+      "original": "pom.xml",
+      "modified": "pom.xml",
+      "diff": "diff --git a/pom.xml b/pom.xml\nindex 0e760b8..afa5e9c 100644\n--- a/pom.xml\n+++ b/pom.xml\n@@ -21,6 +21,11 @@\n             <version>7.0</version>\n             <scope>provided</scope>\n         </dependency>\n+        <dependency>\n+            <groupId>jakarta.enterprise</groupId>\n+            <artifactId>jakarta.enterprise.cdi-api</artifactId>\n+            <version>4.1.0</version>\n+        </dependency>\n         <dependency>\n             <groupId>javax</groupId>\n             <artifactId>javaee-api</artifactId>\n"
+    },
+    {
+      "original": "src/main/java/com/redhat/coolstore/service/CatalogService.java",
+      "modified": "src/main/java/com/redhat/coolstore/service/CatalogService.java",
+      "diff": "diff --git a/src/main/java/com/redhat/coolstore/service/CatalogService.java b/src/main/java/com/redhat/coolstore/service/CatalogService.java\nindex 422a3f4..9a6feff 100644\n--- a/src/main/java/com/redhat/coolstore/service/CatalogService.java\n+++ b/src/main/java/com/redhat/coolstore/service/CatalogService.java\n@@ -9,12 +9,12 @@ import javax.persistence.criteria.CriteriaBuilder;\n import javax.persistence.criteria.CriteriaQuery;\n import javax.persistence.criteria.Root;\n \n-import javax.ejb.Stateless;\n+import jakarta.enterprise.context.ApplicationScoped;\n import javax.persistence.EntityManager;\n \n import com.redhat.coolstore.model.*;\n \n-@Stateless\n+@ApplicationScoped\n public class CatalogService {\n \n     @Inject\n"
+    },
+    {
+      "original": "src/main/java/com/redhat/coolstore/service/OrderService.java",
+      "modified": "src/main/java/com/redhat/coolstore/service/OrderService.java",
+      "diff": "diff --git a/src/main/java/com/redhat/coolstore/service/OrderService.java b/src/main/java/com/redhat/coolstore/service/OrderService.java\nindex 748e413..07ad379 100644\n--- a/src/main/java/com/redhat/coolstore/service/OrderService.java\n+++ b/src/main/java/com/redhat/coolstore/service/OrderService.java\n@@ -2,14 +2,14 @@ package com.redhat.coolstore.service;\n \n import com.redhat.coolstore.model.Order;\n import java.util.List;\n-import javax.ejb.Stateless;\n+import jakarta.enterprise.context.ApplicationScoped;\n import javax.inject.Inject;\n import javax.persistence.EntityManager;\n import javax.persistence.criteria.CriteriaBuilder;\n import javax.persistence.criteria.CriteriaQuery;\n import javax.persistence.criteria.Root;\n \n-@Stateless\n+@ApplicationScoped\n public class OrderService {\n \n   @Inject\n"
+    },
+    {
+      "original": "src/main/java/com/redhat/coolstore/service/ProductService.java",
+      "modified": "src/main/java/com/redhat/coolstore/service/ProductService.java",
+      "diff": "diff --git a/src/main/java/com/redhat/coolstore/service/ProductService.java b/src/main/java/com/redhat/coolstore/service/ProductService.java\nindex 33002fd..0e4b157 100644\n--- a/src/main/java/com/redhat/coolstore/service/ProductService.java\n+++ b/src/main/java/com/redhat/coolstore/service/ProductService.java\n@@ -4,14 +4,14 @@ import com.redhat.coolstore.model.CatalogItemEntity;\n import com.redhat.coolstore.model.Product;\n import com.redhat.coolstore.utils.Transformers;\n \n-import javax.ejb.Stateless;\n+import jakarta.enterprise.context.ApplicationScoped;\n import javax.inject.Inject;\n import java.util.List;\n import java.util.stream.Collectors;\n \n import static com.redhat.coolstore.utils.Transformers.toProduct;\n \n-@Stateless\n+@ApplicationScoped\n public class ProductService {\n \n     @Inject\n"
+    },
+    {
+      "original": "src/main/java/com/redhat/coolstore/service/ShippingService.java",
+      "modified": "src/main/java/com/redhat/coolstore/service/ShippingService.java",
+      "diff": "diff --git a/src/main/java/com/redhat/coolstore/service/ShippingService.java b/src/main/java/com/redhat/coolstore/service/ShippingService.java\nindex c820fcd..d92ef4f 100644\n--- a/src/main/java/com/redhat/coolstore/service/ShippingService.java\n+++ b/src/main/java/com/redhat/coolstore/service/ShippingService.java\n@@ -4,11 +4,11 @@ import java.math.BigDecimal;\n import java.math.RoundingMode;\n \n import javax.ejb.Remote;\n-import javax.ejb.Stateless;\n+import jakarta.enterprise.context.ApplicationScoped;\n \n import com.redhat.coolstore.model.ShoppingCart;\n \n-@Stateless\n+@ApplicationScoped\n @Remote\n public class ShippingService implements ShippingServiceRemote {\n \n"
+    },
+    {
+      "original": "src/main/java/com/redhat/coolstore/service/ShoppingCartOrderProcessor.java",
+      "modified": "src/main/java/com/redhat/coolstore/service/ShoppingCartOrderProcessor.java",
+      "diff": "diff --git a/src/main/java/com/redhat/coolstore/service/ShoppingCartOrderProcessor.java b/src/main/java/com/redhat/coolstore/service/ShoppingCartOrderProcessor.java\nindex e6ee388..5f9a1b6 100644\n--- a/src/main/java/com/redhat/coolstore/service/ShoppingCartOrderProcessor.java\n+++ b/src/main/java/com/redhat/coolstore/service/ShoppingCartOrderProcessor.java\n@@ -1,7 +1,7 @@\n package com.redhat.coolstore.service;\n \n import java.util.logging.Logger;\n-import javax.ejb.Stateless;\n+import jakarta.enterprise.context.ApplicationScoped;\n import javax.annotation.Resource;\n import javax.inject.Inject;\n import javax.jms.JMSContext;\n@@ -10,7 +10,7 @@ import javax.jms.Topic;\n import com.redhat.coolstore.model.ShoppingCart;\n import com.redhat.coolstore.utils.Transformers;\n \n-@Stateless\n+@ApplicationScoped\n public class ShoppingCartOrderProcessor  {\n \n     @Inject\n"
+    }
+  ]
+}

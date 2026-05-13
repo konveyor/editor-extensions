@@ -1,0 +1,161 @@
+- ruleID: patternfly-v5-to-patternfly-v6-css-units-00000
+  description: 576px should be replaced with 36rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 576px
+      filePattern: \.(css|scss|less|(j|t)sx?)$
+  message: 'PatternFly v6 uses rem units instead of pixels for better accessibility
+
+
+
+    Replace `576px` with `36rem`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    width: 576px;
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    width: 36rem;
+
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-css-units-00010
+  description: 768px should be replaced with 48rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 768px
+      filePattern: \.(css|scss|less|(j|t)sx?)$
+  message: 'PatternFly v6 uses rem units instead of pixels for better accessibility
+
+
+    Replace `768px` with `48rem`.
+
+
+    Before:
+
+    ```
+
+    width: 768px;
+
+    ```
+
+
+    After:
+
+    ```
+
+    width: 48rem;
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-css-units-00020
+  description: 992px should be replaced with 62rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 992px
+      filePattern: \.(css|scss|less|(j|t)sx?)$
+  message: 'PatternFly v6 uses rem units instead of pixels for better accessibility
+
+
+    Replace `992px` with `62rem`.
+
+
+    Before:
+
+    ```
+
+    width: 992px;
+
+    ```
+
+
+    After:
+
+    ```
+
+    width: 62rem;
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-css-units-00030
+  description: 1200px should be replaced with 75rem
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: 1200px
+      filePattern: \.(css|scss|less|(j|t)sx?)$
+  message: 'PatternFly v6 uses rem units instead of pixels for better accessibility
+
+
+    Replace `1200px` with `75rem`.
+
+
+    Before:
+
+    ```
+
+    width: 1200px;
+
+    ```
+
+
+    After:
+
+    ```
+
+    width: 75rem;
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade/
+    title: PatternFly v6 Upgrade Guide
+  customVariables: []
+  migration_complexity: low

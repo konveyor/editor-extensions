@@ -1,0 +1,44 @@
+.header-layout {
+  align-items: center;
+  gap: 16px;
+  min-height: 36px;
+  padding: 4px 0;
+}
+
+.vertical-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--vscode-editor-background);
+  margin: 0 8px;
+  align-self: center;
+}
+
+.empty-state-analysis-results {
+  color: var(--vscode-foreground);
+}
+
+.agent-mode-wrapper {
+}
+
+.analysis-button-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.analysis-scheduled-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  color: var(--pf-t--global--icon--color--status--info--default);
+  font-size: 14px;
+  padding: 2px;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.analysis-button-wrapper:hover .analysis-scheduled-icon {
+  color: var(--pf-t--global--icon--color--status--info--default);
+}

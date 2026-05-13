@@ -1,0 +1,291 @@
+name: CI (repo level)
+
+on:
+  push:
+    branches:
+      - "main"
+      - "release-*"
+
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+    branches:
+      - "main"
+      - "release-*"
+
+  workflow_dispatch:
+
+concurrency:
+  group: ci-repo-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# https://typicode.github.io/husky/how-to.html#ci-server-and-docker
+env:
+  HUSKY: 0
+
+jobs:
+  validate-test-tags:
+    runs-on: ubuntu-latest
+    name: Validate E2E Test Tags
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install test dependencies
+        run: npm ci
+        working-directory: ./tests
+
+      - name: Validate test tags
+        run: scripts/validate-test-tags.sh
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install workspace dependencies
+        run: |
+          npm ci
+
+      - name: Validate extension names
+        run: |
+          scripts/validate-extension-names.sh
+
+      - name: Lint sources
+        run: |
+          npm run lint
+
+  build:
+    needs: lint
+    name: Build (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: linux
+          - os: macos-latest
+            arch: macos
+          - os: windows-latest
+            arch: windows
+      max-parallel: 3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install workspace dependencies
+        run: |
+          npm ci
+
+      - name: Build
+        run: |
+          npm run build
+
+  test:
+    name: Test (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: linux
+          - os: macos-latest
+            arch: macos
+          - os: windows-latest
+            arch: windows
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install workspace dependencies
+        run: |
+          npm ci
+
+      - name: Download rulesets for cross-validation tests
+        shell: bash
+        run: |
+          RULESET_TAG="v0.9.0-alpha.4"
+          mkdir -p downloaded_assets/rulesets
+          curl -sL "https://github.com/konveyor/rulesets/archive/refs/tags/${RULESET_TAG}.tar.gz" \
+            | tar -xz -C /tmp
+          RULESET_DIR=$(ls -d /tmp/rulesets-*/ | head -1)
+          if [ -d "${RULESET_DIR}stable" ]; then
+            # New folder layout introduced in konveyor/rulesets#342
+            find "${RULESET_DIR}stable" -name "*.yaml" -exec cp {} downloaded_assets/rulesets/ \; || true
+            find "${RULESET_DIR}preview" -name "*.yaml" -exec cp {} downloaded_assets/rulesets/ \; 2>/dev/null || true
+          else
+            # Legacy folder layout
+            cp -r "${RULESET_DIR}default/generated/"* downloaded_assets/rulesets/
+          fi
+
+      # Run tests on Linux
+      - name: Run tests (Linux)
+        if: matrix.arch == 'linux'
+        run: xvfb-run -a npm test
+
+      # Run tests on macOS
+      - name: Run tests (macOS)
+        if: matrix.arch == 'macos'
+        run: npm test
+
+      # Run tests on Windows
+      - name: Run tests (Windows)
+        if: matrix.arch == 'windows'
+        shell: cmd
+        run: npm test
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Collect runtime assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use the pinned release tag (hardcoded in collect-assets.js on this branch) when
+          # running against a release branch
+          #For main, always pull the latest artifacts from the main workflow.
+          TARGET_BRANCH="${{ github.base_ref || github.ref_name }}"
+          if [[ "$TARGET_BRANCH" == release-* ]]; then
+            npm run collect-assets -- --use-release
+          else
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          fi
+
+      - name: Set development version
+        run: |
+          CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          VERSION="${CURRENT_VERSION}-dev.${TIMESTAMP}.${SHA}"
+          echo "Setting development version: $VERSION"
+          npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
+
+      - name: Assemble changelog (draft)
+        run: npm run changelog:assemble -- --draft
+
+      - name: Build dist
+        run: npm run dist
+
+      - name: Package extensions
+        run: npm run package
+
+      - name: Upload VSIX artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-artifacts
+          path: ./dist/*.vsix
+
+  test-e2e:
+    name: E2E Tests
+    needs: package
+    uses: ./.github/workflows/e2e-tests.yml
+    with:
+      vsix_artifact_name: "vsix-artifacts"
+      trigger_context: ${{ github.event_name == 'pull_request' && 'pr' || 'manual' }}
+      use_release: ${{ startsWith(github.base_ref, 'release-') || startsWith(github.ref_name, 'release-') }}
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  dev-builds:
+    name: Publish Development Build
+    runs-on: ubuntu-latest
+    needs: test-e2e
+    # Only publish development builds on push events (not PRs)
+    if: ${{ github.event_name != 'pull_request' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-artifacts
+          path: ./dist
+
+      - name: Deploy development builds
+        run: |
+          for vsix in ./dist/*.vsix; do
+            VSIX_NAME=$(basename "$vsix")
+            echo "Uploading $VSIX_NAME"
+            gh release upload development-builds "$vsix" --clobber
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Cleanup old development builds
+        run: |
+          # Keep last N builds per extension type
+          BUILDS_TO_KEEP=7
+
+          # Process each extension type
+          for ext in konveyor-core konveyor konveyor-java konveyor-javascript konveyor-go konveyor-csharp; do
+            echo "Processing ${ext}..."
+
+            # Match pattern: {ext}-{version} where version starts with a digit
+            # This handles "konveyor-0.4.0..." and "konveyor-java-0.4.0..." correctly
+            assets=$(gh release view -R ${{ github.repository }} development-builds --json assets | \
+              jq -r ".assets[].name | select(test(\"^${ext}-[0-9]\"))" | \
+              sort -r)
+
+            count=0
+            for asset in $assets; do
+              count=$((count + 1))
+              if [ "$count" -gt "$BUILDS_TO_KEEP" ]; then
+                echo "Deleting old asset: $asset"
+                gh release delete-asset -y -R ${{ github.repository }} development-builds "$asset"
+              else
+                echo "Keeping: $asset"
+              fi
+            done
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,23 @@
+# Library, IDE and build locations
+**/node_modules/
+**/coverage/
+**/dist/
+**/out/
+.vscode/
+.prettierignore
+.idea/
+.eslintcache/
+.DS_Store
+.editorconfig
+.gitignore
+.husky
+.nvmrc
+.vscodeignore
+assets
+media
+resources
+
+#
+# NOTE: Could ignore anything that eslint will look at since eslint also applies
+#       prettier.
+#

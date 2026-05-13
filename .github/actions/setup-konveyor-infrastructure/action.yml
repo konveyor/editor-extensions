@@ -1,0 +1,352 @@
+name: "Setup Konveyor Infrastructure"
+description: "Sets up Minikube, Konveyor, Llemulator, and configures authentication for infrastructure tests"
+
+inputs:
+  namespace:
+    description: "Kubernetes namespace for Konveyor"
+    required: false
+    default: "konveyor-tackle"
+  admin_password:
+    description: "Password for the admin user"
+    required: false
+    default: "Passw0rd!"
+  llm_model:
+    description: "LLM model to use"
+    required: false
+    default: "gpt-4o"
+  llm_provider:
+    description: "LLM provider"
+    required: false
+    default: "openai"
+
+outputs:
+  hub_url:
+    description: "URL of the Konveyor Hub"
+    value: ${{ steps.wait_ingress.outputs.hub_url }}
+  llemulator_url:
+    description: "External URL of llemulator for test access"
+    value: ${{ steps.expose_llemulator.outputs.llemulator_url }}
+  admin_username:
+    description: "Admin username"
+    value: "admin"
+  admin_password:
+    description: "Admin password"
+    value: ${{ inputs.admin_password }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Konveyor Operator (for scripts)
+      uses: actions/checkout@v4
+      with:
+        repository: konveyor/operator
+        path: konveyor-operator
+        ref: main
+
+    - name: Start Minikube
+      uses: konveyor/operator/.github/actions/start-minikube@main
+      with:
+        cpus: "max"
+        memory: "max"
+
+    - name: Setup Namespace and Secrets
+      shell: bash
+      run: |
+        echo "=== Creating namespace and secrets ==="
+        kubectl create namespace ${{ inputs.namespace }} || true
+
+        # Create API key secret for LLM proxy
+        kubectl create secret generic kai-api-keys \
+          --from-literal=OPENAI_API_KEY=dummy-key-for-llemulator \
+          -n ${{ inputs.namespace }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        echo "✓ Namespace and secrets created"
+
+    - name: Deploy Llemulator
+      shell: bash
+      run: |
+        echo "=== Deploying llemulator ==="
+        cd konveyor-operator
+        ./test/e2e/llm-proxy/setup-llemulator.sh
+        cd ..
+
+        echo "=== Verifying llemulator deployment ==="
+        kubectl get deployment llemulator -n ${{ inputs.namespace }}
+        kubectl get service llemulator -n ${{ inputs.namespace }}
+
+        echo "=== Waiting for llemulator to be ready ==="
+        kubectl wait --for=condition=available --timeout=300s deployment/llemulator -n ${{ inputs.namespace }}
+
+        echo "✓ Llemulator deployed and ready"
+
+    - name: Expose Llemulator for External Access
+      id: expose_llemulator
+      shell: bash
+      run: |
+        echo "=== Exposing llemulator for external access ==="
+
+        # Create a new NodePort service for external access
+        cat <<EOF | kubectl apply -f -
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: llemulator-external
+          namespace: ${{ inputs.namespace }}
+        spec:
+          type: NodePort
+          selector:
+            app: llemulator
+          ports:
+            - port: 80
+              targetPort: 8080
+              nodePort: 30089
+        EOF
+
+        MINIKUBE_IP=$(minikube ip)
+        LLEMULATOR_URL="http://${MINIKUBE_IP}:30089/v1"
+        echo "llemulator_url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
+
+        echo "Llemulator external URL: ${LLEMULATOR_URL}"
+
+        # Wait for service to be ready
+        for i in {1..30}; do
+          if curl -s "${LLEMULATOR_URL}/chat/completions" -H "Content-Type: application/json" -d '{"model":"gpt-4o","messages":[]}' > /dev/null 2>&1; then
+            echo "✓ Llemulator service is ready"
+            break
+          fi
+          echo "Waiting for llemulator external access... ($i/30)"
+          sleep 2
+        done
+
+    - name: Verify Llemulator Direct Access
+      shell: bash
+      run: |
+        echo "=== Testing llemulator direct access ==="
+        LLEMULATOR_URL="${{ steps.expose_llemulator.outputs.llemulator_url }}"
+        echo "Testing llemulator at: ${LLEMULATOR_URL}"
+
+        RESPONSE=$(curl -s -X POST "${LLEMULATOR_URL}/chat/completions" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer dummy-key-for-llemulator" \
+          -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test"}]}')
+
+        echo "Llemulator response: $RESPONSE"
+
+        if echo "$RESPONSE" | grep -q "choices"; then
+          echo "✓ Llemulator is responding correctly (direct access)"
+        else
+          echo "✗ Llemulator did not return a valid response"
+          exit 1
+        fi
+
+    - name: Install Konveyor
+      uses: konveyor/operator/.github/actions/install-konveyor@main
+      with:
+        namespace: ${{ inputs.namespace }}
+        tackle_cr: |
+          kind: Tackle
+          apiVersion: tackle.konveyor.io/v1alpha1
+          metadata:
+            name: tackle
+          spec:
+            feature_auth_required: true
+            kai_solution_server_enabled: true
+            kai_llm_proxy_enabled: true
+            kai_llm_model: ${{ inputs.llm_model }}
+            kai_llm_provider: ${{ inputs.llm_provider }}
+            kai_llm_baseurl: http://llemulator.${{ inputs.namespace }}.svc.cluster.local/v1
+            kai_api_key_secret_name: kai-api-keys
+
+    - name: Wait for Ingress
+      id: wait_ingress
+      shell: bash
+      run: |
+        echo "=== Waiting for ingress to be ready ==="
+        kubectl wait \
+          -n ${{ inputs.namespace }} \
+          ingress/tackle \
+          --timeout=600s \
+          --for=jsonpath='{.status.loadBalancer.ingress[0]}'
+
+        minikube_ip=$(minikube ip)
+        HUB_URL="https://${minikube_ip}"
+        echo "Minikube IP: ${minikube_ip}"
+        echo "hub_url=${HUB_URL}" >> $GITHUB_OUTPUT
+
+        echo "✓ Ingress is ready"
+
+    - name: Configure Hub Admin Credentials
+      shell: bash
+      env:
+        ADMIN_PASSWORD: ${{ inputs.admin_password }}
+        NAMESPACE: ${{ inputs.namespace }}
+      run: |
+        echo "=== Configuring Hub admin credentials ==="
+
+        echo -n "Waiting for admin user in tackle realm..."
+        ADMIN_EXISTS=false
+        ADMIN_SECRET=$(kubectl get secret tackle-keycloak-sso -n ${NAMESPACE} -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || true)
+
+        for i in $(seq 1 30); do
+          # Get admin token
+          ADMIN_TOKEN_RESPONSE=$(kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X POST \
+            http://tackle-keycloak-sso:8080/auth/realms/master/protocol/openid-connect/token \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=password&client_id=admin-cli&username=admin&password=$ADMIN_SECRET" 2>/dev/null || echo "{}")
+
+          if echo "$ADMIN_TOKEN_RESPONSE" | grep -q "access_token"; then
+            ADMIN_TOKEN=$(echo "$ADMIN_TOKEN_RESPONSE" | jq -r '.access_token' 2>/dev/null || true)
+            if [ -n "$ADMIN_TOKEN" ]; then
+              # Check for admin user in tackle realm
+              USERS_RESPONSE=$(kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s \
+                "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users?username=admin" \
+                -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || echo "[]") # notsecret
+
+              if echo "$USERS_RESPONSE" | grep -q '"username":"admin"'; then
+                echo " found"
+                ADMIN_EXISTS=true
+
+                # Get admin user ID
+                ADMIN_USER_ID=$(echo "$USERS_RESPONSE" | jq -r '.[0].id // empty' 2>/dev/null || true)
+                break
+              fi
+            fi
+          fi
+          echo -n "."
+          sleep 5
+        done
+
+        if [ "$ADMIN_EXISTS" != true ]; then
+          echo " timeout (admin user may not exist yet)"
+          exit 1
+        fi
+
+        echo "Got Keycloak admin token and user ID: $ADMIN_USER_ID"
+
+        # Clear required actions
+        kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X PUT \
+          "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID" \
+          -H "Authorization: Bearer $ADMIN_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"requiredActions": []}' &>/dev/null
+
+        # Reset password
+        kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X PUT \
+          "http://tackle-keycloak-sso:8080/auth/admin/realms/tackle/users/$ADMIN_USER_ID/reset-password" \
+          -H "Authorization: Bearer $ADMIN_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{\"type\": \"password\", \"value\": \"${ADMIN_PASSWORD}\", \"temporary\": false}" &>/dev/null
+
+        echo "✓ Admin user configured (admin:${ADMIN_PASSWORD})"
+
+    - name: Seed Hub with Test Data
+      shell: bash
+      env:
+        HUB_URL: ${{ steps.wait_ingress.outputs.hub_url }}
+        USERNAME: "admin"
+        PASSWORD: ${{ inputs.admin_password }}
+      run: |
+        echo "=== Seeding Hub with test data ==="
+        chmod +x ./tests/scripts/seed-hub.sh
+        ./tests/scripts/seed-hub.sh
+
+    - name: Wait for LLM Proxy and Solution Server
+      shell: bash
+      run: |
+        echo "=== Checking if deployments exist ==="
+        for i in {1..60}; do
+          if kubectl get deployment llm-proxy -n ${{ inputs.namespace }} > /dev/null 2>&1; then
+            echo "✓ llm-proxy deployment found"
+            break
+          fi
+          echo "Waiting for llm-proxy deployment to be created... ($i/60)"
+          sleep 5
+        done
+
+        echo "=== Waiting for deployments to be ready ==="
+        kubectl wait --for=condition=available --timeout=600s deployment/llm-proxy -n ${{ inputs.namespace }}
+        kubectl wait --for=condition=available --timeout=600s deployment/kai-api -n ${{ inputs.namespace }}
+
+        echo "=== Deployment status ==="
+        kubectl get deployments -n ${{ inputs.namespace }} | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
+        kubectl get pods -n ${{ inputs.namespace }} | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
+
+        echo "✓ LLM proxy and solution server enabled"
+
+    - name: Verify LLM Proxy Health
+      shell: bash
+      run: |
+        echo "=== Checking LLM proxy health ==="
+
+        # Check if llm-proxy is healthy
+        POD=$(kubectl get pods -n ${{ inputs.namespace }} -l app.kubernetes.io/name=llm-proxy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD" ]; then
+          echo "✗ No llm-proxy pod found"
+          exit 1
+        fi
+
+        echo "LLM Proxy pod: $POD"
+        kubectl get pod $POD -n ${{ inputs.namespace }}
+
+        echo "✓ LLM proxy is running"
+
+    - name: Verify Llemulator via LLM Proxy
+      shell: bash
+      env:
+        HUB_URL: ${{ steps.wait_ingress.outputs.hub_url }}
+        ADMIN_PASSWORD: ${{ inputs.admin_password }}
+        NAMESPACE: ${{ inputs.namespace }}
+      run: |
+        echo "=== Testing llemulator access through LLM proxy ==="
+
+        # Get JWT token from Keycloak for admin user
+        echo "Getting JWT token from Keycloak..."
+        TOKEN_RESPONSE=$(curl -s -k -X POST "${HUB_URL}/auth/realms/tackle/protocol/openid-connect/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=password&client_id=backend&username=admin&password=${ADMIN_PASSWORD}")
+
+        JWT_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token // empty')
+        if [ -z "$JWT_TOKEN" ]; then
+          echo "Failed to get JWT token. Response: $TOKEN_RESPONSE"
+          echo "Skipping LLM proxy verification (auth not configured for direct access)"
+          exit 0
+        fi
+        echo "✓ Got JWT token"
+
+        # Get the llm-proxy service port
+        LLM_PROXY_PORT=$(kubectl get svc llm-proxy -n ${NAMESPACE} -o jsonpath='{.spec.ports[0].port}')
+        echo "LLM Proxy service port: ${LLM_PROXY_PORT}"
+
+        # Port-forward to llm-proxy using the correct port
+        kubectl port-forward -n ${NAMESPACE} svc/llm-proxy 8090:${LLM_PROXY_PORT} &
+        PF_PID=$!
+
+        # Wait for port-forward to be ready
+        for i in {1..30}; do
+          if curl -s http://localhost:8090/health > /dev/null 2>&1; then
+            echo "LLM Proxy port-forward is ready"
+            break
+          fi
+          echo "Waiting for LLM proxy port-forward... ($i/30)"
+          sleep 2
+        done
+
+        # Test LLM proxy can reach llemulator with JWT token
+        RESPONSE=$(curl -s -X POST "http://localhost:8090/v1/chat/completions" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${JWT_TOKEN}" \
+          -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}') # notsecret
+
+        echo "LLM Proxy response: $RESPONSE"
+
+        kill $PF_PID 2>/dev/null || true
+
+        if echo "$RESPONSE" | grep -q "choices"; then
+          echo "✓ LLM Proxy can reach llemulator successfully"
+        else
+          echo "✗ LLM Proxy failed to reach llemulator"
+          echo "LLM Proxy logs:"
+          kubectl logs -n ${NAMESPACE} deployment/llm-proxy --tail=50
+          exit 1
+        fi

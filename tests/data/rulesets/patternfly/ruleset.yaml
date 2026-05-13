@@ -1,0 +1,54 @@
+name: patternfly-v5/patternfly-v6
+description: This ruleset provides guidance for migrating from patternfly-v5 to patternfly-v6
+
+includes:
+  - patternfly-v5-to-patternfly-v6-accordion.yaml
+  - patternfly-v5-to-patternfly-v6-avatar.yaml
+  - patternfly-v5-to-patternfly-v6-banner.yaml
+  - patternfly-v5-to-patternfly-v6-breakpoints.yaml
+  - patternfly-v5-to-patternfly-v6-button.yaml
+  - patternfly-v5-to-patternfly-v6-card.yaml
+  - patternfly-v5-to-patternfly-v6-charts.yaml
+  - patternfly-v5-to-patternfly-v6-checkbox.yaml
+  - patternfly-v5-to-patternfly-v6-chip.yaml
+  - patternfly-v5-to-patternfly-v6-cleanup.yaml
+  - patternfly-v5-to-patternfly-v6-component-groups.yaml
+  - patternfly-v5-to-patternfly-v6-component-props.yaml
+  - patternfly-v5-to-patternfly-v6-component-removal.yaml
+  - patternfly-v5-to-patternfly-v6-component-rename.yaml
+  - patternfly-v5-to-patternfly-v6-component-renames.yaml
+  - patternfly-v5-to-patternfly-v6-component-structure.yaml
+  - patternfly-v5-to-patternfly-v6-components.yaml
+  - patternfly-v5-to-patternfly-v6-css-classes.yaml
+  - patternfly-v5-to-patternfly-v6-css-tokens.yaml
+  - patternfly-v5-to-patternfly-v6-css-units.yaml
+  - patternfly-v5-to-patternfly-v6-css-values.yaml
+  - patternfly-v5-to-patternfly-v6-css-variables.yaml
+  - patternfly-v5-to-patternfly-v6-data-list.yaml
+  - patternfly-v5-to-patternfly-v6-deprecated-components.yaml
+  - patternfly-v5-to-patternfly-v6-drag-drop.yaml
+  - patternfly-v5-to-patternfly-v6-drawer.yaml
+  - patternfly-v5-to-patternfly-v6-dual-list-selector.yaml
+  - patternfly-v5-to-patternfly-v6-empty-state.yaml
+  - patternfly-v5-to-patternfly-v6-form.yaml
+  - patternfly-v5-to-patternfly-v6-helper-text.yaml
+  - patternfly-v5-to-patternfly-v6-import-path.yaml
+  - patternfly-v5-to-patternfly-v6-import-paths.yaml
+  - patternfly-v5-to-patternfly-v6-imports.yaml
+  - patternfly-v5-to-patternfly-v6-interface-renames.yaml
+  - patternfly-v5-to-patternfly-v6-label.yaml
+  - patternfly-v5-to-patternfly-v6-login.yaml
+  - patternfly-v5-to-patternfly-v6-masthead.yaml
+  - patternfly-v5-to-patternfly-v6-menu.yaml
+  - patternfly-v5-to-patternfly-v6-patternfly-v6.yaml
+  - patternfly-v5-to-patternfly-v6-promoted-components.yaml
+  - patternfly-v5-to-patternfly-v6-radio.yaml
+  - patternfly-v5-to-patternfly-v6-react-tokens.yaml
+  - patternfly-v5-to-patternfly-v6-removed-components.yaml
+  - patternfly-v5-to-patternfly-v6-removed-props.yaml
+  - patternfly-v5-to-patternfly-v6-renamed-interfaces.yaml
+  - patternfly-v5-to-patternfly-v6-renamed-props.yaml
+  - patternfly-v5-to-patternfly-v6-toolbar.yaml
+  - patternfly-v5-to-patternfly-v6-unauthorized-access.yaml
+  - patternfly-v5-to-patternfly-v6-unavailable-content.yaml
+  - patternfly-v5-to-patternfly-v6-wizard.yaml

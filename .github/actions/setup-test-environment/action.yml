@@ -1,0 +1,125 @@
+name: "Setup E2E Test Environment"
+description: "Sets up the common environment for E2E tests"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ".nvmrc"
+        cache: "npm"
+
+    - name: Install VSCode dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y wget
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: "oracle"
+        java-version: "17"
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.23"
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "8.0.x"
+
+    - name: Install .NET global tools (ilspycmd and paket)
+      shell: bash
+      run: |
+        dotnet tool install --global ilspycmd || echo "ilspycmd may already be installed"
+        dotnet tool install --global paket || echo "paket may already be installed"
+        # Ensure ~/.dotnet/tools is in PATH
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+        # Verify tools are accessible
+        ilspycmd --version || echo "Warning: ilspycmd not in PATH"
+        paket --version || echo "Warning: paket not in PATH"
+
+    - name: Download and Install VSCode
+      shell: bash
+      run: |
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+        sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+        echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+        rm -f packages.microsoft.gpg
+        sudo apt install apt-transport-https -y
+        sudo apt update
+        sudo apt install code -y
+
+    - name: Set up virtual X11 and keyring
+      shell: bash
+      run: |
+        sudo apt-get install -y \
+          xvfb x11-xserver-utils dbus-x11 \
+          xfonts-100dpi xfonts-75dpi libxrender1 \
+          libxext6 libx11-6 xfonts-base \
+          nickle cairo-5c xorg-docs-core \
+          gnome-keyring libsecret-1-0
+
+    - name: Set DISPLAY environment variable
+      shell: bash
+      run: |
+        Xvfb :99 -screen 0 1920x1080x24 &
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
+    - name: Start Dbus and gnome-keyring
+      shell: bash
+      run: |
+        # Setup XDG_RUNTIME_DIR
+        export XDG_RUNTIME_DIR=/run/user/$(id -u)
+        sudo mkdir -p $XDG_RUNTIME_DIR
+        sudo chmod 700 $XDG_RUNTIME_DIR
+        sudo chown $(id -un):$(id -gn) $XDG_RUNTIME_DIR
+        echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$GITHUB_ENV"
+
+        # Start system dbus
+        sudo service dbus start
+
+        # Start session dbus
+        export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
+        dbus-daemon --session --address=$DBUS_SESSION_BUS_ADDRESS --nofork --nopidfile --syslog-only &
+        sleep 3
+        echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+
+        # Create keyring control directory
+        mkdir -p $XDG_RUNTIME_DIR/keyring
+        chmod 700 $XDG_RUNTIME_DIR/keyring
+
+        # Start gnome-keyring (without --start or --daemonize which are broken in 46.1)
+        echo '' | gnome-keyring-daemon --unlock --components=secrets &
+        sleep 5
+
+        # Verify D-Bus service registration
+        if dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+           /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep -q "secrets"; then
+          echo "✓ gnome-keyring service registered in D-Bus"
+        else
+          echo "⚠ Warning: org.freedesktop.secrets NOT found in D-Bus"
+        fi
+
+        # Force keyring initialization by storing a test secret
+        # This creates the default keyring if it doesn't exist
+        sudo apt-get install -y libsecret-tools > /dev/null 2>&1
+        echo "test_init" | secret-tool store --label='Init' init-test key1 2>/dev/null || true
+        secret-tool clear init-test key1 2>/dev/null || true
+        echo "✓ Keyring initialized with test secret"
+
+        mkdir -p ~/.vscode && echo '{ "disable-hardware-acceleration": true }' > ~/.vscode/argv.json
+
+    - name: Verify Installation
+      shell: bash
+      run: code --version
+
+    - name: Ensure no VSCode instances are running
+      shell: bash
+      run: pkill -f code || true
+
+    - name: Install test dependencies
+      shell: bash
+      run: npm ci
+      working-directory: ./tests

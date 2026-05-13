@@ -1,0 +1,45 @@
+- ruleID: patternfly-v5-to-patternfly-v6-avatar-00000
+  description: Avatar border should be replaced with Avatar isBordered
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Avatar
+    - builtin.filecontent:
+        pattern: <Avatar[^>]*\bborder\b
+        filePattern: \.(j|t)sx?$
+  message: 'The border prop has been removed from Avatar since theming is not longer
+
+    handled React-side. We recommend using the isBordered prop instead to add a border
+
+    to Avatar.
+
+
+    Replace `Avatar border` with `Avatar isBordered`.
+
+
+    Before:
+
+    ```
+
+    <Avatar border="dark" />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Avatar isBordered />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9881
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

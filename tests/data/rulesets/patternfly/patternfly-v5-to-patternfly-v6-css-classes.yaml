@@ -1,0 +1,38 @@
+- ruleID: patternfly-v5-to-patternfly-v6-css-classes-00000
+  description: pf-v5- should be replaced with pf-v6-
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    builtin.filecontent:
+      pattern: pf-v5-
+      filePattern: \.(css|scss|(j|t)sx?)$
+  message: 'CSS class prefixes have been updated from pf-v5- to pf-v6-
+
+
+    Replace `pf-v5-` with `pf-v6-`.
+
+
+    Before:
+
+    ```
+
+    className="pf-v5-c-button"
+
+    ```
+
+
+    After:
+
+    ```
+
+    className="pf-v6-c-button"
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

@@ -1,0 +1,3 @@
+kind: enhancement
+description: >
+  Added network error classification and diagnostic logging for Hub API calls to help triage connection issues in restricted environments.

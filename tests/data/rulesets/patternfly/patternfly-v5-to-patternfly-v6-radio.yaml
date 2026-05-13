@@ -1,0 +1,43 @@
+- ruleID: patternfly-v5-to-patternfly-v6-radio-00000
+  description: Radio isLabelBeforeButton should be replaced with Radio labelPosition="start"
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Radio
+    - builtin.filecontent:
+        pattern: <Radio[^>]*\bisLabelBeforeButton\b
+        filePattern: \.(j|t)sx?$
+  message: 'The isLabelBeforeButton prop in Checkbox and Radio has been replaced with
+
+    labelPosition="start"
+
+
+    Replace `Radio isLabelBeforeButton` with `Radio labelPosition="start"`.
+
+
+    Before:
+
+    ```
+
+    <Radio isLabelBeforeButton />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Radio labelPosition="start" />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10016
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

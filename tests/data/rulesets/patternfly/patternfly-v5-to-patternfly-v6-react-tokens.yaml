@@ -1,0 +1,282 @@
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00000
+  description: global_FontSize_lg should be replaced with t_global_font_size_lg
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_FontSize_lg
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+
+    Replace `global_FontSize_lg` with `t_global_font_size_lg`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    import { global_FontSize_lg } from ''@patternfly/react-tokens'';
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    import { t_global_font_size_lg } from ''@patternfly/react-tokens'';
+
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00010
+  description: global_breakpoint_xs should be replaced with t_global_breakpoint_xs
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_breakpoint_xs
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+    Replace `global_breakpoint_xs` with `t_global_breakpoint_xs`.
+
+
+    Before:
+
+    ```
+
+    import { global_breakpoint_xs } from ''@patternfly/react-tokens'';
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { t_global_breakpoint_xs } from ''@patternfly/react-tokens'';
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00020
+  description: global_breakpoint_sm should be replaced with t_global_breakpoint_sm
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_breakpoint_sm
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+    Replace `global_breakpoint_sm` with `t_global_breakpoint_sm`.
+
+
+    Before:
+
+    ```
+
+    import { global_breakpoint_sm } from ''@patternfly/react-tokens'';
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { t_global_breakpoint_sm } from ''@patternfly/react-tokens'';
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00030
+  description: global_breakpoint_md should be replaced with t_global_breakpoint_md
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_breakpoint_md
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+    Replace `global_breakpoint_md` with `t_global_breakpoint_md`.
+
+
+    Before:
+
+    ```
+
+    import { global_breakpoint_md } from ''@patternfly/react-tokens'';
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { t_global_breakpoint_md } from ''@patternfly/react-tokens'';
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00040
+  description: global_breakpoint_lg should be replaced with t_global_breakpoint_lg
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_breakpoint_lg
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+    Replace `global_breakpoint_lg` with `t_global_breakpoint_lg`.
+
+
+    Before:
+
+    ```
+
+    import { global_breakpoint_lg } from ''@patternfly/react-tokens'';
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { t_global_breakpoint_lg } from ''@patternfly/react-tokens'';
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00050
+  description: global_breakpoint_xl should be replaced with t_global_breakpoint_xl
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_breakpoint_xl
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+    Replace `global_breakpoint_xl` with `t_global_breakpoint_xl`.
+
+
+    Before:
+
+    ```
+
+    import { global_breakpoint_xl } from ''@patternfly/react-tokens'';
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { t_global_breakpoint_xl } from ''@patternfly/react-tokens'';
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-react-tokens-00060
+  description: global_breakpoint_2xl should be replaced with t_global_breakpoint_2xl
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: global_breakpoint_2xl
+  message: 'React token naming has changed in PatternFly 6 with the new design token
+
+    system
+
+
+    Replace `global_breakpoint_2xl` with `t_global_breakpoint_2xl`.
+
+
+    Before:
+
+    ```
+
+    import { global_breakpoint_2xl } from ''@patternfly/react-tokens'';
+
+    ```
+
+
+    After:
+
+    ```
+
+    import { t_global_breakpoint_2xl } from ''@patternfly/react-tokens'';
+
+    ```'
+  links:
+  - url: https://www.patternfly.org/get-started/upgrade
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

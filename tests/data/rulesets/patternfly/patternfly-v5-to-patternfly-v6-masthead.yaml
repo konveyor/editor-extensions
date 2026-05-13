@@ -1,0 +1,91 @@
+- ruleID: patternfly-v5-to-patternfly-v6-masthead-00000
+  description: MastheadBrand should be replaced with MastheadLogo
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: MastheadBrand
+  message: 'Our old implementation of MastheadBrand has been renamed to MastheadLogo,
+
+    which must be wrapped by our new implementation of MastheadBrand.
+
+
+
+    Replace `MastheadBrand` with `MastheadLogo`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    <MastheadBrand>Logo</MastheadBrand>
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    <MastheadLogo>Logo</MastheadLogo>
+
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10809
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-masthead-00010
+  description: Masthead backgroundColor should be replaced with Masthead
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: Masthead
+    - builtin.filecontent:
+        pattern: <Masthead[^>]*\bbackgroundColor\b
+        filePattern: \.(j|t)sx?$
+  message: 'We''ve removed the backgroundColor prop from Masthead as theming is no
+
+    longer handled React-side.
+
+
+    Replace `Masthead backgroundColor` with `Masthead`.
+
+
+    Before:
+
+    ```
+
+    <Masthead backgroundColor />
+
+    ```
+
+
+    After:
+
+    ```
+
+    <Masthead />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/9774
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

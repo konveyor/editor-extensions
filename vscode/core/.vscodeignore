@@ -1,0 +1,11 @@
+# development paths and files
+.vscode/
+node_modules/
+src/
+.vscode-test.mjs
+.gitignore
+tsconfig.*
+
+# Don't include ANY file or directory that includes "../" in its name
+../
+

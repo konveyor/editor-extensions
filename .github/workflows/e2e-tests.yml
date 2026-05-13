@@ -1,0 +1,486 @@
+name: E2E Tests
+
+on:
+  workflow_call:
+    inputs:
+      vsix_artifact_name:
+        required: true
+        type: string
+      trigger_context:
+        required: true
+        type: string # 'pr', 'release', 'manual'
+      use_release:
+        required: false
+        type: boolean
+        default: false # when true, collect-assets uses --use-release (pinned tag) instead of latest workflow artifacts
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+
+jobs:
+  # Shared setup for all test jobs
+  setup:
+    name: Setup Test Environment
+    runs-on: ubuntu-latest
+    outputs:
+      core_vsix: ${{ steps.set_vsix_paths.outputs.core_vsix }}
+      java_vsix: ${{ steps.set_vsix_paths.outputs.java_vsix }}
+      javascript_vsix: ${{ steps.set_vsix_paths.outputs.javascript_vsix }}
+      go_vsix: ${{ steps.set_vsix_paths.outputs.go_vsix }}
+      csharp_vsix: ${{ steps.set_vsix_paths.outputs.csharp_vsix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Set VSIX paths
+        id: set_vsix_paths
+        run: |
+          # Read extension names from package.json files
+          CORE_NAME=$(node -p "require('./vscode/core/package.json').name")
+          JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
+          JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
+          GO_NAME=$(node -p "require('./vscode/go/package.json').name")
+          CSHARP_NAME=$(node -p "require('./vscode/csharp/package.json').name")
+
+          # Find the actual VSIX files
+          CORE_VSIX=$(ls ./dist/${CORE_NAME}-*.vsix | head -n 1)
+          JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
+          JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
+          GO_VSIX=$(ls ./dist/${GO_NAME}-*.vsix | head -n 1)
+          CSHARP_VSIX=$(ls ./dist/${CSHARP_NAME}-*.vsix | head -n 1)
+
+          # Verify and output
+          for vsix in "$CORE_VSIX" "$JAVA_VSIX" "$JS_VSIX" "$GO_VSIX" "$CSHARP_VSIX"; do
+            [ ! -f "$vsix" ] && echo "Error: VSIX not found: $vsix" && exit 1
+          done
+
+          echo "core_vsix=${CORE_VSIX}" >> $GITHUB_OUTPUT
+          echo "java_vsix=${JAVA_VSIX}" >> $GITHUB_OUTPUT
+          echo "javascript_vsix=${JS_VSIX}" >> $GITHUB_OUTPUT
+          echo "go_vsix=${GO_VSIX}" >> $GITHUB_OUTPUT
+          echo "csharp_vsix=${CSHARP_VSIX}" >> $GITHUB_OUTPUT
+
+      # Download analyzer binary for custom-binary-analysis.test.ts
+      - name: Install root dependencies (for collect-assets script)
+        run: npm ci
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ${{ inputs.use_release }}; then
+            npm run collect-assets -- --use-release
+          else
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          fi
+
+      - name: Upload downloaded assets (for custom binary tests)
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+          retention-days: 1
+
+  # Critical tests - block PRs and releases
+  test-tier0:
+    name: Critical Tests (@tier0)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+
+      - name: Run tier0 tests (excluding slow/infrastructure/offline)
+        run: npx playwright test --grep "@tier0" --grep-invert "@slow|@requires-minikube|@offline"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+
+      # This is intentionally kept in a separate step to avoid passing in credentials
+      - name: Run tier0 offline tests (no real API calls)
+        run: npx playwright test --grep "@tier0" --grep "@offline"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: <dummy> # this only exists to pass provider validation notsecret
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier0-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Important tests - block releases only
+  test-tier1:
+    name: Important Tests (@tier1)
+    runs-on: ubuntu-latest
+    needs: setup
+    # Only required for releases, but run on PRs for visibility
+    continue-on-error: ${{ inputs.trigger_context == 'pr' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment
+
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+
+      - name: Run tier1 tests (excluding slow/infrastructure on PRs)
+        run: |
+          # Check if any tier1 tests exist
+          if ! npx playwright test --list --grep "@tier1" 2>&1 | grep -q "Total: 0 tests"; then
+            if [ "${{ inputs.trigger_context }}" == "pr" ]; then
+              npx playwright test --grep "@tier1" --grep-invert "@slow|@requires-minikube"
+            else
+              npx playwright test --grep "@tier1" --grep-invert "@requires-minikube"
+            fi
+          else
+            echo "No @tier1 tests found, skipping"
+          fi
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier1-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Nice-to-have tests - never block
+  test-tier2:
+    name: Nice-to-have Tests (@tier2)
+    runs-on: ubuntu-latest
+    needs: setup
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment
+
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+
+      - name: Run tier2 tests
+        id: tier2_tests
+        run: npx playwright test --grep "@tier2" --grep-invert "@slow|@requires-minikube|@offline"
+        working-directory: ./tests
+        continue-on-error: true
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier2-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Experimental tests - never block
+  test-tier3:
+    name: Experimental Tests (@tier3)
+    runs-on: ubuntu-latest
+    needs: setup
+    continue-on-error: true
+    if: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment
+
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+
+      - name: Run tier3 tests
+        run: npx playwright test --grep "@tier3" --grep-invert "@requires-minikube"
+        working-directory: ./tests
+        continue-on-error: true
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier3-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Infrastructure tests - requires minikube + Konveyor
+  test-infrastructure:
+    name: Infrastructure Tests (@requires-minikube)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Konveyor Infrastructure
+        id: infra
+        uses: ./.github/actions/setup-konveyor-infrastructure
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets
+          path: ./downloaded_assets
+
+      - name: Run infrastructure tests
+        run: npx playwright test --grep "@requires-minikube" --grep-invert "@tier3"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "true"
+          TEST_HUB_USERNAME: ${{ steps.infra.outputs.admin_username }}
+          TEST_HUB_PASSWORD: ${{ steps.infra.outputs.admin_password }}
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
+      - name: Run experimental infrastructure tests (@tier3 @requires-minikube)
+        continue-on-error: true
+        run: npx playwright test --grep "(?=.*@tier3)(?=.*@requires-minikube)"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "true"
+          TEST_HUB_USERNAME: ${{ steps.infra.outputs.admin_username }}
+          TEST_HUB_PASSWORD: ${{ steps.infra.outputs.admin_password }}
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
+      - name: Disable Konveyor Authentication
+        run: |
+          echo "=== Disabling Konveyor authentication ==="
+
+          # Patch the Tackle CR to disable auth
+          kubectl patch tackle tackle -n konveyor-tackle --type='merge' -p '{"spec":{"feature_auth_required":false}}'
+
+          echo "Waiting for pods to restart..."
+          # Wait for the hub to restart with new config
+          kubectl rollout status deployment/tackle-hub -n konveyor-tackle --timeout=300s
+
+          # Give some extra time for the system to stabilize
+          sleep 30
+
+          echo "✓ Authentication disabled"
+
+      - name: Run llm proxy tests (no auth)
+        run: npx playwright test --no-deps e2e/tests/ccm/llm-proxy.test.ts
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_HUB_URL: ${{ steps.infra.outputs.hub_url }}
+          TEST_HUB_AUTH_ENABLED: "false"
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
+      - name: Collect infrastructure logs
+        if: always()
+        run: |
+          echo "=== Collecting infrastructure logs and diagnostics ==="
+          mkdir -p tests/test-output/k8s-logs
+
+          # Collect deployment information
+          echo "Collecting deployment status..."
+          kubectl get deployments -n konveyor-tackle -o wide > tests/test-output/k8s-logs/deployments.txt || true
+          kubectl get pods -n konveyor-tackle -o wide > tests/test-output/k8s-logs/pods.txt || true
+          kubectl get services -n konveyor-tackle -o wide > tests/test-output/k8s-logs/services.txt || true
+          kubectl get ingress -n konveyor-tackle -o wide > tests/test-output/k8s-logs/ingress.txt || true
+
+          # Collect Tackle CR configuration
+          echo "Collecting Tackle CR configuration..."
+          kubectl get tackle tackle -n konveyor-tackle -o yaml > tests/test-output/k8s-logs/tackle-cr.yaml || true
+
+          # Collect pod logs
+          echo "Collecting pod logs..."
+          kubectl logs -n konveyor-tackle deployment/tackle-hub --tail=1000 > tests/test-output/k8s-logs/hub.log || true
+          kubectl logs -n konveyor-tackle -l app=llemulator --tail=1000 > tests/test-output/k8s-logs/llemulator.log || true
+          kubectl logs -n konveyor-tackle deployment/llm-proxy --tail=1000 > tests/test-output/k8s-logs/llm-proxy.log || true
+          kubectl logs -n konveyor-tackle deployment/kai-api --tail=1000 > tests/test-output/k8s-logs/kai-api.log || true
+          kubectl logs -n konveyor-tackle deployment/kai-db --tail=1000 > tests/test-output/k8s-logs/kai-db.log || true
+
+          # Collect pod descriptions for debugging
+          echo "Collecting pod descriptions..."
+          kubectl describe pods -n konveyor-tackle > tests/test-output/k8s-logs/pods-describe.txt || true
+
+          # Collect events
+          echo "Collecting events..."
+          kubectl get events -n konveyor-tackle --sort-by='.lastTimestamp' > tests/test-output/k8s-logs/events.txt || true
+
+          # Collect secret status (not values, just existence)
+          echo "Collecting secret status..."
+          kubectl get secrets -n konveyor-tackle > tests/test-output/k8s-logs/secrets.txt || true
+
+          echo "✓ Infrastructure logs collected"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-test-results
+          path: tests/test-output/
+          retention-days: 1
+      - name: Upload data dir
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-dir
+          path: tests/test-data-dir/
+          retention-days: 1
+
+  # Summary job
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-tier0, test-tier1, test-tier2, test-tier3, test-infrastructure]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## E2E Test Results Summary
+
+          | Tier | Status | Blocks PRs | Blocks Releases | Notes |
+          |------|--------|------------|-----------------|-------|
+          | @tier0 (Critical) | ${{ needs.test-tier0.result }} | ✅ | ✅ | Core functionality |
+          | @tier1 (Important) | ${{ needs.test-tier1.result }} | ❌ | ✅ | Production features |
+          | @tier2 (Nice-to-have) | ${{ needs.test-tier2.result }} | ❌ | ❌ | Stable validation |
+          | @tier3 (Experimental) | ${{ needs.test-tier3.result }} | ❌ | ❌ | Flaky/unstable |
+          | Infrastructure (@requires-minikube) | ${{ needs.test-infrastructure.result }} | ❌ | ✅ | Skipped on PRs |
+
+          **Context:** ${{ inputs.trigger_context }}
+          **Triggered by:** ${{ github.event_name }}
+
+          📊 [Full workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF

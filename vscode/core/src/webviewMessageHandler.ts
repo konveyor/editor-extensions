@@ -1,0 +1,954 @@
+import * as vscode from "vscode";
+import { ExtensionState } from "./extensionState";
+import { executeExtensionCommand, cleanupHubProfiles } from "./commands";
+import {
+  ADD_PROFILE,
+  AnalysisProfile,
+  CONFIGURE_CUSTOM_RULES,
+  UPLOAD_CUSTOM_RULES,
+  DELETE_PROFILE,
+  GET_SOLUTION,
+  GET_SOLUTION_WITH_KONVEYOR_CONTEXT,
+  GET_SUCCESS_RATE,
+  OPEN_FILE,
+  OPEN_GENAI_SETTINGS,
+  OVERRIDE_ANALYZER_BINARIES,
+  OPEN_PROFILE_MANAGER,
+  RUN_ANALYSIS,
+  Scope,
+  SET_ACTIVE_PROFILE,
+  START_SERVER,
+  STOP_SERVER,
+  STOP_WORKFLOW,
+  RESTART_SOLUTION_SERVER,
+  ENABLE_GENAI,
+  TOGGLE_AGENT_MODE,
+  UPDATE_PROFILE,
+  WEBVIEW_READY,
+  WebviewAction,
+  WebviewActionType,
+  ScopeWithKonveyorContext,
+  ExtensionData,
+  OPEN_RESOLUTION_PANEL,
+  OPEN_HUB_SETTINGS,
+  UPDATE_HUB_CONFIG,
+  SYNC_HUB_PROFILES,
+  RETRY_PROFILE_SYNC,
+  HubConfig,
+  ChatMessageType,
+} from "@editor-extensions/shared";
+
+import {
+  getAllProfiles,
+  getUserProfiles,
+  saveUserProfiles,
+  setActiveProfileId,
+} from "./utilities/profiles/profileService";
+import { handleQuickResponse } from "./utilities/ModifiedFiles/handleQuickResponse";
+import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
+import { runPartialAnalysis } from "./analysis/runAnalysis";
+import winston from "winston";
+import { toggleAgentMode, updateConfigErrors } from "./utilities/configuration";
+import { isHubForced, saveHubConfig } from "./utilities/hubConfigStorage";
+
+export function setupWebviewMessageListener(
+  webview: vscode.Webview,
+  state: ExtensionState,
+): vscode.Disposable {
+  return webview.onDidReceiveMessage(async (message) => {
+    const logger = state.logger.child({
+      component: "webviewMessageHandler",
+    });
+    await messageHandler(message, state, logger);
+  });
+}
+
+const actions: {
+  [name: string]: (
+    payload: any,
+    state: ExtensionState,
+    logger: winston.Logger,
+  ) => void | Promise<void>;
+} = {
+  [ADD_PROFILE]: async (profile: AnalysisProfile, state) => {
+    // Only allow adding profiles if we're not in in-tree mode (profiles from filesystem or Hub)
+    if (state.data.isInTreeMode) {
+      vscode.window.showWarningMessage(
+        "Cannot add profiles while using in-tree or Hub-synced configuration. Profiles are managed externally.",
+      );
+      return;
+    }
+
+    const MAX_PROFILE_NAME_LENGTH = 24;
+    if (profile.name.length > MAX_PROFILE_NAME_LENGTH) {
+      vscode.window.showErrorMessage(
+        `Profile name "${profile.name}" exceeds the ${MAX_PROFILE_NAME_LENGTH}-character limit.`,
+      );
+      return;
+    }
+
+    const allProfiles = await getAllProfiles(state.extensionContext);
+
+    if (allProfiles.some((p) => p.name === profile.name)) {
+      vscode.window.showErrorMessage(`A profile named "${profile.name}" already exists.`);
+      return;
+    }
+
+    const userProfiles = getUserProfiles(state.extensionContext);
+    const updated = [...userProfiles, profile];
+    saveUserProfiles(state.extensionContext, updated);
+
+    const updatedAllProfiles = await getAllProfiles(state.extensionContext);
+    setActiveProfileId(profile.id, state);
+
+    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
+    await state.extensionContext.workspaceState.update("activeProfileId", profile.id);
+
+    // Use mutateProfiles to broadcast profile updates to webview
+    state.mutateProfiles((draft) => {
+      draft.profiles = updatedAllProfiles;
+      draft.activeProfileId = profile.id;
+    });
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
+      updateConfigErrorsFromActiveProfile(draft);
+    });
+  },
+
+  [DELETE_PROFILE]: async (profileId: string, state) => {
+    // Prevent deletion if in in-tree mode (profiles from filesystem or Hub)
+    if (state.data.isInTreeMode) {
+      vscode.window.showWarningMessage(
+        "Cannot delete profiles while using in-tree or Hub-synced configuration. Profiles are managed externally.",
+      );
+      return;
+    }
+
+    const userProfiles = getUserProfiles(state.extensionContext);
+    const filtered = userProfiles.filter((p) => p.id !== profileId);
+
+    saveUserProfiles(state.extensionContext, filtered);
+
+    const allProfiles = await getAllProfiles(state.extensionContext);
+    const currentActiveProfileId = state.data.activeProfileId;
+
+    // Update active profile if the deleted profile was active
+    if (currentActiveProfileId === profileId) {
+      const newActiveProfileId = allProfiles[0]?.id ?? "";
+      state.extensionContext.workspaceState.update("activeProfileId", newActiveProfileId);
+
+      // Broadcast profile update with new active profile
+      state.mutateProfiles((draft) => {
+        draft.profiles = allProfiles;
+        draft.activeProfileId = newActiveProfileId;
+      });
+    } else {
+      // Just update profiles list
+      state.mutateProfiles((draft) => {
+        draft.profiles = allProfiles;
+      });
+    }
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
+      updateConfigErrorsFromActiveProfile(draft);
+    });
+  },
+
+  [UPDATE_PROFILE]: async ({ originalId, updatedProfile }, state) => {
+    const allProfiles = await getAllProfiles(state.extensionContext);
+    const profileToUpdate = allProfiles.find((p) => p.id === originalId);
+
+    // Prevent editing if in in-tree mode or if profile is read-only
+    if (profileToUpdate?.source === "local") {
+      vscode.window.showWarningMessage(
+        "In-tree profiles cannot be edited from the UI. Edit the YAML file in .konveyor/profiles/ directly.",
+      );
+      return;
+    }
+
+    if (profileToUpdate?.readOnly) {
+      vscode.window.showWarningMessage(
+        "Built-in profiles cannot be edited. Copy it to a new profile first.",
+      );
+      return;
+    }
+
+    const updatedList = allProfiles.map((p) =>
+      p.id === originalId ? { ...p, ...updatedProfile } : p,
+    );
+
+    const userProfiles = updatedList.filter((p) => !p.readOnly && p.source !== "local");
+    saveUserProfiles(state.extensionContext, userProfiles);
+
+    const fullProfiles = await getAllProfiles(state.extensionContext);
+
+    // Check if we're updating the active profile
+    const currentActiveProfileId = state.data.activeProfileId;
+    const isActiveProfile = currentActiveProfileId === originalId;
+
+    // Update profiles and active profile ID if necessary
+    state.mutateProfiles((draft) => {
+      draft.profiles = fullProfiles;
+      if (currentActiveProfileId === originalId) {
+        draft.activeProfileId = updatedProfile.id;
+      }
+    });
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
+      updateConfigErrorsFromActiveProfile(draft);
+    });
+
+    // Stop the analyzer server if active profile was updated
+    // This ensures custom rules changes take effect on next analysis
+    if (isActiveProfile && state.analyzerClient.isServerRunning()) {
+      state.logger.info("Active profile updated, stopping analyzer server to apply changes");
+      await state.analyzerClient.stop();
+      vscode.window.showInformationMessage(
+        "Profile updated. Analyzer server stopped. Please restart the server to apply custom rule changes.",
+      );
+    }
+  },
+
+  [SET_ACTIVE_PROFILE]: async (profileId: string, state) => {
+    const allProfiles = await getAllProfiles(state.extensionContext);
+    const valid = allProfiles.find((p) => p.id === profileId);
+    if (!valid) {
+      vscode.window.showErrorMessage(`Cannot set active profile. Profile not found.`);
+      return;
+    }
+
+    // Check if profile is actually changing
+    const currentActiveProfileId = state.data.activeProfileId;
+    const isProfileChanging = currentActiveProfileId !== profileId;
+
+    // Save active profile ID to workspace state (don't use setActiveProfileId - it calls mutateProfiles)
+    await state.extensionContext.workspaceState.update("activeProfileId", profileId);
+
+    // Broadcast active profile change to webview
+    state.mutateProfiles((draft) => {
+      draft.activeProfileId = profileId;
+    });
+
+    // Update config errors
+    state.mutateConfigErrors((draft) => {
+      updateConfigErrorsFromActiveProfile(draft);
+    });
+
+    // Stop the analyzer server when switching profiles
+    // This ensures the new profile's custom rules are applied on next analysis
+    if (isProfileChanging && state.analyzerClient.isServerRunning()) {
+      state.logger.info(`Active profile changed to ${profileId}, stopping analyzer server`);
+      await state.analyzerClient.stop();
+      vscode.window.showInformationMessage(
+        "Profile changed. Start the server to apply the new profile's custom rules.",
+      );
+    }
+  },
+
+  [OPEN_PROFILE_MANAGER]() {
+    executeExtensionCommand("openProfilesPanel");
+  },
+  [OPEN_HUB_SETTINGS]() {
+    executeExtensionCommand("openHubSettingsPanel");
+  },
+  [UPDATE_HUB_CONFIG]: async (config: HubConfig, state) => {
+    // Don't save enabled state if it's forced by environment variable
+    const configToSave = isHubForced() ? { ...config, enabled: true } : config;
+
+    // Save to VS Code Secret Storage
+    await saveHubConfig(state.extensionContext, configToSave);
+
+    // Update state
+    state.mutateSettings((draft) => {
+      draft.hubConfig = config;
+      draft.solutionServerEnabled = config.enabled && config.features.solutionServer.enabled;
+      draft.profileSyncEnabled = config.enabled && config.features.profileSync.enabled;
+    });
+
+    // Update hub connection manager - it handles all connection logic internally
+    await state.hubConnectionManager.updateConfig(config);
+
+    // Update connection state based on actual connection status
+    state.mutateServerState((draft) => {
+      draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
+      draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
+      draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
+    });
+
+    // Clear syncing state if profile sync is disabled or disconnected
+    if (!state.hubConnectionManager.isProfileSyncConnected()) {
+      state.mutateSettings((draft) => {
+        draft.isSyncingProfiles = false;
+      });
+
+      // Clean up hub-synced profiles directory when profile sync is disabled.
+      // This directory is exclusively owned by the extension, so it's safe to delete.
+      // Only reload profiles if cleanup succeeds — otherwise getAllProfiles would
+      // return stale hub-only profiles and lock out local profile management.
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (workspaceRoot) {
+        try {
+          await cleanupHubProfiles(workspaceRoot, state.logger);
+        } catch (error) {
+          state.logger.error("Failed to clean up hub-synced profiles, skipping profile reload", {
+            error,
+          });
+          return;
+        }
+
+        // Reload profiles so the UI reflects the cleanup
+        const allProfiles = await getAllProfiles(state.extensionContext);
+        const currentActiveId = state.data.activeProfileId;
+        const activeStillExists = currentActiveId
+          ? allProfiles.find((p) => p.id === currentActiveId)
+          : null;
+        const newActiveId =
+          activeStillExists?.id ?? (allProfiles.length > 0 ? allProfiles[0].id : null);
+
+        state.mutateProfiles((draft) => {
+          draft.profiles = allProfiles;
+          draft.activeProfileId = newActiveId;
+        });
+
+        if (newActiveId) {
+          await state.extensionContext.workspaceState.update("activeProfileId", newActiveId);
+        }
+      }
+    }
+  },
+  [SYNC_HUB_PROFILES]: async (_payload, _state) => {
+    // Delegate to the command which already has all the sync logic
+    await executeExtensionCommand("syncHubProfiles");
+  },
+  [RETRY_PROFILE_SYNC]: async (_payload, _state) => {
+    // Delegate to the command which attempts to reconnect profile sync
+    await executeExtensionCommand("retryProfileSync");
+  },
+  [WEBVIEW_READY](_payload, state, logger) {
+    logger.info("Webview is ready - sending full state to ensure configuration is loaded");
+
+    // Send the full current state to the webview
+    // This ensures that all configuration (especially hubConfig) is properly loaded
+    // even if the webview was initialized after the extension sent initial updates
+    state.webviewProviders.forEach((provider) => {
+      provider.sendMessageToWebview({
+        type: "FULL_STATE_UPDATE",
+        ...state.data,
+      });
+    });
+  },
+  [CONFIGURE_CUSTOM_RULES]: async ({ profileId }, _state) => {
+    executeExtensionCommand("configureCustomRules", profileId);
+  },
+
+  /**
+   * Handle custom rules uploaded from the webview (used in web environments like DevSpaces)
+   * Files are uploaded from the user's local PC and saved to the workspace
+   */
+  [UPLOAD_CUSTOM_RULES]: async ({ profileId, files }, state, logger) => {
+    try {
+      if (!files || files.length === 0) {
+        logger.warn("No files provided for upload");
+        return;
+      }
+
+      const profile = state.data.profiles.find((p) => p.id === profileId);
+      if (!profile) {
+        vscode.window.showErrorMessage("Profile not found.");
+        return;
+      }
+
+      // Get workspace folder to save custom rules
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("No workspace folder open.");
+        return;
+      }
+
+      const workspaceRoot = workspaceFolders[0].uri;
+      const customRulesDir = vscode.Uri.joinPath(workspaceRoot, ".konveyor", "custom-rules");
+
+      try {
+        await vscode.workspace.fs.createDirectory(customRulesDir);
+      } catch {
+        // Directory may already exist
+      }
+
+      const savedPaths: string[] = [];
+
+      for (const file of files) {
+        const { name, content } = file;
+
+        if (!name.endsWith(".yaml") && !name.endsWith(".yml")) {
+          logger.warn(`Skipping non-YAML file: ${name}`);
+          continue;
+        }
+
+        const fileUri = vscode.Uri.joinPath(customRulesDir, name);
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(fileUri, encoder.encode(content));
+
+        savedPaths.push(fileUri.fsPath);
+        logger.info(`Saved custom rule file: ${fileUri.fsPath}`);
+      }
+
+      if (savedPaths.length === 0) {
+        vscode.window.showWarningMessage("No valid YAML rule files were uploaded.");
+        return;
+      }
+
+      const updated = {
+        ...profile,
+        customRules: Array.from(new Set([...(profile.customRules ?? []), ...savedPaths])),
+      };
+
+      const isActiveProfile = state.data.activeProfileId === profileId;
+
+      const userProfiles = getUserProfiles(state.extensionContext).map((p) =>
+        p.id === updated.id ? updated : p,
+      );
+      await saveUserProfiles(state.extensionContext, userProfiles);
+
+      state.mutateProfiles((draft) => {
+        const target = draft.profiles.find((p) => p.id === updated.id);
+        if (target) {
+          Object.assign(target, updated);
+        }
+      });
+
+      vscode.window.showInformationMessage(
+        `Uploaded ${savedPaths.length} custom rule file(s) to "${updated.name}"`,
+      );
+
+      if (isActiveProfile && state.analyzerClient.isServerRunning()) {
+        logger.info(
+          "Custom rules updated for active profile, stopping analyzer server to apply changes",
+        );
+        await state.analyzerClient.stop();
+        vscode.window.showInformationMessage(
+          "Custom rules updated. Analyzer server stopped. Please restart the server to apply changes.",
+        );
+      }
+    } catch (error) {
+      logger.error("Failed to upload custom rules:", error);
+      vscode.window.showErrorMessage(`Failed to upload custom rules: ${error}`);
+    }
+  },
+
+  [OVERRIDE_ANALYZER_BINARIES]() {
+    executeExtensionCommand("overrideAnalyzerBinaries");
+  },
+  [OPEN_GENAI_SETTINGS]() {
+    executeExtensionCommand("modelProviderSettingsOpen");
+  },
+  [GET_SOLUTION](scope: Scope) {
+    executeExtensionCommand("getSolution", scope.incidents);
+    executeExtensionCommand("showResolutionPanel");
+  },
+  async [GET_SOLUTION_WITH_KONVEYOR_CONTEXT]({ incident }: ScopeWithKonveyorContext) {
+    executeExtensionCommand("askContinue", incident);
+  },
+  SHOW_DIFF_WITH_DECORATORS: async ({ path, diff, content, messageToken }, state, logger) => {
+    try {
+      logger.info("SHOW_DIFF_WITH_DECORATORS called", { path, messageToken });
+
+      // Execute the command to show diff with decorations using streaming approach
+      await executeExtensionCommand("showDiffWithDecorations", path, diff, content, messageToken);
+    } catch (error) {
+      logger.error("Error handling SHOW_DIFF_WITH_DECORATORS:", error);
+
+      // Clear the processing state for this file on error
+      // This prevents the UI from getting stuck in "Processing changes..."
+      state.mutateSolutionWorkflow((draft) => {
+        // Clear from pendingBatchReview if there's an error
+        if (draft.pendingBatchReview) {
+          const fileIndex = draft.pendingBatchReview.findIndex(
+            (file) => file.messageToken === messageToken,
+          );
+          if (fileIndex !== -1) {
+            // Mark as error rather than removing, so user can retry
+            draft.pendingBatchReview[fileIndex].hasError = true;
+            logger.info(`Marked file as error in pendingBatchReview: ${path}`);
+          }
+        }
+      });
+
+      vscode.window.showErrorMessage(`Failed to show diff with decorations: ${error}`);
+    }
+  },
+  QUICK_RESPONSE: async ({ responseId, messageToken }, state) => {
+    handleQuickResponse(messageToken, responseId, state);
+  },
+  FILE_RESPONSE: async ({ responseId, messageToken, path, content }, state, logger) => {
+    await handleFileResponse(messageToken, responseId, path, content, state);
+
+    // Remove from pendingBatchReview after processing individual file
+    state.mutateSolutionWorkflow((draft) => {
+      if (draft.pendingBatchReview) {
+        draft.pendingBatchReview = draft.pendingBatchReview.filter(
+          (file) => file.messageToken !== messageToken,
+        );
+        logger.info(`Removed file from pendingBatchReview: ${path}`, {
+          remaining: draft.pendingBatchReview.length,
+        });
+      }
+    });
+
+    // Check if batch review is complete
+    checkBatchReviewComplete(state, logger);
+  },
+
+  [RUN_ANALYSIS]() {
+    executeExtensionCommand("runAnalysis");
+  },
+  async [OPEN_FILE]({ file, line }) {
+    const fileUri = vscode.Uri.parse(file);
+    try {
+      const doc = await vscode.workspace.openTextDocument(fileUri);
+      const editor = await vscode.window.showTextDocument(doc, { preview: true });
+      const position = new vscode.Position(line - 1, 0);
+      const range = new vscode.Range(position, position);
+      editor.selection = new vscode.Selection(position, position);
+      editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+    }
+  },
+  OPEN_FILE_IN_EDITOR: async ({ path }, _state, logger) => {
+    try {
+      const fileUri = vscode.Uri.file(path);
+      const doc = await vscode.workspace.openTextDocument(fileUri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch (error) {
+      logger.error("Error opening file in editor:", error);
+      vscode.window.showErrorMessage(`Failed to open file in editor: ${error}`);
+    }
+  },
+  [START_SERVER]() {
+    executeExtensionCommand("startServer");
+  },
+  [STOP_SERVER]() {
+    executeExtensionCommand("stopServer");
+  },
+  [RESTART_SOLUTION_SERVER]() {
+    executeExtensionCommand("restartSolutionServer");
+  },
+  [ENABLE_GENAI]() {
+    executeExtensionCommand("enableGenAI");
+  },
+  [GET_SUCCESS_RATE]() {
+    executeExtensionCommand("getSuccessRate");
+  },
+  [TOGGLE_AGENT_MODE]() {
+    toggleAgentMode();
+  },
+  [OPEN_RESOLUTION_PANEL]() {
+    executeExtensionCommand("showResolutionPanel");
+  },
+  [STOP_WORKFLOW]: async (_payload, state, logger) => {
+    logger.info("Stop workflow requested by user");
+
+    if (!state.workflowManager?.isInitialized) {
+      logger.warn("No active workflow to stop");
+      return;
+    }
+
+    try {
+      // Stop the workflow - this rejects all pending promises
+      const workflow = state.workflowManager.getWorkflow();
+      workflow.stop();
+
+      // Clean up queue manager
+      if (state.currentQueueManager) {
+        state.currentQueueManager.dispose();
+        state.currentQueueManager = undefined;
+      }
+
+      // Clear pending interactions
+      if (state.pendingInteractionsMap) {
+        state.pendingInteractionsMap.clear();
+        state.pendingInteractionsMap = undefined;
+      }
+      state.resolvePendingInteraction = undefined;
+
+      // Update state to reflect workflow stopped
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isFetchingSolution = false;
+        draft.solutionState = "none";
+        draft.isWaitingForUserInteraction = false;
+        draft.isProcessingQueuedMessages = false;
+      });
+
+      // Add a message to the chat indicating the workflow was stopped
+      state.mutateChatMessages((draft) => {
+        draft.chatMessages.push({
+          messageToken: `stopped-${Date.now()}`,
+          kind: ChatMessageType.String,
+          value: {
+            message:
+              "Workflow stopped by user. You can return to the analysis view to select a different issue to fix.",
+          },
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Dispose workflow manager
+      if (state.workflowManager.dispose) {
+        state.workflowManager.dispose();
+      }
+
+      logger.info("Workflow stopped successfully");
+    } catch (error) {
+      logger.error("Error stopping workflow:", error);
+      vscode.window.showErrorMessage(`Failed to stop workflow: ${error}`);
+    }
+  },
+  CONTINUE_WITH_FILE_STATE: async ({ path, messageToken, content }, state, logger) => {
+    try {
+      logger.info("CONTINUE_WITH_FILE_STATE called", { path, messageToken });
+
+      const uri = vscode.Uri.file(path);
+
+      const currentContent = await vscode.workspace.fs.readFile(uri);
+      const currentText = currentContent.toString();
+
+      const modifiedFileState = state.modifiedFiles.get(path);
+      const originalContent = modifiedFileState?.originalContent || "";
+
+      const normalize = (text: string) => text.replace(/\r\n/g, "\n").replace(/\n$/, "");
+      const hasChanges = normalize(currentText) !== normalize(originalContent);
+
+      const responseId = hasChanges ? "apply" : "reject";
+      const finalContent = hasChanges ? currentText : content;
+
+      logger.debug(
+        `Continue decision: ${responseId.toUpperCase()} - ${hasChanges ? "file has changes" : "file unchanged"}`,
+      );
+      console.log("Continue decision: ", { responseId, hasChanges });
+
+      await handleFileResponse(messageToken, responseId, path, finalContent, state, true); // Skip analysis - it runs on save
+
+      state.mutateSolutionWorkflow((draft) => {
+        if (draft.pendingBatchReview) {
+          draft.pendingBatchReview = draft.pendingBatchReview.filter(
+            (file) => file.messageToken !== messageToken,
+          );
+        }
+      });
+
+      logger.info(`File state continued with response: ${responseId}`, {
+        path,
+        messageToken,
+      });
+
+      checkBatchReviewComplete(state, logger);
+    } catch (error) {
+      logger.error("Error handling CONTINUE_WITH_FILE_STATE:", error);
+      await handleFileResponse(messageToken, "reject", path, content, state, true); // Skip analysis - it runs on save
+
+      state.mutateSolutionWorkflow((draft) => {
+        if (draft.pendingBatchReview) {
+          draft.pendingBatchReview = draft.pendingBatchReview.filter(
+            (file) => file.messageToken !== messageToken,
+          );
+        }
+      });
+
+      checkBatchReviewComplete(state, logger);
+    }
+  },
+
+  BATCH_APPLY_ALL: async ({ files }, state, logger) => {
+    const failures: Array<{ path: string; error: string }> = [];
+    const appliedFileUris: vscode.Uri[] = [];
+
+    try {
+      logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
+      console.log(`[BATCH_APPLY_ALL] Processing ${files.length} files`);
+
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = true;
+      });
+
+      for (const file of files) {
+        try {
+          logger.info(`BATCH_APPLY_ALL: Applying file ${file.path}`);
+          await handleFileResponse(
+            file.messageToken,
+            "apply",
+            file.path,
+            file.content,
+            state,
+            true,
+          );
+
+          appliedFileUris.push(vscode.Uri.file(file.path));
+
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              draft.pendingBatchReview = draft.pendingBatchReview.filter(
+                (f) => f.messageToken !== file.messageToken,
+              );
+              logger.info(
+                `BATCH_APPLY_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
+              );
+            }
+          });
+        } catch (fileError) {
+          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
+          logger.error(`BATCH_APPLY_ALL: Failed to apply file ${file.path}:`, fileError);
+          failures.push({ path: file.path, error: errorMessage });
+
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              const fileIndex = draft.pendingBatchReview.findIndex(
+                (f) => f.messageToken === file.messageToken,
+              );
+              if (fileIndex !== -1) {
+                draft.pendingBatchReview[fileIndex].hasError = true;
+              }
+            }
+          });
+        }
+      }
+
+      if (appliedFileUris.length > 0) {
+        try {
+          logger.info(
+            `BATCH_APPLY_ALL: Running combined analysis for ${appliedFileUris.length} files`,
+          );
+          await runPartialAnalysis(state, appliedFileUris);
+          logger.info(`BATCH_APPLY_ALL: Combined analysis completed`);
+        } catch (analysisError) {
+          logger.warn(`BATCH_APPLY_ALL: Failed to run combined analysis:`, analysisError);
+        }
+      }
+
+      const successCount = files.length - failures.length;
+      logger.info(
+        `BATCH_APPLY_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
+      );
+
+      if (failures.length > 0) {
+        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
+        logger.error(`BATCH_APPLY_ALL: Failures:\n${failureDetails}`);
+
+        if (failures.length === 1) {
+          vscode.window.showErrorMessage(
+            `Failed to apply 1 file: ${failures[0].path}. See output for details.`,
+          );
+        } else {
+          vscode.window.showErrorMessage(
+            `Failed to apply ${failures.length} out of ${files.length} files. See output for details.`,
+          );
+        }
+      } else {
+        logger.info(`BATCH_APPLY_ALL: Successfully applied all ${files.length} files`);
+        console.log(`[BATCH_APPLY_ALL] Successfully completed`);
+      }
+
+      // Check if workflow cleanup should happen
+      checkBatchReviewComplete(state, logger);
+    } catch (unexpectedError) {
+      logger.error("Unexpected error in BATCH_APPLY_ALL:", unexpectedError);
+      console.error("[BATCH_APPLY_ALL] Unexpected error:", unexpectedError);
+
+      vscode.window.showErrorMessage(
+        "An unexpected error occurred while applying files. Check the output for details.",
+      );
+    } finally {
+      // Always reset processing flag
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = false;
+      });
+    }
+  },
+
+  BATCH_REJECT_ALL: async ({ files }, state, logger) => {
+    const failures: Array<{ path: string; error: string }> = [];
+
+    try {
+      logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
+      console.log(`[BATCH_REJECT_ALL] Processing ${files.length} files`);
+
+      // Set processing flag at the start
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = true;
+      });
+
+      // Process files one by one with individual error handling
+      for (const file of files) {
+        try {
+          logger.info(`BATCH_REJECT_ALL: Rejecting file ${file.path}`);
+          await handleFileResponse(file.messageToken, "reject", file.path, undefined, state);
+
+          // Remove this file from pendingBatchReview only on success
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              draft.pendingBatchReview = draft.pendingBatchReview.filter(
+                (f) => f.messageToken !== file.messageToken,
+              );
+              logger.info(
+                `BATCH_REJECT_ALL: Removed ${file.path}, ${draft.pendingBatchReview.length} files remaining`,
+              );
+            }
+          });
+        } catch (fileError) {
+          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
+          logger.error(`BATCH_REJECT_ALL: Failed to reject file ${file.path}:`, fileError);
+          failures.push({ path: file.path, error: errorMessage });
+
+          // Mark the file as having an error in pendingBatchReview
+          state.mutateSolutionWorkflow((draft) => {
+            if (draft.pendingBatchReview) {
+              const fileIndex = draft.pendingBatchReview.findIndex(
+                (f) => f.messageToken === file.messageToken,
+              );
+              if (fileIndex !== -1) {
+                draft.pendingBatchReview[fileIndex].hasError = true;
+              }
+            }
+          });
+        }
+      }
+
+      // Report results
+      const successCount = files.length - failures.length;
+      logger.info(
+        `BATCH_REJECT_ALL: Completed. Success: ${successCount}, Failed: ${failures.length}`,
+      );
+
+      // Notify user if there were failures
+      if (failures.length > 0) {
+        const failureDetails = failures.map((f) => `• ${f.path}: ${f.error}`).join("\n");
+        logger.error(`BATCH_REJECT_ALL: Failures:\n${failureDetails}`);
+
+        if (failures.length === 1) {
+          vscode.window.showErrorMessage(
+            `Failed to reject 1 file: ${failures[0].path}. See output for details.`,
+          );
+        } else {
+          vscode.window.showErrorMessage(
+            `Failed to reject ${failures.length} out of ${files.length} files. See output for details.`,
+          );
+        }
+      } else {
+        logger.info(`BATCH_REJECT_ALL: Successfully rejected all ${files.length} files`);
+        console.log(`[BATCH_REJECT_ALL] Successfully completed`);
+      }
+
+      // Check if workflow cleanup should happen
+      checkBatchReviewComplete(state, logger);
+    } catch (unexpectedError) {
+      logger.error("Unexpected error in BATCH_REJECT_ALL:", unexpectedError);
+      console.error("[BATCH_REJECT_ALL] Unexpected error:", unexpectedError);
+
+      vscode.window.showErrorMessage(
+        "An unexpected error occurred while rejecting files. Check the output for details.",
+      );
+    } finally {
+      // Always reset processing flag
+      state.mutateSolutionWorkflow((draft) => {
+        draft.isProcessingQueuedMessages = false;
+      });
+    }
+  },
+};
+
+/**
+ * Check if batch review is complete and fully reset workflow state.
+ *
+ * Previously this only cleared pendingBatchReview but did NOT reset the
+ * workflow flags (isFetchingSolution, solutionState, isWaitingForUserInteraction,
+ * isProcessingQueuedMessages). This left the extension in a broken state where
+ * analysis could not run because it thought a resolution was still in progress.
+ *
+ * Now when the batch is done, we reset ALL workflow state to ensure a clean
+ * slate for the next analysis run. This fixes the bug where accepting a
+ * solution and then reverting the file left the extension stuck (#1363).
+ */
+const checkBatchReviewComplete = (state: ExtensionState, logger: winston.Logger) => {
+  const hasPendingBatchReview =
+    state.data.pendingBatchReview && state.data.pendingBatchReview.length > 0;
+
+  if (!hasPendingBatchReview) {
+    logger.info("Batch review complete — resetting all workflow state");
+
+    // Reset all solution workflow flags to unblock analysis
+    state.mutateSolutionWorkflow((draft) => {
+      draft.pendingBatchReview = [];
+      draft.isFetchingSolution = false;
+      draft.solutionState = "none";
+      draft.isWaitingForUserInteraction = false;
+      draft.isProcessingQueuedMessages = false;
+    });
+
+    // Reset analysis flags in case they're stale
+    state.mutateAnalysisState((draft) => {
+      draft.isAnalyzing = false;
+      draft.isAnalysisScheduled = false;
+    });
+
+    // Clean up stale workflow resources that may have been left behind
+    // by the SolutionWorkflowOrchestrator
+    if (state.currentQueueManager) {
+      logger.debug("Disposing stale queue manager after batch review complete");
+      state.currentQueueManager.dispose();
+      state.currentQueueManager = undefined;
+    }
+
+    if (state.pendingInteractionsMap && state.pendingInteractionsMap.size > 0) {
+      logger.debug("Clearing stale pending interactions after batch review complete");
+      state.pendingInteractionsMap.clear();
+      state.pendingInteractionsMap = undefined;
+    }
+
+    state.resolvePendingInteraction = undefined;
+
+    // Clear the modified files cache — the batch is done, these are no longer needed
+    state.modifiedFiles.clear();
+
+    // Reset the kaiFsCache
+    state.kaiFsCache.reset();
+
+    logger.info("Workflow state fully reset — analysis is now unblocked");
+  }
+};
+
+export const messageHandler = async (
+  message: WebviewAction<WebviewActionType, unknown>,
+  state: ExtensionState,
+  logger: winston.Logger,
+) => {
+  logger.debug("messageHandler: " + JSON.stringify(message));
+  const handler = actions?.[message?.type];
+  if (handler) {
+    await handler(message.payload, state, logger);
+  } else {
+    defaultHandler(message, logger);
+  }
+};
+
+const defaultHandler = (
+  message: WebviewAction<WebviewActionType, unknown>,
+  logger: winston.Logger,
+) => {
+  logger.error("Unknown message from webview:", JSON.stringify(message));
+};
+
+function updateConfigErrorsFromActiveProfile(draft: ExtensionData) {
+  // Clear profile-related errors
+  draft.configErrors = draft.configErrors.filter(
+    (error) =>
+      error.type !== "no-active-profile" &&
+      error.type !== "invalid-label-selector" &&
+      error.type !== "no-custom-rules",
+  );
+
+  // Use the centralized updateConfigErrors function for consistency
+  // Note: settingsPath is not used in the current implementation, so we pass empty string
+  updateConfigErrors(draft, "");
+}

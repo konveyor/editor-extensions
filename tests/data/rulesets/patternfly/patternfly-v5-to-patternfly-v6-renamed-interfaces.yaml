@@ -1,0 +1,120 @@
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-interfaces-00000
+  description: ToolbarChipGroupContentProps should be replaced with ToolbarLabelGroupContentProps
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: ToolbarChipGroupContentProps
+  message: 'The ToolbarChipGroupContentProps interface has been renamed to ToolbarLabelGroupContentProps.
+
+
+
+    Replace `ToolbarChipGroupContentProps` with `ToolbarLabelGroupContentProps`.
+
+
+
+    Before:
+
+
+    ```
+
+
+    interface MyInterface extends ToolbarChipGroupContentProps {}
+
+
+    ```
+
+
+
+    After:
+
+
+    ```
+
+
+    interface MyInterface extends ToolbarLabelGroupContentProps {}
+
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-interfaces-00010
+  description: ToolbarChipGroup should be replaced with ToolbarLabelGroup
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: ToolbarChipGroup
+  message: 'The ToolbarChipGroup interface has been renamed to ToolbarLabelGroup.
+
+
+    Replace `ToolbarChipGroup` with `ToolbarLabelGroup`.
+
+
+    Before:
+
+    ```
+
+    let typedThing: ToolbarChipGroup;
+
+    ```
+
+
+    After:
+
+    ```
+
+    let typedThing: ToolbarLabelGroup;
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
+- ruleID: patternfly-v5-to-patternfly-v6-renamed-interfaces-00020
+  description: ToolbarChip should be replaced with ToolbarLabel
+  effort: 3
+  category: potential
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    nodejs.referenced:
+      pattern: ToolbarChip
+  message: 'The ToolbarChip interface has been renamed to ToolbarLabel.
+
+
+    Replace `ToolbarChip` with `ToolbarLabel`.
+
+
+    Before:
+
+    ```
+
+    interface MyInterface extends ToolbarChip {}
+
+    ```
+
+
+    After:
+
+    ```
+
+    interface MyInterface extends ToolbarLabel {}
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10649
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low

@@ -1,0 +1,43 @@
+- ruleID: patternfly-v5-to-patternfly-v6-data-list-00000
+  description: DataListAction isPlainButtonAction should be replaced with DataListAction
+  effort: 3
+  category: mandatory
+  labels:
+  - konveyor.io/source=patternfly-v5
+  - konveyor.io/target=patternfly-v6
+  when:
+    and:
+    - nodejs.referenced:
+        pattern: DataListAction
+    - builtin.filecontent:
+        pattern: <DataListAction[^>]*\bisPlainButtonAction\b
+        filePattern: \.(j|t)sx?$
+  message: 'The isPlainButtonAction prop has been removed from DataListAction as a
+
+    wrapper is no longer needed.
+
+
+    Replace `DataListAction isPlainButtonAction` with `DataListAction`.
+
+
+    Before:
+
+    ```
+
+    <DataListAction isPlainButtonAction/>
+
+    ```
+
+
+    After:
+
+    ```
+
+    <DataListAction />
+
+    ```'
+  links:
+  - url: https://github.com/patternfly/patternfly-react/pull/10939
+    title: patternfly-v6 Documentation
+  customVariables: []
+  migration_complexity: low
