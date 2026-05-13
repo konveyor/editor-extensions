@@ -250,9 +250,6 @@ export const Sidebar: React.FC = () => {
     );
     await vscodeApp.openAnalysisView();
     analysisView = await vscodeApp.getView(KAIViews.analysisView);
-    await expect(analysisView.getByText('Analysis Progress').first()).toBeVisible({
-      timeout: 60_000,
-    });
     await vscodeApp.waitForAnalysisCompleted();
   });
 

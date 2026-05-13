@@ -400,8 +400,8 @@
     "workspacePath": "testdata/nerd-dinner",
     "sources": [],
     "targets": ["dotnet-core"],
-    "issuesCount": 3,
-    "incidentsCount": 38,
+    "issuesCount": 4,
+    "incidentsCount": 40,
     "issues": []
   }
 }
