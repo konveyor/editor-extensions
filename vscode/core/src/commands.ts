@@ -900,46 +900,46 @@ const commandsMap: (
       }
     },
 
-    [`${EXTENSION_NAME}.acceptDiff`]: async (filePath?: string) => {
-      if (!filePath) {
+    [`${EXTENSION_NAME}.acceptDiff`]: async (fileUri?: string) => {
+      if (!fileUri) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
           return;
         }
-        filePath = editor.document.fileName;
+        fileUri = editor.document.uri.toString();
       }
       if (!state.staticDiffAdapter) {
         vscode.window.showErrorMessage("Vertical diff system not initialized");
         return;
       }
-      await state.staticDiffAdapter.acceptAll(filePath);
+      await state.staticDiffAdapter.acceptAll(fileUri);
 
       // Save the document after accepting changes
       const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.fileName === filePath) {
+      if (editor && editor.document.uri.toString() === fileUri) {
         await editor.document.save();
       }
 
       vscode.window.showInformationMessage("Changes accepted and document saved");
     },
 
-    [`${EXTENSION_NAME}.rejectDiff`]: async (filePath?: string) => {
-      if (!filePath) {
+    [`${EXTENSION_NAME}.rejectDiff`]: async (fileUri?: string) => {
+      if (!fileUri) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
           return;
         }
-        filePath = editor.document.fileName;
+        fileUri = editor.document.uri.toString();
       }
       if (!state.staticDiffAdapter) {
         vscode.window.showErrorMessage("Vertical diff system not initialized");
         return;
       }
-      await state.staticDiffAdapter.rejectAll(filePath);
+      await state.staticDiffAdapter.rejectAll(fileUri);
 
       // Save the document after rejecting changes
       const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.fileName === filePath) {
+      if (editor && editor.document.uri.toString() === fileUri) {
         await editor.document.save();
       }
 
