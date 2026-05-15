@@ -935,10 +935,18 @@ class VsCodeExtension {
       streamId: string,
       fileUri: string,
       fileContent: string,
+      accepted: boolean,
     ) => {
       const filePath = vscode.Uri.parse(fileUri).fsPath;
       try {
-        await handleFileResponse(streamId, "apply", filePath, fileContent, this.state, true);
+        await handleFileResponse(
+          streamId,
+          accepted ? "apply" : "reject",
+          filePath,
+          accepted ? fileContent : undefined,
+          this.state,
+          true,
+        );
       } catch (err) {
         this.state.logger.debug(
           "[Extension] onAllBlocksResolved handleFileResponse error (may not be in batch)",

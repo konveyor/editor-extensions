@@ -153,17 +153,17 @@ export class StaticDiffAdapter {
 
   /**
    * Accept all changes in a file
+   * @param fileUri - A file URI string (e.g. file:///path/to/file.ts)
    */
-  async acceptAll(filePath: string): Promise<void> {
-    const fileUri = vscode.Uri.file(filePath).toString();
+  async acceptAll(fileUri: string): Promise<void> {
     await this.verticalDiffManager.clearForFileUri(fileUri, true);
   }
 
   /**
    * Reject all changes in a file
+   * @param fileUri - A file URI string (e.g. file:///path/to/file.ts)
    */
-  async rejectAll(filePath: string): Promise<void> {
-    const fileUri = vscode.Uri.file(filePath).toString();
+  async rejectAll(fileUri: string): Promise<void> {
     await this.verticalDiffManager.clearForFileUri(fileUri, false);
   }
 

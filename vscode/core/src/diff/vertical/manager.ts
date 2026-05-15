@@ -20,7 +20,7 @@ export class VerticalDiffManager {
   public refreshCodeLens: () => void = () => {};
   public onDiffStatusChange: ((fileUri: string) => void) | undefined;
   public onAllBlocksResolved:
-    | ((streamId: string, fileUri: string, fileContent: string) => void)
+    | ((streamId: string, fileUri: string, fileContent: string, accepted: boolean) => void)
     | undefined;
 
   private fileUriToHandler: Map<string, VerticalDiffHandler> = new Map();
@@ -223,6 +223,14 @@ export class VerticalDiffManager {
     await handler.acceptRejectBlock(accept, block.start, block.numGreen, block.numRed);
 
     if (blocks.length === 1) {
+      // All blocks resolved via individual codelens — notify before cleanup.
+      // We fire onAllBlocksResolved here (not from onStatusUpdate) to avoid
+      // double-fires and to have direct access to the accept/reject flag.
+      const streamId = this.fileUriToStreamId.get(fileUri);
+      if (streamId && this.onAllBlocksResolved) {
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(fileUri));
+        this.onAllBlocksResolved(streamId, fileUri, doc.getText(), accept);
+      }
       await this.clearForFileUri(fileUri, true);
     } else {
       // Re-enable listener for user changes to file
@@ -414,10 +422,11 @@ export class VerticalDiffManager {
             this.autoSaveDocument(fileUri, fileContent);
           }
 
-          // Notify that all blocks are resolved (for batch review advancement)
-          if (status === "closed" && fileContent && this.onAllBlocksResolved) {
-            this.onAllBlocksResolved(streamId, fileUri, fileContent);
-          }
+          // NOTE: onAllBlocksResolved is NOT fired here. It is called
+          // directly from acceptRejectVerticalDiffBlock with the correct
+          // accept/reject flag. Firing it from onStatusUpdate caused
+          // double-fires (once from acceptRejectBlock, once from clear())
+          // and had no way to know accept vs reject.
         }
       },
       streamId,
