@@ -73,7 +73,7 @@ runs:
 
         Write-Host "=== Building llemulator Go binary ==="
         Set-Location $llemulatorDir
-        go build -o llemulator.exe .
+        go build -o llemulator.exe ./cmd/openai-emulator/
         if ($LASTEXITCODE -ne 0) {
           Write-Error "Failed to build llemulator"
           exit 1
@@ -89,8 +89,9 @@ runs:
         $llemulatorDir = $Env:LLEMULATOR_DIR
         $llemulatorExe = Join-Path $llemulatorDir "llemulator.exe"
 
+        # llemulator reads the port from the PORT environment variable; set it before spawning
+        $env:PORT = "${{ inputs.port }}"
         $proc = Start-Process -FilePath $llemulatorExe `
-          -ArgumentList "--port", "${{ inputs.port }}" `
           -WorkingDirectory $llemulatorDir `
           -PassThru `
           -NoNewWindow `

@@ -85,7 +85,10 @@ runs:
           $vscodePath = "C:\Program Files\Microsoft VS Code\bin\code.cmd"
         }
         Write-Host "VSCode executable: $vscodePath"
+        # WINDOWS_VSCODE_EXECUTABLE_PATH is read by the test framework on Windows
         echo "WINDOWS_VSCODE_EXECUTABLE_PATH=$vscodePath" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+        # VSCODE_EXECUTABLE_PATH is the generic cross-platform env var also used by the framework
+        echo "VSCODE_EXECUTABLE_PATH=$vscodePath" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
     - name: Disable hardware acceleration for VSCode
       shell: pwsh
