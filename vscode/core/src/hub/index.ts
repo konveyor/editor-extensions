@@ -16,4 +16,11 @@ export type {
   OIDCTokenResponse,
   OIDCTokens,
 } from "./OIDCDeviceFlowAuth";
+export {
+  OIDCAuthCodeFlow,
+  OIDCAuthCodeError,
+  OIDCAuthCodeCancelledError,
+  OIDCAuthCodeTimeoutError,
+  OIDCAuthCodeStateError,
+} from "./OIDCAuthCodeFlow";
 export { OIDCTokenStorage } from "./OIDCTokenStorage";

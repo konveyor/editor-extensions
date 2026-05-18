@@ -36,7 +36,8 @@
   ],
   "activationEvents": [
     "onFileSystem:konveyorMemFs",
-    "onFileSystem:konveyorReadOnly"
+    "onFileSystem:konveyorReadOnly",
+    "onUri"
   ],
   "contributes": {
     "commands": [
@@ -437,17 +438,17 @@
           ],
           "default": "oidc",
           "enumDescriptions": [
-            "OIDC Device Flow - Sign in via browser (recommended)",
+            "OIDC Authorization Code + PKCE - Sign in via browser (recommended)",
             "Credentials - Username and password (legacy)"
           ],
-          "description": "Authentication method for Hub connections. OIDC uses the hub's builtin OIDC provider with device authorization flow (RFC 8628). Credentials uses the legacy username/password login.",
+          "description": "Authentication method for Hub connections. OIDC uses the hub's builtin OIDC provider with authorization code + PKCE flow (opens browser). Falls back to device flow when available. Credentials uses the legacy username/password login.",
           "scope": "window",
           "order": 50
         },
         "konveyor-core.hub.auth.oidcClientId": {
           "type": "string",
-          "default": "konveyor-vscode",
-          "description": "OIDC client ID for device flow authentication. Only change this if your hub instance uses a custom client registration.",
+          "default": "kai-ide",
+          "description": "OIDC client ID for authentication. Must match a registered client on the hub.",
           "scope": "window",
           "order": 51
         }
