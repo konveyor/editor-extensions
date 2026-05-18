@@ -306,15 +306,22 @@ export class HubConnectionManager {
       this.scopedFetch = null;
     }
 
-    // Handle authentication
+    // Handle authentication (non-interactive: don't auto-open browser on startup)
     if (this.config.auth.enabled) {
       try {
-        await this.ensureAuthenticated();
+        await this.ensureAuthenticated(false);
         await this.startTokenRefreshTimer();
       } catch (error) {
         if (error instanceof HubConnectionManagerError) {
           this.logger.error("Authentication failed", { error });
-          vscode.window.showErrorMessage(`Failed to authenticate with Hub: ${error.message}`);
+          // Show actionable sign-in prompt instead of generic error
+          vscode.window
+            .showWarningMessage("Hub authentication required. Sign in to connect.", "Sign In")
+            .then((action) => {
+              if (action === "Sign In") {
+                executeExtensionCommand("hubOidcLogin");
+              }
+            });
         } else {
           const classified = classifyNetworkError(error);
           this.logger.error("Authentication failed", {
@@ -469,7 +476,7 @@ export class HubConnectionManager {
       let tokens: OIDCTokens;
 
       if (this.oidcAuthCode) {
-        // Primary: auth code + PKCE
+        // Primary: auth code + PKCE (interactive — open browser)
         tokens = await this.oidcAuthCode.authCodeLogin();
       } else if (this.oidcAuth) {
         // Fallback: device flow
@@ -481,6 +488,9 @@ export class HubConnectionManager {
       await this.persistOIDCTokens(tokens);
       this.bearerToken = tokens.accessToken;
       this.tokenExpiresAt = tokens.expiresAt;
+
+      // After successful interactive login, reconnect to Hub
+      await this.connect();
 
       return true;
     } catch (error) {
@@ -529,11 +539,13 @@ export class HubConnectionManager {
   /**
    * Ensure we have a valid authentication token.
    * Dispatches to auth code, device flow, or credentials based on config.
+   * @param interactive - If true, allows opening browser for login. If false (startup),
+   *   will throw if no valid/refreshable tokens exist rather than opening the browser.
    */
-  private async ensureAuthenticated(): Promise<void> {
+  private async ensureAuthenticated(interactive: boolean = false): Promise<void> {
     const method = this.getAuthMethod();
     if (method === "oidc-auth-code") {
-      await this.ensureAuthenticatedAuthCode();
+      await this.ensureAuthenticatedAuthCode(interactive);
     } else if (method === "oidc") {
       await this.ensureAuthenticatedOIDC();
     } else {
@@ -543,8 +555,10 @@ export class HubConnectionManager {
 
   /**
    * Auth Code + PKCE authentication: restore from storage → try refresh → browser flow.
+   * @param interactive - If true, allows opening browser for login. If false (startup),
+   *   will throw if no valid/refreshable tokens exist rather than opening the browser.
    */
-  private async ensureAuthenticatedAuthCode(): Promise<void> {
+  private async ensureAuthenticatedAuthCode(interactive: boolean = false): Promise<void> {
     await this.ensureOIDCInitialized();
 
     if (!this.oidcAuthCode || !this.oidcTokenStorage) {
@@ -579,7 +593,15 @@ export class HubConnectionManager {
       return;
     }
 
-    // Step 3: Full auth code + PKCE flow
+    // Step 3: If non-interactive (startup), don't open browser — throw to signal auth needed
+    if (!interactive) {
+      this.logger.info("No valid tokens and non-interactive mode — sign-in required");
+      throw new HubConnectionManagerError(
+        "Authentication required. Please sign in to connect to Hub.",
+      );
+    }
+
+    // Step 4: Full auth code + PKCE flow (interactive only)
     this.logger.info("Starting OIDC authorization code + PKCE flow");
     const tokens = await this.oidcAuthCode.login();
     await this.persistOIDCTokens(tokens);
@@ -595,9 +617,7 @@ export class HubConnectionManager {
     await this.ensureOIDCInitialized();
 
     if (!this.oidcAuth || !this.oidcTokenStorage) {
-      throw new HubConnectionManagerError(
-        "OIDC auth not initialized (missing ExtensionContext?)",
-      );
+      throw new HubConnectionManagerError("OIDC auth not initialized (missing ExtensionContext?)");
     }
 
     // Step 1: Try to restore tokens from storage
@@ -639,7 +659,11 @@ export class HubConnectionManager {
    */
   private async ensureOIDCInitialized(): Promise<void> {
     const expectedIssuerUrl = `${this.config.url}/oidc`;
-    if ((this.oidcAuthCode || this.oidcAuth) && this.oidcTokenStorage && this.oidcIssuerUrl === expectedIssuerUrl) {
+    if (
+      (this.oidcAuthCode || this.oidcAuth) &&
+      this.oidcTokenStorage &&
+      this.oidcIssuerUrl === expectedIssuerUrl
+    ) {
       return;
     }
 
@@ -665,17 +689,10 @@ export class HubConnectionManager {
     this.extensionContext.subscriptions.push(uriHandlerDisposable);
 
     // Initialize Device Flow (fallback)
-    this.oidcAuth = new OIDCDeviceFlowAuth(
-      issuerUrl,
-      clientId,
-      this.scopedFetch ?? undefined,
-    );
+    this.oidcAuth = new OIDCDeviceFlowAuth(issuerUrl, clientId, this.scopedFetch ?? undefined);
 
     // Initialize token storage
-    this.oidcTokenStorage = new OIDCTokenStorage(
-      this.extensionContext.secrets,
-      this.config.url,
-    );
+    this.oidcTokenStorage = new OIDCTokenStorage(this.extensionContext.secrets, this.config.url);
 
     this.logger.info("OIDC auth initialized", {
       clientId,
@@ -834,10 +851,7 @@ export class HubConnectionManager {
       const method = this.getAuthMethod();
       if (method === "oidc-auth-code" || method === "oidc") {
         vscode.window
-          .showWarningMessage(
-            "Hub session expired. Please sign in again.",
-            "Sign In",
-          )
+          .showWarningMessage("Hub session expired. Please sign in again.", "Sign In")
           .then((action) => {
             if (action === "Sign In") {
               this.triggerOIDCLogin();
@@ -915,14 +929,15 @@ export class HubConnectionManager {
       headers["Authorization"] = `Bearer ${this.bearerToken}`;
     }
 
-    try {
-      // Use OIDC userinfo endpoint for OIDC auth (validates token + connectivity)
-      // Fall back to /hub for legacy credential auth
-      const method = this.getAuthMethod();
-      const checkUrl = (method === "oidc-auth-code" || method === "oidc") 
+    // Use OIDC userinfo endpoint for OIDC auth (validates token + connectivity)
+    // Fall back to /hub for legacy credential auth
+    const method = this.getAuthMethod();
+    const checkUrl =
+      method === "oidc-auth-code" || method === "oidc"
         ? `${this.config.url}/oidc/userinfo`
         : `${this.config.url}/hub`;
 
+    try {
       const response = await fetchFn(checkUrl, {
         method: "GET",
         headers,
@@ -943,14 +958,16 @@ export class HubConnectionManager {
 
       // Accept any 2xx or 3xx as success
       if (response.status >= 400) {
-        throw new HubConnectionManagerError(
-          `Hub returned unexpected status ${response.status}`,
-        );
+        throw new HubConnectionManagerError(`Hub returned unexpected status ${response.status}`);
       }
     } catch (error) {
       if (error instanceof HubConnectionManagerError) {
         throw error;
       }
+      this.logger.error("Hub connectivity check failed", {
+        error,
+        checkUrl: sanitizeUrl(checkUrl),
+      });
       throw error;
     }
   }
@@ -958,19 +975,25 @@ export class HubConnectionManager {
   // ─── Private: Profile Sync ───────────────────────────────────────────────
 
   private triggerProfileSync(): void {
-    if (this.profileSyncClient?.isConnected) {
+    if (!this.profileSyncClient?.isConnected) {
+      this.logger.debug("Profile sync client not connected, skipping sync");
+      return;
+    }
+
+    try {
       this.profileSyncClient.syncProfiles?.().catch((error: unknown) => {
         this.logger.error("Profile sync failed", { error });
+      });
+    } catch (error) {
+      this.logger.error("Profile sync trigger failed (sync context may not be available yet)", {
+        error,
       });
     }
   }
 
   private startProfileSyncTimer(): void {
     this.clearProfileSyncTimer();
-    this.profileSyncTimer = setInterval(
-      () => this.triggerProfileSync(),
-      PROFILE_SYNC_INTERVAL_MS,
-    );
+    this.profileSyncTimer = setInterval(() => this.triggerProfileSync(), PROFILE_SYNC_INTERVAL_MS);
   }
 
   private clearProfileSyncTimer(): void {
