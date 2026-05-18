@@ -916,7 +916,14 @@ export class HubConnectionManager {
     }
 
     try {
-      const response = await fetchFn(`${this.config.url}/hub`, {
+      // Use OIDC userinfo endpoint for OIDC auth (validates token + connectivity)
+      // Fall back to /hub for legacy credential auth
+      const method = this.getAuthMethod();
+      const checkUrl = (method === "oidc-auth-code" || method === "oidc") 
+        ? `${this.config.url}/oidc/userinfo`
+        : `${this.config.url}/hub`;
+
+      const response = await fetchFn(checkUrl, {
         method: "GET",
         headers,
         signal: AbortSignal.timeout(TOKEN_EXCHANGE_TIMEOUT_MS),
