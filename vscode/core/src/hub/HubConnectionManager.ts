@@ -83,6 +83,7 @@ export class HubConnectionManager {
   private oidcAuth: OIDCDeviceFlowAuth | null = null;
 
   // Shared OIDC state
+  private oidcIssuerUrl: string | null = null;
   private oidcTokenStorage: OIDCTokenStorage | null = null;
   private extensionContext: vscode.ExtensionContext | null = null;
 
@@ -637,7 +638,8 @@ export class HubConnectionManager {
    * Initialize OIDC auth clients and token storage if not already done.
    */
   private async ensureOIDCInitialized(): Promise<void> {
-    if ((this.oidcAuthCode || this.oidcAuth) && this.oidcTokenStorage) {
+    const expectedIssuerUrl = `${this.config.url}/oidc`;
+    if ((this.oidcAuthCode || this.oidcAuth) && this.oidcTokenStorage && this.oidcIssuerUrl === expectedIssuerUrl) {
       return;
     }
 
@@ -680,6 +682,8 @@ export class HubConnectionManager {
       issuerUrl,
       method: this.getAuthMethod(),
     });
+
+    this.oidcIssuerUrl = issuerUrl;
   }
 
   /**

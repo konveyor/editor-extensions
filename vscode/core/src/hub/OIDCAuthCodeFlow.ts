@@ -25,8 +25,8 @@ import type { OIDCTokens, OIDCTokenResponse } from "./OIDCDeviceFlowAuth";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OIDC_SCOPES = "openid profile email offline_access";
-const AUTHORIZE_PATH = "/oidc/authorize";
-const TOKEN_PATH = "/oidc/token";
+const AUTHORIZE_PATH = "/authorize";
+const TOKEN_PATH = "/token";
 const TOKEN_EXPIRY_BUFFER_MS = 30_000; // 30s before actual expiry
 
 /**

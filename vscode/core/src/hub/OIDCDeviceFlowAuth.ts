@@ -18,8 +18,8 @@ import * as vscode from "vscode";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OIDC_SCOPES = "openid profile email offline_access";
-const DEVICE_AUTH_PATH = "/oidc/device_authorization";
-const TOKEN_PATH = "/oidc/token";
+const DEVICE_AUTH_PATH = "/device_authorization";
+const TOKEN_PATH = "/token";
 const DEVICE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 const TOKEN_EXPIRY_BUFFER_MS = 30_000; // 30s before actual expiry
 
