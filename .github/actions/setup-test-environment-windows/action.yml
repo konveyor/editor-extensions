@@ -1,0 +1,116 @@
+name: "Setup E2E Test Environment (Windows)"
+description: "Sets up the common environment for E2E tests on Windows runners"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ".nvmrc"
+        cache: "npm"
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: "oracle"
+        java-version: "17"
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.23"
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "8.0.x"
+
+    - name: Install .NET global tools (ilspycmd and paket)
+      shell: pwsh
+      run: |
+        dotnet tool install --global ilspycmd
+        if ($LASTEXITCODE -ne 0) { Write-Host "ilspycmd may already be installed" }
+        dotnet tool install --global paket
+        if ($LASTEXITCODE -ne 0) { Write-Host "paket may already be installed" }
+        # Ensure %USERPROFILE%\.dotnet\tools is in PATH
+        $dotnetToolsPath = "$Env:USERPROFILE\.dotnet\tools"
+        echo "$dotnetToolsPath" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
+        # Verify tools are accessible
+        try { ilspycmd --version } catch { Write-Host "Warning: ilspycmd not yet in PATH" }
+        try { paket --version } catch { Write-Host "Warning: paket not yet in PATH" }
+
+    - name: Install VSCode
+      shell: pwsh
+      run: |
+        Write-Host "=== Installing Visual Studio Code ==="
+        choco install vscode -y --no-progress
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "choco install failed, trying winget..."
+          winget install --id Microsoft.VisualStudioCode --accept-package-agreements --accept-source-agreements --silent
+        }
+
+        # Refresh PATH so code.cmd is available in subsequent steps
+        $vscodeBin = "C:\Program Files\Microsoft VS Code\bin"
+        if (Test-Path $vscodeBin) {
+          echo "$vscodeBin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "Added $vscodeBin to PATH"
+        } else {
+          # User-scoped install path (fallback)
+          $userBin = "$Env:LOCALAPPDATA\Programs\Microsoft VS Code\bin"
+          if (Test-Path $userBin) {
+            echo "$userBin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
+            Write-Host "Added $userBin to PATH"
+          } else {
+            Write-Host "WARNING: VSCode bin directory not found in expected locations"
+          }
+        }
+
+    - name: Set WINDOWS_VSCODE_EXECUTABLE_PATH
+      shell: pwsh
+      run: |
+        # Determine the VSCode executable path
+        $candidates = @(
+          "C:\Program Files\Microsoft VS Code\bin\code.cmd",
+          "$Env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd"
+        )
+        $vscodePath = $null
+        foreach ($c in $candidates) {
+          if (Test-Path $c) {
+            $vscodePath = $c
+            break
+          }
+        }
+        if ($null -eq $vscodePath) {
+          Write-Host "WARNING: Could not find code.cmd, using default path"
+          $vscodePath = "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+        }
+        Write-Host "VSCode executable: $vscodePath"
+        echo "WINDOWS_VSCODE_EXECUTABLE_PATH=$vscodePath" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Disable hardware acceleration for VSCode
+      shell: pwsh
+      run: |
+        # Write argv.json to disable GPU/hardware acceleration (required for headless-like CI runs)
+        $argvDir = "$Env:APPDATA\Code\User"
+        New-Item -ItemType Directory -Force -Path $argvDir | Out-Null
+        $argvPath = Join-Path $argvDir "argv.json"
+        '{ "disable-hardware-acceleration": true }' | Set-Content -Path $argvPath -Encoding utf8
+        Write-Host "Wrote $argvPath"
+
+    - name: Verify VSCode installation
+      shell: pwsh
+      run: |
+        # Reload PATH to pick up the newly added VSCode bin directory
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+        code --version
+
+    - name: Ensure no VSCode instances are running
+      shell: pwsh
+      run: |
+        Get-Process -Name "code" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Write-Host "Killed any existing VSCode processes"
+
+    - name: Install test dependencies
+      shell: pwsh
+      run: npm ci
+      working-directory: ./tests

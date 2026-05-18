@@ -1,0 +1,348 @@
+name: E2E Tests (Windows)
+
+on:
+  workflow_call:
+    inputs:
+      vsix_artifact_name:
+        required: true
+        type: string
+      trigger_context:
+        required: true
+        type: string # 'pr', 'release', 'manual'
+      use_release:
+        required: false
+        type: boolean
+        default: false # when true, collect-assets uses --use-release (pinned tag) instead of latest workflow artifacts
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+
+jobs:
+  # Shared setup for all test jobs
+  setup:
+    name: Setup Test Environment (Windows)
+    runs-on: windows-latest
+    outputs:
+      core_vsix: ${{ steps.set_vsix_paths.outputs.core_vsix }}
+      java_vsix: ${{ steps.set_vsix_paths.outputs.java_vsix }}
+      javascript_vsix: ${{ steps.set_vsix_paths.outputs.javascript_vsix }}
+      go_vsix: ${{ steps.set_vsix_paths.outputs.go_vsix }}
+      csharp_vsix: ${{ steps.set_vsix_paths.outputs.csharp_vsix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Set VSIX paths
+        id: set_vsix_paths
+        shell: bash
+        run: |
+          # Read extension names from package.json files
+          CORE_NAME=$(node -p "require('./vscode/core/package.json').name")
+          JAVA_NAME=$(node -p "require('./vscode/java/package.json').name")
+          JS_NAME=$(node -p "require('./vscode/javascript/package.json').name")
+          GO_NAME=$(node -p "require('./vscode/go/package.json').name")
+          CSHARP_NAME=$(node -p "require('./vscode/csharp/package.json').name")
+
+          # Find the actual VSIX files
+          CORE_VSIX=$(ls ./dist/${CORE_NAME}-*.vsix | head -n 1)
+          JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
+          JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
+          GO_VSIX=$(ls ./dist/${GO_NAME}-*.vsix | head -n 1)
+          CSHARP_VSIX=$(ls ./dist/${CSHARP_NAME}-*.vsix | head -n 1)
+
+          # Verify and output
+          for vsix in "$CORE_VSIX" "$JAVA_VSIX" "$JS_VSIX" "$GO_VSIX" "$CSHARP_VSIX"; do
+            [ ! -f "$vsix" ] && echo "Error: VSIX not found: $vsix" && exit 1
+          done
+
+          echo "core_vsix=${CORE_VSIX}" >> $GITHUB_OUTPUT
+          echo "java_vsix=${JAVA_VSIX}" >> $GITHUB_OUTPUT
+          echo "javascript_vsix=${JS_VSIX}" >> $GITHUB_OUTPUT
+          echo "go_vsix=${GO_VSIX}" >> $GITHUB_OUTPUT
+          echo "csharp_vsix=${CSHARP_VSIX}" >> $GITHUB_OUTPUT
+
+      # Download analyzer binary for custom-binary-analysis.test.ts
+      - name: Install root dependencies (for collect-assets script)
+        run: npm ci
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ${{ inputs.use_release }}; then
+            npm run collect-assets -- --use-release
+          else
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          fi
+
+      - name: Upload downloaded assets (for custom binary tests)
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-assets-windows
+          path: ./downloaded_assets
+          retention-days: 1
+
+  # Critical tests - never block on Windows (experimental platform)
+  test-tier0-windows:
+    name: Critical Tests - Windows (@tier0)
+    runs-on: windows-latest
+    needs: setup
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment-windows
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets-windows
+          path: ./downloaded_assets
+
+      - name: Run tier0 tests (excluding slow/infrastructure/offline)
+        shell: bash
+        run: npx playwright test --grep "@tier0" --grep-invert "@slow|@requires-minikube|@offline"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+
+      # This is intentionally kept in a separate step to avoid passing in credentials
+      - name: Run tier0 offline tests (no real API calls)
+        shell: bash
+        run: npx playwright test --grep "@tier0" --grep "@offline"
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: <dummy> # this only exists to pass provider validation notsecret
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier0-windows-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Important tests - never block on Windows (experimental platform)
+  test-tier1-windows:
+    name: Important Tests - Windows (@tier1)
+    runs-on: windows-latest
+    needs: setup
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment-windows
+
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets-windows
+          path: ./downloaded_assets
+
+      - name: Run tier1 tests (excluding slow/infrastructure)
+        shell: bash
+        run: |
+          # Check if any tier1 tests exist
+          if ! npx playwright test --list --grep "@tier1" 2>&1 | grep -q "Total: 0 tests"; then
+            if [ "${{ inputs.trigger_context }}" == "pr" ]; then
+              npx playwright test --grep "@tier1" --grep-invert "@slow|@requires-minikube"
+            else
+              npx playwright test --grep "@tier1" --grep-invert "@requires-minikube"
+            fi
+          else
+            echo "No @tier1 tests found, skipping"
+          fi
+        working-directory: ./tests
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier1-windows-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Nice-to-have tests - never block
+  test-tier2-windows:
+    name: Nice-to-have Tests - Windows (@tier2)
+    runs-on: windows-latest
+    needs: setup
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment-windows
+
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets-windows
+          path: ./downloaded_assets
+
+      - name: Run tier2 tests
+        id: tier2_tests
+        shell: bash
+        run: npx playwright test --grep "@tier2" --grep-invert "@slow|@requires-minikube|@offline"
+        working-directory: ./tests
+        continue-on-error: true
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier2-windows-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Experimental tests - never block
+  test-tier3-windows:
+    name: Experimental Tests - Windows (@tier3)
+    runs-on: windows-latest
+    needs: setup
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        uses: ./.github/actions/setup-test-environment-windows
+
+      - name: Setup Llemulator
+        id: llemulator
+        uses: ./.github/actions/setup-llemulator-standalone
+
+      - name: Download VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.vsix_artifact_name }}
+          path: ./dist
+
+      - name: Download analyzer binary assets (for custom binary tests)
+        uses: actions/download-artifact@v4
+        with:
+          name: downloaded-assets-windows
+          path: ./downloaded_assets
+
+      - name: Run tier3 tests
+        shell: bash
+        run: npx playwright test --grep "@tier3" --grep-invert "@slow|@requires-minikube|@offline"
+        working-directory: ./tests
+        continue-on-error: true
+        env:
+          __TEST_EXTENSION_END_TO_END__: "true"
+          CORE_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.core_vsix }}
+          JAVA_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.java_vsix }}
+          JAVASCRIPT_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.javascript_vsix }}
+          GO_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.go_vsix }}
+          CSHARP_VSIX_FILE_PATH: ${{ github.workspace }}/${{ needs.setup.outputs.csharp_vsix }}
+          TEST_LLEMULATOR_URL: ${{ steps.llemulator.outputs.llemulator_url }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier3-windows-test-results
+          path: tests/test-output/
+          retention-days: 7
+
+  # Summary job
+  test-summary-windows:
+    name: Test Summary (Windows)
+    runs-on: ubuntu-latest
+    needs: [test-tier0-windows, test-tier1-windows, test-tier2-windows, test-tier3-windows]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## E2E Test Results Summary (Windows)
+
+          > All Windows tiers run as `continue-on-error: true` — results are informational only.
+
+          | Tier | Status | Notes |
+          |------|--------|-------|
+          | @tier0 (Critical) | ${{ needs.test-tier0-windows.result }} | Core functionality |
+          | @tier1 (Important) | ${{ needs.test-tier1-windows.result }} | Production features |
+          | @tier2 (Nice-to-have) | ${{ needs.test-tier2-windows.result }} | Stable validation |
+          | @tier3 (Experimental) | ${{ needs.test-tier3-windows.result }} | Flaky/unstable |
+
+          **Context:** ${{ inputs.trigger_context }}
+          **Triggered by:** ${{ github.event_name }}
+
+          📊 [Full workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF

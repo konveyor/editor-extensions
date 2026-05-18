@@ -1,0 +1,97 @@
+name: Nightly Windows E2E Tests
+
+on:
+  schedule:
+    # Run daily at 7:00 AM UTC (after the main nightly CI at 5:35 AM)
+    - cron: "0 7 * * *"
+
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build from (branch, tag or SHA)"
+        required: false
+        default: "main"
+  push:
+
+# https://typicode.github.io/husky/how-to.html#ci-server-and-docker
+env:
+  HUSKY: 0
+
+jobs:
+  # Build and package the extensions so their VSIXs are available for the Windows E2E jobs
+  package:
+    name: Package Extensions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Collect runtime assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+
+      - name: Set development version
+        run: |
+          CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          VERSION="${CURRENT_VERSION}-windows-nightly.${TIMESTAMP}.${SHA}"
+          echo "Setting version: $VERSION"
+          npm version "$VERSION" --workspaces --include-workspace-root --no-git-tag-version
+
+      - name: Build dist
+        run: npm run dist
+
+      - name: Package extensions
+        run: npm run package -- --pre-release
+
+      - name: Upload VSIX artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-artifacts-windows-nightly
+          path: ./dist/*.vsix
+          retention-days: 3
+
+  # Run E2E tests on Windows using the packaged VSIXs
+  windows-e2e:
+    name: Windows E2E Tests
+    needs: package
+    uses: ./.github/workflows/e2e-tests-windows.yml
+    with:
+      vsix_artifact_name: "vsix-artifacts-windows-nightly"
+      trigger_context: "manual"
+      use_release: false
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  report_failure:
+    name: Report Failure
+    needs: [package, windows-e2e]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "Windows Nightly E2E Tests Failed\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nJobs:\n• package: ${{ needs.package.result }}\n• windows-e2e: ${{ needs.windows-e2e.result }}",
+              "branch": "main",
+              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}

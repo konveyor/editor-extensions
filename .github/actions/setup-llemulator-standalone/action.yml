@@ -1,5 +1,5 @@
 name: "Setup Llemulator (Standalone)"
-description: "Sets up llemulator for testing without Kubernetes"
+description: "Sets up llemulator for testing without Kubernetes (Linux via Docker, Windows via Go binary)"
 inputs:
   port:
     description: "Port to expose llemulator on"
@@ -8,11 +8,13 @@ inputs:
 outputs:
   llemulator_url:
     description: "URL where llemulator is accessible"
-    value: ${{ steps.start_llemulator.outputs.url }}
+    value: ${{ steps.set_llemulator_output.outputs.url }}
 runs:
   using: "composite"
   steps:
-    - name: Clone and build llemulator
+    # ── Linux: build and run as a Docker container ──────────────────────────
+    - name: Clone and build llemulator (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         echo "=== Cloning llemulator repository ==="
@@ -22,8 +24,8 @@ runs:
         cd /tmp/llemulator
         docker build -t llemulator:local .
 
-    - name: Start llemulator container
-      id: start_llemulator
+    - name: Start llemulator container (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         echo "=== Starting llemulator container ==="
@@ -34,12 +36,12 @@ runs:
           llemulator:local
 
         LLEMULATOR_URL="http://localhost:${{ inputs.port }}/v1"
-        echo "url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
         echo "LLEMULATOR_URL=${LLEMULATOR_URL}" >> $GITHUB_ENV
 
         echo "Llemulator container started on ${LLEMULATOR_URL}"
 
-    - name: Wait for llemulator to be ready
+    - name: Wait for llemulator to be ready (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         echo "=== Waiting for llemulator to be ready ==="
@@ -59,6 +61,83 @@ runs:
           exit 1
         fi
 
+    # ── Windows: build as a native Go binary and run as a background process ─
+    - name: Clone and build llemulator (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "=== Cloning llemulator repository ==="
+        $llemulatorDir = "$Env:RUNNER_TEMP\llemulator"
+        if (Test-Path $llemulatorDir) { Remove-Item -Recurse -Force $llemulatorDir }
+        git clone --depth 1 https://github.com/fabianvf/llemulator.git $llemulatorDir
+
+        Write-Host "=== Building llemulator Go binary ==="
+        Set-Location $llemulatorDir
+        go build -o llemulator.exe .
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to build llemulator"
+          exit 1
+        }
+        Write-Host "llemulator.exe built at $llemulatorDir\llemulator.exe"
+        echo "LLEMULATOR_DIR=$llemulatorDir" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Start llemulator process (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "=== Starting llemulator process ==="
+        $llemulatorDir = $Env:LLEMULATOR_DIR
+        $llemulatorExe = Join-Path $llemulatorDir "llemulator.exe"
+
+        $proc = Start-Process -FilePath $llemulatorExe `
+          -ArgumentList "--port", "${{ inputs.port }}" `
+          -WorkingDirectory $llemulatorDir `
+          -PassThru `
+          -NoNewWindow `
+          -RedirectStandardOutput "$Env:RUNNER_TEMP\llemulator-stdout.log" `
+          -RedirectStandardError  "$Env:RUNNER_TEMP\llemulator-stderr.log"
+
+        Write-Host "Llemulator started (PID $($proc.Id))"
+
+        $LLEMULATOR_URL = "http://localhost:${{ inputs.port }}/v1"
+        echo "LLEMULATOR_URL=$LLEMULATOR_URL" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+
+        Write-Host "Llemulator URL: $LLEMULATOR_URL"
+
+    - name: Wait for llemulator to be ready (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "=== Waiting for llemulator to be ready ==="
+        $maxAttempts = 30
+        $ready = $false
+        for ($i = 1; $i -le $maxAttempts; $i++) {
+          try {
+            $response = Invoke-WebRequest -Uri "http://localhost:${{ inputs.port }}/_emulator/script" `
+              -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+            Write-Host "Llemulator is ready"
+            $ready = $true
+            break
+          } catch {
+            Write-Host "Waiting for llemulator... ($i/$maxAttempts)"
+            Start-Sleep -Seconds 2
+          }
+        }
+        if (-not $ready) {
+          Write-Host "ERROR: Llemulator failed to start. Logs:"
+          Get-Content "$Env:RUNNER_TEMP\llemulator-stdout.log" -ErrorAction SilentlyContinue
+          Get-Content "$Env:RUNNER_TEMP\llemulator-stderr.log" -ErrorAction SilentlyContinue
+          exit 1
+        }
+
+    # ── Shared: expose the URL as a step output (consumed by the action outputs) ─
+    - name: Set llemulator output URL
+      id: set_llemulator_output
+      shell: bash
+      run: |
+        echo "url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
+
+    # ── Shared: configure and verify llemulator (works on both platforms) ───
     - name: Configure llemulator with test responses
       shell: bash
       run: |
