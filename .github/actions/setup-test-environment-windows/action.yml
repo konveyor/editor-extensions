@@ -49,13 +49,13 @@ runs:
           winget install --id Microsoft.VisualStudioCode --accept-package-agreements --accept-source-agreements --silent
         }
 
-        # Refresh PATH so code.cmd is available in subsequent steps
+        # Add VSCode bin to PATH so "code --version" works in later steps.
+        # Note: tests use Code.exe directly (set via VSCODE_EXECUTABLE_PATH), not code.cmd.
         $vscodeBin = "C:\Program Files\Microsoft VS Code\bin"
         if (Test-Path $vscodeBin) {
           echo "$vscodeBin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
           Write-Host "Added $vscodeBin to PATH"
         } else {
-          # User-scoped install path (fallback)
           $userBin = "$Env:LOCALAPPDATA\Programs\Microsoft VS Code\bin"
           if (Test-Path $userBin) {
             echo "$userBin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
@@ -65,13 +65,16 @@ runs:
           }
         }
 
-    - name: Set WINDOWS_VSCODE_EXECUTABLE_PATH
+    - name: Set VSCode executable path env vars
       shell: pwsh
       run: |
-        # Determine the VSCode executable path
+        # Playwright's electron.launch() requires the actual Electron binary (Code.exe),
+        # NOT the code.cmd wrapper script. Pointing at the wrapper causes
+        # "Process failed to launch!" because Playwright tries to read Electron IPC
+        # output from the process, which a batch file cannot provide.
         $candidates = @(
-          "C:\Program Files\Microsoft VS Code\bin\code.cmd",
-          "$Env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd"
+          "C:\Program Files\Microsoft VS Code\Code.exe",
+          "$Env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe"
         )
         $vscodePath = $null
         foreach ($c in $candidates) {
@@ -81,8 +84,8 @@ runs:
           }
         }
         if ($null -eq $vscodePath) {
-          Write-Host "WARNING: Could not find code.cmd, using default path"
-          $vscodePath = "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+          Write-Host "WARNING: Could not find Code.exe, using default path"
+          $vscodePath = "C:\Program Files\Microsoft VS Code\Code.exe"
         }
         Write-Host "VSCode executable: $vscodePath"
         # WINDOWS_VSCODE_EXECUTABLE_PATH is read by the test framework on Windows
@@ -93,7 +96,8 @@ runs:
     - name: Disable hardware acceleration for VSCode
       shell: pwsh
       run: |
-        # Write argv.json to disable GPU/hardware acceleration (required for headless-like CI runs)
+        # Disable GPU/hardware acceleration — required for CI environments where
+        # no real GPU is available (Electron crashes without this on Windows runners)
         $argvDir = "$Env:APPDATA\Code\User"
         New-Item -ItemType Directory -Force -Path $argvDir | Out-Null
         $argvPath = Join-Path $argvDir "argv.json"
@@ -103,7 +107,8 @@ runs:
     - name: Verify VSCode installation
       shell: pwsh
       run: |
-        # Reload PATH to pick up the newly added VSCode bin directory
+        # Use code.cmd (the PATH wrapper) only for version verification;
+        # actual test runs use Code.exe set in the env vars above
         $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
         code --version
 
