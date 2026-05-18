@@ -193,6 +193,18 @@
         "icon": "$(sync)"
       },
       {
+        "command": "konveyor-core.hubOidcLogin",
+        "title": "Sign In to Hub (OIDC)",
+        "category": "Konveyor",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "konveyor-core.hubOidcLogout",
+        "title": "Sign Out from Hub",
+        "category": "Konveyor",
+        "icon": "$(sign-out)"
+      },
+      {
         "command": "konveyor-core.retryProfileSync",
         "title": "Retry Profile Sync Connection",
         "category": "Konveyor",
@@ -416,6 +428,28 @@
           "description": "Enable debug logging for webview message handling",
           "scope": "window",
           "order": 40
+        },
+        "konveyor-core.hub.auth.method": {
+          "type": "string",
+          "enum": [
+            "oidc",
+            "credentials"
+          ],
+          "default": "oidc",
+          "enumDescriptions": [
+            "OIDC Device Flow - Sign in via browser (recommended)",
+            "Credentials - Username and password (legacy)"
+          ],
+          "description": "Authentication method for Hub connections. OIDC uses the hub's builtin OIDC provider with device authorization flow (RFC 8628). Credentials uses the legacy username/password login.",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor-core.hub.auth.oidcClientId": {
+          "type": "string",
+          "default": "konveyor-vscode",
+          "description": "OIDC client ID for device flow authentication. Only change this if your hub instance uses a custom client registration.",
+          "scope": "window",
+          "order": 51
         }
       }
     },

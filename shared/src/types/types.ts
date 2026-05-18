@@ -23,11 +23,18 @@ export interface SuccessRateMetric {
   unknown_solutions: number;
 }
 
+/** Authentication method for Hub connections. */
+export type HubAuthMethod = "oidc" | "credentials";
+
 export interface HubConfig {
   enabled: boolean;
   url: string;
   auth: {
     enabled: boolean;
+    /** Authentication method: "oidc" (default) uses device flow, "credentials" uses username/password. */
+    method?: HubAuthMethod;
+    /** OIDC client ID for device flow authentication. Defaults to "konveyor-vscode". */
+    oidcClientId?: string;
     username: string;
     password: string;
     insecure: boolean;
