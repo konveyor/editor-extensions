@@ -980,15 +980,13 @@ export class HubConnectionManager {
       return;
     }
 
-    try {
-      this.profileSyncClient.syncProfiles?.().catch((error: unknown) => {
+    // Delegate to the syncHubProfiles command which has workspace/repo context
+    executeExtensionCommand("syncHubProfiles", true).then(
+      () => {},
+      (error: unknown) => {
         this.logger.error("Profile sync failed", { error });
-      });
-    } catch (error) {
-      this.logger.error("Profile sync trigger failed (sync context may not be available yet)", {
-        error,
-      });
-    }
+      },
+    );
   }
 
   private startProfileSyncTimer(): void {
