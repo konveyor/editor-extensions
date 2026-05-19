@@ -1104,11 +1104,13 @@ export class HubConnectionManager {
       headers["Authorization"] = `Bearer ${this.bearerToken}`;
     }
 
-    // Use OIDC userinfo endpoint for OIDC auth (validates token + connectivity)
-    // Fall back to /hub for legacy credential auth
+    // Use /hub for PAT validation (PATs are hub API keys, not OIDC tokens).
+    // Use OIDC userinfo endpoint for OIDC auth (validates token + connectivity).
+    // Fall back to /hub for legacy credential auth.
     const method = this.getAuthMethod();
-    const checkUrl =
-      method === "oidc-auth-code" || method === "oidc"
+    const checkUrl = this.usingPAT
+      ? `${this.config.url}/hub`
+      : method === "oidc-auth-code" || method === "oidc"
         ? `${this.config.url}/oidc/userinfo`
         : `${this.config.url}/hub`;
 
