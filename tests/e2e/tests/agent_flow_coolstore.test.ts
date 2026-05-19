@@ -101,6 +101,9 @@ providers.forEach((config) => {
         while (!done) {
           maxIterations -= 1;
           if (maxIterations <= 0) {
+            await vscodeApp.getWindow().screenshot({
+              path: pathlib.join(SCREENSHOTS_FOLDER, 'agent-loop-timeout.png'),
+            });
             throw new Error(
               'Agent loop did not finish within given iterations, this is unexpected'
             );

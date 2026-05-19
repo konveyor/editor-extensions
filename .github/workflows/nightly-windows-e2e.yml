@@ -77,21 +77,3 @@ jobs:
       use_release: false
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
-  report_failure:
-    name: Report Failure
-    needs: [package, windows-e2e]
-    if: ${{ always() && contains(needs.*.result, 'failure') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send failure to Slack
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "text": "Windows Nightly E2E Tests Failed\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nJobs:\n• package: ${{ needs.package.result }}\n• windows-e2e: ${{ needs.windows-e2e.result }}",
-              "branch": "main",
-              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.INTERNAL_SLACK_WEBHOOK_URL }}
