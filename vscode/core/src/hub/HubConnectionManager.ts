@@ -43,6 +43,16 @@ const REAUTH_DELAY_MS = 5000; // Delay before re-authentication attempt
 const PROFILE_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const TOKEN_EXCHANGE_TIMEOUT_MS = 30000; // 30 second timeout for token exchange
 const DEFAULT_OIDC_CLIENT_ID = "kai-ide";
+const PAT_LIFESPAN_HOURS = 87600; // ~10 years
+const PAT_STORAGE_KEY_PREFIX = "konveyor.hub.pat";
+
+/** Response from POST /auth/tokens (PAT creation). */
+interface PATResponse {
+  id?: number;
+  lifespan?: number;
+  expiration?: string;
+  token: string;
+}
 
 export class HubConnectionManagerError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -75,6 +85,7 @@ export class HubConnectionManager {
   private refreshTimer: NodeJS.Timeout | null = null;
   private username: string = "";
   private password: string = "";
+  private usingPAT: boolean = false;
 
   // OIDC Auth Code Flow state (primary)
   private oidcAuthCode: OIDCAuthCodeFlow | null = null;
@@ -309,8 +320,20 @@ export class HubConnectionManager {
     // Handle authentication (non-interactive: don't auto-open browser on startup)
     if (this.config.auth.enabled) {
       try {
-        await this.ensureAuthenticated(false);
-        await this.startTokenRefreshTimer();
+        // Try stored PAT first (long-lived, no refresh needed)
+        const storedPAT = await this.retrievePAT();
+        if (storedPAT) {
+          this.bearerToken = storedPAT;
+          this.usingPAT = true;
+          this.logger.info("Using stored PAT for authentication");
+        } else {
+          await this.ensureAuthenticated(false);
+          // Exchange short-lived OIDC token for long-lived PAT
+          await this.exchangeForPAT();
+        }
+        if (!this.usingPAT) {
+          await this.startTokenRefreshTimer();
+        }
       } catch (error) {
         if (error instanceof HubConnectionManagerError) {
           this.logger.error("Authentication failed", { error });
@@ -345,6 +368,25 @@ export class HubConnectionManager {
       await this.verifyHubConnectivity();
       this.logger.info("Hub connectivity check passed");
     } catch (error) {
+      // If stored PAT was rejected, clear it and fall back to OIDC re-auth
+      if (
+        this.usingPAT &&
+        error instanceof HubConnectionManagerError &&
+        error.message.includes("rejected")
+      ) {
+        this.logger.warn("Stored PAT rejected, clearing and requiring re-authentication");
+        await this.clearPAT();
+        this.bearerToken = null;
+        this.usingPAT = false;
+        vscode.window
+          .showWarningMessage("Hub API key expired. Please sign in again.", "Sign In")
+          .then((action) => {
+            if (action === "Sign In") {
+              executeExtensionCommand("hubOidcLogin");
+            }
+          });
+        return;
+      }
       if (error instanceof HubConnectionManagerError) {
         this.logger.error("Hub connectivity check failed", { error });
         vscode.window.showErrorMessage(`Failed to connect to Hub: ${error.message}`);
@@ -489,6 +531,9 @@ export class HubConnectionManager {
       this.bearerToken = tokens.accessToken;
       this.tokenExpiresAt = tokens.expiresAt;
 
+      // Exchange for long-lived PAT before reconnecting
+      await this.exchangeForPAT();
+
       // After successful interactive login, reconnect to Hub
       await this.connect();
 
@@ -515,7 +560,9 @@ export class HubConnectionManager {
     this.bearerToken = null;
     this.tokenExpiresAt = null;
     this.refreshToken = null;
-    this.logger.info("OIDC tokens cleared");
+    this.usingPAT = false;
+    await this.clearPAT();
+    this.logger.info("OIDC tokens and PAT cleared");
   }
 
   // ─── Private: Authentication ─────────────────────────────────────────────
@@ -701,6 +748,134 @@ export class HubConnectionManager {
     });
 
     this.oidcIssuerUrl = issuerUrl;
+  }
+
+  // ─── Private: PAT Exchange ─────────────────────────────────────────────────
+
+  /**
+   * Exchange the current short-lived OIDC access token for a long-lived
+   * Personal Access Token (PAT) via POST /auth/tokens.
+   *
+   * On success, replaces bearerToken with the PAT and persists it.
+   * On failure, logs a warning and continues with the short-lived token.
+   */
+  private async exchangeForPAT(): Promise<void> {
+    if (!this.bearerToken) {
+      return;
+    }
+
+    const fetchFn = this.scopedFetch ?? fetch;
+    const url = `${this.config.url}/hub/auth/tokens`;
+
+    try {
+      this.logger.info("Exchanging OIDC token for long-lived PAT", {
+        lifespan: PAT_LIFESPAN_HOURS,
+      });
+
+      const response = await fetchFn(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${this.bearerToken}`,
+        },
+        body: JSON.stringify({ lifespan: PAT_LIFESPAN_HOURS }),
+        signal: AbortSignal.timeout(TOKEN_EXCHANGE_TIMEOUT_MS),
+      });
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        this.logger.warn("PAT exchange failed", {
+          status: response.status,
+          body: body.substring(0, 200),
+        });
+        return;
+      }
+
+      const data = (await response.json()) as PATResponse;
+      if (!data.token) {
+        this.logger.warn("PAT exchange returned no token");
+        return;
+      }
+
+      // Success — switch to PAT
+      this.bearerToken = data.token;
+      this.usingPAT = true;
+      this.tokenExpiresAt = data.expiration
+        ? new Date(data.expiration).getTime()
+        : Date.now() + PAT_LIFESPAN_HOURS * 3600 * 1000;
+
+      // Persist PAT
+      await this.storePAT(data.token);
+
+      this.logger.info("Successfully exchanged OIDC token for PAT", {
+        patId: data.id,
+        expiresAt: this.tokenExpiresAt ? new Date(this.tokenExpiresAt).toISOString() : "unknown",
+      });
+    } catch (error) {
+      this.logger.warn("PAT exchange request failed, continuing with OIDC token", { error });
+    }
+  }
+
+  /**
+   * Build a deterministic storage key for PAT based on hub URL.
+   */
+  private getPATStorageKey(): string {
+    const normalized = this.config.url.replace(/\/$/, "").toLowerCase();
+    const hash = require("crypto")
+      .createHash("sha256")
+      .update(normalized)
+      .digest("hex")
+      .substring(0, 16);
+    return `${PAT_STORAGE_KEY_PREFIX}.${hash}`;
+  }
+
+  /**
+   * Store PAT in VS Code SecretStorage.
+   */
+  private async storePAT(token: string): Promise<void> {
+    if (!this.extensionContext) {
+      return;
+    }
+    try {
+      const key = this.getPATStorageKey();
+      await this.extensionContext.secrets.store(key, token);
+      this.logger.info("PAT stored in SecretStorage");
+    } catch (error) {
+      this.logger.warn("Failed to store PAT", { error });
+    }
+  }
+
+  /**
+   * Retrieve stored PAT from VS Code SecretStorage.
+   * Returns the token string or null if not stored.
+   */
+  private async retrievePAT(): Promise<string | null> {
+    if (!this.extensionContext) {
+      return null;
+    }
+    try {
+      const key = this.getPATStorageKey();
+      const token = await this.extensionContext.secrets.get(key);
+      return token ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Clear stored PAT (used on logout).
+   */
+  private async clearPAT(): Promise<void> {
+    if (!this.extensionContext) {
+      return;
+    }
+    try {
+      const key = this.getPATStorageKey();
+      await this.extensionContext.secrets.delete(key);
+    } catch {
+      // Ignore errors during cleanup
+    }
   }
 
   /**
