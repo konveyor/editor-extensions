@@ -1109,10 +1109,10 @@ export class HubConnectionManager {
     // Fall back to /hub for legacy credential auth.
     const method = this.getAuthMethod();
     const checkUrl = this.usingPAT
-      ? `${this.config.url}/hub`
+      ? `${this.config.url}/hub/auth/tokens`
       : method === "oidc-auth-code" || method === "oidc"
         ? `${this.config.url}/oidc/userinfo`
-        : `${this.config.url}/hub`;
+        : `${this.config.url}/hub/auth/tokens`;
 
     try {
       const response = await fetchFn(checkUrl, {
