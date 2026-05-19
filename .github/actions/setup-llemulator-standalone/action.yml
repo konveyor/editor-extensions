@@ -46,7 +46,7 @@ runs:
       run: |
         echo "=== Waiting for llemulator to be ready ==="
         for i in {1..30}; do
-          if curl -s http://localhost:${{ inputs.port }}/_emulator/script > /dev/null 2>&1; then
+          if curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
             echo "Llemulator is ready"
             break
           fi
@@ -55,7 +55,7 @@ runs:
         done
 
         # Verify it's responding
-        if ! curl -s http://localhost:${{ inputs.port }}/_emulator/script > /dev/null 2>&1; then
+        if ! curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
           echo "ERROR: Llemulator failed to start"
           docker logs llemulator
           exit 1
@@ -107,29 +107,25 @@ runs:
 
     - name: Wait for llemulator to be ready (Windows)
       if: runner.os == 'Windows'
-      shell: pwsh
+      shell: bash
       run: |
-        Write-Host "=== Waiting for llemulator to be ready ==="
-        $maxAttempts = 30
-        $ready = $false
-        for ($i = 1; $i -le $maxAttempts; $i++) {
-          try {
-            $response = Invoke-WebRequest -Uri "http://localhost:${{ inputs.port }}/_emulator/script" `
-              -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
-            Write-Host "Llemulator is ready"
-            $ready = $true
+        echo "=== Waiting for llemulator to be ready ==="
+        for i in {1..30}; do
+          if curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+            echo "Llemulator is ready"
             break
-          } catch {
-            Write-Host "Waiting for llemulator... ($i/$maxAttempts)"
-            Start-Sleep -Seconds 2
-          }
-        }
-        if (-not $ready) {
-          Write-Host "ERROR: Llemulator failed to start. Logs:"
-          Get-Content "$Env:RUNNER_TEMP\llemulator-stdout.log" -ErrorAction SilentlyContinue
-          Get-Content "$Env:RUNNER_TEMP\llemulator-stderr.log" -ErrorAction SilentlyContinue
+          fi
+          echo "Waiting for llemulator... ($i/30)"
+          sleep 2
+        done
+
+        # Verify it's responding
+        if ! curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+          echo "ERROR: Llemulator failed to start. Logs:"
+          cat "$RUNNER_TEMP/llemulator-stdout.log" 2>/dev/null || true
+          cat "$RUNNER_TEMP/llemulator-stderr.log" 2>/dev/null || true
           exit 1
-        }
+        fi
 
     # ── Shared: expose the URL as a step output (consumed by the action outputs) ─
     - name: Set llemulator output URL
