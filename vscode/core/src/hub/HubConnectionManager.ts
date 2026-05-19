@@ -548,6 +548,9 @@ export class HubConnectionManager {
    * Logout from OIDC (clear stored tokens).
    */
   public async oidcLogout(): Promise<void> {
+    // Disconnect all active clients first
+    await this.disconnect();
+
     if (this.oidcAuthCode) {
       this.oidcAuthCode.clearTokens();
     }
@@ -562,7 +565,8 @@ export class HubConnectionManager {
     this.refreshToken = null;
     this.usingPAT = false;
     await this.clearPAT();
-    this.logger.info("OIDC tokens and PAT cleared");
+    this.clearTokenRefreshTimer();
+    this.logger.info("OIDC tokens and PAT cleared, disconnected from Hub");
   }
 
   // ─── Private: Authentication ─────────────────────────────────────────────
