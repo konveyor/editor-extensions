@@ -12,7 +12,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # ── Linux: build and run as a Docker container ──────────────────────────
     - name: Clone and build llemulator (Linux)
       if: runner.os == 'Linux'
       shell: bash
@@ -54,14 +53,12 @@ runs:
           sleep 2
         done
 
-        # Verify it's responding
         if ! curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
           echo "ERROR: Llemulator failed to start"
           docker logs llemulator
           exit 1
         fi
 
-    # ── Windows: build as a native Go binary and run as a background process ─
     - name: Clone and build llemulator (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
@@ -89,16 +86,20 @@ runs:
         $llemulatorDir = $Env:LLEMULATOR_DIR
         $llemulatorExe = Join-Path $llemulatorDir "llemulator.exe"
 
-        # llemulator reads the port from the PORT environment variable; set it before spawning
         $env:PORT = "${{ inputs.port }}"
         $proc = Start-Process -FilePath $llemulatorExe `
           -WorkingDirectory $llemulatorDir `
           -PassThru `
-          -NoNewWindow `
-          -RedirectStandardOutput "$Env:RUNNER_TEMP\llemulator-stdout.log" `
-          -RedirectStandardError  "$Env:RUNNER_TEMP\llemulator-stderr.log"
+          -WindowStyle Hidden
 
         Write-Host "Llemulator started (PID $($proc.Id))"
+        Start-Sleep -Seconds 2
+
+        if ($proc.HasExited) {
+          Write-Host "WARNING: Process exited immediately (exit code $($proc.ExitCode))"
+        } else {
+          Write-Host "Process is running"
+        }
 
         $LLEMULATOR_URL = "http://localhost:${{ inputs.port }}/v1"
         echo "LLEMULATOR_URL=$LLEMULATOR_URL" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
@@ -111,7 +112,7 @@ runs:
       run: |
         echo "=== Waiting for llemulator to be ready ==="
         for i in {1..30}; do
-          if curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+          if curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
             echo "Llemulator is ready"
             break
           fi
@@ -119,29 +120,25 @@ runs:
           sleep 2
         done
 
-        # Verify it's responding
-        if ! curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
-          echo "ERROR: Llemulator failed to start. Logs:"
-          cat "$RUNNER_TEMP/llemulator-stdout.log" 2>/dev/null || true
-          cat "$RUNNER_TEMP/llemulator-stderr.log" 2>/dev/null || true
+        if ! curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+          echo "ERROR: Llemulator failed to start."
+          echo "=== Port check ==="
+          netstat -ano | grep ":${{ inputs.port }}" || echo "Port ${{ inputs.port }} not found"
           exit 1
         fi
 
-    # ── Shared: expose the URL as a step output (consumed by the action outputs) ─
     - name: Set llemulator output URL
       id: set_llemulator_output
       shell: bash
       run: |
         echo "url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
 
-    # ── Shared: configure and verify llemulator (works on both platforms) ───
     - name: Configure llemulator with test responses
       shell: bash
       run: |
         echo "=== Configuring llemulator with test responses ==="
 
-        # Configure llemulator with 5 test responses
-        response=$(curl -s -X POST http://localhost:${{ inputs.port }}/_emulator/script \
+        response=$(curl -s -X POST http://127.0.0.1:${{ inputs.port }}/_emulator/script \
           -H "Authorization: Bearer dummy-key-for-llemulator" \
           -H "Content-Type: application/json" \
           -d '{
@@ -169,7 +166,7 @@ runs:
       shell: bash
       run: |
         echo "=== Testing llemulator endpoint ==="
-        RESPONSE=$(curl -s -X POST http://localhost:${{ inputs.port }}/v1/chat/completions \
+        RESPONSE=$(curl -s -X POST http://127.0.0.1:${{ inputs.port }}/v1/chat/completions \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer dummy-key-for-llemulator" \
           -d '{
