@@ -127,7 +127,7 @@ export abstract class VSCode {
         // Timeout increased due to https://github.com/konveyor/editor-extensions/issues/1406
         await stopButton.waitFor({
           state: 'visible',
-          timeout: process.env.WEB_ENV === '1' || getOSInfo() === 'windows' ? 600_000 : 180_000,
+          timeout: process.env.WEB_ENV === '1' ? 600_000 : 180_000,
         });
         await stopButton.isEnabled({ timeout: 180000 });
         console.log('Server started successfully');

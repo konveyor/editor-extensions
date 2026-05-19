@@ -130,6 +130,10 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await tabManager.modifyTabFile(FILES_NAMES[0]);
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
+    // TODO (abrugaro): Remove this
+    await vscodeApp.getWindow().screenshot({
+      path: `${SCREENSHOTS_FOLDER}/analysis-view-plugin-settings-analyze-on-save.png`,
+    });
     await vscodeApp.waitForAnalysisCompleted();
     await vscodeApp.setListKindAndSort('files', 'ascending');
     let files = (await vscodeApp.getListNames('files')) as string[];
