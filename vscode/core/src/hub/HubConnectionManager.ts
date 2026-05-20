@@ -86,6 +86,7 @@ export class HubConnectionManager {
   private username: string = "";
   private password: string = "";
   private usingPAT: boolean = false;
+  private isInteractiveLoginInProgress: boolean = false;
 
   // OIDC Auth Code Flow state (primary)
   private oidcAuthCode: OIDCAuthCodeFlow | null = null;
@@ -351,14 +352,16 @@ export class HubConnectionManager {
       } catch (error) {
         if (error instanceof HubConnectionManagerError) {
           this.logger.error("Authentication failed", { error });
-          // Show actionable sign-in prompt instead of generic error
-          vscode.window
-            .showWarningMessage("Hub authentication required. Sign in to connect.", "Sign In")
-            .then((action) => {
-              if (action === "Sign In") {
-                executeExtensionCommand("hubOidcLogin");
-              }
-            });
+          // Only show sign-in prompt if not already doing an interactive login
+          if (!this.isInteractiveLoginInProgress) {
+            vscode.window
+              .showWarningMessage("Hub authentication required. Sign in to connect.", "Sign In")
+              .then((action) => {
+                if (action === "Sign In") {
+                  executeExtensionCommand("hubOidcLogin");
+                }
+              });
+          }
         } else {
           const classified = classifyNetworkError(error);
           this.logger.error("Authentication failed", {
@@ -527,6 +530,8 @@ export class HubConnectionManager {
     }
 
     try {
+      this.isInteractiveLoginInProgress = true;
+
       // Ensure scopedFetch is available (disconnect clears it, but OIDC flows need it for insecure certs)
       if (this.config.auth.insecure && !this.scopedFetch) {
         const dispatcher = await getDispatcherWithCertBundle(undefined, true);
@@ -565,6 +570,8 @@ export class HubConnectionManager {
           : { raw: String(error) };
       this.logger.error("Manual OIDC login failed", { error: errorDetails });
       return false;
+    } finally {
+      this.isInteractiveLoginInProgress = false;
     }
   }
 
