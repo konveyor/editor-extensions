@@ -69,6 +69,7 @@ import { StaticDiffAdapter } from "./diff/staticDiffAdapter";
 import { FileEditor } from "./utilities/ideUtils";
 import { ProviderRegistry, HealthCheckRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
+import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -927,6 +928,47 @@ class VsCodeExtension {
     // Set up the diff status change callback
     this.state.verticalDiffManager.onDiffStatusChange = (fileUri: string) => {
       this.updateDiffStatusBarForFile(fileUri);
+    };
+
+    // When all blocks are resolved via individual accept/reject, advance batch review
+    this.state.verticalDiffManager.onAllBlocksResolved = async (
+      streamId: string,
+      fileUri: string,
+      fileContent: string,
+      accepted: boolean,
+    ) => {
+      const filePath = vscode.Uri.parse(fileUri).fsPath;
+      try {
+        await handleFileResponse(
+          streamId,
+          accepted ? "apply" : "reject",
+          filePath,
+          accepted ? fileContent : undefined,
+          this.state,
+          true,
+        );
+      } catch (err) {
+        this.state.logger.debug(
+          "[Extension] onAllBlocksResolved handleFileResponse error (may not be in batch)",
+          err,
+        );
+      }
+      // Remove from pending FIRST, then clear decorator.
+      // Order matters: if decorator clears first, the webview useEffect resets
+      // viewingInEditor before the file is gone from pendingBatchReview.
+      this.state.mutateSolutionWorkflow((draft) => {
+        if (draft.pendingBatchReview) {
+          draft.pendingBatchReview = draft.pendingBatchReview.filter(
+            (file) => file.messageToken !== streamId,
+          );
+        }
+      });
+      // Now safe to clear decorator (file is already gone from pending)
+      this.state.mutateDecorators((draft) => {
+        if (draft.activeDecorators && draft.activeDecorators[streamId]) {
+          delete draft.activeDecorators[streamId];
+        }
+      });
     };
 
     this.state.staticDiffAdapter = new StaticDiffAdapter(
