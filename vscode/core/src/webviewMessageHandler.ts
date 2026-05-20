@@ -336,32 +336,9 @@ const actions: {
     await executeExtensionCommand("hubOidcLogout");
   },
   [HUB_RECONNECT]: async (_payload, state, logger) => {
-    logger.info("Hub Reconnect triggered from webview — clearing tokens and re-authenticating");
-    try {
-      // Clear existing tokens and disconnect
-      await state.hubConnectionManager.oidcLogout();
-      // Trigger fresh OIDC login flow
-      const success = await state.hubConnectionManager.triggerOIDCLogin();
-      if (success) {
-        await state.hubConnectionManager.connect();
-      }
-      state.mutateServerState((draft) => {
-        draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
-        draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
-        draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
-        draft.oidcUsername = state.hubConnectionManager.getOidcUsername();
-        draft.oidcTokenExpiry = state.hubConnectionManager.getTokenExpiry();
-      });
-    } catch (e) {
-      logger.error("Hub reconnect failed", { error: e });
-      state.mutateServerState((draft) => {
-        draft.solutionServerConnected = false;
-        draft.profileSyncConnected = false;
-        draft.llmProxyAvailable = false;
-        draft.oidcUsername = "";
-        draft.oidcTokenExpiry = null;
-      });
-    }
+    logger.info("Hub Sign In triggered from webview");
+    // Directly trigger OIDC login — same as the toast's Sign In button
+    await executeExtensionCommand("hubOidcLogin");
   },
   [WEBVIEW_READY](_payload, state, logger) {
     logger.info("Webview is ready - sending full state to ensure configuration is loaded");
