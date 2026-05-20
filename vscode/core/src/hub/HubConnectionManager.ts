@@ -527,6 +527,12 @@ export class HubConnectionManager {
     }
 
     try {
+      // Ensure scopedFetch is available (disconnect clears it, but OIDC flows need it for insecure certs)
+      if (this.config.auth.insecure && !this.scopedFetch) {
+        const dispatcher = await getDispatcherWithCertBundle(undefined, true);
+        this.scopedFetch = getFetchWithDispatcher(dispatcher);
+      }
+
       await this.ensureOIDCInitialized();
 
       let tokens: OIDCTokens;
@@ -544,12 +550,6 @@ export class HubConnectionManager {
       await this.persistOIDCTokens(tokens);
       this.bearerToken = tokens.accessToken;
       this.tokenExpiresAt = tokens.expiresAt;
-
-      // Ensure scopedFetch is available for PAT exchange (disconnect clears it)
-      if (this.config.auth.insecure && !this.scopedFetch) {
-        const dispatcher = await getDispatcherWithCertBundle(undefined, true);
-        this.scopedFetch = getFetchWithDispatcher(dispatcher);
-      }
 
       // Exchange for long-lived PAT before reconnecting
       await this.exchangeForPAT();
