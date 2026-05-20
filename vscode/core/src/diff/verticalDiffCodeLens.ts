@@ -28,12 +28,12 @@ export class VerticalDiffCodeLensProvider implements vscode.CodeLensProvider, vs
       new vscode.CodeLens(topRange, {
         title: `✓ Accept All Changes (${blocks.reduce((sum, b) => sum + b.numGreen, 0)}+, ${blocks.reduce((sum, b) => sum + b.numRed, 0)}-)`,
         command: `${EXTENSION_NAME}.acceptDiff`,
-        arguments: [document.uri.fsPath],
+        arguments: [fileUri],
       }),
       new vscode.CodeLens(topRange, {
         title: "✗ Reject All Changes",
         command: `${EXTENSION_NAME}.rejectDiff`,
-        arguments: [document.uri.fsPath],
+        arguments: [fileUri],
       }),
     );
 
