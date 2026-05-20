@@ -294,7 +294,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
         return false;
       }
 
-      const data: OIDCTokenResponse = await response.json();
+      const data = (await response.json()) as OIDCTokenResponse;
       this.updateTokensFromResponse(data);
       return true;
     } catch {
@@ -473,7 +473,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
       );
     }
 
-    const data: OIDCTokenResponse = await response.json();
+    const data = (await response.json()) as OIDCTokenResponse;
     this.updateTokensFromResponse(data);
     return this.getTokens()!;
   }

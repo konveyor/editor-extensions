@@ -956,13 +956,13 @@ export class HubConnectionManager {
 
     if (!response.ok) {
       const status = response.status;
-      const classified = classifyHttpStatus(status);
+      const classified = classifyHttpStatus(status, response.statusText);
       throw new HubConnectionManagerError(
         `Login failed (${status}): ${classified.summary}. ${classified.suggestion}`,
       );
     }
 
-    const data: HubLoginResponse = await response.json();
+    const data = (await response.json()) as HubLoginResponse;
     this.bearerToken = data.token;
     this.refreshToken = data.refresh ?? null;
 
@@ -1105,7 +1105,7 @@ export class HubConnectionManager {
         return false;
       }
 
-      const data: HubLoginResponse = await response.json();
+      const data = (await response.json()) as HubLoginResponse;
       this.bearerToken = data.token;
       if (data.refresh) {
         this.refreshToken = data.refresh;

@@ -257,7 +257,7 @@ export class OIDCDeviceFlowAuth {
         return false;
       }
 
-      const data: OIDCTokenResponse = await response.json();
+      const data = (await response.json()) as OIDCTokenResponse;
       this.updateTokensFromResponse(data);
       return true;
     } catch {
@@ -327,8 +327,7 @@ export class OIDCDeviceFlowAuth {
    * Show user_code in VS Code UI and open verification URI in browser.
    */
   private async presentDeviceCode(deviceAuth: DeviceAuthorizationResponse): Promise<void> {
-    const verificationUri =
-      deviceAuth.verification_uri_complete ?? deviceAuth.verification_uri;
+    const verificationUri = deviceAuth.verification_uri_complete ?? deviceAuth.verification_uri;
 
     // Copy code to clipboard proactively
     await vscode.env.clipboard.writeText(deviceAuth.user_code);
@@ -401,17 +400,17 @@ export class OIDCDeviceFlowAuth {
 
       if (response.ok) {
         // Success! We got tokens.
-        const data: OIDCTokenResponse = await response.json();
+        const data = (await response.json()) as OIDCTokenResponse;
         this.updateTokensFromResponse(data);
         vscode.window.showInformationMessage("Successfully signed in to Konveyor Hub");
         return this.getTokens()!;
       }
 
       // Handle error responses
-      const errorData: OIDCTokenErrorResponse = await response.json().catch(() => ({
+      const errorData = (await response.json().catch(() => ({
         error: "unknown",
         error_description: `HTTP ${response.status}`,
-      }));
+      }))) as OIDCTokenErrorResponse;
 
       switch (errorData.error) {
         case ERROR_AUTHORIZATION_PENDING:
