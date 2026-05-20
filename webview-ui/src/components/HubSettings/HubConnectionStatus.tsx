@@ -107,8 +107,8 @@ export const HubConnectionStatus: React.FC = () => {
 
           {!isConnected && isHubEnabled && (
             <SplitItem>
-              <Button variant="secondary" onClick={handleReconnect}>
-                Reconnect
+              <Button variant="primary" onClick={handleReconnect}>
+                Sign In
               </Button>
             </SplitItem>
           )}

@@ -336,9 +336,15 @@ const actions: {
     await executeExtensionCommand("hubOidcLogout");
   },
   [HUB_RECONNECT]: async (_payload, state, logger) => {
-    logger.info("Hub Reconnect triggered from webview");
+    logger.info("Hub Reconnect triggered from webview — clearing tokens and re-authenticating");
     try {
-      await state.hubConnectionManager.connect();
+      // Clear existing tokens and disconnect
+      await state.hubConnectionManager.oidcLogout();
+      // Trigger fresh OIDC login flow
+      const success = await state.hubConnectionManager.triggerOIDCLogin();
+      if (success) {
+        await state.hubConnectionManager.connect();
+      }
       state.mutateServerState((draft) => {
         draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
         draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
@@ -348,6 +354,13 @@ const actions: {
       });
     } catch (e) {
       logger.error("Hub reconnect failed", { error: e });
+      state.mutateServerState((draft) => {
+        draft.solutionServerConnected = false;
+        draft.profileSyncConnected = false;
+        draft.llmProxyAvailable = false;
+        draft.oidcUsername = "";
+        draft.oidcTokenExpiry = null;
+      });
     }
   },
   [WEBVIEW_READY](_payload, state, logger) {
