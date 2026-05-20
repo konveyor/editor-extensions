@@ -545,6 +545,12 @@ export class HubConnectionManager {
       this.bearerToken = tokens.accessToken;
       this.tokenExpiresAt = tokens.expiresAt;
 
+      // Ensure scopedFetch is available for PAT exchange (disconnect clears it)
+      if (this.config.auth.insecure && !this.scopedFetch) {
+        const dispatcher = await getDispatcherWithCertBundle(undefined, true);
+        this.scopedFetch = getFetchWithDispatcher(dispatcher);
+      }
+
       // Exchange for long-lived PAT before reconnecting
       await this.exchangeForPAT();
 
