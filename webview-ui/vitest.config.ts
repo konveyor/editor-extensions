@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __EXTENSION_NAME__: JSON.stringify("konveyor"),
+    __EXTENSION_SHORT_NAME__: JSON.stringify("Konveyor"),
   },
   test: {
     globals: true,
