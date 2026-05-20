@@ -553,7 +553,11 @@ export class HubConnectionManager {
 
       return true;
     } catch (error) {
-      this.logger.error("Manual OIDC login failed", { error });
+      const errorDetails =
+        error instanceof Error
+          ? { message: error.message, name: error.name, stack: error.stack }
+          : { raw: String(error) };
+      this.logger.error("Manual OIDC login failed", { error: errorDetails });
       return false;
     }
   }
