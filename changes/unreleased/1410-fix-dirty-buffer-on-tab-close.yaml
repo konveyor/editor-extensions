@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Fix file showing patched content after closing review editor tab without
+  accepting. Use tabGroups.onDidChangeTabs to restore the clean on-disk buffer
+  via WorkspaceEdit instead of the unreliable onDidCloseTextDocument + revert
+  approach.

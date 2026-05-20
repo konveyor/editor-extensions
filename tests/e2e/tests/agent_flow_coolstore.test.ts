@@ -30,12 +30,7 @@ providers.forEach((config) => {
 
         // prepareOffline=true extracts LLM cache and sets demoMode/cacheDir BEFORE VS Code launches
         // This ensures the extension can use cached healthcheck data during initial activation
-        vscodeApp = await VSCodeFactory.init(
-          repoInfo.repoUrl,
-          repoInfo.repoName,
-          undefined,
-          true // prepareOffline
-        );
+        vscodeApp = await VSCodeFactory.init(repoInfo, true);
 
         // Wait for extension initialization
         // Both redhat.java and konveyor-java extensions will activate automatically

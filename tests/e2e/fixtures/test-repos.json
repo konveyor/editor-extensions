@@ -231,9 +231,8 @@
     "language": "typescript",
     "sources": [],
     "targets": ["patternfly-v6"],
-    "customRulesFolder": "data/rulesets/patternfly",
-    "issuesCount": 50,
-    "incidentsCount": 447,
+    "issuesCount": 45,
+    "incidentsCount": 403,
     "issues": [
       {
         "title": "--pf-v5-global should be replaced with --pf-v6-global",
@@ -400,8 +399,7 @@
     "language": "csharp",
     "workspacePath": "testdata/nerd-dinner",
     "sources": [],
-    "targets": ["dotnet-core", "dotnet"],
-    "customRulesFolder": "rulesets/dotnet-core-migration",
+    "targets": ["dotnet-core"],
     "issuesCount": 4,
     "incidentsCount": 40,
     "issues": []

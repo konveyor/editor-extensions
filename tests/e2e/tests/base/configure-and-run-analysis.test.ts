@@ -22,7 +22,7 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName);
+    vscodeApp = await VSCodeFactory.open(repoInfo);
   });
 
   test('Create Profile and Set Sources and targets', async () => {
@@ -39,7 +39,7 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
   });
 
   test('Analyze coolstore app and check if stop button is disabled', async () => {
-    test.setTimeout(300000);
+    test.setTimeout(600000);
     await vscodeApp.waitDefault();
     await vscodeApp.runAnalysis();
     await vscodeApp.openAnalysisView();

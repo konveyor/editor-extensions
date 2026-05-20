@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Add configurable timeout (default 5 minutes) to LLM requests in streamOrInvoke
+  to prevent indefinite hanging when the model provider is misconfigured or unreachable.
+  Upgrade no-response logging from silly to warn with actionable error messages.

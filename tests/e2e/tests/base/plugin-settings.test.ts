@@ -104,7 +104,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     }
 
     const repoInfo = testRepoData['coolstore'];
-    vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+    vscodeApp = await VSCodeFactory.init(repoInfo);
     await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
     await vscodeApp.configureGenerativeAI(getDefaultProviderConfig().config);
     await vscodeApp.waitDefault();
@@ -217,7 +217,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
       [excludedDiagnosticSourcesSettingKey]: ['java', 'konveyor'],
     });
     await vscodeApp.closeVSCode();
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+    vscodeApp = await VSCodeFactory.open(repoInfo);
     await vscodeApp.executeTerminalCommand('git checkout .');
     await vscodeApp.startServer();
     await vscodeApp.runAnalysis();
@@ -263,7 +263,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     });
     await vscodeApp.executeTerminalCommand('git checkout . && git clean -df');
     await vscodeApp.closeVSCode();
-    vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+    vscodeApp = await VSCodeFactory.open(repoInfo);
 
     await vscodeApp.startServer();
     await vscodeApp.runAnalysis();

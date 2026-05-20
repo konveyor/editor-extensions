@@ -2,28 +2,39 @@ import * as fs from 'fs';
 import { BrowserContextOptions, chromium } from 'playwright';
 import { expect, Page } from '@playwright/test';
 import { VSCode } from './vscode.page';
+import { RepoInfo } from '../types/repo-info';
 import { existsSync } from 'node:fs';
 import { BrowserContext } from 'playwright-core';
 import { extensionShortName, generateRandomString, getOSInfo } from '../utilities/utils';
 import { KAIViews } from '../enums/views.enum';
 import { ExtensionTypes } from '../enums/extension-types.enum';
+import { getExtensionsForLanguage } from '../utilities/vscode-commands.utils';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
 
 export class VSCodeWeb extends VSCode {
   protected window: Page;
 
-  constructor(window: Page, repoDir?: string, branch = 'main') {
+  constructor(window: Page, repoInfo?: RepoInfo, repoDir?: string) {
     super();
     this.window = window;
+    this.repoInfo = repoInfo;
     this.repoDir = repoDir;
-    this.branch = branch;
+    this.branch = repoInfo?.branch ?? 'main';
   }
 
-  public static async open(repoUrl?: string, repoDir?: string, branch = 'main') {
+  public static async open(repoInfo?: RepoInfo) {
+    const { repoUrl, repoName, branch = 'main', workspacePath } = repoInfo ?? {};
+    const repoDir = repoName
+      ? workspacePath
+        ? `${repoName}/${workspacePath}`
+        : repoName
+      : undefined;
+
     const browser = await chromium.launch();
     if (!existsSync('./web-state.json')) {
-      return VSCodeWeb.init(repoUrl, repoDir, branch);
+      await browser.close();
+      return VSCodeWeb.init(repoInfo);
     }
 
     const context = await browser.newContext({
@@ -36,6 +47,9 @@ export class VSCodeWeb extends VSCode {
 
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (await loginButton.isVisible()) {
+      await page.close();
+      await context.close();
+      await browser.close();
       throw new Error('VSCodeWeb.open: User is not logged in.');
     }
 
@@ -47,7 +61,7 @@ export class VSCodeWeb extends VSCode {
     console.log(`VSCodeWeb.open: Creating new workspace...`);
     newPage = await VSCodeWeb.createWorkspace(context, page, repoUrl, branch);
 
-    const vscode = new VSCodeWeb(newPage, repoDir, branch);
+    const vscode = new VSCodeWeb(newPage, repoInfo, repoDir);
     await newPage.waitForLoadState();
     await page.close();
 
@@ -126,34 +140,22 @@ export class VSCodeWeb extends VSCode {
 
     await vscode.uninstallEditorExtensions();
 
+    const language = repoInfo?.language ?? 'java';
     console.log(`VSCodeWeb.open: starting installExtensions`);
-    // TODO rest of the extensions
-    await vscode.installExtensions([ExtensionTypes.Core, ExtensionTypes.Java]);
+    await vscode.installExtensions(getExtensionsForLanguage(language));
     console.log(`VSCodeWeb.open: installExtensions done`);
 
-    await expect(newPage.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
-    const javaLightSelector = newPage.getByRole('button', { name: 'Java: Lightweight Mode' });
-    if (await javaLightSelector.isVisible()) {
-      console.log('VSCodeWeb.open: Change Java extension mode');
-      await javaLightSelector.click();
-    } else {
-      console.log('VSCodeWeb.open: Java extension is NOT in lightweight mode');
-      console.log(await newPage.getByRole('button', { name: 'Java:' }).allTextContents());
+    if (language === 'java') {
+      await vscode.waitForJavaReady(newPage);
     }
-    console.log(`VSCodeWeb.open: waiting for Java ready`);
-    const javaReadySelector = newPage.getByRole('button', { name: /Java: (Ready|Warning)/ });
-    await javaReadySelector.waitFor({ timeout: 180_000 });
-    console.log(`VSCodeWeb.open: open() complete`);
     return vscode;
   }
 
   /**
    * launches VSCode with KAI plugin installed and repoUrl app opened.
-   * @param repoUrl
-   * @param repoDir path to repo
-   * @param branch optional branch to clone from
+   * @param repoInfo
    */
-  public static async init(repoUrl?: string, repoDir?: string, branch?: string): Promise<VSCode> {
+  public static async init(repoInfo?: RepoInfo): Promise<VSCode> {
     if (
       [
         process.env.WEB_BASE_URL,
@@ -181,8 +183,10 @@ export class VSCodeWeb extends VSCode {
     const loginButton = page.getByRole('button', { name: 'Log in' }).first();
     if (!(await loginButton.isVisible())) {
       await page.close();
+      await context.close();
+      await browser.close();
       console.log('VSCodeWeb.init: User already logged in');
-      return VSCodeWeb.open(repoUrl, repoDir, branch);
+      return VSCodeWeb.open(repoInfo);
     }
     console.log('VSCodeWeb.init: User not logged in, go to login');
     await expect(loginButton).toBeVisible();
@@ -201,7 +205,9 @@ export class VSCodeWeb extends VSCode {
     await context.storageState({ path: './web-state.json' });
     await page.waitForTimeout(5000);
     await page.close();
-    return VSCodeWeb.open(repoUrl, repoDir, branch);
+    await context.close();
+    await browser.close();
+    return VSCodeWeb.open(repoInfo);
   }
 
   public async closeVSCode(): Promise<void> {
@@ -224,6 +230,22 @@ export class VSCodeWeb extends VSCode {
     }
   }
 
+  public async waitForJavaReady(page: Page = this.window): Promise<void> {
+    await expect(page.getByRole('button', { name: 'Java:' })).toBeVisible({ timeout: 80_000 });
+    const javaLightSelector = page.getByRole('button', { name: 'Java: Lightweight Mode' });
+    if (await javaLightSelector.isVisible()) {
+      console.log('VSCodeWeb.waitForJavaReady: Change Java extension mode');
+      await javaLightSelector.click();
+    } else {
+      console.log('VSCodeWeb.waitForJavaReady: Java extension is NOT in lightweight mode');
+      console.log(await page.getByRole('button', { name: 'Java:' }).allTextContents());
+    }
+    console.log('VSCodeWeb.waitForJavaReady: waiting for Java ready');
+    const javaReadySelector = page.getByRole('button', { name: /Java: (Ready|Warning)/ });
+    await javaReadySelector.waitFor({ timeout: 180_000 });
+    console.log('VSCodeWeb.waitForJavaReady: Java ready');
+  }
+
   protected async selectCustomRules(customRulesPath: string) {
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     console.log(`Uploading custom rules from: ${customRulesPath}`);
@@ -232,12 +254,43 @@ export class VSCodeWeb extends VSCode {
 
     const path = await import('path');
     const glob = await import('glob');
+    const fsSync = await import('fs');
+    const os = await import('os');
+    const { execSync } = await import('child_process');
     // Dynamic import of a CJS module returns { default: module }, so sync lives under default
     const syncFn = glob.default.sync ?? (glob as any).sync;
 
-    const yamlFiles = syncFn(path.join(customRulesPath, '**/*.yaml'));
+    let resolvedRulesPath = customRulesPath;
+
+    if (!fsSync.existsSync(customRulesPath) && this.repoInfo) {
+      const { repoUrl, repoName, branch = 'main' } = this.repoInfo;
+
+      // Extract the sub-path relative to the repo root from the absolute customRulesPath.
+      // The path is typically built as: path.join(process.cwd(), repoName, subPath)
+      const repoRootInPath = path.join(process.cwd(), repoName);
+      let subPath: string;
+      if (customRulesPath.startsWith(repoRootInPath)) {
+        subPath = customRulesPath.substring(repoRootInPath.length + 1);
+      } else {
+        // Fallback: locate the repo name segment inside the path
+        const parts = customRulesPath.split(path.sep);
+        const repoIdx = parts.indexOf(repoName);
+        subPath = repoIdx >= 0 ? parts.slice(repoIdx + 1).join(path.sep) : customRulesPath;
+      }
+
+      const tmpDir = fsSync.mkdtempSync(path.join(os.tmpdir(), 'kai-rules-'));
+      const cloneTarget = path.join(tmpDir, repoName);
+      console.log(
+        `customRulesPath not found locally. Cloning ${repoUrl} (branch: ${branch}) to ${tmpDir}`
+      );
+      execSync(`git clone --depth 1 -b ${branch} ${repoUrl} ${cloneTarget}`, { stdio: 'pipe' });
+      resolvedRulesPath = path.join(cloneTarget, subPath);
+      console.log(`Using cloned custom rules from: ${resolvedRulesPath}`);
+    }
+
+    const yamlFiles = syncFn(path.join(resolvedRulesPath, '**/*.yaml'));
     if (yamlFiles.length === 0) {
-      throw new Error(`No YAML files found in ${customRulesPath}`);
+      throw new Error(`No YAML files found in ${resolvedRulesPath}`);
     }
 
     console.log(`Found ${yamlFiles.length} YAML files to upload`);
@@ -333,17 +386,23 @@ export class VSCodeWeb extends VSCode {
 
     console.log(`Found ${initialTotal} installed "${searchTerm}" extension(s).`);
 
+    let index = 0;
     let attempt = 0;
-    while ((await itemsLocator.count()) > 0) {
+    const MAX_ATTEMPTS = initialTotal * 4;
+    while (index < initialTotal && attempt < MAX_ATTEMPTS) {
       attempt++;
-      const item = itemsLocator.first();
+      const items = await itemsLocator.all();
+      if (index >= items.length) break;
+
+      const item = items[index];
       const itemText = (await item.textContent().catch(() => ''))?.trim().slice(0, 60) ?? '?';
       console.log(`[attempt ${attempt}] Opening detail for: "${itemText}"...`);
 
-      const isAttached = await item.isVisible({ timeout: 5_000 }).catch(() => false);
-      if (!isAttached) {
-        console.log(`[attempt ${attempt}] Item no longer visible, stopping.`);
-        break;
+      const isVisible = await item.isVisible({ timeout: 5_000 }).catch(() => false);
+      if (!isVisible) {
+        console.log(`[attempt ${attempt}] Item no longer visible, advancing to next...`);
+        index++;
+        continue;
       }
 
       await item.click({ force: true });
@@ -354,9 +413,10 @@ export class VSCodeWeb extends VSCode {
         .first();
       if (!(await uninstallBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
         console.log(
-          `[attempt ${attempt}] No Uninstall button found (already removed or invalid), skipping.`
+          `[attempt ${attempt}] No Uninstall button found (already removed or invalid), advancing to next...`
         );
-        break;
+        index++;
+        continue;
       }
 
       await this.window.screenshot({
@@ -372,9 +432,11 @@ export class VSCodeWeb extends VSCode {
       if (dialogAppeared) {
         console.log(`[attempt ${attempt}] Clicking Uninstall All...`);
         await uninstallAllBtn.click();
+        break;
       }
 
       console.log(`[attempt ${attempt}] Uninstalled.`);
+      index++;
       await this.window.waitForTimeout(1_000);
     }
 

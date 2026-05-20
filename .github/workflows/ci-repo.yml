@@ -139,7 +139,15 @@ jobs:
           mkdir -p downloaded_assets/rulesets
           curl -sL "https://github.com/konveyor/rulesets/archive/refs/tags/${RULESET_TAG}.tar.gz" \
             | tar -xz -C /tmp
-          cp -r /tmp/rulesets-*/default/generated/* downloaded_assets/rulesets/
+          RULESET_DIR=$(ls -d /tmp/rulesets-*/ | head -1)
+          if [ -d "${RULESET_DIR}stable" ]; then
+            # New folder layout introduced in konveyor/rulesets#342
+            find "${RULESET_DIR}stable" -name "*.yaml" -exec cp {} downloaded_assets/rulesets/ \; || true
+            find "${RULESET_DIR}preview" -name "*.yaml" -exec cp {} downloaded_assets/rulesets/ \; 2>/dev/null || true
+          else
+            # Legacy folder layout
+            cp -r "${RULESET_DIR}default/generated/"* downloaded_assets/rulesets/
+          fi
 
       # Run tests on Linux
       - name: Run tests (Linux)
@@ -180,7 +188,16 @@ jobs:
       - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+        run: |
+          # Use the pinned release tag (hardcoded in collect-assets.js on this branch) when
+          # running against a release branch
+          #For main, always pull the latest artifacts from the main workflow.
+          TARGET_BRANCH="${{ github.base_ref || github.ref_name }}"
+          if [[ "$TARGET_BRANCH" == release-* ]]; then
+            npm run collect-assets -- --use-release
+          else
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
+          fi
 
       - name: Set development version
         run: |
@@ -213,6 +230,7 @@ jobs:
     with:
       vsix_artifact_name: "vsix-artifacts"
       trigger_context: ${{ github.event_name == 'pull_request' && 'pr' || 'manual' }}
+      use_release: ${{ startsWith(github.base_ref, 'release-') || startsWith(github.ref_name, 'release-') }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 

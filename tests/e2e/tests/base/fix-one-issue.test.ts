@@ -39,7 +39,7 @@ getAvailableProviders().forEach((provider) => {
       }
 
       const repoInfo = testRepoData['coolstore'];
-      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName);
+      vscodeApp = await VSCodeFactory.init(repoInfo);
       await vscodeApp.waitDefault();
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);

@@ -369,7 +369,17 @@ export interface AnalysisProfile {
   syncedAt?: string;
 }
 
-export type ToolMessageValue = { toolName: string; toolStatus: string };
+export type ToolMessageValue = { toolName: string; toolStatus: string; detail?: string };
+
+/** Represents a chat message originating from an agent tool call. */
+export interface AgentChatMessage {
+  id: string;
+  toolCall?: {
+    name: string;
+    status: "running" | "succeeded" | "failed";
+    arguments?: Record<string, unknown>;
+  };
+}
 
 export type ModifiedFileMessageValue = {
   path: string;

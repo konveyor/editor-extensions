@@ -18,7 +18,7 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
   test.beforeAll(async ({ testRepoData }) => {
     test.setTimeout(600000);
     const repoInfo = testRepoData['inventory_management'];
-    vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+    vscodeApp = await VSCodeFactory.init(repoInfo);
     await vscodeApp.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
   });
 
