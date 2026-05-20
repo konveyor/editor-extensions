@@ -140,6 +140,11 @@ export class HubConnectionManager {
     if (method === "credentials") {
       return "credentials";
     }
+    // If username/password are set but method isn't explicitly "oidc",
+    // fall back to credentials for backward compatibility
+    if (!method && this.config.auth.username && this.config.auth.password) {
+      return "credentials";
+    }
     // Default to auth code flow. "oidc" in config means auth-code primary,
     // device flow as fallback.
     return "oidc-auth-code";
