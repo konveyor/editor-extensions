@@ -60,20 +60,14 @@ export class OIDCAuthCodeCancelledError extends OIDCAuthCodeError {
 
 export class OIDCAuthCodeTimeoutError extends OIDCAuthCodeError {
   constructor() {
-    super(
-      "Authorization timed out. Please try signing in again.",
-      "timeout",
-    );
+    super("Authorization timed out. Please try signing in again.", "timeout");
     this.name = "OIDCAuthCodeTimeoutError";
   }
 }
 
 export class OIDCAuthCodeStateError extends OIDCAuthCodeError {
   constructor() {
-    super(
-      "State parameter mismatch — possible CSRF attack. Please try again.",
-      "state_mismatch",
-    );
+    super("State parameter mismatch — possible CSRF attack. Please try again.", "state_mismatch");
     this.name = "OIDCAuthCodeStateError";
   }
 }
@@ -256,9 +250,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
   /**
    * Full login flow: try refresh first, fall back to auth code flow.
    */
-  public async login(
-    cancellationToken?: vscode.CancellationToken,
-  ): Promise<OIDCTokens> {
+  public async login(cancellationToken?: vscode.CancellationToken): Promise<OIDCTokens> {
     // Try refresh first if we have a refresh token
     if (this.refreshToken) {
       const refreshed = await this.refresh();
@@ -319,9 +311,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
    * 3. Wait for callback via URI handler
    * 4. Exchange code for tokens
    */
-  public async authCodeLogin(
-    cancellationToken?: vscode.CancellationToken,
-  ): Promise<OIDCTokens> {
+  public async authCodeLogin(cancellationToken?: vscode.CancellationToken): Promise<OIDCTokens> {
     // Step 1: Generate PKCE parameters
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -335,10 +325,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
     const authorizeUrl = this.buildAuthorizeUrl(codeChallenge, state);
 
     // Step 3: Open browser and wait for callback
-    const callbackUri = await this.openBrowserAndWaitForCallback(
-      authorizeUrl,
-      cancellationToken,
-    );
+    const callbackUri = await this.openBrowserAndWaitForCallback(authorizeUrl, cancellationToken);
 
     // Step 4: Validate state and extract code
     const code = this.extractCodeFromCallback(callbackUri, state);
@@ -346,9 +333,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
     // Step 5: Exchange code for tokens
     const tokens = await this.exchangeCodeForTokens(code, codeVerifier);
 
-    vscode.window.showInformationMessage(
-      "Successfully signed in to Konveyor Hub",
-    );
+    vscode.window.showInformationMessage("Successfully signed in to Konveyor Hub");
 
     return tokens;
   }
@@ -400,9 +385,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
     });
 
     // Open browser
-    const opened = await vscode.env.openExternal(
-      vscode.Uri.parse(authorizeUrl),
-    );
+    const opened = await vscode.env.openExternal(vscode.Uri.parse(authorizeUrl));
     if (!opened) {
       this.cleanupPendingAuth();
       throw new OIDCAuthCodeError(
@@ -411,16 +394,24 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
       );
     }
 
-    // Show status to user
-    vscode.window.showInformationMessage(
-      "Waiting for sign-in to complete in browser...",
-      "Cancel",
-    ).then((action) => {
-      if (action === "Cancel" && this.pendingReject) {
-        this.pendingReject(new OIDCAuthCodeCancelledError());
-        this.cleanupPendingAuth();
-      }
-    });
+    // Show progress notification that auto-dismisses when auth completes
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Waiting for sign-in to complete in browser...",
+        cancellable: true,
+      },
+      (_progress, token) => {
+        token.onCancellationRequested(() => {
+          if (this.pendingReject) {
+            this.pendingReject(new OIDCAuthCodeCancelledError());
+            this.cleanupPendingAuth();
+          }
+        });
+        // Resolve when callbackPromise settles (dismisses the notification)
+        return callbackPromise.then(() => {}).catch(() => {});
+      },
+    );
 
     return callbackPromise;
   }
@@ -435,10 +426,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
     const error = query.get("error");
     if (error) {
       const errorDescription = query.get("error_description") ?? error;
-      throw new OIDCAuthCodeError(
-        `Authorization failed: ${errorDescription}`,
-        error,
-      );
+      throw new OIDCAuthCodeError(`Authorization failed: ${errorDescription}`, error);
     }
 
     // Validate state parameter (CSRF protection)
@@ -450,10 +438,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
     // Extract authorization code
     const code = query.get("code");
     if (!code) {
-      throw new OIDCAuthCodeError(
-        "No authorization code received in callback",
-        "missing_code",
-      );
+      throw new OIDCAuthCodeError("No authorization code received in callback", "missing_code");
     }
 
     return code;
@@ -462,10 +447,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
   /**
    * Exchange authorization code for tokens at the token endpoint.
    */
-  private async exchangeCodeForTokens(
-    code: string,
-    codeVerifier: string,
-  ): Promise<OIDCTokens> {
+  private async exchangeCodeForTokens(code: string, codeVerifier: string): Promise<OIDCTokens> {
     const params = new URLSearchParams({
       grant_type: "authorization_code",
       code: code,
@@ -524,9 +506,7 @@ export class OIDCAuthCodeFlow implements vscode.UriHandler {
       if (parts.length !== 3) {
         return null;
       }
-      const payload = JSON.parse(
-        Buffer.from(parts[1], "base64url").toString(),
-      );
+      const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
       if (typeof payload.exp === "number") {
         return payload.exp * 1000;
       }
