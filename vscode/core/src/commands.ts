@@ -318,6 +318,8 @@ const commandsMap: (
             draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
             draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
             draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
+            draft.oidcUsername = state.hubConnectionManager.getOidcUsername();
+            draft.oidcTokenExpiry = state.hubConnectionManager.getTokenExpiry();
           });
         }
       } catch (e) {
@@ -335,6 +337,8 @@ const commandsMap: (
           draft.solutionServerConnected = false;
           draft.profileSyncConnected = false;
           draft.llmProxyAvailable = false;
+          draft.oidcUsername = "";
+          draft.oidcTokenExpiry = null;
         });
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : String(e);

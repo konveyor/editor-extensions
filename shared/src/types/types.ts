@@ -173,6 +173,8 @@ export interface ExtensionData {
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  oidcUsername: string;
+  oidcTokenExpiry: number | null;
   isWebEnvironment: boolean;
   availableTargets: string[];
   availableSources: string[];

@@ -179,6 +179,8 @@ export function useVSCodeMessageHandler() {
             solutionServerConnected: message.solutionServerConnected,
             profileSyncConnected: message.profileSyncConnected,
             llmProxyAvailable: message.llmProxyAvailable,
+            oidcUsername: message.oidcUsername ?? "",
+            oidcTokenExpiry: message.oidcTokenExpiry ?? null,
           });
           return;
         }
@@ -272,6 +274,8 @@ export function useVSCodeMessageHandler() {
             profileSyncConnected: message.profileSyncConnected ?? false,
             isSyncingProfiles: message.isSyncingProfiles ?? false,
             llmProxyAvailable: message.llmProxyAvailable ?? false,
+            oidcUsername: message.oidcUsername ?? "",
+            oidcTokenExpiry: message.oidcTokenExpiry ?? null,
             isWebEnvironment: message.isWebEnvironment ?? false,
             availableTargets: Array.isArray(message.availableTargets)
               ? message.availableTargets

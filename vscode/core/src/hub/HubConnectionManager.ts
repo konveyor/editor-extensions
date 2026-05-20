@@ -260,6 +260,20 @@ export class HubConnectionManager {
   }
 
   /**
+   * Get the OIDC username (or basic auth username) for display
+   */
+  public getOidcUsername(): string {
+    return this.username;
+  }
+
+  /**
+   * Get the token expiry timestamp (epoch ms) or null if not available
+   */
+  public getTokenExpiry(): number | null {
+    return this.tokenExpiresAt;
+  }
+
+  /**
    * Check if authentication is valid
    */
   public hasValidAuth(): boolean {
