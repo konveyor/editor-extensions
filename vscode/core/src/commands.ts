@@ -311,7 +311,6 @@ const commandsMap: (
       try {
         const success = await state.hubConnectionManager.triggerOIDCLogin();
         if (success) {
-          window.showInformationMessage("Successfully signed in to Hub");
           // Reconnect features with new auth
           await state.hubConnectionManager.connect();
           state.mutateServerState((draft) => {
