@@ -85,8 +85,11 @@ const SUCCESS_HTML = `<!DOCTYPE html>
     <p class="close-hint">You can close this tab and return to VS Code.</p>
   </div>
   <script>
-    // Attempt to close this tab after a short delay
-    setTimeout(function() { window.close(); }, 3000);
+    // Redirect to vscode:// protocol to bring VS Code to foreground, then close tab
+    setTimeout(function() {
+      window.location = 'vscode://file';
+      setTimeout(function() { window.close(); }, 1000);
+    }, 1000);
   </script>
 </body>
 </html>`;
