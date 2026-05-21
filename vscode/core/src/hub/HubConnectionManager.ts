@@ -354,7 +354,8 @@ export class HubConnectionManager {
         if (error instanceof HubConnectionManagerError) {
           this.logger.error("Authentication failed", { error });
           // Only show sign-in prompt if not already doing an interactive login
-          if (!this.isInteractiveLoginInProgress) {
+          // and not using OIDC (where the UI status card already shows Sign In)
+          if (!this.isInteractiveLoginInProgress && this.getAuthMethod() === "credentials") {
             vscode.window
               .showWarningMessage("Hub authentication required. Sign in to connect.", "Sign In")
               .then((action) => {
