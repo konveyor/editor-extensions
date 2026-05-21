@@ -29,13 +29,6 @@ export const HubSettingsForm: React.FC<{
   const [urlValidation, setUrlValidation] = useState<"default" | "error" | "warning">("default");
   const [urlErrorMsg, setUrlErrorMsg] = useState<string | null>(null);
   const [urlWarningMsg, setUrlWarningMsg] = useState<string | null>(null);
-  const [usernameValidation, setUsernameValidation] = useState<"default" | "error">("default");
-  const [usernameErrorMsg, setUsernameErrorMsg] = useState<string | null>(null);
-  const [passwordValidation, setPasswordValidation] = useState<"default" | "error">("default");
-  const [passwordErrorMsg, setPasswordErrorMsg] = useState<string | null>(null);
-
-  // Derive the effective auth method from form state (controlled by HubConnectionStatus)
-  const authMethod = formData.auth.method ?? "oidc";
 
   useEffect(() => {
     setFormData(initialConfig);
@@ -97,29 +90,6 @@ export const HubSettingsForm: React.FC<{
     return true;
   };
 
-  const validateUsername = (username: string, authEnabled: boolean): boolean => {
-    if (authEnabled && !username.trim()) {
-      setUsernameValidation("error");
-      setUsernameErrorMsg("Username is required when authentication is enabled.");
-      return false;
-    }
-
-    setUsernameValidation("default");
-    setUsernameErrorMsg(null);
-    return true;
-  };
-
-  const validatePassword = (password: string, authEnabled: boolean): boolean => {
-    if (authEnabled && !password.trim()) {
-      setPasswordValidation("error");
-      setPasswordErrorMsg("Password is required when authentication is enabled.");
-      return false;
-    }
-
-    setPasswordValidation("default");
-    setPasswordErrorMsg(null);
-    return true;
-  };
 
   const isFormValid = useMemo(() => {
     // Check URL validation
@@ -130,32 +100,14 @@ export const HubSettingsForm: React.FC<{
       return false;
     }
 
-    // Check auth validation only for credentials mode
-    if (formData.auth.enabled && authMethod === "credentials") {
-      if (!formData.auth.username.trim()) {
-        return false;
-      }
-      if (!formData.auth.password.trim()) {
-        return false;
-      }
-    }
-
     return true;
-  }, [formData, authMethod]);
+  }, [formData]);
 
   const handleSave = () => {
     // Re-validate before saving to update error messages
     const urlValid = validateUrl(formData.url, formData.enabled);
 
-    // Only validate credentials if in credentials mode
-    let usernameValid = true;
-    let passwordValid = true;
-    if (authMethod === "credentials") {
-      usernameValid = validateUsername(formData.auth.username, formData.auth.enabled);
-      passwordValid = validatePassword(formData.auth.password, formData.auth.enabled);
-    }
-
-    if (!urlValid || !usernameValid || !passwordValid) {
+    if (!urlValid) {
       return;
     }
 
@@ -183,10 +135,6 @@ export const HubSettingsForm: React.FC<{
     setUrlValidation("default");
     setUrlErrorMsg(null);
     setUrlWarningMsg(null);
-    setUsernameValidation("default");
-    setUsernameErrorMsg(null);
-    setPasswordValidation("default");
-    setPasswordErrorMsg(null);
   };
 
   const updateField = <K extends keyof HubConfig>(field: K, value: HubConfig[K]) => {
@@ -311,90 +259,6 @@ export const HubSettingsForm: React.FC<{
           </FormHelperText>
         </FormGroup>
       </FormSection>
-
-      {authMethod === "credentials" && (
-        <FormSection title="Credentials">
-          <FormGroup label="Enable authentication" fieldId="auth-enabled">
-            <Switch
-              id="auth-enabled"
-              label="Enable authentication for Hub connection"
-              isChecked={formData.auth.enabled}
-              onChange={(_e, checked) => updateAuthField("enabled", checked)}
-            />
-          </FormGroup>
-
-          <FormGroup
-            label="Username"
-            fieldId="auth-username"
-            isRequired={formData.auth.enabled}
-          >
-            <TextInput
-              id="auth-username"
-              value={formData.auth.username}
-              onChange={(_e, value) => {
-                updateAuthField("username", value);
-                validateUsername(value, formData.auth.enabled);
-              }}
-              validated={usernameValidation}
-              placeholder="admin"
-              isDisabled={!formData.auth.enabled}
-            />
-            {usernameErrorMsg ? (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
-                    {usernameErrorMsg}
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            ) : (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem icon={<InfoCircleIcon />}>
-                    Username for authenticating to the Hub
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
-          </FormGroup>
-
-          <FormGroup
-            label="Password"
-            fieldId="auth-password"
-            isRequired={formData.auth.enabled}
-          >
-            <TextInput
-              id="auth-password"
-              type="password"
-              value={formData.auth.password}
-              onChange={(_e, value) => {
-                updateAuthField("password", value);
-                validatePassword(value, formData.auth.enabled);
-              }}
-              validated={passwordValidation}
-              placeholder="Enter password"
-              isDisabled={!formData.auth.enabled}
-            />
-            {passwordErrorMsg ? (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
-                    {passwordErrorMsg}
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            ) : (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem icon={<InfoCircleIcon />}>
-                    Password for authenticating to the Hub
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
-          </FormGroup>
-        </FormSection>
-      )}
 
       <FormSection title="Features">
         <FormGroup label="Solution Server" fieldId="feature-solution-server">
