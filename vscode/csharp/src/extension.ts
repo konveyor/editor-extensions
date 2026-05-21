@@ -136,9 +136,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
 
   // Format provider address for GRPC
-  // Windows named pipes: unix:\\.\pipe\vscode-ipc-123
-  // Unix domain sockets: unix:///tmp/vscode-ipc-123.sock
-  const providerAddress = `unix://${providerSocketPath}`;
+  // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
+  // analyzer-lsp expects: unix:/path for Unix domain sockets
+  const providerAddress =
+    process.platform === "win32"
+      ? `passthrough:unix://${providerSocketPath}` // Windows: analyzer-lsp format (see provider/grpc/socket/pipe_windows.go:27)
+      : `unix:${providerSocketPath}`; // Unix: standard format
 
   logger.info("Provider configuration", {
     providerAddress,
