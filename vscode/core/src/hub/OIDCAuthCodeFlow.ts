@@ -331,9 +331,6 @@ export class OIDCAuthCodeFlow {
 
       vscode.window.showInformationMessage("Successfully signed in to Konveyor Hub");
 
-      // Bring VS Code back to focus after browser auth
-      await vscode.commands.executeCommand("workbench.action.focusWindow");
-
       return tokens;
     } finally {
       // Always clean up
