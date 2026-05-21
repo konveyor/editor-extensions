@@ -16,6 +16,16 @@ import * as http from "http";
 import { URL } from "url";
 import { randomBytes } from "crypto";
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/**
+ * Fixed port for the loopback callback server.
+ * Must match the redirect_uri registered with the OIDC client on Hub.
+ * Using a fixed port avoids the need for wildcard redirect URI matching.
+ */
+const LOOPBACK_PORT = 45321;
+const CALLBACK_PATH = "/callback";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface OAuthCallbackResult {
@@ -193,8 +203,8 @@ export class OIDCLoopbackServer {
         reject(new Error(`Loopback server failed to start: ${err.message}`));
       });
 
-      // Listen on 127.0.0.1 with port 0 (OS assigns random available port)
-      this.server.listen(0, "127.0.0.1");
+      // Listen on 127.0.0.1 with fixed port for redirect_uri matching
+      this.server.listen(LOOPBACK_PORT, "127.0.0.1");
     });
   }
 
@@ -256,7 +266,7 @@ export class OIDCLoopbackServer {
     const reqUrl = new URL(req.url ?? "/", `http://127.0.0.1:${this.port}`);
 
     switch (reqUrl.pathname) {
-      case "/callback":
+      case CALLBACK_PATH:
         this.handleCallback(reqUrl, res);
         break;
       default:
