@@ -759,17 +759,12 @@ export class HubConnectionManager {
     const clientId = this.config.auth.oidcClientId ?? DEFAULT_OIDC_CLIENT_ID;
     const issuerUrl = `${this.config.url}/oidc`;
 
-    // Initialize Auth Code flow (primary)
+    // Initialize Auth Code flow (primary) — uses loopback server for callback
     this.oidcAuthCode = new OIDCAuthCodeFlow(
       issuerUrl,
       clientId,
-      undefined, // Use default redirect URI (vscode://konveyor.konveyor-core/auth)
       this.scopedFetch ?? undefined,
     );
-
-    // Register URI handler for catching auth callbacks
-    const uriHandlerDisposable = this.oidcAuthCode.registerUriHandler();
-    this.extensionContext.subscriptions.push(uriHandlerDisposable);
 
     // Initialize Device Flow (fallback)
     this.oidcAuth = new OIDCDeviceFlowAuth(issuerUrl, clientId, this.scopedFetch ?? undefined);

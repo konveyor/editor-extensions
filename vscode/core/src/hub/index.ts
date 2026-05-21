@@ -24,3 +24,5 @@ export {
   OIDCAuthCodeStateError,
 } from "./OIDCAuthCodeFlow";
 export { OIDCTokenStorage } from "./OIDCTokenStorage";
+export { OIDCLoopbackServer } from "./OIDCLoopbackServer";
+export type { OAuthCallbackResult } from "./OIDCLoopbackServer";
