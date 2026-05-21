@@ -10,6 +10,8 @@ import {
   FlexItem,
   Content,
   ContentVariants,
+  Radio,
+  FormGroup,
 } from "@patternfly/react-core";
 import {
   CheckCircleIcon,
@@ -61,6 +63,17 @@ export const HubConnectionStatus: React.FC = () => {
     dispatch({ type: "HUB_RECONNECT" as any, payload: {} });
   };
 
+  const handleAuthMethodChange = (method: HubAuthMethod) => {
+    if (!hubConfig) return;
+    dispatch({
+      type: "UPDATE_HUB_CONFIG" as any,
+      payload: {
+        ...hubConfig,
+        auth: { ...hubConfig.auth, method },
+      },
+    });
+  };
+
   return (
     <Card isCompact style={{ marginBottom: "1.5rem" }}>
       <CardBody>
@@ -100,7 +113,7 @@ export const HubConnectionStatus: React.FC = () => {
 
           <SplitItem isFilled />
 
-          {isConnected && (
+          {isConnected && isOidc && (
             <SplitItem>
               <Button variant="secondary" isDanger onClick={handleSignOut}>
                 Sign Out
@@ -116,6 +129,36 @@ export const HubConnectionStatus: React.FC = () => {
             </SplitItem>
           )}
         </Split>
+
+        {/* Auth method selector */}
+        {isHubEnabled && !isConnected && (
+          <FormGroup
+            label="Authentication method"
+            fieldId="auth-method-status"
+            style={{ marginTop: "1rem" }}
+          >
+            <Flex style={{ gap: "1rem" }}>
+              <FlexItem>
+                <Radio
+                  isChecked={isOidc}
+                  name="auth-method-status"
+                  onChange={() => handleAuthMethodChange("oidc")}
+                  label="OIDC (Single Sign-On)"
+                  id="auth-method-status-oidc"
+                />
+              </FlexItem>
+              <FlexItem>
+                <Radio
+                  isChecked={authMethod === "credentials"}
+                  name="auth-method-status"
+                  onChange={() => handleAuthMethodChange("credentials")}
+                  label="Credentials (Legacy)"
+                  id="auth-method-status-credentials"
+                />
+              </FlexItem>
+            </Flex>
+          </FormGroup>
+        )}
 
         {/* Feature-level status chips */}
         {isHubEnabled && (
