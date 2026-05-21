@@ -134,15 +134,11 @@ export class HubConnectionManager {
   /**
    * Get the current authentication method based on config.
    * Defaults to "oidc-auth-code" (authorization code + PKCE flow).
+   * The auth method is explicitly set by the user in the Hub Settings UI.
    */
   public getAuthMethod(): HubAuthMethod {
     const method = this.config.auth.method;
     if (method === "credentials") {
-      return "credentials";
-    }
-    // If username/password are set but method isn't explicitly "oidc",
-    // fall back to credentials for backward compatibility
-    if (!method && this.config.auth.username && this.config.auth.password) {
       return "credentials";
     }
     // Default to auth code flow. "oidc" in config means auth-code primary,

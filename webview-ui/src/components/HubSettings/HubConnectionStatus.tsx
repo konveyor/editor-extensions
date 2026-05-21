@@ -18,6 +18,7 @@ import {
 } from "@patternfly/react-icons";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { useExtensionStore } from "../../store/store";
+import { HubAuthMethod } from "@editor-extensions/shared";
 
 function formatRelativeTime(epochMs: number): string {
   const now = Date.now();
@@ -49,6 +50,8 @@ export const HubConnectionStatus: React.FC = () => {
 
   const isConnected = solutionServerConnected || profileSyncConnected || llmProxyAvailable;
   const isHubEnabled = hubConfig?.enabled ?? false;
+  const authMethod: HubAuthMethod = hubConfig?.auth?.method ?? "oidc";
+  const isOidc = authMethod === "oidc";
 
   const handleSignOut = () => {
     dispatch({ type: "HUB_OIDC_LOGOUT" as any, payload: {} });
@@ -105,7 +108,7 @@ export const HubConnectionStatus: React.FC = () => {
             </SplitItem>
           )}
 
-          {!isConnected && isHubEnabled && (
+          {!isConnected && isHubEnabled && isOidc && (
             <SplitItem>
               <Button variant="primary" onClick={handleReconnect}>
                 Sign In
