@@ -19,7 +19,7 @@ import { buildKaiResponse, loadLlemulatorResponses } from '../utilities/llemulat
 const providers = process.env.CI ? getAvailableProviders() : [getDefaultProviderConfig()];
 
 providers.forEach((config) => {
-  test.describe(`Coolstore app tests | ${config.model}`, { tag: ['@tier3'] }, () => {
+  test.describe(`Coolstore app tests | ${config.model}`, { tag: ['@tier3', '@slow'] }, () => {
     let vscodeApp: VSCode;
     let allOk = true;
     const randomString = generateRandomString();
