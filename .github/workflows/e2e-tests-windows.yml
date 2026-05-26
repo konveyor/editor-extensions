@@ -152,7 +152,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tier0-windows-test-results
-          path: tests/test-output/
+          path: |
+            tests/test-output/
+            tests/test-data-dir/logs/
           retention-days: 7
 
   # Important tests - never block on Windows (experimental platform)
@@ -213,7 +215,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tier1-windows-test-results
-          path: tests/test-output/
+          path: |
+            tests/test-output/
+            tests/test-data-dir/logs/
           retention-days: 7
 
   # Nice-to-have tests - never block
@@ -266,7 +270,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tier2-windows-test-results
-          path: tests/test-output/
+          path: |
+            tests/test-output/
+            tests/test-data-dir/logs/
           retention-days: 7
 
   # Experimental tests - never block
@@ -317,7 +323,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tier3-windows-test-results
-          path: tests/test-output/
+          path: |
+            tests/test-output/
+            tests/test-data-dir/logs/
           retention-days: 7
 
   # Summary job

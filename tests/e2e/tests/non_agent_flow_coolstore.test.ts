@@ -2,7 +2,7 @@ import * as pathlib from 'path';
 import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.page';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
-import { getRepoName } from '../utilities/utils';
+import { getOSInfo, getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import { verifyAnalysisViewCleanState } from '../utilities/utils';
@@ -21,6 +21,10 @@ providers.forEach((config) => {
     `Coolstore app tests with agent mode disabled - offline (cached) | ${config.provider}/${config.model}`,
     { tag: ['@tier3', '@offline'] },
     () => {
+      test.skip(
+        getOSInfo() === 'windows',
+        'This test is affected by https://github.com/konveyor/editor-extensions/issues/1425 on Windows'
+      );
       let vscodeApp: VSCode;
       test.beforeAll(async ({ testRepoData }: { testRepoData: any }, testInfo: any) => {
         test.setTimeout(1600000);
