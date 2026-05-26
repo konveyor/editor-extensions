@@ -81,7 +81,7 @@ export class VSCodeDesktop extends VSCode {
       '--disable-workspace-trust',
       '--skip-welcome',
       `--user-data-dir=${TEST_DATA_DIR}`,
-      '--window-size=1920,1080',
+      //'--window-size=1920,1080',
     ];
 
     try {
