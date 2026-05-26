@@ -41,6 +41,7 @@ test.describe.serial(
     const profileName = `llm-proxy-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
+      test.setTimeout(300_000);
       // Configure llemulator responses if available
       if (isLlemulatorConfigured()) {
         console.log('Configuring llemulator responses...');
@@ -58,7 +59,7 @@ test.describe.serial(
       }
 
       const repoInfo = testRepoData['coolstore'];
-      vscodeApp = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      vscodeApp = await VSCodeFactory.init(repoInfo);
       await vscodeApp.createProfile([], repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(INVALID_GENAI_CONFIG);
       await vscodeApp.openAnalysisView();

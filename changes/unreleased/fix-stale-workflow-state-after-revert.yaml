@@ -1,0 +1,15 @@
+kind: bugfix
+
+description: >
+  Fix analysis being blocked after accepting a solution and reverting the file.
+  When the batch review completed (all files accepted/rejected/continued),
+  checkBatchReviewComplete only cleared pendingBatchReview but did not reset
+  the workflow state flags (isFetchingSolution, solutionState,
+  isWaitingForUserInteraction, isProcessingQueuedMessages). This left the
+  extension in a broken state where analysis could not run because it thought
+  a resolution was still in progress. Now checkBatchReviewComplete fully resets
+  all workflow flags when the batch is done, and also cleans up stale workflow
+  resources (queue manager, pending interactions, modified files cache).
+
+extensions:
+  - core

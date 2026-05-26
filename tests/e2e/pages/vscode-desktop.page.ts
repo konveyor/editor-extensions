@@ -15,6 +15,8 @@ import { VSCode } from './vscode.page';
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { kaiCacheDir, kaiDemoMode } from '../enums/configuration-options.enum';
+import { RepoInfo } from '../types/repo-info';
+import { language } from 'tree-sitter-java';
 
 /**
  * Prepare workspace for offline/cached mode BEFORE VS Code launches.
@@ -50,21 +52,27 @@ export class VSCodeDesktop extends VSCode {
   protected readonly app: ElectronApplication;
   protected window: Page;
 
-  constructor(app: ElectronApplication, window: Page, repoDir?: string, branch?: string) {
+  constructor(app: ElectronApplication, window: Page, repoInfo?: RepoInfo, repoDir?: string) {
     super();
     this.app = app;
     this.window = window;
+    this.repoInfo = repoInfo;
     this.repoDir = repoDir;
-    this.branch = branch;
+    this.branch = repoInfo?.branch;
   }
 
   public static async open(
-    repoUrl?: string,
-    repoDir?: string,
-    branch = 'main',
+    repoInfo?: RepoInfo,
     waitForInitialization = true,
     prepareOffline = false
   ) {
+    const { repoUrl, repoName, branch = 'main', workspacePath } = repoInfo ?? {};
+    const repoDir = repoName
+      ? workspacePath
+        ? `${repoName}/${workspacePath}`
+        : repoName
+      : undefined;
+
     /**
      * user-data-dir is passed to force opening a new instance avoiding the process to couple with an existing vscode instance
      * so Playwright doesn't detect that the process has finished
@@ -135,9 +143,9 @@ export class VSCodeDesktop extends VSCode {
     await vscodeApp.firstWindow();
     const window = await vscodeApp.firstWindow({ timeout: 60000 });
     console.log('VSCode opened');
-    const vscode = new VSCodeDesktop(vscodeApp, window, repoDir, branch);
+    const vscode = new VSCodeDesktop(vscodeApp, window, repoInfo, repoDir);
 
-    if (waitForInitialization) {
+    if (waitForInitialization && repoInfo?.language == 'java') {
       // Wait for extension initialization
       // Extensions will activate automatically via workspaceContains activation events
       await vscode.waitForExtensionInitialization();
@@ -148,17 +156,10 @@ export class VSCodeDesktop extends VSCode {
 
   /**
    * launches VSCode with KAI plugin installed and repoUrl app opened.
-   * @param repoUrl
-   * @param repoDir path to repo
-   * @param branch optional branch to clone from
+   * @param repoInfo
    * @param prepareOffline if true, extracts LLM cache and sets demoMode/cacheDir before VS Code launches
    */
-  public static async init(
-    repoUrl?: string,
-    repoDir?: string,
-    branch?: string,
-    prepareOffline = false
-  ): Promise<VSCode> {
+  public static async init(repoInfo?: RepoInfo, prepareOffline = false): Promise<VSCode> {
     try {
       // Removes the data dir to ensure the test is not affected by previous configurations
       if (existsSync(TEST_DATA_DIR)) {
@@ -199,8 +200,8 @@ export class VSCodeDesktop extends VSCode {
         }
       }
 
-      return repoUrl
-        ? VSCodeDesktop.open(repoUrl, repoDir, branch, true, prepareOffline)
+      return repoInfo?.repoUrl
+        ? VSCodeDesktop.open(repoInfo, true, prepareOffline)
         : VSCodeDesktop.open();
     } catch (error) {
       console.error('Error launching VSCode:', error);

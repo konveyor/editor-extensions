@@ -15,6 +15,7 @@ import {
 import { ExclamationCircleIcon, InfoCircleIcon } from "@patternfly/react-icons";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { HubConfig } from "@editor-extensions/shared";
+import { getBrandName } from "../../utils/branding";
 
 export const HubSettingsForm: React.FC<{
   initialConfig: HubConfig;
@@ -225,7 +226,7 @@ export const HubSettingsForm: React.FC<{
         <FormGroup label="Enable Hub" fieldId="hub-enabled">
           <Switch
             id="hub-enabled"
-            label="Enable connection to Konveyor Hub"
+            label={`Enable connection to ${getBrandName()} Hub`}
             isChecked={formData.enabled}
             onChange={(_e, checked) => updateField("enabled", checked)}
             isDisabled={hubForced}
@@ -235,7 +236,7 @@ export const HubSettingsForm: React.FC<{
               <HelperTextItem icon={<InfoCircleIcon />}>
                 {hubForced
                   ? "Hub connection is enforced by environment configuration"
-                  : "Enable connection to Konveyor Hub for advanced features"}
+                  : `Enable connection to ${getBrandName()} Hub for advanced features`}
               </HelperTextItem>
             </HelperText>
           </FormHelperText>
@@ -273,7 +274,7 @@ export const HubSettingsForm: React.FC<{
             <FormHelperText>
               <HelperText>
                 <HelperTextItem icon={<InfoCircleIcon />}>
-                  The URL of your Konveyor Hub instance (use https:// for production)
+                  {`The URL of your ${getBrandName()} Hub instance (use https:// for production)`}
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>

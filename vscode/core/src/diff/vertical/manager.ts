@@ -19,13 +19,16 @@ export interface VerticalDiffCodeLens {
 export class VerticalDiffManager {
   public refreshCodeLens: () => void = () => {};
   public onDiffStatusChange: ((fileUri: string) => void) | undefined;
+  public onAllBlocksResolved:
+    | ((streamId: string, fileUri: string, fileContent: string, accepted: boolean) => void)
+    | undefined;
 
   private fileUriToHandler: Map<string, VerticalDiffHandler> = new Map();
   fileUriToCodeLens: Map<string, VerticalDiffCodeLens[]> = new Map();
   private fileUriToStreamId: Map<string, string> = new Map();
 
   private userChangeListener: vscode.Disposable | undefined;
-  private closeDocumentListener: vscode.Disposable | undefined;
+  private tabCloseListener: vscode.Disposable | undefined;
 
   logDiffs: DiffLine[] | undefined;
 
@@ -47,20 +50,33 @@ export class VerticalDiffManager {
 
     this.userChangeListener = undefined;
 
-    // Listen for editor tab closes to clean up diff state.
-    // Without this, closing a tab with active code lenses leaves
-    // activeDecorators populated, which keeps the chat continue
-    // button disabled (see #1362).
-    this.closeDocumentListener = vscode.workspace.onDidCloseTextDocument((doc) => {
-      const fileUri = doc.uri.toString();
-      if (this.fileUriToHandler.has(fileUri)) {
-        this.logger.info(
-          `[Manager] Editor closed for file with active diff, cleaning up: ${fileUri}`,
-        );
-        // Use the tab-close-specific cleanup that avoids editor edits
-        // (which silently fail on a closing document) and instead reverts
-        // the file from disk.
-        this.clearForClosedDocument(fileUri);
+    // Listen for tab close events to clean up diff state.
+    // When the user closes a tab with active diff decorations without
+    // accepting/rejecting, handler.clear() does editor edits to undo the
+    // diff — but those edits silently fail because the editor is gone.
+    // This leaves VS Code's in-memory buffer dirty with patched content
+    // (even though git status shows clean). The only workaround was to
+    // reopen VS Code.
+    //
+    // onDidCloseTextDocument fires too late — the document is already
+    // detached and workbench.action.files.revert has no editor to target.
+    //
+    // tabGroups.onDidChangeTabs fires when tabs change, and at that point
+    // the document is still in VS Code's model. We can open it via
+    // openTextDocument, read the clean on-disk content, and replace the
+    // buffer via WorkspaceEdit — making it non-dirty so hot-exit won't
+    // preserve the patched state.
+    this.tabCloseListener = vscode.window.tabGroups.onDidChangeTabs(async (event) => {
+      for (const closedTab of event.closed) {
+        if (closedTab.input instanceof vscode.TabInputText) {
+          const fileUri = closedTab.input.uri.toString();
+          if (this.fileUriToHandler.has(fileUri)) {
+            this.logger.info(
+              `[Manager] Tab closed for file with active diff, cleaning up: ${fileUri}`,
+            );
+            await this.clearForClosedTab(fileUri, closedTab.input.uri);
+          }
+        }
       }
     });
   }
@@ -207,6 +223,14 @@ export class VerticalDiffManager {
     await handler.acceptRejectBlock(accept, block.start, block.numGreen, block.numRed);
 
     if (blocks.length === 1) {
+      // All blocks resolved via individual codelens — notify before cleanup.
+      // We fire onAllBlocksResolved here (not from onStatusUpdate) to avoid
+      // double-fires and to have direct access to the accept/reject flag.
+      const streamId = this.fileUriToStreamId.get(fileUri);
+      if (streamId && this.onAllBlocksResolved) {
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(fileUri));
+        this.onAllBlocksResolved(streamId, fileUri, doc.getText(), accept);
+      }
       await this.clearForFileUri(fileUri, true);
     } else {
       // Re-enable listener for user changes to file
@@ -222,39 +246,40 @@ export class VerticalDiffManager {
   }
 
   /**
-   * Clean up diff state when a document is closed by the user (tab close).
+   * Clean up diff state when a tab is closed by the user.
    *
-   * Unlike clearForFileUri, this does NOT attempt editor edits (which silently
-   * fail on a closing/closed document and leave the in-memory buffer dirty with
-   * patched content).  Instead it:
-   *  1. Clears all internal state maps (handler, codelens, streamId, decorators)
-   *  2. Disposes the handler without running accept/reject edits
-   *  3. Reverts the file so VS Code drops its dirty buffer and reloads from disk
+   * Unlike clearForFileUri, this does NOT call handler.clear() because the
+   * editor is gone and editor edits would silently fail, leaving the in-memory
+   * buffer dirty with patched content.
    *
-   * See #1362 — without the revert, closing the tab left the file showing the
-   * patched content even though git status showed no changes.
+   * Instead it:
+   * 1. Clears all internal state (handler, codelens, streamId, decorators)
+   * 2. Disposes the handler without running accept/reject edits
+   * 3. Reads the clean on-disk content and replaces the document buffer via
+   *    WorkspaceEdit — this makes the document non-dirty so VS Code's hot-exit
+   *    won't preserve the patched state
+   *
+   * See #1362 — without this, closing the tab left the file showing patched
+   * content even though git status showed no changes.
    */
-  private async clearForClosedDocument(fileUri: string): Promise<void> {
-    // --- 1. Clear activeDecorators (same as clearForFileUri) ---
+  private async clearForClosedTab(fileUri: string, uri: vscode.Uri): Promise<void> {
+    // --- 1. Clear activeDecorators ---
     const streamId = this.fileUriToStreamId.get(fileUri);
     if (streamId) {
       this.mutateDecorators((draft) => {
         if (draft.activeDecorators && draft.activeDecorators[streamId]) {
           delete draft.activeDecorators[streamId];
           this.logger.info(
-            `[Manager] Cleared activeDecorators for streamId: ${streamId} via clearForClosedDocument`,
+            `[Manager] Cleared activeDecorators for streamId: ${streamId} via clearForClosedTab`,
           );
         }
       });
       this.fileUriToStreamId.delete(fileUri);
     }
 
-    // --- 2. Dispose handler without running editor edits ---
+    // --- 2. Dispose handler without editor edits ---
     const handler = this.fileUriToHandler.get(fileUri);
     if (handler) {
-      // Just dispose listeners/decorations — do NOT call handler.clear()
-      // because the editor is gone and edits would silently fail, leaving
-      // a dirty in-memory buffer with patched content.
       handler.dispose();
       this.fileUriToHandler.delete(fileUri);
     }
@@ -265,19 +290,35 @@ export class VerticalDiffManager {
     this.refreshCodeLens();
     void vscode.commands.executeCommand("setContext", `${EXTENSION_NAME}.diffVisible`, false);
 
-    // --- 4. Revert the file to its on-disk content ---
-    // The diff decorations inserted/deleted lines in the editor buffer but never
-    // saved.  VS Code's hot-exit may preserve this dirty buffer across reloads.
-    // Reverting forces VS Code to drop it and re-read from disk (the clean version).
+    // --- 4. Restore the document buffer to on-disk content ---
+    // The diff handler inserted/deleted lines in the editor buffer but never
+    // saved. VS Code's hot-exit may preserve this dirty buffer across reloads.
+    // By reading the clean disk content and applying it via WorkspaceEdit, the
+    // document content matches disk -> isDirty becomes false -> hot-exit ignores it.
     try {
-      const uri = vscode.Uri.parse(fileUri);
-      await vscode.commands.executeCommand("workbench.action.files.revert", uri);
-      this.logger.info(`[Manager] Reverted file to disk content after tab close: ${fileUri}`);
+      const diskBytes = await vscode.workspace.fs.readFile(uri);
+      const diskContent = new TextDecoder().decode(diskBytes);
+
+      // Open the document in memory (not in a visible editor)
+      const doc = await vscode.workspace.openTextDocument(uri);
+
+      if (doc.isDirty) {
+        const fullRange = new vscode.Range(0, 0, doc.lineCount, 0);
+        const wsEdit = new vscode.WorkspaceEdit();
+        wsEdit.replace(uri, fullRange, diskContent);
+        await vscode.workspace.applyEdit(wsEdit);
+        this.logger.info(
+          `[Manager] Restored document buffer to disk content after tab close: ${fileUri}`,
+        );
+      } else {
+        this.logger.debug(
+          `[Manager] Document not dirty after tab close, no restore needed: ${fileUri}`,
+        );
+      }
     } catch (error) {
-      // Revert may fail if the document is fully disposed — that's fine,
-      // the next open will read from disk anyway.
+      // If the document is fully disposed, the next open will read from disk.
       this.logger.debug(
-        `[Manager] Could not revert file (may already be fully closed): ${fileUri}`,
+        `[Manager] Could not restore document buffer (may already be fully closed): ${fileUri}`,
         error,
       );
     }
@@ -293,26 +334,14 @@ export class VerticalDiffManager {
       return;
     }
 
-    // Get the streamId for this file to clear activeDecorators
+    // Clean up streamId mapping (but do NOT clear activeDecorators here —
+    // the batch review webview uses activeDecorators to determine if a diff
+    // is still in-progress. Clearing it here races with pendingBatchReview
+    // removal and causes buttons to flash. activeDecorators is only cleared
+    // in clearForClosedTab for the tab-close case.)
     const streamId = this.fileUriToStreamId.get(fileUri);
     if (streamId) {
-      this.mutateDecorators((draft) => {
-        if (draft.activeDecorators && draft.activeDecorators[streamId]) {
-          delete draft.activeDecorators[streamId];
-          this.logger.info(
-            `[Manager] Cleared activeDecorators for streamId: ${streamId} via clearForFileUri`,
-          );
-          this.logger.info(`[Manager] Remaining activeDecorators:`, draft.activeDecorators);
-        } else {
-          this.logger.warn(
-            `[Manager] No activeDecorators found for streamId: ${streamId}, current:`,
-            draft.activeDecorators,
-          );
-        }
-      });
       this.fileUriToStreamId.delete(fileUri);
-    } else {
-      this.logger.warn(`[Manager] No streamId found for fileUri: ${fileUri} in clearForFileUri`);
     }
 
     const handler = this.fileUriToHandler.get(fileUri);
@@ -382,20 +411,22 @@ export class VerticalDiffManager {
           }
         }
 
-        // Clear activeDecorators when all decorators are resolved
+        // Do NOT clear activeDecorators here — it races with
+        // pendingBatchReview removal and causes the webview to flash
+        // "Accept/Reject/Review" buttons. Decorator cleanup is handled:
+        //  - Tab close: clearForClosedTab clears it
+        //  - Accept/reject: batch removal makes the entry irrelevant
         if ((status === "closed" || numDiffs === 0) && streamId) {
-          this.mutateDecorators((draft) => {
-            if (draft.activeDecorators && draft.activeDecorators[streamId]) {
-              delete draft.activeDecorators[streamId];
-            }
-          });
-          this.logger.debug(`[Manager] Cleared activeDecorators for streamId: ${streamId}`);
-
           // Auto-save the document when all decorators are resolved
-          // This provides the same behavior as "Apply All Changes" but for manual decoration clearing
           if (status === "closed" && fileContent) {
             this.autoSaveDocument(fileUri, fileContent);
           }
+
+          // NOTE: onAllBlocksResolved is NOT fired here. It is called
+          // directly from acceptRejectVerticalDiffBlock with the correct
+          // accept/reject flag. Firing it from onStatusUpdate caused
+          // double-fires (once from acceptRejectBlock, once from clear())
+          // and had no way to know accept vs reject.
         }
       },
       streamId,
@@ -500,9 +531,9 @@ export class VerticalDiffManager {
     this.disableDocumentChangeListener();
 
     // Dispose close document listener
-    if (this.closeDocumentListener) {
-      this.closeDocumentListener.dispose();
-      this.closeDocumentListener = undefined;
+    if (this.tabCloseListener) {
+      this.tabCloseListener.dispose();
+      this.tabCloseListener = undefined;
     }
 
     // Clear callback references

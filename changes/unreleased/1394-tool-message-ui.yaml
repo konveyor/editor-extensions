@@ -1,0 +1,5 @@
+kind: enhancement
+description: >
+  Redesign ToolMessage component with compact inline indicators, collapsible
+  tool groups, and improved status styling for better readability during
+  multi-tool agent workflows.

@@ -13,8 +13,7 @@ test.describe(
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(300000);
       repoInfo = testRepoData['gotest'];
-      // Use openForRepo which determines initialization based on repo language
-      vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
+      vscodeApp = await VSCodeFactory.init(repoInfo);
 
       // Open analysis view and wait for it to be accessible
       console.log('Opening analysis view to trigger extension activation...');

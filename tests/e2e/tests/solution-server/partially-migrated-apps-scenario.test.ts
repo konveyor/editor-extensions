@@ -87,7 +87,7 @@ class SolutionServerWorkflowHelper {
     let vsCode: VSCode | undefined;
 
     try {
-      vsCode = await VSCodeFactory.init(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      vsCode = await VSCodeFactory.init(repoInfo);
       this.logger.debug(`VSCode opened for ${appName}`);
 
       const customRulesPath = path.join(process.cwd(), repoInfo.repoName, customRulesSubPath);

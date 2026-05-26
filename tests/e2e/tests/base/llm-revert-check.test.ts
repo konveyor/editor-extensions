@@ -75,7 +75,7 @@ getAvailableProviders().forEach((provider) => {
       }
 
       repoInfo = testRepoData['jboss-eap-quickstarts'];
-      vscodeApp = await VSCodeFactory.open(repoInfo.repoUrl, repoInfo.repoName, repoInfo.branch);
+      vscodeApp = await VSCodeFactory.open(repoInfo);
       await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
       await vscodeApp.startServer();

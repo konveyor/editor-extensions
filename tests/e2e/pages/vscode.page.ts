@@ -11,11 +11,13 @@ import pathlib from 'path';
 import { SCREENSHOTS_FOLDER, SEC } from '../utilities/consts';
 import { ResolutionAction } from '../enums/resolution-action.enum';
 import * as vscode from 'vscode';
+import { RepoInfo } from '../types/repo-info';
 
 type SortOrder = 'ascending' | 'descending';
 type ListKind = 'issues' | 'files';
 
 export abstract class VSCode {
+  public repoInfo?: RepoInfo;
   repoDir?: string;
   protected branch?: string;
   protected abstract window: Page;
@@ -122,7 +124,11 @@ export abstract class VSCode {
         await startButton.click({ delay: 500 });
 
         // Wait for server to start (Stop button becomes enabled)
-        await stopButton.waitFor({ state: 'visible', timeout: 180000 });
+        // Timeout increased due to https://github.com/konveyor/editor-extensions/issues/1406
+        await stopButton.waitFor({
+          state: 'visible',
+          timeout: process.env.WEB_ENV === '1' ? 600_000 : 180_000,
+        });
         await stopButton.isEnabled({ timeout: 180000 });
         console.log('Server started successfully');
       } else {
@@ -464,7 +470,7 @@ export abstract class VSCode {
       await manageProfileView
         .getByRole('listitem')
         .filter({ hasText: profileName })
-        .waitFor({ state: 'hidden', timeout: 15000 });
+        .waitFor({ state: 'hidden', timeout: 60_000 });
 
       console.log(`Profile '${profileName}' deleted successfully`);
     } catch (error) {

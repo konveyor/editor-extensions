@@ -37,6 +37,7 @@ import { fixGroupOfIncidents, IncidentTypeItem } from "./issueView";
 import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
+import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
@@ -900,47 +901,102 @@ const commandsMap: (
       }
     },
 
-    [`${EXTENSION_NAME}.acceptDiff`]: async (filePath?: string) => {
-      if (!filePath) {
+    [`${EXTENSION_NAME}.acceptDiff`]: async (fileUri?: string) => {
+      if (!fileUri) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
           return;
         }
-        filePath = editor.document.fileName;
+        fileUri = editor.document.uri.toString();
       }
       if (!state.staticDiffAdapter) {
         vscode.window.showErrorMessage("Vertical diff system not initialized");
         return;
       }
-      await state.staticDiffAdapter.acceptAll(filePath);
+
+      // Capture the messageToken (streamId) before accepting clears it
+      const messageToken = state.verticalDiffManager?.getStreamIdForFile(fileUri);
+
+      await state.staticDiffAdapter.acceptAll(fileUri);
 
       // Save the document after accepting changes
       const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.fileName === filePath) {
+      if (editor && editor.document.uri.toString() === fileUri) {
         await editor.document.save();
+      }
+
+      // If this file was part of batch review, advance it
+      if (messageToken) {
+        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        const content = editor?.document.getText() || "";
+        try {
+          await handleFileResponse(messageToken, "apply", filePath, content, state, true);
+        } catch (err) {
+          logger.debug("[acceptDiff] handleFileResponse error (may not be in batch)", err);
+        }
+        state.mutateSolutionWorkflow((draft) => {
+          if (draft.pendingBatchReview) {
+            draft.pendingBatchReview = draft.pendingBatchReview.filter(
+              (file) => file.messageToken !== messageToken,
+            );
+          }
+        });
+        // Clear decorator after batch removal to avoid race
+        state.mutateDecorators((draft) => {
+          if (draft.activeDecorators && draft.activeDecorators[messageToken]) {
+            delete draft.activeDecorators[messageToken];
+          }
+        });
       }
 
       vscode.window.showInformationMessage("Changes accepted and document saved");
     },
 
-    [`${EXTENSION_NAME}.rejectDiff`]: async (filePath?: string) => {
-      if (!filePath) {
+    [`${EXTENSION_NAME}.rejectDiff`]: async (fileUri?: string) => {
+      if (!fileUri) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
           return;
         }
-        filePath = editor.document.fileName;
+        fileUri = editor.document.uri.toString();
       }
       if (!state.staticDiffAdapter) {
         vscode.window.showErrorMessage("Vertical diff system not initialized");
         return;
       }
-      await state.staticDiffAdapter.rejectAll(filePath);
+
+      // Capture the messageToken (streamId) before rejecting clears it
+      const messageToken = state.verticalDiffManager?.getStreamIdForFile(fileUri);
+
+      await state.staticDiffAdapter.rejectAll(fileUri);
 
       // Save the document after rejecting changes
       const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.fileName === filePath) {
+      if (editor && editor.document.uri.toString() === fileUri) {
         await editor.document.save();
+      }
+
+      // If this file was part of batch review, advance it
+      if (messageToken) {
+        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        try {
+          await handleFileResponse(messageToken, "reject", filePath, undefined, state, true);
+        } catch (err) {
+          logger.debug("[rejectDiff] handleFileResponse error (may not be in batch)", err);
+        }
+        state.mutateSolutionWorkflow((draft) => {
+          if (draft.pendingBatchReview) {
+            draft.pendingBatchReview = draft.pendingBatchReview.filter(
+              (file) => file.messageToken !== messageToken,
+            );
+          }
+        });
+        // Clear decorator after batch removal to avoid race
+        state.mutateDecorators((draft) => {
+          if (draft.activeDecorators && draft.activeDecorators[messageToken]) {
+            delete draft.activeDecorators[messageToken];
+          }
+        });
       }
 
       vscode.window.showInformationMessage("Changes rejected and document saved");

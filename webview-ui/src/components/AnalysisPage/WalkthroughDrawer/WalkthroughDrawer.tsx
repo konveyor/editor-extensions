@@ -81,9 +81,8 @@ export function WalkthroughDrawer({
   const disabledDescription = "This feature is disabled based on your configuration.";
   const disabledFullDescription =
     "This feature is disabled because the values are managed by the in-tree profile currently selected.";
-  const genaiManagedByHubDescription = "GenAI is configured via Konveyor Hub.";
-  const genaiManagedByHubFullDescription =
-    "GenAI is configured via Konveyor Hub. The LLM proxy provides centralized AI capabilities without requiring local API key configuration. Your requests are routed through the Hub's managed service.";
+  const genaiManagedByHubDescription = `GenAI is configured via ${getBrandName()} Hub.`;
+  const genaiManagedByHubFullDescription = `GenAI is configured via ${getBrandName()} Hub. The LLM proxy provides centralized AI capabilities without requiring local API key configuration. Your requests are routed through the Hub's managed service.`;
 
   // Determine hub status message
   const getHubStatus = () => {
@@ -120,9 +119,8 @@ export function WalkthroughDrawer({
       id: "hub-config",
       title: "Hub Configuration",
       status: getHubStatus(),
-      description: "Connect to Konveyor Hub for advanced features.",
-      fullDescription:
-        "Connect to Konveyor Hub to enable profile synchronization, solution server capabilities, and other advanced features. The Hub provides centralized management and enhanced collaboration capabilities for your migration projects.",
+      description: `Connect to ${getBrandName()} Hub for advanced features.`,
+      fullDescription: `Connect to ${getBrandName()} Hub to enable profile synchronization, solution server capabilities, and other advanced features. The Hub provides centralized management and enhanced collaboration capabilities for your migration projects.`,
     },
     {
       id: "select-profile",

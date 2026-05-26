@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import { downloadFile } from './download.utils';
 import { extensionId, coreExtensionId, redhatJavaExtensionId } from './utils';
+import { ExtensionTypes } from '../enums/extension-types.enum';
 
 /**
  * Helper function to get environment variables with Node.js loader options cleared
@@ -232,4 +233,25 @@ export async function installExtension(): Promise<void> {
     console.error('Error installing the VSIX extension:', error);
     throw error;
   }
+}
+
+const languageExtensionMap: Record<string, ExtensionTypes> = {
+  java: ExtensionTypes.Java,
+  go: ExtensionTypes.Go,
+  typescript: ExtensionTypes.JS,
+  csharp: ExtensionTypes.CSharp,
+};
+
+/**
+ * Returns the list of extensions to install for a given repo language.
+ * Core is always included. The language-specific extension is added when the language
+ * has a corresponding entry in the map; unknown languages get Core only.
+ */
+export function getExtensionsForLanguage(language?: string): ExtensionTypes[] {
+  const extensions: ExtensionTypes[] = [ExtensionTypes.Core];
+  const languageExtension = languageExtensionMap[language?.toLowerCase() ?? 'java'];
+  if (languageExtension) {
+    extensions.push(languageExtension);
+  }
+  return extensions;
 }
