@@ -1,0 +1,19 @@
+{
+  "name": "@editor-extensions/mcp-server",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Konveyor MCP server for Goose agent integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
