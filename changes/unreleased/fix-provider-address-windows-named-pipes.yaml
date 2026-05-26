@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed provider address format for Windows named pipes in Go and C# extensions to use the passthrough:unix:// prefix required by analyzer-lsp.
