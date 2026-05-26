@@ -48,20 +48,6 @@ export class HubConfigurationPage {
 
     await view.locator('#hub-url').fill(config.url);
 
-    if (config.auth) {
-      const authInput = view.locator('input#auth-enabled');
-
-      if ((await authInput.isChecked()) !== config.auth.enabled) {
-        await authInput.click({ force: true });
-      }
-      await expect(authInput).toBeChecked({ checked: config.auth.enabled });
-
-      if (config.auth.enabled) {
-        await view.locator('#auth-username').fill(config.auth.username);
-        await view.locator('#auth-password').fill(config.auth.password);
-      }
-    }
-
     // SSL Settings
     const insecureInput = view.locator('input#auth-insecure');
 
@@ -85,6 +71,24 @@ export class HubConfigurationPage {
       await profileSyncInput.click({ force: true });
     }
     await expect(profileSyncInput).toBeChecked({ checked: config.profileSyncEnabled });
+
+    // Authentication - configure before saving so credentials are included in the config
+    if (config.auth?.enabled) {
+      const authInput = view.locator('input#auth-enabled');
+      if (!(await authInput.isChecked())) {
+        await authInput.click({ force: true });
+      }
+      await expect(authInput).toBeChecked();
+
+      // Select credentials auth method
+      const credentialsRadio = view.locator('input#auth-method-credentials');
+      await credentialsRadio.waitFor({ state: 'attached', timeout: 10000 });
+      await credentialsRadio.click({ force: true });
+      await expect(credentialsRadio).toBeChecked();
+
+      await view.locator('#auth-username').fill(config.auth.username);
+      await view.locator('#auth-password').fill(config.auth.password);
+    }
 
     const saveBtn = view.getByRole('button', { name: 'Save' });
     if (await saveBtn.isEnabled()) {

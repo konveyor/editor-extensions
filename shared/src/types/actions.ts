@@ -29,6 +29,8 @@ export const UPDATE_HUB_CONFIG = "UPDATE_HUB_CONFIG";
 export const SYNC_HUB_PROFILES = "SYNC_HUB_PROFILES";
 export const RETRY_PROFILE_SYNC = "RETRY_PROFILE_SYNC";
 export const STOP_WORKFLOW = "STOP_WORKFLOW";
+export const HUB_OIDC_LOGOUT = "HUB_OIDC_LOGOUT";
+export const HUB_RECONNECT = "HUB_RECONNECT";
 
 export type WebviewActionType =
   | typeof SET_STATE
@@ -62,7 +64,9 @@ export type WebviewActionType =
   | typeof UPDATE_HUB_CONFIG
   | typeof SYNC_HUB_PROFILES
   | typeof RETRY_PROFILE_SYNC
-  | typeof STOP_WORKFLOW;
+  | typeof STOP_WORKFLOW
+  | typeof HUB_OIDC_LOGOUT
+  | typeof HUB_RECONNECT;
 export interface WebviewAction<S, T> {
   type: S;
   payload: T;

@@ -126,6 +126,8 @@ class VsCodeExtension {
         profileSyncConnected: false,
         isSyncingProfiles: false,
         llmProxyAvailable: false, // Will be updated after hub initialization
+        oidcUsername: "",
+        oidcTokenExpiry: null,
         isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
         availableTargets: [], // Will be populated from bundled rulesets
         availableSources: [], // Will be populated from bundled rulesets
@@ -262,6 +264,8 @@ class VsCodeExtension {
           solutionServerConnected: data.solutionServerConnected,
           profileSyncConnected: data.profileSyncConnected,
           llmProxyAvailable: data.llmProxyAvailable,
+          oidcUsername: data.oidcUsername,
+          oidcTokenExpiry: data.oidcTokenExpiry,
           timestamp: new Date().toISOString(),
         });
       });
@@ -615,6 +619,7 @@ class VsCodeExtension {
       // Initialize hub connection manager with loaded config
       // This handles connecting to the solution server if enabled
       let hubInitError: Error | undefined;
+      this.state.hubConnectionManager.setExtensionContext(this.context);
       await this.state.hubConnectionManager.initialize(hubConfig).catch((error) => {
         this.state.logger.error("Error initializing Hub connection", error);
         hubInitError = error;

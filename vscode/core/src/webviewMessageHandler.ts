@@ -34,6 +34,8 @@ import {
   UPDATE_HUB_CONFIG,
   SYNC_HUB_PROFILES,
   RETRY_PROFILE_SYNC,
+  HUB_OIDC_LOGOUT,
+  HUB_RECONNECT,
   HubConfig,
   ChatMessageType,
 } from "@editor-extensions/shared";
@@ -276,6 +278,8 @@ const actions: {
       draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
       draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
       draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
+      draft.oidcUsername = state.hubConnectionManager.getOidcUsername();
+      draft.oidcTokenExpiry = state.hubConnectionManager.getTokenExpiry();
     });
 
     // Clear syncing state if profile sync is disabled or disconnected
@@ -326,6 +330,15 @@ const actions: {
   [RETRY_PROFILE_SYNC]: async (_payload, _state) => {
     // Delegate to the command which attempts to reconnect profile sync
     await executeExtensionCommand("retryProfileSync");
+  },
+  [HUB_OIDC_LOGOUT]: async (_payload, state, logger) => {
+    logger.info("Hub OIDC Logout triggered from webview");
+    await executeExtensionCommand("hubOidcLogout");
+  },
+  [HUB_RECONNECT]: async (_payload, state, logger) => {
+    logger.info("Hub Sign In triggered from webview");
+    // Directly trigger OIDC login — same as the toast's Sign In button
+    await executeExtensionCommand("hubOidcLogin");
   },
   [WEBVIEW_READY](_payload, state, logger) {
     logger.info("Webview is ready - sending full state to ensure configuration is loaded");

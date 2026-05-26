@@ -101,6 +101,8 @@ export interface ServerStateUpdateMessage {
   solutionServerConnected: boolean;
   profileSyncConnected: boolean;
   llmProxyAvailable: boolean;
+  oidcUsername: string;
+  oidcTokenExpiry: number | null;
   timestamp: string;
 }
 
