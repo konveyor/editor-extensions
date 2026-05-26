@@ -48,20 +48,6 @@ export class HubConfigurationPage {
 
     await view.locator('#hub-url').fill(config.url);
 
-    if (config.auth) {
-      const authInput = view.locator('input#auth-enabled');
-
-      if ((await authInput.isChecked()) !== config.auth.enabled) {
-        await authInput.click({ force: true });
-      }
-      await expect(authInput).toBeChecked({ checked: config.auth.enabled });
-
-      if (config.auth.enabled) {
-        await view.locator('#auth-username').fill(config.auth.username);
-        await view.locator('#auth-password').fill(config.auth.password);
-      }
-    }
-
     // SSL Settings
     const insecureInput = view.locator('input#auth-insecure');
 
@@ -92,6 +78,20 @@ export class HubConfigurationPage {
       console.log('Hub configuration form saved');
     } else {
       console.log('Hub configuration unchanged; Save is disabled, skipping click');
+    }
+
+    // Credentials auth: select method and connect after saving general settings,
+    // since the auth method selector only appears once hub is enabled in the store.
+    if (config.auth?.enabled) {
+      const credentialsRadio = view.locator('input#auth-method-status-credentials');
+      await credentialsRadio.click({ force: true });
+      await expect(credentialsRadio).toBeChecked();
+
+      await view.locator('#cred-username').fill(config.auth.username);
+      await view.locator('#cred-password').fill(config.auth.password);
+
+      const connectBtn = view.getByRole('button', { name: 'Connect' });
+      await connectBtn.click();
     }
 
     await this.vsCode.getWindow().screenshot({
