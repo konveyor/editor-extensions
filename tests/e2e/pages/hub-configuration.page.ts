@@ -84,6 +84,8 @@ export class HubConfigurationPage {
     // since the auth method selector only appears once hub is enabled in the store.
     if (config.auth?.enabled) {
       const credentialsRadio = view.locator('input#auth-method-status-credentials');
+      // Wait for the auth method selector to appear (store update + re-render)
+      await credentialsRadio.waitFor({ state: 'attached', timeout: 30000 });
       await credentialsRadio.click({ force: true });
       await expect(credentialsRadio).toBeChecked();
 
@@ -91,6 +93,7 @@ export class HubConfigurationPage {
       await view.locator('#cred-password').fill(config.auth.password);
 
       const connectBtn = view.getByRole('button', { name: 'Connect' });
+      await connectBtn.waitFor({ state: 'visible', timeout: 10000 });
       await connectBtn.click();
     }
 
