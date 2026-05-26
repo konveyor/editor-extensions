@@ -761,11 +761,7 @@ export class HubConnectionManager {
     const issuerUrl = `${this.config.url}/oidc`;
 
     // Initialize Auth Code flow (primary) — uses loopback server for callback
-    this.oidcAuthCode = new OIDCAuthCodeFlow(
-      issuerUrl,
-      clientId,
-      this.scopedFetch ?? undefined,
-    );
+    this.oidcAuthCode = new OIDCAuthCodeFlow(issuerUrl, clientId, this.scopedFetch ?? undefined);
 
     // Initialize Device Flow (fallback)
     this.oidcAuth = new OIDCDeviceFlowAuth(issuerUrl, clientId, this.scopedFetch ?? undefined);
@@ -1136,15 +1132,9 @@ export class HubConnectionManager {
       headers["Authorization"] = `Bearer ${this.bearerToken}`;
     }
 
-    // Use /hub for PAT validation (PATs are hub API keys, not OIDC tokens).
-    // Use OIDC userinfo endpoint for OIDC auth (validates token + connectivity).
-    // Fall back to /hub for legacy credential auth.
-    const method = this.getAuthMethod();
-    const checkUrl = this.usingPAT
-      ? `${this.config.url}/hub/auth/tokens`
-      : method === "oidc-auth-code" || method === "oidc"
-        ? `${this.config.url}/oidc/userinfo`
-        : `${this.config.url}/hub/auth/tokens`;
+    // Use /hub/applications as the connectivity check (matches main branch behavior).
+    // 404 is acceptable (no applications exist), but auth failures are not.
+    const checkUrl = `${this.config.url}/hub/applications`;
 
     try {
       const response = await fetchFn(checkUrl, {
@@ -1152,6 +1142,11 @@ export class HubConnectionManager {
         headers,
         signal: AbortSignal.timeout(TOKEN_EXCHANGE_TIMEOUT_MS),
       });
+
+      // 404 is acceptable (no applications exist yet)
+      if (response.status === 404) {
+        return;
+      }
 
       if (response.status === 401) {
         throw new HubConnectionManagerError(
