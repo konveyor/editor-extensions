@@ -72,29 +72,30 @@ export class HubConfigurationPage {
     }
     await expect(profileSyncInput).toBeChecked({ checked: config.profileSyncEnabled });
 
+    // Authentication - configure before saving so credentials are included in the config
+    if (config.auth?.enabled) {
+      const authInput = view.locator('input#auth-enabled');
+      if (!(await authInput.isChecked())) {
+        await authInput.click({ force: true });
+      }
+      await expect(authInput).toBeChecked();
+
+      // Select credentials auth method
+      const credentialsRadio = view.locator('input#auth-method-credentials');
+      await credentialsRadio.waitFor({ state: 'attached', timeout: 10000 });
+      await credentialsRadio.click({ force: true });
+      await expect(credentialsRadio).toBeChecked();
+
+      await view.locator('#auth-username').fill(config.auth.username);
+      await view.locator('#auth-password').fill(config.auth.password);
+    }
+
     const saveBtn = view.getByRole('button', { name: 'Save' });
     if (await saveBtn.isEnabled()) {
       await saveBtn.click();
       console.log('Hub configuration form saved');
     } else {
       console.log('Hub configuration unchanged; Save is disabled, skipping click');
-    }
-
-    // Credentials auth: select method and connect after saving general settings,
-    // since the auth method selector only appears once hub is enabled in the store.
-    if (config.auth?.enabled) {
-      const credentialsRadio = view.locator('input#auth-method-status-credentials');
-      // Wait for the auth method selector to appear (store update + re-render)
-      await credentialsRadio.waitFor({ state: 'attached', timeout: 30000 });
-      await credentialsRadio.click({ force: true });
-      await expect(credentialsRadio).toBeChecked();
-
-      await view.locator('#cred-username').fill(config.auth.username);
-      await view.locator('#cred-password').fill(config.auth.password);
-
-      const connectBtn = view.getByRole('button', { name: 'Connect' });
-      await connectBtn.waitFor({ state: 'visible', timeout: 10000 });
-      await connectBtn.click();
     }
 
     await this.vsCode.getWindow().screenshot({

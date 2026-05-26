@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Card,
   CardBody,
@@ -10,18 +10,14 @@ import {
   FlexItem,
   Content,
   ContentVariants,
-  Radio,
-  FormGroup,
-  TextInput,
-  ActionGroup,
 } from "@patternfly/react-core";
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   DisconnectedIcon,
 } from "@patternfly/react-icons";
-import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { useExtensionStore } from "../../store/store";
+import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { HubAuthMethod } from "@editor-extensions/shared";
 
 function formatRelativeTime(epochMs: number): string {
@@ -57,44 +53,12 @@ export const HubConnectionStatus: React.FC = () => {
   const authMethod: HubAuthMethod = hubConfig?.auth?.method ?? "oidc";
   const isOidc = authMethod === "oidc";
 
-  // Local state for credential inputs
-  const [username, setUsername] = useState(hubConfig?.auth?.username ?? "");
-  const [password, setPassword] = useState(hubConfig?.auth?.password ?? "");
-
   const handleSignOut = () => {
     dispatch({ type: "HUB_OIDC_LOGOUT" as any, payload: {} });
   };
 
   const handleReconnect = () => {
     dispatch({ type: "HUB_RECONNECT" as any, payload: {} });
-  };
-
-  const handleAuthMethodChange = (method: HubAuthMethod) => {
-    if (!hubConfig) return;
-    dispatch({
-      type: "UPDATE_HUB_CONFIG" as any,
-      payload: {
-        ...hubConfig,
-        auth: { ...hubConfig.auth, method },
-      },
-    });
-  };
-
-  const handleCredentialsConnect = () => {
-    if (!hubConfig) return;
-    dispatch({
-      type: "UPDATE_HUB_CONFIG" as any,
-      payload: {
-        ...hubConfig,
-        auth: {
-          ...hubConfig.auth,
-          method: "credentials" as HubAuthMethod,
-          enabled: true,
-          username,
-          password,
-        },
-      },
-    });
   };
 
   return (
@@ -153,75 +117,16 @@ export const HubConnectionStatus: React.FC = () => {
           )}
         </Split>
 
-        {/* Auth method selector + credentials fields */}
-        {isHubEnabled && !isConnected && (
-          <>
-            <FormGroup
-              label="Authentication method"
-              fieldId="auth-method-status"
-              style={{ marginTop: "1rem" }}
-            >
-              <Flex style={{ gap: "1rem" }}>
-                <FlexItem>
-                  <Radio
-                    isChecked={isOidc}
-                    name="auth-method-status"
-                    onChange={() => handleAuthMethodChange("oidc")}
-                    label="OIDC (Single Sign-On)"
-                    id="auth-method-status-oidc"
-                  />
-                </FlexItem>
-                <FlexItem>
-                  <Radio
-                    isChecked={authMethod === "credentials"}
-                    name="auth-method-status"
-                    onChange={() => handleAuthMethodChange("credentials")}
-                    label="Credentials (Legacy)"
-                    id="auth-method-status-credentials"
-                  />
-                </FlexItem>
-              </Flex>
-            </FormGroup>
-
-            {authMethod === "credentials" && (
-              <>
-                <FormGroup
-                  label="Username"
-                  fieldId="cred-username"
-                  style={{ marginTop: "0.75rem" }}
-                >
-                  <TextInput
-                    id="cred-username"
-                    value={username}
-                    onChange={(_e, value) => setUsername(value)}
-                    placeholder="admin"
-                  />
-                </FormGroup>
-                <FormGroup
-                  label="Password"
-                  fieldId="cred-password"
-                  style={{ marginTop: "0.5rem" }}
-                >
-                  <TextInput
-                    id="cred-password"
-                    type="password"
-                    value={password}
-                    onChange={(_e, value) => setPassword(value)}
-                    placeholder="Enter password"
-                  />
-                </FormGroup>
-                <ActionGroup style={{ marginTop: "0.75rem" }}>
-                  <Button
-                    variant="primary"
-                    onClick={handleCredentialsConnect}
-                    isDisabled={!username.trim() || !password.trim()}
-                  >
-                    Connect
-                  </Button>
-                </ActionGroup>
-              </>
-            )}
-          </>
+        {/* OIDC Sign In prompt when disconnected */}
+        {isHubEnabled && !isConnected && isOidc && (
+          <Content component={ContentVariants.small} style={{ marginTop: "0.75rem", color: "var(--pf-v5-global--Color--200)" }}>
+            Click &quot;Sign In&quot; above to authenticate via your browser.
+          </Content>
+        )}
+        {isHubEnabled && !isConnected && !isOidc && (
+          <Content component={ContentVariants.small} style={{ marginTop: "0.75rem", color: "var(--pf-v5-global--Color--200)" }}>
+            Configure credentials in the Authentication section below and click Save to connect.
+          </Content>
         )}
 
         {/* Feature-level status chips */}

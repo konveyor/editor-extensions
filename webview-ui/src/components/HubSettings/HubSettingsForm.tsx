@@ -11,10 +11,13 @@ import {
   HelperText,
   HelperTextItem,
   Alert,
+  Radio,
+  Flex,
+  FlexItem,
 } from "@patternfly/react-core";
 import { ExclamationCircleIcon, InfoCircleIcon } from "@patternfly/react-icons";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
-import { HubConfig } from "@editor-extensions/shared";
+import { HubConfig, HubAuthMethod } from "@editor-extensions/shared";
 import { getBrandName } from "../../utils/branding";
 
 export const HubSettingsForm: React.FC<{
@@ -29,6 +32,10 @@ export const HubSettingsForm: React.FC<{
   const [urlValidation, setUrlValidation] = useState<"default" | "error" | "warning">("default");
   const [urlErrorMsg, setUrlErrorMsg] = useState<string | null>(null);
   const [urlWarningMsg, setUrlWarningMsg] = useState<string | null>(null);
+  const [usernameValidation, setUsernameValidation] = useState<"default" | "error">("default");
+  const [usernameErrorMsg, setUsernameErrorMsg] = useState<string | null>(null);
+  const [passwordValidation, setPasswordValidation] = useState<"default" | "error">("default");
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setFormData(initialConfig);
@@ -99,6 +106,12 @@ export const HubSettingsForm: React.FC<{
     if (formData.url.trim() && !formData.url.match(/^https?:\/\/.+/)) {
       return false;
     }
+    // Check credentials when auth method is credentials
+    if (formData.auth.enabled && formData.auth.method === "credentials") {
+      if (!formData.auth.username.trim() || !formData.auth.password.trim()) {
+        return false;
+      }
+    }
 
     return true;
   }, [formData]);
@@ -128,6 +141,28 @@ export const HubSettingsForm: React.FC<{
     }, 3000);
   };
 
+  const validateUsername = (value: string, authEnabled: boolean): boolean => {
+    if (authEnabled && formData.auth.method === "credentials" && !value.trim()) {
+      setUsernameValidation("error");
+      setUsernameErrorMsg("Username is required when authentication is enabled.");
+      return false;
+    }
+    setUsernameValidation("default");
+    setUsernameErrorMsg(null);
+    return true;
+  };
+
+  const validatePassword = (value: string, authEnabled: boolean): boolean => {
+    if (authEnabled && formData.auth.method === "credentials" && !value.trim()) {
+      setPasswordValidation("error");
+      setPasswordErrorMsg("Password is required when authentication is enabled.");
+      return false;
+    }
+    setPasswordValidation("default");
+    setPasswordErrorMsg(null);
+    return true;
+  };
+
   const handleReset = () => {
     setFormData(initialConfig);
     setIsDirty(false);
@@ -135,6 +170,10 @@ export const HubSettingsForm: React.FC<{
     setUrlValidation("default");
     setUrlErrorMsg(null);
     setUrlWarningMsg(null);
+    setUsernameValidation("default");
+    setUsernameErrorMsg(null);
+    setPasswordValidation("default");
+    setPasswordErrorMsg(null);
   };
 
   const updateField = <K extends keyof HubConfig>(field: K, value: HubConfig[K]) => {
@@ -258,6 +297,109 @@ export const HubSettingsForm: React.FC<{
             </HelperText>
           </FormHelperText>
         </FormGroup>
+      </FormSection>
+
+      <FormSection title="Authentication">
+        <FormGroup label="Enable authentication" fieldId="auth-enabled">
+          <Switch
+            id="auth-enabled"
+            label="Enable authentication for Hub connection"
+            isChecked={formData.auth.enabled}
+            onChange={(_e, checked) => updateAuthField("enabled", checked)}
+          />
+        </FormGroup>
+
+        {formData.auth.enabled && (
+          <>
+            <FormGroup label="Authentication method" fieldId="auth-method">
+              <Flex style={{ gap: "1rem" }}>
+                <FlexItem>
+                  <Radio
+                    isChecked={formData.auth.method !== "credentials"}
+                    name="auth-method"
+                    onChange={() => updateAuthField("method", "oidc" as HubAuthMethod)}
+                    label="OIDC (Single Sign-On)"
+                    id="auth-method-oidc"
+                  />
+                </FlexItem>
+                <FlexItem>
+                  <Radio
+                    isChecked={formData.auth.method === "credentials"}
+                    name="auth-method"
+                    onChange={() => updateAuthField("method", "credentials" as HubAuthMethod)}
+                    label="Credentials"
+                    id="auth-method-credentials"
+                  />
+                </FlexItem>
+              </Flex>
+            </FormGroup>
+
+            {formData.auth.method === "credentials" && (
+              <>
+                <FormGroup label="Username" fieldId="auth-username" isRequired>
+                  <TextInput
+                    id="auth-username"
+                    value={formData.auth.username}
+                    onChange={(_e, value) => {
+                      updateAuthField("username", value);
+                      validateUsername(value, formData.auth.enabled);
+                    }}
+                    validated={usernameValidation}
+                    placeholder="admin"
+                  />
+                  {usernameErrorMsg ? (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                          {usernameErrorMsg}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  ) : (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<InfoCircleIcon />}>
+                          Username for authenticating to the Hub
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </FormGroup>
+
+                <FormGroup label="Password" fieldId="auth-password" isRequired>
+                  <TextInput
+                    id="auth-password"
+                    type="password"
+                    value={formData.auth.password}
+                    onChange={(_e, value) => {
+                      updateAuthField("password", value);
+                      validatePassword(value, formData.auth.enabled);
+                    }}
+                    validated={passwordValidation}
+                    placeholder="Enter password"
+                  />
+                  {passwordErrorMsg ? (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<ExclamationCircleIcon />} variant="error">
+                          {passwordErrorMsg}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  ) : (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<InfoCircleIcon />}>
+                          Password for authenticating to the Hub
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </FormGroup>
+              </>
+            )}
+          </>
+        )}
       </FormSection>
 
       <FormSection title="Features">
