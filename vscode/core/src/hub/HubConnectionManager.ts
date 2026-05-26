@@ -336,19 +336,25 @@ export class HubConnectionManager {
     // Handle authentication (non-interactive: don't auto-open browser on startup)
     if (this.config.auth.enabled) {
       try {
-        // Try stored PAT first (long-lived, no refresh needed)
-        const storedPAT = await this.retrievePAT();
-        if (storedPAT) {
-          this.bearerToken = storedPAT;
-          this.usingPAT = true;
-          this.logger.info("Using stored PAT for authentication");
-        } else {
-          await this.ensureAuthenticated(false);
-          // Exchange short-lived OIDC token for long-lived PAT
-          await this.exchangeForPAT();
-        }
-        if (!this.usingPAT) {
+        const method = this.getAuthMethod();
+        if (method === "credentials") {
+          // Credentials auth: simple login, no PAT exchange (matches main branch)
+          await this.ensureAuthenticatedCredentials();
           await this.startTokenRefreshTimer();
+        } else {
+          // OIDC auth: try stored PAT first, then OIDC flow with PAT exchange
+          const storedPAT = await this.retrievePAT();
+          if (storedPAT) {
+            this.bearerToken = storedPAT;
+            this.usingPAT = true;
+            this.logger.info("Using stored PAT for authentication");
+          } else {
+            await this.ensureAuthenticated(false);
+            await this.exchangeForPAT();
+          }
+          if (!this.usingPAT) {
+            await this.startTokenRefreshTimer();
+          }
         }
       } catch (error) {
         if (error instanceof HubConnectionManagerError) {
