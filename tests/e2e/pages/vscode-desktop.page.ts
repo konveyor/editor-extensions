@@ -143,7 +143,7 @@ export class VSCodeDesktop extends VSCode {
     });
     await vscodeApp.firstWindow();
     const window = await vscodeApp.firstWindow({ timeout: 60000 });
-    await window.setViewportSize({ width: 1920, height: 1080 });
+    //await window.setViewportSize({ width: 1920, height: 1080 });
     console.log('VSCode opened');
     const vscode = new VSCodeDesktop(vscodeApp, window, repoInfo, repoDir);
 
