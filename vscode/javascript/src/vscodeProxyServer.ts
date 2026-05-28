@@ -69,7 +69,7 @@ export class vscodeProxyServer implements vscode.Disposable {
     connection.onNotification("textDocument/didOpen", async (params: any) => {
       this.logger.info("Received textDocument/didOpen", { params });
       try {
-        await vscode.workspace.openTextDocument(params.textDocument.uri);
+        await vscode.workspace.openTextDocument(vscode.Uri.parse(params.textDocument.uri));
       } catch (error) {
         this.logger.error("Failed to open text document", { error, params });
       }
