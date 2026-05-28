@@ -75,6 +75,7 @@ export class GoVscodeProxyServer implements vscode.Disposable {
 
       try {
         const vscodeUri = vscode.Uri.parse(params.textDocument.uri);
+        await vscode.workspace.openTextDocument(vscodeUri);
         const result: vscode.Location | vscode.Location[] | vscode.LocationLink[] =
           await vscode.commands.executeCommand(
             "vscode.executeDefinitionProvider",
@@ -126,7 +127,12 @@ export class GoVscodeProxyServer implements vscode.Disposable {
         this.logger.info(
           `References result: ${Array.isArray(result) ? result.length : 0} locations`,
         );
-        return result?.map((location) => this.converter.asLocation(location)) || [];
+        return (
+          result?.map((location) => ({
+            uri: location.uri.toString(true),
+            range: this.converter.asRange(location.range),
+          })) || []
+        );
       } catch (error) {
         this.logger.error(`Text document references error`, error);
         throw error;
@@ -149,9 +155,11 @@ export class GoVscodeProxyServer implements vscode.Disposable {
       });
 
       try {
+        const vscodeUri = vscode.Uri.parse(params.textDocument.uri);
+        await vscode.workspace.openTextDocument(vscodeUri);
         const result: vscode.DocumentSymbol[] = await vscode.commands.executeCommand(
           "vscode.executeDocumentSymbolProvider",
-          vscode.Uri.parse(params.textDocument.uri),
+          vscodeUri,
         );
 
         this.logger.info(`Document symbol result: ${result?.length || 0} symbols`);
