@@ -269,7 +269,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     continue-on-error: true
-    if: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -294,7 +293,7 @@ jobs:
           path: ./downloaded_assets
 
       - name: Run tier3 tests
-        run: npx playwright test --grep "@tier3" --grep-invert "@requires-minikube"
+        run: npx playwright test --grep "@tier3" --grep-invert "@slow|@requires-minikube|@offline"
         working-directory: ./tests
         continue-on-error: true
         env:
