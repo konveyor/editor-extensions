@@ -34,7 +34,7 @@ runs:
           -p ${{ inputs.port }}:8080 \
           llemulator:local
 
-        LLEMULATOR_URL="http://localhost:${{ inputs.port }}/v1"
+        LLEMULATOR_URL="http://127.0.0.1:${{ inputs.port }}/v1"
         echo "LLEMULATOR_URL=${LLEMULATOR_URL}" >> $GITHUB_ENV
 
         echo "Llemulator container started on ${LLEMULATOR_URL}"
@@ -45,7 +45,7 @@ runs:
       run: |
         echo "=== Waiting for llemulator to be ready ==="
         for i in {1..30}; do
-          if curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+          if curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
             echo "Llemulator is ready"
             break
           fi
@@ -53,7 +53,7 @@ runs:
           sleep 2
         done
 
-        if ! curl -s http://localhost:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+        if ! curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
           echo "ERROR: Llemulator failed to start"
           docker logs llemulator
           exit 1

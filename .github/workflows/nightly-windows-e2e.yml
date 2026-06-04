@@ -11,7 +11,6 @@ on:
         description: "Git ref to build from (branch, tag or SHA)"
         required: false
         default: "main"
-  push:
 
 # https://typicode.github.io/husky/how-to.html#ci-server-and-docker
 env:
@@ -42,7 +41,7 @@ jobs:
       - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
+        run: npm run collect-assets -- --use-workflow-artifacts --branch=${{ inputs.ref || 'main' }}
 
       - name: Set development version
         run: |
@@ -70,10 +69,24 @@ jobs:
   windows-e2e:
     name: Windows E2E Tests
     needs: package
+    continue-on-error: true
     uses: ./.github/workflows/e2e-tests-windows.yml
     with:
       vsix_artifact_name: "vsix-artifacts-windows-nightly"
       trigger_context: "manual"
       use_release: false
+      ref: ${{ inputs.ref || github.ref }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  report:
+    name: Report Results
+    runs-on: ubuntu-latest
+    needs: windows-e2e
+    if: always()
+    steps:
+      - name: Fail workflow if E2E tests failed
+        if: needs.windows-e2e.result == 'failure'
+        run: |
+          echo "Windows E2E tests failed"
+          exit 1
