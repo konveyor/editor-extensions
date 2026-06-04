@@ -69,7 +69,6 @@ jobs:
   windows-e2e:
     name: Windows E2E Tests
     needs: package
-    continue-on-error: true
     uses: ./.github/workflows/e2e-tests-windows.yml
     with:
       vsix_artifact_name: "vsix-artifacts-windows-nightly"
