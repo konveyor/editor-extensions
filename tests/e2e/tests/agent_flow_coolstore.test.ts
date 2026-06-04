@@ -23,11 +23,11 @@ providers.forEach((config) => {
     { tag: ['@tier0', '@offline'] },
     () => {
       let vscodeApp: VSCode;
+      test.fixme(
+        getOSInfo() === 'windows',
+        'This test is affected by https://github.com/konveyor/editor-extensions/issues/1425 on Windows'
+      );
       test.beforeAll(async ({ testRepoData }: { testRepoData: any }, testInfo: any) => {
-        test.skip(
-          getOSInfo() === 'windows',
-          'This test is affected by https://github.com/konveyor/editor-extensions/issues/1425 on Windows'
-        );
         test.setTimeout(1600000);
         const repoName = getRepoName(testInfo);
         const repoInfo = testRepoData[repoName];

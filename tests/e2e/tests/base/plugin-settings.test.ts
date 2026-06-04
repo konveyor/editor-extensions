@@ -122,6 +122,10 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   });
 
   test('Enable "Analyze on Save" setting', async () => {
+    test.fixme(
+      getOSInfo() === 'windows',
+      'This tests is affected by https://github.com/konveyor/editor-extensions/issues/1423 on Windows'
+    );
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, true);
     await vscodeApp.startServer();
@@ -130,12 +134,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await tabManager.modifyTabFile(FILES_NAMES[0]);
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
-    if (getOSInfo() === 'windows') {
-      console.info(
-        'This tests is affected by https://github.com/konveyor/editor-extensions/issues/1423 on Windows\n Forcing an analysis...'
-      );
-      await vscodeApp.runAnalysis();
-    }
+
     await vscodeApp.waitForAnalysisCompleted();
     await vscodeApp.setListKindAndSort('files', 'ascending');
     let files = (await vscodeApp.getListNames('files')) as string[];

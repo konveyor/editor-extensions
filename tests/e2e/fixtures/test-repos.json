@@ -233,9 +233,9 @@
     ]
   },
   "static-report": {
-    "repoUrl": "https://github.com/konveyor/static-report",
+    "repoUrl": "https://github.com/abrugaro/static-report",
     "repoName": "static-report",
-    "branch": "main",
+    "branch": "patternfly5",
     "language": "typescript",
     "sources": [],
     "targets": ["patternfly-v6"],

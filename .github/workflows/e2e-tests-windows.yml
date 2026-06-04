@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false # when true, collect-assets uses --use-release (pinned tag) instead of latest workflow artifacts
+      ref:
+        description: "Git ref to checkout for test code (e.g. main, release-0.4). Defaults to the triggering SHA."
+        required: false
+        type: string
+        default: ""
     secrets:
       OPENAI_API_KEY:
         required: false
@@ -31,6 +36,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -85,7 +92,7 @@ jobs:
           if ${{ inputs.use_release }}; then
             npm run collect-assets -- --use-release
           else
-            npm run collect-assets -- --use-workflow-artifacts --branch=main
+            npm run collect-assets -- --use-workflow-artifacts --branch=${{ inputs.ref != '' && inputs.ref || 'main' }}
           fi
 
       - name: Upload downloaded assets (for custom binary tests)
@@ -95,15 +102,16 @@ jobs:
           path: ./downloaded_assets
           retention-days: 1
 
-  # Critical tests - never block on Windows (experimental platform)
+  # Critical tests - workflow fails if these fail, but callers use continue-on-error to avoid blocking merges/releases
   test-tier0-windows:
     name: Critical Tests - Windows (@tier0)
     runs-on: windows-latest
     needs: setup
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -157,15 +165,16 @@ jobs:
             tests/test-data-dir/logs/
           retention-days: 7
 
-  # Important tests - never block on Windows (experimental platform)
+  # Important tests - workflow fails if these fail, but callers use continue-on-error to avoid blocking merges/releases
   test-tier1-windows:
     name: Important Tests - Windows (@tier1)
     runs-on: windows-latest
     needs: setup
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -229,6 +238,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -284,6 +295,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -340,17 +353,21 @@ jobs:
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## E2E Test Results Summary (Windows)
 
-          > All Windows tiers run as `continue-on-error: true` — results are informational only.
-
-          | Tier | Status | Notes |
-          |------|--------|-------|
-          | @tier0 (Critical) | ${{ needs.test-tier0-windows.result }} | Core functionality |
-          | @tier1 (Important) | ${{ needs.test-tier1-windows.result }} | Production features |
-          | @tier2 (Nice-to-have) | ${{ needs.test-tier2-windows.result }} | Stable validation |
-          | @tier3 (Experimental) | ${{ needs.test-tier3-windows.result }} | Flaky/unstable |
+          | Tier | Status | Fails Workflow | Blocks PRs/Releases | Notes |
+          |------|--------|----------------|---------------------|-------|
+          | @tier0 (Critical) | ${{ needs.test-tier0-windows.result }} | ✅ | ❌ | Core functionality |
+          | @tier1 (Important) | ${{ needs.test-tier1-windows.result }} | ✅ | ❌ | Production features |
+          | @tier2 (Nice-to-have) | ${{ needs.test-tier2-windows.result }} | ❌ | ❌ | Stable validation |
+          | @tier3 (Experimental) | ${{ needs.test-tier3-windows.result }} | ❌ | ❌ | Flaky/unstable |
 
           **Context:** ${{ inputs.trigger_context }}
           **Triggered by:** ${{ github.event_name }}
 
           📊 [Full workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           EOF
+
+      - name: Fail if critical tiers failed
+        if: |
+          needs.test-tier0-windows.result == 'failure' ||
+          needs.test-tier1-windows.result == 'failure'
+        run: exit 1
