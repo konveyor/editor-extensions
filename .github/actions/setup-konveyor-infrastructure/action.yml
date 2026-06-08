@@ -283,11 +283,21 @@ runs:
           exit 1
         fi
 
+        # The operator registers the upstream model in llm-proxy under a
+        # namespaced id (e.g. "openai/gpt-4o") and writes the resolved name
+        # to the llm-proxy-client ConfigMap. Use that, the same way the
+        # operator's own e2e test does.
+        MODEL_ID=$(kubectl get configmap llm-proxy-client -n ${NAMESPACE} \
+          -o jsonpath='{.data.config\.json}' 2>/dev/null \
+          | jq -r '.model // empty' 2>/dev/null || true)
+        MODEL_ID=${MODEL_ID:-gpt-4o}
+        echo "Using model: ${MODEL_ID}"
+
         RESPONSE=$(curl -k -sS --connect-timeout 5 --max-time 30 \
           -X POST "${HUB_URL}/hub/services/llm-proxy/v1/chat/completions" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer ${APIKEY}" \
-          -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}') # notsecret
+          -d "{\"model\": \"${MODEL_ID}\", \"messages\": [{\"role\": \"user\", \"content\": \"test via proxy\"}]}") # notsecret
 
         echo "LLM Proxy response: $RESPONSE"
 
