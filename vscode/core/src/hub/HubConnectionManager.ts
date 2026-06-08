@@ -19,13 +19,6 @@ export interface TokenResponse {
 }
 
 // Hub login endpoint response format
-export interface HubLoginResponse {
-  user?: string;
-  token: string;
-  refresh?: string; // Refresh token (field name is "refresh")
-  expiry?: number; // Seconds until expiry (NOT Unix timestamp)
-}
-
 // Callback type for workflow disposal (called after successful connection)
 export type WorkflowDisposalCallback = (tokenRefreshOnly?: boolean) => void;
 
@@ -445,84 +438,70 @@ export class HubConnectionManager {
   }
 
   /**
-   * Exchange credentials for tokens via Hub login endpoint.
-   * Uses /hub/auth/login instead of direct Keycloak to get tokens that work with the LLM proxy.
+   * Exchange credentials for a Hub PAT via /hub/auth/tokens (Basic Auth).
+   *
+   * Since konveyor/operator#567 removed Keycloak, tackle-hub is the OIDC
+   * provider and the old /hub/auth/login endpoint no longer exists.
    */
   private async exchangeForTokens(): Promise<void> {
     if (!this.username || !this.password) {
       throw new HubConnectionManagerError("No username or password available for token exchange");
     }
 
-    const loginUrl = `${this.config.url}/hub/auth/login`;
+    const tokenUrl = `${this.config.url}/hub/auth/tokens`;
+    const basicAuth = Buffer.from(`${this.username}:${this.password}`).toString("base64");
 
-    this.logger.debug(`Attempting token exchange with ${loginUrl}`);
+    this.logger.debug(`Attempting token exchange with ${tokenUrl}`);
 
-    const loginResponse = await this.fetchWithTimeout<HubLoginResponse>(loginUrl, {
+    const tokenResponse = await this.fetchWithTimeout<{
+      token: string;
+      expiration?: string;
+      lifespan?: number;
+    }>(tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        Authorization: `Basic ${basicAuth}`,
       },
-      body: JSON.stringify({
-        user: this.username,
-        password: this.password,
-      }),
+      body: "{}",
     });
 
-    this.logger.info("Token exchange successful via Hub login", {
-      hasToken: !!loginResponse.token,
-      tokenType: typeof loginResponse.token,
-      tokenLength: loginResponse.token?.length ?? 0,
-      responseKeys: Object.keys(loginResponse),
+    this.logger.info("Token exchange successful via Hub token endpoint", {
+      hasToken: !!tokenResponse.token,
+      tokenLength: tokenResponse.token?.length ?? 0,
     });
-    this.bearerToken = loginResponse.token;
-    this.refreshToken = loginResponse.refresh ?? null; // Store refresh token if provided
+    this.bearerToken = tokenResponse.token;
+    this.refreshToken = null; // PAT-based auth has no refresh token
 
-    // Get expiration from response or decode from JWT
-    if (loginResponse.expiry) {
-      // expiry is in SECONDS (not Unix timestamp), convert to milliseconds
-      this.tokenExpiresAt = Date.now() + loginResponse.expiry * 1000 - TOKEN_EXPIRY_BUFFER_MS;
+    // Determine token expiry from response
+    if (tokenResponse.expiration) {
+      const expiresAt = Date.parse(tokenResponse.expiration);
+      if (Number.isFinite(expiresAt)) {
+        this.tokenExpiresAt = expiresAt - TOKEN_EXPIRY_BUFFER_MS;
+      } else {
+        this.tokenExpiresAt = null;
+      }
+    } else if (
+      typeof tokenResponse.lifespan === "number" &&
+      Number.isFinite(tokenResponse.lifespan)
+    ) {
+      // lifespan is in hours
+      this.tokenExpiresAt =
+        Date.now() + tokenResponse.lifespan * 60 * 60 * 1000 - TOKEN_EXPIRY_BUFFER_MS;
     } else {
-      this.tokenExpiresAt = this.getExpirationFromJWT(loginResponse.token);
+      // Long-lived PAT — no expiry
+      this.tokenExpiresAt = null;
     }
   }
 
   /**
-   * Refresh tokens using the refresh token via /hub/auth/refresh endpoint.
-   * This is more efficient than re-authenticating with credentials.
+   * Refresh credentials token by minting a new PAT.
+   * The old /hub/auth/refresh endpoint no longer exists.
    */
   private async refreshWithRefreshToken(): Promise<void> {
-    if (!this.refreshToken) {
-      throw new HubConnectionManagerError("No refresh token available");
-    }
-
-    const refreshUrl = `${this.config.url}/hub/auth/refresh`;
-
-    this.logger.debug(`Attempting token refresh with ${refreshUrl}`);
-
-    const refreshResponse = await this.fetchWithTimeout<HubLoginResponse>(refreshUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        refresh: this.refreshToken,
-      }),
-    });
-
-    this.logger.info("Token refresh successful via Hub refresh endpoint");
-
-    // Update tokens
-    this.bearerToken = refreshResponse.token;
-    this.refreshToken = refreshResponse.refresh ?? this.refreshToken; // Use new refresh token if provided
-
-    // Get expiration from response or decode from JWT
-    if (refreshResponse.expiry) {
-      this.tokenExpiresAt = Date.now() + refreshResponse.expiry * 1000 - TOKEN_EXPIRY_BUFFER_MS;
-    } else {
-      this.tokenExpiresAt = this.getExpirationFromJWT(refreshResponse.token);
-    }
+    // Hub PATs don't support refresh — just mint a new one
+    await this.exchangeForTokens();
   }
 
   /**
