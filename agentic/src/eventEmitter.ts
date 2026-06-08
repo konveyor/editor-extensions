@@ -10,6 +10,7 @@ export class KaiWorkflowEventEmitter {
   }
 
   on(event: "workflowMessage", listener: (chunk: KaiWorkflowMessage) => void): this;
+  on(event: "connectionLost", listener: () => void): this;
   on(event: string, listener: (...args: any[]) => void): this {
     this.eventEmitter.on(event, listener);
     return this;
@@ -17,6 +18,10 @@ export class KaiWorkflowEventEmitter {
 
   protected emitWorkflowMessage(msg: KaiWorkflowMessage): boolean {
     return this.eventEmitter.emit("workflowMessage", msg);
+  }
+
+  protected emitConnectionLost(): boolean {
+    return this.eventEmitter.emit("connectionLost");
   }
 
   public removeAllListeners() {

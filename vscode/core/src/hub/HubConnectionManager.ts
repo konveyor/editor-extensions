@@ -35,6 +35,9 @@ export type WorkflowDisposalCallback = (tokenRefreshOnly?: boolean) => void;
 // Callback type for profile sync (to trigger automatic sync)
 export type ProfileSyncCallback = () => Promise<void>;
 
+// Callback type for connection state changes (e.g., solution server disconnects)
+export type ConnectionStateChangeCallback = () => void;
+
 const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
 // Node's setTimeout stores its delay in a 32-bit signed int. A larger delay
 // overflows, gets clamped to 1ms, and fires immediately — which for the token
@@ -79,6 +82,7 @@ export class HubConnectionManager {
   private solutionServerClient: SolutionServerClient | null = null;
   private profileSyncClient: ProfileSyncClient | null = null;
   private onWorkflowDisposal?: WorkflowDisposalCallback;
+  private onConnectionStateChange?: ConnectionStateChangeCallback;
 
   // Authentication state
   private bearerToken: string | null = null;
@@ -133,6 +137,15 @@ export class HubConnectionManager {
    */
   public setWorkflowDisposalCallback(callback: WorkflowDisposalCallback): void {
     this.onWorkflowDisposal = callback;
+  }
+
+  /**
+   * Set connection state change callback.
+   * Called when the solution server connection is lost (e.g., stale MCP connection detected).
+   * This allows the extension to update the webview state immediately.
+   */
+  public setConnectionStateChangeCallback(callback: ConnectionStateChangeCallback): void {
+    this.onConnectionStateChange = callback;
   }
 
   /**
@@ -466,6 +479,15 @@ export class HubConnectionManager {
           this.scopedFetch ?? undefined,
         );
         await this.solutionServerClient.connect();
+
+        // Subscribe to connectionLost events to propagate state changes to the webview
+        this.solutionServerClient.on("connectionLost", () => {
+          this.logger.info(
+            "Solution server connection lost detected via connectionLost event",
+          );
+          this.onConnectionStateChange?.();
+        });
+
         this.logger.info("Successfully connected to Hub solution server");
         vscode.window.showInformationMessage("Successfully connected to Hub solution server");
       } catch (error) {
@@ -576,6 +598,8 @@ export class HubConnectionManager {
 
     if (this.solutionServerClient) {
       try {
+        // Remove event listeners before disconnecting to prevent stale callbacks
+        this.solutionServerClient.removeAllListeners();
         await this.solutionServerClient.disconnect();
       } catch (error) {
         this.logger.error("Error disconnecting solution server client", error);

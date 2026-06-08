@@ -618,6 +618,20 @@ class VsCodeExtension {
         }
       });
 
+      // Set up connection state change callback to immediately update the webview
+      // when the solution server connection is lost (stale MCP connection detected)
+      this.state.hubConnectionManager.setConnectionStateChangeCallback(() => {
+        this.state.logger.info(
+          "Connection state change detected, updating webview state immediately",
+        );
+        this.state.mutateServerState((draft) => {
+          draft.solutionServerConnected =
+            this.state.hubConnectionManager.isSolutionServerConnected();
+          draft.profileSyncConnected = this.state.hubConnectionManager.isProfileSyncConnected();
+          draft.llmProxyAvailable = this.state.hubConnectionManager.isLLMProxyConnected();
+        });
+      });
+
       // Initialize hub connection manager with loaded config
       // This handles connecting to the solution server if enabled
       let hubInitError: Error | undefined;

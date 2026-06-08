@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Fix solution server status chip staying green after MCP connection goes stale.
+  The webview now immediately reflects connection loss via a new connectionLost
+  event emitted by SolutionServerClient.

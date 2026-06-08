@@ -378,6 +378,9 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
         // Mark as disconnected
         this.isConnected = false;
 
+        // Notify listeners that the connection has been lost
+        this.emitConnectionLost();
+
         // Close the stale MCP client to prevent resource leaks
         await this.closeStaleClient();
 
@@ -828,6 +831,9 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
 
         // Mark as disconnected so future calls will know
         this.isConnected = false;
+
+        // Notify listeners that the connection has been lost
+        this.emitConnectionLost();
 
         // Close the stale MCP client to prevent resource leaks
         await this.closeStaleClient();
