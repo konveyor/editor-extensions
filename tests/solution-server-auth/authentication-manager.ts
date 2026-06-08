@@ -1,6 +1,9 @@
 interface TokenResponse {
   token: string;
-  expiry?: number;
+  // RFC3339 timestamp at which the API key expires.
+  expiration?: string;
+  // Lifespan in hours (matches the hub's PAT struct).
+  lifespan?: number;
 }
 
 const DEFAULT_TOKEN_LIFESPAN_SECONDS = 60 * 60;
@@ -73,11 +76,21 @@ export class AuthenticationManager {
 
   private setTokenData(tokenData: TokenResponse): void {
     this.bearerToken = tokenData.token;
-    const lifespanSeconds = tokenData.expiry
-      ? Math.max(1, tokenData.expiry - Math.floor(Date.now() / 1000))
-      : DEFAULT_TOKEN_LIFESPAN_SECONDS;
-    this.tokenExpiresAt = Date.now() + lifespanSeconds * 1000 * TOKEN_EXPIRY_RATIO;
+    this.tokenExpiresAt = Date.now() + this.tokenLifespanMs(tokenData) * TOKEN_EXPIRY_RATIO;
     this.startAutoRefresh();
+  }
+
+  private tokenLifespanMs(tokenData: TokenResponse): number {
+    if (tokenData.expiration) {
+      const expiresAt = Date.parse(tokenData.expiration);
+      if (Number.isFinite(expiresAt)) {
+        return Math.max(1000, expiresAt - Date.now());
+      }
+    }
+    if (typeof tokenData.lifespan === 'number' && Number.isFinite(tokenData.lifespan)) {
+      return Math.max(1000, tokenData.lifespan * 60 * 60 * 1000);
+    }
+    return DEFAULT_TOKEN_LIFESPAN_SECONDS * 1000;
   }
 
   private getTokenUrl(): string {

@@ -12,7 +12,7 @@ echo "=== Seeding Konveyor Hub at ${HUB_URL} ==="
 echo "Authenticating..."
 BASIC_AUTH=$(printf '%s:%s' "${USERNAME}" "${PASSWORD}" | base64 -w0 2>/dev/null \
   || printf '%s:%s' "${USERNAME}" "${PASSWORD}" | base64)
-AUTH_RESPONSE=$(curl -k -s -X POST \
+AUTH_RESPONSE=$(curl -k -sS --connect-timeout 5 --max-time 15 -X POST \
   "${HUB_URL}/hub/auth/tokens" \
   -H "Authorization: Basic ${BASIC_AUTH}" \
   -H "Content-Type: application/json" \

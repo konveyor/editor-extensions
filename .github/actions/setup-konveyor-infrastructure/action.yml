@@ -188,7 +188,8 @@ runs:
 
         echo -n "Polling ${HUB_URL}/hub/auth/tokens"
         for i in $(seq 1 60); do
-          STATUS=$(curl -k -s -o /tmp/hub-token.json -w "%{http_code}" \
+          STATUS=$(curl -k -sS --connect-timeout 5 --max-time 15 \
+            -o /tmp/hub-token.json -w "%{http_code}" \
             -X POST "${HUB_URL}/hub/auth/tokens" \
             -H "Authorization: Basic ${BASIC_AUTH}" \
             -H "Content-Type: application/json" \
@@ -271,7 +272,8 @@ runs:
       run: |
         BASIC_AUTH=$(printf '%s:%s' "${ADMIN_USER}" "${ADMIN_PASSWORD}" | base64 -w0)
 
-        APIKEY=$(curl -k -s -X POST "${HUB_URL}/hub/auth/tokens" \
+        APIKEY=$(curl -k -sS --connect-timeout 5 --max-time 15 \
+          -X POST "${HUB_URL}/hub/auth/tokens" \
           -H "Authorization: Basic ${BASIC_AUTH}" \
           -H "Content-Type: application/json" \
           -d '{}' | jq -r '.token // empty')
@@ -281,7 +283,8 @@ runs:
           exit 1
         fi
 
-        RESPONSE=$(curl -k -s -X POST "${HUB_URL}/hub/services/llm-proxy/v1/chat/completions" \
+        RESPONSE=$(curl -k -sS --connect-timeout 5 --max-time 30 \
+          -X POST "${HUB_URL}/hub/services/llm-proxy/v1/chat/completions" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer ${APIKEY}" \
           -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "test via proxy"}]}') # notsecret
