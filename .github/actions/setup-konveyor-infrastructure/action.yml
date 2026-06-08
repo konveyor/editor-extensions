@@ -176,6 +176,42 @@ runs:
 
         echo "✓ Ingress is ready"
 
+    - name: Wait for Keycloak Readiness
+      shell: bash
+      env:
+        NAMESPACE: ${{ inputs.namespace }}
+      run: |
+        echo "=== Waiting for Keycloak pod to be fully ready ==="
+
+        # Wait for the keycloak pod to exist and be ready
+        for i in $(seq 1 60); do
+          POD=$(kubectl get pods -n ${NAMESPACE} -l app.kubernetes.io/name=keycloak-sso -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          if [ -z "$POD" ]; then
+            # Try alternate label selector
+            POD=$(kubectl get pods -n ${NAMESPACE} -l app=tackle-keycloak-sso -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          fi
+          if [ -n "$POD" ]; then
+            READY=$(kubectl get pod "$POD" -n ${NAMESPACE} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+            if [ "$READY" = "True" ]; then
+              echo "✓ Keycloak pod $POD is ready"
+              break
+            fi
+          fi
+          echo "Waiting for Keycloak pod to be ready... ($i/60)"
+          sleep 5
+        done
+
+        if [ "$READY" != "True" ]; then
+          echo "⚠ Keycloak pod not ready after 300s, proceeding anyway..."
+          kubectl get pods -n ${NAMESPACE} | grep -i keycloak || true
+        fi
+
+        # Give Keycloak a moment to finish internal initialization after pod is Ready
+        echo "Waiting 10s for Keycloak internal initialization..."
+        sleep 10
+
+        echo "✓ Keycloak readiness check complete"
+
     - name: Configure Hub Admin Credentials
       shell: bash
       env:
@@ -188,7 +224,7 @@ runs:
         ADMIN_EXISTS=false
         ADMIN_SECRET=$(kubectl get secret tackle-keycloak-sso -n ${NAMESPACE} -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || true)
 
-        for i in $(seq 1 30); do
+        for i in $(seq 1 60); do
           # Get admin token
           ADMIN_TOKEN_RESPONSE=$(kubectl exec -n ${NAMESPACE} deployment/tackle-hub -- curl -s -X POST \
             http://tackle-keycloak-sso:8080/auth/realms/master/protocol/openid-connect/token \
@@ -204,7 +240,7 @@ runs:
                 -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || echo "[]") # notsecret
 
               if echo "$USERS_RESPONSE" | grep -q '"username":"admin"'; then
-                echo " found"
+                echo " found (after ${i} attempts)"
                 ADMIN_EXISTS=true
 
                 # Get admin user ID
@@ -218,7 +254,18 @@ runs:
         done
 
         if [ "$ADMIN_EXISTS" != true ]; then
-          echo " timeout (admin user may not exist yet)"
+          echo ""
+          echo "✗ Timeout waiting for admin user in tackle realm (300s)"
+          echo ""
+          echo "=== Diagnostic info ==="
+          echo "--- Keycloak pods ---"
+          kubectl get pods -n ${NAMESPACE} | grep -i keycloak || true
+          echo "--- Keycloak logs (last 30 lines) ---"
+          kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/name=keycloak-sso --tail=30 2>/dev/null || \
+            kubectl logs -n ${NAMESPACE} -l app=tackle-keycloak-sso --tail=30 2>/dev/null || \
+            echo "Could not retrieve Keycloak logs"
+          echo "--- Tackle CR status ---"
+          kubectl get tackle -n ${NAMESPACE} -o yaml 2>/dev/null | tail -20 || true
           exit 1
         fi
 
