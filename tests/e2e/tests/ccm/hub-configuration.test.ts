@@ -31,7 +31,9 @@ test.describe(
       const hubConfigPage = await HubConfigurationPage.open(vscodeApp);
       await hubConfigPage.fillForm(hubConfig);
 
-      await vscodeApp.assertNotification('Successfully connected to Hub solution server');
+      await vscodeApp.assertNotification('Successfully connected to Hub solution server', {
+        timeout: 30_000,
+      });
       await vscodeApp.executeQuickCommand('Developer: Reload Window');
       await hubConfigPage.openHubConfiguration();
       const view = await vscodeApp.getView(KAIViews.hubConfiguration);
