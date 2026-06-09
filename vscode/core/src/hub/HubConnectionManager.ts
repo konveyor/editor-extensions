@@ -193,13 +193,21 @@ export class HubConnectionManager {
   }
 
   /**
-   * Check if authentication is valid
+   * Check if authentication is valid.
+   * A null tokenExpiresAt means the token is a long-lived PAT with no expiry.
    */
   public hasValidAuth(): boolean {
     if (!this.config.auth.enabled) {
       return true;
     }
-    return !!this.bearerToken && (this.tokenExpiresAt ? this.tokenExpiresAt > Date.now() : false);
+    if (!this.bearerToken) {
+      return false;
+    }
+    // null expiry = long-lived PAT, always valid while token exists
+    if (this.tokenExpiresAt === null) {
+      return true;
+    }
+    return this.tokenExpiresAt > Date.now();
   }
 
   /**
@@ -675,13 +683,14 @@ export class HubConnectionManager {
   }
 
   /**
-   * Start automatic token refresh timer
+   * Start automatic token refresh timer.
+   * For long-lived PATs (tokenExpiresAt === null), no timer is needed.
    */
   private async startTokenRefreshTimer(): Promise<void> {
     this.clearTokenRefreshTimer();
 
-    if (!this.tokenExpiresAt) {
-      this.logger.warn("No token expiration time available, cannot start refresh timer");
+    if (this.tokenExpiresAt === null) {
+      this.logger.info("Token has no expiration (long-lived PAT), skipping refresh timer");
       return;
     }
 
