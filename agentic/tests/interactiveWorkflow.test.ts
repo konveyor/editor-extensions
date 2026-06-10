@@ -36,7 +36,7 @@ describe("KaiInteractiveWorkflow.run (issue #1418)", () => {
     const toolCache = new FileBasedResponseCache<Record<string, any>, string>(
       false,
       (x) => JSON.stringify(x),
-      (x) => x as string,
+      (x) => JSON.parse(x) as string,
     );
     const logger = winston.createLogger({
       level: "error",
