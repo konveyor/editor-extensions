@@ -171,9 +171,9 @@ const actions = [
       { name: "go", dir: "rulesets-go" },
     ];
 
-    let usedNewLayout = false;
+    let hasPerLanguageRulesets = false;
 
-    // Try per-language extraction (post-rulesets#342 layout: stable/<lang>/*)
+    // Extract stable rulesets per language from stable/<lang>/*
     for (const lang of languages) {
       try {
         await downloadAndExtractGitHubReleaseSourceCode({
@@ -181,7 +181,7 @@ const actions = [
           targetDirectory: join(DOWNLOAD_DIR, lang.dir),
           context: `{{root}}/stable/${lang.name}`,
         });
-        usedNewLayout = true;
+        hasPerLanguageRulesets = true;
         console.log(`Extracted ${lang.name} rulesets to ${lang.dir}`);
       } catch (err) {
         if (!isNoFilesMatchedError(err)) {
@@ -192,7 +192,7 @@ const actions = [
     }
 
     // Extract preview rulesets into core's rulesets directory
-    if (usedNewLayout) {
+    if (hasPerLanguageRulesets) {
       try {
         const previewMeta = await downloadAndExtractGitHubReleaseSourceCode({
           ...rulesetConfig,
@@ -209,16 +209,16 @@ const actions = [
       }
     }
 
-    // Legacy fallback: pre-rulesets#342 layout (default/generated/*)
+    // Legacy fallback: older releases without stable/<lang>/ layout
     // All rulesets go into core's rulesets directory (same as before)
     console.warn(
-      "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
+      "No per-language rulesets layout found, falling back to legacy layout (default/generated)",
     );
     const meta = await downloadAndExtractGitHubReleaseSourceCode({
       ...rulesetConfig,
       context: "{{root}}/default/generated",
     });
-    console.log("Extracted rulesets using pre-rulesets#342 layout (default/generated)");
+    console.log("Extracted rulesets using legacy layout (default/generated)");
     return { id: "seed rulesets", meta };
   },
 
