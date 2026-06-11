@@ -43,7 +43,8 @@
   ],
   "contributes": {},
   "includedAssetPaths": {
-    "csharpAnalyzerProvider": "../../downloaded_assets/c-sharp-analyzer-provider"
+    "csharpAnalyzerProvider": "../../downloaded_assets/c-sharp-analyzer-provider",
+    "rulesets": "../../downloaded_assets/rulesets-dotnet"
   },
   "scripts": {
     "clean": "rimraf out",

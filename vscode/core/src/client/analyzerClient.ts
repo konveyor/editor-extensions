@@ -763,8 +763,13 @@ export class AnalyzerClient {
       throw new Error("No active profile configured.");
     }
 
+    const providerRulesets = profile.useDefaultRules
+      ? this.providerRegistry.getProviders().flatMap((p) => p.rulesetsPaths)
+      : [];
+
     const rulesets: string[] = [
       profile.useDefaultRules ? this.assetPaths.rulesets : null,
+      ...providerRulesets,
       ...(profile.customRules || []),
     ].filter(Boolean) as string[];
 

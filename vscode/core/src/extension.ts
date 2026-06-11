@@ -83,7 +83,7 @@ class VsCodeExtension {
     public readonly paths: ExtensionPaths,
     public readonly context: vscode.ExtensionContext,
     logger: winston.Logger,
-    providerRegistry: ProviderRegistry,
+    private readonly providerRegistry: ProviderRegistry,
     private readonly healthCheckRegistry: HealthCheckRegistry,
   ) {
     this.diffStatusBarItem = vscode.window.createStatusBarItem(
@@ -497,16 +497,35 @@ class VsCodeExtension {
       });
 
       // Discover available target/source labels from bundled rulesets (non-blocking)
-      discoverLabels(this.state.analyzerClient.rulesetsPath).then(
-        (discoveredLabels) => {
-          this.state.mutateSettings((draft) => {
-            draft.availableTargets = discoveredLabels.targets;
-            draft.availableSources = discoveredLabels.sources;
-          });
-        },
-        (err) => {
-          this.state.logger.warn(`Failed to discover labels from rulesets: ${err}`);
-        },
+      const getAllRulesetsDirs = () => [
+        this.state.analyzerClient.rulesetsPath,
+        ...this.providerRegistry.getProviders().flatMap((p) => p.rulesetsPaths),
+      ];
+
+      const runLabelDiscovery = () => {
+        discoverLabels(getAllRulesetsDirs()).then(
+          (discoveredLabels) => {
+            this.state.mutateSettings((draft) => {
+              draft.availableTargets = discoveredLabels.targets;
+              draft.availableSources = discoveredLabels.sources;
+            });
+          },
+          (err) => {
+            this.state.logger.warn(`Failed to discover labels from rulesets: ${err}`);
+          },
+        );
+      };
+
+      // Initial discovery with core rulesets
+      runLabelDiscovery();
+
+      // Re-discover when providers with rulesets register
+      this.context.subscriptions.push(
+        this.providerRegistry.onDidRegisterProvider((provider) => {
+          if (provider.rulesetsPaths.length > 0) {
+            runLabelDiscovery();
+          }
+        }),
       );
 
       const allProfiles = await getAllProfiles(this.context);

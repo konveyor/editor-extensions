@@ -356,8 +356,10 @@ async function initializeProviders(
       contextLines: 10,
     },
     rulesetsPaths: [
-      // In Phase 1, rulesets are still in core extension
-      // Will be moved to java extension in later phase
+      context.asAbsolutePath(
+        context.extension.packageJSON.includedAssetPaths?.rulesets ??
+          "../../downloaded_assets/rulesets-java",
+      ),
     ],
   });
 

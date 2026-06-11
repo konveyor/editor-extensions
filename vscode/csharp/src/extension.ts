@@ -169,8 +169,10 @@ export async function activate(context: vscode.ExtensionContext) {
       contextLines: 10,
     },
     rulesetsPaths: [
-      // In Phase 1, rulesets are still in core extension
-      // Will be moved to C# extension in later phase if needed
+      context.asAbsolutePath(
+        context.extension.packageJSON.includedAssetPaths?.rulesets ??
+          "../../downloaded_assets/rulesets-dotnet",
+      ),
     ],
   });
 

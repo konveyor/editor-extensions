@@ -16,12 +16,12 @@ describe("discoverLabels", () => {
   });
 
   it("should return empty arrays when directory does not exist", async () => {
-    const result = await discoverLabels(path.join(tempDir, "nonexistent"));
+    const result = await discoverLabels([path.join(tempDir, "nonexistent")]);
     expect(result).toEqual({ targets: [], sources: [] });
   });
 
   it("should return empty arrays when directory has no yaml files", async () => {
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result).toEqual({ targets: [], sources: [] });
   });
 
@@ -34,7 +34,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["quarkus"]);
     expect(result.sources).toEqual(["java-ee"]);
   });
@@ -55,7 +55,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["quarkus"]);
     expect(result.sources).toEqual(["eap", "java-ee"]);
   });
@@ -71,7 +71,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["spring-boot3+", "spring6+"]);
     expect(result.sources).toEqual(["eap7.0-", "spring-boot2"]);
   });
@@ -86,7 +86,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["azure-aks", "eap8", "quarkus"]);
   });
 
@@ -100,8 +100,52 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["spring-boot3+"]);
+  });
+
+  it("should merge labels from multiple directories", async () => {
+    const dir1 = path.join(tempDir, "java-rules");
+    const dir2 = path.join(tempDir, "nodejs-rules");
+    await fs.mkdir(dir1, { recursive: true });
+    await fs.mkdir(dir2, { recursive: true });
+
+    await fs.writeFile(
+      path.join(dir1, "rule.yaml"),
+      `- labels:
+    - konveyor.io/target=quarkus
+    - konveyor.io/source=java-ee
+`,
+    );
+    await fs.writeFile(
+      path.join(dir2, "rule.yaml"),
+      `- labels:
+    - konveyor.io/target=nodejs18+
+    - konveyor.io/source=nodejs16
+`,
+    );
+
+    const result = await discoverLabels([dir1, dir2]);
+    expect(result.targets).toEqual(["nodejs18+", "quarkus"]);
+    expect(result.sources).toEqual(["java-ee", "nodejs16"]);
+  });
+
+  it("should handle mix of existing and non-existent directories", async () => {
+    await fs.writeFile(
+      path.join(tempDir, "rule.yaml"),
+      `- labels:
+    - konveyor.io/target=eap8
+`,
+    );
+
+    const result = await discoverLabels([tempDir, path.join(tempDir, "nonexistent")]);
+    expect(result.targets).toEqual(["eap8"]);
+    expect(result.sources).toEqual([]);
+  });
+
+  it("should return empty arrays for empty input", async () => {
+    const result = await discoverLabels([]);
+    expect(result).toEqual({ targets: [], sources: [] });
   });
 });
 
@@ -156,7 +200,7 @@ describe("discoverLabels against real rulesets", () => {
       }
     }
 
-    const result = await discoverLabels(rulesetsDir);
+    const result = await discoverLabels([rulesetsDir]);
 
     const discoveredTargetSet = new Set(result.targets);
     const discoveredSourceSet = new Set(result.sources);

@@ -150,9 +150,8 @@ const actions = [
   }),
 
   // Download and extract seed rulesets from a rulesets repo release.
-  // Supports both the layout introduced in konveyor/rulesets#342 (stable/<lang>/* and preview/*)
-  // and the legacy layout (default/generated/*). Tries the new layout first; falls back to the
-  // legacy one. Throws if neither layout produces any files.
+  // Per-language rulesets are extracted into separate directories for each language extension.
+  // Preview rulesets and legacy fallback go to the core extension's rulesets directory.
   async () => {
     const rulesetConfig = {
       downloadDirectory: join(DOWNLOAD_CACHE, "sources"),
@@ -164,39 +163,63 @@ const actions = [
       globs: ["**/*.yaml", "**/*.yml", "!**/tests/**"],
     };
 
-    try {
-      // Post-konveyor/rulesets#342: rules live in stable/<lang>/* and preview/*
-      const stableMeta = await downloadAndExtractGitHubReleaseSourceCode({
-        ...rulesetConfig,
-        context: "{{root}}/stable",
-      });
+    // Per-language extraction targets
+    const languages = [
+      { name: "java", dir: "rulesets-java" },
+      { name: "nodejs", dir: "rulesets-nodejs" },
+      { name: "dotnet", dir: "rulesets-dotnet" },
+      { name: "go", dir: "rulesets-go" },
+    ];
+
+    let usedNewLayout = false;
+
+    // Try per-language extraction (post-rulesets#342 layout: stable/<lang>/*)
+    for (const lang of languages) {
       try {
         await downloadAndExtractGitHubReleaseSourceCode({
           ...rulesetConfig,
+          targetDirectory: join(DOWNLOAD_DIR, lang.dir),
+          context: `{{root}}/stable/${lang.name}`,
+        });
+        usedNewLayout = true;
+        console.log(`Extracted ${lang.name} rulesets to ${lang.dir}`);
+      } catch (err) {
+        if (!isNoFilesMatchedError(err)) {
+          throw err;
+        }
+        console.warn(`No stable/${lang.name} rulesets found in this release, skipping`);
+      }
+    }
+
+    // Extract preview rulesets into core's rulesets directory
+    if (usedNewLayout) {
+      try {
+        const previewMeta = await downloadAndExtractGitHubReleaseSourceCode({
+          ...rulesetConfig,
           context: "{{root}}/preview",
         });
+        console.log("Extracted preview rulesets to core rulesets directory");
+        return { id: "seed rulesets", meta: previewMeta };
       } catch (err) {
         if (!isNoFilesMatchedError(err)) {
           throw err;
         }
         console.warn("No preview rulesets found in this release, skipping");
+        return { id: "seed rulesets", meta: {} };
       }
-      console.log("Extracted rulesets using post-rulesets#342 layout (stable + preview)");
-      return { id: "seed rulesets", meta: stableMeta };
-    } catch (err) {
-      if (!isNoFilesMatchedError(err)) {
-        throw err;
-      }
-      console.warn(
-        "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
-      );
-      const meta = await downloadAndExtractGitHubReleaseSourceCode({
-        ...rulesetConfig,
-        context: "{{root}}/default/generated",
-      });
-      console.log("Extracted rulesets using pre-rulesets#342 layout (default/generated)");
-      return { id: "seed rulesets", meta };
     }
+
+    // Legacy fallback: pre-rulesets#342 layout (default/generated/*)
+    // All rulesets go into core's rulesets directory (same as before)
+    console.warn(
+      "Post-rulesets#342 layout not found — falling back to pre-rulesets#342 layout (default/generated)",
+    );
+    const meta = await downloadAndExtractGitHubReleaseSourceCode({
+      ...rulesetConfig,
+      context: "{{root}}/default/generated",
+    });
+    console.log("Extracted rulesets using pre-rulesets#342 layout (default/generated)");
+    return { id: "seed rulesets", meta };
   },
 
   // Extract jdt.ls bundles from the linux-x64_64 downloaded workflow artifact or release asset
