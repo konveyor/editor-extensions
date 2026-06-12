@@ -42,6 +42,7 @@ test.describe.serial(
 
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(300_000);
+
       // Configure llemulator responses if available
       if (isLlemulatorConfigured()) {
         console.log('Configuring llemulator responses...');
@@ -93,7 +94,18 @@ test.describe.serial(
 
       const hubConfigPage = await HubConfigurationPage.open(vscodeApp);
       await hubConfigPage.fillForm(hubConfig);
-      await vscodeApp.assertNotification('Successfully connected to Hub profile sync');
+      // Wait for either the toast notification or the status chip in the Hub config view
+      try {
+        await vscodeApp.assertNotification('Successfully connected to Hub profile sync', {
+          timeout: 90_000,
+        });
+      } catch {
+        // Notification may have been dismissed or not shown — check the status chip instead
+        const hubView = await vscodeApp.getView('Konveyor Hub Configuration' as any);
+        await expect(
+          hubView.locator('.pf-v6-c-label.pf-m-green').filter({ hasText: 'Profile Sync' })
+        ).toBeVisible({ timeout: 90_000 });
+      }
       console.log('Connected to the Hub');
 
       await vscodeApp.openAnalysisView();

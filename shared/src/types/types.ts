@@ -23,11 +23,18 @@ export interface SuccessRateMetric {
   unknown_solutions: number;
 }
 
+/** Authentication method for Hub connections. */
+export type HubAuthMethod = "oidc" | "credentials";
+
 export interface HubConfig {
   enabled: boolean;
   url: string;
   auth: {
     enabled: boolean;
+    /** Authentication method: "oidc" uses authorization code + PKCE (default), "credentials" uses username/password. */
+    method?: HubAuthMethod;
+    /** OIDC client ID for authentication. Defaults to "kai-ide". */
+    oidcClientId?: string;
     username: string;
     password: string;
     insecure: boolean;
@@ -166,6 +173,9 @@ export interface ExtensionData {
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  oidcUsername: string;
+  oidcTokenExpiry: number | null;
+  hubConnectionError: string;
   isWebEnvironment: boolean;
   availableTargets: string[];
   availableSources: string[];

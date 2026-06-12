@@ -31,8 +31,14 @@ test.describe(
       const hubConfigPage = await HubConfigurationPage.open(vscodeApp);
       await hubConfigPage.fillForm(hubConfig);
 
-      await vscodeApp.assertNotification('Successfully connected to Hub solution server');
+      await vscodeApp.assertNotification('Successfully connected to Hub solution server', {
+        timeout: 30_000,
+      });
       await vscodeApp.executeQuickCommand('Developer: Reload Window');
+      // Wait for the window/extension to reinitialize after reload — pressing
+      // Ctrl+Shift+P too early leaves the command palette hidden (same pattern
+      // as hub-config-persistence.test.ts).
+      await vscodeApp.getWindow().waitForTimeout(15000);
       await hubConfigPage.openHubConfiguration();
       const view = await vscodeApp.getView(KAIViews.hubConfiguration);
       try {

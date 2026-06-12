@@ -47,7 +47,7 @@ runs:
       uses: konveyor/operator/.github/actions/start-minikube@main
       with:
         cpus: "max"
-        memory: "max"
+        memory: "8000"
 
     - name: Setup Namespace and Secrets
       shell: bash
@@ -175,6 +175,16 @@ runs:
         echo "hub_url=${HUB_URL}" >> $GITHUB_OUTPUT
 
         echo "✓ Ingress is ready"
+
+    - name: Wait for Hub pod readiness
+      shell: bash
+      run: |
+        echo "=== Waiting for Hub pod to be ready ==="
+        kubectl wait --for=condition=ready pod \
+          -l app.kubernetes.io/name=tackle-hub \
+          -n ${{ inputs.namespace }} \
+          --timeout=120s
+        echo "✓ Hub pod is ready"
 
     - name: Wait for Hub Admin User
       shell: bash
