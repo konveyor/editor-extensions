@@ -236,7 +236,13 @@ export class HubConnectionManager {
     // Create connection-scoped fetch for insecure mode
     if (this.config.auth.insecure) {
       this.logger.warn("SSL certificate verification is disabled for Hub connections");
-      const dispatcher = await getDispatcherWithCertBundle(undefined, true);
+      const dispatcher = await getDispatcherWithCertBundle(
+        undefined,
+        true,
+        false,
+        this.logger,
+        this.config.url,
+      );
       this.scopedFetch = getFetchWithDispatcher(dispatcher);
     } else {
       this.scopedFetch = null;
