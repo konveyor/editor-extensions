@@ -124,7 +124,9 @@ class SolutionServerWorkflowHelper {
       const hubConfigPage = await HubConfigurationPage.open(vsCode);
       await hubConfigPage.fillForm(hubConfig);
 
-      await vsCode.assertNotification('Successfully connected to Hub solution server');
+      await vsCode.assertNotification('Successfully connected to Hub solution server', {
+        timeout: 30_000,
+      });
 
       await vsCode.configureGenerativeAI(getDefaultProviderConfig().config);
       await vsCode.startServer();
