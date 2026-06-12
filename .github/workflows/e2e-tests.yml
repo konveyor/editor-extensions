@@ -316,7 +316,10 @@ jobs:
   # Infrastructure tests - requires minikube + Konveyor
   test-infrastructure:
     name: Infrastructure Tests (@requires-minikube)
-    runs-on: ubuntu-latest
+    # Needs the larger runner: the konveyor analysis task pod alone requests
+    # 4 CPUs ("Insufficient cpu" FailedScheduling on 4-core runners), and the
+    # starved hub degrades until /hub/auth/tokens exceeds the 30s client timeout.
+    runs-on: ubuntu-latest-8-cores
     needs: setup
     # Don't block PRs while the extension's hub auth flow is still being
     # migrated off keycloak. Releases still gate on this.
@@ -431,6 +434,8 @@ jobs:
           kubectl logs -n konveyor-tackle deployment/llm-proxy --tail=1000 > tests/test-output/k8s-logs/llm-proxy.log || true
           kubectl logs -n konveyor-tackle deployment/kai-api --tail=1000 > tests/test-output/k8s-logs/kai-api.log || true
           kubectl logs -n konveyor-tackle deployment/kai-db --tail=1000 > tests/test-output/k8s-logs/kai-db.log || true
+          kubectl logs -n konveyor-tackle deployment/tackle-ui --tail=1000 > tests/test-output/k8s-logs/tackle-ui.log || true
+          kubectl logs -n ingress-nginx deployment/ingress-nginx-controller --tail=1000 > tests/test-output/k8s-logs/ingress-controller.log || true
 
           # Collect pod descriptions for debugging
           echo "Collecting pod descriptions..."

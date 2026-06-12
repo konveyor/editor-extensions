@@ -54,6 +54,8 @@ const App: React.FC = () => {
         profileSyncConnected: windowData.profileSyncConnected ?? false,
         isSyncingProfiles: windowData.isSyncingProfiles ?? false,
         llmProxyAvailable: windowData.llmProxyAvailable ?? false,
+        oidcUsername: windowData.oidcUsername ?? "",
+        oidcTokenExpiry: windowData.oidcTokenExpiry ?? null,
         isWebEnvironment: windowData.isWebEnvironment ?? false,
       });
     }

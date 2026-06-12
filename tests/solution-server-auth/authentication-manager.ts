@@ -9,6 +9,11 @@ interface TokenResponse {
 const DEFAULT_TOKEN_LIFESPAN_SECONDS = 60 * 60;
 const TOKEN_EXPIRY_RATIO = 0.7;
 
+/** Maximum number of retry attempts for transient failures. */
+const MAX_RETRY_ATTEMPTS = 3;
+/** Base delay in ms for exponential backoff (2s, 4s). */
+const RETRY_BASE_DELAY_MS = 2000;
+
 export class AuthenticationManager {
   private readonly previousTlsRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   private bearerToken: string | null = null;
@@ -102,12 +107,56 @@ export class AuthenticationManager {
     return `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`;
   }
 
+  /**
+   * Determine whether an error is transient (timeout or network) and
+   * therefore eligible for retry. HTTP 4xx errors are NOT retried.
+   */
+  private isRetryableError(err: any): boolean {
+    // Timeout errors
+    if (err.name === 'AbortError') return true;
+    if (err.message && /timed out/i.test(err.message)) return true;
+    if (err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') return true;
+
+    // Network errors
+    if (err.code === 'ECONNREFUSED') return true;
+    if (err.code === 'ECONNRESET') return true;
+    if (err.code === 'ENOTFOUND') return true;
+    if (err.code === 'EAI_AGAIN') return true;
+    if (err.type === 'system') return true;
+
+    return false;
+  }
+
   private async fetchToken(tokenUrl: string): Promise<TokenResponse> {
-    const timeoutMs = 10000;
-    if (this.insecure && tokenUrl.startsWith('https://')) {
-      return this.fetchTokenInsecure(tokenUrl, timeoutMs);
+    const timeoutMs = 30000;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return await this.fetchTokenSecure(tokenUrl, timeoutMs);
+      } catch (err: any) {
+        lastError = err;
+
+        // Don't retry on client errors (4xx) — only on transient failures
+        if (!this.isRetryableError(err)) {
+          throw err;
+        }
+
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.warn(
+            `Token fetch attempt ${attempt}/${MAX_RETRY_ATTEMPTS} failed (${err.message}). ` +
+              `Retrying in ${delay}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
     }
 
+    throw lastError!;
+  }
+
+  private async fetchTokenSecure(tokenUrl: string, timeoutMs: number): Promise<TokenResponse> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -125,7 +174,9 @@ export class AuthenticationManager {
 
       if (!response.ok) {
         const msg = await response.text();
-        throw new Error(`Token request failed: ${response.status} ${msg}`);
+        const error: any = new Error(`Token request failed: ${response.status} ${msg}`);
+        error.statusCode = response.status;
+        throw error;
       }
 
       return (await response.json()) as TokenResponse;
@@ -139,63 +190,6 @@ export class AuthenticationManager {
     }
   }
 
-  private async fetchTokenInsecure(tokenUrl: string, timeoutMs: number): Promise<TokenResponse> {
-    const https = await import('https');
-    const { URL } = await import('url');
-
-    const parsedUrl = new URL(tokenUrl);
-    const postData = '{}';
-
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 443,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
-          Accept: 'application/json',
-          Authorization: this.basicAuthHeader(),
-        },
-        rejectUnauthorized: false, // Disable certificate verification
-        timeout: timeoutMs,
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              const jsonData = JSON.parse(data) as TokenResponse;
-              resolve(jsonData);
-            } catch (error) {
-              reject(new Error(`Failed to parse JSON response: ${error}`));
-            }
-          } else {
-            reject(new Error(`Token request failed: ${res.statusCode} ${data}`));
-          }
-        });
-      });
-
-      req.on('error', (error) => {
-        reject(error);
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error(`Token request timed out after ${timeoutMs}ms`));
-      });
-
-      req.write(postData);
-      req.end();
-    });
-  }
 
   private hasValidToken(): boolean {
     return (

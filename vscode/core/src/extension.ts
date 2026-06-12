@@ -126,6 +126,9 @@ class VsCodeExtension {
         profileSyncConnected: false,
         isSyncingProfiles: false,
         llmProxyAvailable: false, // Will be updated after hub initialization
+        oidcUsername: "",
+        oidcTokenExpiry: null,
+        hubConnectionError: "",
         isWebEnvironment, // True when running in web (DevSpaces, vscode.dev)
         availableTargets: [], // Will be populated from bundled rulesets
         availableSources: [], // Will be populated from bundled rulesets
@@ -262,6 +265,9 @@ class VsCodeExtension {
           solutionServerConnected: data.solutionServerConnected,
           profileSyncConnected: data.profileSyncConnected,
           llmProxyAvailable: data.llmProxyAvailable,
+          oidcUsername: data.oidcUsername,
+          oidcTokenExpiry: data.oidcTokenExpiry,
+          hubConnectionError: data.hubConnectionError,
           timestamp: new Date().toISOString(),
         });
       });
@@ -615,6 +621,7 @@ class VsCodeExtension {
       // Initialize hub connection manager with loaded config
       // This handles connecting to the solution server if enabled
       let hubInitError: Error | undefined;
+      this.state.hubConnectionManager.setExtensionContext(this.context);
       await this.state.hubConnectionManager.initialize(hubConfig).catch((error) => {
         this.state.logger.error("Error initializing Hub connection", error);
         hubInitError = error;
@@ -628,6 +635,9 @@ class VsCodeExtension {
       this.state.mutateServerState((draft) => {
         draft.solutionServerConnected = this.state.hubConnectionManager.isSolutionServerConnected();
         draft.profileSyncConnected = this.state.hubConnectionManager.isProfileSyncConnected();
+        draft.oidcUsername = this.state.hubConnectionManager.getOidcUsername();
+        draft.oidcTokenExpiry = this.state.hubConnectionManager.getTokenExpiry();
+        draft.hubConnectionError = this.state.hubConnectionManager.getConnectionError();
 
         // Update LLM proxy state
         const llmProxyConfig = this.state.hubConnectionManager.getLLMProxyConfig();
