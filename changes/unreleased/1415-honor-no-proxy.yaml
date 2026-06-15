@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Honor the NO_PROXY environment variable when deciding whether to route
+  Hub and GenAI provider connections through HTTP_PROXY/HTTPS_PROXY.
+  Targets matching NO_PROXY (including loopback addresses such as
+  127.0.0.1) now bypass the proxy as expected.
