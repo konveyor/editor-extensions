@@ -9,6 +9,11 @@ on:
       trigger_context:
         required: true
         type: string # 'pr', 'release', 'manual'
+      ref:
+        description: "Git ref to checkout for tests (must match the ref used to build the VSIX)"
+        required: false
+        type: string
+        default: ""
       use_release:
         required: false
         type: boolean
@@ -31,6 +36,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -101,6 +108,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -160,6 +169,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -220,6 +231,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -272,6 +285,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -325,6 +340,10 @@ jobs:
     # migrated off keycloak. Releases still gate on this.
     continue-on-error: ${{ inputs.trigger_context == 'pr' }}
     steps:
+      # Infrastructure tests intentionally do NOT use inputs.ref here.
+      # The Konveyor Hub is always deployed at @main, so the infra setup
+      # scripts (seed-hub.sh, auth helpers) and test code must come from
+      # main to stay compatible with the deployed Hub's auth endpoints.
       - name: Checkout code
         uses: actions/checkout@v4
 
