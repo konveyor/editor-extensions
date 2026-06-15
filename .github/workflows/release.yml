@@ -122,6 +122,7 @@ jobs:
     with:
       vsix_artifact_name: "vsix-artifacts"
       trigger_context: "release"
+      ref: ${{ inputs.ref }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
