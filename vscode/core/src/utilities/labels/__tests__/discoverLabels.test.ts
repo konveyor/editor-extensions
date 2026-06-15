@@ -150,21 +150,30 @@ describe("discoverLabels", () => {
 });
 
 describe("discoverLabels against real rulesets", () => {
-  const rulesetsDir = path.resolve(__dirname, "../../../../../../downloaded_assets/rulesets");
+  const assetsDir = path.resolve(__dirname, "../../../../../../downloaded_assets");
+  const rulesetsDirs = [
+    path.join(assetsDir, "rulesets"),
+    path.join(assetsDir, "rulesets-java"),
+    path.join(assetsDir, "rulesets-nodejs"),
+    path.join(assetsDir, "rulesets-dotnet"),
+    path.join(assetsDir, "rulesets-go"),
+  ];
 
-  let rulesetsExist = false;
+  const existingDirs: string[] = [];
 
   before(async () => {
-    try {
-      await fs.access(rulesetsDir);
-      rulesetsExist = true;
-    } catch {
-      rulesetsExist = false;
+    for (const dir of rulesetsDirs) {
+      try {
+        await fs.access(dir);
+        existingDirs.push(dir);
+      } catch {
+        // skip non-existent directories
+      }
     }
   });
 
   it("should discover the same labels as a naive line-by-line scan", async function (this: Mocha.Context) {
-    if (!rulesetsExist) {
+    if (existingDirs.length === 0) {
       this.skip();
     }
 
@@ -175,32 +184,32 @@ describe("discoverLabels against real rulesets", () => {
     const refTargets = new Set<string>();
     const refSources = new Set<string>();
 
-    const dirEntries = await fs.readdir(rulesetsDir, { recursive: true });
-    const yamlFiles = dirEntries
-      .filter((e) => e.endsWith(".yaml"))
-      .map((e) => path.join(rulesetsDir, e));
+    for (const dir of existingDirs) {
+      const dirEntries = await fs.readdir(dir, { recursive: true });
+      const yamlFiles = dirEntries.filter((e) => e.endsWith(".yaml")).map((e) => path.join(dir, e));
 
-    for (const file of yamlFiles) {
-      let content: string;
-      try {
-        content = await fs.readFile(file, "utf-8");
-      } catch {
-        continue; // skip directories or unreadable entries
-      }
-      const lines = content.split("\n");
-      for (const line of lines) {
-        const tm = line.match(TARGET_RE);
-        if (tm) {
-          refTargets.add(tm[1]);
+      for (const file of yamlFiles) {
+        let content: string;
+        try {
+          content = await fs.readFile(file, "utf-8");
+        } catch {
+          continue;
         }
-        const sm = line.match(SOURCE_RE);
-        if (sm) {
-          refSources.add(sm[1]);
+        const lines = content.split("\n");
+        for (const line of lines) {
+          const tm = line.match(TARGET_RE);
+          if (tm) {
+            refTargets.add(tm[1]);
+          }
+          const sm = line.match(SOURCE_RE);
+          if (sm) {
+            refSources.add(sm[1]);
+          }
         }
       }
     }
 
-    const result = await discoverLabels([rulesetsDir]);
+    const result = await discoverLabels(existingDirs);
 
     const discoveredTargetSet = new Set(result.targets);
     const discoveredSourceSet = new Set(result.sources);

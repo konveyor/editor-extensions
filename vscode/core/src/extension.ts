@@ -502,15 +502,23 @@ class VsCodeExtension {
         ...this.providerRegistry.getProviders().flatMap((p) => p.rulesetsPaths),
       ];
 
+      let labelDiscoveryRunId = 0;
       const runLabelDiscovery = () => {
+        const runId = ++labelDiscoveryRunId;
         discoverLabels(getAllRulesetsDirs()).then(
           (discoveredLabels) => {
+            if (runId !== labelDiscoveryRunId) {
+              return;
+            }
             this.state.mutateSettings((draft) => {
               draft.availableTargets = discoveredLabels.targets;
               draft.availableSources = discoveredLabels.sources;
             });
           },
           (err) => {
+            if (runId !== labelDiscoveryRunId) {
+              return;
+            }
             this.state.logger.warn(`Failed to discover labels from rulesets: ${err}`);
           },
         );
