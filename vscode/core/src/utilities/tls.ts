@@ -8,11 +8,80 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 import type { Logger } from "winston";
 import { sanitizeUrl } from "./networkDiagnostics";
 
+/**
+ * Returns true if `targetUrl` should bypass any configured HTTP(S) proxy
+ * according to the `NO_PROXY` value. Implements the comma-separated,
+ * case-insensitive, suffix-style matching used by curl / requests /
+ * proxy-from-env so users' shell-level expectations are honored.
+ */
+export function shouldBypassProxy(
+  targetUrl: string | undefined,
+  noProxy: string | undefined,
+): boolean {
+  if (!targetUrl || !noProxy) {
+    return false;
+  }
+
+  let host: string;
+  let port: string;
+  try {
+    const parsed = new URL(targetUrl);
+    host = parsed.hostname.toLowerCase();
+    port = parsed.port;
+  } catch {
+    return false;
+  }
+  if (!host) {
+    return false;
+  }
+
+  const entries = noProxy
+    .split(/[,\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const entry of entries) {
+    if (entry === "*") {
+      return true;
+    }
+
+    const colonIdx = entry.lastIndexOf(":");
+    let entryHost = entry;
+    let entryPort = "";
+    if (colonIdx >= 0 && !entry.startsWith("[")) {
+      entryHost = entry.slice(0, colonIdx);
+      entryPort = entry.slice(colonIdx + 1);
+    }
+
+    if (entryPort && entryPort !== port) {
+      continue;
+    }
+
+    if (entryHost.startsWith(".")) {
+      const suffix = entryHost;
+      if (host.endsWith(suffix)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (host === entryHost) {
+      return true;
+    }
+    if (host.endsWith("." + entryHost)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
   allowH2: boolean = false,
   logger?: Logger,
+  targetUrl?: string,
 ): Promise<UndiciTypesDispatcher> {
   let allCerts: string | undefined;
   if (bundlePath) {
@@ -34,6 +103,9 @@ export async function getDispatcherWithCertBundle(
     process.env.HTTP_PROXY ||
     process.env.http_proxy;
 
+  const noProxy = process.env.NO_PROXY || process.env.no_proxy;
+  const bypassProxy = shouldBypassProxy(targetUrl, noProxy);
+
   if (logger) {
     logger.debug("TLS dispatcher config", {
       hasCustomCA: !!bundlePath,
@@ -42,10 +114,13 @@ export async function getDispatcherWithCertBundle(
       allowH2,
       hasProxy: !!proxyUrl,
       proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
+      hasNoProxy: !!noProxy,
+      targetUrl: targetUrl ? sanitizeUrl(targetUrl) : "none",
+      bypassProxy,
     });
   }
 
-  if (proxyUrl) {
+  if (proxyUrl && !bypassProxy) {
     if (logger) {
       logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
     }
@@ -57,6 +132,10 @@ export async function getDispatcherWithCertBundle(
         rejectUnauthorized: !insecure,
       },
     }) as unknown as UndiciTypesDispatcher;
+  }
+
+  if (proxyUrl && bypassProxy && logger) {
+    logger.info(`Bypassing proxy for ${sanitizeUrl(targetUrl!)} (matches NO_PROXY=${noProxy})`);
   }
 
   return new UndiciAgent({
@@ -86,6 +165,7 @@ export async function getNodeHttpHandler(
   env: Record<string, string>,
   logger: Logger,
   httpVersion: "1.1" | "2.0" = "1.1",
+  targetUrl?: string,
 ): Promise<NodeHttpHandler | NodeHttp2Handler> {
   const caBundle = env["CA_BUNDLE"] || env["AWS_CA_BUNDLE"];
 
@@ -120,6 +200,10 @@ export async function getNodeHttpHandler(
     process.env.HTTP_PROXY ||
     process.env.http_proxy;
 
+  const noProxy =
+    env["NO_PROXY"] || env["no_proxy"] || process.env.NO_PROXY || process.env.no_proxy;
+  const bypassProxy = shouldBypassProxy(targetUrl, noProxy);
+
   interface HttpsAgentOptionsWithALPN extends AgentOptions {
     ALPNProtocols?: string[];
   }
@@ -141,8 +225,12 @@ export async function getNodeHttpHandler(
     sessionTimeout: 30000,
   };
 
-  if (proxyUrl) {
-    logger.info(`Using proxy ${proxyUrl} for AWS Bedrock`);
+  if (proxyUrl && bypassProxy) {
+    logger.info(`Bypassing proxy for ${sanitizeUrl(targetUrl!)} (matches NO_PROXY=${noProxy})`);
+  }
+
+  if (proxyUrl && !bypassProxy) {
+    logger.info(`Using proxy ${sanitizeUrl(proxyUrl)} for AWS Bedrock`);
 
     if (httpVersion === "2.0") {
       logger.warn(

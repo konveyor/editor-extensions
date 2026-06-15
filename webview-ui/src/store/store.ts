@@ -55,6 +55,9 @@ interface ExtensionStore {
   profileSyncConnected: boolean;
   isSyncingProfiles: boolean;
   llmProxyAvailable: boolean;
+  oidcUsername: string;
+  oidcTokenExpiry: number | null;
+  hubConnectionError: string;
   isWebEnvironment: boolean;
   availableTargets: string[];
   availableSources: string[];
@@ -105,6 +108,8 @@ interface ExtensionStore {
   setProfileSyncConnected: (connected: boolean) => void;
   setIsSyncingProfiles: (isSyncing: boolean) => void;
   setLlmProxyAvailable: (available: boolean) => void;
+  setOidcUsername: (username: string) => void;
+  setOidcTokenExpiry: (expiry: number | null) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
 
@@ -150,6 +155,9 @@ export const useExtensionStore = create<ExtensionStore>()(
       profileSyncConnected: false,
       isSyncingProfiles: false,
       llmProxyAvailable: false,
+      oidcUsername: "",
+      oidcTokenExpiry: null,
+      hubConnectionError: "",
       isWebEnvironment: false,
       availableTargets: [],
       availableSources: [],
@@ -350,6 +358,16 @@ export const useExtensionStore = create<ExtensionStore>()(
       setLlmProxyAvailable: (available) =>
         set((state) => {
           state.llmProxyAvailable = available;
+        }),
+
+      setOidcUsername: (username) =>
+        set((state) => {
+          state.oidcUsername = username;
+        }),
+
+      setOidcTokenExpiry: (expiry) =>
+        set((state) => {
+          state.oidcTokenExpiry = expiry;
         }),
 
       setFocusedViolationFilter: (filter) =>
