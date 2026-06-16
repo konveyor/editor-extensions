@@ -38,6 +38,7 @@ import { paths } from "./paths";
 import { checkIfExecutable, copySampleProviderSettings } from "./utilities/fileUtils";
 import { handleConfigureCustomRules } from "./utilities/profiles/profileActions";
 import { handleFileResponse } from "./utilities/ModifiedFiles/handleFileResponse";
+import { normalizeFilePath } from "./utilities/pathUtils";
 import { VerticalDiffCodeLensProvider } from "./diff/verticalDiffCodeLens";
 import type { Logger } from "winston";
 import { parseModelConfig, getProviderConfigKeys } from "./modelProvider/config";
@@ -927,7 +928,7 @@ const commandsMap: (
 
       // If this file was part of batch review, advance it
       if (messageToken) {
-        const filePath = vscode.Uri.parse(fileUri).fsPath;
+        const filePath = normalizeFilePath(vscode.Uri.parse(fileUri).fsPath);
         const content = editor?.document.getText() || "";
         try {
           await handleFileResponse(messageToken, "apply", filePath, content, state, true);
