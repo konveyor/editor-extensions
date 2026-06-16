@@ -25,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || 'main' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -41,7 +41,7 @@ jobs:
       - name: Collect runtime assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run collect-assets -- --use-workflow-artifacts --branch=${{ inputs.ref || 'main' }}
+        run: npm run collect-assets -- --use-workflow-artifacts --branch=main
 
       - name: Set development version
         run: |
@@ -74,7 +74,6 @@ jobs:
       vsix_artifact_name: "vsix-artifacts-windows-nightly"
       trigger_context: "manual"
       use_release: false
-      ref: ${{ inputs.ref || github.ref }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 

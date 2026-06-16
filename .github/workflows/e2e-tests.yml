@@ -13,11 +13,6 @@ on:
         required: false
         type: boolean
         default: false # when true, collect-assets uses --use-release (pinned tag) instead of latest workflow artifacts
-      ref:
-        description: "Git ref to checkout for test code (e.g. main, release-0.4). Defaults to the triggering SHA."
-        required: false
-        type: string
-        default: ""
     secrets:
       OPENAI_API_KEY:
         required: false
@@ -36,8 +31,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,7 +83,7 @@ jobs:
           if ${{ inputs.use_release }}; then
             npm run collect-assets -- --use-release
           else
-            npm run collect-assets -- --use-workflow-artifacts --branch=${{ inputs.ref != '' && inputs.ref || 'main' }}
+            npm run collect-assets -- --use-workflow-artifacts --branch=main
           fi
 
       - name: Upload downloaded assets (for custom binary tests)
@@ -108,8 +101,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -169,8 +160,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -231,8 +220,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -285,8 +272,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -336,8 +321,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Setup Konveyor Infrastructure
         id: infra
