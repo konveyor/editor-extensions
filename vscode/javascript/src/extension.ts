@@ -83,12 +83,14 @@ export async function activate(context: vscode.ExtensionContext) {
       javascriptVersion: javascriptExtVersion,
       coreVersion: coreExtVersion,
     });
-  } else {
-    logger.info("Version compatibility check passed", {
-      javascriptVersion: javascriptExtVersion,
-      coreVersion: coreExtVersion,
-    });
+    vscode.window.showErrorMessage(message);
+    return;
   }
+
+  logger.info("Version compatibility check passed", {
+    javascriptVersion: javascriptExtVersion,
+    coreVersion: coreExtVersion,
+  });
 
   // Create socket paths for communication
   const providerSocketPath = generateSafePipeName(EXTENSION_NAME); // GRPC socket for kai-analyzer-rpc
