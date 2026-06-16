@@ -230,6 +230,7 @@ jobs:
     with:
       vsix_artifact_name: "vsix-artifacts"
       trigger_context: ${{ github.event_name == 'pull_request' && 'pr' || 'manual' }}
+      ref: ${{ github.sha }}
       use_release: ${{ startsWith(github.base_ref, 'release-') || startsWith(github.ref_name, 'release-') }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
