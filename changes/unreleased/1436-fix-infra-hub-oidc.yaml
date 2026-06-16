@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Update the e2e infrastructure setup, hub seeding script, and solution-server
+  test client to authenticate against the hub's built-in IdP via
+  POST /hub/auth/tokens (Basic auth) after the operator removed keycloak in
+  favor of a hub-managed OIDC implementation.

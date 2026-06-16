@@ -36,7 +36,8 @@
   ],
   "activationEvents": [
     "onFileSystem:konveyorMemFs",
-    "onFileSystem:konveyorReadOnly"
+    "onFileSystem:konveyorReadOnly",
+    "onUri"
   ],
   "contributes": {
     "commands": [
@@ -191,6 +192,18 @@
         "title": "Sync Profiles from Hub",
         "category": "Konveyor",
         "icon": "$(sync)"
+      },
+      {
+        "command": "konveyor-core.hubOidcLogin",
+        "title": "Sign In to Hub (OIDC)",
+        "category": "Konveyor",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "konveyor-core.hubOidcLogout",
+        "title": "Sign Out from Hub",
+        "category": "Konveyor",
+        "icon": "$(sign-out)"
       },
       {
         "command": "konveyor-core.retryProfileSync",
@@ -416,6 +429,28 @@
           "description": "Enable debug logging for webview message handling",
           "scope": "window",
           "order": 40
+        },
+        "konveyor-core.hub.auth.method": {
+          "type": "string",
+          "enum": [
+            "oidc",
+            "credentials"
+          ],
+          "default": "oidc",
+          "enumDescriptions": [
+            "OIDC Authorization Code + PKCE - Sign in via browser (recommended)",
+            "Credentials - Username and password (legacy)"
+          ],
+          "description": "Authentication method for Hub connections. OIDC uses the hub's builtin OIDC provider with authorization code + PKCE flow (opens browser). Falls back to device flow when available. Credentials uses the legacy username/password login.",
+          "scope": "window",
+          "order": 50
+        },
+        "konveyor-core.hub.auth.oidcClientId": {
+          "type": "string",
+          "default": "kai-ide",
+          "description": "OIDC client ID for authentication. Must match a registered client on the hub.",
+          "scope": "window",
+          "order": 51
         }
       }
     },

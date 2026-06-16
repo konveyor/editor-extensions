@@ -55,7 +55,9 @@ test.describe.serial(
       const hubConfigPage = await HubConfigurationPage.open(vsCode);
       await hubConfigPage.fillForm(hubConfig);
 
-      await vsCode.assertNotification('Successfully connected to Hub solution server');
+      await vsCode.assertNotification('Successfully connected to Hub solution server', {
+        timeout: 30_000,
+      });
 
       await vsCode.createProfile(repoInfo.sources, repoInfo.targets);
       await vsCode.configureGenerativeAI(getDefaultProviderConfig().config);

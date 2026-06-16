@@ -5,16 +5,18 @@ set -e  # Exit on error
 # Configuration
 HUB_URL="${HUB_URL:-https://192.168.49.2}"
 USERNAME="${USERNAME:-admin}" # notsecret
-PASSWORD="${PASSWORD:-Passw0rd!}" # notsecret
+PASSWORD="${PASSWORD:-admin}" # notsecret
 
 echo "=== Seeding Konveyor Hub at ${HUB_URL} ==="
 
-# Authenticate and get token
 echo "Authenticating..."
-AUTH_RESPONSE=$(curl -k -s -X POST \
-  "${HUB_URL}/hub/auth/login" \
+BASIC_AUTH=$(printf '%s:%s' "${USERNAME}" "${PASSWORD}" | base64 -w0 2>/dev/null \
+  || printf '%s:%s' "${USERNAME}" "${PASSWORD}" | base64)
+AUTH_RESPONSE=$(curl -k -sS --connect-timeout 5 --max-time 15 -X POST \
+  "${HUB_URL}/hub/auth/tokens" \
+  -H "Authorization: Basic ${BASIC_AUTH}" \
   -H "Content-Type: application/json" \
-  -d "{\"user\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}")
+  -d '{}')
 
 TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.token // empty')
 

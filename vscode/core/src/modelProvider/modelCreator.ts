@@ -33,7 +33,7 @@ class AzureChatOpenAICreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger);
+    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
     return new AzureChatOpenAI({
       openAIApiKey: env.AZURE_OPENAI_API_KEY,
       ...args,
@@ -71,7 +71,13 @@ class ChatBedrockCreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    await setupProviderTLS(env, this.logger);
+    const bedrockEndpoint =
+      extractProviderTargetUrl(args) ||
+      (env.AWS_DEFAULT_REGION
+        ? `https://bedrock-runtime.${env.AWS_DEFAULT_REGION}.amazonaws.com`
+        : undefined);
+
+    await setupProviderTLS(env, this.logger, bedrockEndpoint);
 
     const config: ChatBedrockConverseInput = {
       ...args,
@@ -86,7 +92,7 @@ class ChatBedrockCreator implements ModelCreator {
 
     const httpProtocol = getConfigHttpProtocol();
     const httpVersion = httpProtocol === "http2" ? "2.0" : "1.1";
-    const requestHandler = await getNodeHttpHandler(env, this.logger, httpVersion);
+    const requestHandler = await getNodeHttpHandler(env, this.logger, httpVersion, bedrockEndpoint);
     const runtimeClient = new BedrockRuntimeClient({
       region: env.AWS_DEFAULT_REGION,
       credentials: config.credentials,
@@ -113,7 +119,7 @@ class ChatDeepSeekCreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger);
+    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
     return new ChatDeepSeek({
       apiKey: env.DEEPSEEK_API_KEY,
       ...args,
@@ -143,7 +149,7 @@ class ChatGoogleGenerativeAICreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    await setupProviderTLS(env, this.logger);
+    await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
     return new ChatGoogleGenerativeAI({
       apiKey: env.GOOGLE_API_KEY,
       ...args,
@@ -168,7 +174,7 @@ class ChatOllamaCreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger);
+    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
     return new ChatOllama({
       ...args,
       ...(fetchFn ? { fetch: fetchFn } : {}),
@@ -191,7 +197,7 @@ class ChatOpenAICreator implements ModelCreator {
   constructor(private readonly logger: Logger) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger);
+    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
     return new ChatOpenAI({
       apiKey: env.OPENAI_API_KEY,
       ...args,
@@ -256,9 +262,33 @@ function getCaBundleAndInsecure(env: Record<string, string>): {
  * dispatcher entirely. We must also override `globalThis.fetch` with our
  * bundled undici's fetch to ensure custom CA certs are used.
  */
+/**
+ * Pulls a likely target URL out of a model provider's `args` so the TLS
+ * dispatcher can evaluate `NO_PROXY` against it. Returns `undefined` if the
+ * provider's endpoint isn't expressed in the args (cloud SDKs that resolve
+ * their endpoint internally) — in which case proxy behavior falls back to
+ * the historical "always use the proxy if one is set" path.
+ */
+function extractProviderTargetUrl(args: Record<string, any> | undefined): string | undefined {
+  if (!args) {
+    return undefined;
+  }
+  return (
+    args.configuration?.baseURL ||
+    args.configuration?.basePath ||
+    args.baseUrl ||
+    args.baseURL ||
+    args.endpoint ||
+    args.endpointUrl ||
+    args.azureOpenAIEndpoint ||
+    undefined
+  );
+}
+
 async function setupProviderTLS(
   env: Record<string, string>,
   logger: Logger,
+  targetUrl?: string,
 ): Promise<FetchFn | undefined> {
   const httpProtocol = getConfigHttpProtocol();
   const allowH2 = httpProtocol === "http2";
@@ -278,6 +308,7 @@ async function setupProviderTLS(
     needsCustomDispatcher,
     hasProxy: !!proxyUrl,
     proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
+    targetUrl: targetUrl ? sanitizeUrl(targetUrl) : "none",
     envKeys: Object.keys(env),
   });
 
@@ -288,7 +319,13 @@ async function setupProviderTLS(
   }
 
   try {
-    const dispatcher = await getDispatcherWithCertBundle(caBundle, insecure, allowH2, logger);
+    const dispatcher = await getDispatcherWithCertBundle(
+      caBundle,
+      insecure,
+      allowH2,
+      logger,
+      targetUrl,
+    );
     const customFetch = getFetchWithDispatcher(dispatcher);
     setGlobalDispatcher(dispatcher as any);
     globalThis.fetch = customFetch as typeof globalThis.fetch;

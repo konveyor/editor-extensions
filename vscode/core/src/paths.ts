@@ -141,8 +141,16 @@ export async function ensureKaiAnalyzerBinary(
     throw new Error(`No fallback asset available for platform: ${platformKey}`);
   }
 
-  const downloadUrl = `${fallbackConfig.baseUrl}${assetConfig.file}`;
-  const sha256sumUrl = `${fallbackConfig.baseUrl}${fallbackConfig.sha256sumFile}`;
+  const baseUrl = (process.env.ANALYZER_FALLBACK_BASE_URL || fallbackConfig.baseUrl).replace(
+    /\/*$/,
+    "/",
+  );
+  const downloadUrl = `${baseUrl}${assetConfig.file}`;
+  const sha256sumUrl = `${baseUrl}${fallbackConfig.sha256sumFile}`;
+
+  if (process.env.ANALYZER_FALLBACK_BASE_URL) {
+    logger.info(`Using environment variable override for fallback base URL: ${baseUrl}`);
+  }
 
   // Check if binary already exists and matches the expected version
   const metadataPath = join(dirname(kaiAnalyzerPath), "kai-analyzer-rpc.meta.json");
@@ -179,8 +187,9 @@ export async function ensureKaiAnalyzerBinary(
   logger.info(`Downloading SHA256 checksums from: ${sha256sumUrl}`);
 
   const networkGuidance =
-    `If you are in a network-restricted environment, configure a local binary path via the "${EXTENSION_NAME}.analyzerPath" setting ` +
-    `or the "Override Analyzer Binary" command.`;
+    `If you are in a network-restricted environment, you can:\n` +
+    `1. Configure a local binary path via the "${EXTENSION_NAME}.analyzerPath" setting or the "Override Analyzer Binary" command\n` +
+    `2. Set ANALYZER_FALLBACK_BASE_URL environment variable to point to an internal artifact repository`;
 
   // Download and parse sha256sum.txt to get expected SHA
   let sha256Response: Response;

@@ -1,40 +1,29 @@
-import { generateRandomString } from '../e2e/utilities/utils';
 interface TokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_in: number;
+  token: string;
+  // RFC3339 timestamp at which the API key expires.
+  expiration?: string;
+  // Lifespan in hours (matches the hub's PAT struct).
+  lifespan?: number;
 }
 
-/**
- * Ratio of token lifetime at which to trigger refresh.
- * Set to 0.7 (70%) to refresh tokens before expiration, providing a safety buffer
- * to avoid requests failing due to token expiry during the refresh window.
- *
- * Example: For a 100s token, refresh will occur at 70s.
- */
+const DEFAULT_TOKEN_LIFESPAN_SECONDS = 60 * 60;
 const TOKEN_EXPIRY_RATIO = 0.7;
 
-/**
- * Manages OAuth2 authentication and automatic token refresh for API requests.
- *
- * Features:
- * - Password grant authentication flow
- * - Automatic token refresh before expiration
- * - Refresh token rotation support
- * - Concurrent request protection during token refresh
- * - Local development mode bypass
- */
+/** Maximum number of retry attempts for transient failures. */
+const MAX_RETRY_ATTEMPTS = 3;
+/** Base delay in ms for exponential backoff (2s, 4s). */
+const RETRY_BASE_DELAY_MS = 2000;
+
 export class AuthenticationManager {
   private readonly previousTlsRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   private bearerToken: string | null = null;
-  private refreshToken: string | null = null;
   private tokenExpiresAt: number | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
   private tokenPromise: Promise<void> | null = null;
 
   constructor(
     private readonly baseUrl: string,
-    private readonly realm: string,
+    _realm: string,
     private readonly username: string,
     private readonly password: string,
     private readonly insecure: boolean = true
@@ -44,22 +33,12 @@ export class AuthenticationManager {
     }
   }
 
-  /**
-   * Performs initial authentication using password grant flow.
-   *
-   * Exchanges username/password for access and refresh tokens.
-   */
   private async authenticate(): Promise<void> {
     const tokenUrl = this.getTokenUrl();
-    const params = new URLSearchParams();
-    params.append('grant_type', 'password');
-    params.append('client_id', `${this.realm}-ui`);
-    params.append('username', this.username);
-    params.append('password', this.password);
-
-    const tokenData = await this.fetchToken(tokenUrl, params);
+    const tokenData = await this.fetchToken(tokenUrl);
     this.setTokenData(tokenData);
   }
+
   public async getBearerToken(forceRefresh = false): Promise<string> {
     if (forceRefresh) {
       this.tokenExpiresAt = 0;
@@ -72,7 +51,7 @@ export class AuthenticationManager {
   }
 
   private startAutoRefresh(): void {
-    if (!this.tokenExpiresAt || !this.refreshToken) {
+    if (!this.tokenExpiresAt) {
       return;
     }
 
@@ -100,37 +79,84 @@ export class AuthenticationManager {
     }
   }
 
-  private async refreshTokenFlow(): Promise<void> {
-    if (!this.refreshToken) {
-      throw new Error('No refresh token available');
-    }
-    const tokenUrl = this.getTokenUrl();
-    const params = new URLSearchParams();
-    params.append('grant_type', 'refresh_token');
-    params.append('client_id', `${this.realm}-ui`);
-    params.append('refresh_token', this.refreshToken);
-    const tokenData = await this.fetchToken(tokenUrl, params);
-    this.setTokenData(tokenData);
+  private setTokenData(tokenData: TokenResponse): void {
+    this.bearerToken = tokenData.token;
+    this.tokenExpiresAt = Date.now() + this.tokenLifespanMs(tokenData) * TOKEN_EXPIRY_RATIO;
+    this.startAutoRefresh();
   }
 
-  private setTokenData(tokenData: TokenResponse): void {
-    this.bearerToken = tokenData.access_token;
-    this.refreshToken = tokenData.refresh_token || this.refreshToken;
-    this.tokenExpiresAt = Date.now() + tokenData.expires_in * 1000 * TOKEN_EXPIRY_RATIO;
-    this.startAutoRefresh();
+  private tokenLifespanMs(tokenData: TokenResponse): number {
+    if (tokenData.expiration) {
+      const expiresAt = Date.parse(tokenData.expiration);
+      if (Number.isFinite(expiresAt)) {
+        return Math.max(1000, expiresAt - Date.now());
+      }
+    }
+    if (typeof tokenData.lifespan === 'number' && Number.isFinite(tokenData.lifespan)) {
+      return Math.max(1000, tokenData.lifespan * 60 * 60 * 1000);
+    }
+    return DEFAULT_TOKEN_LIFESPAN_SECONDS * 1000;
   }
 
   private getTokenUrl(): string {
     const url = new URL(this.baseUrl);
-    return `${url.protocol}//${url.host}/auth/realms/${this.realm}/protocol/openid-connect/token`;
+    return `${url.protocol}//${url.host}/hub/auth/tokens`;
   }
 
-  private async fetchToken(tokenUrl: string, params: URLSearchParams): Promise<TokenResponse> {
-    const timeoutMs = 10000;
-    if (this.insecure && tokenUrl.startsWith('https://')) {
-      return this.fetchTokenInsecure(tokenUrl, params, timeoutMs);
+  private basicAuthHeader(): string {
+    return `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`;
+  }
+
+  /**
+   * Determine whether an error is transient (timeout or network) and
+   * therefore eligible for retry. HTTP 4xx errors are NOT retried.
+   */
+  private isRetryableError(err: any): boolean {
+    // Timeout errors
+    if (err.name === 'AbortError') return true;
+    if (err.message && /timed out/i.test(err.message)) return true;
+    if (err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') return true;
+
+    // Network errors
+    if (err.code === 'ECONNREFUSED') return true;
+    if (err.code === 'ECONNRESET') return true;
+    if (err.code === 'ENOTFOUND') return true;
+    if (err.code === 'EAI_AGAIN') return true;
+    if (err.type === 'system') return true;
+
+    return false;
+  }
+
+  private async fetchToken(tokenUrl: string): Promise<TokenResponse> {
+    const timeoutMs = 30000;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return await this.fetchTokenSecure(tokenUrl, timeoutMs);
+      } catch (err: any) {
+        lastError = err;
+
+        // Don't retry on client errors (4xx) — only on transient failures
+        if (!this.isRetryableError(err)) {
+          throw err;
+        }
+
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.warn(
+            `Token fetch attempt ${attempt}/${MAX_RETRY_ATTEMPTS} failed (${err.message}). ` +
+              `Retrying in ${delay}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
     }
 
+    throw lastError!;
+  }
+
+  private async fetchTokenSecure(tokenUrl: string, timeoutMs: number): Promise<TokenResponse> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -138,16 +164,19 @@ export class AuthenticationManager {
       const response = await fetch(tokenUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
           Accept: 'application/json',
+          Authorization: this.basicAuthHeader(),
         },
-        body: params,
+        body: '{}',
         signal: controller.signal,
       });
 
       if (!response.ok) {
         const msg = await response.text();
-        throw new Error(`Token request failed: ${response.status} ${msg}`);
+        const error: any = new Error(`Token request failed: ${response.status} ${msg}`);
+        error.statusCode = response.status;
+        throw error;
       }
 
       return (await response.json()) as TokenResponse;
@@ -161,66 +190,7 @@ export class AuthenticationManager {
     }
   }
 
-  private async fetchTokenInsecure(
-    tokenUrl: string,
-    params: URLSearchParams,
-    timeoutMs: number
-  ): Promise<TokenResponse> {
-    const https = await import('https');
-    const { URL } = await import('url');
 
-    const parsedUrl = new URL(tokenUrl);
-    const postData = params.toString();
-
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 443,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(postData),
-          Accept: 'application/json',
-        },
-        rejectUnauthorized: false, // Disable certificate verification
-        timeout: timeoutMs,
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              const jsonData = JSON.parse(data) as TokenResponse;
-              resolve(jsonData);
-            } catch (error) {
-              reject(new Error(`Failed to parse JSON response: ${error}`));
-            }
-          } else {
-            reject(new Error(`Token request failed: ${res.statusCode} ${data}`));
-          }
-        });
-      });
-
-      req.on('error', (error) => {
-        reject(error);
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error(`Token request timed out after ${timeoutMs}ms`));
-      });
-
-      req.write(postData);
-      req.end();
-    });
-  }
   private hasValidToken(): boolean {
     return (
       this.bearerToken !== null && this.tokenExpiresAt !== null && Date.now() < this.tokenExpiresAt
@@ -234,18 +204,9 @@ export class AuthenticationManager {
     if (this.hasValidToken()) {
       return;
     }
-    if (!this.refreshToken) {
-      this.tokenPromise = this.authenticate().finally(() => {
-        this.tokenPromise = null;
-      });
-      return this.tokenPromise;
-    }
-    this.tokenPromise = this.refreshTokenFlow()
-      .catch(() => this.authenticate())
-      .finally(() => {
-        this.tokenPromise = null;
-      });
-
+    this.tokenPromise = this.authenticate().finally(() => {
+      this.tokenPromise = null;
+    });
     return this.tokenPromise;
   }
 
@@ -259,9 +220,7 @@ export class AuthenticationManager {
       }
     }
     this.tokenPromise = null;
-    this.tokenPromise = null;
     this.bearerToken = null;
-    this.refreshToken = null;
     this.tokenExpiresAt = null;
   }
 }

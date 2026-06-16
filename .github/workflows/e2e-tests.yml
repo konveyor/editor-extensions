@@ -9,6 +9,11 @@ on:
       trigger_context:
         required: true
         type: string # 'pr', 'release', 'manual'
+      ref:
+        description: "Git ref to checkout for tests (must match the ref used to build the VSIX)"
+        required: false
+        type: string
+        default: ""
       use_release:
         required: false
         type: boolean
@@ -31,6 +36,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -101,6 +108,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -160,6 +169,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -220,6 +231,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -272,6 +285,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment
@@ -316,8 +331,17 @@ jobs:
   # Infrastructure tests - requires minikube + Konveyor
   test-infrastructure:
     name: Infrastructure Tests (@requires-minikube)
-    runs-on: ubuntu-latest
+    # Needs the larger runner: the konveyor analysis task pod alone requests
+    # 4 CPUs ("Insufficient cpu" FailedScheduling on 4-core runners), and the
+    # starved hub degrades until /hub/auth/tokens exceeds the 30s client timeout.
+    runs-on: ubuntu-latest-8-cores
     needs: setup
+    # Skip for release branches: the Hub is always deployed at @main, so the
+    # seed scripts, auth helpers, and test code must all come from main. When
+    # testing a release-branch VSIX the extension may not speak the current
+    # Hub's auth protocol, making these tests impossible to pass. See #1444.
+    if: ${{ !startsWith(inputs.ref, 'release-') }}
+    continue-on-error: ${{ inputs.trigger_context == 'pr' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -428,6 +452,8 @@ jobs:
           kubectl logs -n konveyor-tackle deployment/llm-proxy --tail=1000 > tests/test-output/k8s-logs/llm-proxy.log || true
           kubectl logs -n konveyor-tackle deployment/kai-api --tail=1000 > tests/test-output/k8s-logs/kai-api.log || true
           kubectl logs -n konveyor-tackle deployment/kai-db --tail=1000 > tests/test-output/k8s-logs/kai-db.log || true
+          kubectl logs -n konveyor-tackle deployment/tackle-ui --tail=1000 > tests/test-output/k8s-logs/tackle-ui.log || true
+          kubectl logs -n ingress-nginx deployment/ingress-nginx-controller --tail=1000 > tests/test-output/k8s-logs/ingress-controller.log || true
 
           # Collect pod descriptions for debugging
           echo "Collecting pod descriptions..."
