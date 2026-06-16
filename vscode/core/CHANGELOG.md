@@ -12,6 +12,14 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.18] - 2026-06-16
+
+### Bug Fixes
+
+- Fix file showing patched content after closing review editor tab without accepting. Use tabGroups.onDidChangeTabs to restore the clean on-disk buffer via WorkspaceEdit instead of the unreliable onDidCloseTextDocument + revert approach. ([#1410](https://github.com/konveyor/editor-extensions/pull/1410))
+
+
 ## [0.4.16] - 2026-05-06
 
 ### Enhancements
