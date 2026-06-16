@@ -1,0 +1,110 @@
+name: "Setup Llemulator (Standalone)"
+description: "Sets up llemulator for testing without Kubernetes"
+inputs:
+  port:
+    description: "Port to expose llemulator on"
+    required: false
+    default: "8089"
+outputs:
+  llemulator_url:
+    description: "URL where llemulator is accessible"
+    value: ${{ steps.start_llemulator.outputs.url }}
+runs:
+  using: "composite"
+  steps:
+    - name: Clone and build llemulator
+      shell: bash
+      run: |
+        echo "=== Cloning llemulator repository ==="
+        git clone --depth 1 https://github.com/fabianvf/llemulator.git /tmp/llemulator
+
+        echo "=== Building llemulator Docker image ==="
+        cd /tmp/llemulator
+        docker build -t llemulator:local .
+
+    - name: Start llemulator container
+      id: start_llemulator
+      shell: bash
+      run: |
+        echo "=== Starting llemulator container ==="
+
+        docker run -d \
+          --name llemulator \
+          -p ${{ inputs.port }}:8080 \
+          llemulator:local
+
+        LLEMULATOR_URL="http://localhost:${{ inputs.port }}/v1"
+        echo "url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
+        echo "LLEMULATOR_URL=${LLEMULATOR_URL}" >> $GITHUB_ENV
+
+        echo "Llemulator container started on ${LLEMULATOR_URL}"
+
+    - name: Wait for llemulator to be ready
+      shell: bash
+      run: |
+        echo "=== Waiting for llemulator to be ready ==="
+        for i in {1..30}; do
+          if curl -s http://localhost:${{ inputs.port }}/_emulator/script > /dev/null 2>&1; then
+            echo "Llemulator is ready"
+            break
+          fi
+          echo "Waiting for llemulator... ($i/30)"
+          sleep 2
+        done
+
+        # Verify it's responding
+        if ! curl -s http://localhost:${{ inputs.port }}/_emulator/script > /dev/null 2>&1; then
+          echo "ERROR: Llemulator failed to start"
+          docker logs llemulator
+          exit 1
+        fi
+
+    - name: Configure llemulator with test responses
+      shell: bash
+      run: |
+        echo "=== Configuring llemulator with test responses ==="
+
+        # Configure llemulator with 5 test responses
+        response=$(curl -s -X POST http://localhost:${{ inputs.port }}/_emulator/script \
+          -H "Authorization: Bearer dummy-key-for-llemulator" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "reset": true,
+            "models": ["gpt-4o", "gpt-4", "gpt-3.5-turbo"],
+            "responses": [
+              "LLEMULATOR response 1",
+              "LLEMULATOR response 2",
+              "LLEMULATOR response 3",
+              "LLEMULATOR response 4",
+              "LLEMULATOR response 5"
+            ]
+          }')
+
+        if [ $? -ne 0 ]; then
+          echo "ERROR: Failed to configure llemulator"
+          echo "Response: $response"
+          exit 1
+        fi
+
+        echo "Successfully configured llemulator with test responses"
+        echo "Response: $response"
+
+    - name: Verify llemulator is working
+      shell: bash
+      run: |
+        echo "=== Testing llemulator endpoint ==="
+        RESPONSE=$(curl -s -X POST http://localhost:${{ inputs.port }}/v1/chat/completions \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer dummy-key-for-llemulator" \
+          -d '{
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "test"}]
+          }')
+
+        echo "Test response: $RESPONSE"
+
+        if echo "$RESPONSE" | grep -q "LLEMULATOR response"; then
+          echo "Llemulator is returning configured responses"
+        else
+          echo "WARNING: Response did not contain expected test string"
+        fi
