@@ -52,6 +52,7 @@ export class JavaExternalProviderManager implements vscode.Disposable {
     // Spawn the provider process
     this.process = spawn(binaryPath, ["-name", "java", "-socket", this.providerSocketPath], {
       cwd: path.dirname(binaryPath),
+      env: { ...process.env },
     });
 
     // Log stdout

@@ -207,6 +207,21 @@ async function initializeProviders(
   context: vscode.ExtensionContext,
   logger: winston.Logger,
 ): Promise<void> {
+  // VS Code's extension host may not inherit the user's full shell PATH
+  // (e.g. Dock launch, debug mode). Resolve it from a login shell.
+  if (process.platform !== "win32") {
+    try {
+      const shell = process.env.SHELL || "/bin/sh";
+      const { stdout } = await promisify(execFile)(shell, ["-lc", "echo $PATH"]);
+      const loginPath = stdout.trim();
+      if (loginPath) {
+        process.env.PATH = loginPath;
+      }
+    } catch {
+      logger.warn("Could not resolve login shell PATH, using inherited PATH");
+    }
+  }
+
   // Check for Java installation
   const hasJava = await checkCommand("java");
   if (!hasJava) {
