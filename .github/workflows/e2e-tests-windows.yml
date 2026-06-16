@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false # when true, collect-assets uses --use-release (pinned tag) instead of latest workflow artifacts
+      ref:
+        description: "Git ref to checkout for tests (must match the ref used to build the VSIX)"
+        required: false
+        type: string
+        default: ""
     secrets:
       OPENAI_API_KEY:
         required: false
@@ -31,6 +36,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -103,6 +110,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -164,6 +173,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -227,6 +238,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
@@ -282,6 +295,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup test environment
         uses: ./.github/actions/setup-test-environment-windows
