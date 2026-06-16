@@ -1,0 +1,5 @@
+kind: enhancement
+description: >
+  Add OIDC authentication (auth code + PKCE, device flow fallback) and a Hub
+  connection status panel showing live session state, sign in/out controls,
+  token expiry, and per-feature connection indicators.

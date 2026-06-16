@@ -307,6 +307,44 @@ const commandsMap: (
         });
       }
     },
+    [`${EXTENSION_NAME}.hubOidcLogin`]: async () => {
+      logger.info("Hub OIDC Login command triggered");
+      try {
+        const success = await state.hubConnectionManager.triggerOIDCLogin();
+        if (success) {
+          state.mutateServerState((draft) => {
+            draft.solutionServerConnected = state.hubConnectionManager.isSolutionServerConnected();
+            draft.profileSyncConnected = state.hubConnectionManager.isProfileSyncConnected();
+            draft.llmProxyAvailable = state.hubConnectionManager.isLLMProxyConnected();
+            draft.oidcUsername = state.hubConnectionManager.getOidcUsername();
+            draft.oidcTokenExpiry = state.hubConnectionManager.getTokenExpiry();
+            draft.hubConnectionError = state.hubConnectionManager.getConnectionError();
+          });
+        }
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        logger.error("OIDC login failed", { error: e });
+        window.showErrorMessage(`OIDC sign-in failed: ${errorMessage}`);
+      }
+    },
+    [`${EXTENSION_NAME}.hubOidcLogout`]: async () => {
+      logger.info("Hub OIDC Logout command triggered");
+      try {
+        await state.hubConnectionManager.oidcLogout();
+        window.showInformationMessage("Signed out from Hub");
+        state.mutateServerState((draft) => {
+          draft.solutionServerConnected = false;
+          draft.profileSyncConnected = false;
+          draft.llmProxyAvailable = false;
+          draft.oidcUsername = "";
+          draft.oidcTokenExpiry = null;
+        });
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        logger.error("OIDC logout failed", { error: e });
+        window.showErrorMessage(`Sign out failed: ${errorMessage}`);
+      }
+    },
     [`${EXTENSION_NAME}.runAnalysis`]: async () => {
       logger.info("Run analysis command called");
       const analyzerClient = state.analyzerClient;

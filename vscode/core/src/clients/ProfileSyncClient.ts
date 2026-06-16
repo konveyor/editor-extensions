@@ -40,7 +40,7 @@ export interface SyncResult {
 
 export interface LLMProxyConfig {
   available: boolean;
-  endpoint: string; // e.g., "https://hub.example.com/llm-proxy/v1"
+  endpoint: string; // e.g., "https://hub.example.com/hub/services/llm-proxy/v1"
   model?: string; // Model name from Hub configuration
 }
 
@@ -87,41 +87,72 @@ export class ProfileSyncClient {
   /**
    * Connect to the Hub (verify connectivity and discover LLM proxy)
    */
-  public async connect(): Promise<void> {
+  public async connect(options?: { skipConnectivityCheck?: boolean }): Promise<void> {
+    const MAX_ATTEMPTS = 3;
+    const BASE_DELAY_MS = 2000;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        await this.attemptConnect(options);
+        return; // success
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Don't retry on auth failures (4xx)
+        if (error instanceof ProfileSyncClientError && /40[13]/.test(error.message)) {
+          throw error;
+        }
+
+        if (attempt < MAX_ATTEMPTS) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          this.logger.warn(
+            `Profile sync connect attempt ${attempt}/${MAX_ATTEMPTS} failed: ${lastError.message}. Retrying in ${delay}ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    this.isConnected = false;
+    throw lastError!;
+  }
+
+  /**
+   * Single connection attempt (extracted for retry logic)
+   */
+  private async attemptConnect(options?: { skipConnectivityCheck?: boolean }): Promise<void> {
     try {
-      // Actually fetch applications to validate auth works
-      // Using GET instead of HEAD to validate response format and detect auth failures
-      const response = await this.fetchFn(`${this.baseUrl}/hub/applications`, {
-        method: "GET",
-        headers: this.getHeaders("application/x-yaml"),
-      });
+      if (!options?.skipConnectivityCheck) {
+        const response = await this.fetchFn(`${this.baseUrl}/hub/applications`, {
+          method: "GET",
+          headers: this.getHeaders("application/x-yaml"),
+          signal: AbortSignal.timeout(30000),
+        });
 
-      const responseText = await response.text();
-      const contentType = response.headers.get("content-type") || "";
+        const responseText = await response.text();
+        const contentType = response.headers.get("content-type") || "";
 
-      // Check if we got HTML instead of YAML - indicates auth failure or wrong endpoint
-      this.validateResponseFormat(responseText, contentType, "Hub connectivity check");
+        this.validateResponseFormat(responseText, contentType, "Hub connectivity check");
 
-      if (!response.ok && response.status !== 404) {
-        // 404 is ok - just means no applications, but Hub is reachable
-        const authHint =
-          response.status === 401 || response.status === 403
-            ? " Authentication required or credentials are invalid."
-            : "";
-        throw new ProfileSyncClientError(
-          `Hub connectivity check failed: ${response.status} ${response.statusText}.${authHint}`,
-        );
+        if (!response.ok && response.status !== 404) {
+          const authHint =
+            response.status === 401 || response.status === 403
+              ? " Authentication required or credentials are invalid."
+              : "";
+          throw new ProfileSyncClientError(
+            `Hub connectivity check failed: ${response.status} ${response.statusText}.${authHint}`,
+          );
+        }
       }
 
       this.isConnected = true;
       this.logger.info("Profile sync client connected to Hub");
 
-      // Discover LLM proxy as part of profile sync connection
       await this.discoverLLMProxy();
     } catch (error) {
       this.isConnected = false;
       if (error instanceof ProfileSyncClientError) {
-        this.logger.error("Failed to connect profile sync client", error);
         throw error;
       }
       const classified = classifyNetworkError(error);
@@ -151,6 +182,7 @@ export class ProfileSyncClient {
       const response = await this.fetchFn(configUrl, {
         method: "GET",
         headers: this.getHeaders("application/json"),
+        signal: AbortSignal.timeout(30000),
       });
 
       // 404 means the proxy is not configured
@@ -158,7 +190,7 @@ export class ProfileSyncClient {
         this.logger.info("LLM proxy not configured (404)");
         this.llmProxyConfig = {
           available: false,
-          endpoint: `${this.baseUrl}/llm-proxy/v1`,
+          endpoint: `${this.baseUrl}/hub/services/llm-proxy/v1`,
         };
         return;
       }
@@ -170,7 +202,7 @@ export class ProfileSyncClient {
         });
         this.llmProxyConfig = {
           available: false,
-          endpoint: `${this.baseUrl}/llm-proxy/v1`,
+          endpoint: `${this.baseUrl}/hub/services/llm-proxy/v1`,
         };
         return;
       }
@@ -194,15 +226,15 @@ export class ProfileSyncClient {
         this.logger.info("LLM proxy is not enabled");
         this.llmProxyConfig = {
           available: false,
-          endpoint: `${this.baseUrl}/llm-proxy/v1`,
+          endpoint: `${this.baseUrl}/hub/services/llm-proxy/v1`,
         };
         return;
       }
 
-      // Use external Hub URL with /llm-proxy/v1 path
+      // Use Hub's service proxy route for LLM proxy
       this.llmProxyConfig = {
         available: true,
-        endpoint: `${this.baseUrl}/llm-proxy/v1`,
+        endpoint: `${this.baseUrl}/hub/services/llm-proxy/v1`,
         model: typeof config.model === "string" ? config.model : undefined,
       };
 
@@ -221,7 +253,7 @@ export class ProfileSyncClient {
       });
       this.llmProxyConfig = {
         available: false,
-        endpoint: `${this.baseUrl}/llm-proxy/v1`,
+        endpoint: `${this.baseUrl}/hub/services/llm-proxy/v1`,
       };
     }
   }
