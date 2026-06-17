@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Call the OIDC end_session_endpoint on sign-out to properly invalidate the
+  server-side session. Previously only local state was cleared, so re-login
+  required no credentials. Also replaces hardcoded OIDC paths with endpoints
+  from .well-known/openid-configuration discovery.
