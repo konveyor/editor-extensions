@@ -1,5 +1,5 @@
 import { Logger } from "winston";
-import { basename, relative } from "path";
+import { basename } from "path";
 import {
   type AIMessage,
   type AIMessageChunk,
@@ -9,7 +9,7 @@ import {
 import { promises as fsPromises } from "fs";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
 
-import { getCacheKey } from "../utils";
+import { getCacheKey, toPosixRelative } from "../utils";
 import {
   type SummarizeAdditionalInfoInputState,
   type AnalysisIssueFixInputState,
@@ -184,12 +184,11 @@ As you make changes that impact dependencies or imports, be sure you explain wha
     if (state.currentIdx === state.inputIncidentsByUris.length) {
       const accumulated = [...state.outputAllResponses, ...nextState.outputAllResponses].reduce(
         (acc, val) => {
+          const rel = toPosixRelative(this.workspaceDir, val.outputUpdatedFileUri ?? "");
           return {
-            reasoning: `${acc.reasoning}\n\n\n#### Changes made in ${relative(this.workspaceDir, val.outputUpdatedFileUri ?? "")}\n\n${val.outputReasoning}`,
-            additionalInfo: `${acc.additionalInfo}\n\n\n#### Additional changes from ${relative(this.workspaceDir, val.outputUpdatedFileUri ?? "")}\n\n${val.outputAdditionalInfo}`,
-            uris: val.outputUpdatedFileUri
-              ? acc.uris.concat([relative(this.workspaceDir, val.outputUpdatedFileUri)])
-              : acc.uris,
+            reasoning: `${acc.reasoning}\n\n\n#### Changes made in ${rel}\n\n${val.outputReasoning}`,
+            additionalInfo: `${acc.additionalInfo}\n\n\n#### Additional changes from ${rel}\n\n${val.outputAdditionalInfo}`,
+            uris: val.outputUpdatedFileUri ? acc.uris.concat([rel]) : acc.uris,
           };
         },
         {
