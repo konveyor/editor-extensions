@@ -656,12 +656,21 @@ export class HubConnectionManager {
    */
   public async oidcLogout(): Promise<void> {
     // Server-side cleanup before clearing local state
-    if (this.oidcAuthCode) {
-      try {
-        await this.oidcAuthCode.endSession();
-      } catch (error) {
-        this.logger.warn("Failed to end OIDC session on server", { error });
+    try {
+      if (!this.oidcAuthCode && this.getAuthMethod() === "oidc") {
+        await this.ensureOIDCInitialized();
       }
+      if (this.oidcAuthCode && this.oidcTokenStorage && !this.oidcAuthCode.getTokens()) {
+        const storedTokens = await this.oidcTokenStorage.retrieve();
+        if (storedTokens) {
+          this.oidcAuthCode.setTokens(storedTokens);
+        }
+      }
+      if (this.oidcAuthCode) {
+        await this.oidcAuthCode.endSession();
+      }
+    } catch (error) {
+      this.logger.warn("Failed to end OIDC session on server", { error });
     }
     await this.revokePAT();
 
@@ -989,12 +998,19 @@ export class HubConnectionManager {
     const fetchFn = this.scopedFetch ?? fetch;
     const url = `${this.config.url}/hub/auth/tokens/${this.patId}`;
     try {
-      await fetchFn(url, {
+      const response = await fetchFn(url, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${this.bearerToken}` },
         signal: AbortSignal.timeout(TOKEN_EXCHANGE_TIMEOUT_MS),
       });
-      this.logger.info("PAT revoked on Hub", { patId: this.patId });
+      if (!response.ok) {
+        this.logger.warn("PAT revocation returned non-OK status", {
+          patId: this.patId,
+          status: response.status,
+        });
+      } else {
+        this.logger.info("PAT revoked on Hub", { patId: this.patId });
+      }
     } catch (error) {
       this.logger.warn("Failed to revoke PAT on Hub", { patId: this.patId, error });
     }

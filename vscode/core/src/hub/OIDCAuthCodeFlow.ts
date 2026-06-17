@@ -159,7 +159,13 @@ export class OIDCAuthCodeFlow {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
-      await fetchFn(url, { signal: controller.signal });
+      const response = await fetchFn(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new OIDCAuthCodeError(
+          `OIDC end-session returned status ${response.status}`,
+          "end_session_failed",
+        );
+      }
     } finally {
       clearTimeout(timeout);
     }
