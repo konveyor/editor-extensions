@@ -37,15 +37,21 @@ export interface OIDCTokenResponse {
 export interface OIDCTokens {
   accessToken: string;
   refreshToken: string | null;
+  idToken: string | null;
   expiresAt: number | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OIDC_SCOPES = "openid profile email offline_access";
-const AUTHORIZE_PATH = "/authorize";
-const TOKEN_PATH = "/token";
 const TOKEN_EXPIRY_BUFFER_MS = 30_000; // 30s before actual expiry
+const DISCOVERY_PATH = "/.well-known/openid-configuration";
+
+interface OIDCDiscoveryConfig {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  end_session_endpoint?: string;
+}
 
 /** Timeout for waiting for the auth callback (5 minutes). */
 const AUTH_CALLBACK_TIMEOUT_MS = 5 * 60 * 1000;
@@ -125,8 +131,10 @@ export class OIDCAuthCodeFlow {
 
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private idToken: string | null = null;
   private expiresAt: number | null = null;
   private loginInProgress: boolean = false;
+  private discoveryConfig: OIDCDiscoveryConfig | null = null;
 
   /**
    * @param issuerUrl    Hub's OIDC issuer URL (e.g. "https://hub.example.com/oidc")
@@ -147,6 +155,7 @@ export class OIDCAuthCodeFlow {
   public setTokens(tokens: OIDCTokens): void {
     this.accessToken = tokens.accessToken;
     this.refreshToken = tokens.refreshToken;
+    this.idToken = tokens.idToken;
     this.expiresAt = tokens.expiresAt;
   }
 
@@ -160,6 +169,7 @@ export class OIDCAuthCodeFlow {
     return {
       accessToken: this.accessToken,
       refreshToken: this.refreshToken,
+      idToken: this.idToken,
       expiresAt: this.expiresAt,
     };
   }
@@ -211,7 +221,32 @@ export class OIDCAuthCodeFlow {
   public clearTokens(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.idToken = null;
     this.expiresAt = null;
+  }
+
+  /**
+   * End the OIDC session on the server via the end_session_endpoint.
+   */
+  public async endSession(): Promise<void> {
+    const config = await this.discover();
+    if (!config.end_session_endpoint) {
+      return;
+    }
+
+    const params = new URLSearchParams({ client_id: this.clientId });
+    if (this.idToken) {
+      params.set("id_token_hint", this.idToken);
+    }
+
+    const url = `${config.end_session_endpoint}?${params.toString()}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    try {
+      await this.customFetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   // ─── Authentication Flows ──────────────────────────────────────────────────
@@ -241,6 +276,7 @@ export class OIDCAuthCodeFlow {
       return false;
     }
 
+    const config = await this.discover();
     const params = new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: this.refreshToken,
@@ -252,7 +288,7 @@ export class OIDCAuthCodeFlow {
       const timeout = setTimeout(() => controller.abort(), 30_000);
       let response: Response;
       try {
-        response = await this.customFetch(`${this.issuerUrl}${TOKEN_PATH}`, {
+        response = await this.customFetch(config.token_endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -317,7 +353,7 @@ export class OIDCAuthCodeFlow {
       server.setExpectedState(state);
 
       // Step 3: Build authorize URL with loopback redirect
-      const authorizeUrl = this.buildAuthorizeUrl(codeChallenge, state, redirectUri);
+      const authorizeUrl = await this.buildAuthorizeUrl(codeChallenge, state, redirectUri);
 
       // Set up timeout
       timeoutHandle = setTimeout(() => {
@@ -383,7 +419,12 @@ export class OIDCAuthCodeFlow {
   /**
    * Build the OIDC authorize endpoint URL with PKCE parameters.
    */
-  private buildAuthorizeUrl(codeChallenge: string, state: string, redirectUri: string): string {
+  private async buildAuthorizeUrl(
+    codeChallenge: string,
+    state: string,
+    redirectUri: string,
+  ): Promise<string> {
+    const config = await this.discover();
     const params = new URLSearchParams({
       response_type: "code",
       client_id: this.clientId,
@@ -394,7 +435,7 @@ export class OIDCAuthCodeFlow {
       state: state,
     });
 
-    return `${this.issuerUrl}${AUTHORIZE_PATH}?${params.toString()}`;
+    return `${config.authorization_endpoint}?${params.toString()}`;
   }
 
   /**
@@ -405,6 +446,7 @@ export class OIDCAuthCodeFlow {
     codeVerifier: string,
     redirectUri: string,
   ): Promise<OIDCTokens> {
+    const config = await this.discover();
     const params = new URLSearchParams({
       grant_type: "authorization_code",
       code: code,
@@ -417,7 +459,7 @@ export class OIDCAuthCodeFlow {
     const timeout = setTimeout(() => controller.abort(), 30_000);
     let response: Response;
     try {
-      response = await this.customFetch(`${this.issuerUrl}${TOKEN_PATH}`, {
+      response = await this.customFetch(config.token_endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -455,10 +497,42 @@ export class OIDCAuthCodeFlow {
       this.refreshToken = data.refresh_token;
     }
 
+    if (data.id_token) {
+      this.idToken = data.id_token;
+    }
+
     if (data.expires_in) {
       this.expiresAt = Date.now() + data.expires_in * 1000;
     } else {
       this.expiresAt = this.extractExpiryFromJWT(data.access_token);
+    }
+  }
+
+  private async discover(): Promise<OIDCDiscoveryConfig> {
+    if (this.discoveryConfig) {
+      return this.discoveryConfig;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await this.customFetch(`${this.issuerUrl}${DISCOVERY_PATH}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new OIDCAuthCodeError(
+          `OIDC discovery failed: ${response.status} ${response.statusText}`,
+          "discovery_failed",
+        );
+      }
+
+      const data = (await response.json()) as OIDCDiscoveryConfig;
+      this.discoveryConfig = data;
+      return data;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -487,6 +561,7 @@ export class OIDCAuthCodeFlow {
   public dispose(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.idToken = null;
     this.expiresAt = null;
   }
 }
