@@ -141,14 +141,7 @@ export class HubConnectionManager {
    * Defaults to "oidc" (authorization code + PKCE flow).
    */
   public getAuthMethod(): HubAuthMethod {
-    if (this.config.auth.method === "credentials") {
-      return "credentials";
-    }
-    if (this.config.auth.method === "oidc") {
-      return "oidc";
-    }
-    // Infer from config when method field isn't set yet (shared type migration)
-    return this.username && this.password ? "credentials" : "oidc";
+    return this.config.auth.method ?? "oidc";
   }
 
   /**

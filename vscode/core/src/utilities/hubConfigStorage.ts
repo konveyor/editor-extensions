@@ -86,14 +86,17 @@ export function getDefaultHubConfig(): HubConfig {
   const env = getHubEnvVars();
   const authEnabled = !!(env.username || env.password);
   const hubEnabled = env.forceEnabled || !!(env.url || authEnabled);
+  const username = env.username || "admin";
+  const password = env.password || "";
 
   return {
     enabled: hubEnabled,
     url: env.url || "http://localhost:8080",
     auth: {
       enabled: authEnabled,
-      username: env.username || "admin",
-      password: env.password || "",
+      method: username && password ? "credentials" : "oidc",
+      username,
+      password,
       insecure: env.insecure,
     },
     features: {
@@ -123,14 +126,18 @@ export async function initializeHubConfig(context: vscode.ExtensionContext): Pro
 
   const hubEnabled = env.forceEnabled || !!env.url || savedConfig.enabled;
   const authEnabled = env.username || env.password ? true : savedConfig.auth.enabled;
+  const username = env.username || savedConfig.auth.username;
+  const password = env.password || savedConfig.auth.password;
 
   return {
     enabled: hubEnabled,
     url: env.url || savedConfig.url,
     auth: {
       enabled: authEnabled,
-      username: env.username || savedConfig.auth.username,
-      password: env.password || savedConfig.auth.password,
+      method: savedConfig.auth.method ?? (username && password ? "credentials" : "oidc"),
+      oidcClientId: savedConfig.auth.oidcClientId,
+      username,
+      password,
       insecure: process.env.HUB_INSECURE !== undefined ? env.insecure : savedConfig.auth.insecure,
     },
     features: {

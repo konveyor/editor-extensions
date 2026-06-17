@@ -284,12 +284,17 @@ export class OIDCAuthCodeFlow {
 
       const result = await server.waitForCallback();
 
-      const callbackParams = new URLSearchParams({ code: result.code, state: result.state });
+      const callbackUrl = new URL(redirectUri);
+      callbackUrl.searchParams.set("code", result.code);
+      callbackUrl.searchParams.set("state", result.state);
+
+      const validatedParams = oauth.validateAuthResponse(as, this.client, callbackUrl, state);
+
       const response = await oauth.authorizationCodeGrantRequest(
         as,
         this.client,
         oauth.None(),
-        callbackParams,
+        validatedParams,
         redirectUri,
         codeVerifier,
         {
