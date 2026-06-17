@@ -81,9 +81,37 @@ export function serializeLLMMessages(data: BaseLanguageModelInput | BaseMessage)
 
 export function hashFilteredAndSorted(input: BaseLanguageModelInput | BaseMessage): string {
   return createHash("sha256")
-    .update(JSON.stringify(serializeLLMMessages(input).map(filterFields).map(sortKeys)))
+    .update(
+      JSON.stringify(
+        serializeLLMMessages(input).map(filterFields).map(sortKeys).map(normalizeLineEndings),
+      ),
+    )
     .digest("hex")
     .slice(0, 16);
+}
+
+// Collapse CRLF/CR to LF in every string before hashing so a prompt that embeds
+// file content (e.g. AnalysisIssueFix) produces the same cache key regardless of
+// the OS line endings the file was checked out with. Without this, a Windows
+// checkout (CRLF) misses a demo cache recorded on Linux/macOS (LF) (#1425).
+// Only the cache key is normalized; the stored payload is left byte-for-byte.
+export function normalizeLineEndings<T>(obj: T): T {
+  if (typeof obj === "string") {
+    return obj.replace(/\r\n?/g, "\n") as T;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeLineEndings) as T;
+  }
+  if (typeof obj !== "object" || obj === null) {
+    return obj;
+  }
+  const newObj: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      newObj[key] = normalizeLineEndings((obj as any)[key]);
+    }
+  }
+  return newObj as T;
 }
 
 // Sort keys to ensure consistent hash

@@ -5,7 +5,7 @@ import * as winston from "winston";
 import { type CacheFilePaths } from "@editor-extensions/agentic";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 
-import { getCacheForModelProvider } from "../utils";
+import { getCacheForModelProvider, hashFilteredAndSorted } from "../utils";
 
 describe("test FSCacheAndTracer", () => {
   const cacheDir = pathlib.join(__dirname, "_cache");
@@ -56,6 +56,34 @@ describe("test FSCacheAndTracer", () => {
     });
     expect(actualOutput).toBeDefined();
     expect(actualOutput?.content).toBe("world!");
+  });
+
+  it("should produce the same cache key regardless of line endings (#1425)", () => {
+    // A demo cache recorded on Linux/macOS embeds LF file content; a Windows
+    // checkout (autocrlf) reads CRLF. The key must match so Windows hits it.
+    const lf = "package com.redhat.coolstore;\nimport javax.jms.Topic;\npublic class A {}\n";
+    const crlf = lf.replace(/\n/g, "\r\n");
+    const cr = lf.replace(/\n/g, "\r");
+
+    const lfHash = hashFilteredAndSorted([new HumanMessage(lf)]);
+    expect(hashFilteredAndSorted([new HumanMessage(crlf)])).toBe(lfHash);
+    expect(hashFilteredAndSorted([new HumanMessage(cr)])).toBe(lfHash);
+  });
+
+  it("should hit a cache entry written with LF when looked up with CRLF (#1425)", async () => {
+    const fsCache = getCacheForModelProvider(
+      true,
+      winston.createLogger({ silent: true }),
+      cacheDir,
+    );
+    const cacheSubDir = "lineEndings";
+    const lf = "line one\nline two\n";
+    const crlf = lf.replace(/\n/g, "\r\n");
+
+    await fsCache.set([new HumanMessage(lf)], new AIMessage("fixed!"), { cacheSubDir });
+    const hit = await fsCache.get([new HumanMessage(crlf)], { cacheSubDir });
+    expect(hit).toBeDefined();
+    expect(hit?.content).toBe("fixed!");
   });
 
   it("should serialize and deserialize cache data properly when caching list of mixed set of messages", async () => {
