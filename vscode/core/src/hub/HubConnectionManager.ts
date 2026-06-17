@@ -662,7 +662,7 @@ export class HubConnectionManager {
    * Logout from OIDC (clear stored tokens).
    */
   public async oidcLogout(): Promise<void> {
-    // End the OIDC session on the server before clearing local state
+    // Server-side cleanup before clearing local state
     if (this.oidcAuthCode) {
       try {
         await this.oidcAuthCode.endSession();
@@ -670,10 +670,12 @@ export class HubConnectionManager {
         this.logger.warn("Failed to end OIDC session on server", { error });
       }
     }
+    await this.revokePAT();
 
     // Disconnect all active clients
     await this.disconnect();
 
+    // Clear local state
     if (this.oidcAuthCode) {
       this.oidcAuthCode.clearTokens();
     }
@@ -685,7 +687,6 @@ export class HubConnectionManager {
     this.refreshToken = null;
     this.usingPAT = false;
     this.authSucceeded = false;
-    await this.revokePAT();
     await this.clearPAT();
     this.patId = null;
     this.clearTokenRefreshTimer();
