@@ -74,16 +74,37 @@ export class GoVscodeProxyServer implements vscode.Disposable {
       });
 
       try {
-        const result: vscode.Location[] = await vscode.commands.executeCommand(
-          "vscode.executeDefinitionProvider",
-          vscode.Uri.parse(params.textDocument.uri),
-          new vscode.Position(params.position.line, params.position.character),
-        );
+        const vscodeUri = vscode.Uri.parse(params.textDocument.uri);
+        await vscode.workspace.openTextDocument(vscodeUri);
+        const result: vscode.Location | vscode.Location[] | vscode.LocationLink[] =
+          await vscode.commands.executeCommand(
+            "vscode.executeDefinitionProvider",
+            vscodeUri,
+            new vscode.Position(params.position.line, params.position.character),
+          );
 
         this.logger.info(
           `Definition result: ${Array.isArray(result) ? result.length : 1} locations`,
         );
-        return result?.map((location) => this.converter.asLocation(location)) || [];
+
+        if (Array.isArray(result)) {
+          if (result.length === 0) {
+            return [];
+          }
+          const first = result[0];
+          if (first instanceof vscode.Location) {
+            return (result as vscode.Location[]).map((location) =>
+              this.converter.asLocation(location),
+            );
+          }
+          const links = result as vscode.LocationLink[];
+          return links.map((link) => {
+            const range = link.targetSelectionRange ?? link.targetRange;
+            return this.converter.asLocation(new vscode.Location(link.targetUri, range));
+          });
+        } else {
+          return [this.converter.asLocation(result)];
+        }
       } catch (error) {
         this.logger.error(`Text document definition error`, error);
         throw error;
@@ -106,7 +127,12 @@ export class GoVscodeProxyServer implements vscode.Disposable {
         this.logger.info(
           `References result: ${Array.isArray(result) ? result.length : 0} locations`,
         );
-        return result?.map((location) => this.converter.asLocation(location)) || [];
+        return (
+          result?.map((location) => ({
+            uri: location.uri.toString(true),
+            range: this.converter.asRange(location.range),
+          })) || []
+        );
       } catch (error) {
         this.logger.error(`Text document references error`, error);
         throw error;
@@ -116,7 +142,7 @@ export class GoVscodeProxyServer implements vscode.Disposable {
     // Handle textDocument/didOpen requests
     connection.onNotification("textDocument/didOpen", async (params: any) => {
       try {
-        await vscode.workspace.openTextDocument(params.textDocument.uri);
+        await vscode.workspace.openTextDocument(vscode.Uri.parse(params.textDocument.uri));
       } catch (error) {
         this.logger.error("Failed to open text document", { error, params });
       }
@@ -129,9 +155,11 @@ export class GoVscodeProxyServer implements vscode.Disposable {
       });
 
       try {
+        const vscodeUri = vscode.Uri.parse(params.textDocument.uri);
+        await vscode.workspace.openTextDocument(vscodeUri);
         const result: vscode.DocumentSymbol[] = await vscode.commands.executeCommand(
           "vscode.executeDocumentSymbolProvider",
-          vscode.Uri.parse(params.textDocument.uri),
+          vscodeUri,
         );
 
         this.logger.info(`Document symbol result: ${result?.length || 0} symbols`);
@@ -149,7 +177,7 @@ export class GoVscodeProxyServer implements vscode.Disposable {
         return result?.map(converterFunc) || [];
       } catch (error) {
         this.logger.error("Failed to get document symbols", { error, params });
-        return [];
+        throw error;
       }
     });
 
