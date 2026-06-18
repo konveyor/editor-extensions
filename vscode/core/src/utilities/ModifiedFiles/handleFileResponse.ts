@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+import { normalizeFilePath } from "../pathUtils";
 import {
   KaiWorkflowMessage,
   KaiWorkflowMessageType,
@@ -134,11 +135,12 @@ export async function handleFileResponse(
 
     if (responseId === "apply") {
       const uri = vscode.Uri.file(path);
+      const normalizedPath = normalizeFilePath(path);
       const fileMessage = state.data.chatMessages.find(
         (msg) =>
           msg.kind === ChatMessageType.ModifiedFile &&
           msg.messageToken === messageToken &&
-          (msg.value as ModifiedFileMessageValue).path === path,
+          normalizeFilePath((msg.value as ModifiedFileMessageValue).path) === normalizedPath,
       );
 
       if (!fileMessage) {
@@ -213,7 +215,9 @@ export async function handleFileResponse(
           try {
             const diskBytes = await vscode.workspace.fs.readFile(uri);
             finalContent = new TextDecoder().decode(diskBytes);
-            logger.info(`Using on-disk content for solution server (captures in-place edits): ${path}`);
+            logger.info(
+              `Using on-disk content for solution server (captures in-place edits): ${path}`,
+            );
           } catch (readError) {
             logger.warn(`Could not read disk content, using original content: ${path}`, readError);
           }
