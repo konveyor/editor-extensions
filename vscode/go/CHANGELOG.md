@@ -3,6 +3,14 @@
 All notable changes to the "konveyor-go" extension will be documented in this file.
 
 
+
+## [0.4.20] - 2026-06-19
+
+### Bug Fixes
+
+- Fixed Go analysis on Windows by correcting URI handling in the LSP proxy: file URIs now use unencoded drive-letter colons (c:/ instead of c%3A/) so that the go-external-provider can correctly match reference locations against the workspace folder and produce analysis violations. ([#1427](https://github.com/konveyor/editor-extensions/pull/1427))
+
+
 ## [0.4.5] - 2026-03-06
 
 ### Bug Fixes
