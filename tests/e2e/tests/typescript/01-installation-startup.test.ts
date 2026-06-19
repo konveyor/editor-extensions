@@ -3,7 +3,7 @@ import { VSCode } from '../../pages/vscode.page';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
 
-test.describe('TypeScript Extension - Installation & Startup', { tag: '@tier2' }, () => {
+test.describe.serial('TypeScript Extension - Installation & Startup', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
   let repoInfo: RepoData[string];
 
@@ -11,7 +11,8 @@ test.describe('TypeScript Extension - Installation & Startup', { tag: '@tier2' }
     test.setTimeout(600_000);
     repoInfo = testRepoData['static-report'];
     vscodeApp = await VSCodeFactory.init(repoInfo);
-
+    console.log('Waiting for extensions to load...');
+    await vscodeApp.getWindow().waitForTimeout(15000);
     // Open analysis view and wait for it to be accessible
     console.log('Opening analysis view to trigger extension activation...');
     await vscodeApp.openAnalysisView();

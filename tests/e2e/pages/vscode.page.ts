@@ -246,21 +246,28 @@ export abstract class VSCode {
       `#group-by-${kind === 'issues' ? 'violation' : 'file'}-filter`
     );
 
-    await expect(groupByDropdownFilter).toBeVisible({ timeout: 5_000 });
-    await expect(groupByDropdownFilter).toBeEnabled({ timeout: 3_000 });
-    await groupByDropdownFilter.click();
-    await expect(kindButton).toBeVisible({ timeout: 5_000 });
-    await expect(kindButton).toBeEnabled({ timeout: 3_000 });
-    await kindButton.click();
-    await groupByDropdownFilter.click();
-    await expect(kindButton).toHaveAttribute('aria-selected', 'true');
+    try {
+      await expect(groupByDropdownFilter).toBeVisible({ timeout: 5_000 });
+      await expect(groupByDropdownFilter).toBeEnabled({ timeout: 3_000 });
+      await groupByDropdownFilter.click();
+      await expect(kindButton).toBeVisible({ timeout: 5_000 });
+      await expect(kindButton).toBeEnabled({ timeout: 3_000 });
+      await kindButton.click();
+      await groupByDropdownFilter.click();
+      await expect(kindButton).toHaveAttribute('aria-selected', 'true');
 
-    const sortButton = analysisView.getByRole('button', {
-      name: order === 'ascending' ? 'Sort ascending' : 'Sort descending',
-    });
-    await expect(sortButton).toBeVisible({ timeout: 3_000 });
-    await sortButton.click();
-    await expect(sortButton).toHaveAttribute('aria-pressed', 'true');
+      const sortButton = analysisView.getByRole('button', {
+        name: order === 'ascending' ? 'Sort ascending' : 'Sort descending',
+      });
+      await expect(sortButton).toBeVisible({ timeout: 3_000 });
+      await sortButton.click();
+      await expect(sortButton).toHaveAttribute('aria-pressed', 'true');
+    } catch (error) {
+      await this.window.screenshot({
+        path: pathlib.join(SCREENSHOTS_FOLDER, `error-setting-list-kind-and-sort.png`),
+      });
+      throw error;
+    }
   }
 
   /**

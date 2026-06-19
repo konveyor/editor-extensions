@@ -3,7 +3,7 @@ import { expect, test } from '../fixtures/test-repo-fixture';
 import { VSCode } from '../pages/vscode.page';
 import { VSCodeDesktop } from '../pages/vscode-desktop.page';
 import { SCREENSHOTS_FOLDER } from '../utilities/consts';
-import { getRepoName } from '../utilities/utils';
+import { getOSInfo, getRepoName } from '../utilities/utils';
 import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import * as VSCodeFactory from '../utilities/vscode.factory';
@@ -23,6 +23,10 @@ providers.forEach((config) => {
     { tag: ['@tier0', '@offline'] },
     () => {
       let vscodeApp: VSCode;
+      test.fixme(
+        getOSInfo() === 'windows',
+        'This test is affected by https://github.com/konveyor/editor-extensions/issues/1425 on Windows'
+      );
       test.beforeAll(async ({ testRepoData }: { testRepoData: any }, testInfo: any) => {
         test.setTimeout(1600000);
         const repoName = getRepoName(testInfo);
@@ -101,6 +105,9 @@ providers.forEach((config) => {
         while (!done) {
           maxIterations -= 1;
           if (maxIterations <= 0) {
+            await vscodeApp.getWindow().screenshot({
+              path: pathlib.join(SCREENSHOTS_FOLDER, 'agent-loop-timeout.png'),
+            });
             throw new Error(
               'Agent loop did not finish within given iterations, this is unexpected'
             );
