@@ -71,10 +71,14 @@ describe("KaiInteractiveWorkflow.run (issue #1418)", () => {
       },
     ];
 
-    // The follow-up workflow blocks on an IDE "tasks" prompt; stop() so the test ends.
+    // The follow-up workflow blocks on an IDE "tasks" prompt; resolve it so the test ends.
     workflow.on("workflowMessage", (msg) => {
       if (msg.type === KaiWorkflowMessageType.UserInteraction && msg.data.type === "tasks") {
-        workflow.stop();
+        workflow.resolveUserInteraction({
+          id: msg.id,
+          type: KaiWorkflowMessageType.UserInteraction,
+          data: { type: "tasks", systemMessage: {}, response: { yesNo: false } },
+        });
       }
     });
 
