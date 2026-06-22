@@ -677,6 +677,7 @@ export abstract class VSCode {
   }
 
   public async openFile(filename: string, closeOtherEditors: boolean = false): Promise<void> {
+    await this.window.locator('body').focus();
     const modifier = getOSInfo() === 'macOS' ? 'Meta' : 'Control';
     await this.window.keyboard.press(`${modifier}+P`, { delay: 500 });
     const input = this.window.getByPlaceholder(
