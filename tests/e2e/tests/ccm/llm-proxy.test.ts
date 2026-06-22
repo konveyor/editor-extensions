@@ -10,6 +10,7 @@ import {
   loadLlemulatorResponses,
   buildKaiResponse,
 } from '../../utilities/llemulator.utils';
+import { ProfilePage } from '../../pages/profile.page';
 
 // Invalid GenAI provider config to trigger connection error
 const INVALID_GENAI_CONFIG = `---
@@ -38,6 +39,7 @@ test.describe.serial(
     test.setTimeout(600000);
 
     let vscodeApp: VSCode;
+    let profilePage: ProfilePage;
     const profileName = `llm-proxy-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
@@ -61,7 +63,8 @@ test.describe.serial(
 
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo);
-      await vscodeApp.createProfile([], repoInfo.targets, profileName);
+      profilePage = new ProfilePage(vscodeApp);
+      await profilePage.create([], repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(INVALID_GENAI_CONFIG);
       await vscodeApp.openAnalysisView();
       const analysisView = await vscodeApp.getView(KAIViews.analysisView);

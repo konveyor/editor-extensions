@@ -15,12 +15,14 @@ import * as VSCodeFactory from '../utilities/vscode.factory';
 import { ResolutionAction } from '../enums/resolution-action.enum';
 import { FixTypes } from '../enums/fix-types.enum';
 import { buildKaiResponse, loadLlemulatorResponses } from '../utilities/llemulator.utils';
+import { ProfilePage } from '../pages/profile.page';
 
 const providers = process.env.CI ? getAvailableProviders() : [getDefaultProviderConfig()];
 
 providers.forEach((config) => {
   test.describe(`Coolstore app tests | ${config.model}`, { tag: ['@tier3', '@slow'] }, () => {
     let vscodeApp: VSCode;
+    let profilePage: ProfilePage;
     let allOk = true;
     const randomString = generateRandomString();
     let profileName = '';
@@ -49,7 +51,8 @@ providers.forEach((config) => {
       const repoInfo = testRepoData[repoName];
       profileName = `${repoInfo.repoName}-${randomString}`;
       vscodeApp = await VSCodeFactory.init(repoInfo);
-      await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+      profilePage = new ProfilePage(vscodeApp);
+      await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(config.config);
       await vscodeApp.startServer();
     });

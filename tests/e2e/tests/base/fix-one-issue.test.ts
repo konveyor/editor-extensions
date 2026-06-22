@@ -14,10 +14,12 @@ import { OutputChannels } from '../../enums/output.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
+import { ProfilePage } from '../../pages/profile.page';
 
 getAvailableProviders().forEach((provider) => {
   test.describe(`Run analysis and fix one issue - ${provider.model}`, { tag: ['@tier3'] }, () => {
     let vscodeApp: VSCode;
+    let profilePage: ProfilePage;
     const profileName = `fix-single-issue-${generateRandomString()}`;
 
     test.beforeAll(async ({ testRepoData }) => {
@@ -40,8 +42,9 @@ getAvailableProviders().forEach((provider) => {
 
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo);
+      profilePage = new ProfilePage(vscodeApp);
       await vscodeApp.waitDefault();
-      await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+      await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
       await vscodeApp.startServer();
       await vscodeApp.waitDefault();
@@ -110,7 +113,7 @@ getAvailableProviders().forEach((provider) => {
     });
 
     test.afterAll(async () => {
-      await vscodeApp.deleteProfile(profileName);
+      await profilePage.delete(profileName);
       await vscodeApp.closeVSCode();
     });
   });

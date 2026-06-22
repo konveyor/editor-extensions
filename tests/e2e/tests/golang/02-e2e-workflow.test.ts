@@ -20,6 +20,7 @@ import {
 import { loadGotestWorkflowLlemulatorResponses } from '../../fixtures/gotest-llemulator';
 import { getLlemulatorBaseUrl } from '../../utilities/llemulator.utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { ProfilePage } from '../../pages/profile.page';
 
 /** Get Solution → Accept requires a configured provider (llemulator URL, OpenAI key, or AWS Bedrock). */
 const SKIP_KAI_SOLUTION_REASON =
@@ -31,6 +32,7 @@ function canRunKaiSolutionE2e(): boolean {
 
 test.describe.serial('Golang Extension - E2E Workflow', { tag: ['@tier2'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   const randomString = generateRandomString();
   const profileName = `go-e2e-${randomString}`;
   let repoInfo: RepoData[string];
@@ -54,6 +56,7 @@ test.describe.serial('Golang Extension - E2E Workflow', { tag: ['@tier2'] }, () 
       console.log('Llemulator scripts loaded for gotest workflow (see gotest-llemulator.ts)');
     }
     vscodeApp = await VSCodeFactory.init(repoInfo);
+    profilePage = new ProfilePage(vscodeApp);
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
   });
@@ -69,7 +72,7 @@ test.describe.serial('Golang Extension - E2E Workflow', { tag: ['@tier2'] }, () 
 
   test('Create profile with Kubernetes migration rulesets', async () => {
     await vscodeApp.waitDefault();
-    await vscodeApp.createProfile(
+    await profilePage.create(
       repoInfo.sources,
       repoInfo.targets,
       profileName,
@@ -403,7 +406,7 @@ test.describe.serial('Golang Extension - E2E Workflow', { tag: ['@tier2'] }, () 
   // --- Cleanup Phase ---
 
   test('Delete profile', async () => {
-    await vscodeApp.deleteProfile(profileName);
+    await profilePage.delete(profileName);
     console.log(`Profile deleted: ${profileName}`);
   });
 

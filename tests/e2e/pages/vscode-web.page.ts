@@ -246,7 +246,7 @@ export class VSCodeWeb extends VSCode {
     console.log('VSCodeWeb.waitForJavaReady: Java ready');
   }
 
-  protected async selectCustomRules(customRulesPath: string) {
+  public async selectCustomRules(customRulesPath: string) {
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     console.log(`Uploading custom rules from: ${customRulesPath}`);
 
