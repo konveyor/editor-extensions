@@ -112,11 +112,14 @@ function check() {
       problems.push(`Leftover \${...} JS interpolation found in ${entry.id} (${entry.path}).`);
     }
 
-    // Declared variables must actually be referenced by the template.
+    // Declared variables must actually be referenced inside a Handlebars tag
+    // (`{{ ... }}`) — a substring match would pass on a plain-text mention.
+    const tags = src.match(/{{[^}]*}}/g) ?? [];
     for (const variable of entry.variables ?? []) {
-      if (!src.includes(variable)) {
+      const token = new RegExp(`\\b${variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+      if (!tags.some((tag) => token.test(tag))) {
         problems.push(
-          `Declared variable "${variable}" is not referenced in ${entry.id} (${entry.path}).`,
+          `Declared variable "${variable}" is not referenced in a {{...}} tag in ${entry.id} (${entry.path}).`,
         );
       }
     }

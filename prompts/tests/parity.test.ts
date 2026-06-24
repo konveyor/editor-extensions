@@ -10,10 +10,11 @@ describe("prompt template byte-exact parity", () => {
     expect(rendered).toBe(c.expected);
   });
 
-  // Drift snapshots: any future wording change surfaces as an explicit,
-  // reviewable snapshot update.
+  // Drift snapshots: snapshot the actual rendered template output (not the
+  // oracle's expected string) so a future template wording change surfaces as an
+  // explicit, reviewable snapshot update.
   it.each(cases.map((c) => [c.name, c] as const))("matches drift snapshot: %s", (_name, c) => {
-    expect(c.expected).toMatchSnapshot();
+    expect(renderPrompt(c.id, c.context)).toMatchSnapshot();
   });
 
   it("exercises every governed template id at least once", () => {
