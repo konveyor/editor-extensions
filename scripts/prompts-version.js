@@ -81,6 +81,7 @@ function check() {
       /* missing-file problem already reported above */
     }
   }
+  const partialIds = new Set((manifest.partials ?? []).map((p) => p.id));
 
   for (const entry of entries) {
     const abs = join(PROMPTS_DIR, entry.path);
@@ -110,6 +111,14 @@ function check() {
     // No leftover JS interpolation should escape into a governed asset.
     if (src.includes("${")) {
       problems.push(`Leftover \${...} JS interpolation found in ${entry.id} (${entry.path}).`);
+    }
+
+    // Static partial references must resolve to a declared partial. (precompile
+    // only checks syntax — a typo'd `{{> name}}` would otherwise pass.)
+    for (const [, name] of src.matchAll(/{{~?>\s*([\w-]+)\s*~?}}/g)) {
+      if (!partialIds.has(name)) {
+        problems.push(`Unknown partial "${name}" referenced in ${entry.id} (${entry.path}).`);
+      }
     }
 
     // Declared variables must actually be referenced inside a Handlebars tag
