@@ -8,6 +8,7 @@ import {
 } from "@langchain/core/messages";
 import { promises as fsPromises } from "fs";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
+import { renderPrompt } from "@editor-extensions/prompts";
 
 import { getCacheKey } from "../utils";
 import {
@@ -40,40 +41,6 @@ export class AnalysisIssueFix extends BaseNode {
     this.summarizeHistory = this.summarizeHistory.bind(this);
     this.fixAnalysisIssueRouter = this.fixAnalysisIssueRouter.bind(this);
     this.summarizeAdditionalInformation = this.summarizeAdditionalInformation.bind(this);
-  }
-
-  // Generate language-specific guidance for dependency and import management
-  private getDependencyGuidance(programmingLanguage: string): string {
-    const language = programmingLanguage.toLowerCase();
-
-    if (
-      language === "java" ||
-      language === "kotlin" ||
-      language === "scala" ||
-      language === "groovy"
-    ) {
-      return `Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
-Remember when updating or adding annotations that the class must be imported.
-As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.`;
-    }
-
-    if (language === "javascript" || language === "typescript") {
-      return `Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
-As you make changes that impact package.json or imports, be sure you explain what needs to be updated.`;
-    }
-
-    if (language === "python") {
-      return `Pay attention to changes you make and impacts to external dependencies in requirements.txt or pyproject.toml as well as changes to imports we need to consider.
-As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.`;
-    }
-
-    if (language === "go") {
-      return `Pay attention to changes you make and impacts to external dependencies in go.mod as well as changes to imports we need to consider.
-As you make changes that impact go.mod or imports, be sure you explain what needs to be updated.`;
-    }
-    // Generic fallback for other languages
-    return `Pay attention to changes you make and impacts to external dependencies as well as changes to imports we need to consider.
-As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.`;
   }
 
   // node responsible for routing analysis issue fixes
@@ -264,53 +231,22 @@ As you make changes that impact dependencies or imports, be sure you explain wha
     const fileName = basename(state.inputFileUri);
 
     const sysMessage = new SystemMessage(
-      `You are an experienced ${state.programmingLanguage.toLowerCase()} developer, who specializes in migrating code from ${state.migrationHint}`,
+      renderPrompt("agentic.analysis.fix-issue.system", {
+        programmingLanguage: state.programmingLanguage,
+        migrationHint: state.migrationHint,
+      }),
     );
 
-    // Generate language-specific dependency guidance
-    const dependencyGuidance = this.getDependencyGuidance(state.programmingLanguage);
-
-    const humanMessage =
-      new HumanMessage(`I will give you a file for which I want to take one step towards migrating ${state.migrationHint}.
-I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
-Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
-Before attempting to migrate the code from ${state.migrationHint}, reason through what changes are required and why.
-
-${dependencyGuidance}
-After you have shared your step by step thinking, provide a full output of the updated file.
-
-**It is essential that you always output the entire updated file without omitting any unchanged code.**
-
-# Input information
-
-## Input File
-
-File name: "${fileName}"
-Source file contents:
-\`\`\`
-${state.inputFileContent}
-\`\`\`
-
-## Issues
-${state.inputIncidents
-  .map((incident) => {
-    return `* ${incident.message}`;
-  })
-  .join("\n")}
-${hints.length > 0 ? `\n## Hints\n${hints.map((hint) => `* ${hint.hint}`).join("\n")}` : ""}
-
-# Output Instructions
-Structure your output in Markdown format such as:
-
-## Reasoning
-Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
-
-## Updated File
-// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
-
-## Additional Information (optional)
-
-If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed.`);
+    const humanMessage = new HumanMessage(
+      renderPrompt("agentic.analysis.fix-issue.human", {
+        programmingLanguage: state.programmingLanguage,
+        migrationHint: state.migrationHint,
+        fileName,
+        inputFileContent: state.inputFileContent,
+        inputIncidents: state.inputIncidents,
+        hints,
+      }),
+    );
 
     console.debug(humanMessage.content);
     const response = await this.streamOrInvoke(
@@ -364,46 +300,18 @@ If you have any additional details or steps that need to be performed, put it he
     }
 
     const sys_message = new SystemMessage(
-      `You are an experienced ${state.programmingLanguage} programmer, specializing in migrating source code to ${state.migrationHint}. Your job is to read migration notes and output only the additional changes that are still needed elsewhere in the project.`,
+      renderPrompt("agentic.analysis.summarize-additional-info.system", {
+        programmingLanguage: state.programmingLanguage,
+        migrationHint: state.migrationHint,
+      }),
     );
     const human_message = new HumanMessage(
-      `During the migration to ${state.migrationHint}, we captured notes that include:
-- A list of files we modified
-- Reasoning behind changes made to existing files
-- Additional information that may contain even more changes needed
-
-* Your task:
-Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. \
-Provide a concise summary *solely* of the additional changes required elsewhere in the project. \
-**It is essential that your summary includes only the additional changes needed. Do not include changes already made.** \
-Make sure you output all the details about the changes including any relevant code snippets and instructions.
-**Do not omit any additional changes needed. Be exhaustive and specific.**
-
-* Rules:
-- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
-- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
-- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
-- If there are no additional changes needed, respond with exactly:
-NO-CHANGE: <one-sentence reason>
-
-Here is your input:
-
-${
-  state.inputAllModifiedFiles
-    ? `### MODIFIED_FILES\n\n${state.inputAllModifiedFiles?.join("\n")}`
-    : ""
-}
-
-${
-  state.inputAllReasoning && state.inputAllReasoning.length > 0
-    ? `### Summary of changes made\n\n${state.inputAllReasoning}`
-    : ""
-}
-
-### Additional information about changes
-
-${state.inputAllAdditionalInfo}
-`,
+      renderPrompt("agentic.analysis.summarize-additional-info.human", {
+        migrationHint: state.migrationHint,
+        inputAllModifiedFiles: state.inputAllModifiedFiles,
+        inputAllReasoning: state.inputAllReasoning,
+        inputAllAdditionalInfo: state.inputAllAdditionalInfo,
+      }),
     );
 
     const response = await this.streamOrInvoke(
@@ -437,18 +345,16 @@ ${state.inputAllAdditionalInfo}
     }
 
     const sys_message = new SystemMessage(
-      `You are an experienced ${state.programmingLanguage} programmer, specializing in migrating source code to ${state.migrationHint}.`,
+      renderPrompt("agentic.analysis.summarize-history.system", {
+        programmingLanguage: state.programmingLanguage,
+        migrationHint: state.migrationHint,
+      }),
     );
     const human_message = new HumanMessage(
-      `During the migration to ${state.migrationHint}, we captured the following notes detailing changes we made to the source code.\
-These notes may also mention potential future changes.\
-Your task is to carefully analyze these notes and provide a concise summary *solely* of the changes that have already been implemented.\
-**It is essential that your summary includes only the modifications explicitly described as completed and accurately reflects the list of files already changed.\
-Do not include any information about potential future changes.**\
-This summary will serve as a record of completed modifications for other team members.\
-Here are the notes:
-### Reasoning for fixes made
-${state.inputAllReasoning}`,
+      renderPrompt("agentic.analysis.summarize-history.human", {
+        migrationHint: state.migrationHint,
+        inputAllReasoning: state.inputAllReasoning,
+      }),
     );
 
     const response = await this.streamOrInvoke(

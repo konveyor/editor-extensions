@@ -12,6 +12,7 @@ import { type ToolCall } from "@langchain/core/messages/tool";
 import { type MessagesAnnotation } from "@langchain/langgraph";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
 import { type IterableReadableStream } from "@langchain/core/utils/stream";
+import { renderPrompt } from "@editor-extensions/prompts";
 
 import {
   type KaiWorkflowMessage,
@@ -41,7 +42,6 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     this.aiMessageToString = this.aiMessageToString.bind(this);
     this.getToolsAsMessage = this.getToolsAsMessage.bind(this);
     this.getToolsMatchingSelectors = this.getToolsMatchingSelectors.bind(this);
-    this.renderTextDescriptionAndArgs = this.renderTextDescriptionAndArgs.bind(this);
   }
 
   private newMessageId(prefix: string = "res"): string {
@@ -354,25 +354,15 @@ export abstract class BaseNode extends KaiWorkflowEventEmitter {
     if (!tools || tools.length < 1) {
       return "";
     }
-    return `You are an intelligent developer. You are designed to use tools to answer user questions.\
-You may not know all of the information to address user's needs. You will use relevant tools to get that information.\
-Here is the schema of tools you are given:
-
-${this.renderTextDescriptionAndArgs(tools)}
-
-If you do need to call a tool, respond with text 'TOOL_CALL' on a new line followed by a JSON object on the next line containing only two keys - tool_name and args.\
-'tool_name' should be the name of the tool to call. 'args' should be nested JSON containing the arguments to pass to the function in key value format.
-Make sure you always use \`\`\` at the start and end of the JSON block to clearly separate it from text.\
-*Crucially* you must only output one tool call at a time. After the tool call, wait for the results before considering another tool call if necessary.
-`;
-  }
-
-  private renderTextDescriptionAndArgs(tools: DynamicStructuredTool[]): string {
-    let description = "";
-    tools.forEach((tool) => {
-      description += `${tool.name}: ${tool.description}, Args: ${JSON.stringify(zodToJsonSchema(tool.schema as any))}\n`;
+    // The tool schemas are serialized here (zod cannot be rendered in a template);
+    // the prompt prose and the iteration over tools live in the governed template.
+    return renderPrompt("agentic.tools.instructions", {
+      tools: tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        argsJson: JSON.stringify(zodToJsonSchema(tool.schema as any)),
+      })),
     });
-    return description;
   }
 
   async runTools(state: typeof MessagesAnnotation.State) {

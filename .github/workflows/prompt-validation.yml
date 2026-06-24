@@ -1,0 +1,57 @@
+name: Prompt Template Validation (ISO 42001 A.5.2)
+
+# Governance gate for the version-controlled prompt template set under prompts/.
+# Triggered whenever a governed prompt asset, the manifest, the validation script,
+# or this workflow changes. Required-status + CODEOWNERS review for prompts/** are
+# documented in PROMPT_GOVERNANCE.md and configured in repo branch protection.
+on:
+  pull_request:
+    branches:
+      - "main"
+      - "release-*"
+    paths:
+      - "prompts/**"
+      - "scripts/prompts-version.js"
+      - ".github/workflows/prompt-validation.yml"
+
+  workflow_dispatch:
+
+concurrency:
+  group: prompt-validation-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HUSKY: 0
+
+jobs:
+  validate-prompts:
+    name: Validate prompt templates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build prompts package (embeds templates)
+        run: npm run build -w @editor-extensions/prompts
+
+      # Syntactic verification + version governance:
+      #  - every template/partial declared in manifest.yaml (and vice-versa)
+      #  - content checksums match (drift detection)
+      #  - every Handlebars template parses
+      #  - declared ${...} placeholders resolve; no leftover JS interpolation
+      - name: Syntactic & manifest validation
+        run: node scripts/prompts-version.js check
+
+      # Byte-exact parity, drift snapshots, and deterministic (mock-model)
+      # semantic regression against the baseline migration dataset.
+      - name: Parity, drift & semantic-regression tests
+        run: npm run test -w @editor-extensions/prompts

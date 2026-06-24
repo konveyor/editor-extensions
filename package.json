@@ -36,6 +36,7 @@
   "workspaces": [
     "extra-types",
     "shared",
+    "prompts",
     "webview-ui",
     "agentic",
     "vscode/core",

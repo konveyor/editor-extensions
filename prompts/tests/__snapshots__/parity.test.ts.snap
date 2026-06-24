@@ -1,0 +1,1517 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`prompt template byte-exact parity matches drift snapshot: continue-quick-action 1`] = `
+"Help me address this Konveyor migration issue:
+Rule: javax-to-jakarta - Migrate javax to jakarta
+Violation: javax-import - javax import found
+Category: mandatory
+Message: Replace javax with jakarta"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-general.human [Nuris] 1`] = `
+"
+Here are the notes:Update the imports across the module.
+The above issues were found in following files:
+file:///A.java
+file:///B.java"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-general.human [empty-uris] 1`] = `
+"
+Here are the notes:Update the imports across the module.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-general.human [no-uris] 1`] = `
+"
+Here are the notes:Update the imports across the module.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-general.system 1`] = `"You are an experienced Java programmer, specializing in migrating source code from JavaEE to Quarkus.We updated a source code file to migrate the source code. There may be more changes needed elsewhere in the project.You are given notes detailing additional changes that need to happen.Carefully analyze the changes and understand what files in the project need to be changed.The notes may contain details about changes already made. Please do not act on any of the changes already made. Assume they are correct and only focus on any additional changes needed.You have access to a set of tools to search for files, read a file and write to a file.Work on one file at a time. **Completely address changes in one file before moving onto to next file.**Explain you rationale while you make changes to files.When you're done addressing all the changes or there are no additional changes, briefly summarize changes you made.**User may or may not accept the changes you make. If rejected, do not take any action.**"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Java] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Java] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Java] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [JavaScript] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [JavaScript] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [JavaScript] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Python] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in requirements.txt or pyproject.toml as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Python] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in requirements.txt or pyproject.toml as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Python] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in requirements.txt or pyproject.toml as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Ruby] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Ruby] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Ruby] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies as well as changes to imports we need to consider.
+As you make changes that impact dependencies or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Scala] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Scala] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [Scala] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [go] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in go.mod as well as changes to imports we need to consider.
+As you make changes that impact go.mod or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [go] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in go.mod as well as changes to imports we need to consider.
+As you make changes that impact go.mod or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [go] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in go.mod as well as changes to imports we need to consider.
+As you make changes that impact go.mod or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [groovy] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [groovy] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [groovy] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [kotlin] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [kotlin] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [kotlin] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in the pom.xml as well as changes to imports we need to consider.
+Remember when updating or adding annotations that the class must be imported.
+As you make changes that impact the pom.xml or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [typescript] 0inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [typescript] 1inc/0hint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.human [typescript] Ninc/Nhint 1`] = `
+"I will give you a file for which I want to take one step towards migrating JavaEE to Quarkus.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from JavaEE to Quarkus, reason through what changes are required and why.
+
+Pay attention to changes you make and impacts to external dependencies in package.json as well as changes to imports we need to consider.
+As you make changes that impact package.json or imports, be sure you explain what needs to be updated.
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "Foo.java"
+Source file contents:
+\`\`\`
+public class Foo {}
+// trailing
+\`\`\`
+
+## Issues
+* Replace javax.* with jakarta.*
+* Remove use of EJB
+* Migrate persistence.xml
+
+## Hints
+* Use CDI beans
+* Prefer constructor injection
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [Java] 1`] = `"You are an experienced java developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [JavaScript] 1`] = `"You are an experienced javascript developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [Python] 1`] = `"You are an experienced python developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [Ruby] 1`] = `"You are an experienced ruby developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [Scala] 1`] = `"You are an experienced scala developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [go] 1`] = `"You are an experienced go developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [groovy] 1`] = `"You are an experienced groovy developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [kotlin] 1`] = `"You are an experienced kotlin developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-issue.system [typescript] 1`] = `"You are an experienced typescript developer, who specializes in migrating code from JavaEE to Quarkus"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-java-deps.human [empty-uris] 1`] = `
+"
+Your task is to resolve compilation or runtime errors in a Java project by identifying and adding missing dependencies to the project's pom.xml file.
+
+**Your Goal:**
+Successfully add necessary dependencies or modify existing dependencies to resolve identified issues, ensuring the project compiles and runs correctly.
+If you cannot find a dependency to add after a few attempts, do not take any action.
+
+**Information Provided:**
+You will be given detailed information about the issues found, which may include compilation errors, stack traces from runtime errors, or descriptions of missing classes/methods.You will also be given detailed instructions on how to fix the issues.
+**Guidelines:**
+- Determine whether the given issue can be fixed by adding, modifying, updating or deleting one or more dependency.- You have access to a set of tools to search for files, read a file and write to a file.- You also have access to specific tools that will help you determine which dependency to add.- If the given issue cannot be solved by adding, modifying, updating or deleting dependencies, do not take any action.- Explain your rationale as you make changes.
+- User may or may not accept the changes you make. If rejected, do not take any action.
+
+
+Here are the issues:Add jakarta.persistence-api.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-java-deps.human [no-uris] 1`] = `
+"
+Your task is to resolve compilation or runtime errors in a Java project by identifying and adding missing dependencies to the project's pom.xml file.
+
+**Your Goal:**
+Successfully add necessary dependencies or modify existing dependencies to resolve identified issues, ensuring the project compiles and runs correctly.
+If you cannot find a dependency to add after a few attempts, do not take any action.
+
+**Information Provided:**
+You will be given detailed information about the issues found, which may include compilation errors, stack traces from runtime errors, or descriptions of missing classes/methods.You will also be given detailed instructions on how to fix the issues.
+**Guidelines:**
+- Determine whether the given issue can be fixed by adding, modifying, updating or deleting one or more dependency.- You have access to a set of tools to search for files, read a file and write to a file.- You also have access to specific tools that will help you determine which dependency to add.- If the given issue cannot be solved by adding, modifying, updating or deleting dependencies, do not take any action.- Explain your rationale as you make changes.
+- User may or may not accept the changes you make. If rejected, do not take any action.
+
+
+Here are the issues:Add jakarta.persistence-api.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-java-deps.human [uris] 1`] = `
+"
+Your task is to resolve compilation or runtime errors in a Java project by identifying and adding missing dependencies to the project's pom.xml file.
+
+**Your Goal:**
+Successfully add necessary dependencies or modify existing dependencies to resolve identified issues, ensuring the project compiles and runs correctly.
+If you cannot find a dependency to add after a few attempts, do not take any action.
+
+**Information Provided:**
+You will be given detailed information about the issues found, which may include compilation errors, stack traces from runtime errors, or descriptions of missing classes/methods.You will also be given detailed instructions on how to fix the issues.
+**Guidelines:**
+- Determine whether the given issue can be fixed by adding, modifying, updating or deleting one or more dependency.- You have access to a set of tools to search for files, read a file and write to a file.- You also have access to specific tools that will help you determine which dependency to add.- If the given issue cannot be solved by adding, modifying, updating or deleting dependencies, do not take any action.- Explain your rationale as you make changes.
+- User may or may not accept the changes you make. If rejected, do not take any action.
+* Files in which these issues were found:
+file:///pom.xml
+
+Here are the issues:Add jakarta.persistence-api.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: fix-java-deps.system 1`] = `"You are an expert Java developer specializing in dependency management and migrating source code from / to JavaEE to Quarkus."`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: model-health-check.human 1`] = `"What is 2 gamma 2?"`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: model-health-check.system 1`] = `"Use the tool you are given to get the answer for custom math operation."`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: plan-fixes.human [no-uri/1task] 1`] = `
+"You have a roster of specialized agents at your disposal, each with unique capabilities and areas of focus.For context, you are also given background information on changes we made so far to migrate the application.
+**Here is the list of available agents, along with their descriptions:**
+
+-	Name: GeneralFix	Description: Handles general source code migration issues.
+-	Name: JavaDependency	Description: Resolves Maven pom.xml dependency problems.
+
+
+
+**Here is the list of issues that need to be solved:**
+- Single task
+
+**Previous context about migration**
+Earlier we migrated the persistence layer.
+
+Your primary task is to carefully analyze **each individual issue** in the list.For each issue, you must determine the most suitable specialized agent to address it.You should group related issues that can be efficiently solved by the same agent, ensuring the **most specific agent** is chosen for the grouped issues.
+If an an issue, or a group of issues, requires a different specialist, you **must** create a new delegation block for that specialist.
+Your instructions to each agent must be specific, clear, and tailored to their expertise, detailing how they should approach and solve the assigned problems.**Make sure** your instructions take into account previous changes we made for migrating the project and align with the overall migration effort.Consider the nuances of each issue and match it precisely with the described capabilities of the agents.If no specialized agent is a perfect fit for an issue or a group of issues, direct it to the generalist agent with comprehensive instructions.
+**Make sure all issues from the list are addressed.** You will likely need to delegate to more than one agent to address all issues effectively.
+
+Your response **must** consist of one or more distinct blocks, each delegating tasks to a specific agent. Each block **must** follow this exact format:
+* Name
+<agent_name_here_on_newline>
+* Instructions
+<detailed_instructions_here_on_newline>
+
+**Example of expected output structure (if multiple agents are chosen to address different issues):**
+* Name
+<Agent_A_Name>
+* Instructions
+Instructions for Agent A to solve Issue 1, Issue 2, etc. (mention specific issues)
+
+* Name
+<Agent_B_Name>
+* Instructions
+Instructions for Agent B to solve Issue 3, Issue 4, etc. (mention specific issues)
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: plan-fixes.human [uri+Ntasks] 1`] = `
+"You have a roster of specialized agents at your disposal, each with unique capabilities and areas of focus.For context, you are also given background information on changes we made so far to migrate the application.
+**Here is the list of available agents, along with their descriptions:**
+
+-	Name: GeneralFix	Description: Handles general source code migration issues.
+-	Name: JavaDependency	Description: Resolves Maven pom.xml dependency problems.
+
+** File in which issues were found: file:///Foo.java.
+Make sure your instructions are specific to fixing issues in this file.
+
+**Here is the list of issues that need to be solved:**
+- Fix import
+ - Add dependency
+
+**Previous context about migration**
+Earlier we migrated the persistence layer.
+
+Your primary task is to carefully analyze **each individual issue** in the list.For each issue, you must determine the most suitable specialized agent to address it.You should group related issues that can be efficiently solved by the same agent, ensuring the **most specific agent** is chosen for the grouped issues.
+If an an issue, or a group of issues, requires a different specialist, you **must** create a new delegation block for that specialist.
+Your instructions to each agent must be specific, clear, and tailored to their expertise, detailing how they should approach and solve the assigned problems.**Make sure** your instructions take into account previous changes we made for migrating the project and align with the overall migration effort.Consider the nuances of each issue and match it precisely with the described capabilities of the agents.If no specialized agent is a perfect fit for an issue or a group of issues, direct it to the generalist agent with comprehensive instructions.
+**Make sure all issues from the list are addressed.** You will likely need to delegate to more than one agent to address all issues effectively.
+
+Your response **must** consist of one or more distinct blocks, each delegating tasks to a specific agent. Each block **must** follow this exact format:
+* Name
+<agent_name_here_on_newline>
+* Instructions
+<detailed_instructions_here_on_newline>
+
+**Example of expected output structure (if multiple agents are chosen to address different issues):**
+* Name
+<Agent_A_Name>
+* Instructions
+Instructions for Agent A to solve Issue 1, Issue 2, etc. (mention specific issues)
+
+* Name
+<Agent_B_Name>
+* Instructions
+Instructions for Agent B to solve Issue 3, Issue 4, etc. (mention specific issues)
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: plan-fixes.system 1`] = `"You are an experienced architect overlooking migration of a Java application from JavaEE to Quarkus. Your expertise lies in efficiently delegating tasks to the most appropriate specialist to ensure optimal problem resolution."`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-additional-info.human [empty-array+empty-string] 1`] = `
+"During the migration to JavaEE to Quarkus, we captured notes that include:
+- A list of files we modified
+- Reasoning behind changes made to existing files
+- Additional information that may contain even more changes needed
+
+* Your task:
+Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. Provide a concise summary *solely* of the additional changes required elsewhere in the project. **It is essential that your summary includes only the additional changes needed. Do not include changes already made.** Make sure you output all the details about the changes including any relevant code snippets and instructions.
+**Do not omit any additional changes needed. Be exhaustive and specific.**
+
+* Rules:
+- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
+- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
+- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
+- If there are no additional changes needed, respond with exactly:
+NO-CHANGE: <one-sentence reason>
+
+Here is your input:
+
+### MODIFIED_FILES
+
+
+
+
+
+### Additional information about changes
+
+Update web.xml elsewhere.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-additional-info.human [mods+reasoning] 1`] = `
+"During the migration to JavaEE to Quarkus, we captured notes that include:
+- A list of files we modified
+- Reasoning behind changes made to existing files
+- Additional information that may contain even more changes needed
+
+* Your task:
+Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. Provide a concise summary *solely* of the additional changes required elsewhere in the project. **It is essential that your summary includes only the additional changes needed. Do not include changes already made.** Make sure you output all the details about the changes including any relevant code snippets and instructions.
+**Do not omit any additional changes needed. Be exhaustive and specific.**
+
+* Rules:
+- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
+- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
+- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
+- If there are no additional changes needed, respond with exactly:
+NO-CHANGE: <one-sentence reason>
+
+Here is your input:
+
+### MODIFIED_FILES
+
+A.java
+B.java
+
+### Summary of changes made
+
+Changed A and B.
+
+### Additional information about changes
+
+Update web.xml elsewhere.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-additional-info.human [mods-only] 1`] = `
+"During the migration to JavaEE to Quarkus, we captured notes that include:
+- A list of files we modified
+- Reasoning behind changes made to existing files
+- Additional information that may contain even more changes needed
+
+* Your task:
+Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. Provide a concise summary *solely* of the additional changes required elsewhere in the project. **It is essential that your summary includes only the additional changes needed. Do not include changes already made.** Make sure you output all the details about the changes including any relevant code snippets and instructions.
+**Do not omit any additional changes needed. Be exhaustive and specific.**
+
+* Rules:
+- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
+- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
+- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
+- If there are no additional changes needed, respond with exactly:
+NO-CHANGE: <one-sentence reason>
+
+Here is your input:
+
+### MODIFIED_FILES
+
+A.java
+
+
+
+### Additional information about changes
+
+Update web.xml elsewhere.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-additional-info.human [neither] 1`] = `
+"During the migration to JavaEE to Quarkus, we captured notes that include:
+- A list of files we modified
+- Reasoning behind changes made to existing files
+- Additional information that may contain even more changes needed
+
+* Your task:
+Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. Provide a concise summary *solely* of the additional changes required elsewhere in the project. **It is essential that your summary includes only the additional changes needed. Do not include changes already made.** Make sure you output all the details about the changes including any relevant code snippets and instructions.
+**Do not omit any additional changes needed. Be exhaustive and specific.**
+
+* Rules:
+- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
+- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
+- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
+- If there are no additional changes needed, respond with exactly:
+NO-CHANGE: <one-sentence reason>
+
+Here is your input:
+
+
+
+
+
+### Additional information about changes
+
+Update web.xml elsewhere.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-additional-info.system 1`] = `"You are an experienced Java programmer, specializing in migrating source code to JavaEE to Quarkus. Your job is to read migration notes and output only the additional changes that are still needed elsewhere in the project."`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-history.human 1`] = `
+"During the migration to JavaEE to Quarkus, we captured the following notes detailing changes we made to the source code.These notes may also mention potential future changes.Your task is to carefully analyze these notes and provide a concise summary *solely* of the changes that have already been implemented.**It is essential that your summary includes only the modifications explicitly described as completed and accurately reflects the list of files already changed.Do not include any information about potential future changes.**This summary will serve as a record of completed modifications for other team members.Here are the notes:
+### Reasoning for fixes made
+We migrated annotations."
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: summarize-history.system 1`] = `"You are an experienced Java programmer, specializing in migrating source code to JavaEE to Quarkus."`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: tools.instructions [1tool] 1`] = `
+"You are an intelligent developer. You are designed to use tools to answer user questions.You may not know all of the information to address user's needs. You will use relevant tools to get that information.Here is the schema of tools you are given:
+
+readFile: Reads a file, Args: {"type":"object"}
+
+
+If you do need to call a tool, respond with text 'TOOL_CALL' on a new line followed by a JSON object on the next line containing only two keys - tool_name and args.'tool_name' should be the name of the tool to call. 'args' should be nested JSON containing the arguments to pass to the function in key value format.
+Make sure you always use \`\`\` at the start and end of the JSON block to clearly separate it from text.*Crucially* you must only output one tool call at a time. After the tool call, wait for the results before considering another tool call if necessary.
+"
+`;
+
+exports[`prompt template byte-exact parity matches drift snapshot: tools.instructions [2tools] 1`] = `
+"You are an intelligent developer. You are designed to use tools to answer user questions.You may not know all of the information to address user's needs. You will use relevant tools to get that information.Here is the schema of tools you are given:
+
+readFile: Reads a file, Args: {"type":"object"}
+writeFile: Writes a file, Args: {"type":"object","x":1}
+
+
+If you do need to call a tool, respond with text 'TOOL_CALL' on a new line followed by a JSON object on the next line containing only two keys - tool_name and args.'tool_name' should be the name of the tool to call. 'args' should be nested JSON containing the arguments to pass to the function in key value format.
+Make sure you always use \`\`\` at the start and end of the JSON block to clearly separate it from text.*Crucially* you must only output one tool call at a time. After the tool call, wait for the results before considering another tool call if necessary.
+"
+`;

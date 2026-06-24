@@ -463,6 +463,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@editor-extensions/prompts": "*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@types/mustache": "^4.2.5",
     "adm-zip": "^0.5.16",

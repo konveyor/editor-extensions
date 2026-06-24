@@ -1,0 +1,157 @@
+# Prompt template manifest — governed under ISO 42001 A.5.2.
+# Checksums are maintained by scripts/prompts-version.js; do not edit by hand.
+version: 0.6.0
+engine: handlebars
+templates:
+  - id: agentic.analysis.fix-issue.system
+    path: templates/agentic/analysis/fix-issue.system.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - programmingLanguage
+      - migrationHint
+    checksum: sha256:e3695acda4ef466be8ff9db59fdfb517b9850a71e4b0e7530b77dcbd86435237
+  - id: agentic.analysis.fix-issue.human
+    path: templates/agentic/analysis/fix-issue.human.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - programmingLanguage
+      - migrationHint
+      - fileName
+      - inputFileContent
+      - inputIncidents
+      - hints
+    checksum: sha256:06c3f8a255dab94d80d6be26df83d617e0163a6a1d18af4bbc2bbc2c56765b7d
+  - id: agentic.analysis.summarize-additional-info.system
+    path: templates/agentic/analysis/summarize-additional-info.system.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - programmingLanguage
+      - migrationHint
+    checksum: sha256:a8e27c18d87f7c41d8f7bcdf50608b077e24e6cca578d09f91fe2e2b8478cfdd
+  - id: agentic.analysis.summarize-additional-info.human
+    path: templates/agentic/analysis/summarize-additional-info.human.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - migrationHint
+      - inputAllModifiedFiles
+      - inputAllReasoning
+      - inputAllAdditionalInfo
+    checksum: sha256:1043044b564e6f7892ca34b29461e4d5e13c520f80332d57090061a5f947ef95
+  - id: agentic.analysis.summarize-history.system
+    path: templates/agentic/analysis/summarize-history.system.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - programmingLanguage
+      - migrationHint
+    checksum: sha256:8aebd3d0239c53dae1abfd1e3b8544607fb599954d086c419b9e0c7730d95d17
+  - id: agentic.analysis.summarize-history.human
+    path: templates/agentic/analysis/summarize-history.human.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - migrationHint
+      - inputAllReasoning
+    checksum: sha256:0aeb4c6017b768458f086f807672bfb656c6a3dd105ea097bb620acbed7c065f
+  - id: agentic.diagnostics.plan-fixes.system
+    path: templates/agentic/diagnostics/plan-fixes.system.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - programmingLanguage
+      - migrationHint
+    checksum: sha256:8ebc3489fc3b3ebfa03e808d7d01f65fe26162f56548e82a4b54573be8d90697
+  - id: agentic.diagnostics.plan-fixes.human
+    path: templates/agentic/diagnostics/plan-fixes.human.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - agents
+      - subAgents
+      - plannerInputTasksUri
+      - tasks
+      - background
+    checksum: sha256:2471bdfff5c1dfec490cdf4cb5f3d2a2af2e4ef0da695a7e52d5528fdb0be056
+  - id: agentic.diagnostics.fix-general.system
+    path: templates/agentic/diagnostics/fix-general.system.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - programmingLanguage
+      - migrationHint
+    checksum: sha256:c2b1a7cab760b06d28740c4d3d949e54ee4448f1c8a5e8ecb6f957ae5fbaf111
+  - id: agentic.diagnostics.fix-general.human
+    path: templates/agentic/diagnostics/fix-general.human.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - inputInstructionsForGeneralFix
+      - inputUrisForGeneralFix
+    checksum: sha256:a026f2e32c038ad3a186cb03508de7ea0527f7f79d2c900eaeb2a5aeb9e9207e
+  - id: agentic.diagnostics.fix-java-deps.system
+    path: templates/agentic/diagnostics/fix-java-deps.system.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - migrationHint
+    checksum: sha256:14979e7c45272551d1264ad05a032e13ddd1886e55e99cd67c1fe808a4b0da6b
+  - id: agentic.diagnostics.fix-java-deps.human
+    path: templates/agentic/diagnostics/fix-java-deps.human.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - inputInstructionsForGeneralFix
+      - inputUrisForGeneralFix
+    checksum: sha256:cf2be4e939377bcb1b5b671fec6afc9a2880e1aedc2f0769ac761847382ed635
+  - id: agentic.tools.instructions
+    path: templates/agentic/tools/instructions.hbs
+    surface: agentic
+    governed: true
+    variables:
+      - tools
+    checksum: sha256:ae0d28a33197c8eb3f6d105f208cc42d962dfd2b4e6441717b8e4775a4411cdf
+  - id: single-shot.continue-quick-action
+    path: templates/single-shot/continue-quick-action.hbs
+    surface: single-shot
+    governed: true
+    variables:
+      - extensionShortName
+      - ruleset_name
+      - ruleset_description
+      - violation_name
+      - violation_description
+      - violation_category
+      - message
+    checksum: sha256:fe509b2246bc7146ba2c03777d8fa57013e9a628127e9c8b586df0bc880fb616
+  - id: operational.model-health-check.system
+    path: templates/operational/model-health-check.system.hbs
+    surface: operational
+    governed: true
+    variables: []
+    checksum: sha256:055366dcf50d1dceb2be063b16f934ede4fabf3dc0ed26d12afe3ad5e8439cc3
+  - id: operational.model-health-check.human
+    path: templates/operational/model-health-check.human.hbs
+    surface: operational
+    governed: true
+    variables: []
+    checksum: sha256:41fd94b120829227589cc8df19bb5b19852f51b58089150f12e45877e7f97c9f
+partials:
+  - id: dependency-guidance-jvm
+    path: templates/agentic/partials/dependency-guidance-jvm.hbs
+    checksum: sha256:ade8e7e7c5b92644d9ef36113ed02433ab8bed6af775e73d7a6fd9cb9ee4439b
+  - id: dependency-guidance-javascript
+    path: templates/agentic/partials/dependency-guidance-javascript.hbs
+    checksum: sha256:328fc7abb6e24af10e17fefad34eda9c12b8d4238023cddd7de216cdb4bd1b14
+  - id: dependency-guidance-python
+    path: templates/agentic/partials/dependency-guidance-python.hbs
+    checksum: sha256:13dbff4e268a7b034092ff6f5addcfef63edc0f8483e428e5b0bb9c14476174a
+  - id: dependency-guidance-go
+    path: templates/agentic/partials/dependency-guidance-go.hbs
+    checksum: sha256:7a75a0c5d815815ae0006d994dcef105a09995727563d1dfb57149bfebf15dd3
+  - id: dependency-guidance-default
+    path: templates/agentic/partials/dependency-guidance-default.hbs
+    checksum: sha256:bf4cdae417795f5ffa363b6273a186dd395a4f246c4a1b532387e38e36fe70ff

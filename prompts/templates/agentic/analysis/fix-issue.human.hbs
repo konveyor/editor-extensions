@@ -1,0 +1,40 @@
+I will give you a file for which I want to take one step towards migrating {{migrationHint}}.
+I will provide you with static source code analysis information highlighting an issue which needs to be addressed.
+Fix all the issues described. Other problems will be solved in subsequent steps so it is unnecessary to handle them now.
+Before attempting to migrate the code from {{migrationHint}}, reason through what changes are required and why.
+
+{{#if (or (eq (lower programmingLanguage) "java") (eq (lower programmingLanguage) "kotlin") (eq (lower programmingLanguage) "scala") (eq (lower programmingLanguage) "groovy"))}}{{> dependency-guidance-jvm}}{{else if (or (eq (lower programmingLanguage) "javascript") (eq (lower programmingLanguage) "typescript"))}}{{> dependency-guidance-javascript}}{{else if (eq (lower programmingLanguage) "python")}}{{> dependency-guidance-python}}{{else if (eq (lower programmingLanguage) "go")}}{{> dependency-guidance-go}}{{else}}{{> dependency-guidance-default}}{{/if}}
+After you have shared your step by step thinking, provide a full output of the updated file.
+
+**It is essential that you always output the entire updated file without omitting any unchanged code.**
+
+# Input information
+
+## Input File
+
+File name: "{{fileName}}"
+Source file contents:
+```
+{{inputFileContent}}
+```
+
+## Issues
+{{#each inputIncidents}}* {{message}}{{#unless @last}}
+{{/unless}}{{/each}}
+{{#if hints}}
+## Hints
+{{#each hints}}* {{hint}}{{#unless @last}}
+{{/unless}}{{/each}}{{/if}}
+
+# Output Instructions
+Structure your output in Markdown format such as:
+
+## Reasoning
+Write the step by step reasoning in this markdown section. If you are unsure of a step or reasoning, clearly state you are unsure and why.
+
+## Updated File
+// Write the updated file in this section. If the file should be removed, make the content of the updated file a comment explaining it should be removed.
+
+## Additional Information (optional)
+
+If you have any additional details or steps that need to be performed, put it here. Do not summarize any of the changes you already made in this section. Only mention any additional changes needed.
