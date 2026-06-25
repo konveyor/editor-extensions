@@ -2,7 +2,11 @@ import * as vscode from "vscode";
 import { exec } from "node:child_process";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
+import {
+  type KonveyorCoreApi,
+  generateSafePipeName,
+  getIncludedRulesetsPath,
+} from "@editor-extensions/shared";
 import { GoVscodeProxyServer } from "./goVscodeProxyServer";
 import { GoExternalProviderManager } from "./goExternalProviderManager";
 import {
@@ -180,12 +184,7 @@ export async function activate(context: vscode.ExtensionContext) {
       ],
       contextLines: 10,
     },
-    rulesetsPaths: [
-      context.asAbsolutePath(
-        context.extension.packageJSON.includedAssetPaths?.rulesets ??
-          "../../downloaded_assets/rulesets-go",
-      ),
-    ],
+    rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
   });
 
   context.subscriptions.push(providerDisposable);

@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import { KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
+import {
+  KonveyorCoreApi,
+  generateSafePipeName,
+  getIncludedRulesetsPath,
+} from "@editor-extensions/shared";
 import {
   CORE_EXTENSION_ID,
   EXTENSION_DISPLAY_NAME,
@@ -176,12 +180,7 @@ export async function activate(context: vscode.ExtensionContext) {
       ],
       contextLines: 10,
     },
-    rulesetsPaths: [
-      context.asAbsolutePath(
-        context.extension.packageJSON.includedAssetPaths?.rulesets ??
-          "../../downloaded_assets/rulesets-nodejs",
-      ),
-    ],
+    rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
   });
 
   context.subscriptions.push(providerDisposable);

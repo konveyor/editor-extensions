@@ -32,6 +32,7 @@ import { TaskManager } from "src/taskManager/types";
 import { Logger } from "winston";
 import { executeExtensionCommand } from "../commands";
 import { ProviderRegistry } from "../api";
+import { buildRulesetsList } from "./rulesets";
 
 export class AnalyzerClient {
   // Progress percentage ranges for each stage
@@ -767,11 +768,7 @@ export class AnalyzerClient {
       ? this.providerRegistry.getProviders().flatMap((p) => p.rulesetsPaths)
       : [];
 
-    const rulesets: string[] = [
-      profile.useDefaultRules ? this.assetPaths.rulesets : null,
-      ...providerRulesets,
-      ...(profile.customRules || []),
-    ].filter(Boolean) as string[];
+    const rulesets = buildRulesetsList(profile, this.assetPaths.rulesets, providerRulesets);
 
     return {
       labelSelector: profile.labelSelector,
