@@ -6,6 +6,7 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 
 import { InMemoryCacheWithRevisions } from "../cache";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
+import { toPosixRelative } from "../utils";
 import {
   KaiUserInteractionMessage,
   KaiWorkflowMessageType,
@@ -91,7 +92,7 @@ export class FileSystemTools extends KaiWorkflowEventEmitter {
           const dirEntries = await fs.readdir(dir, { withFileTypes: true });
           for (const entry of dirEntries) {
             const absPath = pathlib.join(dir, entry.name);
-            const relPath = pathlib.relative(workspaceDir, absPath);
+            const relPath = toPosixRelative(workspaceDir, absPath);
             if (entry.isDirectory()) {
               await recurse(absPath);
             } else if (

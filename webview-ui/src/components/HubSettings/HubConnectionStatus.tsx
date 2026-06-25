@@ -33,6 +33,10 @@ function formatRelativeTime(epochMs: number): string {
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(minutes / 60);
 
+  if (hours >= 24) {
+    const date = new Date(epochMs);
+    return `on ${date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
+  }
   if (hours > 0) {
     return `in ${hours}h ${minutes % 60}m`;
   }
