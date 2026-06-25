@@ -45,7 +45,7 @@ async function globalSetup() {
   const repoUrl = process.env.TEST_REPO_URL ?? getRepoUrl(repoName);
   const language = getRepoLanguage(repoName);
   const isJava = needsJavaInitialization(language);
-  console.log(`Running global setup... (language: ${language}, Java init: ${isJava})`);
+  console.log(`Running global setup... (language: ${language}, Java init: ${isJava}), OS: ${getOSInfo()}`);
 
   // Install extensions from VSIX if provided (VSCode Desktop only, not on devspaces)
   console.log(process.env.WEB_ENV);

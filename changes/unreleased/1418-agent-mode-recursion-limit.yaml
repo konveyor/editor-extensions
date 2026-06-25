@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Agent-mode workflow no longer hits the LangGraph recursion limit on small
+  incident sets. Raises the analysis-fix recursion floor and breaks a router
+  self-loop that ran when no additional information accumulated.

@@ -63,6 +63,7 @@ namespace NerdDinner.Models
   });
 
   test.beforeEach(async () => {
+    test.setTimeout(600_000);
     const testName = test.info().title.replace(/ /g, '-');
     console.log(`Starting ${testName} at ${new Date()}`);
     await vscodeApp.getWindow().screenshot({

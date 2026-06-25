@@ -20,33 +20,33 @@ describe("searchFilesTool", () => {
     //TODO (pgaikwad) - do this better
     const tool = fsToolsFactory.all()[0];
 
+    // searchFiles normalizes paths to POSIX separators so output is OS-stable (#1425).
+    const appProps = "src/main/resources/application.properties";
+
     const tc1 = await tool.invoke({
       pattern: "application\\.properties",
     });
-    expect(tc1).toBe(pathlib.join("src", "main", "resources", "application.properties"));
+    expect(tc1).toBe(appProps);
 
     const tc2 = await tool.invoke({
       pattern: "application.properties",
     });
-    expect(tc2).toBe(pathlib.join("src", "main", "resources", "application.properties"));
+    expect(tc2).toBe(appProps);
 
     const tc3 = await tool.invoke({
       pattern: ".*application.*",
     });
-    expect(tc3).toBe(pathlib.join("src", "main", "resources", "application.properties"));
+    expect(tc3).toBe(appProps);
 
     const tc4 = await tool.invoke({
       pattern: ".*.java",
     });
-    const e1 = pathlib.join("src", "main", "java", "io", "example", "lib", "A.java");
-    const e2 = pathlib.join("src", "main", "java", "io", "example", "utils", "B.java");
-    expect(tc4).toBe(`${e1}\n${e2}`);
+    expect(tc4).toBe("src/main/java/io/example/lib/A.java\nsrc/main/java/io/example/utils/B.java");
 
     // ISSUE-806: when a model passes a relative path as pattern, it should match
     const tc5 = await tool.invoke({
-      pattern: pathlib.join("src", "main", "java", "io", "example", "lib", "A.java"),
+      pattern: "src/main/java/io/example/lib/A.java",
     });
-    const tc5_expected = pathlib.join("src", "main", "java", "io", "example", "lib", "A.java");
-    expect(tc5).toBe(tc5_expected);
+    expect(tc5).toBe("src/main/java/io/example/lib/A.java");
   });
 });
