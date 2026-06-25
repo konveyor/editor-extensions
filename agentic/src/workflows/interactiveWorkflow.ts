@@ -1,4 +1,3 @@
-import * as pathlib from "path";
 import { Logger } from "winston";
 import { createHash } from "crypto";
 import { EnhancedIncident } from "@editor-extensions/shared";
@@ -22,7 +21,7 @@ import {
   SummarizeHistoryOutputState,
   AnalysisIssueFixOutputState,
 } from "../schemas/analysisIssueFix";
-import { fileUriToPath } from "../utils";
+import { fileUriToPath, toPosixRelative } from "../utils";
 import { FileSystemTools } from "../tools/filesystem";
 import { KaiWorkflowEventEmitter } from "../eventEmitter";
 import { AnalysisIssueFix } from "../nodes/analysisIssueFix";
@@ -279,12 +278,12 @@ export class KaiInteractiveWorkflow
 
     // first run the analysis fix workflow
     const analysisFixOutputState = (await this.analysisFixWorkflow.invoke(graphInput, {
-      recursionLimit: incidentsByUris.length * 2 + 10,
+      recursionLimit: Math.max(50, incidentsByUris.length * 4 + 20),
     })) as typeof AnalysisWorkflowOutputState.State;
 
     let shouldAddressAdditionalInfo = false;
     // if there is any additional information spit by analysis workflow, capture that
-    const additionalInformation: string = analysisFixOutputState.summarizedAdditionalInfo;
+    const additionalInformation = analysisFixOutputState.summarizedAdditionalInfo ?? "";
     if (
       input.enableAgentMode &&
       additionalInformation.length > 0 &&
@@ -438,13 +437,15 @@ export class KaiInteractiveWorkflow
       } else if (state.inputAllAdditionalInfo) {
         this.logger.debug(`Going to summarize additional information only`);
         return "summarize_additional_information";
-      } else {
-        // Additional information is enabled but not accumulated yet
-        // This means we need to go back to router to continue processing
+      } else if (state.currentIdx < state.inputIncidentsByUris.length) {
         this.logger.debug(
           `Additional info enabled but not accumulated, going to fix_analysis_issue_router`,
         );
         return "fix_analysis_issue_router";
+      } else {
+        // All incidents processed but nothing accumulated; ending so we don't self-loop.
+        this.logger.warn("Agent mode produced no additional information; ending analysis workflow");
+        return END;
       }
     }
     return END;
@@ -517,12 +518,13 @@ export class KaiInteractiveWorkflow
   private createIncidentsHash(
     incidentsByUris: Array<{ uri: string; incidents: EnhancedIncident[] }>,
   ): string {
+    // Hash content must be byte-identical across OSes or Windows misses Linux-built caches (#1425).
     const dataString = incidentsByUris
       .map(({ uri, incidents }) => {
         const incidentsData = incidents
           .map((incident) => ({
             lineNumber: incident.lineNumber,
-            uri: pathlib.relative(this.workspaceDir, fileUriToPath(incident.uri)),
+            uri: toPosixRelative(this.workspaceDir, fileUriToPath(incident.uri)),
             message: incident.message,
             violationId: incident.violationId,
             ruleset_name: incident.ruleset_name,
@@ -535,7 +537,7 @@ export class KaiInteractiveWorkflow
           });
 
         return {
-          uri: pathlib.relative(this.workspaceDir, fileUriToPath(uri)),
+          uri: toPosixRelative(this.workspaceDir, fileUriToPath(uri)),
           incidents: incidentsData,
         };
       })

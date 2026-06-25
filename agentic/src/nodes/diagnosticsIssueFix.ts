@@ -1,4 +1,3 @@
-import * as pathlib from "path";
 import { Logger } from "winston";
 import {
   type AIMessageChunk,
@@ -10,7 +9,7 @@ import {
 } from "@langchain/core/messages";
 import { type DynamicStructuredTool } from "@langchain/core/tools";
 
-import { getCacheKey } from "../utils";
+import { getCacheKey, toPosixRelative } from "../utils";
 import {
   type KaiModelProvider,
   type KaiUserInteractionMessage,
@@ -208,7 +207,7 @@ export class DiagnosticsIssueFix extends BaseNode {
             nextState.inputInstructionsForGeneralFix = instructions;
             nextState.inputUrisForGeneralFix =
               state.currentTask && state.currentTask.uri
-                ? [pathlib.relative(this.workspaceDir, state.currentTask.uri)]
+                ? [toPosixRelative(this.workspaceDir, state.currentTask.uri)]
                 : undefined;
             nextState.currentAgent = name;
             break;
