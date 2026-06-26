@@ -12,10 +12,12 @@ import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { ProfilePage } from '../../pages/profile.page';
 
 // Affected by https://github.com/konveyor/kai/issues/928
 test.describe.serial('C# Extension - Analysis & Kai Integration', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   const randomString = generateRandomString();
   const profileName = `csharp-e2e-${randomString}`;
   let repoInfo: RepoData[string];
@@ -58,6 +60,7 @@ namespace NerdDinner.Models
       throw new Error("'nerd-dinner' fixture is missing from test-repos.json");
     }
     vscodeApp = await VSCodeFactory.openForRepo(repoInfo);
+    profilePage = new ProfilePage(vscodeApp);
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
   });
@@ -72,7 +75,7 @@ namespace NerdDinner.Models
   });
 
   test('Create profile with migration rulesets', async () => {
-    await vscodeApp.createProfile(
+    await profilePage.create(
       repoInfo.sources,
       repoInfo.targets,
       profileName,
@@ -177,7 +180,7 @@ namespace NerdDinner.Models
   });
 
   test('Delete profile', async () => {
-    await vscodeApp.deleteProfile(profileName);
+    await profilePage.delete(profileName);
     console.log(`Profile deleted: ${profileName}`);
   });
 

@@ -13,6 +13,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
+import { ProfilePage } from '../../pages/profile.page';
 /**
  * Automates https://github.com/konveyor/kai/issues/798
  * Tests that fixes applied by the LLM do not unintentionally revert .
@@ -24,6 +25,7 @@ import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemu
 getAvailableProviders().forEach((provider) => {
   test.describe(`LLM Revertion tests | ${provider.model}`, { tag: ['@tier3'] }, () => {
     let vscodeApp: VSCode;
+    let profilePage: ProfilePage;
     const profileName = `llm-reversion-${generateRandomString()}`;
     let repoInfo: RepoData[string];
     const memberFileUri = path.resolve(
@@ -76,7 +78,8 @@ getAvailableProviders().forEach((provider) => {
 
       repoInfo = testRepoData['jboss-eap-quickstarts'];
       vscodeApp = await VSCodeFactory.open(repoInfo);
-      await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+      profilePage = new ProfilePage(vscodeApp);
+      await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
       await vscodeApp.configureGenerativeAI(provider.config);
       await vscodeApp.startServer();
     });

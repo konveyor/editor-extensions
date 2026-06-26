@@ -18,11 +18,13 @@ import {
 } from '../../fixtures/provider-configs.fixture';
 import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
+import { ProfilePage } from '../../pages/profile.page';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
 test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   let tabManager: TabManager;
   const profileName = `plugins-settings-${generateRandomString()}`;
 
@@ -105,7 +107,8 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
 
     const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.init(repoInfo);
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    profilePage = new ProfilePage(vscodeApp);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
     await vscodeApp.configureGenerativeAI(getDefaultProviderConfig().config);
     await vscodeApp.waitDefault();
     tabManager = new TabManager(vscodeApp);

@@ -6,6 +6,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
 import { SCREENSHOTS_FOLDER, SEC } from '../../utilities/consts';
 import pathlib from 'path';
+import { ProfilePage } from '../../pages/profile.page';
 
 test.describe(
   'Profile Sync Tests',
@@ -15,6 +16,7 @@ test.describe(
   () => {
     test.setTimeout(600000);
     let vscodeApp: VSCode;
+    let profilePage: ProfilePage;
 
     /**
      * This test assumes an analysis profile named "Coolstore" exists in the hub
@@ -23,8 +25,9 @@ test.describe(
       test.setTimeout(600_000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo);
+      profilePage = new ProfilePage(vscodeApp);
       // Create a local profile before enabling profile sync
-      await vscodeApp.createProfile([], ['camel'], `Local Profile-${generateRandomString()}`);
+      await profilePage.create([], ['camel'], `Local Profile-${generateRandomString()}`);
       console.log('Created local profile "Local Profile"');
     });
 

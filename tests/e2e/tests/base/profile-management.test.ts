@@ -1,7 +1,7 @@
 import { expect, test } from '../../fixtures/test-repo-fixture';
 import { VSCode } from '../../pages/vscode.page';
+import { ProfilePage } from '../../pages/profile.page';
 import { generateRandomString } from '../../utilities/utils';
-import { KAIViews } from '../../enums/views.enum';
 import { FrameLocator } from 'playwright';
 import { ProfileActions } from '../../enums/profile-action-types.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
@@ -10,6 +10,7 @@ import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 
 test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   const profileNameWithRules = `profileRules-${generateRandomString()}`;
   const createdProfiles: string[] = [];
   let profileView: FrameLocator;
@@ -19,11 +20,12 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
     test.setTimeout(600000);
     const repoInfo = testRepoData['inventory_management'];
     vscodeApp = await VSCodeFactory.init(repoInfo);
-    await vscodeApp.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Manage Analysis Profile`);
+    profilePage = new ProfilePage(vscodeApp);
+    await profilePage.openManageProfiles();
   });
 
   test.beforeEach(async () => {
-    profileView = await vscodeApp.getView(KAIViews.manageProfiles);
+    profileView = await profilePage.getView();
     test.setTimeout(600_000);
     const testName = test.info().title.replace(/ /g, '-');
     console.log(`Starting ${testName} at ${new Date()}`);
@@ -34,7 +36,7 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
 
   test('Create empty Profile', async () => {
     const emptyProfileName = `emptyprofile-${generateRandomString()}`;
-    await vscodeApp.createProfile([], [], emptyProfileName);
+    await profilePage.create([], [], emptyProfileName);
     await expect(profileView.getByText('Fix validation errors before continuing.')).toBeVisible();
     createdProfiles.push(emptyProfileName);
   });
@@ -42,7 +44,7 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
   test('Create Profile and Set Sources targets and custom rules', async ({ testRepoData }) => {
     const repoInfo = testRepoData['inventory_management'];
     expect(repoInfo.customRulesFolder).toBeDefined();
-    await vscodeApp.createProfile(
+    await profilePage.create(
       repoInfo.sources,
       repoInfo.targets,
       profileNameWithRules,
@@ -82,7 +84,7 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
 
   test('Duplicate Profile using action button', async ({ testRepoData }) => {
     const profileToDuplicate = await getOrCreateProfile(testRepoData);
-    await vscodeApp.doProfileMenuButtonAction(
+    await profilePage.doMenuAction(
       profileToDuplicate,
       ProfileActions.duplicateProfile,
       profileView
@@ -100,10 +102,10 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
 
   test('Remove Custom Rules from profile ', async ({ testRepoData }) => {
     if (createdProfiles.includes(profileNameWithRules)) {
-      await vscodeApp.removeProfileCustomRules(profileNameWithRules, profileView);
+      await profilePage.removeCustomRules(profileNameWithRules, profileView);
     } else {
       const nameToUse = await getOrCreateProfile(testRepoData, true);
-      await vscodeApp.removeProfileCustomRules(`${nameToUse} (active)`, profileView);
+      await profilePage.removeCustomRules(`${nameToUse} (active)`, profileView);
     }
   });
 
@@ -111,22 +113,21 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
     test.setTimeout(300000);
     const toDelete = await getOrCreateProfile(testRepoData);
     createdProfiles.pop();
-    await vscodeApp.deleteProfile(toDelete);
+    await profilePage.delete(toDelete);
   });
 
   test.afterAll(async () => {
     for (const profileStr of createdProfiles) {
-      await vscodeApp.deleteProfile(profileStr);
+      await profilePage.delete(profileStr);
     }
   });
 
   async function verifyActiveByButton(
-    vscodeApp: VSCode,
     profileView: FrameLocator,
     profileName: string,
     shouldBeActive: boolean
   ) {
-    await vscodeApp.clickOnProfileContainer(profileName, profileView);
+    await profilePage.clickOnContainer(profileName, profileView);
 
     if (shouldBeActive) {
       await expect(profileView.getByRole('button', { name: 'Active Profile' })).toBeVisible();
@@ -151,13 +152,12 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
   }
 
   async function verifyProfileIsActive(
-    vscodeApp: VSCode,
     profileView: FrameLocator,
     profileName: string,
     shouldBeActive: boolean
   ) {
     await verifyActiveByList(profileView, profileName, shouldBeActive);
-    await verifyActiveByButton(vscodeApp, profileView, profileName, shouldBeActive);
+    await verifyActiveByButton(profileView, profileName, shouldBeActive);
   }
 
   // Verifies the profile activation flow:
@@ -169,27 +169,23 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
     const profile1 = `profile1-${generateRandomString()}`;
     const profile2 = `profile2-${generateRandomString()}`;
 
-    await vscodeApp.createProfile([], [], profile1);
+    await profilePage.create([], [], profile1);
     createdProfiles.push(profile1);
-    await verifyProfileIsActive(vscodeApp, profileView, profile1, true);
+    await verifyProfileIsActive(profileView, profile1, true);
 
     //Create second profile and verify activation swapped
-    await vscodeApp.createProfile([], [], profile2);
+    await profilePage.create([], [], profile2);
     createdProfiles.push(profile2);
     await verifyActiveByList(profileView, profile1, false);
-    await verifyProfileIsActive(vscodeApp, profileView, profile2, true);
+    await verifyProfileIsActive(profileView, profile2, true);
 
     if (activateByActionButton) {
-      await vscodeApp.doProfileMenuButtonAction(
-        profile1,
-        ProfileActions.activateProfile,
-        profileView
-      );
+      await profilePage.doMenuAction(profile1, ProfileActions.activateProfile, profileView);
     } else {
-      await vscodeApp.activateProfile(profile1);
+      await profilePage.activate(profile1);
     }
 
-    await verifyProfileIsActive(vscodeApp, profileView, profile1, true);
+    await verifyProfileIsActive(profileView, profile1, true);
 
     console.log('Verified profile activation flow successfully');
   }
@@ -205,7 +201,7 @@ test.describe(`Profile Tests`, { tag: ['@tier2'] }, () => {
 
     const newProfile = `${profileNamePrefix}-${generateRandomString()}`;
     const customRules = withCustomRules ? repoInfo.customRulesFolder : undefined;
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, newProfile, customRules);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, newProfile, customRules);
     createdProfiles.push(newProfile);
     return newProfile;
   }

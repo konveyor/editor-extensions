@@ -7,6 +7,7 @@ import { Configuration } from '../../pages/configuration.page';
 import { KAIViews } from '../../enums/views.enum';
 import { analyzerPath } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { ProfilePage } from '../../pages/profile.page';
 
 /**
  * This test executes an analysis on the coolstore app using a custom analyzer binary.
@@ -16,6 +17,7 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
  */
 test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@tier3'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   const randomString = generateRandomString();
   const profileName = `custom-binary-analysis-${randomString}`;
   let binaryPath: string | undefined;
@@ -55,7 +57,8 @@ test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@
     console.log(`Custom analyzer path found in ${binaryPath}`);
     const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.open(repoInfo);
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    profilePage = new ProfilePage(vscodeApp);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
   });
 
   test("Use a non-existing path and verify the server doesn't start", async () => {
@@ -85,7 +88,7 @@ test.describe.serial('Override the analyzer binary and run analysis', { tag: ['@
   test.afterAll(async () => {
     const configPage = await Configuration.open(vscodeApp);
     await configPage.setInputConfiguration(analyzerPath, '');
-    await vscodeApp.deleteProfile(profileName);
+    await profilePage.delete(profileName);
     await vscodeApp.closeVSCode();
   });
 });

@@ -4,6 +4,7 @@ import { HubConfigurationPage } from '../../pages/hub-configuration.page';
 import { generateRandomString, getHubConfig } from '../../utilities/utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { KAIViews } from '../../enums/views.enum';
+import { ProfilePage } from '../../pages/profile.page';
 
 /**
  * Tests for Hub Configuration Persistence
@@ -25,13 +26,15 @@ test.describe(
   () => {
     test.setTimeout(300000);
     let vscodeApp: VSCode;
+    let profilePage: ProfilePage;
 
     test.beforeAll(async ({ testRepoData }) => {
       test.setTimeout(300000);
       const repoInfo = testRepoData['coolstore'];
       vscodeApp = await VSCodeFactory.init(repoInfo);
+      profilePage = new ProfilePage(vscodeApp);
       // Create a local profile before configuring hub configuration
-      await vscodeApp.createProfile([], ['camel'], `Local Profile-${generateRandomString()}`);
+      await profilePage.create([], ['camel'], `Local Profile-${generateRandomString()}`);
       console.log('Created local profile "Local Profile"');
     });
 
