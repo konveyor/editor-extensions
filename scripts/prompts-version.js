@@ -5,8 +5,9 @@
 //   - every template/partial on disk is declared in prompts/manifest.yaml (and vice-versa)
 //   - content checksums in the manifest match the files on disk (drift detection)
 //   - every Handlebars template + partial parses (syntactic verification)
-//   - declared variables actually appear in their template, and no leftover
-//     `${...}` JS interpolation escaped into a template asset
+//   - declared variables actually appear in their template, every top-level
+//     variable the template references is declared, and no leftover `${...}` JS
+//     interpolation escaped into a template asset
 //
 // Usage:
 //   node scripts/prompts-version.js check     # CI gate (exits non-zero on any problem)
@@ -51,6 +52,73 @@ function loadManifest() {
 
 function allEntries(manifest) {
   return [...(manifest.templates ?? []), ...(manifest.partials ?? [])];
+}
+
+// Helper names that are not variables (registry helpers + Handlebars built-ins).
+const KNOWN_HELPERS = new Set([
+  "lower",
+  "eq",
+  "or",
+  "if",
+  "unless",
+  "each",
+  "with",
+  "lookup",
+  "log",
+]);
+
+// Collect the top-level (root-context) variables a template references, so we can
+// flag any that aren't declared in the manifest. Walks the Handlebars AST and
+// skips: helper names, `@data` vars (@first/@last/...), `this`, `../` parent
+// paths, and identifiers resolved inside an {{#each}}/{{#with}} block (those are
+// properties of the iterated item, not template variables).
+function collectReferencedVars(src) {
+  const refs = new Set();
+
+  const addPath = (node, ctxDepth) => {
+    if (!node || node.type !== "PathExpression" || node.data || node.depth > 0) {
+      return;
+    }
+    const first = node.parts[0];
+    if (first && first !== "this" && ctxDepth === 0 && !KNOWN_HELPERS.has(first)) {
+      refs.add(first);
+    }
+  };
+  const walkExpr = (node, ctxDepth) => {
+    if (!node) {
+      return;
+    }
+    if (node.type === "PathExpression") {
+      addPath(node, ctxDepth);
+    } else if (node.type === "SubExpression") {
+      node.params.forEach((p) => walkExpr(p, ctxDepth));
+    }
+  };
+  const walkProgram = (program, ctxDepth) => {
+    for (const node of program.body) {
+      if (node.type === "MustacheStatement") {
+        // `{{helper arg}}` -> path is a helper; `{{var}}` -> path is a variable.
+        if (node.params.length > 0) {
+          node.params.forEach((p) => walkExpr(p, ctxDepth));
+        } else {
+          addPath(node.path, ctxDepth);
+        }
+      } else if (node.type === "BlockStatement") {
+        node.params.forEach((p) => walkExpr(p, ctxDepth));
+        const helper = node.path.parts[0];
+        const childDepth = helper === "each" || helper === "with" ? ctxDepth + 1 : ctxDepth;
+        if (node.program) {
+          walkProgram(node.program, childDepth);
+        }
+        if (node.inverse) {
+          walkProgram(node.inverse, ctxDepth);
+        }
+      }
+    }
+  };
+
+  walkProgram(Handlebars.parse(src), 0);
+  return refs;
 }
 
 function check() {
@@ -123,12 +191,30 @@ function check() {
 
     // Declared variables must actually be referenced inside a Handlebars tag
     // (`{{ ... }}`) — a substring match would pass on a plain-text mention.
+    const declaredVars = new Set(entry.variables ?? []);
     const tags = src.match(/{{[^}]*}}/g) ?? [];
-    for (const variable of entry.variables ?? []) {
+    for (const variable of declaredVars) {
       const token = new RegExp(`\\b${variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
       if (!tags.some((tag) => token.test(tag))) {
         problems.push(
           `Declared variable "${variable}" is not referenced in a {{...}} tag in ${entry.id} (${entry.path}).`,
+        );
+      }
+    }
+
+    // ...and the reverse: every top-level variable the template references must be
+    // declared. Catches a typo like `{{migrationHnt}}` that would otherwise render
+    // empty and pass CI. (Skipped if parsing failed — already reported above.)
+    let referenced;
+    try {
+      referenced = collectReferencedVars(src);
+    } catch {
+      referenced = new Set();
+    }
+    for (const ref of referenced) {
+      if (!declaredVars.has(ref) && !partialIds.has(ref)) {
+        problems.push(
+          `Variable "${ref}" is used in ${entry.id} (${entry.path}) but not declared in manifest.yaml.`,
         );
       }
     }
@@ -154,7 +240,17 @@ function update() {
   const manifest = loadManifest();
   for (const entry of allEntries(manifest)) {
     const abs = join(PROMPTS_DIR, entry.path);
-    entry.checksum = sha256(readFileSync(abs, "utf8"));
+    let src;
+    try {
+      src = readFileSync(abs, "utf8");
+    } catch (err) {
+      console.error(
+        `Cannot update checksum for ${entry.id}: ${entry.path} could not be read ` +
+          `(${err.code ?? err.message}). Fix the manifest path or restore the file.`,
+      );
+      process.exit(1);
+    }
+    entry.checksum = sha256(src);
   }
   writeFileSync(
     MANIFEST_PATH,

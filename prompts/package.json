@@ -32,7 +32,7 @@
     "*.{json,yaml,yml}": "prettier --write"
   },
   "dependencies": {
-    "handlebars": "^4.7.8"
+    "handlebars": "4.7.8"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

@@ -24,8 +24,64 @@ for (const [name, source] of Object.entries(partialSources)) {
 
 const compiled = new Map<PromptId, Handlebars.TemplateDelegate>();
 
+// The exact set of variables each prompt requires. Keys are enforced at the call
+// site, so a typo (`programmingLangage`) or a missing/extra key is a compile-time
+// error rather than a silently-empty render. Values are `unknown` because
+// Handlebars stringifies whatever it is given.
+type VarContext<K extends string> = { readonly [P in K]: unknown };
+
+export interface PromptContexts {
+  "agentic.analysis.fix-issue.system": VarContext<"programmingLanguage" | "migrationHint">;
+  "agentic.analysis.fix-issue.human": VarContext<
+    | "programmingLanguage"
+    | "migrationHint"
+    | "fileName"
+    | "inputFileContent"
+    | "inputIncidents"
+    | "hints"
+  >;
+  "agentic.analysis.summarize-additional-info.system": VarContext<
+    "programmingLanguage" | "migrationHint"
+  >;
+  "agentic.analysis.summarize-additional-info.human": VarContext<
+    "migrationHint" | "inputAllModifiedFiles" | "inputAllReasoning" | "inputAllAdditionalInfo"
+  >;
+  "agentic.analysis.summarize-history.system": VarContext<"programmingLanguage" | "migrationHint">;
+  "agentic.analysis.summarize-history.human": VarContext<"migrationHint" | "inputAllReasoning">;
+  "agentic.diagnostics.plan-fixes.system": VarContext<"programmingLanguage" | "migrationHint">;
+  "agentic.diagnostics.plan-fixes.human": VarContext<
+    "agents" | "subAgents" | "plannerInputTasksUri" | "tasks" | "background"
+  >;
+  "agentic.diagnostics.fix-general.system": VarContext<"programmingLanguage" | "migrationHint">;
+  "agentic.diagnostics.fix-general.human": VarContext<
+    "inputInstructionsForGeneralFix" | "inputUrisForGeneralFix"
+  >;
+  "agentic.diagnostics.fix-java-deps.system": VarContext<"migrationHint">;
+  "agentic.diagnostics.fix-java-deps.human": VarContext<
+    "inputInstructionsForGeneralFix" | "inputUrisForGeneralFix"
+  >;
+  "agentic.tools.instructions": VarContext<"tools">;
+  "single-shot.continue-quick-action": VarContext<
+    | "extensionShortName"
+    | "ruleset_name"
+    | "ruleset_description"
+    | "violation_name"
+    | "violation_description"
+    | "violation_category"
+    | "message"
+  >;
+  "operational.model-health-check.system": Record<string, never>;
+  "operational.model-health-check.human": Record<string, never>;
+}
+
+// Compile-time guard: every PromptId must have a context entry above, so this map
+// can't drift out of sync with the template registry.
+type _ContextsCoverAllPrompts = PromptId extends keyof PromptContexts ? true : never;
+const _contextsComplete: _ContextsCoverAllPrompts = true;
+void _contextsComplete;
+
 /** Render a governed Handlebars prompt template to its final string. */
-export function renderPrompt(id: PromptId, context: Record<string, unknown> = {}): string {
+export function renderPrompt<K extends PromptId>(id: K, context: PromptContexts[K]): string {
   let template = compiled.get(id);
   if (!template) {
     const source = templateSources[id];

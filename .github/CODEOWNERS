@@ -6,4 +6,6 @@
 # See PROMPT_GOVERNANCE.md.
 /prompts/ @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
 /scripts/prompts-version.js @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
+/PROMPT_GOVERNANCE.md @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
+/.github/workflows/prompt-validation.yml @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
 
