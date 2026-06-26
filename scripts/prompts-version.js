@@ -126,6 +126,16 @@ function check() {
   const entries = allEntries(manifest);
   const problems = [];
 
+  // The prompt-set version must stay in lockstep with the package version so
+  // release metadata can't drift (see PROMPT_GOVERNANCE.md).
+  const pkgVersion = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
+  if (manifest.version !== pkgVersion) {
+    problems.push(
+      `Prompt-set version (${manifest.version}) does not match the package version ` +
+        `in package.json (${pkgVersion}). Keep them in lockstep.`,
+    );
+  }
+
   const onDisk = new Set(walk(TEMPLATES_DIR).map(relPath));
   const declared = new Set(entries.map((e) => e.path));
 
