@@ -13,6 +13,15 @@ All notable changes to the "konveyor" extension pack will be documented in this 
 
 
 
+
+## [0.4.22] - 2026-06-26
+
+### Bug Fixes
+
+- Agent-mode workflow no longer hits the LangGraph recursion limit on small incident sets. Raises the analysis-fix recursion floor and breaks a router self-loop that ran when no additional information accumulated. ([#1418](https://github.com/konveyor/editor-extensions/pull/1418))
+- Demo-mode LLM response cache now resolves on Windows. Workspace-relative paths used in cache keys and prompt content are normalized to POSIX separators, and line endings are normalized when deriving cache keys, so a cache recorded on Linux/macOS (LF) is found on a Windows checkout (CRLF). ([#1425](https://github.com/konveyor/editor-extensions/pull/1425))
+
+
 ## [0.4.20] - 2026-06-19
 
 ### Bug Fixes
