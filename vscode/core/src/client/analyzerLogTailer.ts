@@ -31,7 +31,7 @@ export class AnalyzerLogTailer {
       return;
     }
 
-    this.lastSize = this.getCurrentFileSize();
+    this.lastSize = 0;
     this.buffer = "";
     this.intervalHandle = setInterval(() => this.poll(), this.pollIntervalMs);
   }

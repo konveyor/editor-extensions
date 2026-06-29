@@ -269,11 +269,11 @@ export class AnalyzerClient {
     const LOG_EVERY_N_ATTEMPTS = 10;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      // Abort early if the analyzer process has already exited
-      if (this.analyzerRpcServer && this.analyzerRpcServer.exitCode !== null) {
-        throw new Error(
-          `Analyzer process exited with code ${this.analyzerRpcServer.exitCode} before the pipe became available.`,
-        );
+      // Abort early if the analyzer process has already exited.
+      // The exit/close/error handlers set this.analyzerRpcServer to null,
+      // so a null check catches the case where the process exited during a retry delay.
+      if (!this.analyzerRpcServer || this.analyzerRpcServer.exitCode !== null) {
+        throw new Error("Analyzer process exited before the pipe became available.");
       }
 
       const s = new Socket();
@@ -371,7 +371,13 @@ export class AnalyzerClient {
 
     analyzerRpcServer.stderr.on("data", (data) => {
       const msg = data.toString().trimEnd();
-      if (msg) {
+      if (!msg) {
+        return;
+      }
+      // Progress JSON (from -progress-output stderr) stays at debug level
+      if (msg.includes('"stage"')) {
+        this.logger.debug(`[analyzer-rpc-server stderr] ${msg}`);
+      } else {
         this.logger.warn(`[analyzer-rpc-server stderr] ${msg}`);
       }
     });
