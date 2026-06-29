@@ -45,7 +45,8 @@
   ],
   "contributes": {},
   "includedAssetPaths": {
-    "nodejsExternalProvider": "../../downloaded_assets/nodejs-external-provider"
+    "nodejsExternalProvider": "../../downloaded_assets/nodejs-external-provider",
+    "rulesets": "../../downloaded_assets/rulesets-nodejs"
   },
   "scripts": {
     "clean": "rimraf out",

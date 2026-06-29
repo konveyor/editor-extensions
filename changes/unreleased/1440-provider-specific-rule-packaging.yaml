@@ -1,0 +1,4 @@
+kind: enhancement
+description: >
+  Each language extension now bundles and supplies its own stable rulesets
+  instead of all rulesets being bundled in the core extension.

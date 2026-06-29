@@ -8,6 +8,7 @@ import { OPENAI_GPT4O_PROVIDER } from '../fixtures/provider-configs.fixture';
 import { KAIViews } from '../enums/views.enum';
 import * as VSCodeFactory from '../utilities/vscode.factory';
 import { verifyAnalysisViewCleanState } from '../utilities/utils';
+import { ProfilePage } from '../pages/profile.page';
 
 // NOTE: This is the list of providers that have cached data for the coolstore app
 // Update this list when you create cache for a new provider, you probably don't need
@@ -23,6 +24,7 @@ providers.forEach((config) => {
     { tag: ['@tier0', '@offline'] },
     () => {
       let vscodeApp: VSCode;
+      let profilePage: ProfilePage;
       test.fixme(
         getOSInfo() === 'windows',
         'This test is affected by https://github.com/konveyor/editor-extensions/issues/1425 on Windows'
@@ -35,6 +37,7 @@ providers.forEach((config) => {
         // prepareOffline=true extracts LLM cache and sets demoMode/cacheDir BEFORE VS Code launches
         // This ensures the extension can use cached healthcheck data during initial activation
         vscodeApp = await VSCodeFactory.init(repoInfo, true);
+        profilePage = new ProfilePage(vscodeApp);
 
         // Wait for extension initialization
         // Both redhat.java and konveyor-java extensions will activate automatically
@@ -44,11 +47,11 @@ providers.forEach((config) => {
         }
 
         try {
-          await vscodeApp.deleteProfile(profileName);
+          await profilePage.delete(profileName);
         } catch {
           console.log(`An existing profile probably doesn't exist, creating a new one`);
         }
-        await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+        await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
 
         await vscodeApp.configureGenerativeAI(config.config);
         await vscodeApp.startServer();

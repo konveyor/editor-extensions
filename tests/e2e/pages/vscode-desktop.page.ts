@@ -252,7 +252,7 @@ export class VSCodeDesktop extends VSCode {
     }
   }
 
-  protected async selectCustomRules(customRulesPath: string) {
+  public async selectCustomRules(customRulesPath: string) {
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     console.log(`Selecting custom rules from: ${customRulesPath}`);
 

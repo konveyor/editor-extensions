@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import { KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
+import {
+  KonveyorCoreApi,
+  generateSafePipeName,
+  getIncludedRulesetsPath,
+} from "@editor-extensions/shared";
 import {
   CORE_EXTENSION_ID,
   EXTENSION_DISPLAY_NAME,
@@ -355,10 +359,7 @@ async function initializeProviders(
       ],
       contextLines: 10,
     },
-    rulesetsPaths: [
-      // In Phase 1, rulesets are still in core extension
-      // Will be moved to java extension in later phase
-    ],
+    rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
   });
 
   context.subscriptions.push(providerDisposable);
