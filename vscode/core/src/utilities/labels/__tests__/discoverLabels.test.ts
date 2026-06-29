@@ -16,12 +16,12 @@ describe("discoverLabels", () => {
   });
 
   it("should return empty arrays when directory does not exist", async () => {
-    const result = await discoverLabels(path.join(tempDir, "nonexistent"));
+    const result = await discoverLabels([path.join(tempDir, "nonexistent")]);
     expect(result).toEqual({ targets: [], sources: [] });
   });
 
   it("should return empty arrays when directory has no yaml files", async () => {
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result).toEqual({ targets: [], sources: [] });
   });
 
@@ -34,7 +34,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["quarkus"]);
     expect(result.sources).toEqual(["java-ee"]);
   });
@@ -55,7 +55,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["quarkus"]);
     expect(result.sources).toEqual(["eap", "java-ee"]);
   });
@@ -71,7 +71,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["spring-boot3+", "spring6+"]);
     expect(result.sources).toEqual(["eap7.0-", "spring-boot2"]);
   });
@@ -86,7 +86,7 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["azure-aks", "eap8", "quarkus"]);
   });
 
@@ -100,27 +100,80 @@ describe("discoverLabels", () => {
 `,
     );
 
-    const result = await discoverLabels(tempDir);
+    const result = await discoverLabels([tempDir]);
     expect(result.targets).toEqual(["spring-boot3+"]);
+  });
+
+  it("should merge labels from multiple directories", async () => {
+    const dir1 = path.join(tempDir, "java-rules");
+    const dir2 = path.join(tempDir, "nodejs-rules");
+    await fs.mkdir(dir1, { recursive: true });
+    await fs.mkdir(dir2, { recursive: true });
+
+    await fs.writeFile(
+      path.join(dir1, "rule.yaml"),
+      `- labels:
+    - konveyor.io/target=quarkus
+    - konveyor.io/source=java-ee
+`,
+    );
+    await fs.writeFile(
+      path.join(dir2, "rule.yaml"),
+      `- labels:
+    - konveyor.io/target=nodejs18+
+    - konveyor.io/source=nodejs16
+`,
+    );
+
+    const result = await discoverLabels([dir1, dir2]);
+    expect(result.targets).toEqual(["nodejs18+", "quarkus"]);
+    expect(result.sources).toEqual(["java-ee", "nodejs16"]);
+  });
+
+  it("should handle mix of existing and non-existent directories", async () => {
+    await fs.writeFile(
+      path.join(tempDir, "rule.yaml"),
+      `- labels:
+    - konveyor.io/target=eap8
+`,
+    );
+
+    const result = await discoverLabels([tempDir, path.join(tempDir, "nonexistent")]);
+    expect(result.targets).toEqual(["eap8"]);
+    expect(result.sources).toEqual([]);
+  });
+
+  it("should return empty arrays for empty input", async () => {
+    const result = await discoverLabels([]);
+    expect(result).toEqual({ targets: [], sources: [] });
   });
 });
 
 describe("discoverLabels against real rulesets", () => {
-  const rulesetsDir = path.resolve(__dirname, "../../../../../../downloaded_assets/rulesets");
+  const assetsDir = path.resolve(__dirname, "../../../../../../downloaded_assets");
+  const rulesetsDirs = [
+    path.join(assetsDir, "rulesets"),
+    path.join(assetsDir, "rulesets-java"),
+    path.join(assetsDir, "rulesets-nodejs"),
+    path.join(assetsDir, "rulesets-dotnet"),
+    path.join(assetsDir, "rulesets-go"),
+  ];
 
-  let rulesetsExist = false;
+  const existingDirs: string[] = [];
 
   before(async () => {
-    try {
-      await fs.access(rulesetsDir);
-      rulesetsExist = true;
-    } catch {
-      rulesetsExist = false;
+    for (const dir of rulesetsDirs) {
+      try {
+        await fs.access(dir);
+        existingDirs.push(dir);
+      } catch {
+        // skip non-existent directories
+      }
     }
   });
 
   it("should discover the same labels as a naive line-by-line scan", async function (this: Mocha.Context) {
-    if (!rulesetsExist) {
+    if (existingDirs.length === 0) {
       this.skip();
     }
 
@@ -131,32 +184,32 @@ describe("discoverLabels against real rulesets", () => {
     const refTargets = new Set<string>();
     const refSources = new Set<string>();
 
-    const dirEntries = await fs.readdir(rulesetsDir, { recursive: true });
-    const yamlFiles = dirEntries
-      .filter((e) => e.endsWith(".yaml"))
-      .map((e) => path.join(rulesetsDir, e));
+    for (const dir of existingDirs) {
+      const dirEntries = await fs.readdir(dir, { recursive: true });
+      const yamlFiles = dirEntries.filter((e) => e.endsWith(".yaml")).map((e) => path.join(dir, e));
 
-    for (const file of yamlFiles) {
-      let content: string;
-      try {
-        content = await fs.readFile(file, "utf-8");
-      } catch {
-        continue; // skip directories or unreadable entries
-      }
-      const lines = content.split("\n");
-      for (const line of lines) {
-        const tm = line.match(TARGET_RE);
-        if (tm) {
-          refTargets.add(tm[1]);
+      for (const file of yamlFiles) {
+        let content: string;
+        try {
+          content = await fs.readFile(file, "utf-8");
+        } catch {
+          continue;
         }
-        const sm = line.match(SOURCE_RE);
-        if (sm) {
-          refSources.add(sm[1]);
+        const lines = content.split("\n");
+        for (const line of lines) {
+          const tm = line.match(TARGET_RE);
+          if (tm) {
+            refTargets.add(tm[1]);
+          }
+          const sm = line.match(SOURCE_RE);
+          if (sm) {
+            refSources.add(sm[1]);
+          }
         }
       }
     }
 
-    const result = await discoverLabels(rulesetsDir);
+    const result = await discoverLabels(existingDirs);
 
     const discoveredTargetSet = new Set(result.targets);
     const discoveredSourceSet = new Set(result.sources);

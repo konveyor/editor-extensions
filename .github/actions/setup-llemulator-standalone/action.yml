@@ -1,5 +1,5 @@
 name: "Setup Llemulator (Standalone)"
-description: "Sets up llemulator for testing without Kubernetes"
+description: "Sets up llemulator for testing without Kubernetes (Linux via Docker, Windows via Go binary)"
 inputs:
   port:
     description: "Port to expose llemulator on"
@@ -8,11 +8,12 @@ inputs:
 outputs:
   llemulator_url:
     description: "URL where llemulator is accessible"
-    value: ${{ steps.start_llemulator.outputs.url }}
+    value: ${{ steps.set_llemulator_output.outputs.url }}
 runs:
   using: "composite"
   steps:
-    - name: Clone and build llemulator
+    - name: Clone and build llemulator (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         echo "=== Cloning llemulator repository ==="
@@ -22,8 +23,8 @@ runs:
         cd /tmp/llemulator
         docker build -t llemulator:local .
 
-    - name: Start llemulator container
-      id: start_llemulator
+    - name: Start llemulator container (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         echo "=== Starting llemulator container ==="
@@ -33,18 +34,18 @@ runs:
           -p ${{ inputs.port }}:8080 \
           llemulator:local
 
-        LLEMULATOR_URL="http://localhost:${{ inputs.port }}/v1"
-        echo "url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
+        LLEMULATOR_URL="http://127.0.0.1:${{ inputs.port }}/v1"
         echo "LLEMULATOR_URL=${LLEMULATOR_URL}" >> $GITHUB_ENV
 
         echo "Llemulator container started on ${LLEMULATOR_URL}"
 
-    - name: Wait for llemulator to be ready
+    - name: Wait for llemulator to be ready (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         echo "=== Waiting for llemulator to be ready ==="
         for i in {1..30}; do
-          if curl -s http://localhost:${{ inputs.port }}/_emulator/script > /dev/null 2>&1; then
+          if curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
             echo "Llemulator is ready"
             break
           fi
@@ -52,20 +53,92 @@ runs:
           sleep 2
         done
 
-        # Verify it's responding
-        if ! curl -s http://localhost:${{ inputs.port }}/_emulator/script > /dev/null 2>&1; then
+        if ! curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
           echo "ERROR: Llemulator failed to start"
           docker logs llemulator
           exit 1
         fi
+
+    - name: Clone and build llemulator (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "=== Cloning llemulator repository ==="
+        $llemulatorDir = "$Env:RUNNER_TEMP\llemulator"
+        if (Test-Path $llemulatorDir) { Remove-Item -Recurse -Force $llemulatorDir }
+        git clone --depth 1 https://github.com/fabianvf/llemulator.git $llemulatorDir
+
+        Write-Host "=== Building llemulator Go binary ==="
+        Set-Location $llemulatorDir
+        go build -o llemulator.exe ./cmd/openai-emulator/
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to build llemulator"
+          exit 1
+        }
+        Write-Host "llemulator.exe built at $llemulatorDir\llemulator.exe"
+        echo "LLEMULATOR_DIR=$llemulatorDir" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Start llemulator process (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "=== Starting llemulator process ==="
+        $llemulatorDir = $Env:LLEMULATOR_DIR
+        $llemulatorExe = Join-Path $llemulatorDir "llemulator.exe"
+
+        $env:PORT = "${{ inputs.port }}"
+        $proc = Start-Process -FilePath $llemulatorExe `
+          -WorkingDirectory $llemulatorDir `
+          -PassThru `
+          -WindowStyle Hidden
+
+        Write-Host "Llemulator started (PID $($proc.Id))"
+        Start-Sleep -Seconds 2
+
+        if ($proc.HasExited) {
+          Write-Host "WARNING: Process exited immediately (exit code $($proc.ExitCode))"
+        } else {
+          Write-Host "Process is running"
+        }
+
+        $LLEMULATOR_URL = "http://localhost:${{ inputs.port }}/v1"
+        echo "LLEMULATOR_URL=$LLEMULATOR_URL" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+
+        Write-Host "Llemulator URL: $LLEMULATOR_URL"
+
+    - name: Wait for llemulator to be ready (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        echo "=== Waiting for llemulator to be ready ==="
+        for i in {1..30}; do
+          if curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+            echo "Llemulator is ready"
+            break
+          fi
+          echo "Waiting for llemulator... ($i/30)"
+          sleep 2
+        done
+
+        if ! curl -s http://127.0.0.1:${{ inputs.port }}/healthz > /dev/null 2>&1; then
+          echo "ERROR: Llemulator failed to start."
+          echo "=== Port check ==="
+          netstat -ano | grep ":${{ inputs.port }}" || echo "Port ${{ inputs.port }} not found"
+          exit 1
+        fi
+
+    - name: Set llemulator output URL
+      id: set_llemulator_output
+      shell: bash
+      run: |
+        echo "url=${LLEMULATOR_URL}" >> $GITHUB_OUTPUT
 
     - name: Configure llemulator with test responses
       shell: bash
       run: |
         echo "=== Configuring llemulator with test responses ==="
 
-        # Configure llemulator with 5 test responses
-        response=$(curl -s -X POST http://localhost:${{ inputs.port }}/_emulator/script \
+        response=$(curl -s -X POST http://127.0.0.1:${{ inputs.port }}/_emulator/script \
           -H "Authorization: Bearer dummy-key-for-llemulator" \
           -H "Content-Type: application/json" \
           -d '{
@@ -93,7 +166,7 @@ runs:
       shell: bash
       run: |
         echo "=== Testing llemulator endpoint ==="
-        RESPONSE=$(curl -s -X POST http://localhost:${{ inputs.port }}/v1/chat/completions \
+        RESPONSE=$(curl -s -X POST http://127.0.0.1:${{ inputs.port }}/v1/chat/completions \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer dummy-key-for-llemulator" \
           -d '{

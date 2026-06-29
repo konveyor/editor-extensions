@@ -11,18 +11,20 @@ import { VSCode } from '../../pages/vscode.page';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { KAIViews } from '../../enums/views.enum';
-import { generateRandomString } from '../../utilities/utils';
+import { generateRandomString, getOSInfo } from '../../utilities/utils';
 import {
   getDefaultProviderConfig,
   LLEMULATOR_PROVIDER,
 } from '../../fixtures/provider-configs.fixture';
 import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
+import { ProfilePage } from '../../pages/profile.page';
 
 const FILES_NAMES = ['CatalogService.java', 'InventoryNotificationMDB.java'];
 
 test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   let tabManager: TabManager;
   const profileName = `plugins-settings-${generateRandomString()}`;
 
@@ -105,7 +107,8 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
 
     const repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.init(repoInfo);
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    profilePage = new ProfilePage(vscodeApp);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
     await vscodeApp.configureGenerativeAI(getDefaultProviderConfig().config);
     await vscodeApp.waitDefault();
     tabManager = new TabManager(vscodeApp);
@@ -122,6 +125,10 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
   });
 
   test('Enable "Analyze on Save" setting', async () => {
+    test.fixme(
+      getOSInfo() === 'windows',
+      'This tests is affected by https://github.com/konveyor/editor-extensions/issues/1423 on Windows'
+    );
     const configurationPage = await Configuration.open(vscodeApp);
     await configurationPage.setEnabledConfiguration(analyzeOnSaveSettingKey, true);
     await vscodeApp.startServer();
@@ -130,6 +137,7 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await tabManager.modifyTabFile(FILES_NAMES[0]);
     await tabManager.saveTabFile(FILES_NAMES[0]);
     await vscodeApp.openAnalysisView();
+
     await vscodeApp.waitForAnalysisCompleted();
     await vscodeApp.setListKindAndSort('files', 'ascending');
     let files = (await vscodeApp.getListNames('files')) as string[];

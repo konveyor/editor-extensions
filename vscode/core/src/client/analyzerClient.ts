@@ -33,6 +33,7 @@ import { Logger } from "winston";
 import { executeExtensionCommand } from "../commands";
 import { ProviderRegistry } from "../api";
 import { AnalyzerLogTailer } from "./analyzerLogTailer";
+import { buildRulesetsList } from "./rulesets";
 
 export class AnalyzerClient {
   // Progress percentage ranges for each stage
@@ -806,10 +807,11 @@ export class AnalyzerClient {
       throw new Error("No active profile configured.");
     }
 
-    const rulesets: string[] = [
-      profile.useDefaultRules ? this.assetPaths.rulesets : null,
-      ...(profile.customRules || []),
-    ].filter(Boolean) as string[];
+    const providerRulesets = profile.useDefaultRules
+      ? this.providerRegistry.getProviders().flatMap((p) => p.rulesetsPaths)
+      : [];
+
+    const rulesets = buildRulesetsList(profile, this.assetPaths.rulesets, providerRulesets);
 
     return {
       labelSelector: profile.labelSelector,

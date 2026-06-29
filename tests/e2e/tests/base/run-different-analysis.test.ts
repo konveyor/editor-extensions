@@ -3,6 +3,7 @@ import { RepoData, expect, test } from '../../fixtures/test-repo-fixture';
 import { readFileSync } from 'fs';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { generateRandomString } from '../../utilities/utils';
+import { ProfilePage } from '../../pages/profile.page';
 
 // Load test repos data
 const testReposPath = pathlib.join(__dirname, '../../fixtures/test-repos.json');
@@ -16,6 +17,7 @@ test.describe('Run analysis for different repositories', { tag: ['@tier3'] }, ()
       const profileName = `run-diff-${generateRandomString()}`;
 
       const vscodeApp = await VSCodeFactory.open(repoInfo);
+      const profilePage = new ProfilePage(vscodeApp);
 
       try {
         await test.step('Check data is set', async () => {
@@ -32,7 +34,7 @@ test.describe('Run analysis for different repositories', { tag: ['@tier3'] }, ()
         });
 
         await test.step('Set up and run analysis', async () => {
-          await vscodeApp.createProfile(
+          await profilePage.create(
             repoInfo.sources,
             repoInfo.targets,
             profileName,
@@ -60,7 +62,7 @@ test.describe('Run analysis for different repositories', { tag: ['@tier3'] }, ()
           expect(foundIssues.length).toBe(issuesCount);
         });
       } finally {
-        await vscodeApp.deleteProfile(profileName);
+        await profilePage.delete(profileName);
         await vscodeApp.closeVSCode();
       }
     });

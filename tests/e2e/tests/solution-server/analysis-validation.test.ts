@@ -13,12 +13,14 @@ import * as VSCodeFactory from '../../utilities/vscode.factory';
 import { getHubConfig } from '../../utilities/utils';
 import { LLEMULATOR_PROVIDER } from '../../fixtures/provider-configs.fixture';
 import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
+import { ProfilePage } from '../../pages/profile.page';
 
 test.describe.serial(
   `Solution server analysis validations`,
   { tag: ['@requires-minikube', '@tier2'] },
   () => {
     let vsCode: VSCode;
+    let profilePage: ProfilePage;
     let mcpClient: MCPClient;
     let successRateBase: SuccessRateResponse;
     let bestHintBase: BestHintResponse;
@@ -46,6 +48,7 @@ test.describe.serial(
 
       mcpClient = await MCPClient.connect();
       vsCode = await VSCodeFactory.init(repoInfo);
+      profilePage = new ProfilePage(vsCode);
 
       // Configure hub with solution server enabled
       const hubConfig = getHubConfig({
@@ -59,7 +62,7 @@ test.describe.serial(
         timeout: 30_000,
       });
 
-      await vsCode.createProfile(repoInfo.sources, repoInfo.targets);
+      await profilePage.create(repoInfo.sources, repoInfo.targets);
       await vsCode.configureGenerativeAI(getDefaultProviderConfig().config);
       await vsCode.startServer();
       await vsCode.runAnalysis();

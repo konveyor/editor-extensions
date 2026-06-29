@@ -6,8 +6,8 @@
     "language": "java",
     "sources": [],
     "targets": ["cloud-readiness", "jakarta-ee", "jakarta-ee8", "jakarta-ee9", "quarkus"],
-    "issuesCount": 32,
-    "incidentsCount": 154,
+    "issuesCount": 38,
+    "incidentsCount": 173,
     "issues": [
       {
         "title": "@MessageDriven - EJBs are not supported in Quarkus",
@@ -56,6 +56,14 @@
       {
         "title": "Configure message listener method with @Incoming",
         "incidentsCount": 3
+      },
+      {
+        "title": "EntityManager merge operations require @Transactional in Quarkus",
+        "incidentsCount": 1
+      },
+      {
+        "title": "EntityManager persistence operations require @Transactional in Quarkus",
+        "incidentsCount": 1
       },
       {
         "title": "HTTP session replication (distributable web.xml)",
@@ -225,9 +233,9 @@
     ]
   },
   "static-report": {
-    "repoUrl": "https://github.com/konveyor/static-report",
+    "repoUrl": "https://github.com/abrugaro/static-report",
     "repoName": "static-report",
-    "branch": "main",
+    "branch": "patternfly5",
     "language": "typescript",
     "sources": [],
     "targets": ["patternfly-v6"],

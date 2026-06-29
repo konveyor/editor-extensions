@@ -6,9 +6,11 @@ import { generateRandomString } from '../../utilities/utils';
 import { KAIViews } from '../../enums/views.enum';
 import { genAISettingKey } from '../../enums/configuration-options.enum';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
+import { ProfilePage } from '../../pages/profile.page';
 
 test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   const randomString = generateRandomString();
   const profileName = `automation-${randomString}`;
   let repoInfo: RepoData[string];
@@ -23,11 +25,12 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
     test.setTimeout(900000);
     repoInfo = testRepoData['coolstore'];
     vscodeApp = await VSCodeFactory.open(repoInfo);
+    profilePage = new ProfilePage(vscodeApp);
   });
 
   test('Create Profile and Set Sources and targets', async () => {
     await vscodeApp.waitDefault();
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
   });
 
   test('Configure GenAI Provider', async () => {
@@ -175,7 +178,7 @@ test.describe.serial('Configure extension and run analysis', { tag: ['@tier0'] }
   });
 
   test('delete profile', async () => {
-    await vscodeApp.deleteProfile(profileName);
+    await profilePage.delete(profileName);
   });
 
   test.afterAll(async () => {

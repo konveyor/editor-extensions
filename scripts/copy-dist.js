@@ -92,7 +92,7 @@ await copy({
       dest: `dist/${CORE_EXTENSION_NAME}/out/webview/`,
     },
 
-    // seed assets - rulesets
+    // seed assets - preview rulesets (stable rulesets are in language extensions)
     {
       context: "downloaded_assets/rulesets",
       src: ["**/*"],
@@ -149,6 +149,7 @@ await copy({
 
         packageJson.includedAssetPaths = {
           javaExternalProvider: "./assets/java-external-provider",
+          rulesets: "./assets/rulesets",
         };
 
         packageJson.contributes.javaExtensions = ["./assets/jdtls-bundles/bundle.jar"];
@@ -186,6 +187,13 @@ await copy({
       src: ["**/*.jar"],
       dest: `dist/${JAVA_EXTENSION_NAME}/assets/jdtls-bundles`,
     },
+
+    // seed assets - java rulesets
+    {
+      context: "downloaded_assets/rulesets-java",
+      src: ["**/*"],
+      dest: `dist/${JAVA_EXTENSION_NAME}/assets/rulesets`,
+    },
   ],
 });
 
@@ -212,6 +220,7 @@ await copy({
 
         packageJson.includedAssetPaths = {
           nodejsExternalProvider: "./assets/nodejs-external-provider",
+          rulesets: "./assets/rulesets",
         };
 
         return JSON.stringify(packageJson, null, 2);
@@ -240,6 +249,13 @@ await copy({
       src: ["*/nodejs-external-provider*"],
       dest: `dist/${JS_EXTENSION_NAME}/assets/nodejs-external-provider`,
     },
+
+    // seed assets - nodejs rulesets
+    {
+      context: "downloaded_assets/rulesets-nodejs",
+      src: ["**/*"],
+      dest: `dist/${JS_EXTENSION_NAME}/assets/rulesets`,
+    },
   ],
 });
 
@@ -267,6 +283,7 @@ await copy({
         packageJson.includedAssetPaths = {
           goExternalProvider: "./assets/go-external-provider",
           konveyorAnalyzerDep: "./assets/konveyor-analyzer-dep",
+          rulesets: "./assets/rulesets",
         };
 
         return JSON.stringify(packageJson, null, 2);
@@ -302,6 +319,13 @@ await copy({
       src: ["*/konveyor-analyzer-dep*"],
       dest: `dist/${GO_EXTENSION_NAME}/assets/konveyor-analyzer-dep`,
     },
+
+    // seed assets - go rulesets
+    {
+      context: "downloaded_assets/rulesets-go",
+      src: ["**/*"],
+      dest: `dist/${GO_EXTENSION_NAME}/assets/rulesets`,
+    },
   ],
 });
 
@@ -328,6 +352,7 @@ await copy({
 
         packageJson.includedAssetPaths = {
           csharpAnalyzerProvider: "./assets/c-sharp-analyzer-provider",
+          rulesets: "./assets/rulesets",
         };
 
         return JSON.stringify(packageJson, null, 2);
@@ -355,6 +380,13 @@ await copy({
       context: "downloaded_assets/c-sharp-analyzer-provider",
       src: ["*/c-sharp-analyzer-provider*"],
       dest: `dist/${CSHARP_EXTENSION_NAME}/assets/c-sharp-analyzer-provider`,
+    },
+
+    // seed assets - dotnet rulesets
+    {
+      context: "downloaded_assets/rulesets-dotnet",
+      src: ["**/*"],
+      dest: `dist/${CSHARP_EXTENSION_NAME}/assets/rulesets`,
     },
   ],
 });

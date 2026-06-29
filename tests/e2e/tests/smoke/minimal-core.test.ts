@@ -5,9 +5,11 @@ import { generateRandomString } from '../../utilities/utils';
 import * as VSCodeFactory from '../../utilities/vscode.factory';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
+import { ProfilePage } from '../../pages/profile.page';
 
 test.describe.serial('Minimal core smoke flow', { tag: ['@tier0', '@smoke'] }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   let repoInfo: RepoData[string];
   const profileName = `smoke-${generateRandomString()}`;
   const screenshotDir = pathlib.join(SCREENSHOTS_FOLDER, 'smoke-minimal');
@@ -19,6 +21,7 @@ test.describe.serial('Minimal core smoke flow', { tag: ['@tier0', '@smoke'] }, (
       throw new Error("'coolstore' fixture is missing from test-repos.json");
     }
     vscodeApp = await VSCodeFactory.open(repoInfo);
+    profilePage = new ProfilePage(vscodeApp);
     await vscodeApp.waitDefault();
   });
 
@@ -36,7 +39,7 @@ test.describe.serial('Minimal core smoke flow', { tag: ['@tier0', '@smoke'] }, (
   });
 
   test('Create profile', async () => {
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
   });
 
   test('Start server', async () => {
@@ -57,7 +60,7 @@ test.describe.serial('Minimal core smoke flow', { tag: ['@tier0', '@smoke'] }, (
   });
 
   test('Delete the profile', async () => {
-    await vscodeApp.deleteProfile(profileName);
+    await profilePage.delete(profileName);
   });
 
   test.afterAll(async () => {

@@ -36,6 +36,7 @@ import { getHubConfig } from '../../utilities/utils';
 import pathlib from 'path';
 import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { buildKaiResponse, loadLlemulatorResponses } from '../../utilities/llemulator.utils';
+import { ProfilePage } from '../../pages/profile.page';
 
 class SolutionServerWorkflowHelper {
   public logger: TestLogger;
@@ -90,8 +91,9 @@ class SolutionServerWorkflowHelper {
       vsCode = await VSCodeFactory.init(repoInfo);
       this.logger.debug(`VSCode opened for ${appName}`);
 
+      const profilePage = new ProfilePage(vsCode);
       const customRulesPath = path.join(process.cwd(), repoInfo.repoName, customRulesSubPath);
-      await vsCode.createProfile(
+      await profilePage.create(
         repoInfo.sources || [],
         repoInfo.targets || [],
         undefined,

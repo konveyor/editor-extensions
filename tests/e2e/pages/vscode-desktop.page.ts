@@ -81,6 +81,7 @@ export class VSCodeDesktop extends VSCode {
       '--disable-workspace-trust',
       '--skip-welcome',
       `--user-data-dir=${TEST_DATA_DIR}`,
+      '--window-size=1920,1080',
     ];
 
     try {
@@ -142,6 +143,7 @@ export class VSCodeDesktop extends VSCode {
     });
     await vscodeApp.firstWindow();
     const window = await vscodeApp.firstWindow({ timeout: 60000 });
+    await window.setViewportSize({ width: 1920, height: 1080 });
     console.log('VSCode opened');
     const vscode = new VSCodeDesktop(vscodeApp, window, repoInfo, repoDir);
 
@@ -250,7 +252,7 @@ export class VSCodeDesktop extends VSCode {
     }
   }
 
-  protected async selectCustomRules(customRulesPath: string) {
+  public async selectCustomRules(customRulesPath: string) {
     const manageProfileView = await this.getView(KAIViews.manageProfiles);
     console.log(`Selecting custom rules from: ${customRulesPath}`);
 

@@ -4,7 +4,11 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
-import { type KonveyorCoreApi, generateSafePipeName } from "@editor-extensions/shared";
+import {
+  type KonveyorCoreApi,
+  generateSafePipeName,
+  getIncludedRulesetsPath,
+} from "@editor-extensions/shared";
 import { CSharpExternalProviderManager } from "./csharpExternalProviderManager";
 import {
   CORE_EXTENSION_ID,
@@ -168,10 +172,7 @@ export async function activate(context: vscode.ExtensionContext) {
       ],
       contextLines: 10,
     },
-    rulesetsPaths: [
-      // In Phase 1, rulesets are still in core extension
-      // Will be moved to C# extension in later phase if needed
-    ],
+    rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
   });
 
   context.subscriptions.push(providerDisposable);

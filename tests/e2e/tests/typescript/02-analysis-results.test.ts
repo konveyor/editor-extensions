@@ -13,9 +13,11 @@ import { SCREENSHOTS_FOLDER } from '../../utilities/consts';
 import { loadLlemulatorResponses, buildKaiResponse } from '../../utilities/llemulator.utils';
 import { FixTypes } from '../../enums/fix-types.enum';
 import { ResolutionAction } from '../../enums/resolution-action.enum';
+import { ProfilePage } from '../../pages/profile.page';
 
 test.describe.serial('TypeScript Extension - Analysis & Kai Integration', { tag: '@tier2' }, () => {
   let vscodeApp: VSCode;
+  let profilePage: ProfilePage;
   const randomString = generateRandomString();
   const profileName = `ts-analysis-kai-${randomString}`;
   let repoInfo: RepoData[string];
@@ -53,6 +55,7 @@ export const Sidebar: React.FC = () => {
       throw new Error("'static-report' fixture is missing from test-repos.json");
     }
     vscodeApp = await VSCodeFactory.init(repoInfo);
+    profilePage = new ProfilePage(vscodeApp);
     console.log('Waiting for extensions to load...');
     await vscodeApp.getWindow().waitForTimeout(15000);
   });
@@ -70,7 +73,7 @@ export const Sidebar: React.FC = () => {
 
   test('Create profile with PatternFly rulesets', async () => {
     await vscodeApp.waitDefault();
-    await vscodeApp.createProfile(repoInfo.sources, repoInfo.targets, profileName);
+    await profilePage.create(repoInfo.sources, repoInfo.targets, profileName);
     console.log(`Profile created: ${profileName}`);
   });
 
@@ -275,7 +278,7 @@ export const Sidebar: React.FC = () => {
     if (process.env.WEB_ENV === '1') {
       await vscodeApp.getWindow().waitForTimeout(30_000);
     }
-    await vscodeApp.deleteProfile(profileName);
+    await profilePage.delete(profileName);
   });
 
   test.afterEach(async () => {
