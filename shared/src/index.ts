@@ -6,3 +6,4 @@ export * from "./utils/diffUtils";
 export * from "./api";
 export * from "./healthCheckHelpers";
 export * from "./pipeName";
+export * from "./utils/packagePaths";

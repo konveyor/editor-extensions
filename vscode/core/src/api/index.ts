@@ -13,6 +13,8 @@ import {
 export class ProviderRegistry {
   private providers: Map<string, ProviderRegistration> = new Map();
   private analysisCompleteEmitter = new vscode.EventEmitter<AnalysisResults>();
+  private providerRegisteredEmitter = new vscode.EventEmitter<ProviderRegistration>();
+  readonly onDidRegisterProvider = this.providerRegisteredEmitter.event;
 
   constructor(
     private logger: Logger,
@@ -41,6 +43,7 @@ export class ProviderRegistry {
     }
 
     this.providers.set(config.name, config);
+    this.providerRegisteredEmitter.fire(config);
     this.updateContextKey();
 
     return new vscode.Disposable(() => {
@@ -88,6 +91,7 @@ export class ProviderRegistry {
       vscode.commands.executeCommand("setContext", `${this.extensionName}.hasProviders`, false);
     }
     this.analysisCompleteEmitter.dispose();
+    this.providerRegisteredEmitter.dispose();
   }
 }
 

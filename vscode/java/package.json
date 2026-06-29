@@ -53,7 +53,8 @@
     ]
   },
   "includedAssetPaths": {
-    "javaExternalProvider": "../../downloaded_assets/java-external-provider"
+    "javaExternalProvider": "../../downloaded_assets/java-external-provider",
+    "rulesets": "../../downloaded_assets/rulesets-java"
   },
   "scripts": {
     "clean": "rimraf out",
