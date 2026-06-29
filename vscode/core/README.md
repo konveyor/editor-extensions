@@ -59,6 +59,63 @@ The extension can be configured through VS Code settings. Key settings include:
 - **GenAI Settings**: Configure AI provider and behavior
 - **Analysis Options**: Customize analysis scope and rules
 
+### Environment Variables
+
+The extension supports environment variables for pre-configuring behavior in
+managed environments such as Dev Spaces where an "out-of-the-box" configuration
+is desired. Environment variable overrides take precedence over saved VS Code
+settings.
+
+#### Hub Configuration
+
+These variables configure the connection to a Konveyor Hub instance. They are
+read at initialization and overlaid on top of any persisted VS Code
+configuration.
+
+| Variable | Type | Default | Description |
+| --- | --- | --- | --- |
+| `HUB_URL` | string | `http://localhost:8080` | Konveyor Hub URL |
+| `HUB_USERNAME` | string | `admin` | Hub authentication username |
+| `HUB_PASSWORD` | string | _(empty)_ | Hub authentication password |
+| `FORCE_HUB_ENABLED` | `"true"` flag | `false` | Force-enable Hub connection regardless of other settings |
+| `HUB_INSECURE` | `"true"` flag | `false` | Skip TLS verification for Hub connections |
+| `HUB_SOLUTION_SERVER_ENABLED` | `"false"` to disable | `true` | Toggle the Solution Server feature |
+| `HUB_PROFILE_SYNC_ENABLED` | `"false"` to disable | `true` | Toggle profile synchronization with Hub |
+
+Setting `HUB_URL` or any authentication variable (`HUB_USERNAME` /
+`HUB_PASSWORD`) automatically enables the Hub connection. Setting either
+`HUB_USERNAME` or `HUB_PASSWORD` also enables authentication.
+
+#### Analyzer Binary Download
+
+| Variable | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ANALYZER_FALLBACK_BASE_URL` | string (URL) | Built-in release URL | Override the base URL for downloading the analyzer binary (for air-gapped or internal mirrors) |
+
+Trailing slashes are normalized automatically. This is useful in
+network-restricted environments where artifacts are hosted on an internal
+mirror.
+
+#### TLS and Certificates
+
+| Variable | Type | Description |
+| --- | --- | --- |
+| `CA_BUNDLE` | string (file path) | Path to a custom CA certificate bundle |
+| `AWS_CA_BUNDLE` | string (file path) | Fallback CA bundle path (used when `CA_BUNDLE` is not set) |
+| `ALLOW_INSECURE` | `"true"` or `"1"` | Allow insecure TLS connections to model providers |
+| `NODE_TLS_REJECT_UNAUTHORIZED` | `"0"` to disable | Standard Node.js TLS verification override (lower priority than `ALLOW_INSECURE`) |
+
+#### Proxy
+
+Standard proxy environment variables are supported. The resolution order is
+`HTTPS_PROXY` > `https_proxy` > `HTTP_PROXY` > `http_proxy`.
+
+| Variable | Type | Description |
+| --- | --- | --- |
+| `HTTPS_PROXY` / `https_proxy` | string (URL) | HTTPS proxy URL |
+| `HTTP_PROXY` / `http_proxy` | string (URL) | HTTP proxy URL |
+| `NO_PROXY` / `no_proxy` | string (comma-separated) | Hosts to bypass the proxy (supports wildcards, domain suffixes, and port-specific entries) |
+
 ## Path Exclusion
 
 The extension supports `.gitignore`-style exclusion patterns:
