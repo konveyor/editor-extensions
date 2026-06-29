@@ -1,3 +1,11 @@
 * @konveyor/kai-ide-reviewers
 /tests @konveyor/kai-qe-reviewers @konveyor/kai-ide-reviewers
 
+# Governed prompt templates (ISO 42001 A.5.2). Any change to a prompt asset
+# requires sign-off from a designated Prompt Engineer / Product Architect.
+# See PROMPT_GOVERNANCE.md.
+/prompts/ @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
+/scripts/prompts-version.js @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
+/PROMPT_GOVERNANCE.md @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
+/.github/workflows/prompt-validation.yml @konveyor/kai-prompt-reviewers @konveyor/kai-ide-reviewers
+

@@ -1,0 +1,5 @@
+# Prompt template assets are byte-sensitive: their rendered output must match the
+# governed baselines exactly. Never let a formatter touch them.
+templates/
+**/*.hbs
+**/__snapshots__/
