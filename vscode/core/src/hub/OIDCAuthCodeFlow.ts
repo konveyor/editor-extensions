@@ -206,8 +206,13 @@ export class OIDCAuthCodeFlow {
 
       this.updateTokensFromResponse(result);
       return true;
-    } catch {
-      this.refreshToken = null;
+    } catch (err) {
+      if (
+        err instanceof oauth.ResponseBodyError ||
+        err instanceof oauth.WWWAuthenticateChallengeError
+      ) {
+        this.refreshToken = null;
+      }
       return false;
     }
   }
