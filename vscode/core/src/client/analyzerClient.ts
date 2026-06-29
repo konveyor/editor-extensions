@@ -370,15 +370,17 @@ export class AnalyzerClient {
     });
 
     analyzerRpcServer.stderr.on("data", (data) => {
-      const msg = data.toString().trimEnd();
-      if (!msg) {
-        return;
-      }
-      // Progress JSON (from -progress-output stderr) stays at debug level
-      if (msg.includes('"stage"')) {
-        this.logger.debug(`[analyzer-rpc-server stderr] ${msg}`);
-      } else {
-        this.logger.warn(`[analyzer-rpc-server stderr] ${msg}`);
+      for (const line of data.toString().split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          continue;
+        }
+        // Progress JSON (from -progress-output stderr) stays at debug level
+        if (trimmed.includes('"stage"')) {
+          this.logger.debug(`[analyzer-rpc-server stderr] ${trimmed}`);
+        } else {
+          this.logger.warn(`[analyzer-rpc-server stderr] ${trimmed}`);
+        }
       }
     });
 
