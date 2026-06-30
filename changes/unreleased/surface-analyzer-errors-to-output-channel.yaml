@@ -1,0 +1,3 @@
+kind: enhancement
+description: >
+  Surface analyzer process errors to the extension output channel by promoting stderr logging from debug to warn level, tailing analyzer.log for ERROR/FATAL lines during startup, and adding progress feedback with early abort detection during pipe connection retries.

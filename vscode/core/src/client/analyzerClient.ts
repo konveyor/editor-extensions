@@ -32,6 +32,7 @@ import { TaskManager } from "src/taskManager/types";
 import { Logger } from "winston";
 import { executeExtensionCommand } from "../commands";
 import { ProviderRegistry } from "../api";
+import { AnalyzerLogTailer } from "./analyzerLogTailer";
 import { buildRulesetsList } from "./rulesets";
 
 export class AnalyzerClient {
@@ -47,6 +48,7 @@ export class AnalyzerClient {
   private analyzerRpcServer: ChildProcessWithoutNullStreams | null = null;
   private analyzerRpcConnection?: rpc.MessageConnection | null;
   private currentProgressCallback?: (event: ProgressEvent) => void;
+  private logTailer: AnalyzerLogTailer | null = null;
 
   constructor(
     private extContext: vscode.ExtensionContext,
@@ -152,6 +154,7 @@ export class AnalyzerClient {
     const [analyzerRpcServer, analyzerPid] = this.startAnalysisServer(pipeName);
     analyzerRpcServer.on("exit", (code, signal) => {
       this.logger.info(`Analyzer RPC server terminated [signal: ${signal}, code: ${code}]`);
+      this.stopLogTailer();
       if (code) {
         vscode.window.showErrorMessage(
           `Analyzer RPC server failed. Status code: ${code}. Please see the output channel for details.`,
@@ -162,11 +165,13 @@ export class AnalyzerClient {
     });
     analyzerRpcServer.on("close", (code, signal) => {
       this.logger.info(`Analyzer RPC server closed [signal: ${signal}, code: ${code}]`);
+      this.stopLogTailer();
       this.fireServerStateChange("stopped");
       this.analyzerRpcServer = null;
     });
     analyzerRpcServer.on("error", (err) => {
       this.logger.error("Analyzer RPC server error", err);
+      this.stopLogTailer();
       this.fireServerStateChange("startFailed");
       this.analyzerRpcServer = null;
       vscode.window.showErrorMessage(
@@ -175,6 +180,11 @@ export class AnalyzerClient {
     });
     this.analyzerRpcServer = analyzerRpcServer;
     this.logger.info(`Analyzer RPC server started successfully [pid: ${analyzerPid}]`);
+
+    // Start tailing analyzer.log to surface errors in the extension output channel
+    const analyzerLogPath = path.join(paths().serverLogs.fsPath, "analyzer.log");
+    this.logTailer = new AnalyzerLogTailer(analyzerLogPath, this.logger);
+    this.logTailer.start();
 
     const socket: Socket = await this.getSocket(pipeName);
     socket.addListener("connectionAttempt", () => {
@@ -222,6 +232,7 @@ export class AnalyzerClient {
 
     this.analyzerRpcConnection.onNotification("started", (_: []) => {
       this.logger.info("Server initialization complete");
+      this.stopLogTailer();
       this.fireServerStateChange("running");
     });
     this.analyzerRpcConnection.onNotification("analysis.progress", (params: unknown) => {
@@ -254,9 +265,18 @@ export class AnalyzerClient {
   }
 
   protected async getSocket(pipeName: string): Promise<Socket> {
-    const MAX_RETRIES = 150; // retry for 5 minutes to connect to the analyzer pipe
+    const MAX_RETRIES = 150;
     const RETRY_DELAY = 2000;
+    const LOG_EVERY_N_ATTEMPTS = 10;
+
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // Abort early if the analyzer process has already exited.
+      // The exit/close/error handlers set this.analyzerRpcServer to null,
+      // so a null check catches the case where the process exited during a retry delay.
+      if (!this.analyzerRpcServer || this.analyzerRpcServer.exitCode !== null) {
+        throw new Error("Analyzer process exited before the pipe became available.");
+      }
+
       const s = new Socket();
       try {
         await new Promise<void>((resolve, reject) => {
@@ -268,6 +288,7 @@ export class AnalyzerClient {
           s.once("error", onError);
           s.connect(pipeName);
         });
+        this.logger.info(`Connected to analyzer pipe after ${attempt} attempt(s)`);
         return s;
       } catch (err) {
         s.destroy();
@@ -277,6 +298,12 @@ export class AnalyzerClient {
             err,
           });
           break;
+        }
+        if (attempt % LOG_EVERY_N_ATTEMPTS === 0) {
+          const elapsedSec = Math.round((attempt * RETRY_DELAY) / 1000);
+          this.logger.info(
+            `Waiting for analyzer pipe... (attempt ${attempt}/${MAX_RETRIES}, ${elapsedSec}s elapsed)`,
+          );
         }
         await setTimeout(RETRY_DELAY);
       }
@@ -343,11 +370,19 @@ export class AnalyzerClient {
       env: serverEnv,
     });
 
-    // Progress updates are now received via RPC notifications (analysis.progress)
-    // The stderr-based progress parsing has been removed to avoid duplicate progress updates
     analyzerRpcServer.stderr.on("data", (data) => {
-      // Log stderr output for debugging
-      this.logger.debug(`Analyzer stderr: ${data.toString()}`);
+      for (const line of data.toString().split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          continue;
+        }
+        // Progress JSON (from -progress-output stderr) stays at debug level
+        if (trimmed.includes('"stage"')) {
+          this.logger.debug(`[analyzer-rpc-server stderr] ${trimmed}`);
+        } else {
+          this.logger.warn(`[analyzer-rpc-server stderr] ${trimmed}`);
+        }
+      }
     });
 
     return [analyzerRpcServer, analyzerRpcServer.pid];
@@ -361,6 +396,13 @@ export class AnalyzerClient {
       : !Extension.getInstance(this.extContext).isProductionMode;
   }
 
+  private stopLogTailer(): void {
+    if (this.logTailer) {
+      this.logTailer.stop();
+      this.logTailer = null;
+    }
+  }
+
   /**
    * Shutdown and, if necessary, hard stops the server.
    *
@@ -371,6 +413,7 @@ export class AnalyzerClient {
   public async stop(): Promise<void> {
     this.logger.info(`Stopping the analyzer rpc server...`);
     this.fireServerStateChange("stopping");
+    this.stopLogTailer();
 
     // First close the RPC connection if it exists
     if (this.analyzerRpcConnection) {
