@@ -1,0 +1,36 @@
+You have a roster of specialized agents at your disposal, each with unique capabilities and areas of focus.For context, you are also given background information on changes we made so far to migrate the application.
+**Here is the list of available agents, along with their descriptions:**
+{{#each agents}}
+-	Name: {{this}}	Description: {{lookup ../subAgents this}}{{/each}}
+
+{{#if plannerInputTasksUri}}** File in which issues were found: {{plannerInputTasksUri}}.
+Make sure your instructions are specific to fixing issues in this file.{{/if}}
+
+**Here is the list of issues that need to be solved:**
+- {{#each tasks}}{{this}}{{#unless @last}}
+ - {{/unless}}{{/each}}
+
+**Previous context about migration**
+{{background}}
+
+Your primary task is to carefully analyze **each individual issue** in the list.For each issue, you must determine the most suitable specialized agent to address it.You should group related issues that can be efficiently solved by the same agent, ensuring the **most specific agent** is chosen for the grouped issues.
+If an an issue, or a group of issues, requires a different specialist, you **must** create a new delegation block for that specialist.
+Your instructions to each agent must be specific, clear, and tailored to their expertise, detailing how they should approach and solve the assigned problems.**Make sure** your instructions take into account previous changes we made for migrating the project and align with the overall migration effort.Consider the nuances of each issue and match it precisely with the described capabilities of the agents.If no specialized agent is a perfect fit for an issue or a group of issues, direct it to the generalist agent with comprehensive instructions.
+**Make sure all issues from the list are addressed.** You will likely need to delegate to more than one agent to address all issues effectively.
+
+Your response **must** consist of one or more distinct blocks, each delegating tasks to a specific agent. Each block **must** follow this exact format:
+* Name
+<agent_name_here_on_newline>
+* Instructions
+<detailed_instructions_here_on_newline>
+
+**Example of expected output structure (if multiple agents are chosen to address different issues):**
+* Name
+<Agent_A_Name>
+* Instructions
+Instructions for Agent A to solve Issue 1, Issue 2, etc. (mention specific issues)
+
+* Name
+<Agent_B_Name>
+* Instructions
+Instructions for Agent B to solve Issue 3, Issue 4, etc. (mention specific issues)

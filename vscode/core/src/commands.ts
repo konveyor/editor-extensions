@@ -17,6 +17,7 @@ import {
 } from "vscode";
 import { cleanRuleSets, loadResultsFromDataFolder, loadRuleSets, loadStaticResults } from "./data";
 import { EnhancedIncident, RuleSet, createConfigError } from "@editor-extensions/shared";
+import { renderPrompt } from "@editor-extensions/prompts";
 import {
   updateAnalyzerPath,
   getAllConfigurationValues,
@@ -468,7 +469,15 @@ const commandsMap: (
         // Execute the Continue command with prompt and range
         await commands.executeCommand(
           "continue.customQuickActionSendToChat",
-          `Help me address this ${EXTENSION_SHORT_NAME} migration issue:\nRule: ${incident.ruleset_name} - ${incident.ruleset_description}\nViolation: ${incident.violation_name} - ${incident.violation_description}\nCategory: ${incident.violation_category}\nMessage: ${incident.message}`,
+          renderPrompt("single-shot.continue-quick-action", {
+            extensionShortName: EXTENSION_SHORT_NAME,
+            ruleset_name: incident.ruleset_name,
+            ruleset_description: incident.ruleset_description,
+            violation_name: incident.violation_name,
+            violation_description: incident.violation_description,
+            violation_category: incident.violation_category,
+            message: incident.message,
+          }),
           new Range(
             new Position(startLine, 0),
             new Position(endLine, doc.lineAt(endLine).text.length),

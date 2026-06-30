@@ -22,6 +22,7 @@ import {
   type KaiModelProvider,
   type KaiModelProviderInvokeCallOptions,
 } from "@editor-extensions/agentic";
+import { renderPrompt } from "@editor-extensions/prompts";
 
 import { type ModelCapabilities } from "./types";
 import { isBasePromptValueInterface } from "./utils";
@@ -253,10 +254,8 @@ export async function runModelHealthCheck(
   let runnable: Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions> =
     streamingModel;
 
-  const sys_message = new SystemMessage(
-    `Use the tool you are given to get the answer for custom math operation.`,
-  );
-  const human_message = new HumanMessage(`What is 2 gamma 2?`);
+  const sys_message = new SystemMessage(renderPrompt("operational.model-health-check.system", {}));
+  const human_message = new HumanMessage(renderPrompt("operational.model-health-check.human", {}));
 
   if (streamingModel.bindTools) {
     runnable = streamingModel.bindTools([tool]);

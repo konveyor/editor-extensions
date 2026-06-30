@@ -1,0 +1,30 @@
+During the migration to {{migrationHint}}, we captured notes that include:
+- A list of files we modified
+- Reasoning behind changes made to existing files
+- Additional information that may contain even more changes needed
+
+* Your task:
+Carefully analyze the reasoning and additional information for each file, and determine if there are any additional changes needed to complete the migration. Provide a concise summary *solely* of the additional changes required elsewhere in the project. **It is essential that your summary includes only the additional changes needed. Do not include changes already made.** Make sure you output all the details about the changes including any relevant code snippets and instructions.
+**Do not omit any additional changes needed. Be exhaustive and specific.**
+
+* Rules:
+- Only the files listed under MODIFIED_FILES are already changed. Any file **not** in MODIFIED_FILES is unmodified.
+- Treat sections named “Summary of changes made” as implemented changes only for the files listed in MODIFIED_FILES.
+- Treat “Additional information / notes / rationale” as proposed work, not-yet-applied.
+- If there are no additional changes needed, respond with exactly:
+NO-CHANGE: <one-sentence reason>
+
+Here is your input:
+
+{{#if (or inputAllModifiedFiles)}}### MODIFIED_FILES
+
+{{#each inputAllModifiedFiles}}{{this}}{{#unless @last}}
+{{/unless}}{{/each}}{{/if}}
+
+{{#if inputAllReasoning}}### Summary of changes made
+
+{{inputAllReasoning}}{{/if}}
+
+### Additional information about changes
+
+{{inputAllAdditionalInfo}}

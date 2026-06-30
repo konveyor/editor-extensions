@@ -17,6 +17,12 @@ assets
 media
 resources
 
+# Prompt templates are byte-exact assets — prettier parses .hbs as Glimmer and
+# would reformat (or fail on) them. Never let it touch them.
+prompts/templates/
+**/*.hbs
+**/__snapshots__/
+
 #
 # NOTE: Could ignore anything that eslint will look at since eslint also applies
 #       prettier.

@@ -169,6 +169,15 @@ jobs:
 
           git push origin ${{ needs.validate.outputs.branch }}
 
+      - name: Create cherry-pick label
+        run: |
+          LABEL="cherry-pick/${{ needs.validate.outputs.branch }}"
+          gh label create "$LABEL" \
+            --description "Cherry-pick to the ${{ needs.validate.outputs.branch }} branch" \
+            --force
+        env:
+          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+
       - name: Summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
@@ -180,4 +189,5 @@ jobs:
           | Version bump | main → \`${{ needs.validate.outputs.next_version }}\` |
           | Release branch | \`${{ needs.validate.outputs.branch }}\` created from \`${{ needs.validate.outputs.tag }}\` |
           | Branch changelog | assembled on \`${{ needs.validate.outputs.branch }}\` |
+          | Cherry-pick label | \`cherry-pick/${{ needs.validate.outputs.branch }}\` |
           EOF
