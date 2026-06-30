@@ -30,6 +30,7 @@ const CALLBACK_PATH = "/callback";
 export interface OAuthCallbackResult {
   code: string;
   state: string;
+  url: URL;
 }
 
 // ─── Success Page HTML ───────────────────────────────────────────────────────
@@ -316,6 +317,6 @@ export class OIDCLoopbackServer {
     // Success — serve the success page and resolve
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(SUCCESS_HTML);
-    this.resolveCallback({ code, state });
+    this.resolveCallback({ code, state, url });
   }
 }

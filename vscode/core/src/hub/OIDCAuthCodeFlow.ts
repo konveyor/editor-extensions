@@ -1,50 +1,29 @@
 /**
  * OIDC Authorization Code + PKCE Flow for Konveyor Hub.
  *
- * Implements OAuth 2.0 Authorization Code Grant with PKCE (RFC 7636)
- * against the hub's builtin OIDC provider (PR #1042).
- *
- * Flow:
- *   1. Generate PKCE code_verifier + code_challenge (S256)
- *   2. Start a local loopback HTTP server for the callback
- *   3. Build authorize URL and open in browser via vscode.env.openExternal
- *   4. Receive authorization code on loopback server callback
- *   5. Exchange code for tokens at /oidc/token endpoint
- *   6. Store tokens via OIDCTokenStorage
- *
- * Uses a local HTTP server on 127.0.0.1 (RFC 8252 §7.3) instead of
- * custom protocol handlers (vscode://) for reliable cross-browser support.
+ * Uses oauth4webapi for spec-compliant OIDC discovery, token exchange,
+ * refresh, and end-session. The loopback callback server (OIDCLoopbackServer)
+ * is still ours — oauth4webapi handles the protocol, not the transport.
  *
  * @module OIDCAuthCodeFlow
  */
 import * as vscode from "vscode";
-import { randomBytes, createHash } from "crypto";
+import * as oauth from "oauth4webapi";
 import { OIDCLoopbackServer } from "./OIDCLoopbackServer";
 
 // ─── Shared OIDC Types ─────────────────────────────────────────────────────
-
-/** Successful token response from the token endpoint. */
-export interface OIDCTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in?: number;
-  refresh_token?: string;
-  id_token?: string;
-  scope?: string;
-}
 
 /** Persisted token set. */
 export interface OIDCTokens {
   accessToken: string;
   refreshToken: string | null;
+  idToken: string | null;
   expiresAt: number | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OIDC_SCOPES = "openid profile email offline_access";
-const AUTHORIZE_PATH = "/authorize";
-const TOKEN_PATH = "/token";
 const TOKEN_EXPIRY_BUFFER_MS = 30_000; // 30s before actual expiry
 
 /** Timeout for waiting for the auth callback (5 minutes). */
@@ -83,76 +62,39 @@ export class OIDCAuthCodeStateError extends OIDCAuthCodeError {
   }
 }
 
-// ─── PKCE Helpers ────────────────────────────────────────────────────────────
-
-/**
- * Generate a cryptographically random PKCE code_verifier.
- * Per RFC 7636, must be 43-128 characters from [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~".
- * We use 64 bytes of randomness, base64url-encoded (yields 86 chars).
- */
-function generateCodeVerifier(): string {
-  return randomBytes(64).toString("base64url");
-}
-
-/**
- * Generate S256 code_challenge from a code_verifier.
- * code_challenge = BASE64URL(SHA256(code_verifier))
- */
-function generateCodeChallenge(verifier: string): string {
-  return createHash("sha256").update(verifier).digest("base64url");
-}
-
-/**
- * Generate a cryptographically random state parameter for CSRF protection.
- */
-function generateState(): string {
-  return randomBytes(32).toString("base64url");
-}
-
 // ─── Main Class ──────────────────────────────────────────────────────────────
 
-/**
- * Manages OIDC Authorization Code + PKCE flow against the Konveyor Hub
- * builtin OIDC provider.
- *
- * Uses a local loopback HTTP server (RFC 8252) to receive the auth callback,
- * which is more reliable than vscode:// protocol handlers across browsers.
- */
 export class OIDCAuthCodeFlow {
   private readonly issuerUrl: string;
   private readonly clientId: string;
-  private readonly customFetch: typeof fetch;
+  private readonly client: oauth.Client;
+  private readonly fetchOptions: { [oauth.customFetch]: typeof fetch } | undefined;
 
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private idToken: string | null = null;
   private expiresAt: number | null = null;
   private loginInProgress: boolean = false;
+  private authServer: oauth.AuthorizationServer | null = null;
 
-  /**
-   * @param issuerUrl    Hub's OIDC issuer URL (e.g. "https://hub.example.com/oidc")
-   * @param clientId     Registered OIDC client ID (e.g. "kai-ide")
-   * @param customFetch  Optional fetch override (for insecure TLS, etc.)
-   */
   constructor(issuerUrl: string, clientId: string, customFetch?: typeof fetch) {
     this.issuerUrl = issuerUrl.replace(/\/$/, "");
     this.clientId = clientId;
-    this.customFetch = customFetch ?? fetch;
+    this.client = { client_id: clientId };
+    if (customFetch) {
+      this.fetchOptions = { [oauth.customFetch]: customFetch };
+    }
   }
 
   // ─── Token State ───────────────────────────────────────────────────────────
 
-  /**
-   * Restore tokens from persistent storage (call on startup).
-   */
   public setTokens(tokens: OIDCTokens): void {
     this.accessToken = tokens.accessToken;
     this.refreshToken = tokens.refreshToken;
+    this.idToken = tokens.idToken;
     this.expiresAt = tokens.expiresAt;
   }
 
-  /**
-   * Get current tokens for persistence to storage.
-   */
   public getTokens(): OIDCTokens | null {
     if (!this.accessToken) {
       return null;
@@ -160,13 +102,11 @@ export class OIDCAuthCodeFlow {
     return {
       accessToken: this.accessToken,
       refreshToken: this.refreshToken,
+      idToken: this.idToken,
       expiresAt: this.expiresAt,
     };
   }
 
-  /**
-   * Get the Authorization header value.
-   */
   public getHeader(): string | null {
     if (!this.accessToken) {
       return null;
@@ -174,16 +114,10 @@ export class OIDCAuthCodeFlow {
     return `Bearer ${this.accessToken}`;
   }
 
-  /**
-   * Whether any token is stored (may be expired).
-   */
   public hasToken(): boolean {
     return !!this.accessToken;
   }
 
-  /**
-   * Whether the current access token is likely still valid.
-   */
   public isTokenValid(): boolean {
     if (!this.accessToken) {
       return false;
@@ -194,9 +128,6 @@ export class OIDCAuthCodeFlow {
     return Date.now() < this.expiresAt - TOKEN_EXPIRY_BUFFER_MS;
   }
 
-  /**
-   * Get milliseconds until token needs refresh (for scheduling).
-   */
   public getTimeUntilRefresh(): number {
     if (!this.expiresAt) {
       return 0;
@@ -205,22 +136,44 @@ export class OIDCAuthCodeFlow {
     return Math.max(0, remaining);
   }
 
-  /**
-   * Clear all stored tokens (for logout/disconnect).
-   */
   public clearTokens(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.idToken = null;
     this.expiresAt = null;
+  }
+
+  public async endSession(): Promise<void> {
+    const as = await this.discover();
+    if (!as.end_session_endpoint) {
+      return;
+    }
+
+    const params = new URLSearchParams({ client_id: this.clientId });
+    if (this.idToken) {
+      params.set("id_token_hint", this.idToken);
+    }
+
+    const url = `${as.end_session_endpoint}?${params.toString()}`;
+    const fetchFn = this.fetchOptions?.[oauth.customFetch] ?? fetch;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetchFn(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new OIDCAuthCodeError(
+          `OIDC end-session returned status ${response.status}`,
+          "end_session_failed",
+        );
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   // ─── Authentication Flows ──────────────────────────────────────────────────
 
-  /**
-   * Full login flow: try refresh first, fall back to auth code flow.
-   */
   public async login(cancellationToken?: vscode.CancellationToken): Promise<OIDCTokens> {
-    // Try refresh first if we have a refresh token
     if (this.refreshToken) {
       const refreshed = await this.refresh();
       if (refreshed) {
@@ -228,68 +181,39 @@ export class OIDCAuthCodeFlow {
       }
     }
 
-    // Fall back to full authorization code flow
     return this.authCodeLogin(cancellationToken);
   }
 
-  /**
-   * Refresh the access token using the stored refresh token.
-   * @returns true if refresh succeeded, false if re-login is needed.
-   */
   public async refresh(): Promise<boolean> {
     if (!this.refreshToken) {
       return false;
     }
 
-    const params = new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: this.refreshToken,
-      client_id: this.clientId,
-    });
-
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30_000);
-      let response: Response;
-      try {
-        response = await this.customFetch(`${this.issuerUrl}${TOKEN_PATH}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Accept: "application/json",
-          },
-          body: params.toString(),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeout);
-      }
+      const as = await this.discover();
+      const response = await oauth.refreshTokenGrantRequest(
+        as,
+        this.client,
+        oauth.None(),
+        this.refreshToken,
+        this.requestOptions,
+      );
 
-      if (!response.ok) {
-        // Refresh token expired or revoked
-        this.refreshToken = null;
-        return false;
-      }
+      const result = await oauth.processRefreshTokenResponse(as, this.client, response);
 
-      const data = (await response.json()) as OIDCTokenResponse;
-      this.updateTokensFromResponse(data);
+      this.updateTokensFromResponse(result);
       return true;
-    } catch {
-      // Network error — don't clear refresh token, might work later
+    } catch (err) {
+      if (
+        err instanceof oauth.ResponseBodyError ||
+        err instanceof oauth.WWWAuthenticateChallengeError
+      ) {
+        this.refreshToken = null;
+      }
       return false;
     }
   }
 
-  /**
-   * Initiate Authorization Code + PKCE flow using a loopback server.
-   *
-   * 1. Start local HTTP server on random port
-   * 2. Generate PKCE verifier + challenge
-   * 3. Open browser to authorize endpoint with redirect_uri pointing to loopback
-   * 4. Receive callback on loopback server
-   * 5. Exchange code for tokens
-   * 6. Stop loopback server
-   */
   public async authCodeLogin(cancellationToken?: vscode.CancellationToken): Promise<OIDCTokens> {
     if (this.loginInProgress) {
       throw new OIDCAuthCodeError(
@@ -304,35 +228,44 @@ export class OIDCAuthCodeFlow {
     let cancellationDisposable: vscode.Disposable | undefined;
 
     try {
-      // Step 1: Start loopback server
+      const as = await this.discover();
+
       await server.start();
       const redirectUri = server.getRedirectUri();
 
-      // Step 2: Generate PKCE parameters
-      const codeVerifier = generateCodeVerifier();
-      const codeChallenge = generateCodeChallenge(codeVerifier);
-      const state = generateState();
+      const codeVerifier = oauth.generateRandomCodeVerifier();
+      const codeChallenge = await oauth.calculatePKCECodeChallenge(codeVerifier);
+      const state = oauth.generateRandomState();
 
-      // Register state with server for CSRF validation
       server.setExpectedState(state);
 
-      // Step 3: Build authorize URL with loopback redirect
-      const authorizeUrl = this.buildAuthorizeUrl(codeChallenge, state, redirectUri);
+      if (!as.authorization_endpoint) {
+        throw new OIDCAuthCodeError(
+          "Authorization endpoint not found in discovery",
+          "discovery_failed",
+        );
+      }
 
-      // Set up timeout
+      const authUrl = new URL(as.authorization_endpoint);
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("client_id", this.clientId);
+      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("scope", OIDC_SCOPES);
+      authUrl.searchParams.set("code_challenge", codeChallenge);
+      authUrl.searchParams.set("code_challenge_method", "S256");
+      authUrl.searchParams.set("state", state);
+
       timeoutHandle = setTimeout(() => {
         server.abort(new OIDCAuthCodeTimeoutError());
       }, AUTH_CALLBACK_TIMEOUT_MS);
 
-      // Handle cancellation
       if (cancellationToken) {
         cancellationDisposable = cancellationToken.onCancellationRequested(() => {
           server.abort(new OIDCAuthCodeCancelledError());
         });
       }
 
-      // Step 4: Open browser
-      const opened = await vscode.env.openExternal(vscode.Uri.parse(authorizeUrl));
+      const opened = await vscode.env.openExternal(vscode.Uri.parse(authUrl.toString()));
       if (!opened) {
         throw new OIDCAuthCodeError(
           "Failed to open browser for authentication. Please try again.",
@@ -340,7 +273,6 @@ export class OIDCAuthCodeFlow {
         );
       }
 
-      // Show progress notification
       vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -358,18 +290,31 @@ export class OIDCAuthCodeFlow {
         },
       );
 
-      // Step 5: Wait for callback
       const result = await server.waitForCallback();
 
-      // Step 6: Exchange code for tokens
-      const tokens = await this.exchangeCodeForTokens(result.code, codeVerifier, redirectUri);
+      const validatedParams = oauth.validateAuthResponse(as, this.client, result.url, state);
+
+      const response = await oauth.authorizationCodeGrantRequest(
+        as,
+        this.client,
+        oauth.None(),
+        validatedParams,
+        redirectUri,
+        codeVerifier,
+        this.requestOptions,
+      );
+
+      const tokenResult = await oauth.processAuthorizationCodeResponse(as, this.client, response, {
+        expectedNonce: oauth.expectNoNonce,
+      });
+
+      this.updateTokensFromResponse(tokenResult);
 
       vscode.window.showInformationMessage("Successfully signed in to Konveyor Hub");
 
-      return tokens;
+      return this.getTokens()!;
     } finally {
       this.loginInProgress = false;
-      // Always clean up
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
       }
@@ -378,93 +323,57 @@ export class OIDCAuthCodeFlow {
     }
   }
 
-  // ─── Private: Authorization ────────────────────────────────────────────────
+  // ─── Private ──────────────────────────────────────────────────────────────
 
-  /**
-   * Build the OIDC authorize endpoint URL with PKCE parameters.
-   */
-  private buildAuthorizeUrl(codeChallenge: string, state: string, redirectUri: string): string {
-    const params = new URLSearchParams({
-      response_type: "code",
-      client_id: this.clientId,
-      redirect_uri: redirectUri,
-      scope: OIDC_SCOPES,
-      code_challenge: codeChallenge,
-      code_challenge_method: "S256",
-      state: state,
-    });
-
-    return `${this.issuerUrl}${AUTHORIZE_PATH}?${params.toString()}`;
-  }
-
-  /**
-   * Exchange authorization code for tokens at the token endpoint.
-   */
-  private async exchangeCodeForTokens(
-    code: string,
-    codeVerifier: string,
-    redirectUri: string,
-  ): Promise<OIDCTokens> {
-    const params = new URLSearchParams({
-      grant_type: "authorization_code",
-      code: code,
-      redirect_uri: redirectUri,
-      client_id: this.clientId,
-      code_verifier: codeVerifier,
-    });
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
-    let response: Response;
+  private get isLoopback(): boolean {
     try {
-      response = await this.customFetch(`${this.issuerUrl}${TOKEN_PATH}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: params.toString(),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
+      const { hostname } = new URL(this.issuerUrl);
+      return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+    } catch {
+      return false;
     }
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new OIDCAuthCodeError(
-        `Token exchange failed: ${response.status} ${response.statusText}${body ? ` - ${body}` : ""}`,
-        "token_exchange_failed",
-      );
-    }
-
-    const data = (await response.json()) as OIDCTokenResponse;
-    this.updateTokensFromResponse(data);
-    return this.getTokens()!;
   }
 
-  // ─── Private: Helpers ──────────────────────────────────────────────────────
+  private get requestOptions() {
+    return {
+      ...(this.isLoopback && { [oauth.allowInsecureRequests]: true }),
+      ...this.fetchOptions,
+    };
+  }
 
-  /**
-   * Update internal token state from a successful token response.
-   */
-  private updateTokensFromResponse(data: OIDCTokenResponse): void {
-    this.accessToken = data.access_token;
-
-    if (data.refresh_token) {
-      this.refreshToken = data.refresh_token;
+  private async discover(): Promise<oauth.AuthorizationServer> {
+    if (this.authServer) {
+      return this.authServer;
     }
 
-    if (data.expires_in) {
-      this.expiresAt = Date.now() + data.expires_in * 1000;
+    const issuer = new URL(this.issuerUrl);
+    const response = await oauth.discoveryRequest(issuer, {
+      algorithm: "oidc",
+      ...this.requestOptions,
+    });
+
+    this.authServer = await oauth.processDiscoveryResponse(issuer, response);
+    return this.authServer;
+  }
+
+  private updateTokensFromResponse(result: oauth.TokenEndpointResponse): void {
+    this.accessToken = result.access_token;
+
+    if (result.refresh_token) {
+      this.refreshToken = result.refresh_token;
+    }
+
+    if (result.id_token) {
+      this.idToken = result.id_token;
+    }
+
+    if (result.expires_in) {
+      this.expiresAt = Date.now() + result.expires_in * 1000;
     } else {
-      this.expiresAt = this.extractExpiryFromJWT(data.access_token);
+      this.expiresAt = this.extractExpiryFromJWT(result.access_token);
     }
   }
 
-  /**
-   * Extract exp claim from a JWT (without verification — just for scheduling).
-   */
   private extractExpiryFromJWT(token: string): number | null {
     try {
       const parts = token.split(".");
@@ -476,17 +385,15 @@ export class OIDCAuthCodeFlow {
         return payload.exp * 1000;
       }
     } catch {
-      // Not a valid JWT — that's ok
+      // Not a valid JWT
     }
     return null;
   }
 
-  /**
-   * Dispose of all resources.
-   */
   public dispose(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.idToken = null;
     this.expiresAt = null;
   }
 }

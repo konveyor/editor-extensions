@@ -88,6 +88,7 @@ export class HubConnectionManager {
   private username: string = "";
   private password: string = "";
   private usingPAT: boolean = false;
+  private patId: number | null = null;
   private isInteractiveLoginInProgress: boolean = false;
   private authSucceeded: boolean = false;
   private connectionError: string = "";
@@ -140,14 +141,7 @@ export class HubConnectionManager {
    * Defaults to "oidc" (authorization code + PKCE flow).
    */
   public getAuthMethod(): HubAuthMethod {
-    if (this.config.auth.method === "credentials") {
-      return "credentials";
-    }
-    if (this.config.auth.method === "oidc") {
-      return "oidc";
-    }
-    // Infer from config when method field isn't set yet (shared type migration)
-    return this.username && this.password ? "credentials" : "oidc";
+    return this.config.auth.method ?? "oidc";
   }
 
   /**
@@ -661,9 +655,29 @@ export class HubConnectionManager {
    * Logout from OIDC (clear stored tokens).
    */
   public async oidcLogout(): Promise<void> {
-    // Disconnect all active clients first
+    // Server-side cleanup before clearing local state
+    try {
+      if (!this.oidcAuthCode && this.getAuthMethod() === "oidc") {
+        await this.ensureOIDCInitialized();
+      }
+      if (this.oidcAuthCode && this.oidcTokenStorage && !this.oidcAuthCode.getTokens()) {
+        const storedTokens = await this.oidcTokenStorage.retrieve();
+        if (storedTokens) {
+          this.oidcAuthCode.setTokens(storedTokens);
+        }
+      }
+      if (this.oidcAuthCode) {
+        await this.oidcAuthCode.endSession();
+      }
+    } catch (error) {
+      this.logger.warn("Failed to end OIDC session on server", { error });
+    }
+    await this.revokePAT();
+
+    // Disconnect all active clients
     await this.disconnect();
 
+    // Clear local state
     if (this.oidcAuthCode) {
       this.oidcAuthCode.clearTokens();
     }
@@ -676,6 +690,7 @@ export class HubConnectionManager {
     this.usingPAT = false;
     this.authSucceeded = false;
     await this.clearPAT();
+    this.patId = null;
     this.clearTokenRefreshTimer();
     this.logger.info("OIDC tokens and PAT cleared, disconnected from Hub");
   }
@@ -895,11 +910,12 @@ export class HubConnectionManager {
       // Success — switch to PAT
       this.bearerToken = data.token;
       this.usingPAT = true;
+      this.patId = data.id ?? null;
       // PATs are long-lived; use null to signal "no expiration" to the UI
       this.tokenExpiresAt = data.expiration ? new Date(data.expiration).getTime() : null;
 
       // Persist PAT
-      await this.storePAT(data.token);
+      await this.storePAT(data.token, this.patId);
 
       this.logger.info("Successfully exchanged OIDC token for PAT", {
         patId: data.id,
@@ -923,7 +939,7 @@ export class HubConnectionManager {
   /**
    * Store PAT in VS Code SecretStorage.
    */
-  private async storePAT(token: string): Promise<void> {
+  private async storePAT(token: string, id: number | null): Promise<void> {
     if (!this.extensionContext) {
       return;
     }
@@ -931,7 +947,7 @@ export class HubConnectionManager {
       const key = this.getPATStorageKey();
       await this.extensionContext.secrets.store(
         key,
-        JSON.stringify({ token, username: this.username }),
+        JSON.stringify({ token, username: this.username, id }),
       );
       this.logger.info("PAT stored in SecretStorage");
     } catch (error) {
@@ -955,9 +971,12 @@ export class HubConnectionManager {
       }
       // Support both legacy (plain token) and new (JSON with username) formats
       try {
-        const parsed = JSON.parse(raw) as { token: string; username?: string };
+        const parsed = JSON.parse(raw) as { token: string; username?: string; id?: number };
         if (parsed.username) {
           this.username = parsed.username;
+        }
+        if (parsed.id) {
+          this.patId = parsed.id;
         }
         return parsed.token;
       } catch {
@@ -966,6 +985,34 @@ export class HubConnectionManager {
       }
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Revoke PAT on the Hub server via DELETE /auth/tokens/:id.
+   */
+  private async revokePAT(): Promise<void> {
+    if (!this.patId || !this.bearerToken) {
+      return;
+    }
+    const fetchFn = this.scopedFetch ?? fetch;
+    const url = `${this.config.url}/hub/auth/tokens/${this.patId}`;
+    try {
+      const response = await fetchFn(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${this.bearerToken}` },
+        signal: AbortSignal.timeout(TOKEN_EXCHANGE_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        this.logger.warn("PAT revocation returned non-OK status", {
+          patId: this.patId,
+          status: response.status,
+        });
+      } else {
+        this.logger.info("PAT revoked on Hub", { patId: this.patId });
+      }
+    } catch (error) {
+      this.logger.warn("Failed to revoke PAT on Hub", { patId: this.patId, error });
     }
   }
 

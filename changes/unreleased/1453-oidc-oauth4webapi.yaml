@@ -1,0 +1,5 @@
+kind: enhancement
+description: >
+  Replace hand-rolled OIDC implementation with oauth4webapi for spec-compliant
+  discovery, token exchange, refresh, and end-session. Sign-out now properly
+  invalidates the server-side OIDC session.

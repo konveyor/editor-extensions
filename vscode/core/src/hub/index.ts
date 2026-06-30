@@ -8,7 +8,7 @@ export {
   OIDCAuthCodeTimeoutError,
   OIDCAuthCodeStateError,
 } from "./OIDCAuthCodeFlow";
-export type { OIDCTokenResponse, OIDCTokens } from "./OIDCAuthCodeFlow";
+export type { OIDCTokens } from "./OIDCAuthCodeFlow";
 export { OIDCTokenStorage } from "./OIDCTokenStorage";
 export { OIDCLoopbackServer } from "./OIDCLoopbackServer";
 export type { OAuthCallbackResult } from "./OIDCLoopbackServer";

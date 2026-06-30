@@ -23,6 +23,7 @@ const STORAGE_KEY_PREFIX = "konveyor.oidc.tokens";
 interface StoredTokenData {
   accessToken: string;
   refreshToken: string | null;
+  idToken: string | null;
   expiresAt: number | null;
   storedAt: number; // Unix ms — when tokens were stored
 }
@@ -69,6 +70,7 @@ export class OIDCTokenStorage {
     const data: StoredTokenData = {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+      idToken: tokens.idToken,
       expiresAt: tokens.expiresAt,
       storedAt: Date.now(),
     };
@@ -107,6 +109,7 @@ export class OIDCTokenStorage {
       return {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken ?? null,
+        idToken: data.idToken ?? null,
         expiresAt: data.expiresAt ?? null,
       };
     } catch {
