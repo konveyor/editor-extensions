@@ -14,6 +14,7 @@ import {
   EXTENSION_DISPLAY_NAME,
   EXTENSION_ID,
   EXTENSION_NAME,
+  EXTENSION_VERSION,
 } from "./utilities/constants";
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -103,6 +104,27 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.showErrorMessage(message);
     return;
   }
+
+  // Check version compatibility
+  const goExtVersion = EXTENSION_VERSION;
+  const coreExtVersion = coreApi.version;
+  if (goExtVersion !== coreExtVersion) {
+    const message =
+      `Version mismatch detected!\n\n` +
+      `${EXTENSION_DISPLAY_NAME} (v${goExtVersion}) is not compatible with the core extension (v${coreExtVersion}).\n\n` +
+      `Please ensure both extensions are at the same version. This mismatch can cause analysis failures and unexpected behavior.`;
+    logger.error(message, {
+      goVersion: goExtVersion,
+      coreVersion: coreExtVersion,
+    });
+    vscode.window.showErrorMessage(message);
+    return;
+  }
+
+  logger.info("Version compatibility check passed", {
+    goVersion: goExtVersion,
+    coreVersion: coreExtVersion,
+  });
 
   // Create socket paths for communication
   const providerSocketPath = generateSafePipeName(EXTENSION_NAME); // GRPC socket for kai-analyzer-rpc
