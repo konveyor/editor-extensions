@@ -14,6 +14,14 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.4.24] - 2026-06-30
+
+### Bug Fixes
+
+- Honor the NO_PROXY environment variable when deciding whether to route Hub and GenAI provider connections through HTTP_PROXY/HTTPS_PROXY. Targets matching NO_PROXY (including loopback addresses such as 127.0.0.1) now bypass the proxy as expected. ([#1415](https://github.com/konveyor/editor-extensions/pull/1415))
+
+
 ## [0.4.22] - 2026-06-26
 
 ### Bug Fixes
