@@ -196,10 +196,7 @@ export class OIDCAuthCodeFlow {
         this.client,
         oauth.None(),
         this.refreshToken,
-        {
-          [oauth.allowInsecureRequests]: true,
-          ...this.fetchOptions,
-        },
+        this.requestOptions,
       );
 
       const result = await oauth.processRefreshTokenResponse(as, this.client, response);
@@ -295,11 +292,7 @@ export class OIDCAuthCodeFlow {
 
       const result = await server.waitForCallback();
 
-      const callbackUrl = new URL(redirectUri);
-      callbackUrl.searchParams.set("code", result.code);
-      callbackUrl.searchParams.set("state", result.state);
-
-      const validatedParams = oauth.validateAuthResponse(as, this.client, callbackUrl, state);
+      const validatedParams = oauth.validateAuthResponse(as, this.client, result.url, state);
 
       const response = await oauth.authorizationCodeGrantRequest(
         as,
@@ -308,10 +301,7 @@ export class OIDCAuthCodeFlow {
         validatedParams,
         redirectUri,
         codeVerifier,
-        {
-          [oauth.allowInsecureRequests]: true,
-          ...this.fetchOptions,
-        },
+        this.requestOptions,
       );
 
       const tokenResult = await oauth.processAuthorizationCodeResponse(as, this.client, response, {
@@ -335,6 +325,22 @@ export class OIDCAuthCodeFlow {
 
   // ─── Private ──────────────────────────────────────────────────────────────
 
+  private get isLoopback(): boolean {
+    try {
+      const { hostname } = new URL(this.issuerUrl);
+      return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+    } catch {
+      return false;
+    }
+  }
+
+  private get requestOptions() {
+    return {
+      ...(this.isLoopback && { [oauth.allowInsecureRequests]: true }),
+      ...this.fetchOptions,
+    };
+  }
+
   private async discover(): Promise<oauth.AuthorizationServer> {
     if (this.authServer) {
       return this.authServer;
@@ -342,9 +348,8 @@ export class OIDCAuthCodeFlow {
 
     const issuer = new URL(this.issuerUrl);
     const response = await oauth.discoveryRequest(issuer, {
-      [oauth.allowInsecureRequests]: true,
       algorithm: "oidc",
-      ...this.fetchOptions,
+      ...this.requestOptions,
     });
 
     this.authServer = await oauth.processDiscoveryResponse(issuer, response);
