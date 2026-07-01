@@ -81,7 +81,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (javascriptExtVersion !== coreExtVersion) {
     const message =
       `Version mismatch detected!\n\n` +
-      `Konveyor JavaScript extension (v${javascriptExtVersion}) is not compatible with Konveyor Core extension (v${coreExtVersion}).\n\n` +
+      `${EXTENSION_DISPLAY_NAME} (v${javascriptExtVersion}) is not compatible with the core extension (v${coreExtVersion}).\n\n` +
       `Please ensure both extensions are at the same version. This mismatch can cause analysis failures and unexpected behavior.`;
     logger.error(message, {
       javascriptVersion: javascriptExtVersion,

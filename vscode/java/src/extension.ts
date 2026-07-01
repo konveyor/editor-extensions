@@ -262,7 +262,7 @@ async function initializeProviders(
   if (javaExtVersion !== coreExtVersion) {
     const message =
       `Version mismatch detected!\n\n` +
-      `Konveyor Java extension (v${javaExtVersion}) is not compatible with Konveyor Core extension (v${coreExtVersion}).\n\n` +
+      `${EXTENSION_DISPLAY_NAME} (v${javaExtVersion}) is not compatible with the core extension (v${coreExtVersion}).\n\n` +
       `Please ensure both extensions are at the same version. This mismatch can cause analysis failures and unexpected behavior.`;
     logger.error(message, {
       javaVersion: javaExtVersion,

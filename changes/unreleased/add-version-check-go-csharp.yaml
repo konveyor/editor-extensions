@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Added version compatibility check at activation time for Go and C# provider extensions to prevent silent failures when running with an incompatible core extension.
+extensions:
+  - go
+  - csharp
