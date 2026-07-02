@@ -531,52 +531,95 @@ export class HubConnectionManager {
   }
 
   /**
-   * Reconnect solution server and profile sync clients with the current bearer token,
+   * Update solution server and profile sync clients with the current bearer token,
    * without re-authenticating. Used by token refresh to avoid double-minting tokens.
+   *
+   * Existing client instances are preserved (via updateBearerToken) so that a
+   * workflow's client reference captured at workflowManager.init — and session
+   * state like clientId — stays valid across token refreshes. A new instance is
+   * only created when a client is missing (e.g. its initial connection failed).
+   *
+   * Returns true if the solution server client instance was replaced, meaning
+   * workflows holding the old reference need a full disposal.
    */
-  private async reconnectClients(): Promise<void> {
-    // Connect Solution Server
-    if (this.config.features.solutionServer.enabled) {
-      try {
-        this.logger.info("Reconnecting solution server client", { hubUrl: this.config.url });
-        this.solutionServerClient = this.createSolutionServerClient();
-        await this.solutionServerClient.connect();
-        this.logger.info("Successfully reconnected to Hub solution server");
-      } catch (error) {
-        this.logger.error("Failed to reconnect solution server client", error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        vscode.window.showErrorMessage(`Failed to connect to Hub solution server: ${errorMessage}`);
-        this.solutionServerClient = null;
-      }
-    }
+  private async reconnectClients(): Promise<boolean> {
+    let solutionClientReplaced = false;
 
-    // Connect Profile Sync
-    if (this.config.features.profileSync.enabled) {
-      try {
-        this.logger.info("Reconnecting profile sync client");
-        this.profileSyncClient = new ProfileSyncClient(
-          this.config.url,
-          this.bearerToken,
-          this.logger,
-          this.scopedFetch ?? undefined,
-        );
-        await this.profileSyncClient.connect({ skipConnectivityCheck: true });
-        this.logger.info("Successfully reconnected to Hub profile sync");
-
-        const llmProxyConfig = this.profileSyncClient.getLLMProxyConfig();
-        if (llmProxyConfig) {
-          this.logger.info("LLM proxy available", { endpoint: llmProxyConfig.endpoint });
+    // Solution Server
+    if (this.config.features.solutionServer.enabled && this.bearerToken) {
+      if (this.solutionServerClient) {
+        try {
+          this.logger.info("Updating solution server client with refreshed token");
+          await this.solutionServerClient.updateBearerToken(this.bearerToken);
+          if (!this.solutionServerClient.isConnected) {
+            await this.solutionServerClient.connect();
+          }
+        } catch (error) {
+          // Keep the instance — the health poll (reconnectSolutionServer) can
+          // recover the connection without stranding workflow references
+          this.logger.error("Failed to update solution server client token", error);
         }
-
-        this.triggerProfileSync();
-        this.startProfileSyncTimer();
-      } catch (error) {
-        this.logger.error("Failed to reconnect profile sync client", error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        vscode.window.showErrorMessage(`Failed to connect to Hub profile sync: ${errorMessage}`);
-        this.profileSyncClient = null;
+      } else {
+        try {
+          this.logger.info("Reconnecting solution server client", { hubUrl: this.config.url });
+          this.solutionServerClient = this.createSolutionServerClient();
+          await this.solutionServerClient.connect();
+          solutionClientReplaced = true;
+          this.logger.info("Successfully reconnected to Hub solution server");
+        } catch (error) {
+          this.logger.error("Failed to reconnect solution server client", error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          vscode.window.showErrorMessage(
+            `Failed to connect to Hub solution server: ${errorMessage}`,
+          );
+          this.solutionServerClient = null;
+        }
       }
     }
+
+    // Profile Sync
+    if (this.config.features.profileSync.enabled && this.bearerToken) {
+      if (this.profileSyncClient) {
+        this.logger.info("Updating profile sync client with refreshed token");
+        this.profileSyncClient.updateBearerToken(this.bearerToken);
+        if (!this.profileSyncClient.isConnected) {
+          try {
+            await this.profileSyncClient.connect({ skipConnectivityCheck: true });
+            this.triggerProfileSync();
+            this.startProfileSyncTimer();
+          } catch (error) {
+            this.logger.error("Failed to reconnect profile sync client", error);
+          }
+        }
+      } else {
+        try {
+          this.logger.info("Reconnecting profile sync client");
+          this.profileSyncClient = new ProfileSyncClient(
+            this.config.url,
+            this.bearerToken,
+            this.logger,
+            this.scopedFetch ?? undefined,
+          );
+          await this.profileSyncClient.connect({ skipConnectivityCheck: true });
+          this.logger.info("Successfully reconnected to Hub profile sync");
+
+          const llmProxyConfig = this.profileSyncClient.getLLMProxyConfig();
+          if (llmProxyConfig) {
+            this.logger.info("LLM proxy available", { endpoint: llmProxyConfig.endpoint });
+          }
+
+          this.triggerProfileSync();
+          this.startProfileSyncTimer();
+        } catch (error) {
+          this.logger.error("Failed to reconnect profile sync client", error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          vscode.window.showErrorMessage(`Failed to connect to Hub profile sync: ${errorMessage}`);
+          this.profileSyncClient = null;
+        }
+      }
+    }
+
+    return solutionClientReplaced;
   }
 
   /**
@@ -1334,8 +1377,15 @@ export class HubConnectionManager {
         this.refreshRetryCount = 0;
         await this.startTokenRefreshTimer();
 
-        // Reconnect clients with new token (without re-authenticating)
-        await this.reconnectClients();
+        // Update clients with new token (without re-authenticating)
+        const solutionClientReplaced = await this.reconnectClients();
+
+        // Notify so the model provider is recreated with the new bearer token
+        // (it's baked into ChatOpenAI instances). tokenRefreshOnly=true keeps
+        // the workflow alive when the solution server client was preserved;
+        // if the instance had to be replaced, request a full disposal so the
+        // next run picks up the new client.
+        this.onWorkflowDisposal?.(!solutionClientReplaced);
       } else {
         this.logger.warn("Token refresh failed");
         this.handleRefreshFailure();
