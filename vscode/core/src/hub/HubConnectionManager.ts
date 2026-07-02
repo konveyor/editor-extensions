@@ -1321,15 +1321,22 @@ export class HubConnectionManager {
   private async startTokenRefreshTimer(): Promise<void> {
     this.clearTokenRefreshTimer();
 
-    let timeUntilRefresh: number = 0;
+    // null = no known expiry; 0 = expired/due now. The two must not be
+    // conflated: a token without an expiry (PAT minted with no expiration/
+    // lifespan, or an OIDC token with no expires_in and no exp claim) is
+    // long-lived, and refreshing it "now" would mint a replacement that also
+    // lacks an expiry — recursing through refreshTokens() in a tight loop.
+    let timeUntilRefresh: number | null = null;
 
     if (this.getAuthMethod() === "oidc" && this.oidcAuthCode) {
       timeUntilRefresh = this.oidcAuthCode.getTimeUntilRefresh();
-    } else if (this.tokenExpiresAt) {
+    } else if (this.tokenExpiresAt !== null) {
       timeUntilRefresh = Math.max(0, this.tokenExpiresAt - TOKEN_EXPIRY_BUFFER_MS - Date.now());
     }
 
-    if (timeUntilRefresh > MAX_TIMER_MS) {
+    if (timeUntilRefresh === null) {
+      this.logger.info("Token has no known expiry; refresh timer not armed");
+    } else if (timeUntilRefresh > MAX_TIMER_MS) {
       // Delay exceeds Node's max timer. Wait the max, then re-evaluate rather
       // than refresh — a single setTimeout this large would overflow to 1ms and
       // spin the refresh/reconnect loop continuously.
