@@ -35,6 +35,9 @@ export type WorkflowDisposalCallback = (tokenRefreshOnly?: boolean) => void;
 // Callback type for profile sync (to trigger automatic sync)
 export type ProfileSyncCallback = () => Promise<void>;
 
+// Callback type for solution server connection state changes (broadcast to webview)
+export type SolutionServerConnectionCallback = (connected: boolean) => void;
+
 const TOKEN_EXPIRY_BUFFER_MS = 30000; // 30 second buffer
 // Node's setTimeout stores its delay in a 32-bit signed int. A larger delay
 // overflows, gets clamped to 1ms, and fires immediately — which for the token
@@ -79,6 +82,7 @@ export class HubConnectionManager {
   private solutionServerClient: SolutionServerClient | null = null;
   private profileSyncClient: ProfileSyncClient | null = null;
   private onWorkflowDisposal?: WorkflowDisposalCallback;
+  private onSolutionServerConnectionChange?: SolutionServerConnectionCallback;
 
   // Authentication state
   private bearerToken: string | null = null;
@@ -134,6 +138,34 @@ export class HubConnectionManager {
    */
   public setWorkflowDisposalCallback(callback: WorkflowDisposalCallback): void {
     this.onWorkflowDisposal = callback;
+  }
+
+  /**
+   * Set callback invoked when the solution server connection state changes,
+   * including disconnects the client detects internally (e.g. a stale MCP
+   * connection failing mid-request).
+   */
+  public setSolutionServerConnectionCallback(callback: SolutionServerConnectionCallback): void {
+    this.onSolutionServerConnectionChange = callback;
+  }
+
+  /**
+   * Create a solution server client wired to the connection state callback.
+   */
+  private createSolutionServerClient(): SolutionServerClient {
+    const client = new SolutionServerClient(
+      this.config.url,
+      this.bearerToken,
+      this.logger,
+      this.scopedFetch ?? undefined,
+    );
+    client.setConnectionStateListener((connected) => {
+      if (!connected) {
+        this.logger.warn("Solution server connection lost");
+      }
+      this.onSolutionServerConnectionChange?.(connected);
+    });
+    return client;
   }
 
   /**
@@ -453,12 +485,7 @@ export class HubConnectionManager {
     if (this.config.features.solutionServer.enabled) {
       try {
         this.logger.info("Connecting solution server client", { hubUrl: this.config.url });
-        this.solutionServerClient = new SolutionServerClient(
-          this.config.url,
-          this.bearerToken,
-          this.logger,
-          this.scopedFetch ?? undefined,
-        );
+        this.solutionServerClient = this.createSolutionServerClient();
         await this.solutionServerClient.connect();
         this.logger.info("Successfully connected to Hub solution server");
         vscode.window.showInformationMessage("Successfully connected to Hub solution server");
@@ -512,12 +539,7 @@ export class HubConnectionManager {
     if (this.config.features.solutionServer.enabled) {
       try {
         this.logger.info("Reconnecting solution server client", { hubUrl: this.config.url });
-        this.solutionServerClient = new SolutionServerClient(
-          this.config.url,
-          this.bearerToken,
-          this.logger,
-          this.scopedFetch ?? undefined,
-        );
+        this.solutionServerClient = this.createSolutionServerClient();
         await this.solutionServerClient.connect();
         this.logger.info("Successfully reconnected to Hub solution server");
       } catch (error) {
@@ -554,6 +576,53 @@ export class HubConnectionManager {
         vscode.window.showErrorMessage(`Failed to connect to Hub profile sync: ${errorMessage}`);
         this.profileSyncClient = null;
       }
+    }
+  }
+
+  /**
+   * Re-establish only the solution server connection using the current bearer
+   * token, without re-authenticating or disturbing other Hub features. Used
+   * by the health poll to recover from stale/dropped MCP connections.
+   *
+   * Returns true if the connection was re-established.
+   */
+  public async reconnectSolutionServer(): Promise<boolean> {
+    if (this.connectPromise) {
+      // A full connect() is in flight; let it establish the client
+      return false;
+    }
+    if (!this.config.enabled || !this.config.features.solutionServer.enabled) {
+      return false;
+    }
+    if (this.config.auth.enabled && !this.bearerToken) {
+      // No usable token — reconnecting requires re-authentication (sign in)
+      return false;
+    }
+
+    const staleClient = this.solutionServerClient;
+    this.solutionServerClient = null;
+    if (staleClient) {
+      try {
+        await staleClient.disconnect();
+      } catch (error) {
+        this.logger.debug("Error disposing stale solution server client", { error });
+      }
+    }
+
+    try {
+      this.logger.info("Attempting solution server reconnection");
+      const client = this.createSolutionServerClient();
+      await client.connect();
+      this.solutionServerClient = client;
+      this.logger.info("Solution server reconnected");
+
+      // Workflows capture the client instance at init — dispose so the next
+      // run picks up the new client (deferred if a workflow is running)
+      this.onWorkflowDisposal?.(false);
+      return true;
+    } catch (error) {
+      this.logger.warn("Solution server reconnection failed", { error });
+      return false;
     }
   }
 
