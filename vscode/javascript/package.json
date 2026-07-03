@@ -6,7 +6,7 @@
   "coreExtensionId": "konveyor.konveyor-core",
   "icon": "../resources/icon.png",
   "license": "Apache-2.0",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "main": "./out/extension.js",
   "publisher": "konveyor",
   "repository": {

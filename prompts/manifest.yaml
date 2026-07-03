@@ -1,6 +1,6 @@
 # Prompt template manifest — governed under ISO 42001 A.5.2.
 # Checksums are maintained by scripts/prompts-version.js; do not edit by hand.
-version: 0.6.0
+version: 0.8.0
 engine: handlebars
 templates:
   - id: agentic.analysis.fix-issue.system

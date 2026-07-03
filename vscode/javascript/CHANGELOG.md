@@ -2,6 +2,12 @@
 
 All notable changes to the "konveyor-javascript" extension will be documented in this file.
 
+## [0.6.0] - 2026-07-03
+
+### Bug Fixes
+
+- Fix Unix domain socket path length limit on macOS by using /tmp instead of os.tmpdir() for IPC socket paths, preventing failures when the system temp directory path is long.
+
 ## [0.4.0] - 2026-02-19
 
 ### New Features
@@ -18,5 +24,3 @@ All notable changes to the "konveyor-javascript" extension will be documented in
 - Gracefully handle provider errors when dependencies are missing. ([#1117](https://github.com/konveyor/editor-extensions/pull/1117))
 - Improved Windows compatibility across extensions. ([#983](https://github.com/konveyor/editor-extensions/pull/983))
 - Fixed JavaScript extension to pass config correctly to provider. ([#999](https://github.com/konveyor/editor-extensions/pull/999))
-
-
