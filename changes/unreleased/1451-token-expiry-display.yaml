@@ -1,4 +1,0 @@
-kind: bugfix
-description: >
-  Show absolute date for token expiry over 24 hours instead of unrealistic
-  hour count (e.g. "on Jun 17, 2036" instead of "in 87599h 59m").

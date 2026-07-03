@@ -1,3 +1,0 @@
-kind: bugfix
-description: >
-  Fixed E2E tests checking out main instead of the release branch during patch releases, causing test-code/extension-code version mismatches.

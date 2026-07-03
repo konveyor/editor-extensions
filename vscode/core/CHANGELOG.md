@@ -2,6 +2,50 @@
 
 All notable changes to the "konveyor.konveyor-core" extension will be documented in this file.
 
+## [0.6.0] - 2026-07-03
+
+### Enhancements
+
+- Decouple all model-bound prompt templates into a governed, version-controlled @editor-extensions/prompts package (ISO 42001 A.5.2): Handlebars templates with a semver manifest, byte-exact parity + deterministic semantic-regression tests, a CI validation pipeline, CODEOWNERS review on prompts/, and PROMPT_GOVERNANCE.md. ([#0000](https://github.com/konveyor/editor-extensions/pull/0000))
+- Add a minimal smoke E2E flow and decouple heavy base tests from tiered runs. ([#0000](https://github.com/konveyor/editor-extensions/pull/0000))
+- Graceful degraded state when no workspace is open or no language providers are registered, with guided welcome content in the sidebar to help users open a folder, install language extensions, or get started with analysis. ([#1263](https://github.com/konveyor/editor-extensions/pull/1263))
+- Added network error classification and diagnostic logging for Hub API calls to help triage connection issues in restricted environments. ([#1300](https://github.com/konveyor/editor-extensions/pull/1300))
+- Redesign ToolMessage component with compact inline indicators, collapsible tool groups, and improved status styling for better readability during multi-tool agent workflows. ([#1394](https://github.com/konveyor/editor-extensions/pull/1394))
+- Add OIDC authentication (auth code + PKCE, device flow fallback) and a Hub connection status panel showing live session state, sign in/out controls, token expiry, and per-feature connection indicators. ([#1419](https://github.com/konveyor/editor-extensions/pull/1419))
+- Each language extension now bundles and supplies its own stable rulesets instead of all rulesets being bundled in the core extension. ([#1440](https://github.com/konveyor/editor-extensions/pull/1440))
+- Replace hand-rolled OIDC implementation with oauth4webapi for spec-compliant discovery, token exchange, refresh, and end-session. Sign-out now properly invalidates the server-side OIDC session. ([#1453](https://github.com/konveyor/editor-extensions/pull/1453))
+- Dynamically discover available target and source labels from bundled rulesets at runtime instead of using hardcoded lists, fixing missing Spring and other migration targets in the profile editor.
+- Surface analyzer process errors to the extension output channel by promoting stderr logging from debug to warn level, tailing analyzer.log for ERROR/FATAL lines during startup, and adding progress feedback with early abort detection during pipe connection retries.
+
+### Bug Fixes
+
+- When an automatic analysis kicks off due to file save, it appears that we can still stop the analysis server which leaves the extension in an unrecoverable state. This change prevents stopping the analysis server during running or scheduled analysis. ([#0000](https://github.com/konveyor/editor-extensions/pull/0000))
+- Hub-synced profiles are now stored in a dedicated .konveyor/hub-profiles/ directory, separate from user-managed profiles in .konveyor/profiles/. When Hub profile sync is disabled, the hub profiles directory is automatically cleaned up, restoring local profile management without requiring manual directory deletion. ([#1185](https://github.com/konveyor/editor-extensions/pull/1185))
+- Do not bypass SSL globally in solution server client. Uses existing custom fetch function that we use for model provider connection. Uses the existing mock server infrastructure with self-signed certificates to test SSL bypass behavior. ([#1258](https://github.com/konveyor/editor-extensions/pull/1258))
+- Fix incident status not updating after token refresh by preserving solution server session state (clientId) across token refreshes. ([#1273](https://github.com/konveyor/editor-extensions/pull/1273))
+- Fixed duplicate profile name exceeding the 24-character limit by truncating the base name before appending the copy suffix. ([#1286](https://github.com/konveyor/editor-extensions/pull/1286))
+- ignore files outside workspace in analysis trigger. ([#1343](https://github.com/konveyor/editor-extensions/pull/1343))
+- Add enabled property to LLM proxy client. ([#1374](https://github.com/konveyor/editor-extensions/pull/1374))
+- Upgrade no-response logging from silly to warn in agentic workflow nodes so silent LLM failures are visible in normal log output. ([#1391](https://github.com/konveyor/editor-extensions/pull/1391))
+- Add configurable timeout (default 5 minutes) to LLM requests in streamOrInvoke to prevent indefinite hanging when the model provider is misconfigured or unreachable. Upgrade no-response logging from silly to warn with actionable error messages. ([#1392](https://github.com/konveyor/editor-extensions/pull/1392))
+- Fix file showing patched content after closing review editor tab without accepting. Use tabGroups.onDidChangeTabs to restore the clean on-disk buffer via WorkspaceEdit instead of the unreliable onDidCloseTextDocument + revert approach. ([#1410](https://github.com/konveyor/editor-extensions/pull/1410))
+- Honor the NO_PROXY environment variable when deciding whether to route Hub and GenAI provider connections through HTTP_PROXY/HTTPS_PROXY. Targets matching NO_PROXY (including loopback addresses such as 127.0.0.1) now bypass the proxy as expected. ([#1415](https://github.com/konveyor/editor-extensions/pull/1415))
+- Agent-mode workflow no longer hits the LangGraph recursion limit on small incident sets. Raises the analysis-fix recursion floor and breaks a router self-loop that ran when no additional information accumulated. ([#1418](https://github.com/konveyor/editor-extensions/pull/1418))
+- Demo-mode LLM response cache now resolves on Windows. Workspace-relative paths used in cache keys and prompt content are normalized to POSIX separators, and line endings are normalized when deriving cache keys, so a cache recorded on Linux/macOS (LF) is found on a Windows checkout (CRLF). ([#1425](https://github.com/konveyor/editor-extensions/pull/1425))
+- Update the e2e infrastructure setup, hub seeding script, and solution-server test client to authenticate against the hub's built-in IdP via POST /hub/auth/tokens (Basic auth) after the operator removed keycloak in favor of a hub-managed OIDC implementation. ([#1436](https://github.com/konveyor/editor-extensions/pull/1436))
+- Show absolute date for token expiry over 24 hours instead of unrealistic hour count (e.g. "on Jun 17, 2036" instead of "in 87599h 59m"). ([#1451](https://github.com/konveyor/editor-extensions/pull/1451))
+- Added ANALYZER_FALLBACK_BASE_URL environment variable to override fallback asset download URLs for air-gapped environments.
+- Fixed E2E tests checking out main instead of the release branch during patch releases, causing test-code/extension-code version mismatches.
+- Fixed an issue caused by empty new lines in diffs when reviewing a proposed solution.
+- Fixed CA_BUNDLE and ALLOW_INSECURE not reaching Google GenAI provider due to webpack-bundled undici being separate from Node's built-in fetch.
+- Fixed CA_BUNDLE and ALLOW_INSECURE settings being ignored for the Google GenAI provider by configuring the global fetch dispatcher with custom TLS certificates.
+- Fixed Hub LLM proxy race condition, stream errors from leaked cacheKey option, TLS propagation to proxy models, and no-auth Hub support.
+- Fixed provider address format for Windows named pipes in Go and C# extensions to use the passthrough:unix:// prefix required by analyzer-lsp.
+- Fix continue button remaining disabled after closing editor tab with active code lenses. When the user opens a solution in review mode (with accept/reject code lenses) and closes the editor tab without accepting or rejecting, the activeDecorators state was not cleaned up. This left the batch review UI in a stuck state where the continue button stayed disabled. Added an onDidCloseTextDocument listener to VerticalDiffManager that clears diff state when the editor tab is closed, treating it as a reject/discard. Also fixes a related issue where the closed file retained patched content in VS Code's in-memory buffer by reverting the file to its on-disk state, and resets the webview review UI so users can re-open the review.
+- Fix Unix domain socket path length limit on macOS by using /tmp instead of os.tmpdir() for IPC socket paths, preventing failures when the system temp directory path is long.
+- Fix solution server not receiving user's in-place edits when accepting a solution. Previously, when a user edited the LLM-suggested fix directly in the editor before clicking Accept, the solution server received the original LLM-generated content instead of the user's modified version. The fix now reads the file from disk at accept time, capturing any edits made between fix generation and acceptance.
+- Fix analysis being blocked after accepting a solution and reverting the file. When the batch review completed (all files accepted/rejected/continued), checkBatchReviewComplete only cleared pendingBatchReview but did not reset the workflow state flags (isFetchingSolution, solutionState, isWaitingForUserInteraction, isProcessingQueuedMessages). This left the extension in a broken state where analysis could not run because it thought a resolution was still in progress. Now checkBatchReviewComplete fully resets all workflow flags when the batch is done, and also cleans up stale workflow resources (queue manager, pending interactions, modified files cache).
+- Replaced hardcoded "Konveyor Hub" references in configuration UI with dynamic branding to support downstream rebranding.
 
 ## [0.4.0] - 2026-02-19
 
@@ -90,7 +134,6 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 - Improved Windows compatibility across extensions. ([#983](https://github.com/konveyor/editor-extensions/pull/983))
 - Fixed provider check race condition on server start. ([#988](https://github.com/konveyor/editor-extensions/pull/988))
 - Fix analyzer binary download to track version metadata for outdated binary detection and provide actionable error messages in network-restricted environments.
-
 
 ## [0.2.0] - 2025-09-30
 

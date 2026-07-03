@@ -2,6 +2,13 @@
 
 All notable changes to the "konveyor-java" extension will be documented in this file.
 
+## [0.6.0] - 2026-07-03
+
+### Bug Fixes
+
+- Java extension now waits for the Java Language Server to reach Standard mode before starting the LSP proxy and provider, fixing a race condition in DevSpaces where the extension would fail to activate and require a window reload. ([#1349](https://github.com/konveyor/editor-extensions/pull/1349))
+- Fix Unix domain socket path length limit on macOS by using /tmp instead of os.tmpdir() for IPC socket paths, preventing failures when the system temp directory path is long.
+
 ## [0.4.0] - 2026-02-19
 
 ### New Features
@@ -15,5 +22,3 @@ All notable changes to the "konveyor-java" extension will be documented in this 
 
 - Gracefully handle provider errors when dependencies are missing. ([#1117](https://github.com/konveyor/editor-extensions/pull/1117))
 - Improved Windows compatibility across extensions. ([#983](https://github.com/konveyor/editor-extensions/pull/983))
-
-

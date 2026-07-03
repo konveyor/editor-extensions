@@ -1,8 +1,0 @@
-kind: enhancement
-description: >
-  Decouple all model-bound prompt templates into a governed, version-controlled
-  @editor-extensions/prompts package (ISO 42001 A.5.2): Handlebars templates with a
-  semver manifest, byte-exact parity + deterministic semantic-regression tests, a
-  CI validation pipeline, CODEOWNERS review on prompts/, and PROMPT_GOVERNANCE.md.
-extensions:
-  - core

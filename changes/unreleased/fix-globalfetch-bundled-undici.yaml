@@ -1,3 +1,0 @@
-kind: bugfix
-description: >
-  Fixed CA_BUNDLE and ALLOW_INSECURE not reaching Google GenAI provider due to webpack-bundled undici being separate from Node's built-in fetch.
