@@ -505,17 +505,24 @@ export class HubConnectionManager {
 
     // Connect Solution Server
     if (this.config.features.solutionServer.enabled) {
+      let client: SolutionServerClient | null = null;
       try {
         this.logger.info("Connecting solution server client", { hubUrl: this.config.url });
-        this.solutionServerClient = this.createSolutionServerClient();
-        await this.solutionServerClient.connect();
+        client = this.createSolutionServerClient();
+        this.solutionServerClient = client;
+        await client.connect();
         this.logger.info("Successfully connected to Hub solution server");
         vscode.window.showInformationMessage("Successfully connected to Hub solution server");
       } catch (error) {
         this.logger.error("Failed to connect solution server client", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Failed to connect to Hub solution server: ${errorMessage}`);
-        this.solutionServerClient = null;
+        // A partially-connected client (transport up, listTools failed) would
+        // otherwise leak its MCP session
+        await client?.disconnect().catch(() => {});
+        if (this.solutionServerClient === client) {
+          this.solutionServerClient = null;
+        }
       }
     }
 
@@ -585,10 +592,12 @@ export class HubConnectionManager {
           this.logger.error("Failed to update solution server client token", error);
         }
       } else {
+        let client: SolutionServerClient | null = null;
         try {
           this.logger.info("Reconnecting solution server client", { hubUrl: this.config.url });
-          this.solutionServerClient = this.createSolutionServerClient();
-          await this.solutionServerClient.connect();
+          client = this.createSolutionServerClient();
+          this.solutionServerClient = client;
+          await client.connect();
           solutionClientReplaced = true;
           this.logger.info("Successfully reconnected to Hub solution server");
         } catch (error) {
@@ -597,7 +606,11 @@ export class HubConnectionManager {
           vscode.window.showErrorMessage(
             `Failed to connect to Hub solution server: ${errorMessage}`,
           );
-          this.solutionServerClient = null;
+          // Clean up a partially-connected client to avoid leaking its session
+          await client?.disconnect().catch(() => {});
+          if (this.solutionServerClient === client) {
+            this.solutionServerClient = null;
+          }
         }
       }
     }
@@ -854,6 +867,11 @@ export class HubConnectionManager {
     // PAT the user is revoking
     this.teardownInProgress = true;
     try {
+      // Quiesce a full connect() too — it could otherwise finish after the
+      // teardown and install a client with the just-revoked credentials
+      if (this.connectPromise) {
+        await this.connectPromise.catch(() => {});
+      }
       if (this.reconnectPromise) {
         await this.reconnectPromise.catch(() => {});
       }
@@ -1512,8 +1530,13 @@ export class HubConnectionManager {
         // (it's baked into ChatOpenAI instances). tokenRefreshOnly=true keeps
         // the workflow alive when the solution server client was preserved;
         // if the instance had to be replaced, request a full disposal so the
-        // next run picks up the new client.
-        this.onWorkflowDisposal?.(!solutionClientReplaced);
+        // next run picks up the new client. Guarded: a throwing callback must
+        // not make a successful refresh look failed to the retry handler.
+        try {
+          this.onWorkflowDisposal?.(!solutionClientReplaced);
+        } catch (error) {
+          this.logger.warn("Workflow disposal callback failed after token refresh", { error });
+        }
       } else {
         this.logger.warn("Token refresh failed");
         this.handleRefreshFailure();
