@@ -128,6 +128,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private logger: Logger;
   private cachedCapabilities: SolutionServerCapabilities | null = null;
   private connectionStateListener: SolutionServerConnectionListener | null = null;
+  private suppressConnectionNotifications: number = 0;
   public isConnected: boolean = false;
 
   constructor(
@@ -159,7 +160,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private setConnected(connected: boolean): void {
     const changed = this.isConnected !== connected;
     this.isConnected = connected;
-    if (changed) {
+    if (changed && this.suppressConnectionNotifications === 0) {
       this.connectionStateListener?.(connected);
     }
   }
@@ -206,6 +207,14 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   private async attemptConnectionWithSlashRetry(): Promise<boolean> {
+    // Pin the client instance: a concurrent connection-failure handler can
+    // null this.mcpClient (closeStaleClient) mid-connect, and optional
+    // chaining on null would otherwise report a vacuous "success"
+    const mcpClient = this.mcpClient;
+    if (!mcpClient) {
+      return false;
+    }
+
     const serverUrlObj = new URL(this.serverUrl);
     const redirectAwareFetch = createRedirectAwareFetch(
       serverUrlObj,
@@ -229,9 +238,11 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     // First attempt with original URL
     try {
       this.logger.debug(`Connecting to MCP server at: ${this.serverUrl}`);
-      await this.mcpClient?.connect(
-        new StreamableHTTPClientTransport(serverUrlObj, transportOptions),
-      );
+      await mcpClient.connect(new StreamableHTTPClientTransport(serverUrlObj, transportOptions));
+      if (this.mcpClient !== mcpClient) {
+        // Client was torn down while we were connecting
+        return false;
+      }
       this.logger.info("Connected to MCP solution server");
       this.setConnected(true);
       return true;
@@ -255,9 +266,13 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
 
       try {
         this.logger.debug(`Retrying connection to MCP server at: ${alternativeUrl}`);
-        await this.mcpClient?.connect(
+        await mcpClient.connect(
           new StreamableHTTPClientTransport(alternativeUrlObj, alternativeTransportOptions),
         );
+        if (this.mcpClient !== mcpClient) {
+          // Client was torn down while we were connecting
+          return false;
+        }
         this.logger.info(
           `Connected to MCP solution server using alternative URL: ${alternativeUrl}`,
         );
@@ -309,10 +324,22 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     this.bearerToken = newToken;
 
     if (wasConnected) {
-      // Reconnect with new token - MCP SDK uses token during connection setup
-      this.logger.info("Reconnecting MCP client with new token");
-      await this.disconnect();
-      await this.connect();
+      // Reconnect with new token - MCP SDK uses token during connection setup.
+      // Suppress connection state notifications for the transient disconnect —
+      // a routine token refresh shouldn't flash the status UI. Notify only if
+      // the final state ends up different from where we started. A counter
+      // (not detaching the listener) keeps this reentrancy-safe and preserves
+      // an external detach that happens while we're suspended at an await.
+      this.suppressConnectionNotifications++;
+      try {
+        await this.disconnect();
+        await this.connect();
+      } finally {
+        this.suppressConnectionNotifications--;
+        if (this.suppressConnectionNotifications === 0 && this.isConnected !== wasConnected) {
+          this.connectionStateListener?.(this.isConnected);
+        }
+      }
     }
   }
 

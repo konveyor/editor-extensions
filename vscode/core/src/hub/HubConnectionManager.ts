@@ -118,6 +118,18 @@ export class HubConnectionManager {
   // Mutex: coalesce concurrent connect() calls into a single in-flight operation
   private connectPromise: Promise<void> | null = null;
 
+  // Mutex: coalesce concurrent reconnectSolutionServer() calls
+  private reconnectPromise: Promise<boolean> | null = null;
+
+  // Bumped on every manager-level disconnect (full connect, logout, config
+  // change). An in-flight reconnect whose epoch no longer matches must discard
+  // its result instead of resurrecting a connection built from stale state.
+  private connectionEpoch: number = 0;
+
+  // True while oidcLogout tears down auth state; set synchronously at its
+  // entry so an in-flight reconnect can never install a client mid-logout
+  private teardownInProgress: boolean = false;
+
   constructor(defaultConfig: HubConfig, logger: Logger) {
     this.config = defaultConfig;
     this.logger = logger.child({
@@ -153,19 +165,29 @@ export class HubConnectionManager {
    * Create a solution server client wired to the connection state callback.
    */
   private createSolutionServerClient(): SolutionServerClient {
-    const client = new SolutionServerClient(
+    const client = this.buildSolutionServerClient();
+    this.attachConnectionListener(client);
+    return client;
+  }
+
+  /** Construct a solution server client without a connection state listener. */
+  private buildSolutionServerClient(): SolutionServerClient {
+    return new SolutionServerClient(
       this.config.url,
       this.bearerToken,
       this.logger,
       this.scopedFetch ?? undefined,
     );
+  }
+
+  /** Wire a client's connection state transitions to the webview callback. */
+  private attachConnectionListener(client: SolutionServerClient): void {
     client.setConnectionStateListener((connected) => {
       if (!connected) {
         this.logger.warn("Solution server connection lost");
       }
       this.onSolutionServerConnectionChange?.(connected);
     });
-    return client;
   }
 
   /**
@@ -555,8 +577,11 @@ export class HubConnectionManager {
             await this.solutionServerClient.connect();
           }
         } catch (error) {
-          // Keep the instance — the health poll (reconnectSolutionServer) can
-          // recover the connection without stranding workflow references
+          // Keep the instance — the health poll (reconnectSolutionServer) will
+          // recover the connection. But report it as replaced: the client is
+          // left disconnected and the poll's recovery mints a new instance, so
+          // workflows must be disposed rather than run against this one.
+          solutionClientReplaced = true;
           this.logger.error("Failed to update solution server client token", error);
         }
       } else {
@@ -634,6 +659,19 @@ export class HubConnectionManager {
       // A full connect() is in flight; let it establish the client
       return false;
     }
+    if (this.reconnectPromise) {
+      // A reconnect is already in flight; share its outcome
+      return this.reconnectPromise;
+    }
+    this.reconnectPromise = this._reconnectSolutionServer();
+    try {
+      return await this.reconnectPromise;
+    } finally {
+      this.reconnectPromise = null;
+    }
+  }
+
+  private async _reconnectSolutionServer(): Promise<boolean> {
     if (!this.config.enabled || !this.config.features.solutionServer.enabled) {
       return false;
     }
@@ -641,38 +679,82 @@ export class HubConnectionManager {
       // No usable token — reconnecting requires re-authentication (sign in)
       return false;
     }
+    if (this.isRefreshingTokens || this.teardownInProgress) {
+      // Token refresh reconnects the clients itself; logout is tearing state
+      // down — racing either would corrupt the client they're working on
+      return false;
+    }
 
+    const epoch = this.connectionEpoch;
+
+    // Build and connect the replacement first, so concurrent readers never
+    // observe a null client mid-reconnect; the stale (disconnected) instance
+    // stays in place until the new one is confirmed live. The listener is
+    // attached only after the epoch check below, so a discarded client never
+    // broadcasts state.
+    let newClient: SolutionServerClient | null = null;
+    try {
+      this.logger.info("Attempting solution server reconnection");
+      newClient = this.buildSolutionServerClient();
+      await newClient.connect();
+    } catch (error) {
+      this.logger.warn("Solution server reconnection failed", { error });
+      // A partially-connected client (transport up, listTools failed) would
+      // otherwise leak its MCP session
+      await newClient?.disconnect().catch(() => {});
+      return false;
+    }
+
+    // Re-check every invalidating condition at the swap point: a full
+    // connect(), logout, token refresh, or config change that started while
+    // we were connecting means this client was built from stale config/token
+    const superseded =
+      this.connectPromise ||
+      this.teardownInProgress ||
+      this.isRefreshingTokens ||
+      epoch !== this.connectionEpoch ||
+      (this.config.auth.enabled && !this.bearerToken);
+    if (superseded) {
+      this.logger.info("Discarding reconnect result superseded by a newer connection change");
+      await newClient.disconnect().catch(() => {});
+      return false;
+    }
+
+    this.attachConnectionListener(newClient);
     const staleClient = this.solutionServerClient;
-    this.solutionServerClient = null;
+    this.solutionServerClient = newClient;
     if (staleClient) {
+      // Detach the listener so tearing down the old client can't broadcast a
+      // stale "disconnected" over the newly connected state
+      staleClient.setConnectionStateListener(null);
       try {
         await staleClient.disconnect();
       } catch (error) {
         this.logger.debug("Error disposing stale solution server client", { error });
       }
     }
+    this.logger.info("Solution server reconnected");
 
+    // Workflows capture the client instance at init — dispose so the next
+    // run picks up the new client (deferred if a workflow is running). Guarded:
+    // a throwing callback must not reject the reconnect (the health poll would
+    // die un-rescheduled).
     try {
-      this.logger.info("Attempting solution server reconnection");
-      const client = this.createSolutionServerClient();
-      await client.connect();
-      this.solutionServerClient = client;
-      this.logger.info("Solution server reconnected");
-
-      // Workflows capture the client instance at init — dispose so the next
-      // run picks up the new client (deferred if a workflow is running)
       this.onWorkflowDisposal?.(false);
-      return true;
     } catch (error) {
-      this.logger.warn("Solution server reconnection failed", { error });
-      return false;
+      this.logger.warn("Workflow disposal callback failed after reconnect", { error });
     }
+    return true;
   }
 
   /**
    * Disconnect from Hub and clean up all resources
    */
   public async disconnect(): Promise<void> {
+    // Invalidate any in-flight solution server reconnect — its result would
+    // be built from the pre-disconnect config/token
+    this.connectionEpoch++;
+
     if (!this.solutionServerClient && !this.profileSyncClient) {
       this.logger.silly("No Hub features connected, skipping disconnect");
       return;
@@ -767,6 +849,21 @@ export class HubConnectionManager {
    * Logout from OIDC (clear stored tokens).
    */
   public async oidcLogout(): Promise<void> {
+    // Block in-flight/new health-poll reconnects for the whole teardown — a
+    // reconnect completing mid-logout would resurrect a connection with the
+    // PAT the user is revoking
+    this.teardownInProgress = true;
+    try {
+      if (this.reconnectPromise) {
+        await this.reconnectPromise.catch(() => {});
+      }
+      await this.doOidcLogout();
+    } finally {
+      this.teardownInProgress = false;
+    }
+  }
+
+  private async doOidcLogout(): Promise<void> {
     // Server-side cleanup before clearing local state
     try {
       if (!this.oidcAuthCode && this.getAuthMethod() === "oidc") {
@@ -1351,9 +1448,18 @@ export class HubConnectionManager {
       this.logger.info(`Token refresh scheduled in ${Math.round(timeUntilRefresh / 1000)}s`);
       this.refreshTimer = setTimeout(() => this.refreshTokens(), timeUntilRefresh);
     } else if (this.bearerToken) {
-      // Token already needs refresh
-      this.logger.info("Token already expired or near expiry, refreshing now");
-      await this.refreshTokens();
+      if (this.isRefreshingTokens) {
+        // We're being called from within refreshTokens itself and the fresh
+        // token is already inside the expiry buffer. Recursing would hit the
+        // reentrancy guard and silently drop the refresh chain — arm a short
+        // timer instead so the chain stays alive.
+        this.logger.info("Fresh token already near expiry; scheduling follow-up refresh");
+        this.refreshTimer = setTimeout(() => this.refreshTokens(), REAUTH_DELAY_MS);
+      } else {
+        // Token already needs refresh
+        this.logger.info("Token already expired or near expiry, refreshing now");
+        await this.refreshTokens();
+      }
     }
   }
 
@@ -1361,9 +1467,24 @@ export class HubConnectionManager {
    * Refresh tokens using the appropriate flow.
    */
   private async refreshTokens(): Promise<void> {
+    if (this.isRefreshingTokens) {
+      // A refresh is already in flight (e.g. timer firing while a manual
+      // connect kicked one off) — running two concurrently would race
+      // updateBearerToken calls on the same client instances
+      this.logger.info("Token refresh already in progress, skipping");
+      return;
+    }
     this.isRefreshingTokens = true;
 
     try {
+      // Let any in-flight health-poll reconnect settle before touching the
+      // clients — its swap would otherwise tear down the instance we're about
+      // to update. (With isRefreshingTokens now set, the reconnect discards
+      // its result at the swap point rather than installing it.)
+      if (this.reconnectPromise) {
+        await this.reconnectPromise.catch(() => {});
+      }
+
       const method = this.getAuthMethod();
       let refreshed = false;
 
