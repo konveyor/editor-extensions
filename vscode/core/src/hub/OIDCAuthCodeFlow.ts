@@ -128,9 +128,14 @@ export class OIDCAuthCodeFlow {
     return Date.now() < this.expiresAt - TOKEN_EXPIRY_BUFFER_MS;
   }
 
-  public getTimeUntilRefresh(): number {
+  /**
+   * Milliseconds until the token should be refreshed, 0 if it is already due,
+   * or null if the token has no known expiry (isTokenValid() treats such
+   * tokens as valid indefinitely, so there is nothing to refresh).
+   */
+  public getTimeUntilRefresh(): number | null {
     if (!this.expiresAt) {
-      return 0;
+      return null;
     }
     const remaining = this.expiresAt - TOKEN_EXPIRY_BUFFER_MS - Date.now();
     return Math.max(0, remaining);
