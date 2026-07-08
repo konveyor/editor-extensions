@@ -91,8 +91,25 @@ export class MCPClient {
       config.insecure
     );
     const mcpClient = new MCPClient(fullUrl, authManager);
-    await mcpClient.connectTransport();
-    return mcpClient;
+
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 5000;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await mcpClient.connectTransport();
+        return mcpClient;
+      } catch (error: any) {
+        const is421 = error?.message?.includes('421');
+        if (!is421 || attempt === MAX_RETRIES) {
+          throw error;
+        }
+        console.warn(
+          `MCP connect attempt ${attempt}/${MAX_RETRIES} got 421, retrying in ${RETRY_DELAY_MS}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    }
+    throw new Error('MCPClient.connect: unreachable');
   }
 
   private async connectTransport(): Promise<void> {

@@ -318,3 +318,29 @@ runs:
           kubectl logs -n ${NAMESPACE} deployment/llm-proxy --tail=50
           exit 1
         fi
+
+        # Verify the kai-api MCP endpoint is reachable through the ingress.
+        # The endpoint may take a moment to become routable after the
+        # deployment is marked available; poll until it responds (any HTTP
+        # status other than 421/502/503 counts as "ready").
+        echo "=== Verifying kai-api MCP endpoint ==="
+        for i in $(seq 1 30); do
+          KAI_STATUS=$(curl -k -sS --connect-timeout 5 --max-time 15 \
+            -o /dev/null -w "%{http_code}" \
+            -X POST "${HUB_URL}/hub/services/kai/api" \
+            -H "Authorization: Bearer ${APIKEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"initialize","id":0,"params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"health-check","version":"0.0.0"}}}' \
+            || echo "000")
+          if [ "$KAI_STATUS" != "421" ] && [ "$KAI_STATUS" != "502" ] && [ "$KAI_STATUS" != "503" ] && [ "$KAI_STATUS" != "000" ]; then
+            echo "✓ kai-api MCP endpoint responded (HTTP $KAI_STATUS)"
+            break
+          fi
+          echo "kai-api not routable yet (HTTP $KAI_STATUS), retrying... ($i/30)"
+          sleep 5
+        done
+        if [ "$KAI_STATUS" = "421" ] || [ "$KAI_STATUS" = "502" ] || [ "$KAI_STATUS" = "503" ] || [ "$KAI_STATUS" = "000" ]; then
+          echo "✗ kai-api MCP endpoint not reachable after 150s (last HTTP $KAI_STATUS)"
+          kubectl logs -n ${NAMESPACE} deployment/kai-api --tail=50
+          exit 1
+        fi
