@@ -110,6 +110,9 @@ export class SolutionServerClientError extends Error {
   }
 }
 
+/** Listener invoked whenever the client's connection state transitions. */
+export type SolutionServerConnectionListener = (connected: boolean) => void;
+
 /**
  * Client for interacting with the MCP solution server.
  *
@@ -124,6 +127,8 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   private currentClientId: string = "";
   private logger: Logger;
   private cachedCapabilities: SolutionServerCapabilities | null = null;
+  private connectionStateListener: SolutionServerConnectionListener | null = null;
+  private suppressConnectionNotifications: number = 0;
   public isConnected: boolean = false;
 
   constructor(
@@ -140,6 +145,24 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     this.logger = logger.child({
       component: "SolutionServerClient",
     });
+  }
+
+  /**
+   * Register a listener that fires whenever the connection state changes.
+   * Used by HubConnectionManager to propagate disconnects (e.g. stale MCP
+   * connections detected mid-request) to the webview status UI.
+   */
+  public setConnectionStateListener(listener: SolutionServerConnectionListener | null): void {
+    this.connectionStateListener = listener;
+  }
+
+  /** Set isConnected and notify the listener when the value transitions. */
+  private setConnected(connected: boolean): void {
+    const changed = this.isConnected !== connected;
+    this.isConnected = connected;
+    if (changed && this.suppressConnectionNotifications === 0) {
+      this.connectionStateListener?.(connected);
+    }
   }
 
   public async connect(): Promise<void> {
@@ -184,6 +207,14 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
   }
 
   private async attemptConnectionWithSlashRetry(): Promise<boolean> {
+    // Pin the client instance: a concurrent connection-failure handler can
+    // null this.mcpClient (closeStaleClient) mid-connect, and optional
+    // chaining on null would otherwise report a vacuous "success"
+    const mcpClient = this.mcpClient;
+    if (!mcpClient) {
+      return false;
+    }
+
     const serverUrlObj = new URL(this.serverUrl);
     const redirectAwareFetch = createRedirectAwareFetch(
       serverUrlObj,
@@ -207,11 +238,13 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     // First attempt with original URL
     try {
       this.logger.debug(`Connecting to MCP server at: ${this.serverUrl}`);
-      await this.mcpClient?.connect(
-        new StreamableHTTPClientTransport(serverUrlObj, transportOptions),
-      );
+      await mcpClient.connect(new StreamableHTTPClientTransport(serverUrlObj, transportOptions));
+      if (this.mcpClient !== mcpClient) {
+        // Client was torn down while we were connecting
+        return false;
+      }
       this.logger.info("Connected to MCP solution server");
-      this.isConnected = true;
+      this.setConnected(true);
       return true;
     } catch (error) {
       this.logger.warn(`Failed to connect with original URL (${this.serverUrl})`, error);
@@ -233,13 +266,17 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
 
       try {
         this.logger.debug(`Retrying connection to MCP server at: ${alternativeUrl}`);
-        await this.mcpClient?.connect(
+        await mcpClient.connect(
           new StreamableHTTPClientTransport(alternativeUrlObj, alternativeTransportOptions),
         );
+        if (this.mcpClient !== mcpClient) {
+          // Client was torn down while we were connecting
+          return false;
+        }
         this.logger.info(
           `Connected to MCP solution server using alternative URL: ${alternativeUrl}`,
         );
-        this.isConnected = true;
+        this.setConnected(true);
         return true;
       } catch (error) {
         this.logger.error(`Failed to connect with alternative URL (${alternativeUrl})`, error);
@@ -269,7 +306,7 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
         this.mcpClient = null;
       }
 
-      this.isConnected = false;
+      this.setConnected(false);
       this.logger.info("Disconnected from MCP solution server");
     } catch (error) {
       this.logger.error("Error during disconnect", error);
@@ -287,10 +324,22 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
     this.bearerToken = newToken;
 
     if (wasConnected) {
-      // Reconnect with new token - MCP SDK uses token during connection setup
-      this.logger.info("Reconnecting MCP client with new token");
-      await this.disconnect();
-      await this.connect();
+      // Reconnect with new token - MCP SDK uses token during connection setup.
+      // Suppress connection state notifications for the transient disconnect —
+      // a routine token refresh shouldn't flash the status UI. Notify only if
+      // the final state ends up different from where we started. A counter
+      // (not detaching the listener) keeps this reentrancy-safe and preserves
+      // an external detach that happens while we're suspended at an await.
+      this.suppressConnectionNotifications++;
+      try {
+        await this.disconnect();
+        await this.connect();
+      } finally {
+        this.suppressConnectionNotifications--;
+        if (this.suppressConnectionNotifications === 0 && this.isConnected !== wasConnected) {
+          this.connectionStateListener?.(this.isConnected);
+        }
+      }
     }
   }
 
@@ -361,7 +410,8 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
         errorMessage.toLowerCase().includes("etimedout") ||
         errorCode === "ECONNRESET" ||
         errorCode === "ECONNREFUSED" ||
-        errorCode === "ETIMEDOUT";
+        errorCode === "ETIMEDOUT" ||
+        (typeof errorCode === "string" && errorCode.startsWith("UND_ERR"));
 
       if (isConnectionError) {
         // Connection error - log detailed diagnostic information
@@ -375,17 +425,17 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
           fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
         });
 
-        // Mark as disconnected
-        this.isConnected = false;
+        // Mark as disconnected and notify the connection state listener
+        this.setConnected(false);
 
         // Close the stale MCP client to prevent resource leaks
         await this.closeStaleClient();
 
-        // Return empty capabilities instead of throwing
-        return {
-          tools: [],
-          resources: [],
-        };
+        // Propagate the failure so callers (e.g. the health poll) register
+        // the disconnect instead of mistaking empty capabilities for success
+        throw new SolutionServerClientError(
+          `Solution server connection failure: ${errorCode ?? errorMessage}`,
+        );
       }
 
       this.logger.error("Failed to get server capabilities", error);
@@ -793,7 +843,8 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
         errorMessage.toLowerCase().includes("network") ||
         errorCode === "ECONNRESET" ||
         errorCode === "ECONNREFUSED" ||
-        errorCode === "ETIMEDOUT";
+        errorCode === "ETIMEDOUT" ||
+        (typeof errorCode === "string" && errorCode.startsWith("UND_ERR"));
 
       if (isNotFoundError) {
         // Treat "not found" as a normal case - the violation simply has no hint in the database
@@ -826,8 +877,9 @@ export class SolutionServerClient extends KaiWorkflowEventEmitter {
           },
         );
 
-        // Mark as disconnected so future calls will know
-        this.isConnected = false;
+        // Mark as disconnected and notify the connection state listener so
+        // the status UI reflects the lost connection
+        this.setConnected(false);
 
         // Close the stale MCP client to prevent resource leaks
         await this.closeStaleClient();

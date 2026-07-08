@@ -1,0 +1,8 @@
+kind: bugfix
+description: >
+  Preserve Hub client instances across token refreshes instead of replacing
+  them, so workflows keep a working solution server client (and its clientId
+  session state), and rebuild the LLM proxy model provider with the refreshed
+  token so solution generation no longer fails with 401 after a refresh.
+extensions:
+  - core
