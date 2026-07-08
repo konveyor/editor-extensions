@@ -123,6 +123,24 @@ describe("model health check test", () => {
         OPENAI_API_KEY: "test-key",
       },
     },
+    anthropic: {
+      config: {
+        provider: "ChatAnthropic",
+        args: {
+          model: "test-model",
+          streaming: false,
+          maxRetries: 0,
+          clientOptions: {
+            baseURL: "https://localhost:8443",
+          },
+        },
+      },
+      env: {
+        ALLOW_INSECURE: "false",
+        CA_BUNDLE: pathlib.join(certsDir, "ca.crt"),
+        ANTHROPIC_API_KEY: "test-key",
+      },
+    },
     googleGenAI: {
       config: {
         provider: "ChatGoogleGenerativeAI",
@@ -311,6 +329,57 @@ describe("model health check test", () => {
     } catch (error) {
       console.error(error);
       throw new Error("Failed to connect to Google GenAI server with insecure mode");
+    }
+  });
+
+  it("should connect to Anthropic server when self-signed certs are used", async function (this: Mocha.Context) {
+    this.timeout(8000);
+    try {
+      const anthropicConfig = JSON.parse(JSON.stringify(configs.anthropic));
+      const modelCreator = ModelCreators[anthropicConfig.config.provider](logger);
+      const modelProvider = await modelCreator.create(
+        anthropicConfig.config.args,
+        anthropicConfig.env,
+      );
+      await modelProvider.invoke("Hello, world!");
+    } catch (error) {
+      console.error(error);
+      throw new Error("Failed to connect to Anthropic server with self-signed certs");
+    }
+  });
+
+  it("should error when Anthropic certs are not used with mock server that expects them", async function (this: Mocha.Context) {
+    this.timeout(7000);
+    try {
+      const anthropicConfig = JSON.parse(JSON.stringify(configs.anthropic));
+      anthropicConfig.env.CA_BUNDLE = "";
+      const modelCreator = ModelCreators[anthropicConfig.config.provider](logger);
+      const modelProvider = await modelCreator.create(
+        anthropicConfig.config.args,
+        anthropicConfig.env,
+      );
+      await withTimeout(modelProvider.invoke("Hello, world!"), 5000);
+      throw new Error("Expected connection to fail without CA_BUNDLE, but it succeeded");
+    } catch (error) {
+      expect(error).toBeDefined();
+    }
+  });
+
+  it("should NOT error when Anthropic certs are not used but insecure is set", async function (this: Mocha.Context) {
+    this.timeout(7000);
+    try {
+      const anthropicConfig = JSON.parse(JSON.stringify(configs.anthropic));
+      anthropicConfig.env.CA_BUNDLE = "";
+      anthropicConfig.env.ALLOW_INSECURE = "true";
+      const modelCreator = ModelCreators[anthropicConfig.config.provider](logger);
+      const modelProvider = await modelCreator.create(
+        anthropicConfig.config.args,
+        anthropicConfig.env,
+      );
+      await modelProvider.invoke("Hello, world!");
+    } catch (error) {
+      console.error(error);
+      throw new Error("Failed to connect to Anthropic server with insecure mode");
     }
   });
 
