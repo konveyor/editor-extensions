@@ -1,0 +1,5 @@
+kind: feature
+description: >
+  Added native Anthropic API support via a ChatAnthropic model provider, so Claude
+  models can be configured directly instead of only through AWS Bedrock or an
+  OpenAI-compatible proxy.
