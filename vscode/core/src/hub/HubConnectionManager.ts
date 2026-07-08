@@ -517,9 +517,9 @@ export class HubConnectionManager {
         this.logger.error("Failed to connect solution server client", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Failed to connect to Hub solution server: ${errorMessage}`);
-        // A partially-connected client (transport up, listTools failed) would
-        // otherwise leak its MCP session
-        await client?.disconnect().catch(() => {});
+        if (client?.isConnected) {
+          await client.disconnect().catch(() => {});
+        }
         if (this.solutionServerClient === client) {
           this.solutionServerClient = null;
         }
@@ -606,8 +606,9 @@ export class HubConnectionManager {
           vscode.window.showErrorMessage(
             `Failed to connect to Hub solution server: ${errorMessage}`,
           );
-          // Clean up a partially-connected client to avoid leaking its session
-          await client?.disconnect().catch(() => {});
+          if (client?.isConnected) {
+            await client.disconnect().catch(() => {});
+          }
           if (this.solutionServerClient === client) {
             this.solutionServerClient = null;
           }
@@ -712,9 +713,9 @@ export class HubConnectionManager {
       await newClient.connect();
     } catch (error) {
       this.logger.warn("Solution server reconnection failed", { error });
-      // A partially-connected client (transport up, listTools failed) would
-      // otherwise leak its MCP session
-      await newClient?.disconnect().catch(() => {});
+      if (newClient?.isConnected) {
+        await newClient.disconnect().catch(() => {});
+      }
       return false;
     }
 

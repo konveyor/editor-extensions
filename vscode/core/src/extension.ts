@@ -751,17 +751,22 @@ class VsCodeExtension {
             });
 
             // Attempt to re-establish the connection automatically — stale
-            // MCP connections drop after idle periods (see issue #1433)
-            const reconnected = await this.state.hubConnectionManager.reconnectSolutionServer();
-            if (reconnected) {
-              consecutiveFailures = 0;
-              pollInterval = 10000;
-              this.state.mutateServerState((draft) => {
-                draft.solutionServerConnected = true;
-              });
-            } else if (consecutiveFailures === 1) {
-              // Exponential backoff: 10s -> 30s -> 60s, then a slow 5m
-              // heartbeat so the connection can recover without manual retry
+            // MCP connections drop after idle periods (see issue #1433).
+            // Wait for 2+ consecutive failures before reconnecting to avoid
+            // connection churn on transient blips (each reconnect creates a
+            // new MCP transport, which can destabilize fragile proxies).
+            if (consecutiveFailures >= 2) {
+              const reconnected = await this.state.hubConnectionManager.reconnectSolutionServer();
+              if (reconnected) {
+                consecutiveFailures = 0;
+                pollInterval = 10000;
+                this.state.mutateServerState((draft) => {
+                  draft.solutionServerConnected = true;
+                });
+              }
+            }
+
+            if (consecutiveFailures === 1) {
               pollInterval = 30000;
             } else if (consecutiveFailures < 5) {
               pollInterval = 60000;
