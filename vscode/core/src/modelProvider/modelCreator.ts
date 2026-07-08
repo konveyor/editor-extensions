@@ -1,6 +1,7 @@
 import { Logger } from "winston";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { ChatOllama } from "@langchain/ollama";
+import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { AzureChatOpenAI, ChatOpenAI } from "@langchain/openai";
 import { ChatBedrockConverse, type ChatBedrockConverseInput } from "@langchain/aws";
@@ -22,6 +23,7 @@ const originalFetch = globalThis.fetch;
 
 export const ModelCreators: Record<string, (logger: Logger) => ModelCreator> = {
   AzureChatOpenAI: (logger) => new AzureChatOpenAICreator(logger),
+  ChatAnthropic: (logger) => new ChatAnthropicCreator(logger),
   ChatBedrock: (logger) => new ChatBedrockCreator(logger),
   ChatDeepSeek: (logger) => new ChatDeepSeekCreator(logger),
   ChatGoogleGenerativeAI: (logger) => new ChatGoogleGenerativeAICreator(logger),
@@ -64,6 +66,38 @@ class AzureChatOpenAICreator implements ModelCreator {
     });
 
     validateMissingConfigKeys(env, ["AZURE_OPENAI_API_KEY"], "environment variable(s)");
+  }
+}
+
+class ChatAnthropicCreator implements ModelCreator {
+  constructor(private readonly logger: Logger) {}
+
+  async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
+    const fetchFn = await setupProviderTLS(env, this.logger);
+    return new ChatAnthropic({
+      apiKey: env.ANTHROPIC_API_KEY,
+      ...args,
+      clientOptions: {
+        ...args.clientOptions,
+        ...(fetchFn ? { fetch: fetchFn } : {}),
+      },
+    });
+  }
+
+  defaultArgs(): Record<string, any> {
+    // NOTE: sampling params (temperature/top_p/top_k) are rejected with a 400 by
+    // current Claude models (Sonnet 5, Opus 4.7/4.8, ...), so we don't default
+    // temperature here the way the OpenAI-family providers do.
+    return {
+      model: "claude-sonnet-5",
+      streaming: true,
+      maxRetries: 2,
+    };
+  }
+
+  validate(args: Record<string, any>, env: Record<string, string>): void {
+    validateMissingConfigKeys(args, ["model"], "model arg(s)");
+    validateMissingConfigKeys(env, ["ANTHROPIC_API_KEY"], "environment variable(s)");
   }
 }
 
