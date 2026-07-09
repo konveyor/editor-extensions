@@ -588,6 +588,16 @@ class VsCodeExtension {
       this.context.subscriptions.push(this.diffStatusBarItem);
       this.checkContinueInstalled();
 
+      // Broadcast solution server connection state changes to the webview so
+      // the status chip reflects disconnects the client detects internally
+      // (e.g. a stale MCP connection timing out mid-request)
+      this.state.hubConnectionManager.setSolutionServerConnectionCallback((connected) => {
+        this.state.logger.info("Solution server connection state changed", { connected });
+        this.state.mutateServerState((draft) => {
+          draft.solutionServerConnected = connected;
+        });
+      });
+
       // Set up workflow disposal callback for when Hub clients reconnect
       // This handles both solution server changes and LLM proxy availability
       this.state.hubConnectionManager.setWorkflowDisposalCallback((tokenRefreshOnly) => {
@@ -740,23 +750,27 @@ class VsCodeExtension {
               draft.solutionServerConnected = false;
             });
 
-            // Exponential backoff: 10s -> 30s -> 60s (max)
-            if (consecutiveFailures === 1) {
+            // Attempt to re-establish the connection automatically — stale
+            // MCP connections drop after idle periods (see issue #1433)
+            const reconnected = await this.state.hubConnectionManager.reconnectSolutionServer();
+            if (reconnected) {
+              consecutiveFailures = 0;
+              pollInterval = 10000;
+              this.state.mutateServerState((draft) => {
+                draft.solutionServerConnected = true;
+              });
+            } else if (consecutiveFailures === 1) {
+              // Exponential backoff: 10s -> 30s -> 60s, then a slow 5m
+              // heartbeat so the connection can recover without manual retry
               pollInterval = 30000;
-            } else if (consecutiveFailures >= 2) {
+            } else if (consecutiveFailures < 5) {
               pollInterval = 60000;
+            } else {
+              pollInterval = 300000;
             }
           }
 
-          // Schedule next poll unless we've had too many failures
-          if (consecutiveFailures < 5) {
-            scheduleNextPoll(withJitter(pollInterval));
-          } else {
-            // Stop polling after 5 consecutive failures - will resume on manual retry or config change
-            this.state.logger.info(
-              "Stopping connection polling after repeated failures. Will resume on demand.",
-            );
-          }
+          scheduleNextPoll(withJitter(pollInterval));
         }, delay);
       };
 
