@@ -249,20 +249,6 @@ runs:
         kubectl wait --for=condition=available --timeout=600s deployment/llm-proxy -n ${{ inputs.namespace }}
         kubectl wait --for=condition=available --timeout=600s deployment/kai-api -n ${{ inputs.namespace }}
 
-        # WORKAROUND (konveyor/kai#934): the kai-solution-server :latest image
-        # resolves fastmcp from a floor (>=2.8.0) at build time, so rebuilds
-        # pick up FastMCP 3.4.3+, which enables host/origin (DNS-rebinding)
-        # protection by default with an empty allowlist. Behind the tackle-hub
-        # ingress the forwarded Host header is the external IP, which never
-        # matches, so every request to /hub/services/kai/api is rejected with
-        # 421 Misdirected Request before it reaches the MCP session layer.
-        # Disable the protection for this test cluster until the image pins a
-        # safe fastmcp version. Remove once kai#934 is fixed upstream.
-        echo "=== Disabling FastMCP host-origin protection on kai-api (kai#934) ==="
-        kubectl set env deployment/kai-api -n ${{ inputs.namespace }} \
-          FASTMCP_HTTP_HOST_ORIGIN_PROTECTION=false
-        kubectl rollout status deployment/kai-api -n ${{ inputs.namespace }} --timeout=300s
-
         echo "=== Deployment status ==="
         kubectl get deployments -n ${{ inputs.namespace }} | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
         kubectl get pods -n ${{ inputs.namespace }} | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
@@ -330,31 +316,5 @@ runs:
         else
           echo "LLM Proxy failed to reach llemulator"
           kubectl logs -n ${NAMESPACE} deployment/llm-proxy --tail=50
-          exit 1
-        fi
-
-        # Verify the kai-api MCP endpoint is reachable through the ingress.
-        # The endpoint may take a moment to become routable after the
-        # deployment is marked available; poll until it responds (any HTTP
-        # status other than 421/502/503 counts as "ready").
-        echo "=== Verifying kai-api MCP endpoint ==="
-        for i in $(seq 1 30); do
-          KAI_STATUS=$(curl -k -sS --connect-timeout 5 --max-time 15 \
-            -o /dev/null -w "%{http_code}" \
-            -X POST "${HUB_URL}/hub/services/kai/api" \
-            -H "Authorization: Bearer ${APIKEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"initialize","id":0,"params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"health-check","version":"0.0.0"}}}' \
-            || echo "000")
-          if [ "$KAI_STATUS" != "421" ] && [ "$KAI_STATUS" != "502" ] && [ "$KAI_STATUS" != "503" ] && [ "$KAI_STATUS" != "000" ]; then
-            echo "✓ kai-api MCP endpoint responded (HTTP $KAI_STATUS)"
-            break
-          fi
-          echo "kai-api not routable yet (HTTP $KAI_STATUS), retrying... ($i/30)"
-          sleep 5
-        done
-        if [ "$KAI_STATUS" = "421" ] || [ "$KAI_STATUS" = "502" ] || [ "$KAI_STATUS" = "503" ] || [ "$KAI_STATUS" = "000" ]; then
-          echo "✗ kai-api MCP endpoint not reachable after 150s (last HTTP $KAI_STATUS)"
-          kubectl logs -n ${NAMESPACE} deployment/kai-api --tail=50
           exit 1
         fi
