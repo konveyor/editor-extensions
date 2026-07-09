@@ -249,6 +249,20 @@ runs:
         kubectl wait --for=condition=available --timeout=600s deployment/llm-proxy -n ${{ inputs.namespace }}
         kubectl wait --for=condition=available --timeout=600s deployment/kai-api -n ${{ inputs.namespace }}
 
+        # WORKAROUND (konveyor/kai#934): the kai-solution-server :latest image
+        # resolves fastmcp from a floor (>=2.8.0) at build time, so rebuilds
+        # pick up FastMCP 3.4.3+, which enables host/origin (DNS-rebinding)
+        # protection by default with an empty allowlist. Behind the tackle-hub
+        # ingress the forwarded Host header is the external IP, which never
+        # matches, so every request to /hub/services/kai/api is rejected with
+        # 421 Misdirected Request before it reaches the MCP session layer.
+        # Disable the protection for this test cluster until the image pins a
+        # safe fastmcp version. Remove once kai#934 is fixed upstream.
+        echo "=== Disabling FastMCP host-origin protection on kai-api (kai#934) ==="
+        kubectl set env deployment/kai-api -n ${{ inputs.namespace }} \
+          FASTMCP_HTTP_HOST_ORIGIN_PROTECTION=false
+        kubectl rollout status deployment/kai-api -n ${{ inputs.namespace }} --timeout=300s
+
         echo "=== Deployment status ==="
         kubectl get deployments -n ${{ inputs.namespace }} | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
         kubectl get pods -n ${{ inputs.namespace }} | grep -E 'llm-proxy|kai-api|kai-db|llemulator'
