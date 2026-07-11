@@ -1,7 +1,0 @@
-kind: bugfix
-description: >
-  Treat a Hub token without a known expiry (a PAT minted with no
-  expiration/lifespan, or an OIDC token with no expires_in and no exp claim)
-  as long-lived instead of already expired, so the refresh timer no longer
-  falls into an immediate-refresh loop that mints tokens against the Hub at
-  request speed and prevents connect() from ever completing.

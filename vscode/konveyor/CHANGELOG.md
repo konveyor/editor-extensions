@@ -2,6 +2,16 @@
 
 All notable changes to the "konveyor" extension pack will be documented in this file.
 
+
+## [0.6.1] - 2026-07-11
+
+### Bug Fixes
+
+- Update the Solution Server status chip when the MCP connection goes stale and automatically reconnect. Connection failures detected mid-request are now broadcast to the webview, and the health poll retries the connection with backoff instead of stopping after repeated failures. ([#1468](https://github.com/konveyor/editor-extensions/pull/1468))
+- Preserve Hub client instances across token refreshes instead of replacing them, so workflows keep a working solution server client (and its clientId session state), and rebuild the LLM proxy model provider with the refreshed token so solution generation no longer fails with 401 after a refresh. ([#1468](https://github.com/konveyor/editor-extensions/pull/1468))
+- Treat a Hub token without a known expiry (a PAT minted with no expiration/lifespan, or an OIDC token with no expires_in and no exp claim) as long-lived instead of already expired, so the refresh timer no longer falls into an immediate-refresh loop that mints tokens against the Hub at request speed and prevents connect() from ever completing.
+
+
 ## [0.6.0] - 2026-07-03
 
 ### Enhancements
