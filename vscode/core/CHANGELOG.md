@@ -2,7 +2,6 @@
 
 All notable changes to the "konveyor.konveyor-core" extension will be documented in this file.
 
-
 ## [0.6.1] - 2026-07-11
 
 ### Bug Fixes
@@ -11,13 +10,12 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 - Preserve Hub client instances across token refreshes instead of replacing them, so workflows keep a working solution server client (and its clientId session state), and rebuild the LLM proxy model provider with the refreshed token so solution generation no longer fails with 401 after a refresh. ([#1468](https://github.com/konveyor/editor-extensions/pull/1468))
 - Treat a Hub token without a known expiry (a PAT minted with no expiration/lifespan, or an OIDC token with no expires_in and no exp claim) as long-lived instead of already expired, so the refresh timer no longer falls into an immediate-refresh loop that mints tokens against the Hub at request speed and prevents connect() from ever completing.
 
-
 ## [0.6.0] - 2026-07-03
 
 ### Enhancements
 
-- Decouple all model-bound prompt templates into a governed, version-controlled @editor-extensions/prompts package (ISO 42001 A.5.2): Handlebars templates with a semver manifest, byte-exact parity + deterministic semantic-regression tests, a CI validation pipeline, CODEOWNERS review on prompts/, and PROMPT_GOVERNANCE.md. ([#0000](https://github.com/konveyor/editor-extensions/pull/0000))
-- Add a minimal smoke E2E flow and decouple heavy base tests from tiered runs. ([#0000](https://github.com/konveyor/editor-extensions/pull/0000))
+- Decouple all model-bound prompt templates into a governed, version-controlled @editor-extensions/prompts package (ISO 42001 A.5.2): Handlebars templates with a semver manifest, byte-exact parity + deterministic semantic-regression tests, a CI validation pipeline, CODEOWNERS review on prompts/, and PROMPT_GOVERNANCE.md. ([#1464](https://github.com/konveyor/editor-extensions/pull/1464))
+- Add a minimal smoke E2E flow and decouple heavy base tests from tiered runs. ([#1289](https://github.com/konveyor/editor-extensions/pull/1289))
 - Graceful degraded state when no workspace is open or no language providers are registered, with guided welcome content in the sidebar to help users open a folder, install language extensions, or get started with analysis. ([#1263](https://github.com/konveyor/editor-extensions/pull/1263))
 - Added network error classification and diagnostic logging for Hub API calls to help triage connection issues in restricted environments. ([#1300](https://github.com/konveyor/editor-extensions/pull/1300))
 - Redesign ToolMessage component with compact inline indicators, collapsible tool groups, and improved status styling for better readability during multi-tool agent workflows. ([#1394](https://github.com/konveyor/editor-extensions/pull/1394))
@@ -29,7 +27,7 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 ### Bug Fixes
 
-- When an automatic analysis kicks off due to file save, it appears that we can still stop the analysis server which leaves the extension in an unrecoverable state. This change prevents stopping the analysis server during running or scheduled analysis. ([#0000](https://github.com/konveyor/editor-extensions/pull/0000))
+- When an automatic analysis kicks off due to file save, it appears that we can still stop the analysis server which leaves the extension in an unrecoverable state. This change prevents stopping the analysis server during running or scheduled analysis. ([#1284](https://github.com/konveyor/editor-extensions/pull/1284))
 - Hub-synced profiles are now stored in a dedicated .konveyor/hub-profiles/ directory, separate from user-managed profiles in .konveyor/profiles/. When Hub profile sync is disabled, the hub profiles directory is automatically cleaned up, restoring local profile management without requiring manual directory deletion. ([#1185](https://github.com/konveyor/editor-extensions/pull/1185))
 - Do not bypass SSL globally in solution server client. Uses existing custom fetch function that we use for model provider connection. Uses the existing mock server infrastructure with self-signed certificates to test SSL bypass behavior. ([#1258](https://github.com/konveyor/editor-extensions/pull/1258))
 - Fix incident status not updating after token refresh by preserving solution server session state (clientId) across token refreshes. ([#1273](https://github.com/konveyor/editor-extensions/pull/1273))
