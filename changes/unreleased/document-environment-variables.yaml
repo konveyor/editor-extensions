@@ -1,0 +1,3 @@
+kind: enhancement
+description: >
+  Documented environment variables for configuring the extension in managed environments like Dev Spaces.
