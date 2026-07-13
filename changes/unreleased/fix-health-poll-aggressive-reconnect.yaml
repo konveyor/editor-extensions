@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Fixed health poll aggressively reconnecting the solution server on the first transient failure, which disrupted other MCP clients sharing the same ingress.
