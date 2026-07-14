@@ -1,7 +1,0 @@
-kind: enhancement
-description: >
-  Graceful degraded state when no workspace is open or no language providers
-  are registered, with guided welcome content in the sidebar to help users
-  open a folder, install language extensions, or get started with analysis.
-extensions:
-  - core

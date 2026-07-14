@@ -1,3 +1,0 @@
-kind: bugfix
-description: >
-  Replaced hardcoded "Konveyor Hub" references in configuration UI with dynamic branding to support downstream rebranding.

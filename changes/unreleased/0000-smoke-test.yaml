@@ -1,3 +1,0 @@
-kind: enhancement
-description: >
-  Add a minimal smoke E2E flow and decouple heavy base tests from tiered runs.

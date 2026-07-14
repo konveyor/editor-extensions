@@ -1,6 +1,6 @@
 {
   "name": "@editor-extensions/prompts",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "description": "Governed, version-controlled prompt templates for Developer Lightspeed (ISO 42001 A.5.2).",

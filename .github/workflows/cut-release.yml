@@ -134,27 +134,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Assemble changelog on main
-        run: |
-          npm run changelog:assemble -- "${{ needs.validate.outputs.tag }}"
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m "assemble changelog for ${{ needs.validate.outputs.tag }}"
-          else
-            echo "No changelog fragments to assemble"
-          fi
-
-      - name: Bump version on main
-        run: |
-          npm version ${{ needs.validate.outputs.next_version }} \
-            --workspaces --include-workspace-root \
-            --no-git-tag-version --allow-same-version
-          git add -A
-          git commit -m "bump version to ${{ needs.validate.outputs.next_version }}"
-
-      - name: Push main
-        run: git push origin main
-
       - name: Create release branch and clean up fragments
         run: |
           git checkout -b ${{ needs.validate.outputs.branch }} ${{ needs.validate.outputs.tag }}
@@ -178,6 +157,40 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
 
+      - name: Create post-release PR for main
+        run: |
+          HOUSEKEEPING_BRANCH="post-release/${{ needs.validate.outputs.tag }}"
+          git checkout main
+          git checkout -b "$HOUSEKEEPING_BRANCH"
+
+          npm run changelog:assemble -- "${{ needs.validate.outputs.tag }}"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "assemble changelog for ${{ needs.validate.outputs.tag }}"
+          fi
+
+          npm version ${{ needs.validate.outputs.next_version }} \
+            --workspaces --include-workspace-root \
+            --no-git-tag-version --allow-same-version
+          sed -i "s/^version: .*/version: ${{ needs.validate.outputs.next_version }}/" prompts/manifest.yaml
+          git add -A
+          git commit -m "bump version to ${{ needs.validate.outputs.next_version }}"
+
+          git push origin "$HOUSEKEEPING_BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$HOUSEKEEPING_BRANCH" \
+            --title ":seedling: post-release ${{ needs.validate.outputs.tag }} housekeeping" \
+            --body "Automated post-release housekeeping for ${{ needs.validate.outputs.tag }}.
+
+          - Assemble changelog fragments
+          - Bump version to ${{ needs.validate.outputs.next_version }}
+
+          This PR was created by the [Cut Release](../actions/workflows/cut-release.yml) workflow."
+        env:
+          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+
       - name: Summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
@@ -185,9 +198,8 @@ jobs:
 
           | Step | Result |
           |------|--------|
-          | Changelog | assembled and committed to main |
-          | Version bump | main → \`${{ needs.validate.outputs.next_version }}\` |
           | Release branch | \`${{ needs.validate.outputs.branch }}\` created from \`${{ needs.validate.outputs.tag }}\` |
           | Branch changelog | assembled on \`${{ needs.validate.outputs.branch }}\` |
           | Cherry-pick label | \`cherry-pick/${{ needs.validate.outputs.branch }}\` |
+          | Main housekeeping | PR created to assemble changelog and bump to \`${{ needs.validate.outputs.next_version }}\` |
           EOF
