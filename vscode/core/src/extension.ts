@@ -750,18 +750,27 @@ class VsCodeExtension {
               draft.solutionServerConnected = false;
             });
 
-            // Attempt to re-establish the connection automatically — stale
-            // MCP connections drop after idle periods (see issue #1433)
-            const reconnected = await this.state.hubConnectionManager.reconnectSolutionServer();
-            if (reconnected) {
-              consecutiveFailures = 0;
-              pollInterval = 10000;
-              this.state.mutateServerState((draft) => {
-                draft.solutionServerConnected = true;
-              });
-            } else if (consecutiveFailures === 1) {
-              // Exponential backoff: 10s -> 30s -> 60s, then a slow 5m
-              // heartbeat so the connection can recover without manual retry
+            // Only attempt reconnection after multiple consecutive failures —
+            // a single transient error (e.g. a momentary network blip) should
+            // not tear down and replace the MCP session, because that disrupts
+            // other clients sharing the same ingress / HTTP/2 connection pool.
+            // Stale MCP connections (issue #1433) produce sustained failures,
+            // so waiting for ≥ 2 consecutive failures before reconnecting
+            // still detects them reliably while avoiding false positives.
+            if (consecutiveFailures >= 2) {
+              const reconnected = await this.state.hubConnectionManager.reconnectSolutionServer();
+              if (reconnected) {
+                consecutiveFailures = 0;
+                pollInterval = 10000;
+                this.state.mutateServerState((draft) => {
+                  draft.solutionServerConnected = true;
+                });
+              }
+            }
+
+            // Exponential backoff: 10s -> 30s -> 60s, then a slow 5m
+            // heartbeat so the connection can recover without manual retry
+            if (consecutiveFailures === 1) {
               pollInterval = 30000;
             } else if (consecutiveFailures < 5) {
               pollInterval = 60000;
