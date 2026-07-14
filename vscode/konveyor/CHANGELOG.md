@@ -2,6 +2,18 @@
 
 All notable changes to the "konveyor" extension pack will be documented in this file.
 
+
+## [0.6.2] - 2026-07-14
+
+### Enhancements
+
+- Documented environment variables for configuring the extension in managed environments like Dev Spaces.
+
+### Bug Fixes
+
+- Fixed health poll aggressively reconnecting the solution server on the first transient failure, which disrupted other MCP clients sharing the same ingress.
+
+
 ## [0.6.1] - 2026-07-11
 
 ### Bug Fixes
