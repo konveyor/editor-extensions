@@ -99,7 +99,7 @@ test.describe.serial(
     });
 
     test.afterAll(async () => {
-      await vsCode.closeVSCode();
+      await vsCode?.closeVSCode();
     });
 
     /**
