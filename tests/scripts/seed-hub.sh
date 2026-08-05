@@ -83,6 +83,71 @@ else
   echo "✓ Analysis Profile created with ID: $ANALYSIS_PROFILE_ID"
 fi
 
+# 1b. Get or Create Analysis Profile "Label Selector"
+#
+# Exercises a profile that carries BOTH source and target labels. The hub's
+# analyzer addon ANDs the two groups together rather than ORing everything, so
+# this is what hub-profile-label-selector.test.ts asserts the extension derives.
+# Kept separate from "Coolstore" so analysis expectations there stay untouched.
+echo ""
+echo "Getting or creating Analysis Profile 'Label Selector'..."
+
+SELECTOR_PROFILE_ID=$(echo "$ALL_PROFILES" | jq -r '.[] | select(.name=="Label Selector") | .id // empty' | head -n 1)
+
+if [ -n "$SELECTOR_PROFILE_ID" ]; then
+  echo "✓ Analysis Profile already exists with ID: $SELECTOR_PROFILE_ID"
+else
+  # Resolve targets by label rather than by display name. The target named
+  # "Containerization" carries konveyor.io/target=cloud-readiness, and there is
+  # no konveyor.io/target=containerization label.
+  ALL_TARGETS=$(curl -k -s -X GET \
+    "${HUB_URL}/hub/targets" \
+    -H "Authorization: Bearer ${TOKEN}")
+
+  resolve_target_by_label() {
+    echo "$ALL_TARGETS" | jq -r --arg l "konveyor.io/target=$1" \
+      '[.[] | select(any(.labels[]?; .label == $l))] | .[0].id // empty'
+  }
+
+  CLOUD_READINESS_ID=$(resolve_target_by_label cloud-readiness)
+  OPENLIBERTY_ID=$(resolve_target_by_label openliberty)
+
+  if [ -z "$CLOUD_READINESS_ID" ] || [ -z "$OPENLIBERTY_ID" ]; then
+    echo "ERROR: Failed to resolve targets (cloud-readiness=$CLOUD_READINESS_ID openliberty=$OPENLIBERTY_ID)"
+    exit 1
+  fi
+
+  SELECTOR_PROFILE_RESPONSE=$(curl -k -s -X POST \
+    "${HUB_URL}/hub/analysis/profiles" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -d "$(jq -n \
+      --argjson cr "$CLOUD_READINESS_ID" \
+      --argjson ol "$OPENLIBERTY_ID" \
+      '{
+        name: "Label Selector",
+        mode: { withDeps: false },
+        scope: { withKnownLibs: false, packages: { included: [], excluded: [] } },
+        rules: {
+          targets: [ {id: $cr}, {id: $ol} ],
+          labels: {
+            included: ["konveyor.io/source=javaee", "konveyor.io/source=websphere"],
+            excluded: []
+          }
+        }
+      }')")
+
+  SELECTOR_PROFILE_ID=$(echo "$SELECTOR_PROFILE_RESPONSE" | jq -r '.id // empty')
+
+  if [ -z "$SELECTOR_PROFILE_ID" ]; then
+    echo "ERROR: Failed to create 'Label Selector' Analysis Profile"
+    echo "Response: $SELECTOR_PROFILE_RESPONSE"
+    exit 1
+  fi
+
+  echo "✓ Analysis Profile created with ID: $SELECTOR_PROFILE_ID"
+fi
+
 # 2. Get or Create Archetype "coolstore"
 echo ""
 echo "Getting or creating Archetype 'coolstore'..."
@@ -135,27 +200,29 @@ CURRENT_ARCHETYPE=$(curl -k -s -X GET \
   "${HUB_URL}/hub/archetypes/${ARCHETYPE_ID}" \
   -H "Authorization: Bearer ${TOKEN}")
 
-# Check if the archetype already has the Coolstore analysis profile
+# Check that the archetype has both analysis profiles
 HAS_PROFILE=$(echo "$CURRENT_ARCHETYPE" | jq -r '.profiles[]? | select(.analysisProfile.id == '${ANALYSIS_PROFILE_ID}') | .analysisProfile.id // empty')
+HAS_SELECTOR_PROFILE=$(echo "$CURRENT_ARCHETYPE" | jq -r '.profiles[]? | select(.analysisProfile.id == '${SELECTOR_PROFILE_ID}') | .analysisProfile.id // empty')
 
-if [ -n "$HAS_PROFILE" ]; then
-  echo "✓ Archetype already has the Coolstore Analysis Profile"
+if [ -n "$HAS_PROFILE" ] && [ -n "$HAS_SELECTOR_PROFILE" ]; then
+  echo "✓ Archetype already has both Analysis Profiles"
 else
-  # 4. Update Archetype with Analysis Profile
+  # 4. Update Archetype with Analysis Profiles
   echo ""
-  echo "Updating Archetype with Analysis Profile..."
+  echo "Updating Archetype with Analysis Profiles..."
 
   # Extract criteria from current archetype (default to empty array if null)
   CRITERIA=$(echo "$CURRENT_ARCHETYPE" | jq '.criteria // []')
 
   echo "DEBUG: Current criteria: $CRITERIA"
-  echo "DEBUG: Analysis Profile ID: $ANALYSIS_PROFILE_ID"
+  echo "DEBUG: Analysis Profile IDs: $ANALYSIS_PROFILE_ID (Coolstore), $SELECTOR_PROFILE_ID (Label Selector)"
 
   # Build the payload using jq to ensure valid JSON
   PAYLOAD=$(jq -n \
     --argjson criteria "$CRITERIA" \
     --arg name "coolstore" \
     --argjson profileId "$ANALYSIS_PROFILE_ID" \
+    --argjson selectorProfileId "$SELECTOR_PROFILE_ID" \
     '{
       name: $name,
       description: "",
@@ -169,6 +236,12 @@ else
           name: "coolstore",
           analysisProfile: {
             id: ($profileId | tonumber)
+          }
+        },
+        {
+          name: "label-selector",
+          analysisProfile: {
+            id: ($selectorProfileId | tonumber)
           }
         }
       ]
@@ -251,5 +324,6 @@ fi
 echo ""
 echo "=== Hub seeding completed successfully ==="
 echo "  Analysis Profile ID: $ANALYSIS_PROFILE_ID"
+echo "  Label Selector Profile ID: $SELECTOR_PROFILE_ID"
 echo "  Archetype ID: $ARCHETYPE_ID"
 echo "  Application ID: $APPLICATION_ID"
