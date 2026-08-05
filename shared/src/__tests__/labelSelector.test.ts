@@ -113,73 +113,131 @@ describe("buildLabelSelector", () => {
   });
 });
 
+// These cases mirror RuleSelector.String() in tackle2-addon-analyzer
+// (cmd/rules.go). The IDE must produce byte-identical selectors to the Hub for
+// the same profile, otherwise a synced profile yields different issues in each.
 describe("buildLabelSelectorFromLabels", () => {
-  it("should return correct format when no labels are provided", () => {
+  it("should return an empty selector when no labels are provided", () => {
     const result = buildLabelSelectorFromLabels([], []);
     expect(result).toBe("");
   });
 
-  it("should handle only sources", () => {
+  it("should not parenthesize a lone source", () => {
     const result = buildLabelSelectorFromLabels(["konveyor.io/source=java-ee"], []);
-    expect(result).toBe("(konveyor.io/source=java-ee)");
+    expect(result).toBe("konveyor.io/source=java-ee");
   });
 
-  it("should handle only targets", () => {
+  it("should not parenthesize a lone target", () => {
     const result = buildLabelSelectorFromLabels(["konveyor.io/target=spring-boot"], []);
-    expect(result).toBe("(konveyor.io/target=spring-boot)");
+    expect(result).toBe("konveyor.io/target=spring-boot");
   });
 
-  it("should handle sources and targets together", () => {
+  it("should AND sources with targets rather than OR them", () => {
     const result = buildLabelSelectorFromLabels(
       ["konveyor.io/source=java-ee", "konveyor.io/target=spring-boot"],
       [],
     );
-    expect(result).toBe("(konveyor.io/source=java-ee || konveyor.io/target=spring-boot)");
+    expect(result).toBe("(konveyor.io/source=java-ee&&konveyor.io/target=spring-boot)");
   });
 
-  it("should handle excluded labels", () => {
+  it("should OR within each of sources and targets, and AND across them", () => {
+    const result = buildLabelSelectorFromLabels(
+      [
+        "konveyor.io/source=weblogic",
+        "konveyor.io/source=websphere",
+        "konveyor.io/target=eap8",
+        "konveyor.io/target=cloud-readiness",
+      ],
+      [],
+    );
+    expect(result).toBe(
+      "((konveyor.io/source=weblogic||konveyor.io/source=websphere)&&" +
+        "(konveyor.io/target=cloud-readiness||konveyor.io/target=eap8))",
+    );
+  });
+
+  it("should negate a single excluded label", () => {
     const result = buildLabelSelectorFromLabels(
       ["konveyor.io/source=java-ee", "konveyor.io/target=spring-boot"],
       ["konveyor.io/target=eap7"],
     );
     expect(result).toBe(
-      "(konveyor.io/source=java-ee || konveyor.io/target=spring-boot) && !konveyor.io/target=eap7",
+      "((konveyor.io/source=java-ee&&konveyor.io/target=spring-boot)&&!konveyor.io/target=eap7)",
     );
   });
 
-  it("should handle multiple excluded labels", () => {
+  it("should negate multiple excluded labels as a group", () => {
     const result = buildLabelSelectorFromLabels(
       ["konveyor.io/source=java-ee"],
       ["konveyor.io/target=eap7", "konveyor.io/target=eap6"],
     );
     expect(result).toBe(
-      "(konveyor.io/source=java-ee) && !konveyor.io/target=eap7 && !konveyor.io/target=eap6",
+      "(konveyor.io/source=java-ee&&!(konveyor.io/target=eap6||konveyor.io/target=eap7))",
     );
   });
 
-  it("should handle other namespace labels", () => {
+  // The Hub builds rules.labels.included by ranging over a Go map, so the order
+  // it hands us changes between bundle downloads. The selector we derive has to
+  // be stable, otherwise every sync rewrites profile.yaml in the workspace.
+  it("should produce the same selector regardless of the order labels arrive in", () => {
+    const labels = [
+      "konveyor.io/target=cloud-readiness",
+      "konveyor.io/source=websphere",
+      "konveyor.io/target=openliberty",
+      "konveyor.io/source=javaee",
+    ];
+    const shuffled = [
+      "konveyor.io/source=websphere",
+      "konveyor.io/target=openliberty",
+      "konveyor.io/source=javaee",
+      "konveyor.io/target=cloud-readiness",
+    ];
+
+    expect(buildLabelSelectorFromLabels(shuffled, [])).toBe(
+      buildLabelSelectorFromLabels(labels, []),
+    );
+  });
+
+  it("should OR non-konveyor.io labels with the source/target clause", () => {
     const result = buildLabelSelectorFromLabels(
       ["other.namespace/label=value", "konveyor.io/source=java-ee"],
       [],
     );
-    expect(result).toBe("(other.namespace/label=value || konveyor.io/source=java-ee)");
+    expect(result).toBe("(other.namespace/label=value||konveyor.io/source=java-ee)");
   });
 
-  it("should handle other konveyor.io labels", () => {
+  it("should treat konveyor.io labels that are neither source nor target as other", () => {
     const result = buildLabelSelectorFromLabels(
       ["konveyor.io/other=value", "konveyor.io/source=java-ee"],
       [],
     );
-    expect(result).toBe("(konveyor.io/other=value || konveyor.io/source=java-ee)");
+    expect(result).toBe("(konveyor.io/other=value||konveyor.io/source=java-ee)");
   });
 
-  it("should include duplicate labels as provided", () => {
+  it("should de-duplicate included and excluded labels", () => {
     const result = buildLabelSelectorFromLabels(
       ["konveyor.io/source=java-ee", "konveyor.io/source=java-ee"],
       ["konveyor.io/target=eap7", "konveyor.io/target=eap7"],
     );
+    expect(result).toBe("(konveyor.io/source=java-ee&&!konveyor.io/target=eap7)");
+  });
+
+  // Captured from a live Hub: profile with targets Containerization + Open
+  // Liberty and additional source labels javaee + websphere. The Hub's analyzer
+  // addon logged exactly this selector; the extension must match it.
+  it("should reproduce the selector a live Hub used for a websphere->openliberty profile", () => {
+    const result = buildLabelSelectorFromLabels(
+      [
+        "konveyor.io/source=javaee",
+        "konveyor.io/source=websphere",
+        "konveyor.io/target=cloud-readiness",
+        "konveyor.io/target=openliberty",
+      ],
+      [],
+    );
     expect(result).toBe(
-      "(konveyor.io/source=java-ee || konveyor.io/source=java-ee) && !konveyor.io/target=eap7 && !konveyor.io/target=eap7",
+      "((konveyor.io/source=javaee||konveyor.io/source=websphere)&&" +
+        "(konveyor.io/target=cloud-readiness||konveyor.io/target=openliberty))",
     );
   });
 });
