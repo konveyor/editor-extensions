@@ -22,14 +22,23 @@ jobs:
     needs: verify
     if: contains(fromJSON('["feature", "bugfix", "breaking"]'), needs.verify.outputs.pr_type)
     name: Verify changelog fragment
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
+      # Ask the API which files the PR touches rather than checking the head out.
+      # This workflow runs on pull_request_target, and actions/checkout refuses to
+      # check out fork code in that context because it would run untrusted code
+      # with a privileged token. We only need the file list, never the contents.
       - name: Check for changelog fragment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          FRAGMENTS=$(git diff --name-only --diff-filter=AM origin/${{ github.event.pull_request.base.ref }}...HEAD -- 'changes/unreleased/*.yaml' 'changes/unreleased/*.yml')
+          FRAGMENTS=$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" \
+            --jq '.[] | select(.status == "added" or .status == "modified") | .filename' \
+            | grep -E '^changes/unreleased/.+\.(yaml|yml)$' || true)
           if [ -z "$FRAGMENTS" ]; then
             echo "::error::This is a ${{ needs.verify.outputs.pr_type }} PR — a changelog fragment is required in changes/unreleased/"
             echo ""
