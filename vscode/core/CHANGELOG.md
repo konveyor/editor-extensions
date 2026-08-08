@@ -3,6 +3,14 @@
 All notable changes to the "konveyor.konveyor-core" extension will be documented in this file.
 
 
+
+## [0.6.4] - 2026-08-08
+
+### Bug Fixes
+
+- Build the label selector for hub-synced analysis profiles the same way the hub's analyzer addon does, by ANDing source labels with target labels instead of ORing every label together. Analyzing an application in the IDE with a profile synced from the hub no longer reports a different set of issues than running the same profile on the hub. ([#1478](https://github.com/konveyor/editor-extensions/pull/1478))
+
+
 ## [0.6.2] - 2026-07-14
 
 ### Enhancements
