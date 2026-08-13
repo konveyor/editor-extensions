@@ -1,7 +1,13 @@
+import * as fs from "fs/promises";
+import * as os from "os";
+import * as path from "path";
+
 import expect from "expect";
+import * as tar from "tar";
+import winston from "winston";
+
 import type { HubApplication } from "../ProfileSyncClient";
 import { ProfileSyncClient } from "../ProfileSyncClient";
-import winston from "winston";
 
 /**
  * Tests for Hub application matching scenarios.
@@ -320,5 +326,77 @@ describe("ProfileSyncClient - Application Matching", () => {
     //   expect(variations).toContain("git@github.com:org/group/subgroup/repo");
     //   expect(variations).toContain("https://github.com/org/group/subgroup/repo");
     // });
+  });
+});
+
+describe("ProfileSyncClient - re-sync over a read-only profile", () => {
+  let client: ProfileSyncClient;
+  let logger: winston.Logger;
+  let syncDir: string;
+
+  const HUB_PROFILE = [
+    "id: 1",
+    "name: websphere to openliberty",
+    "rules:",
+    "  labels:",
+    "    included:",
+    "    - konveyor.io/source=javaee",
+    "    - konveyor.io/target=openliberty",
+    "    excluded: []",
+    "",
+  ].join("\n");
+
+  beforeEach(async () => {
+    logger = winston.createLogger({ silent: true });
+    syncDir = await fs.mkdtemp(path.join(os.tmpdir(), "profile-sync-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(syncDir, { recursive: true, force: true });
+  });
+
+  /** Bundle tar as the Hub serves it. */
+  async function bundleTar(): Promise<Buffer> {
+    const staging = await fs.mkdtemp(path.join(os.tmpdir(), "profile-bundle-"));
+    await fs.writeFile(path.join(staging, "profile.yaml"), HUB_PROFILE, "utf-8");
+    const tarPath = path.join(staging, "bundle.tar");
+    await tar.create({ file: tarPath, cwd: staging }, ["profile.yaml"]);
+    const buf = await fs.readFile(tarPath);
+    await fs.rm(staging, { recursive: true, force: true });
+    return buf;
+  }
+
+  async function syncOnce(): Promise<string> {
+    const buf = await bundleTar();
+    client = new ProfileSyncClient("https://hub.example.com", "token", logger, (async () => ({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => buf,
+      headers: new Map() as never,
+    })) as unknown as typeof fetch);
+
+    // @ts-expect-error - exercising the private extraction path directly
+    await client.downloadAndExtractProfile(1, 1, syncDir);
+    return path.join(syncDir, "1", "profile.yaml");
+  }
+
+  it("replaces a read-only profile.yaml left by an earlier sync", async () => {
+    const profileYaml = await syncOnce();
+
+    // setProfileFilesReadOnly runs after every successful sync.
+    await fs.chmod(profileYaml, 0o444);
+    const before = await fs.readFile(profileYaml, "utf-8");
+    expect(before).toContain("labelSelector");
+
+    // Change the selector so a skipped transform is visible.
+    await fs.chmod(profileYaml, 0o644);
+    await fs.writeFile(profileYaml, before.replace(/labelSelector:.*/, "labelSelector: STALE"));
+    await fs.chmod(profileYaml, 0o444);
+
+    await syncOnce();
+
+    const after = await fs.readFile(profileYaml, "utf-8");
+    expect(after).not.toContain("STALE");
+    expect(after).toContain("konveyor.io/source=javaee");
   });
 });
