@@ -767,6 +767,11 @@ export class ProfileSyncClient {
 
     // Create profile directory: syncDir/<profileId>/
     const profileDir = path.join(syncDir, profileId.toString());
+
+    // Wipe first. The previous sync leaves profile.yaml read-only, which tar
+    // will not overwrite. Done after the download so a failed fetch does not
+    // take out the profile we already have.
+    await fs.rm(profileDir, { recursive: true, force: true });
     await fs.mkdir(profileDir, { recursive: true });
 
     // Write tar buffer to temporary file
@@ -780,6 +785,9 @@ export class ProfileSyncClient {
         file: tempTarFile,
         cwd: profileDir,
         strip: 0,
+        // Replace files instead of writing in place, otherwise a read-only
+        // file is skipped without an error.
+        unlink: true,
         filter: (path) => {
           // Security filter: prevent path traversal attacks
           const normalized = path.replace(/\\/g, "/");
