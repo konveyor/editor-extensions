@@ -103,9 +103,27 @@ export class TabManager {
   public async closeTabByName(tabName: string): Promise<void> {
     const tabSelector = `.tab[role="tab"][data-resource-name="${tabName}"]`;
     const tab = this.window.locator(tabSelector);
-    await expect(tab).toBeVisible({ timeout: 10000 });
+    await expect(tab.first()).toBeVisible({ timeout: 10000 });
+
+    // Focus the tab before closing it. The close button is only reliably
+    // rendered/visible for the active tab; for inactive tabs the `.tab-actions`
+    // subtree can be briefly detached while VS Code re-renders the tab (e.g.
+    // during the dirty -> clean transition right after an auto-accept-on-save),
+    // which made the DOM click flaky.
+    await this.focusTabByName(tabName);
+
     const closeBtn = tab.locator('.tab-actions .action-label.codicon-close').first();
-    await expect(closeBtn).toBeVisible({ timeout: 5000 });
-    await closeBtn.click();
+    try {
+      await expect(closeBtn).toBeVisible({ timeout: 5000 });
+      await closeBtn.click();
+    } catch {
+      // Fallback: close the active editor via the VS Code command. This is more
+      // reliable than a DOM click while the tab is still re-rendering. The tab
+      // was focused above, so the active editor is the one we intend to close.
+      await this.vsCode.executeQuickCommand('View: Close Editor');
+    }
+
+    // Verify the tab is actually gone before continuing.
+    await expect(tab).toHaveCount(0, { timeout: 10000 });
   }
 }

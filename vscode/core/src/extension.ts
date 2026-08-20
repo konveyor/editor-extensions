@@ -832,8 +832,12 @@ class VsCodeExtension {
             if (handler && handler.hasDiffForCurrentFile()) {
               try {
                 // Accept all diffs BEFORE the save operation
-                // This ensures the document is saved in its final state
-                await this.state.staticDiffAdapter?.acceptAll(doc.uri.fsPath);
+                // This ensures the document is saved in its final state.
+                // Pass the URI string (not fsPath): the vertical diff handler
+                // map is keyed by `uri.toString()`, so passing fsPath here made
+                // the lookup miss and the accept silently no-op, saving a buffer
+                // that still contained the un-accepted diff.
+                await this.state.staticDiffAdapter?.acceptAll(fileUri);
                 this.state.logger.info(
                   `Auto-accepted all diff decorations for ${doc.fileName} before save`,
                 );

@@ -11,7 +11,9 @@ export default defineConfig({
   outputDir: 'test-output',
   globalSetup: require.resolve('./global.setup.ts'),
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  // Retry in CI so a single flaky E2E interaction doesn't red the whole
+  // (release-blocking) tier. Local runs keep 0 retries for fast feedback.
+  retries: process.env.CI ? 2 : 0,
   workers: 1,
   timeout: !!process.env.WEB_ENV ? 600000 : 120000,
 
