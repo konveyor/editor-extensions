@@ -4,6 +4,15 @@ All notable changes to the "konveyor.konveyor-core" extension will be documented
 
 
 
+
+## [0.6.5] - 2026-08-24
+
+### Bug Fixes
+
+- Wipe a hub profile directory before extracting the bundle into it. Synced profiles are marked read-only, and tar will not overwrite a read-only file, so re-syncing left the old profile.yaml in place and any fix to the label selector never reached users who had already synced. ([#1484](https://github.com/konveyor/editor-extensions/pull/1484))
+- Fix "Auto Accept on Save" saving files with un-accepted inline diffs. The save handler looked up the diff by its URI string but then tried to accept it by filesystem path, so the accept silently no-oped and the file was saved with the pending diff still in the buffer. The correct URI is now used, so saving accepts and clears the diff as intended. ([#1488](https://github.com/konveyor/editor-extensions/pull/1488))
+
+
 ## [0.6.4] - 2026-08-08
 
 ### Bug Fixes
