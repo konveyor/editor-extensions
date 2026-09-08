@@ -2,6 +2,7 @@ kind: feature
 description: >
   Add MCP server package and VS Code bridge for exposing Konveyor analysis tools
   to external coding agents (Goose, OpenCode). Includes bearer token authentication,
-  body size limits, and input validation.
+  workspace path containment for file writes, body size limits, request timeouts,
+  and input validation.
 extensions:
   - core
