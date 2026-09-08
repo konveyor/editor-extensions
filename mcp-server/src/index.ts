@@ -26,13 +26,24 @@ if (!BRIDGE_TOKEN) {
   process.exit(1);
 }
 
-const BRIDGE_BASE = `http://127.0.0.1:${BRIDGE_PORT}`;
+const parsedBridgePort = Number(BRIDGE_PORT);
+if (!Number.isInteger(parsedBridgePort) || parsedBridgePort < 1 || parsedBridgePort > 65535) {
+  console.error("KONVEYOR_BRIDGE_PORT must be an integer between 1 and 65535");
+  process.exit(1);
+}
+
+const BRIDGE_BASE = `http://127.0.0.1:${parsedBridgePort}`;
+
+/** Default ceiling for a single bridge round-trip. */
+const BRIDGE_REQUEST_TIMEOUT_MS = 30_000;
+/** Analysis can legitimately run for many minutes on large projects. */
+const RUN_ANALYSIS_TIMEOUT_MS = 15 * 60_000;
 
 async function bridgeRequest(
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; timeoutMs?: number } = {},
 ): Promise<unknown> {
-  const { method = "GET", body } = options;
+  const { method = "GET", body, timeoutMs = BRIDGE_REQUEST_TIMEOUT_MS } = options;
   const url = `${BRIDGE_BASE}${path}`;
 
   const headers: Record<string, string> = {
@@ -42,11 +53,24 @@ async function bridgeRequest(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`Bridge request to ${path} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -75,7 +99,10 @@ server.tool(
   {},
   async () => {
     try {
-      const result = (await bridgeRequest("/api/run-analysis", { method: "POST" })) as {
+      const result = (await bridgeRequest("/api/run-analysis", {
+        method: "POST",
+        timeoutMs: RUN_ANALYSIS_TIMEOUT_MS,
+      })) as {
         status: string;
         totalIncidents?: number;
         totalRuleSets?: number;
@@ -149,10 +176,10 @@ server.tool(
       if (result.fileResults && result.fileResults.length > 0) {
         lines.push("", "Results by file:");
         for (const fr of result.fileResults) {
-          const shortPath = fr.file.split("/").slice(-3).join("/");
+          const shortPath = fr.file.split(/[\\/]/).slice(-3).join("/");
           lines.push(`\n${shortPath} (${fr.incidents.length} incidents):`);
           for (const inc of fr.incidents) {
-            const loc = inc.line ? ` (line ${inc.line})` : "";
+            const loc = inc.line !== undefined && inc.line !== null ? ` (line ${inc.line})` : "";
             lines.push(`  - [${inc.violation}]${loc}: ${inc.message}`);
           }
         }
