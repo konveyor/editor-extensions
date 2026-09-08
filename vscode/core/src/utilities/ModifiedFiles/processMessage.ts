@@ -39,7 +39,7 @@ const waitForAnalysisCompletion = async (state: ExtensionState): Promise<void> =
 const resetStuckAnalysisFlags = (state: ExtensionState): void => {
   if (state.data.isAnalyzing || state.data.isAnalysisScheduled) {
     console.warn("Tasks interaction: Force resetting stuck analysis flags");
-    state.mutateAnalysisState((draft) => {
+    state.mutate((draft) => {
       draft.isAnalyzing = false;
       draft.isAnalysisScheduled = false;
     });
@@ -58,7 +58,7 @@ const handleUserInteractionPromise = async (
   queueManager: MessageQueueManager,
   pendingInteractions: Map<string, (response: any) => void>,
 ): Promise<void> => {
-  state.mutateSolutionWorkflow((draft) => {
+  state.mutate((draft) => {
     draft.isWaitingForUserInteraction = true;
   });
 
@@ -66,7 +66,7 @@ const handleUserInteractionPromise = async (
     const timeout = setTimeout(() => {
       console.warn(`User interaction timeout for message ${msg.id}`);
       pendingInteractions.delete(msg.id);
-      state.mutateSolutionWorkflow((draft) => {
+      state.mutate((draft) => {
         draft.isWaitingForUserInteraction = false;
       });
       resolve();
@@ -128,7 +128,7 @@ const handleTasksInteraction = async (
   });
 
   // Show tasks to user and wait for response
-  state.mutateChatMessages((draft) => {
+  state.mutate((draft) => {
     draft.chatMessages.push({
       kind: ChatMessageType.String,
       messageToken: msg.id,
@@ -177,13 +177,19 @@ export const processMessageByType = async (
   pendingInteractions: Map<string, (response: any) => void>,
   queueManager: MessageQueueManager,
 ): Promise<void> => {
+  const logger = state.logger.child({ component: "processMessageByType" });
+
   switch (msg.type) {
     case KaiWorkflowMessageType.ToolCall: {
-      // Add or update tool call notification in chat
-      state.mutateChatMessages((draft) => {
+      logger.debug("Processing ToolCall message", {
+        messageId: msg.id,
+        toolName: msg.data.name,
+        toolStatus: msg.data.status,
+      });
+      state.mutate((draft) => {
         const toolName = msg.data.name || "unnamed tool";
         const toolStatus = msg.data.status;
-        // Check if the most recent message is a tool message with the same name
+        const toolResult = msg.data.result as string | undefined;
         let updateExisting = false;
         if (draft.chatMessages.length > 0) {
           const lastMessage = draft.chatMessages[draft.chatMessages.length - 1];
@@ -196,14 +202,13 @@ export const processMessageByType = async (
         }
 
         if (updateExisting) {
-          // Update the status of the most recent tool message
           draft.chatMessages[draft.chatMessages.length - 1].value = {
             toolName,
             toolStatus,
+            toolResult,
           };
           draft.chatMessages[draft.chatMessages.length - 1].timestamp = new Date().toISOString();
         } else {
-          // Add a new tool message if the most recent message is not the same tool
           draft.chatMessages.push({
             kind: ChatMessageType.Tool,
             messageToken: msg.id,
@@ -211,6 +216,7 @@ export const processMessageByType = async (
             value: {
               toolName,
               toolStatus,
+              toolResult,
             },
           });
         }
@@ -218,6 +224,10 @@ export const processMessageByType = async (
       break;
     }
     case KaiWorkflowMessageType.UserInteraction: {
+      logger.info("Processing UserInteraction message", {
+        messageId: msg.id,
+        interactionType: (msg.data as KaiUserInteraction).type,
+      });
       const interaction = msg.data as KaiUserInteraction;
       switch (interaction.type) {
         case "yesNo": {
@@ -226,7 +236,7 @@ export const processMessageByType = async (
             const message = interaction.systemMessage.yesNo || "Would you like to proceed?";
 
             // Add the question to chat with quick responses
-            state.mutateChatMessages((draft) => {
+            state.mutate((draft) => {
               // Always add the interaction message - don't skip based on existing interactions
               // Multiple interactions can be pending at the same time
               draft.chatMessages.push({
@@ -256,7 +266,7 @@ export const processMessageByType = async (
         case "choice": {
           try {
             const choices = interaction.systemMessage.choice || [];
-            state.mutateChatMessages((draft) => {
+            state.mutate((draft) => {
               draft.chatMessages.push({
                 kind: ChatMessageType.String,
                 messageToken: msg.id,
@@ -295,8 +305,6 @@ export const processMessageByType = async (
       break;
     }
     case KaiWorkflowMessageType.LLMResponseChunk: {
-      // Continue's approach: Direct updates, no buffering/throttling
-      // React and Zustand handle rendering efficiently
       const chunk = msg.data as any;
       let content: string;
       if (typeof chunk.content === "string") {
@@ -317,12 +325,11 @@ export const processMessageByType = async (
       }
 
       if (msg.id !== state.lastMessageId) {
-        // New message - create initial entry
         state.logger.info(`[Streaming] New message, content length: ${content.length}`, {
           messageId: msg.id,
           preview: content.substring(0, 50),
         });
-        state.mutateChatMessages((draft) => {
+        state.mutate((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
@@ -334,29 +341,30 @@ export const processMessageByType = async (
         });
         state.lastMessageId = msg.id;
       } else {
-        // Continuation - append directly to last message
-        state.mutateChatMessages((draft) => {
-          if (draft.chatMessages.length > 0) {
-            const lastMessage = draft.chatMessages[draft.chatMessages.length - 1];
-            if (lastMessage.messageToken === msg.id) {
-              const oldLength = (lastMessage.value.message as string)?.length || 0;
-              lastMessage.value.message += content;
-              lastMessage.timestamp = new Date().toISOString();
-              const newLength = (lastMessage.value.message as string)?.length || 0;
-              state.logger.info(`[Streaming] Appended chunk`, {
-                messageId: msg.id,
-                oldLength,
-                newLength,
-                chunkSize: content.length,
-                preview: content.substring(0, 30),
-              });
+        state.mutate((draft) => {
+          // Find the target message by token -- tool messages may have been
+          // inserted after the text message we need to append to.
+          for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
+            const target = draft.chatMessages[i];
+            if (target.messageToken === msg.id && target.kind === ChatMessageType.String) {
+              target.value.message += content;
+              target.timestamp = new Date().toISOString();
+              break;
             }
           }
         });
       }
       break;
     }
+    case KaiWorkflowMessageType.LLMResponse: {
+      logger.info("Processing LLMResponse message", { messageId: msg.id });
+      break;
+    }
     case KaiWorkflowMessageType.ModifiedFile: {
+      logger.info("Processing ModifiedFile message", {
+        messageId: msg.id,
+        filePath: (msg.data as any)?.path,
+      });
       await handleModifiedFileMessage(
         msg,
         state.modifiedFiles,
@@ -368,9 +376,8 @@ export const processMessageByType = async (
       break;
     }
     case KaiWorkflowMessageType.Error: {
-      // Handle error messages from the workflow (including LLM errors)
       const errorMessage = msg.data as string;
-      state.logger.error("Workflow error received:", errorMessage);
+      logger.error("Processing Error message", { messageId: msg.id, errorMessage });
 
       // Check if this is an LLM-specific error based on the error message
       // The workflow emits "Failed to get llm response - " prefix for LLM errors
@@ -402,12 +409,12 @@ export const processMessageByType = async (
           llmError = createLLMError.llmRequestFailed(actualError);
         }
 
-        state.mutateConfigErrors((draft) => {
+        state.mutate((draft) => {
           draft.llmErrors.push(llmError);
         });
       } else {
         // For non-LLM errors, just add to chat messages
-        state.mutateChatMessages((draft) => {
+        state.mutate((draft) => {
           draft.chatMessages.push({
             kind: ChatMessageType.String,
             messageToken: msg.id,
@@ -418,6 +425,16 @@ export const processMessageByType = async (
           });
         });
       }
+      break;
+    }
+    default: {
+      const unhandled = msg as KaiWorkflowMessage;
+      logger.warn("Unhandled message type in processMessageByType", {
+        messageId: unhandled.id,
+        messageType: unhandled.type,
+        messageTypeName: KaiWorkflowMessageType[unhandled.type] ?? "UNKNOWN",
+        dataKeys: unhandled.data ? Object.keys(unhandled.data as object) : [],
+      });
       break;
     }
   }

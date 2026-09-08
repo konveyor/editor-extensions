@@ -1,0 +1,10 @@
+kind: feature
+
+description: >
+  Add pluggable agent backend infrastructure supporting Goose, OpenCode, Claude,
+  and Codex as interchangeable AI backends. Includes MCP server with analysis
+  tools, structured chat panel with streaming and permission review UI, and
+  granular tool permission policy.
+
+extensions:
+  - core
