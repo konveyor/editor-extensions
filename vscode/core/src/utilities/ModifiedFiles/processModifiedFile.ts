@@ -34,10 +34,14 @@ export async function processModifiedFile(
         throw err;
       }
     }
-    // Normalize original content as well to ensure consistent comparison
+
+    // Use pre-read original content if provided (the Goose flow provides this
+    // because Goose writes files to disk before we process the message, so
+    // reading from disk would give us the already-modified content).
     const rawOriginal = isNew
       ? undefined
-      : new TextDecoder().decode(await workspace.fs.readFile(uri));
+      : (modifiedFile.originalContent ??
+        new TextDecoder().decode(await workspace.fs.readFile(uri)));
     originalContent = rawOriginal ? normalizeLineEndings(rawOriginal) : undefined;
 
     modifiedFilesState.set(uri.fsPath, {

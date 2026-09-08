@@ -38,7 +38,7 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
   );
   await saveUserProfiles(state.extensionContext, userProfiles);
 
-  state.mutateProfiles((draft) => {
+  state.mutate((draft) => {
     const target = draft.profiles.find((p) => p.id === updated.id);
     if (target) {
       Object.assign(target, updated);
@@ -46,7 +46,7 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
   });
 
   // Re-validate config errors to clear "no custom rules" error if applicable
-  state.mutateConfigErrors((draft) => {
+  state.mutate((draft) => {
     // Clear existing profile-related errors and re-validate using centralized logic
     draft.configErrors = draft.configErrors.filter(
       (error) => error.type !== "invalid-label-selector" && error.type !== "no-custom-rules",
