@@ -103,7 +103,7 @@ export class AgentOrchestrator {
         { parseModelConfig, getModelProviderFromConfig },
         { paths },
         { KaiInteractiveWorkflow, FileBasedResponseCache },
-        { getConfigKaiDemoMode, getCacheDir },
+        { getConfigKaiDemoMode, getCacheDir, getTraceEnabled, getTraceDir },
         { DirectLLMClient },
       ] = await Promise.all([
         import("../../modelProvider"),
@@ -113,13 +113,26 @@ export class AgentOrchestrator {
         import("../../client/directLLMClient"),
       ]);
 
-      const parsedConfig = await parseModelConfig(paths().settingsYaml);
-      const modelProvider = await getModelProviderFromConfig(parsedConfig, this.logger);
+      const workspaceRoot = this.state.data.workspaceRoot;
+
+      // Prefer the provider the extension already validated: it carries the
+      // demo-mode response cache and may be the Hub LLM proxy, neither of which
+      // a provider rebuilt from provider-settings.yaml alone would have.
+      let modelProvider = this.state.modelProvider;
+      if (!modelProvider) {
+        const parsedConfig = await parseModelConfig(paths().settingsYaml);
+        modelProvider = await getModelProviderFromConfig(
+          parsedConfig,
+          this.logger,
+          getConfigKaiDemoMode() ? getCacheDir(workspaceRoot) : undefined,
+          getTraceEnabled() ? getTraceDir(workspaceRoot) : undefined,
+        );
+      }
 
       const workflow = new KaiInteractiveWorkflow(this.logger);
       await workflow.init({
         modelProvider,
-        workspaceDir: this.state.data.workspaceRoot,
+        workspaceDir: workspaceRoot,
         fsCache: this.state.kaiFsCache,
         solutionServerClient: this.state.hubConnectionManager.getSolutionServerClient(),
         toolCache: new FileBasedResponseCache(
@@ -127,7 +140,7 @@ export class AgentOrchestrator {
           (args) =>
             typeof args === "string" ? args : JSON.stringify(args, Object.keys(args).sort()),
           (args) => (typeof args === "string" ? args : JSON.parse(args)),
-          getCacheDir(this.state.data.workspaceRoot),
+          getCacheDir(workspaceRoot),
           this.logger,
         ),
       });
