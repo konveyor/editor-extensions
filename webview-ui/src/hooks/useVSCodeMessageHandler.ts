@@ -10,7 +10,6 @@ import {
   isAgentChatStreamingUpdate,
   isAgentToolCall,
   isAgentConfigUpdate,
-  isAgentShowSettings,
   ConfigErrorType,
   ChatMessageType,
   type ToolMessageValue,
@@ -165,6 +164,9 @@ export function useVSCodeMessageHandler() {
           if (message.agentMode !== undefined) {
             store.setIsAgentMode(message.agentMode);
           }
+          if (message.chatSettingsRequest !== undefined) {
+            store.setChatSettingsRequest(message.chatSettingsRequest);
+          }
           return;
         }
 
@@ -214,12 +216,6 @@ export function useVSCodeMessageHandler() {
         // Handle agent config update
         if (isAgentConfigUpdate(message)) {
           store.setAgentConfig(message.config);
-          return;
-        }
-
-        // Extension asked the chat to open its provider settings panel
-        if (isAgentShowSettings(message)) {
-          store.requestChatSettings();
           return;
         }
       } catch (error) {

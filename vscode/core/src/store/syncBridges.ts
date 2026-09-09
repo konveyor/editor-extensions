@@ -247,9 +247,13 @@ export function setupSyncBridges(
     agentState: s.featureState?.agentState,
     agentError: s.featureState?.agentError,
     agentMode: s.featureState?.agentMode,
+    chatSettingsRequest: s.featureState?.chatSettingsRequest,
   });
   const agentSliceEqual = (a: ReturnType<typeof agentSlice>, b: ReturnType<typeof agentSlice>) =>
-    a.agentState === b.agentState && a.agentError === b.agentError && a.agentMode === b.agentMode;
+    a.agentState === b.agentState &&
+    a.agentError === b.agentError &&
+    a.agentMode === b.agentMode &&
+    a.chatSettingsRequest === b.chatSettingsRequest;
   unsubscribers.push(
     store.subscribe(
       agentSlice,
@@ -263,6 +267,7 @@ export function setupSyncBridges(
           agentState: current.agentState,
           agentError: current.agentError,
           agentMode: current.agentMode,
+          chatSettingsRequest: current.chatSettingsRequest,
           timestamp: new Date().toISOString(),
         });
       },

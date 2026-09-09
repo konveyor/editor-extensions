@@ -169,13 +169,17 @@ const commandsMap: (
     // Open the chat with its provider settings panel showing. This is the
     // resolution path for provider config errors on the analysis page.
     [`${EXTENSION_NAME}.openChatSettings`]: async () => {
-      await vscode.commands.executeCommand(`${EXTENSION_NAME}.openChat`);
-      const { AgentMessageTypes } = await import("@editor-extensions/shared");
-      // The provider queues the message until the webview reports ready.
-      state.webviewProviders?.get("chat")?.sendMessageToWebview({
-        type: AgentMessageTypes.AGENT_SHOW_SETTINGS,
-        timestamp: new Date().toISOString(),
+      // A one-shot message can be lost while the chat webview is still mounting,
+      // so the request lives in featureState: the agent state bridge pushes it to
+      // an open chat, and a chat created after this click reads it from its
+      // initial data. The chat clears it once the panel is showing.
+      state.mutate((draft) => {
+        if (!draft.featureState) {
+          draft.featureState = {};
+        }
+        draft.featureState.chatSettingsRequest = Date.now();
       });
+      await vscode.commands.executeCommand(`${EXTENSION_NAME}.openChat`);
     },
     // Pop the chat out of the secondary sidebar into an editor tab. Same as the
     // "Move to editor" control inside the chat; exposed as a command so it can be

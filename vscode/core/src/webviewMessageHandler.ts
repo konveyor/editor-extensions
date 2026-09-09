@@ -31,6 +31,7 @@ import {
   MessageTypes,
   OPEN_CHAT_PANEL,
   OPEN_CHAT_SETTINGS,
+  CHAT_SETTINGS_SHOWN,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
   SYNC_HUB_PROFILES,
@@ -581,6 +582,13 @@ const actions: {
   },
   [OPEN_CHAT_SETTINGS]() {
     executeExtensionCommand("openChatSettings");
+  },
+  [CHAT_SETTINGS_SHOWN](_payload, state) {
+    state.mutate((draft) => {
+      if (draft.featureState) {
+        draft.featureState.chatSettingsRequest = 0;
+      }
+    });
   },
   [STOP_WORKFLOW]: async (_payload, state, logger) => {
     logger.info("Stop workflow requested by user");

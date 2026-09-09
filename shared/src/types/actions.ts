@@ -24,6 +24,8 @@ export const QUICK_RESPONSE = "QUICK_RESPONSE";
 export const OPEN_FILE_IN_EDITOR = "OPEN_FILE_IN_EDITOR";
 export const OPEN_CHAT_PANEL = "OPEN_CHAT_PANEL";
 export const OPEN_CHAT_SETTINGS = "OPEN_CHAT_SETTINGS";
+/** Chat webview acknowledges that it opened its settings panel. */
+export const CHAT_SETTINGS_SHOWN = "CHAT_SETTINGS_SHOWN";
 export const SET_AGENT_MODE = "SET_AGENT_MODE";
 export const OPEN_HUB_SETTINGS = "OPEN_HUB_SETTINGS";
 export const UPDATE_HUB_CONFIG = "UPDATE_HUB_CONFIG";
@@ -67,6 +69,7 @@ export type WebviewActionType =
   | typeof OPEN_FILE_IN_EDITOR
   | typeof OPEN_CHAT_PANEL
   | typeof OPEN_CHAT_SETTINGS
+  | typeof CHAT_SETTINGS_SHOWN
   | typeof SET_AGENT_MODE
   | typeof OPEN_HUB_SETTINGS
   | typeof UPDATE_HUB_CONFIG

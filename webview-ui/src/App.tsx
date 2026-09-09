@@ -52,6 +52,8 @@ const App: React.FC = () => {
         oidcTokenExpiry: windowData.oidcTokenExpiry ?? null,
         isWebEnvironment: windowData.isWebEnvironment ?? false,
         isAgentMode: (windowData.featureState?.agentMode as boolean | undefined) ?? false,
+        chatSettingsRequest:
+          (windowData.featureState?.chatSettingsRequest as number | undefined) ?? 0,
         modelSupportsTools: windowData.modelSupportsTools ?? true,
         isBatchReviewMode: windowData.isBatchReviewMode ?? false,
         pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
