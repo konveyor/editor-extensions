@@ -151,9 +151,17 @@ export class AgentOrchestrator {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error("AgentOrchestrator: failed to create direct LLM client", { error: msg });
-      vscode.window.showErrorMessage(
-        `Failed to initialize LLM: ${msg}. Check your provider-settings.yaml configuration.`,
-      );
+      // Re-run the health check so the analysis page and chat show the config
+      // error (with its "Configure Provider" action) instead of only this toast.
+      await this.state.reloadModelProvider?.();
+      const short = msg.length > 200 ? `${msg.slice(0, 200)}...` : msg;
+      vscode.window
+        .showErrorMessage(`Failed to initialize LLM: ${short}`, "Configure Provider")
+        .then((selection) => {
+          if (selection === "Configure Provider") {
+            void executeExtensionCommand("openChatSettings");
+          }
+        });
       return undefined;
     }
   }
