@@ -393,6 +393,13 @@
           "scope": "window",
           "order": 21
         },
+        "konveyor-core.genai.freeformChat": {
+          "type": "boolean",
+          "default": false,
+          "description": "(Experimental) Allow free-form messages to the Migration Assistant in Agent Mode. When disabled, the chat shows only the fix workflow and agent activity; solutions still run through the agent.",
+          "scope": "window",
+          "order": 22
+        },
         "konveyor-core.genai.batchReviewMode": {
           "type": "boolean",
           "default": false,

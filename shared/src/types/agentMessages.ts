@@ -16,6 +16,8 @@ export interface AgentStateChangeMessage {
   agentError?: string;
   /** Whether Agent Mode is enabled (genai.agentMode). Included so every webview tracks the single source of truth. */
   agentMode?: boolean;
+  /** Whether free-form chat input is enabled (genai.freeformChat). */
+  freeformChat?: boolean;
   /** Non-zero when the extension has asked the chat to open its settings panel. */
   chatSettingsRequest?: number;
   timestamp: string;

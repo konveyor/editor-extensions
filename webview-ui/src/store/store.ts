@@ -66,6 +66,8 @@ interface ExtensionStore {
   // Feature flags
   /** genai.agentMode — mirrors featureState.agentMode on the extension side. */
   isAgentMode: boolean;
+  /** genai.freeformChat — free-form input to the agent. Off by default. */
+  isFreeformChat: boolean;
   modelSupportsTools: boolean;
 
   // Batch review state
@@ -125,6 +127,7 @@ interface ExtensionStore {
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
   setIsAgentMode: (enabled: boolean) => void;
+  setIsFreeformChat: (enabled: boolean) => void;
 
   // Agent chat setters
   setAgentConfig: (config: AgentConfig | null) => void;
@@ -197,6 +200,7 @@ export const useExtensionStore = create<ExtensionStore>()(
 
       // Feature flags
       isAgentMode: false,
+      isFreeformChat: false,
       modelSupportsTools: true,
 
       // Batch review state
@@ -413,6 +417,11 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsAgentMode: (enabled) =>
         set((state) => {
           state.isAgentMode = enabled;
+        }),
+
+      setIsFreeformChat: (enabled) =>
+        set((state) => {
+          state.isFreeformChat = enabled;
         }),
 
       // Agent chat setters
