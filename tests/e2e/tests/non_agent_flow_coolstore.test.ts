@@ -102,13 +102,15 @@ providers.forEach((config) => {
         });
 
         // In non-agent mode, we should expect to see solutions presented directly
-        // without the interactive Yes/No flow. Look for "Accept all changes" button
-        // or similar solution acceptance mechanisms
+        // without the interactive Yes/No flow. The Migration Chat shows the
+        // compact batch review widget with "Apply All (n)" (several files) or
+        // "Accept" (single file) once the solution is ready.
 
         // Wait for the solution to be generated and presented
-        const acceptChangesLocator = resolutionView.locator(
-          'button[aria-label="Accept all changes"]'
-        );
+        const acceptChangesLocator = resolutionView.getByRole('button', {
+          name: /^Apply All \(\d+\)$|^Accept$/,
+        });
+        const batchReviewLocator = resolutionView.locator('.cbr__title');
 
         // Wait for either the accept changes button or some indication that solutions are ready
         let solutionReady = false;
@@ -116,10 +118,10 @@ providers.forEach((config) => {
 
         while (!solutionReady && maxWaitTime > 0) {
           const acceptButtonVisible = (await acceptChangesLocator.count()) > 0;
-          const solutionText = (await resolutionView.getByText('Solution').count()) > 0;
+          const batchReviewVisible = (await batchReviewLocator.count()) > 0;
           const codeChanges = (await resolutionView.locator('.monaco-editor').count()) > 0;
 
-          if (acceptButtonVisible || solutionText || codeChanges) {
+          if (acceptButtonVisible || batchReviewVisible || codeChanges) {
             solutionReady = true;
             console.log('Solution appears to be ready');
           } else {
@@ -144,7 +146,7 @@ providers.forEach((config) => {
 
         // If we have an accept changes button, click it
         if ((await acceptChangesLocator.count()) > 0) {
-          await acceptChangesLocator.click();
+          await acceptChangesLocator.first().click();
           console.log('Accept all changes button clicked');
 
           await vscodeApp.getWindow().screenshot({

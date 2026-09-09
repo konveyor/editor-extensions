@@ -399,7 +399,13 @@ export abstract class VSCode {
         name: new RegExp(resolutionAction),
       });
       // The chat shows a "Working on migration fix..." indicator while a solution is generated
-      await expect(resolutionView.locator('.chat-solution-indicator')).toHaveCount(0, {
+      // and the compact batch review widget once file changes arrive. Wait for either to show
+      // up first, otherwise the "indicator is gone" check below passes before the fix starts.
+      const solutionIndicator = resolutionView.locator('.chat-solution-indicator');
+      await expect(solutionIndicator.or(resolutionView.locator('.cbr__title')).first()).toBeVisible(
+        { timeout: 60_000 }
+      );
+      await expect(solutionIndicator).toHaveCount(0, {
         timeout: 600_000,
       }); // 10 minutes
 
