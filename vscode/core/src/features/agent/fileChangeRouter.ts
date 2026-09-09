@@ -1,8 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
+import { Uri, workspace } from "vscode";
 import { createTwoFilesPatch, createPatch } from "diff";
 import {
   ChatMessageType,
   cleanDiff,
+  normalizeLineEndings,
   type ModifiedFileMessageValue,
   type PendingBatchReviewFile,
 } from "@editor-extensions/shared";
@@ -21,6 +23,26 @@ function normalizeFilePath(filePath: string, workspaceRoot: string): string {
     return filePath.slice(wsRoot.length).replace(/^\//, "");
   }
   return filePath;
+}
+
+/**
+ * Reads the current on-disk content of a file, or returns undefined when the
+ * file does not exist (i.e. the change creates a new file).
+ *
+ * The workflow backend (KaiInteractiveWorkflow) emits ModifiedFile messages
+ * without `originalContent`; without this fallback every change would be
+ * classified as a new file, which hides the per-file Review action and turns
+ * the diff into a whole-file addition.
+ */
+async function readOriginalContent(filePath: string): Promise<string | undefined> {
+  const uri = filePath.startsWith("file://") ? Uri.parse(filePath) : Uri.file(filePath);
+  try {
+    await workspace.fs.stat(uri);
+  } catch {
+    return undefined;
+  }
+  const raw = new TextDecoder().decode(await workspace.fs.readFile(uri));
+  return normalizeLineEndings(raw);
 }
 
 /**
@@ -47,6 +69,10 @@ export async function routeFileChange(
 ): Promise<void> {
   const isBatchReviewMode = forceReview;
   const relativePath = normalizeFilePath(filePath, state.data.workspaceRoot);
+
+  if (originalContent === undefined) {
+    originalContent = await readOriginalContent(filePath);
+  }
 
   if (isBatchReviewMode) {
     const alreadyPending = state.data.pendingBatchReview?.some(
