@@ -93,6 +93,11 @@ export function getConfigAgentMode(): boolean {
   return getConfigValue<boolean>("genai.agentMode") ?? false;
 }
 
+/** genai.freeformChat — free-form input to the agent in the Migration Chat. Off by default. */
+export function getConfigFreeformChat(): boolean {
+  return getConfigValue<boolean>("genai.freeformChat") ?? false;
+}
+
 export async function updateConfigAgentMode(value: boolean): Promise<void> {
   await updateConfigValue("genai.agentMode", value);
 }

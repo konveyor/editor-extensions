@@ -164,6 +164,9 @@ export function useVSCodeMessageHandler() {
           if (message.agentMode !== undefined) {
             store.setIsAgentMode(message.agentMode);
           }
+          if (message.freeformChat !== undefined) {
+            store.setIsFreeformChat(message.freeformChat);
+          }
           if (message.chatSettingsRequest !== undefined) {
             store.setChatSettingsRequest(message.chatSettingsRequest);
           }

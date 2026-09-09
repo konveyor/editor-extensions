@@ -32,6 +32,7 @@ import {
   getConfigGenAIEnabled,
   getConfigAutoAcceptOnSave,
   getConfigAgentMode,
+  getConfigFreeformChat,
   getConfigBatchReviewMode,
   updateConfigErrors,
 } from "./utilities";
@@ -122,7 +123,7 @@ class VsCodeExtension {
       isWebEnvironment,
       availableTargets: [],
       availableSources: [],
-      featureState: { agentMode: getConfigAgentMode() },
+      featureState: { agentMode: getConfigAgentMode(), freeformChat: getConfigFreeformChat() },
       isBatchReviewMode: getConfigBatchReviewMode(),
       pendingBatchReview: [],
       modelSupportsTools: true,
@@ -709,6 +710,17 @@ class VsCodeExtension {
                   }
                 });
             }
+          }
+
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.freeformChat`)) {
+            const freeformChat = getConfigFreeformChat();
+            this.state.mutate((draft) => {
+              if (!draft.featureState) {
+                draft.featureState = {};
+              }
+              draft.featureState.freeformChat = freeformChat;
+            });
+            this.state.logger.info(`Free-form chat updated from settings: ${freeformChat}`);
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.analyzerPath`)) {

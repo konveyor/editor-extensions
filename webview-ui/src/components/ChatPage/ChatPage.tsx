@@ -51,6 +51,9 @@ const ChatPage: React.FC = () => {
   // Agent Mode (genai.agentMode) enables the live agent: status/start/stop controls,
   // the agent message stream and the free-form input. Off = fix workflow only.
   const isAgentMode = useExtensionStore((s) => s.isAgentMode);
+  // genai.freeformChat gates the open-ended input and suggestion chips; the
+  // fix workflow and agent activity render regardless.
+  const isFreeformChat = useExtensionStore((s) => s.isFreeformChat);
   const agentState = useExtensionStore((s) => s.agentState);
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
@@ -671,7 +674,7 @@ const ChatPage: React.FC = () => {
 
                   {!hasWorkflowContent && !hasAgentContent && !isProcessing && (
                     <div className="chat-agent-status">
-                      {isAgentMode && isRunning ? (
+                      {isAgentMode && isRunning && isFreeformChat ? (
                         <>
                           <p className="chat-agent-status__hint">
                             Ask the Migration Assistant anything, or try a suggestion:
@@ -784,7 +787,7 @@ const ChatPage: React.FC = () => {
             </div>
           </ChatbotContent>
 
-          {isAgentMode && isRunning ? (
+          {isAgentMode && isRunning && isFreeformChat ? (
             <ChatbotFooter>
               <div
                 className={`chat-input-area ${isBusy && !isFetchingSolution ? "chat-input-area--busy" : ""}`}
