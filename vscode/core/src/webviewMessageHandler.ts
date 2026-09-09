@@ -633,9 +633,19 @@ const actions: {
         await saveAgentCredentials(state.extensionContext, merged);
 
         logger.info("Written provider-settings.yaml from chat UI config");
-        vscode.window.showInformationMessage(
-          `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
+        await state.reloadModelProvider?.();
+        const stillFailing = state.data.configErrors.find(
+          (e) => e.type === "provider-connection-failed" || e.type === "provider-not-configured",
         );
+        if (stillFailing) {
+          vscode.window.showWarningMessage(
+            `Model configuration saved (${provider} / ${model}) but the connection check failed: ${stillFailing.error ?? stillFailing.message}`,
+          );
+        } else {
+          vscode.window.showInformationMessage(
+            `Model configuration updated: ${provider} / ${model}.`,
+          );
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

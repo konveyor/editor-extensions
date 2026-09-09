@@ -32,6 +32,12 @@ export interface ExtensionState {
   logger: winston.Logger;
   modelProvider: KaiModelProvider | undefined;
   modelProviderSource?: "hub-proxy" | "local-config";
+  /**
+   * Re-reads provider-settings.yaml, rebuilds the direct LLM client and refreshes
+   * the GenAI-related config errors. Called after the chat UI rewrites the yaml,
+   * since fs.writeFile does not fire the editor save listener.
+   */
+  reloadModelProvider?: () => Promise<void>;
   verticalDiffManager?: VerticalDiffManager;
   staticDiffAdapter?: StaticDiffAdapter;
   batchedAnalysisTrigger?: BatchedAnalysisTrigger;

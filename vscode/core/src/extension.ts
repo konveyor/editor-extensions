@@ -571,18 +571,26 @@ class VsCodeExtension {
         }),
       );
 
+      this.state.reloadModelProvider = async () => {
+        const configError = await this.setupModelProvider(paths().settingsYaml);
+        this.state.mutate((draft) => {
+          draft.configErrors = draft.configErrors.filter(
+            (e) =>
+              e.type !== "genai-disabled" &&
+              e.type !== "provider-not-configured" &&
+              e.type !== "provider-connection-failed",
+          );
+          if (configError) {
+            draft.configErrors.push(configError);
+          }
+        });
+      };
+
       // Handle settings.yaml configuration changes AFTER save
       this.listeners.push(
         vscode.workspace.onDidSaveTextDocument(async (doc) => {
           if (doc.uri.fsPath === paths().settingsYaml.fsPath) {
-            const configError = await this.setupModelProvider(paths().settingsYaml);
-            this.state.mutate((draft) => {
-              // Clear all config errors and re-validate
-              draft.configErrors = [];
-              if (configError) {
-                draft.configErrors.push(configError);
-              }
-            });
+            await this.state.reloadModelProvider?.();
           }
         }),
       );
