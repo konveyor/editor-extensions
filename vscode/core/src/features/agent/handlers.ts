@@ -166,10 +166,11 @@ export const agentMessageHandlers: Record<
             await import("../../modelProvider/providerConfigGenerator");
           const { paths } = await import("../../paths");
           const vscode = await import("vscode");
+          // Use the merged set so re-entering a single field keeps the rest
           const yamlContent = generateProviderSettingsYaml(
             payload.provider,
             payload.model,
-            payload.credentials,
+            cleaned,
           );
           const encoder = new TextEncoder();
           await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));

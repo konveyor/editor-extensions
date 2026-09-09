@@ -2,6 +2,8 @@ export interface ProviderEnvVar {
   key: string;
   label: string;
   isSecret?: boolean;
+  /** Must be supplied (or already stored) before the provider can start. */
+  required?: boolean;
 }
 
 export interface ProviderOption {
@@ -49,9 +51,13 @@ export const PROVIDERS: ProviderOption[] = [
   {
     id: "azure",
     name: "Azure OpenAI",
+    // Keys mirror the env vars Goose/OpenCode's Azure providers read; the
+    // extension maps them into LangChain args for the direct client.
     envVars: [
-      { key: "AZURE_OPENAI_API_KEY", label: "API Key", isSecret: true },
-      { key: "AZURE_OPENAI_ENDPOINT", label: "Endpoint" },
+      { key: "AZURE_OPENAI_API_KEY", label: "API Key", isSecret: true, required: true },
+      { key: "AZURE_OPENAI_ENDPOINT", label: "Endpoint", required: true },
+      { key: "AZURE_OPENAI_DEPLOYMENT_NAME", label: "Deployment name", required: true },
+      { key: "AZURE_OPENAI_API_VERSION", label: "API version", required: true },
     ],
     commonModels: [],
   },
