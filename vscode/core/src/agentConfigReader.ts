@@ -79,7 +79,7 @@ function readOpencodeConfig(): AgentConfig {
 
   return {
     backend: "opencode",
-    agentMode: true,
+    agentMode: false,
     provider,
     model,
     capabilities,

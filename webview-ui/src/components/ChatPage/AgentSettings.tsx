@@ -14,7 +14,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
 
   const [selectedProvider, setSelectedProvider] = useState(agentConfig?.provider ?? "");
   const [modelInput, setModelInput] = useState(agentConfig?.model ?? "");
-  const [agentModeEnabled, setAgentModeEnabled] = useState(agentConfig?.agentMode ?? true);
+  const [agentModeEnabled, setAgentModeEnabled] = useState(agentConfig?.agentMode ?? false);
   const [extensionStates, setExtensionStates] = useState<Record<string, boolean>>({});
   const [credentialInputs, setCredentialInputs] = useState<Record<string, string>>({});
   const [showModelSuggestions, setShowModelSuggestions] = useState(false);
@@ -103,7 +103,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const hasChanges =
     selectedProvider !== (agentConfig?.provider ?? "") ||
     modelInput !== (agentConfig?.model ?? "") ||
-    agentModeEnabled !== (agentConfig?.agentMode ?? true) ||
+    agentModeEnabled !== (agentConfig?.agentMode ?? false) ||
     Object.values(credentialInputs).some((v) => v.length > 0) ||
     agentConfig?.capabilities.some((ext) => extensionStates[ext.id] !== ext.enabled);
 

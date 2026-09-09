@@ -346,7 +346,7 @@ export function startAgent(agentClient: AcpClient, ctx: FeatureContext): void {
         const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
         const config = readAgentConfig();
         config.hasStoredCredentials = await hasAgentCredentials(ctx.extensionContext);
-        config.agentMode = (ctx.store.getState().featureState?.agentMode as boolean) ?? true;
+        config.agentMode = (ctx.store.getState().featureState?.agentMode as boolean) ?? false;
         const timestamp = new Date().toISOString();
         for (const provider of ctx.webviewProviders.values()) {
           provider.sendMessageToWebview({

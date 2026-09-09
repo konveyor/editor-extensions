@@ -46,7 +46,7 @@ export function readGooseConfig(): AgentConfig {
 
   return {
     backend: "goose",
-    agentMode: true,
+    agentMode: false,
     provider,
     model,
     capabilities,

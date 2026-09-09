@@ -386,8 +386,8 @@
         },
         "konveyor-core.genai.agentMode": {
           "type": "boolean",
-          "default": true,
-          "description": "When enabled, an AI agent (Goose/OpenCode) explores the codebase and fixes issues autonomously using tools. When disabled, the configured LLM produces targeted fixes directly without an agent backend.",
+          "default": false,
+          "description": "(Experimental) When enabled, an ACP agent (Goose/OpenCode) explores the codebase and fixes issues autonomously using tools; requires the agent binary to be installed and a window reload. When disabled, the configured LLM produces targeted fixes directly without an agent backend.",
           "scope": "window",
           "order": 21
         },
